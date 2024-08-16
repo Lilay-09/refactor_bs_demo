@@ -1,0 +1,24 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use ApiResponse;
+use App\Http\Controllers\Controller;
+use App\Models\Stock;
+use Illuminate\Http\Request;
+
+class StockController extends Controller
+{
+    //
+    public function getStockItems(Request $req){
+        $stockItems = Stock::get();
+        return ApiResponse::Pagination($stockItems,$req);
+    }
+
+    public function setStockItemPrices(Request $req){
+        $sku = $req->sku;
+        $stock = Stock::where('sku',$sku)->first();
+        if(!$stock) return ApiResponse::NotFound('Item not found');
+        return $stock;
+    }
+}
