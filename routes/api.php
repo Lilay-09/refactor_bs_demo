@@ -12,6 +12,7 @@ use App\Http\Controllers\ProductGroupController;
 use App\Http\Controllers\ProductModelController;
 use App\Http\Controllers\ProductTagController;
 use App\Http\Controllers\ProductVariantController;
+use App\Http\Controllers\StockController;
 use App\Http\Controllers\StockLocationController;
 use App\Http\Controllers\StockManagementController;
 use App\Http\Controllers\VendorController;
@@ -88,6 +89,11 @@ Route::middleware('jwt')->group(function(){
                 Route::get('',[StockLocationController::class,'getStockLocations']);
                 Route::get('/{id}',[StockLocationController::class,'getStockLocation']);
                 Route::put('',[StockLocationController::class,'updateStockLocation']);
+            });
+
+            Route::prefix('item')->group(function(){
+                Route::get('',[StockController::class,'getStockItems']);
+                Route::put('price/{sku?}',[StockController::class,'setStockItemPrices']);
             });
         });
     });
