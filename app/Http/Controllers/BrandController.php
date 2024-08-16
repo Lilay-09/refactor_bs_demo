@@ -1,0 +1,65 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use ApiResponse;
+use App\Http\Controllers\Controller;
+use App\Models\Brand;
+use App\Services\UserService;
+use Illuminate\Http\Request;
+
+class BrandController extends Controller
+{
+    //
+
+    function brandValidation(Request $req){
+        return validator($req->all(),[
+            'name' => 'required|string|max:50',
+            'name_kh' => 'nullable|string|max:100'
+        ]);
+    }
+    public function createBrand(Request $req){
+
+        $validate = $this->brandValidation($req);
+        if($validate->fails()) return ApiResponse::ValidateFail($validate->errors()->first());
+        $inputs = $validate->validated();
+        $user = UserService::getAuthUser();
+        $inputs['create_uid'] = $user->id;
+        $inputs['update_uid'] = $user->id;
+        $inputs['branch_id'] = $user->branch_id;
+        $inputs['company_id'] = $user->company_id;
+        $create = Brand::create($inputs);
+        if($create) return ApiResponse::JsonResult(null,false,'Created');
+        return ApiResponse::Error('Fail to create');
+    }
+
+    public function brands(Request $req){
+        $user = UserService::getAuthUser();
+        $brands = Brand::where('branch_id',$user->branch_id)->selectRaw('id,name,name_kh')->get();
+        return ApiResponse::Pagination($brands,$req);
+    }
+    public function brand(Request $req,$id=null){
+        $id = $id ? $id : $req->id;
+        $user = UserService::getAuthUser();
+        $brand = Brand::where('branch_id',$user->branch_id)->selectRaw('id,name,name_kh')->find($id);
+        return ApiResponse::JsonResult($brand);
+    }
+
+    public function updateBrand(Request $req,$id=null){
+        $validate = $this->brandValidation($req);
+        if($validate->fails()) return ApiResponse::ValidateFail($validate->errors()->first());
+        $inputs = $validate->validated();
+        $id = $id ? $id : $req->id;
+        $user = UserService::getAuthUser();
+        $brand = Brand::where('branch_id',$user->branch_id)->find($id);
+        if(!$brand) return ApiResponse::NotFound('Brand not found');
+        $name = $inputs['name'];
+        $name_kh = $inputs['name_kh'];
+        $inputs['update_uid'] = $user->id;
+        $inputs['branch_id'] = $user->branch_id;
+        $inputs['company_id'] = $user->company_id;
+        $update = $brand->update($inputs);
+        if($update) return ApiResponse::JsonResult(null,false,'Updated');
+        return ApiResponse::Error('Fail to update');
+    }
+}

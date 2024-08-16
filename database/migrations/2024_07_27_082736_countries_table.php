@@ -1,0 +1,35 @@
+<?php
+
+use App\Traits\BaseMigrationField;
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+class CountriesTable extends Migration
+{
+    use BaseMigrationField;
+    /**
+     * Run the migrations.
+     *
+     * @return void
+     */
+    public function up()
+    {
+        //
+        Schema::create('countries',function(Blueprint $table){
+            $this->AddBaseFields($table);
+            $table->string('name',50)->unique();
+            $table->string('name_kh',100)->nullable();
+        });
+    }
+
+    /**
+     * Reverse the migrations.
+     *
+     * @return void
+     */
+    public function down()
+    {
+        //
+    }
+}

@@ -1,0 +1,83 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use ApiResponse;
+use App\Models\City;
+use App\Services\UserService;
+use Illuminate\Http\Request;
+use Tymon\JWTAuth\Facades\JWTAuth;
+
+class CityController extends Controller
+{
+    //
+
+    function cityValidation(Request $req){
+        return validator($req->all(),[
+            'name' => 'required|string',
+            'country_id' => 'required|int',
+            'name_kh' => 'nullable|string'
+        ]);
+    }
+    public function createCity(Request $req){
+        $validate = $this->cityValidation($req);
+        if($validate->fails()) return ApiResponse::ValidateFail($validate->errors()->first());
+        $inputs = $validate->validated();
+        $user = UserService::getAuthUser();
+        $name = $inputs['name'];
+        $country_id = $inputs['country_id'];
+        $inputs['create_uid'] = $user->id;
+        $inputs['update_uid'] = $user->id;
+        $inputs['branch_id'] = $user->branch_id;
+        $inputs['company_id'] = $user->company_id;
+        $existCity = City::where('name',$name)->where('branch_id',$user->branch_id)->where('country_id',$country_id)->take(1)->value('id');
+        if($existCity) return ApiResponse::Duplicated('City ('.$name.') is already exists.');
+        $create = City::create($inputs);
+
+        if($create) return ApiResponse::JsonResult(null,false,'Created');
+
+        return ApiResponse::JsonResult([
+            'error' => true,
+            'message' => 'Fail to save country'
+        ],500);
+    }
+
+    public function cities(Request $req){
+        $user = UserService::getAuthUser();
+        $cities = City::with('districts:id,city_id,name,name_kh')->where('branch_id',$user->branch_id)->selectRaw('id,name,name_kh')->get();
+        return ApiResponse::JsonResult($cities);
+    }
+
+    public function city(Request $req,$id=null){
+        $id = $id ? $id : $req->id;
+        $user = UserService::getAuthUser();
+        $city = City::where('branch_id',$user->branch_id)->find($id);
+        return ApiResponse::JsonResult($city);
+    }
+
+    public function updateCity(Request $req,$id=null){
+        $validate = $this->cityValidation($req);
+        if($validate->fails()) return ApiResponse::ValidateFail($validate->errors()->first(),'Please input correct data.');
+        $inputs = $validate->validated();
+        $name = $inputs['name'];
+        $id = $id ? $id :$req->id;
+        $country_id = $inputs['country_id'];
+        $user = UserService::getAuthUser();
+        $city = City::find($id)->where('branch_id',$user->branch_id);
+        if(!$city) return ApiResponse::NotFound('City not found');
+
+        $existCity = City::where('name',$req->name)->where('branch_id',$user->branch_id)->where('country_id',$country_id)->where('id','!=',$id)->take(1)->value('id');
+        if($existCity) return ApiResponse::Duplicated('City('.$name.') is already taken.');
+        // return $user;
+        $inputs['update_uid'] = $user->id;
+        $inputs['branch_id'] = $user->branch_id;
+        $inputs['company_id'] = $user->company_id;
+        $update = $city->update($inputs);
+        if($update) return ApiResponse::JsonResult(null,false,'Update');
+
+        return ApiResponse::JsonResult([
+            'error' => true,
+            'message' => 'Fail to save country'
+        ],500);
+    }
+}
