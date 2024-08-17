@@ -19,6 +19,16 @@ class StockController extends Controller
         $sku = $req->sku;
         $stock = Stock::where('sku',$sku)->first();
         if(!$stock) return ApiResponse::NotFound('Item not found');
-        return $stock;
+        return ApiResponse::JsonResult($stock);
+    }
+
+    public function getSortStockItems(Request $req){
+        $stockItems = Stock::get();
+        $items = $this->getStockItems($stockItems);
+        return ApiResponse::JsonResult($stockItems);
+    }
+
+    private function getRecursiveSortStockItems($items){
+        return $items;
     }
 }
