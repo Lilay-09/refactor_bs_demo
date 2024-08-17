@@ -18,9 +18,10 @@ return new class extends Migration
 
             // Add a new 'id' column as the primary key
             $table->id('id');
+            
 
             // Optionally, add the unique constraint to 'sku' if needed
-            $table->string('sku', 50)->change();
+            // $table->string('sku', 50)->change();
         });
     }
 
@@ -33,6 +34,8 @@ return new class extends Migration
         Schema::table('stocks', function (Blueprint $table) {
             // Remove the 'id' column
             $table->dropColumn('id');
+
+            $table->string('sku', 50)->primary()->change();
 
             // Reinstate 'sku' as the primary key
             // $table->primary('sku');
