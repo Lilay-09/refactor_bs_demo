@@ -10,6 +10,7 @@ use Illuminate\Http\Request;
 
 class StockLocationController extends Controller
 {
+    
     private function stockLocationValidation(Request $req){
         return validator($req->all(),[
             'name' => 'required|string|max:50',
