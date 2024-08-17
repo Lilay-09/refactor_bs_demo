@@ -17,10 +17,10 @@ return new class extends Migration
             $table->dropPrimary('sku');
 
             // Add a new 'id' column as the primary key
-            $table->bigIncrements('id')->first();
+            $table->id('id');
 
             // Optionally, add the unique constraint to 'sku' if needed
-            $table->string('sku', 50)->unique()->change();
+            $table->string('sku', 50)->change();
         });
     }
 
@@ -35,7 +35,7 @@ return new class extends Migration
             $table->dropColumn('id');
 
             // Reinstate 'sku' as the primary key
-            $table->primary('sku');
+            // $table->primary('sku');
         });
     }
 };
