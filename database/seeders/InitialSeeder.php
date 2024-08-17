@@ -10,7 +10,7 @@ use App\Models\VendorType;
 use DB;
 use Illuminate\Database\Seeder;
 
-class initialSeeder extends Seeder
+class InitialSeeder extends Seeder
 {
     /**
      * Run the database seeds.
