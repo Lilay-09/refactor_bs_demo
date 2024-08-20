@@ -5,7 +5,9 @@ namespace App\Http\Controllers;
 use ApiResponse;
 use App\Http\Controllers\Controller;
 use App\Models\ProductVariant;
+use App\Models\ProductVariantPhoto;
 use App\Services\UserService;
+use Helper;
 use Illuminate\Http\Request;
 
 class ProductVariantController extends Controller
@@ -32,7 +34,14 @@ class ProductVariantController extends Controller
         $inputs['company_id'] = $user->company_id;
         $inputs['update_uid'] = $user->id;
         $inputs['create_uid'] = $user->id;
+        $photos = isset($inputs['photos']) ? $inputs['photos'] : [];
+        unset($inputs['photos']);
         $create = ProductVariant::create($inputs);
+        $product = new ProductController();
+        if(isset($photos[0])){
+            $savePhoto = $product->updateOrCreateVariantPhotos($photos,$user->company_id,$create->id);
+            if($savePhoto->status_code == 422) return ApiResponse::ValidateFail($savePhoto->message);
+        }
         if(!$create) return ApiResponse::Error('Fail to create variant');
         return ApiResponse::JsonResult(null,false,'Created');
     }
@@ -54,8 +63,13 @@ class ProductVariantController extends Controller
         $inputs['branch_id'] = $user->branch_id;
         $inputs['company_id'] = $user->company_id;
         $inputs['update_uid'] = $user->id;
+        $photos = $inputs['photos'];
+        unset($inputs['photos']);
         $variant = ProductVariant::where('branch_id',$user->branch_id)->find($id);
         $update = $variant->update($inputs);
+        $product = new ProductController();
+        $savePhoto = $product->updateOrCreateVariantPhotos($photos,$user->company_id,$id);
+        if($savePhoto->status_code == 422) return ApiResponse::ValidateFail($savePhoto->message);
         if(!$update) return ApiResponse::Error('Fail to update variant');
         return ApiResponse::JsonResult(null,false,'Updated');
     }
@@ -72,5 +86,17 @@ class ProductVariantController extends Controller
         $product_id = $product_id ? $product_id : $req->product_id;
         $variants = ProductVariant::where('branch_id',$user->branch_id)->where('product_id',$product_id)->selectRaw('id,size,color,sku,weight,width,length,expires_at,condition,condition_percentage,material,product_id')->get();
         return ApiResponse::JsonResult($variants);
+}
+
+    public function deleteVariantPhoto(Request $req){
+        $id = $req->id;
+        $user = UserService::getAuthUser();
+        $photo = ProductVariantPhoto::find($id);
+        if(!$photo) return ApiResponse::NotFound('The photo not found');
+        if($photo){
+            Helper::deleteImageFile($photo->photo_file_name,$user->company_id,$photo->directory);
+        }
+        $photo->delete();
+        return ApiResponse::JsonResult(null,false,'Photo deleted');
     }
 }

@@ -13,9 +13,9 @@ return new class extends Migration
     {
         Schema::table('product_variants', function (Blueprint $table) {
             //
-            $table->decimal('cost')->nullable();
-            $table->decimal('retail_price')->nullable();
-            $table->decimal('wholesale_price')->nullable();
+            $table->decimal('cost')->default(0);
+            $table->decimal('retail_price')->default(0);
+            $table->decimal('wholesale_price')->default(0);
         });
     }
 

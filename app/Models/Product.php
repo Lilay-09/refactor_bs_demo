@@ -27,6 +27,9 @@ class Product extends Model
         'wholesale_price',
         'company_id'
     ];
+    protected $hidden = [
+        'wholesale_price',
+    ];
 
     public function variants(){
         return $this->hasMany(ProductVariant::class,'product_id','id');

@@ -113,6 +113,140 @@ class Helper{
     static function year($date){
         return date('Y',strtotime($date));
     }
+
+    /**
+     * Summary of base64ToImageFile
+     * @param mixed $base64String
+     * @param mixed $companyId
+     * @param mixed $dirName
+     * @return string
+     * Note* folder structure => public/uploads/images/companyId/dirname
+     */
+    static function base64ToImageFile($base64String, $companyId, $dirName,$ext=null)
+    {
+        // Construct the base directory path
+        $baseFolder = public_path('uploads/images/' . $companyId . '/' . $dirName);
+
+        // Check if the directory exists, if not, create it
+        if (!file_exists($baseFolder)) {
+            if (!mkdir($baseFolder, 0755, true)) {
+                throw new Exception('Failed to create directory: ' . $baseFolder);
+            }
+        }
+
+        // Split the base64 string to get the format and the data
+        if (preg_match('/^data:image\/(\w+);base64,/', $base64String, $matches)) {
+            $fileExtension = $matches[1]; // e.g., png, jpg, jpeg
+            list(, $imageData) = explode(';base64,', $base64String);
+            $imageData = base64_decode($imageData);
+
+            if ($imageData === false) {
+                throw new Exception('Base64 decode failed.');
+            }
+            $fileExtension = $ext ? $ext : $fileExtension;
+            // Generate a unique file name
+            // => company_id+YMdHis+uniqid+extension
+            $fileName = $companyId.date('YmdHis').uniqid() . '.' . $fileExtension;
+
+            // Save the image file
+            $filePath = $baseFolder . '/' . $fileName;
+            if (file_put_contents($filePath, $imageData) === false) {
+                throw new Exception('Failed to save file to path: ' . $filePath);
+            }
+            // Return the file name
+            return $fileName;
+        } else {
+            throw new Exception('Invalid base64 string.');
+        }
+    }
+
+
+    static function deleteImageFile($fileName, $companyId, $dirName)
+    {
+        // Construct the base directory path
+        $baseFolder = public_path('uploads/images/' . $companyId . '/' . $dirName);
+
+        // Construct the full file path
+        $filePath = $baseFolder . '/' . $fileName;
+
+        // Check if the file exists
+        if (file_exists($filePath)) {
+            // Attempt to delete the file
+            if (unlink($filePath)) {
+                return true; // File deleted successfully
+            } else {
+                throw new Exception('Failed to delete file: ' . $filePath);
+            }
+        } else {
+            throw new Exception('File not found: ' . $filePath);
+        }
+    }
+
+    static function getFileUrl($fileName, $companyId, $dirName, $type = 'image')
+    {
+        // Determine the base directory based on the file type
+        switch ($type) {
+            case 'image':
+                $baseFolder = public_path('uploads/images/' . $companyId . '/' . $dirName);
+                $baseUrl = 'uploads/images/';
+                break;
+            case 'document':
+                $baseFolder = public_path('uploads/documents/' . $companyId . '/' . $dirName);
+                $baseUrl = 'uploads/documents/';
+                break;
+            // Add more cases as needed for other types
+            default:
+                throw new Exception('Invalid file type specified.');
+        }
+
+        // Construct the full file path
+        $filePath = $baseFolder . '/' . $fileName;
+
+        // Construct the URL for the file
+        $fileUrl = asset($baseUrl . $companyId . '/' . $dirName . '/' . $fileName);
+
+        // Check if the file exists
+        if (file_exists($filePath)) {
+            // Return the URL and file path
+            return [
+                'url' => $fileUrl,
+                'path' => $filePath,
+            ];
+        } else {
+            throw new Exception('File not found: ' . $filePath);
+        }
+    }
+    static function isValidBase64Image($base64String)
+    {
+        // Check if the string has the correct base64 format for an image
+        if (preg_match('/^data:image\/(\w+);base64,/', $base64String, $matches)) {
+            // Extract the base64 data if the prefix is present
+            $imageData = substr($base64String, strpos($base64String, ',') + 1);
+        } else {
+            // If no prefix, assume the entire string is base64 encoded image data
+            $imageData = $base64String;
+        }
+        // Decode the base64 data
+        $imageData = base64_decode($imageData, true);
+        // Ensure that base64_decode did not return false (indicating a decoding failure)
+        if ($imageData === false) {
+            return false;
+        }
+        // Check if the image data is a valid image using GD or Imagick
+        $img = @imagecreatefromstring($imageData);
+        if ($img !== false) {
+            // The image is valid
+            imagedestroy($img);
+            return true;
+        }
+        // If the string does not match the pattern or the image data is invalid, return false
+        return false;
+    }
+
+
+
+
+
 }
 
 

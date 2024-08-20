@@ -10,14 +10,16 @@ use Illuminate\Http\Request;
 
 class StockLocationController extends Controller
 {
-    
+
     private function stockLocationValidation(Request $req){
         return validator($req->all(),[
             'name' => 'required|string|max:50',
             'description' => 'nullable|string|max:250',
+            'branch_id' => 'nullable|int|exists:branches,id',
             'address' => 'nullable|string|max:150',
             'address_kh' => 'nullable|string|max:150',
-            'type_id' => 'required|int|exists:stock_location_types,id'
+            'type_id' => 'required|int|exists:stock_location_types,id',
+            'main' => 'nullable|in,true,false|default:false'
         ]);
     }
     //
@@ -30,8 +32,9 @@ class StockLocationController extends Controller
         $inputs['create_uid'] = $userId;
         $inputs['update_uid'] = $userId;
         $inputs['company_id'] = $user->company_id;
-        $inputs['branch_id'] = $user->branch_id;
-
+        $inputs['branch_id'] = isset($inputs['branch_id']) ? $inputs['branch_id'] : $user->branch_id;
+        $hasMain = StockLocation::where('company_id',$user->company_id)->take(1)->value('main');
+        if($hasMain) return ApiResponse::Duplicated('The main wareharehouse is already exists');
         $create = StockLocation::create($inputs);
         if($create) return ApiResponse::JsonResult(null,false,'Created');
         return ApiResponse::Error('Fail to create');
@@ -57,7 +60,9 @@ class StockLocationController extends Controller
         $inputs = $validator->validated();
         $inputs['update_uid'] = $user->id;
         $inputs['company_id'] = $user->company_id;
-        $inputs['branch_id'] = $user->branch_id;
+        $inputs['branch_id'] = isset($inputs['branch_id']) ? $inputs['branch_id'] : $user->branch_id;
+         $hasMain = StockLocation::where('company_id',$user->company_id)->where('id','!=',$id)->take(1)->value('main');
+        if($hasMain) return ApiResponse::Duplicated('The main wareharehouse is already exists');
         $update = $stockLocation->update($inputs);
         if($update) return ApiResponse::JsonResult(null,false,'Updated');
         return ApiResponse::Error('Fail to update');

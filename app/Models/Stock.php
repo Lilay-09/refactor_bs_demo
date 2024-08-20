@@ -28,4 +28,12 @@ class Stock extends Model
         'branch_id',
         'company_id',
     ];
+
+    protected $hidden = [
+        'wholesale_price',
+    ];
+
+    public function variant(){
+        return $this->belongsTo(ProductVariant::class,'variant_id','id');
+    }
 }

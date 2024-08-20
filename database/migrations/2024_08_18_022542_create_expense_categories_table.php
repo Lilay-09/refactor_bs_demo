@@ -1,21 +1,22 @@
 <?php
 
+use App\Traits\BaseMigrationField;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
+    use BaseMigrationField;
     /**
      * Run the migrations.
      */
     public function up(): void
     {
-        Schema::table('products', function (Blueprint $table) {
-            //
-            $table->decimal('cost')->default(0);
-            $table->decimal('retail_price')->default(0);
-            $table->decimal('wholesale_price')->default(0);
+        Schema::create('expense_categories', function (Blueprint $table) {
+            $this->AddBaseFields($table);
+            $table->string('name',50);
+            $table->string('name_kh',100)->nullable();
         });
     }
 
@@ -24,8 +25,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('products', function (Blueprint $table) {
-            //
-        });
+        Schema::dropIfExists('expense_categories');
     }
 };

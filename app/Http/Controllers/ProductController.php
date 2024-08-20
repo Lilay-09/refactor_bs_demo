@@ -6,12 +6,13 @@ use ApiResponse;
 use App\Http\Controllers\Controller;
 use App\Models\Product;
 use App\Models\ProductVariant;
+use App\Models\ProductVariantPhoto;
 use App\Models\ProductVariantSpecification;
 use App\Models\ProductVariantTag;
-use App\Services\AppSetting;
 use App\Services\UserService;
 use DataResponse;
 use Exception;
+use Helper;
 use Illuminate\Http\Request;
 use Log;
 use DB;
@@ -19,6 +20,7 @@ use DB;
 class ProductController extends Controller
 {
     //
+    protected $limitImages = 3;
 
     public function productValidation(Request $req){
         return validator($req->all(),[
@@ -34,7 +36,8 @@ class ProductController extends Controller
             'wholesale_price' => 'nullable|numeric|between:0,999999.99',
             'tags' => 'nullable|array',
             'specs' => 'nullable|array',
-            'variants' => 'required|array',
+            'variants' => 'nullable|array',
+            'photos' => 'nullable|array'
         ]);
     }
 
@@ -49,7 +52,7 @@ class ProductController extends Controller
         $inputs['company_id'] = $user->company_id;
         $inputs['create_uid'] = $user->id;
         $inputs['update_uid'] = $user->id;
-        $variants = $inputs['variants'];
+        $variants =  isset($inputs['variants']) ? $inputs['variants'] : [];
         $specs = isset($inputs['specs']) ? $inputs['specs'] : [];
         $tags = isset($inputs['tags']) ? $inputs['tags'] : [];
         $cost = isset($inputs['cost']) ? $inputs['cost'] : null;
@@ -62,12 +65,15 @@ class ProductController extends Controller
             $create = Product::create($inputs);
             if($create){
                 $productId = $create->id;
-                $updateVariant = $this->updateOrCreateProductVaraints($variants,$productId,$user,$cost,$retail_price,$wholesale_price);
-                // return $updateVariant;
-                if($updateVariant->error){
-                    if($updateVariant->status_code == 422) return ApiResponse::ValidateFail($updateVariant->message);
-                    if($updateVariant->status_code == 500) return ApiResponse::Error($updateVariant->message);
+                if(isset($variants[0])){
+                    $updateVariant = $this->updateOrCreateProductVaraints($variants,$productId,$user,$cost,$retail_price,$wholesale_price);
+                    // return $updateVariant;
+                    if($updateVariant->error){
+                        if($updateVariant->status_code == 422) return ApiResponse::ValidateFail($updateVariant->message);
+                        if($updateVariant->status_code == 500) return ApiResponse::Error($updateVariant->message);
+                    }
                 }
+
                 if(isset($specs[0])){
                     $createSpec = $this->updateOrCreateProductSpec($specs,$productId,$user);
                     if($createSpec->error){
@@ -83,6 +89,8 @@ class ProductController extends Controller
                     }
                 }
 
+                //** add images */
+
             }
             DB::commit();
             return ApiResponse::JsonResult(null,false,'Product has been created!');
@@ -94,28 +102,61 @@ class ProductController extends Controller
         }
     }
 
+    function variantPhotoValidation(Request $req){
+        return validator($req->all(),[
+                'variant_id' => 'required|int|exists:product_variants,id',
+                'photo' => 'required|string',
+                'is_thumbnail' => 'nullable|in:true,false|default:false'
+            ]);
+    }
+    function updateOrCreateVariantPhotos($photos,$company_id,$variantId){
+        foreach($photos as $photo){
+            $photo['variant_id'] = $variantId;
+            $request = new Request($photo);
+            $id = $photo['id'] ?? null;
+            $validate = $this->variantPhotoValidation($request);
+            if($validate->fails()) return DataResponse::ValidateFail($validate->errors()->first());
+            $inputs = $validate->validated();
+            $file_name =  Helper::base64ToImageFile($inputs['photo'],$company_id,'product_variant');
+            $inputs['photo_file_name'] = $file_name;
+            unset($inputs['photo']);
+            if($id){
+                $photoCount = ProductVariantPhoto::where('id','!=',$id)->where('variant_id',$inputs['variant_id'])->count();
+                if($photoCount == $this->limitImages) {
+                    Helper::deleteImageFile($file_name,$company_id,'product_variant');
+                    return DataResponse::ValidateFail('Each variant can only store up to '.$this->limitImages.' photos');
+                }
+                $productVariantPhoto = ProductVariantPhoto::find($id);
+                if(!$productVariantPhoto) {
+                    Helper::deleteImageFile($file_name,$company_id,'product_variant');
+                    return DataResponse::ValidateFail('photo not found');
+                }
+                //* delete exists img
+                Helper::deleteImageFile($productVariantPhoto->photo_file_name,$company_id,'product_variant');
+                $update = $productVariantPhoto->update($inputs);
+                if(!$update) {
+                    Helper::deleteImageFile($file_name,$company_id,'product_variant');
+                    return DataResponse::Error('Fail to update photo');
+                }
+                //* delete old image
+            }else{
+                $photoCount = ProductVariantPhoto::where('variant_id',$inputs['variant_id'])->count();
+                if($photoCount == $this->limitImages){
+                    Helper::deleteImageFile($file_name,$company_id,'product_variant');
+                    return DataResponse::ValidateFail('Each variant can only store up to '.$this->limitImages.' photos');
+                }   
+                $photo = ProductVariantPhoto::create($inputs);
+                if(!$photo){
+                    Helper::deleteImageFile($file_name,$company_id,'product_variant');
+                    return DataResponse::Error('Fail to add photo');
+                }
+                //** delete insert file in local storage if commit to db fail  */
 
-    // private function createProductVaraints($variants,$productId,$user){
-    //     if(!$productId) return DataResponse::ValidateFail(['Product ID is required']);
-    //     foreach($variants as $vr){
-    //         $vr->product_id = $productId;
-    //         $validate = $this->productVariantValidator(new);
-    //         if($validate->fails()) return DataResponse::ValidateFail($validate->errors()->first());
-    //         $inputs = $validate->validated();
-    //         unset($inputs['tags']);
-    //         //** add user info */
-    //         $inputs['branch_id'] = $user->branch_id;
-    //         $inputs['company_id'] = $user->company_id;
-    //         $inputs['create_uid'] = $user->id;
-    //         $inputs['update_uid'] = $user->id;
-    //         // return $inputs;
-    //         $create = ProductVariant::create($inputs);
+            }
+        }
+        return DataResponse::JsonResult(null,false,'Photo added');
+    }
 
-    //         if(!$create) return DataResponse::Error('Fail to create variants');
-    //     }
-
-    //     return DataResponse::JsonResult(null,false,'Created');
-    // }
 
     public function getProducts(Request $req){
         $user = UserService::getAuthUser();
@@ -123,7 +164,7 @@ class ProductController extends Controller
         if (is_string($tags)) {
             $tags = explode(',', strtolower($tags));
         }
-        $query = Product::with(['specifications:id,name,value,product_id','tags:id,tag,product_id','variants'])->where('branch_id',$user->branch_id)->selectRaw('id,name,code,description');
+        $query = Product::with(['specifications:id,name,value,product_id','tags:id,tag,product_id','variants.photos'])->where('branch_id',$user->branch_id)->selectRaw('id,name,code,description');
         if (!empty($tags)){
             $query->whereHas('tags', function($query) use ($tags) {
                 $query->whereRaw('LOWER(tag) IN (?)', [$tags]);
@@ -160,7 +201,8 @@ class ProductController extends Controller
             'cost' => 'nullable|numeric',
             'retail_price' => 'nullable|numeric',
             'wholesale_price' => 'nullable|numeric',
-            'tags' => 'nullable|array'
+            'tags' => 'nullable|array',
+            'photos' => 'nullable|array'
         ],[
             'condition.in' => 'Condition must be one of (new,second hand)'
         ]);
@@ -194,6 +236,7 @@ class ProductController extends Controller
             $inputs['update_uid'] = $userId;
             if($id){
                 $specification = ProductVariantSpecification::where('branch_id',$branch_id)->find($id);
+                if(!$specification) continue;
                 $update = $specification->update($inputs);
                 if(!$update) return DataResponse::Error('Fail to update specification');
             }else{
@@ -267,6 +310,7 @@ class ProductController extends Controller
                     }
                 }
             }
+
             DB::commit();
             return ApiResponse::JsonResult(null,false,'Product has been saved!');
         }catch(Exception $e){
@@ -321,6 +365,8 @@ class ProductController extends Controller
             $inputs['branch_id'] = $branch_id;
             $inputs['company_id'] = $company_id;
             $inputs['update_uid'] = $userId;
+            $photos = isset($inputs['photos']) ? $inputs['photos']:[];
+            unset($inputs['photos']);
             // $inputs['retail_price'] = isset($inputs['retail_price']) ? $inputs['retail_price'] : $retail_price;
             // $inputs['cost'] = isset($inputs['cost']) ? $inputs['cost'] : $cost;
             // $inputs['wholesale_price'] = isset($inputs['wholesale_price']) ? $inputs['wholesale_price'] : $wholesale_price;
@@ -329,15 +375,23 @@ class ProductController extends Controller
                 if(!$variant) return DataResponse::Error('Variant not found on row('.($idx + 1).'), while updating.' );
                 $update = $variant->update($inputs);
                 if(!$update) return DataResponse::Error('Fail to update variant');
+                if(isset($photos[0])){
+                    $savePhoto = $this->updateOrCreateVariantPhotos($photos,$company_id,$id);
+                    if($savePhoto->status_code == 422) return DataResponse::ValidateFail($savePhoto->message);
+                }
             }else{
                 $inputs['create_uid'] = $userId;
                 $create = ProductVariant::create($inputs);
                 if(!$create) return DataResponse::Error('Fail to create variant');
+                if(isset($photos[0])){
+                    $savePhoto = $this->updateOrCreateVariantPhotos($photos,$company_id,$create->id);
+                    if($savePhoto->status_code == 422) return DataResponse::ValidateFail($savePhoto->message);
+                }
             }
+
         }
         return DataResponse::JsonResult(null,false,'Saved');
     }
-
 
     private function TagValidation(Request $req){
         return validator($req->all(),[

@@ -5,13 +5,17 @@ namespace App\Http\Controllers;
 use ApiResponse;
 use App\Http\Controllers\Controller;
 use App\Models\DailyStock;
+use App\Models\PoPaymentSlip;
 use App\Models\ProductVariant;
 use App\Models\PurchaseOrder;
 use App\Models\PurchaseOrderItem;
 use App\Models\Stock;
+use App\Models\StockMovement;
+use App\Models\StockMovementType;
 use App\Services\UserService;
 use DataResponse;
 use Exception;
+use Helper;
 use Illuminate\Http\Request;
 use DB;
 use Log;
@@ -19,13 +23,26 @@ use Log;
 class StockManagementController extends Controller
 {
 
-    protected $dailyStockOperator = [
-        'purchase_qty' => '+',
+    protected $stockOperator = [
+        'receive_qty' => '+',
         'transfer_in_qty' => '+',
         'transfer_out_qty' => '-',
         'sold_qty' => '-',
-        'return_qty' => '+'
+        'return_qty' => '+',
     ];
+
+    protected $movementTypes = [
+        'receive_qty' => '+',
+        'transfer_in_qty' => '+',
+        'transfer_out_qty' => '-',
+        'sold_qty' => '-',
+        'return_qty' => '+',
+    ];
+
+
+    function getStockMovementTypesArray(){
+        return StockMovementType::all()->pluck('name')->toArray();
+    }
 
     //** Purchase Order */
     private function purchaseOrderValidation(Request $req){
@@ -54,9 +71,9 @@ class StockManagementController extends Controller
         $inputs['branch_id'] = $user->branch_id;
         $inputs['company_id'] = $user->company_id;
         //** auto approve */
-        // $inputs['approve_uid'] = $userId;
-        // $inputs['approve_date'] = now();
-        //$inputs['status_id'] = 1;
+        $inputs['approve_uid'] = $userId;
+        $inputs['approve_date'] = now();
+        $inputs['status_id'] = 2;
         //------
         $orderItems = $inputs['order_items'];
         unset($inputs['order_items']);
@@ -104,7 +121,8 @@ class StockManagementController extends Controller
         $validate = validator($req->all(),[
             'receive_date' => 'nullable|date',
             'stock_location_id' => 'required|int|exists:stock_locations,id',
-            'order_items' => 'required|array'
+            'order_items' => 'required|array',
+            // 'payment_slip' => 'nullable|string',
         ]);
         if($validate->fails()) return ApiResponse::ValidateFail($validate->errors()->first());
         $inputs = $validate->validated();
@@ -113,15 +131,20 @@ class StockManagementController extends Controller
         $inputs['update_uid'] = $userId;
         $inputs['branch_id'] = $branchId;
         $inputs['company_id'] = $companyId;
-        unset($inputs['order_items']);
+        $paymentSlip = $req->payment_slip ? $req->payment_slip:null;
+        unset($inputs['order_items'],$inputs['payment_slip']);
+        // return $inputs;
         DB::beginTransaction();
         try{
             $receive = $this->receiveOrderItems($orderItems,$id,$inputs['stock_location_id'],$user);
             if($receive->status_code == 422) return ApiResponse::ValidateFail($receive->message);
-            DB::commit();
-            // return Stock::get();
+            if($paymentSlip){
+                $addPaymentSlip = $this->savePaymentSlip($id,$paymentSlip,$user);
+                if($addPaymentSlip->status_code == 500) return ApiResponse::Error($addPaymentSlip->message);
+            }
+            // DB::commit();
+            // return StockMovement::get();
             return ApiResponse::JsonResult(null,false,'Received!');
-
         }catch(Exception $e){
             DB::rollBack();
             Log::error($e->getMessage());
@@ -130,9 +153,6 @@ class StockManagementController extends Controller
         }
     }
 
-    // private function prepareStockOnReceiveOrder($branchId,$modelId,$categoryId,$condition){
-    //     return $this->prepareDailyStock('purchase_qty');
-    // }
 
 
     private function createSkuCode($modelId,$categoryId,$condition,$branchId,$expirationDate=null){
@@ -230,7 +250,7 @@ class StockManagementController extends Controller
             $modelId = $item->product->model_id;
             $categoryId = $item->product->category_id;
             $condition = $item->condition;
-            $prepareStock = $this->prepareStock($stockLocationId,$item->id,'purchase_qty',$receiveQty,$user,$purchaseOrderItem->unit_price,$modelId,$categoryId,$condition,$expiration_date);
+            $prepareStock = $this->prepareStock($stockLocationId,$item->id,'receive_qty',$receiveQty,$user,$purchaseOrderItem->unit_price,$modelId,$categoryId,$condition,$expiration_date);
             // return $prepareStock;
             if($prepareStock->status_code == 422) return DataResponse::ValidateFail($prepareStock->message);
             if($prepareStock->status_code == 500) return DataResponse::Error($prepareStock->message);
@@ -241,7 +261,6 @@ class StockManagementController extends Controller
     public function changePurchaseOrderStatus(){
         $user = UserService::getAuthUser();
     }
-
 
     public function approvePurchaseOrder(Request $req,$id=null){
         $id = $id ? $id :$req->id;
@@ -402,13 +421,13 @@ class StockManagementController extends Controller
      * @return mixed
      * note* This prepareStock can be use to update stock by => [sold_qty,return_qty,adjustment_qty,transfer_in_qty,transfer_out_qty];
      */
-    
+
     private function prepareStock($stockLocationId,$variant_id,$targetCol,$targetValue,$user,$itemCost=0,$modelId=null,$categoryId=null,$condition=null,$expirationDate=null){
         $today = date('Y-m-d');
         $branchId = $user->branch_id;
         $userId = $user->id;
         $companyId = $user->company_id;
-        $operator = isset($this->dailyStockOperator[$targetCol]) ? $this->dailyStockOperator[$targetCol] : null;
+        $operator = isset($this->stockOperator[$targetCol]) ? $this->stockOperator[$targetCol] : null;
         if(!$operator) return DataResponse::ValidateFail('You provided the wrong target.');
         //** --- daily stock process -----------
         $todayStock = DailyStock::where('branch_id',$branchId)->where('variant_id',$variant_id)->where('stock_location_id',$stockLocationId)->whereDate('created_at',$today)->first();
@@ -470,20 +489,6 @@ class StockManagementController extends Controller
         //* ---------- Stock Process Here ----------
 
         $sku = $this->createSkuCode($modelId,$categoryId,$condition,$branchId,$expirationDate);
-        // $stockQty = $operator.$targetValue;
-        // $addNewStock = Stock::insert([
-        //     'sku' => $sku,
-        //     'stock_location_id' => $stockLocationId,
-        //     'qty' => $stockQty,
-        //     // 'batch_number'=> date('YMdhis').mt_rand(1000, 9999),
-        //     'variant_id' => $variant_id,
-        //     'cost' => $itemCost,
-        //     'create_uid' => $userId,
-        //     'update_uid' => $userId,
-        //     'company_id' => $companyId,
-        //     'branch_id' => $branchId
-        // ]);
-        // if(!$addNewStock) return DataResponse::Error('Fail to add new stock!');
         $stockQuery = Stock::where('branch_id',$branchId)->where('stock_location_id',$stockLocationId)->where('sku',$sku)->where('cost',$itemCost);
         $stockQty = 0;
         $foundBySku = $stockQuery->first();
@@ -507,6 +512,7 @@ class StockManagementController extends Controller
                 'sku' => $sku,
                 'stock_location_id' => $stockLocationId,
                 'qty' => $stockQty,
+                // 'batch_number'=> date('YMdhis').mt_rand(1000, 9999),
                 'variant_id' => $variant_id,
                 'cost' => $itemCost,
                 'create_uid' => $userId,
@@ -516,7 +522,84 @@ class StockManagementController extends Controller
             ]);
             if(!$addNewStock) return DataResponse::Error('Fail to add new stock!');
         }
-        return DataResponse::JsonResult(null,false,'Stock prepared!');
 
+        $stockMovement = $this->createStockMovementLog([
+            'variant_id' => $variant_id,
+            'movement_type' => 'Receive Order',
+            'cost' => $itemCost
+        ],$targetCol,$targetValue,$user);
+        if($stockMovement->status_code == 422) return DataResponse::ValidateFail($stockMovement->message);
+        return DataResponse::JsonResult(null,false,'Stock prepared!');
+    }
+
+
+    function stockMovementValidation(Request $req){
+        $movementTypes = implode(',',$this->getStockMovementTypesArray());
+        return validator($req->all(),[
+            'movement_type' => 'required|in:'.$movementTypes,
+            'variant_id' => 'required|int|exists:product_variants,id',
+            'cost' => 'nullable|numeric',
+            'adjustment_qty' => 'nullable|numeric',
+            'transfer_in_qty' => 'nullable|numeric',
+            'transfer_out_qty' => 'nullable|numeric',
+            'sold_qty' => 'nullable|numeric',
+            'receive_qty' => 'nullable|numeric'
+        ],[
+            'movement_type.in' => 'movement type must be one of '.$movementTypes
+        ]);
+    }
+
+
+    /**
+     * Summary of createStockMovementLog
+     * @param mixed $arr => require [variant_id,qty] ,
+     * note* Qty can be one of (adjustment_qty,transfer_in_qty,transfer_out_qty,sold_qty,purchase_qty)
+     * @param mixed $variant_id
+     * @return void
+     */
+    function createStockMovementLog($arr,$targetCol,$targetValue,$user){
+        $today = date('Y-m-d');
+        $arr[$targetCol] = $targetValue;
+        $branch_id = $user->branch_id;
+        $userId = $user->id;
+        $companyId = $user->company_id;
+        $operator = $this->stockOperator[$targetCol];
+        $validate = $this->stockMovementValidation(new Request($arr));
+        if($validate->fails()) return DataResponse::ValidateFail($validate->errors()->first());
+        // print_r($operator);
+        $inputs = $validate->validated();
+        $inputs['update_uid'] = $userId;
+        $inputs['branch_id'] = $branch_id;
+        $inputs['company_id'] = $companyId;
+        //** ------ daily stock movement log by user */
+        $todayMovement = StockMovement::where('branch_id',$branch_id)->where('cost',$inputs['cost'])->where('movement_type',$inputs['movement_type'])->where('variant_id',$inputs['variant_id'])->where('create_uid',$userId)->whereDate('created_at',$today)->first();
+        if($todayMovement){
+            // print_r('asdfs');
+            $adjustStock = $todayMovement->{$targetCol};
+            $adjustStock += $operator.$targetValue;
+            $inputs[$targetCol] = $adjustStock;
+            $update = $todayMovement->update($inputs);
+            if(!$update) return DataResponse::Error('Fail to update stock movement log!');
+        }else{
+            $inputs['create_uid'] = $userId;
+            $inputs[$targetCol] = $operator.$targetValue;
+            $create = StockMovement::create($inputs);
+            if(!$create) return DataResponse::Error('Fail to create stock movement log!');
+        }
+
+
+        return DataResponse::JsonResult($inputs);
+    }
+
+
+    function savePaymentSlip($purchaseId,$photo,$user,$amount=0){
+        $image = Helper::base64ToImageFile($photo,$user->company_id,'purchase_payment_slip');
+        $create = PoPaymentSlip::create([
+            'purchase_id' => $purchaseId,
+            'photo_file_name' => $image,
+            'amount' => $amount
+        ]);
+        if(!$create) return DataResponse::Error('fail to add payment slip');
+        return DataResponse::JsonResult(null,false);
     }
 }
