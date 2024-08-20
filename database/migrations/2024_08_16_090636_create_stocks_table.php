@@ -17,9 +17,9 @@ return new class extends Migration
             $table->unsignedBigInteger('stock_location_id');
             $table->unsignedBigInteger('variant_id');
             $table->unsignedInteger('qty');
-            $table->decimal('cost')->nullable();
-            $table->decimal('wholesale_price')->nullable();
-            $table->decimal('retail_price')->nullable();
+            $table->decimal('cost')->default(0);
+            $table->decimal('wholesale_price')->default(0);
+            $table->decimal('retail_price')->default(0);
             $table->date('expiration_date')->nullable();
             $table->enum('status', ['active', 'inactive', 'pending', 'reserved'])->default('active');
             $table->timestamp("created_at")->useCurrent();

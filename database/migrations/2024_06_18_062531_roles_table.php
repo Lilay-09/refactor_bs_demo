@@ -22,7 +22,9 @@ class RolesTable extends Migration
             $table->timestamp("updated_at")->useCurrent()->useCurrentOnUpdate();
             $table->unsignedBigInteger('create_uid');
             $table->unsignedBigInteger('update_uid');
+            $table->unsignedBigInteger('branch_id')->nullable();
             $table->unsignedBigInteger('company_id');
+            $table->foreign('branch_id')->references('id')->on('branches');
             $table->foreign('company_id')->references('id')->on('companies');
         });
     }

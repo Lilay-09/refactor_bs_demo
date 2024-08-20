@@ -3,6 +3,9 @@
 namespace Database\Seeders;
 
 use App\Models\AdjustmentType;
+use App\Models\Bank;
+use App\Models\CustomerType;
+use App\Models\PaymentMethod;
 use App\Models\PurchaseStatuses;
 use App\Models\StockLocationType;
 use App\Models\StockMovementType;
@@ -34,7 +37,7 @@ class InitialSeeder extends Seeder
             'create_uid' => 1, //* just default val
             'update_uid' => 1, //* just default val
             'branch_id'=>1, //* just default val
-            'company_id' => 1 //* just default val
+            'company_id' => 1 //* just default vala
 
         ]);
         $comapanyId  = DB::table('companies')->insertGetId([
@@ -95,9 +98,12 @@ class InitialSeeder extends Seeder
                 'name' => 'Canceled'
             ],
             [
+                'name' => 'Partially Received'
+            ],
+            [
                 'name' => 'Received'
             ],
-            
+
         ]);
 
         AdjustmentType::insert([
@@ -110,13 +116,67 @@ class InitialSeeder extends Seeder
 
         StockMovementType::insert([
             ['name' => 'Transfer In'],
-            ['name' => 'Transfer Out']
+            ['name' => 'Transfer Out'],
+            ['name' => 'Sale'],
+            ['name' => 'Receive Order'],
+            ['name' => 'Donation'],
+            ['name' => 'Expire'],
+            ['name' => 'Return']
         ]);
 
         StockLocationType::insert([
             ['name' => 'Warehouse'],
-            ['name' => 'Branch Store'],
+            ['name' => 'Branch Store']
+        ]);
+        VendorType::insert([
+            [
+                'name' => 'Manufacturers',
+                'create_uid' => $userId,
+                'update_uid' => $userId,
+                'branch_id' => $branchId,
+                'company_id' => $comapanyId,
+            ]
         ]);
 
+
+        CustomerType::insert([
+            [
+                'name' => 'Normal Customer',
+                'discount_percent' => 0,
+                'create_uid' => $userId,
+                'update_uid' => $userId,
+                'branch_id' => $branchId,
+                'company_id' => $comapanyId
+            ],
+            [
+                'name' => 'Vip1 Customer',
+                "discount_percent" => 5,
+                'create_uid' => $userId,
+                'update_uid' => $userId,
+                'branch_id' => $branchId,
+                'company_id' => $comapanyId
+            ]
+        ]);
+
+        PaymentMethod::insert([
+            ['name' => 'Cash'],
+            ['name' => 'Bank'],
+            ['name' => 'Credit Card']
+        ]);
+
+        Bank::insert([
+            ['name' => 'ABA','create_uid' => $userId,
+                'update_uid' => $userId,
+                'branch_id' => $branchId,
+                'company_id' => $comapanyId],
+            ['name' => 'ACLEDA','create_uid' => $userId,
+                'update_uid' => $userId,
+                'branch_id' => $branchId,
+                'company_id' => $comapanyId],
+            ['name' => 'VATANAK','create_uid' => $userId,
+                'update_uid' => $userId,
+                'branch_id' => $branchId,
+                'company_id' => $comapanyId]
+        ]);
     }
 }

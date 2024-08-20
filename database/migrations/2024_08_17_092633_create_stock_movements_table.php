@@ -13,19 +13,21 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('daily_stocks', function (Blueprint $table) {
+        Schema::create('stock_movements', function (Blueprint $table) {
             $this->AddBaseFields($table);
-            $table->unsignedInteger('stock_location_id');
+            $table->string('movement_type',50);
             $table->unsignedBigInteger('variant_id');
-            $table->unsignedInteger('begin_qty')->nullable();
-            $table->unsignedInteger('ending_qty')->nullable();
+            $table->string('reference_no',100)->nullable();
+            $table->unsignedBigInteger('from_location_id')->nullable();
+            $table->unsignedBigInteger('to_location_id')->nullable();
+            $table->decimal('cost')->default(0);
             $table->integer('adjustment_qty')->default(0);
             $table->unsignedInteger('transfer_in_qty')->default(0);
             $table->integer('transfer_out_qty')->default(0);
             $table->integer('sold_qty')->default(0);
-            $table->unsignedInteger('purchase_qty')->default(0);
-            //*
-            $table->foreign('stock_location_id')->references('id')->on('stock_locations');
+            $table->unsignedInteger('receive_qty')->default(0);
+            $table->string('description',250)->nullable();
+
             $table->foreign('variant_id')->references('id')->on('product_variants');
         });
     }
@@ -35,6 +37,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('daily_stocks');
+        Schema::dropIfExists('stock_movements');
     }
 };

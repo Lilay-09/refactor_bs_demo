@@ -31,8 +31,15 @@ class ProductVariant extends Model
         'create_uid',
         'update_uid'
     ];
+    protected $hidden = [
+        'wholesale_price',
+    ];
 
     public function product(){
         return $this->belongsTo(Product::class,'product_id','id');
+    }
+
+    public function photos(){
+        return $this->hasMany(ProductVariantPhoto::class,'variant_id','id');
     }
 }

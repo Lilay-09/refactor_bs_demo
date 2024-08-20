@@ -6,6 +6,10 @@ use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\CityController;
 use App\Http\Controllers\CompanyProfileController;
 use App\Http\Controllers\CountryController;
+use App\Http\Controllers\CustomerController;
+use App\Http\Controllers\CustomerTypeController;
+use App\Http\Controllers\ExpenseCategoryController;
+use App\Http\Controllers\ExpenseController;
 use App\Http\Controllers\GeneralSettingController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ProductGroupController;
@@ -37,8 +41,22 @@ Route::middleware('jwt')->group(function(){
         Route::get('info',[CompanyProfileController::class,'info']);
         // Route::get('branches',[CompanyProfileController::class,'branches']);
     });
-    Route::prefix('location')->group(function(){
 
+    Route::prefix('expense')->group(function(){
+        Route::prefix('category')->group(function(){
+            Route::post('/',[ExpenseCategoryController::class,'createExpenseCategory']);
+            Route::get('/',[ExpenseCategoryController::class,'getExpenseCategories']);
+            Route::get('/{id?}',[ExpenseCategoryController::class,'getExpenseCategory']);
+            Route::put('/{id?}',[ExpenseCategoryController::class,'updateExpenseCategory']);
+        });
+
+        Route::post('/',[ExpenseController::class,'createExpense']);
+        Route::get('/',[ExpenseController::class,'getExpenses']);
+        Route::get('/',[ExpenseController::class,'getExpense']);
+        Route::put('/{id?}',[ExpenseController::class,'updateExpense']);
+    });
+
+    Route::prefix('location')->group(function(){
         Route::prefix('country')->group(function(){
             Route::post('',[CountryController::class,'createCountry']);
             Route::get('',[CountryController::class,'countries']);
@@ -69,6 +87,19 @@ Route::middleware('jwt')->group(function(){
         Route::get('',[VendorController::class,'getVendors']);
         Route::get('/{id?}',[VendorController::class,'getVendor']);
         Route::put('/{id?}',[VendorController::class,'updateVendor']);
+    });
+
+    Route::prefix('customer')->group(function(){
+        Route::prefix('type')->group(function(){
+            Route::post('',[CustomerTypeController::class,'createCustomerType']);
+            Route::get('',[CustomerTypeController::class,'getCustomerTypes']);
+            Route::get('/{id?}',[CustomerTypeController::class,'getCustomerType']);
+            Route::put('/{id?}',[CustomerTypeController::class,'updateCustomerType']);
+        });
+        Route::post('',[CustomerController::class,'createCustomer']);
+        Route::get('',[CustomerController::class,'getCustomers']);
+        Route::get('/{id?}',[CustomerController::class,'getCustomer']);
+        Route::put('/{id?}',[CustomerController::class,'updateCustomer']);
     });
 
 
@@ -103,6 +134,7 @@ Route::middleware('jwt')->group(function(){
         Route::get('/',[ProductController::class,'getProducts']);
 
         Route::get('/variant/{id?}',[ProductVariantController::class,'getVariantById']);
+        Route::delete('variant/photo/{id?}',[ProductVariantController::class,'deleteVariantPhoto']);
         Route::get('/variants/{product_id?}',[ProductVariantController::class,'getVariantByProductId']);
 
         Route::get('/{id?}',[ProductController::class,'getProductById']);

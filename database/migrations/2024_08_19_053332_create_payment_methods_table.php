@@ -11,11 +11,11 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('products', function (Blueprint $table) {
-            //
-            $table->decimal('cost')->default(0);
-            $table->decimal('retail_price')->default(0);
-            $table->decimal('wholesale_price')->default(0);
+        Schema::create('payment_methods', function (Blueprint $table) {
+            $table->id();
+            $table->string('name');
+            $table->boolean('hidden')->default(0);
+            $table->timestamps();
         });
     }
 
@@ -24,8 +24,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('products', function (Blueprint $table) {
-            //
-        });
+        Schema::dropIfExists('payment_methods');
     }
 };
