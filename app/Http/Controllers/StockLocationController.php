@@ -33,8 +33,11 @@ class StockLocationController extends Controller
         $inputs['update_uid'] = $userId;
         $inputs['company_id'] = $user->company_id;
         $inputs['branch_id'] = isset($inputs['branch_id']) ? $inputs['branch_id'] : $user->branch_id;
-        $hasMain = StockLocation::where('company_id',$user->company_id)->take(1)->value('main');
-        if($hasMain) return ApiResponse::Duplicated('The main wareharehouse is already exists');
+        $isMain = $inputs['main'] ?? null;
+        if($isMain){
+            $hasMain = StockLocation::where('company_id',$user->company_id)->take(1)->value('main');
+            if($hasMain) return ApiResponse::Duplicated('The main wareharehouse is already exists');
+        }
         $create = StockLocation::create($inputs);
         if($create) return ApiResponse::JsonResult(null,false,'Created');
         return ApiResponse::Error('Fail to create');

@@ -10,6 +10,7 @@ use App\Models\ProductVariant;
 use App\Models\PurchaseOrder;
 use App\Models\PurchaseOrderItem;
 use App\Models\Stock;
+use App\Models\StockLocation;
 use App\Models\StockMovement;
 use App\Models\StockMovementType;
 use App\Services\UserService;
@@ -116,12 +117,14 @@ class StockManagementController extends Controller
         $companyId = $user->company_id;
         $purchaseOrder = PurchaseOrder::where('branch_id',$branchId)->find($id);
         if(!$purchaseOrder) return ApiResponse::NotFound('Purchase order not found');
-        if($purchaseOrder->status_id == 5) return ApiResponse::Duplicated('The purchase order has aready been receive.');
-        if($purchaseOrder->status_id !=2 ) return ApiResponse::Duplicated('Please make sure your purchase is approved.');
+        if($purchaseOrder->status_id == 6) return ApiResponse::Duplicated('All purchase order items have aready received.');
+        if($purchaseOrder->status_id == 1) return ApiResponse::Duplicated('Please make sure your purchase is approved.');
         $validate = validator($req->all(),[
             'receive_date' => 'nullable|date',
             'stock_location_id' => 'required|int|exists:stock_locations,id',
             'order_items' => 'required|array',
+            'pay_amount' => 'nullable|numeric',
+            'tax' => 'nullable|numeric'
             // 'payment_slip' => 'nullable|string',
         ]);
         if($validate->fails()) return ApiResponse::ValidateFail($validate->errors()->first());
@@ -131,19 +134,30 @@ class StockManagementController extends Controller
         $inputs['update_uid'] = $userId;
         $inputs['branch_id'] = $branchId;
         $inputs['company_id'] = $companyId;
+        $tax = $inputs['tax'] ?? 0;
+        $payAmount = $inputs['pay_amount'] ?? null;
         $paymentSlip = $req->payment_slip ? $req->payment_slip:null;
         unset($inputs['order_items'],$inputs['payment_slip']);
         // return $inputs;
         DB::beginTransaction();
         try{
-            $receive = $this->receiveOrderItems($orderItems,$id,$inputs['stock_location_id'],$user);
+            $receive = $this->receiveOrderItems($orderItems,$id,$inputs['stock_location_id'],$user,$tax);
             if($receive->status_code == 422) return ApiResponse::ValidateFail($receive->message);
             if($paymentSlip){
                 $addPaymentSlip = $this->savePaymentSlip($id,$paymentSlip,$user);
                 if($addPaymentSlip->status_code == 500) return ApiResponse::Error($addPaymentSlip->message);
             }
-            // DB::commit();
-            // return StockMovement::get();
+            $status_id = 5; //** partially received */
+            $allReceive = ($purchaseOrder->paid_amount == $receive->data->amount_due);
+            if($allReceive) $status_id = 6;
+            // return $receive;
+            // if($payAmount !== $receive->data->amount_due) return ApiResponse::ValidateFail('Pay amount must be '.$receive->data->amount_due);
+            $purchaseOrder->update([
+                'paid_amount' => $purchaseOrder->paid_amount + $receive->data->amount_due,
+                'status_id' => $status_id,
+            ]);
+            DB::commit();
+            // return DailyStock::get();
             return ApiResponse::JsonResult(null,false,'Received!');
         }catch(Exception $e){
             DB::rollBack();
@@ -155,7 +169,7 @@ class StockManagementController extends Controller
 
 
 
-    private function createSkuCode($modelId,$categoryId,$condition,$branchId,$expirationDate=null){
+    private function createSkuCode($modelId,$categoryId,$condition,$branchId,$cost,$variantId,$expirationDate=null){
         /**
          * @var mixed
          * format SKUcategory_model_conditionExpiration_date example SKU1_1_NEW_120241108 or SKU1_1_NEW_1 , expiration_date can be null
@@ -166,7 +180,7 @@ class StockManagementController extends Controller
         // $model = strtoupper(substr($model,0,3));
         // $category = strtoupper(substr($category,0,3));
         $condition = strtoupper(substr($condition,0,3));
-        $sku = 'SKU'.$categoryId.'_'.$modelId.'_'.$condition.'_'.$branchId;
+        $sku = 'SKU'.$categoryId.'_'.$modelId.'_'.$condition.$variantId.'_'.$branchId.'_'.$cost;
         if($expirationDate) {
             $expirationDate = date('Ymd',strtotime($expirationDate));
             return $sku.$expirationDate;
@@ -197,11 +211,12 @@ class StockManagementController extends Controller
 
     }
 
-    private function receiveOrderItems($orderItems,$purchaseId,$stockLocationId,$user){
+    private function receiveOrderItems($orderItems,$purchaseId,$stockLocationId,$user,$tax=0){
         $branchId = $user->branch_id;
         $companyId = $user->company_id;
         $userId = $user->id;
         $skip_message = null;
+        $amountDue = 0;
         foreach($orderItems as $key=>$item){
             $item['purchase_id'] = $purchaseId;
             $req = new Request($item);
@@ -216,11 +231,14 @@ class StockManagementController extends Controller
             $id = $inputs['purchase_item_id'];
             $purchaseOrderItem = PurchaseOrderItem::where('purchase_id',$purchaseId)->where('branch_id',$branchId)->find($id);
             if(!$purchaseOrderItem) return DataResponse::ValidateFail('Purchase item not found.');
+            $unitPrice = $purchaseOrderItem->unit_price;
             $receiveQty = isset($inputs['receive_qty']) ? $inputs['receive_qty'] : 0;
             if($receiveQty < 0 ) return DataResponse::ValidateFail('receive quantity must be positive');
             $lastReceiveQty = $purchaseOrderItem->received_qty;
             $totalQty = $purchaseOrderItem->qty;
             $openQty = $totalQty - $lastReceiveQty;
+            $discountAmt = $purchaseOrderItem->discount_amount;
+            $disType = $purchaseOrderItem->discount_type;
             $remarks = isset($inputs['remarks']) ? $inputs['remarks']:null;
             $expiration_date = isset($inputs['expiration_date']) ? $inputs['expiration_date'] : null;
             if($expiration_date) $inputs['expires_at'] = date('Y-m-d',strtotime($expiration_date));
@@ -232,6 +250,7 @@ class StockManagementController extends Controller
                 $skip_message .= 'skip row['.($key+1).'], because it has already received all => quantity ='.$purchaseOrderItem->received_qty.',';
                 continue;
             }
+            $amountDue += $this->calculatePrice($unitPrice,$receiveQty,$discountAmt,$disType);
 
             if($openQty < $receiveQty){
                 return DataResponse::ValidateFail('The receive quantity must be equal or lower than open quantity. the open amount = '.$openQty);
@@ -250,12 +269,14 @@ class StockManagementController extends Controller
             $modelId = $item->product->model_id;
             $categoryId = $item->product->category_id;
             $condition = $item->condition;
-            $prepareStock = $this->prepareStock($stockLocationId,$item->id,'receive_qty',$receiveQty,$user,$purchaseOrderItem->unit_price,$modelId,$categoryId,$condition,$expiration_date);
+            $prepareStock = $this->prepareStock($stockLocationId,$item->id,'receive_qty',$receiveQty,$user,$purchaseOrderItem->unit_price,null,$modelId,$categoryId,$condition,$expiration_date);
             // return $prepareStock;
             if($prepareStock->status_code == 422) return DataResponse::ValidateFail($prepareStock->message);
             if($prepareStock->status_code == 500) return DataResponse::Error($prepareStock->message);
         }
-        return DataResponse::JsonResult(null,false,$skip_message);
+        return DataResponse::JsonResult((object)[
+            'amount_due' => $amountDue - ($amountDue * $tax) / 100
+        ],false,$skip_message);
     }
 
     public function changePurchaseOrderStatus(){
@@ -278,8 +299,6 @@ class StockManagementController extends Controller
         if($update) return ApiResponse::JsonResult(null,false,'Approved');
         return ApiResponse::Error('Fail to approve');
     }
-
-
 
     public function getPurchaseOrders(Request $req){
         $user = UserService::getAuthUser();
@@ -387,7 +406,7 @@ class StockManagementController extends Controller
                 $merged[$key]['total_amount'] = $qty * $unitPrice;
             }
         }
-        return $merged;
+        return array_values($merged);
     }
 
     //** End Purchase Order Process */
@@ -422,55 +441,66 @@ class StockManagementController extends Controller
      * note* This prepareStock can be use to update stock by => [sold_qty,return_qty,adjustment_qty,transfer_in_qty,transfer_out_qty];
      */
 
-    private function prepareStock($stockLocationId,$variant_id,$targetCol,$targetValue,$user,$itemCost=0,$modelId=null,$categoryId=null,$condition=null,$expirationDate=null){
+     //* itemRef can be sku or id
+    public function prepareStock($stockLocationId=null,$variant_id,$targetCol,$targetValue,$user,$itemCost,$itemRef=null,$modelId=null,$categoryId=null,$condition=null,$expirationDate=null){
         $today = date('Y-m-d');
         $branchId = $user->branch_id;
         $userId = $user->id;
         $companyId = $user->company_id;
         $operator = isset($this->stockOperator[$targetCol]) ? $this->stockOperator[$targetCol] : null;
         if(!$operator) return DataResponse::ValidateFail('You provided the wrong target.');
+        if(!$stockLocationId) $stockLocationId = StockLocation::where('company_id',$companyId)->where('branch_id',$branchId)->take(1)->value('id');
         //** --- daily stock process -----------
         $todayStock = DailyStock::where('branch_id',$branchId)->where('variant_id',$variant_id)->where('stock_location_id',$stockLocationId)->whereDate('created_at',$today)->first();
+        // return $todayStock;
         $beginQty = 0;
         $endingQty = 0;
         $targetColValue = 0;
+
         if($todayStock){
             $beginQty = $todayStock->begin_qty;
             $endingQty = $todayStock->ending_qty;
+            $targetColValue = $todayStock->{$targetCol} + ($operator.$targetValue);
         }
         if(!in_array($targetCol,['return_qty','adjustment_qty']) && $targetValue < 0) return DataResponse::ValidateFail('Qty can not be negative');
 
         if(!$todayStock) {
             //** take one stock ending qty where created_at < today */
-            $stock = DailyStock::where('branch_id',$branchId)->where('variant_id',$variant_id)->where('stock_location_id',$stockLocationId)->orderBy('created_at','DESC')->where('created_at','<',$today)->first();
-            $beginQty += $operator.$targetValue;
-            $endingQty += $operator.$targetValue;
             $targetColValue += $operator.$targetValue;
+            $stock = DailyStock::where('branch_id',$branchId)->where('variant_id',$variant_id)->where('stock_location_id',$stockLocationId)->orderBy('created_at','DESC')->where('created_at','<',$today)->first();
+            // $beginQty = $targetValue;
+            // $endingQty = $targetValue;
+            // $targetColValue += $operator.$targetValue;
+            // var_dump($beginQty);
+            // var_dump($st)
             if($stock) {
-                $beginQty += $stock->begin_qty;
-                $endingQty += $stock->ending_qty;
+                $beginQty += $stock->ending_qty + ($operator.$targetValue);
+                $endingQty += $stock->ending_qty + ($operator.$targetValue);
             }else{
-                if($beginQty < 0 || $endingQty < 0){
-                    return DataResponse::ValidateFail('The quantity is negative.,cannot set to daily stock');
-                }
-                $arr = [
-                    'stock_location_id' => $stockLocationId,
-                    'variant_id' => $variant_id,
-                    $targetCol => $targetColValue,
-                    'begin_qty' => $beginQty,
-                    'ending_qty' => $endingQty,
-                    'branch_id' => $branchId,
-                    'company_id' => $companyId,
-                    'update_uid' => $userId,
-                    'create_uid' => $userId
-                ];
-                $createDailyStock = DailyStock::create($arr);
-                if(!$createDailyStock) return DataResponse::Error('Fail to save daily stock');
+                $beginQty = $targetValue;
+                $endingQty = $targetValue;
             }
+            if($beginQty < 0 || $endingQty < 0){
+                return DataResponse::ValidateFail('The quantity is negative.,cannot set to daily stock');
+            }
+
+            $arr = [
+                'stock_location_id' => $stockLocationId,
+                'variant_id' => $variant_id,
+                $targetCol => $targetColValue,
+                'begin_qty' => $beginQty,
+                'ending_qty' => $endingQty,
+                'branch_id' => $branchId,
+                'company_id' => $companyId,
+                'update_uid' => $userId,
+                'create_uid' => $userId
+            ];
+            // var_dump($arr);
+            $createDailyStock = DailyStock::create($arr);
+            if(!$createDailyStock) return DataResponse::Error('Fail to save daily stock');
         }else{
             $beginQty += $operator.$targetValue;
             $endingQty += $operator.$targetValue;
-            $targetColValue += $operator.$targetValue;
             $arr = [
                 'stock_location_id' => $stockLocationId,
                 'variant_id' => $variant_id,
@@ -481,6 +511,7 @@ class StockManagementController extends Controller
                 'company_id' => $companyId,
                 'update_uid' => $userId
             ];
+
             $updateDailyStock = $todayStock->update($arr);
             if(!$updateDailyStock) return DataResponse::Error('Fail to update daily stock');
         }
@@ -488,15 +519,24 @@ class StockManagementController extends Controller
         // return $operator;
         //* ---------- Stock Process Here ----------
 
-        $sku = $this->createSkuCode($modelId,$categoryId,$condition,$branchId,$expirationDate);
-        $stockQuery = Stock::where('branch_id',$branchId)->where('stock_location_id',$stockLocationId)->where('sku',$sku)->where('cost',$itemCost);
+        // if($targetCol == 'receive_qty'){
+        $sku = $this->createSkuCode($modelId,$categoryId,$condition,$branchId,$itemCost,$variant_id,$expirationDate);
+
+        $foundBySku = Stock::where('branch_id',$branchId)->where('stock_location_id',$stockLocationId)->where('sku',$sku)->where('cost',$itemCost)->first();
+        if($itemRef){
+            if(is_numeric($itemRef)) {
+                $foundBySku = Stock::where('id',$itemRef)->first();
+            }
+            else {
+                $foundBySku = Stock::where('sku',$itemRef)->first();
+            }
+        }
+
         $stockQty = 0;
-        $foundBySku = $stockQuery->first();
-        // if($foundBySku) $stockQty = $foundBySku->qty;
         if($foundBySku){
             $stockQty = $foundBySku->qty;
             $stockQty += $operator.$targetValue;
-            $updateStock = $stockQuery->update([
+            $updateStock = $foundBySku->update([
                 'stock_location_id' => $stockLocationId,
                 'qty' => $stockQty,
                 'variant_id' => $variant_id,
@@ -522,10 +562,10 @@ class StockManagementController extends Controller
             ]);
             if(!$addNewStock) return DataResponse::Error('Fail to add new stock!');
         }
+        // }
 
         $stockMovement = $this->createStockMovementLog([
             'variant_id' => $variant_id,
-            'movement_type' => 'Receive Order',
             'cost' => $itemCost
         ],$targetCol,$targetValue,$user);
         if($stockMovement->status_code == 422) return DataResponse::ValidateFail($stockMovement->message);
@@ -534,9 +574,9 @@ class StockManagementController extends Controller
 
 
     function stockMovementValidation(Request $req){
-        $movementTypes = implode(',',$this->getStockMovementTypesArray());
+        // $movementTypes = implode(',',$this->getStockMovementTypesArray());
         return validator($req->all(),[
-            'movement_type' => 'required|in:'.$movementTypes,
+            // 'movement_type' => 'required|in:'.$movementTypes,
             'variant_id' => 'required|int|exists:product_variants,id',
             'cost' => 'nullable|numeric',
             'adjustment_qty' => 'nullable|numeric',
@@ -544,8 +584,6 @@ class StockManagementController extends Controller
             'transfer_out_qty' => 'nullable|numeric',
             'sold_qty' => 'nullable|numeric',
             'receive_qty' => 'nullable|numeric'
-        ],[
-            'movement_type.in' => 'movement type must be one of '.$movementTypes
         ]);
     }
 
@@ -557,7 +595,7 @@ class StockManagementController extends Controller
      * @param mixed $variant_id
      * @return void
      */
-    function createStockMovementLog($arr,$targetCol,$targetValue,$user){
+    function createStockMovementLog($arr,$targetCol,$targetValue,$user):object{
         $today = date('Y-m-d');
         $arr[$targetCol] = $targetValue;
         $branch_id = $user->branch_id;
@@ -572,7 +610,7 @@ class StockManagementController extends Controller
         $inputs['branch_id'] = $branch_id;
         $inputs['company_id'] = $companyId;
         //** ------ daily stock movement log by user */
-        $todayMovement = StockMovement::where('branch_id',$branch_id)->where('cost',$inputs['cost'])->where('movement_type',$inputs['movement_type'])->where('variant_id',$inputs['variant_id'])->where('create_uid',$userId)->whereDate('created_at',$today)->first();
+        $todayMovement = StockMovement::where('branch_id',$branch_id)->where('cost',$inputs['cost'])->where('variant_id',$inputs['variant_id'])->where('create_uid',$userId)->whereDate('created_at',$today)->first();
         if($todayMovement){
             // print_r('asdfs');
             $adjustStock = $todayMovement->{$targetCol};
@@ -588,7 +626,7 @@ class StockManagementController extends Controller
         }
 
 
-        return DataResponse::JsonResult($inputs);
+        return DataResponse::JsonResult(null,false,'Stock log created');
     }
 
 

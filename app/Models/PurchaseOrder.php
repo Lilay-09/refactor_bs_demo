@@ -16,6 +16,7 @@ class PurchaseOrder extends Model
         'name',
         'po_code',
         'issue_date',
+        'tax',
         'discount_amount',
         'discount_type',
         'due_amount',

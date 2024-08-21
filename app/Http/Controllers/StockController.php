@@ -27,6 +27,25 @@ class StockController extends Controller
         return ApiResponse::Pagination($stockItems,$req);
     }
 
+    public function getStockItem(Request $req,$ref=null){
+        $ref = $ref ? $ref : $req->ref;
+        $stockItem = Stock::with('variant.product')->where('sku',$ref)->first();
+        if(!$stockItem) if(is_numeric($ref)) $stockItem = Stock::with('variant.product')->find($ref);
+        if($stockItem){
+            $stockItem->product_name = $stockItem->variant->product->name;
+            $stockItem->size = $stockItem->variant->size;
+            $stockItem->product_name = $stockItem->variant->product->name;
+            $stockItem->product_description = $stockItem->variant->product->description;
+            $stockItem->color = $stockItem->variant->color;
+            $stockItem->expires_at = $stockItem->variant->expires_at;
+            $stockItem->condition = $stockItem->variant->condition;
+            $stockItem->product_code = $stockItem->variant->product->code;
+            $stockItem->retail_price = $stockItem->retail_price > 0 ? $stockItem->retail_price : $stockItem->variant->retail_price;
+            unset($stockItem->variant);
+        }
+        return ApiResponse::JsonResult($stockItem);
+    }
+
     public function setStockItemPrices(Request $req){
         $sku = $req->sku;
         $stock = Stock::where('sku',$sku)->first();

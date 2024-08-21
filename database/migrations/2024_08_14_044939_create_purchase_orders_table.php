@@ -18,6 +18,7 @@ return new class extends Migration
             $table->unsignedBigInteger('vendor_id');
             $table->string('po_code')->unique()->nullable();
             $table->date('issue_date');
+            $table->decimal('tax')->default(0);
             $table->decimal('discount_amount')->default(0);
             $table->string('discount_type')->default('%');
             $table->decimal('total_amount')->default(0);

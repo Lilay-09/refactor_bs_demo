@@ -14,14 +14,13 @@ class CategoryController extends Controller
     //
 
     public function categoryValidation(Request $req){
-        $validate = validator([
+        return validator([
             'name' => $req->name,
             'name_kh' => $req->name_kh
         ],[
             'name' => 'required|string:max:50',
             'name_kh' => 'nullable|string|max:100'
         ]);
-        return $validate;
     }
 
     public function createCategory(Request $req){
@@ -35,6 +34,8 @@ class CategoryController extends Controller
         $inputs['update_uid'] = $user->id;
         $inputs['branch_id'] = $user->branch_id;
         $inputs['company_id'] = $user->company_id;
+        $duplicateName = Category::where('company_id',$user->company_id)->where('name',$name)->first();
+        if($duplicateName) return ApiResponse::Duplicated('Category ('.$name.') is already exists.');
         $create = Category::create($inputs);
         if($create) return ApiResponse::JsonResult(null,false,'Created');
         return ApiResponse::Error('Fail to create');
@@ -42,7 +43,11 @@ class CategoryController extends Controller
 
     public function categories(Request $req){
         $user = UserService::getAuthUser();
-        $categories = Category::where('branch_id',$user->branch_id)->selectRaw('id,name,name_kh')->get();
+        $query = Category::where('branch_id',$user->branch_id)->selectRaw('id,name,name_kh');
+        if($req->search){
+            $query->where('name','ilike','%'.$req->search.'%')->orWhere('name_kh','ilike','%'.$req->search.'%');
+        }
+        $categories = $query->get();
         return ApiResponse::Pagination($categories,$req);
     }
 
@@ -71,9 +76,10 @@ class CategoryController extends Controller
         $inputs['update_uid'] = $user->id;
         $inputs['branch_id'] = $user->branch_id;
         $inputs['company_id'] = $user->company_id;
+        $duplicateName = Category::where('company_id',$user->company_id)->where('id','!=',$id)->where('name',$name)->first();
+        if($duplicateName) return ApiResponse::Duplicated('Category ('.$name.' is already exists.)');
         $update = $category->update($inputs);
         if($update) return ApiResponse::JsonResult(null,false,'Updated');
         return ApiResponse::Error('Fail to update');
     }
-
 }
