@@ -19,7 +19,7 @@ class DailyStock extends Model
         'transfer_in_qty',
         'transfer_out_qty',
         'sold_qty',
-        'purchase_qty',
+        'receive_qty',
         'company_id',
         'branch_id',
         'create_uid',

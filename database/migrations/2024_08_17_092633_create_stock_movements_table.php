@@ -15,7 +15,6 @@ return new class extends Migration
     {
         Schema::create('stock_movements', function (Blueprint $table) {
             $this->AddBaseFields($table);
-            $table->string('movement_type',50);
             $table->unsignedBigInteger('variant_id');
             $table->string('reference_no',100)->nullable();
             $table->unsignedBigInteger('from_location_id')->nullable();

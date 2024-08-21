@@ -144,7 +144,7 @@ class ProductController extends Controller
                 if($photoCount == $this->limitImages){
                     Helper::deleteImageFile($file_name,$company_id,'product_variant');
                     return DataResponse::ValidateFail('Each variant can only store up to '.$this->limitImages.' photos');
-                }   
+                }
                 $photo = ProductVariantPhoto::create($inputs);
                 if(!$photo){
                     Helper::deleteImageFile($file_name,$company_id,'product_variant');
@@ -161,6 +161,7 @@ class ProductController extends Controller
     public function getProducts(Request $req){
         $user = UserService::getAuthUser();
         $tags = $req->tag;
+        $search = $req->search;
         if (is_string($tags)) {
             $tags = explode(',', strtolower($tags));
         }
@@ -169,6 +170,12 @@ class ProductController extends Controller
             $query->whereHas('tags', function($query) use ($tags) {
                 $query->whereRaw('LOWER(tag) IN (?)', [$tags]);
             });
+        }
+        if ($search) {
+            $query->where('name', 'ilike', '%' . $search . '%')
+                ->orWhereHas('variants', function($query) use ($search) {
+                    $query->where('color', 'ilike', '%' . $search . '%');
+                });
         }
         $products = $query->get();
         return ApiResponse::Pagination($products,$req,'get product list');

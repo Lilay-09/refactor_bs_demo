@@ -11,11 +11,13 @@ use App\Http\Controllers\CustomerTypeController;
 use App\Http\Controllers\ExpenseCategoryController;
 use App\Http\Controllers\ExpenseController;
 use App\Http\Controllers\GeneralSettingController;
+use App\Http\Controllers\PosController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ProductGroupController;
 use App\Http\Controllers\ProductModelController;
 use App\Http\Controllers\ProductTagController;
 use App\Http\Controllers\ProductVariantController;
+use App\Http\Controllers\ServiceController;
 use App\Http\Controllers\StockController;
 use App\Http\Controllers\StockLocationController;
 use App\Http\Controllers\StockManagementController;
@@ -41,6 +43,15 @@ Route::middleware('jwt')->group(function(){
         Route::get('info',[CompanyProfileController::class,'info']);
         // Route::get('branches',[CompanyProfileController::class,'branches']);
     });
+
+    Route::prefix('service')->group(function(){
+        Route::post('',[ServiceController::class,'createService']);
+        Route::get('',[ServiceController::class,'getServices']);
+        Route::get('/{id?}',[ServiceController::class,'getService']);
+        Route::put('/{id?}',[ServiceController::class,'updateService']);
+        Route::delete('/{id?}',[ServiceController::class,'deleteService']);
+    });
+
 
     Route::prefix('expense')->group(function(){
         Route::prefix('category')->group(function(){
@@ -124,9 +135,14 @@ Route::middleware('jwt')->group(function(){
 
             Route::prefix('item')->group(function(){
                 Route::get('',[StockController::class,'getStockItems']);
+                Route::get('/{id?}',[StockController::class,'getStockItem']);
                 Route::put('price/{sku?}',[StockController::class,'setStockItemPrices']);
             });
         });
+    });
+
+    Route::prefix('pos')->group(function(){
+        Route::post('',[PosController::class,'AddItems']);
     });
 
     Route::prefix('product')->group(function(){

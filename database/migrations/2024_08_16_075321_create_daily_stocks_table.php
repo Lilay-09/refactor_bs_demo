@@ -23,7 +23,7 @@ return new class extends Migration
             $table->unsignedInteger('transfer_in_qty')->default(0);
             $table->integer('transfer_out_qty')->default(0);
             $table->integer('sold_qty')->default(0);
-            $table->unsignedInteger('purchase_qty')->default(0);
+            $table->unsignedInteger('receive_qty')->default(0);
             //*
             $table->foreign('stock_location_id')->references('id')->on('stock_locations');
             $table->foreign('variant_id')->references('id')->on('product_variants');

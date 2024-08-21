@@ -7,6 +7,7 @@ use App\Models\Bank;
 use App\Models\CustomerType;
 use App\Models\PaymentMethod;
 use App\Models\PurchaseStatuses;
+use App\Models\StockLocation;
 use App\Models\StockLocationType;
 use App\Models\StockMovementType;
 use App\Models\VendorType;
@@ -22,8 +23,6 @@ class InitialSeeder extends Seeder
      */
 
 
-
-
     public function run()
     {
         $userId  = DB::table('users')->insertGetId([
@@ -37,7 +36,7 @@ class InitialSeeder extends Seeder
             'create_uid' => 1, //* just default val
             'update_uid' => 1, //* just default val
             'branch_id'=>1, //* just default val
-            'company_id' => 1 //* just default vala
+            'company_id' => 1 //* just default val
 
         ]);
         $comapanyId  = DB::table('companies')->insertGetId([
@@ -114,16 +113,6 @@ class InitialSeeder extends Seeder
             ['name' => 'Expire']
         ]);
 
-        StockMovementType::insert([
-            ['name' => 'Transfer In'],
-            ['name' => 'Transfer Out'],
-            ['name' => 'Sale'],
-            ['name' => 'Receive Order'],
-            ['name' => 'Donation'],
-            ['name' => 'Expire'],
-            ['name' => 'Return']
-        ]);
-
         StockLocationType::insert([
             ['name' => 'Warehouse'],
             ['name' => 'Branch Store']
@@ -177,6 +166,28 @@ class InitialSeeder extends Seeder
                 'update_uid' => $userId,
                 'branch_id' => $branchId,
                 'company_id' => $comapanyId]
+        ]);
+
+        DB::table('payment_statuses')->insert([
+            [
+                'name' => 'Pending'
+            ],
+            [
+                'name' => 'Partially Paid'
+            ],
+            [
+                'name' => 'Fully Paid'
+            ]
+        ]);
+
+        StockLocation::insert([
+            'name' => 'Main Warehouse',
+            'type_id' => 1,
+            'main' => true,
+            'create_uid' => $userId,
+            'update_uid' => $userId,
+            'branch_id' => $branchId,
+            'company_id' => $comapanyId
         ]);
     }
 }

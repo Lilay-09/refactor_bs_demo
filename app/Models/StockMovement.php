@@ -12,7 +12,6 @@ class StockMovement extends Model
     protected $fillable = [
         'id',
         'variant_id',
-        'movement_type',
         'reference_no',
         'from_location_id',
         'to_location_id',

@@ -50,7 +50,11 @@ class CustomerController extends Controller
 
     public function getCustomers(Request $req){
         $user = UserService::getAuthUser();
-        $rows = Customer::where('branch_id',$user->branch_id)->get();
+        $query = Customer::where('branch_id',$user->branch_id);
+        if($req->search){
+            $query->where('name','ilike','%'.$req->search.'%')->orWhere('name_kh','ilike','%'.$req->search.'%')->orWhere('phone',$req->search);
+        }
+        $rows = $query->get();
         return ApiResponse::Pagination($rows,$req);
     }
 
