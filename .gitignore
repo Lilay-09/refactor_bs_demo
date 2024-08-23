@@ -7,6 +7,9 @@
 /storage/*.key
 /vendor
 /database/schemas/
+database/schema.sql
+*.sql
+*.schema
 .env
 .env.backup
 .env.production
