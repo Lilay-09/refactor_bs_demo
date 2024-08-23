@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use ApiResponse;
 use App\Http\Controllers\Controller;
+use App\Models\Customer;
 use App\Models\CustomerType;
 use App\Services\UserService;
 use Illuminate\Http\Request;
@@ -70,4 +71,20 @@ class CustomerTypeController extends Controller
         if($update) return ApiResponse::JsonResult(null,false,'Updated');
         return ApiResponse::Error('Fail to update');
     }
+
+    public function deleteCustomerType(Request $req){
+        $user = UserService::getAuthUser();
+        $id = $req->id;
+        $customerType = CustomerType::where('branch_id',$user->branch_id)->find($id);
+        if($customerType){
+            $inUse = Customer::where('customer_type_id',$id)->first();
+            if($inUse) return ApiResponse::ValidateFail('This Customer Type is used by customers, cannot delete!');
+            $customerType->delete();
+            return ApiResponse::JsonResult(null,false,'Deleted');
+        }
+        return ApiResponse::NotFound('Brand not found');
+    }
+
+
 }
+

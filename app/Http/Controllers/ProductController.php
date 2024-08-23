@@ -447,4 +447,17 @@ class ProductController extends Controller
         return $this->updateOrcreateTags($tags,['product_id' => $product_id],$user);
     }
 
+    public function deleteProduct(Request $req){
+        $id = $req->id;
+        $user = UserService::getAuthUser();
+        $branch_id = $user->branch_id;
+        $product = Product::where('branch_id',$branch_id)->find($id);
+        if(!$product) return ApiResponse::NotFound('Product not found');
+        $useInVariant = ProductVariant::where('product_id',$id)->first();
+        if($useInVariant) return ApiResponse::ValidateFail('Product is used by variant');
+        $product->delete();
+        return ApiResponse::JsonResult(null,false,'Deleted');
+
+    }
+
 }

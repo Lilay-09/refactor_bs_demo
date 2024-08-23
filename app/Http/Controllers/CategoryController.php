@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use ApiResponse;
 use App\Http\Controllers\Controller;
 use App\Models\Category;
+use App\Models\Product;
 use App\Services\AppSetting;
 use App\Services\UserService;
 use Illuminate\Http\Request;
@@ -43,7 +44,7 @@ class CategoryController extends Controller
 
     public function categories(Request $req){
         $user = UserService::getAuthUser();
-        $query = Category::where('branch_id',$user->branch_id)->selectRaw('id,name,name_kh');
+        $query = Category::where('company_id',$user->company_id)->selectRaw('id,name,name_kh');
         if($req->search){
             $query->where('name','ilike','%'.$req->search.'%')->orWhere('name_kh','ilike','%'.$req->search.'%');
         }
@@ -54,7 +55,7 @@ class CategoryController extends Controller
     public function category(Request $req,$id=null){
         $id = $id ? $id : $req->id;
         $user = UserService::getAuthUser();
-        $category = Category::where('branch_id',$user->branch_id)->find($id);
+        $category = Category::where('company_id',$user->company_id)->find($id);
         return ApiResponse::JsonResult($category);
     }
 
@@ -82,4 +83,18 @@ class CategoryController extends Controller
         if($update) return ApiResponse::JsonResult(null,false,'Updated');
         return ApiResponse::Error('Fail to update');
     }
+
+    public function deleteCategory(Request $req){
+        $user = UserService::getAuthUser();
+        $id = $req->id;
+        $category = Category::where('company_id',$user->company_id)->find($id);
+        if($category){
+            $inUse = Product::where('category_id',$id)->first();
+            if($inUse) return ApiResponse::ValidateFail('Category is used in product');
+            $category->delete();
+            return ApiResponse::JsonResult(null,false,'Deleted');
+        }
+        return ApiResponse::NotFound('Category not found');
+    }
 }
+

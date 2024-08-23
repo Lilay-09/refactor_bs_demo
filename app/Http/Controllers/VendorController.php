@@ -4,8 +4,10 @@ namespace App\Http\Controllers;
 
 use ApiResponse;
 use App\Http\Controllers\Controller;
+use App\Models\PurchaseOrder;
 use App\Models\Vendor;
 use App\Services\UserService;
+use Helper;
 use Illuminate\Http\Request;
 
 class VendorController extends Controller
@@ -19,6 +21,8 @@ class VendorController extends Controller
             'email' => 'nullable|email',
             'address' => 'nullable|string|max:250',
             'address_kh' => 'nullable|string|max:250',
+            'country' => 'nullable|string|max:50',
+            'city' => 'nullable|string|max:50',
             'vendor_type_id' => 'required|int|exists:vendor_types,id'
         ]);
     }
@@ -44,8 +48,18 @@ class VendorController extends Controller
     }
 
     public function getVendors(Request $req){
+        $search = $req->search;
         $user = UserService::getAuthUser();
-        $rows = Vendor::where('branch_id',$user->branch_id)->get();
+        $query = Vendor::with('getVendorType')->where('branch_id',$user->branch_id);
+        if($search){
+            $search = Helper::filterSpecialChars($search);
+            $query->where('name','ilike','%'.$search.'%')->orWhere('phone',$search);
+        }
+        $rows = $query->get();
+        foreach($rows as $row){
+            $row->vendor_type = $row->getVendorType->name;
+            unset($row->getVendorType);
+        }
         return ApiResponse::Pagination($rows,$req);
     }
 
@@ -65,7 +79,7 @@ class VendorController extends Controller
         $inputs['update_uid'] = $user->id;
         $inputs['branch_id'] = $user->branch_id;
         $inputs['company_id'] = $user->company_id;
-        $duplicatedPhone = Vendor::where('company_id',$user->company_id)->where('id','!=',$id)->where('company_id',$user->company_id)->where('phone',$inputs['phone'])->first();
+        $duplicatedPhone = Vendor::where('company_id',$user->company_id)->where('id','!=',$id)->where('phone',$inputs['phone'])->first();
         if($duplicatedPhone) {
             $isDiffBranch = $duplicatedPhone->branch_id !== $user->branch_id;
             $diffBranchText = null;
@@ -77,5 +91,18 @@ class VendorController extends Controller
         $update = $vendor->update($inputs);
         if($update) return ApiResponse::JsonResult(null,false,'Updated');
         return ApiResponse::Error('Fail to update');
+    }
+
+    public function deleteVendor(Request $req){
+        $id = $req->id;
+        $user = UserService::getAuthUser();
+        $vendor = Vendor::where('company_id',$user->company_id)->find($id);
+        if($vendor){
+            $recordedInPurchaseOrder = PurchaseOrder::where('vendor_id',$id)->first();
+            if($recordedInPurchaseOrder) return ApiResponse::ValidateFail('To keep vendor history, you cannot delete!');
+            $vendor->delete();
+            return ApiResponse::JsonResult(null,false,'Deleted');
+        }
+        return ApiResponse::NotFound('Vendor not found');
     }
 }

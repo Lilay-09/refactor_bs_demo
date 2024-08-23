@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use ApiResponse;
 use App\Http\Controllers\Controller;
 use App\Models\Brand;
+use App\Models\ProductModel;
 use App\Services\UserService;
 use Illuminate\Http\Request;
 
@@ -35,7 +36,11 @@ class BrandController extends Controller
 
     public function brands(Request $req){
         $user = UserService::getAuthUser();
-        $brands = Brand::where('branch_id',$user->branch_id)->selectRaw('id,name,name_kh')->get();
+        $query = Brand::where('branch_id',$user->branch_id)->selectRaw('id,name,name_kh');
+        if($req->search){
+            $query->where('name','ilike','%'.$req->search.'%')->orWhere('name_kh','ilike','%'.$req->search.'%');
+        }
+        $brands = $query->get();
         return ApiResponse::Pagination($brands,$req);
     }
     public function brand(Request $req,$id=null){
@@ -53,13 +58,24 @@ class BrandController extends Controller
         $user = UserService::getAuthUser();
         $brand = Brand::where('branch_id',$user->branch_id)->find($id);
         if(!$brand) return ApiResponse::NotFound('Brand not found');
-        $name = $inputs['name'];
-        $name_kh = $inputs['name_kh'];
         $inputs['update_uid'] = $user->id;
         $inputs['branch_id'] = $user->branch_id;
         $inputs['company_id'] = $user->company_id;
         $update = $brand->update($inputs);
         if($update) return ApiResponse::JsonResult(null,false,'Updated');
         return ApiResponse::Error('Fail to update');
+    }
+
+    public function deleteBrand(Request $req){
+        $user = UserService::getAuthUser();
+        $id = $req->id;
+        $brand = Brand::where('branch_id',$user->branch_id)->find($id);
+        if($brand){
+            $inUse = ProductModel::where('brand_id',$id)->where('branch_id',$user->branch_id)->first();
+            if($inUse) return ApiResponse::ValidateFail('Brand is used in model');
+            $brand->delete();
+            return ApiResponse::JsonResult(null,false,'Deleted');
+        }
+        return ApiResponse::NotFound('Brand not found');
     }
 }

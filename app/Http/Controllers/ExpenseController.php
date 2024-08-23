@@ -13,7 +13,7 @@ class ExpenseController extends Controller
     //
     private function expenseValidation(Request $req){
         return validator($req->all(),[
-            'category_id' => 'required|int|exists:expense_categoies,id',
+            'category_id' => 'required|int|exists:expense_categories,id',
             'amount' => 'required|numeric',
             'expense_date' => 'required|date',
             'description' => 'nullable|string|max:250'
@@ -36,7 +36,11 @@ class ExpenseController extends Controller
 
     public function getExpenses(Request $req){
         $user = UserService::getAuthUser();
-        $rows = Expense::where('branch_id',$user->branch_id)->get();
+        $rows = Expense::with('getCategory')->where('branch_id',$user->branch_id)->get();
+        foreach($rows as $row){
+            $row->category = $row->getCategory->name;
+            unset($row->getCategory);
+        }
         return ApiResponse::Pagination($rows);
     }
 
@@ -61,5 +65,14 @@ class ExpenseController extends Controller
         $update = $expense->update($inputs);
         if($update) return ApiResponse::JsonResult(null,false,'Updated');
         return ApiResponse::Error('Fail to update');
+    }
+
+    public function deleteExpense(Request $req){
+        $user = UserService::getAuthUser();
+        $id = $req->id;
+        $expense = Expense::where('branch_id',$user->branch_id)->find($id);
+        if(!$expense) return ApiResponse::NotFound('Expense not found');
+        $expense->delete();
+        return ApiResponse::JsonResult(null,false,'Deleted');
     }
 }

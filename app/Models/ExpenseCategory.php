@@ -19,4 +19,12 @@ class ExpenseCategory extends Model
         'company_id'
     ];
 
+    public function expenses(){
+        return $this->hasMany(Expense::class,'category_id','id');
+    }
+
+    protected $casts = [
+        'updated_at' => 'date:d-M-Y'
+    ];
+
 }

@@ -19,4 +19,8 @@ class CustomerType extends Model
         'branch_id',
         'company_id'
     ];
+
+    protected $casts = [
+        'updated_at' => 'date:d-M-Y',
+    ];
 }
