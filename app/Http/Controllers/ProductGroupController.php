@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use ApiResponse;
 use App\Http\Controllers\Controller;
+use App\Models\Product;
 use App\Models\ProductGroup;
 use App\Services\UserService;
 use Illuminate\Http\Request;
@@ -38,13 +39,13 @@ class ProductGroupController extends Controller
     public function productGroups(Request $req){
         if($req->id) return $this->productGroup($req);
         $user = UserService::getAuthUser();
-        $proGroups = ProductGroup::where('branch_id',$user->branch_id)->selectRaw('name,id,name_kh')->get();
+        $proGroups = ProductGroup::where('company_id',$user->company_id)->selectRaw('name,id,name_kh')->get();
         return ApiResponse::Pagination($proGroups,$req);
     }
 
     public function productGroup(Request $req){
         $user = UserService::getAuthUser();
-        $proGroup = ProductGroup::where('branch_id',$user->branch_id)->selectRaw('id,name,name_kh')->find($req->id);
+        $proGroup = ProductGroup::where('company_id',$user->company_id)->selectRaw('id,name,name_kh')->find($req->id);
         return ApiResponse::JsonResult($proGroup);
     }
 
@@ -62,7 +63,7 @@ class ProductGroupController extends Controller
         if($validate->fails()) return ApiResponse::ValidateFail($validate->errors()->first());
         $user = UserService::getAuthUser();
         $id = $req->id;
-        $productGroup = ProductGroup::where('branch_id',$user->branch_id)->find($id);
+        $productGroup = ProductGroup::where('company_id',$user->company_id)->find($id);
         if(!$productGroup) return ApiResponse::NotFound('Group not found');
         $name = $req->name;
         $name_kh = $req->name_kh;
@@ -77,6 +78,18 @@ class ProductGroupController extends Controller
         ]);
         if($update) return ApiResponse::JsonResult(null,false,'Updated');
         return ApiResponse::Error('Fail to update');
+    }
+
+    public function deleteGroup(Request $req){
+        $user = UserService::getAuthUser();
+        $id = $req->id;
+        $productGroup = ProductGroup::where('company_id',$user->company_id)->find($id);
+        if($productGroup){
+            $inUsed = Product::where('group_id',$id)->first();
+            if($inUsed) return ApiResponse::ValidateFail('Product group is used in product.');
+            $productGroup->delete();
+        }
+        return ApiResponse::NotFound('Product group not found');
     }
 }
 

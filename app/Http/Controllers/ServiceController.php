@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use ApiResponse;
 use App\Http\Controllers\Controller;
+use App\Models\InvoiceSerivce;
+use App\Models\ReceiptService;
 use App\Models\Service;
 use App\Services\UserService;
 use Helper;
@@ -82,7 +84,7 @@ class ServiceController extends Controller
         $serivce = Service::where('branch_id',$user->branch_id)->find($id);
         if(!$serivce) return ApiResponse::NotFound('Service not found');
         $name = $inputs['name'];
-        $name_kh = $inputs['name_kh'] ?? null;
+        // $name_kh = $inputs['name_kh'] ?? null;
         $inputs['update_uid'] = $user->id;
         $inputs['branch_id'] = $user->branch_id;
         $inputs['company_id'] = $user->company_id;
@@ -104,6 +106,9 @@ class ServiceController extends Controller
         $user = UserService::getAuthUser();
         $service = Service::where('branch_id',$user->branch_id)->find($id);
         if($service){
+            $usedInReceipt = ReceiptService::where('service_id',$id)->first();
+            $useInInvoice = InvoiceSerivce::where('service_id',$id)->first();
+            if($usedInReceipt || $useInInvoice) return ApiResponse::ValidateFail('To keep history record, you cannot delete the used service');
             Helper::deleteImageFile($service->photo_file_name,$user->company_id,self::$imgDir);
             $service->delete();
             return ApiResponse::JsonResult(null);

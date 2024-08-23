@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use ApiResponse;
 use App\Http\Controllers\Controller;
 use App\Models\ProductTag;
+use App\Models\ProductVariantTag;
 use App\Services\UserService;
 use Illuminate\Http\Request;
 
@@ -29,8 +30,7 @@ class ProductTagController extends Controller
         return ApiResponse::Error('Fail to create');
     }
 
-    public function productTags(Request $req){
-        if($req->id) return $this->productTag($req);
+    public function getProductTags(Request $req){
         $user = UserService::getAuthUser();
         $tags = ProductTag::where('branch_id',$user->branch_id)->selectRaw('id,name,name_kh')->get();
         return ApiResponse::Pagination($tags,$req);
@@ -65,5 +65,16 @@ class ProductTagController extends Controller
         $update = $tag->update($inputs);
         if($update) return ApiResponse::JsonResult(null,false,'Updated');
         return ApiResponse::Error('Fail to update');
+    }
+
+    public function deleteProductTag(Request $req){
+        $id = $req->id;
+        $user = UserService::getAuthUser();
+        $tag = ProductVariantTag::where('branch_id',$user->branch_id)->find($id);
+        if($tag){
+            $tag->delete();
+            return ApiResponse::JsonResult(null,false,'Deleted');
+        }
+        return ApiResponse::NotFound('Tag not found!');
     }
 }

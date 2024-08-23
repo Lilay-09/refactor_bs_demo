@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use ApiResponse;
 use App\Http\Controllers\Controller;
+use App\Models\Vendor;
 use App\Models\VendorType;
 use App\Services\UserService;
 use Illuminate\Http\Request;
@@ -70,5 +71,17 @@ class VendorTypeController extends Controller
         $update = $vendorType->update($inputs);
         if($update) return ApiResponse::JsonResult(null,false,'Updated');
         return ApiResponse::Error('Fail to update');
+    }
+
+    public function deleteVendorType(Request $req){
+        $user = UserService::getAuthUser();
+        $id = $req->id;
+        $vendorType = VendorType::where('branch_id',$user->branch_id)->find($id);
+        if($vendorType){
+            $inUsed = Vendor::where('vendor_type_id',$id)->first();
+            if($inUsed) return ApiResponse::ValidateFail('Vendor type is used by vendor.');
+            $vendorType->delete();
+        }
+        return ApiResponse::NotFound('Vendor type not found');
     }
 }

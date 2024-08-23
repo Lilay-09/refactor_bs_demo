@@ -6,6 +6,8 @@ use ApiResponse;
 use App\Http\Controllers\Controller;
 use App\Models\ProductVariant;
 use App\Models\ProductVariantPhoto;
+use App\Models\PurchaseOrderItem;
+use App\Models\Stock;
 use App\Services\UserService;
 use Helper;
 use Illuminate\Http\Request;
@@ -86,7 +88,7 @@ class ProductVariantController extends Controller
         $product_id = $product_id ? $product_id : $req->product_id;
         $variants = ProductVariant::where('branch_id',$user->branch_id)->where('product_id',$product_id)->selectRaw('id,size,color,sku,weight,width,length,expires_at,condition,condition_percentage,material,product_id')->get();
         return ApiResponse::JsonResult($variants);
-}
+    }
 
     public function deleteVariantPhoto(Request $req){
         $id = $req->id;
@@ -97,6 +99,25 @@ class ProductVariantController extends Controller
             Helper::deleteImageFile($photo->photo_file_name,$user->company_id,$photo->directory);
         }
         $photo->delete();
+        return ApiResponse::JsonResult(null,false,'Photo deleted');
+    }
+
+    public function deleteVariant(Request $req){
+        $id = $req->id;
+        $user = UserService::getAuthUser();
+        $variant = ProductVariant::where('branch_id',$user->branch_id)->find($id);
+        if(!$variant) return ApiResponse::NotFound('Variant not found');
+
+        // clear variant photos
+        $photos = ProductVariantPhoto::where('variant_id',$id)->get();
+        foreach($photos as $photo){
+            $inPurhcase = PurchaseOrderItem::where('variant_id',$id)->first();
+            $inStock = Stock::where('variant_id',$id)->first();
+            if($inStock || $inPurhcase) return ApiResponse::ValidateFail('This variant is running in stock, you cannot delete it.');
+            Helper::deleteImageFile($photo->photo_file_name,$user->company_id,$photo->directory);
+            ProductVariantPhoto::find($photo->id)->delete();
+        }
+        $variant->delete();
         return ApiResponse::JsonResult(null,false,'Photo deleted');
     }
 }

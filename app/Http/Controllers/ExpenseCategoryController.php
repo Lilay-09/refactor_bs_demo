@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use ApiResponse;
 use App\Http\Controllers\Controller;
+use App\Models\Expense;
 use App\Models\ExpenseCategory;
 use App\Services\UserService;
 use Illuminate\Http\Request;
@@ -63,5 +64,16 @@ class ExpenseCategoryController extends Controller
         $update = $expenseCategory->update($inputs);
         if($update) return ApiResponse::JsonResult(null,false,'Updated');
         return ApiResponse::Error('Fail to update');
+    }
+
+    public function deleteExpenseCategory(Request $req){
+        $user = UserService::getAuthUser();
+        $id = $req->id;
+        $expenseCategory = ExpenseCategory::where('branch_id',$user->branch_id)->find($id);
+        if(!$expenseCategory) return ApiResponse::NotFound('Category not found');
+        $inUsed = Expense::where('category_id',$id)->first();
+        if($inUsed) return ApiResponse::ValidateFail('The category is used by expense');
+        $expenseCategory->delete();
+        return ApiResponse::JsonResult(null,false,'Deleted');
     }
 }

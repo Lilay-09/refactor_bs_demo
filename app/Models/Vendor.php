@@ -17,10 +17,21 @@ class Vendor extends Model
         'phone',
         'address',
         'vendor_type_id',
+        'city',
+        'postal_code',
+        'country',
         'address_kh',
         'create_uid',
         'update_uid',
         'branch_id',
         'company_id'
     ];
+
+    protected $casts = [
+        'updated_at' => 'date:d-M-Y'
+    ];
+
+    public function getVendorType(){
+        return $this->hasOne(VendorType::class, 'id', 'vendor_type_id');
+    }
 }

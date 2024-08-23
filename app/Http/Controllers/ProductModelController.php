@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use ApiResponse;
 use App\Http\Controllers\Controller;
+use App\Models\Product;
 use App\Models\ProductModel;
 use App\Services\UserService;
 use Illuminate\Http\Request;
@@ -43,13 +44,13 @@ class ProductModelController extends Controller
     public function productModels(Request $req){
         if($req->id) return $this->productModel($req);
         $user = UserService::getAuthUser();
-        $models = ProductModel::where('branch_id',$user->branch_id)->selectRaw('id,name,name_kh,brand_id')->get();
+        $models = ProductModel::where('company_id',$user->company_id)->selectRaw('id,name,name_kh,brand_id')->get();
         return ApiResponse::Pagination($models,$req);
     }
 
     public function productModel(Request $req){
         $user = UserService::getAuthUser();
-        $model = ProductModel::where('branch_id',$user->branch_id)->selectRaw('id,name,name_kh,brand_id')->find($req->id);
+        $model = ProductModel::where('company_id',$user->company_id)->selectRaw('id,name,name_kh,brand_id')->find($req->id);
         return ApiResponse::JsonResult($model);
     }
 
@@ -69,7 +70,7 @@ class ProductModelController extends Controller
         $inputs = $validate->validated();
         $user = UserService::getAuthUser();
         $id = $inputs['id'];
-        $model = ProductModel::where('branch_id',$user->branch_id)->find($id);
+        $model = ProductModel::where('company_id',$user->company_id)->find($id);
         if(!$model) return ApiResponse::NotFound('Model not found');
         $name = $inputs['name'];
         $name_kh = $inputs['name_kh'];
@@ -85,5 +86,18 @@ class ProductModelController extends Controller
         ]);
         if($update) return ApiResponse::JsonResult(null,false,'Updated');
         return ApiResponse::Error('Fail to update');
+    }
+
+    public function deleteModel(Request $req){
+        $user = UserService::getAuthUser();
+        $id = $req->id;
+        $model = ProductModel::where('branch_id',$user->branch_id)->find($id);
+        if($model){
+            $inUse = Product::where('model_id',$id)->first();
+            if($inUse) return ApiResponse::ValidateFail('Model is used in product');
+            $model->delete();
+            return ApiResponse::JsonResult(null,false,'Deleted');
+        }
+        return ApiResponse::NotFound('Model not found');
     }
 }

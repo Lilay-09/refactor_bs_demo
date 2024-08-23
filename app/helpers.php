@@ -296,9 +296,10 @@ class Helper{
         }
     }
 
-
-
-
+    public static function filterSpecialChars($str) {
+        // This regex will match any character that is not a letter (a-z, A-Z), a digit (0-9), or a space
+        return preg_replace('/[^a-zA-Z0-9\s]/', '', $str);
+    }
 
 }
 

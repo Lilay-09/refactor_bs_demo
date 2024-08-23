@@ -6,6 +6,7 @@ use ApiResponse;
 use App\Http\Controllers\Controller;
 use App\Models\Customer;
 use App\Models\CustomerType;
+use App\Models\Invoice;
 use App\Services\UserService;
 use Illuminate\Http\Request;
 
@@ -50,7 +51,7 @@ class CustomerController extends Controller
 
     public function getCustomers(Request $req){
         $user = UserService::getAuthUser();
-        $query = Customer::where('branch_id',$user->branch_id);
+        $query = Customer::where('company_id',$user->company_id);
         if($req->search){
             $query->where('name','ilike','%'.$req->search.'%')->orWhere('name_kh','ilike','%'.$req->search.'%')->orWhere('phone',$req->search);
         }
@@ -61,7 +62,7 @@ class CustomerController extends Controller
     public function getCustomer(Request $req,$id=null){
         $id = $id ? $id : $req->id;
         $user = UserService::getAuthUser();
-        $row = Customer::where('branch_id',$user->branch_id)->find($id);
+        $row = Customer::where('company_id',$user->company_id)->find($id);
         return ApiResponse::JsonResult($row);
     }
 
@@ -88,5 +89,18 @@ class CustomerController extends Controller
         $update = $customer->update($inputs);
         if($update) return ApiResponse::JsonResult(null,false,'Updated');
         return ApiResponse::Error('Fail to update');
+    }
+
+    public function deleteCustomer(Request $req){
+        $id = $req->id;
+        $user = UserService::getAuthUser();
+        $customer = Customer::where('company_id',$user->company_id)->find($id);
+        if($customer){
+            $recordedInInvoice = Invoice::where('customer_id',$id)->first();
+            if($recordedInInvoice) return ApiResponse::ValidateFail('To keep customer history, you cannot delete!');
+            $customer->delete();
+            return ApiResponse::JsonResult(null);
+        }
+        return ApiResponse::NotFound('Customer not found');
     }
 }

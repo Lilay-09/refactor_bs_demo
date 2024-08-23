@@ -11,6 +11,8 @@ use Illuminate\Http\Request;
 class StockLocationController extends Controller
 {
 
+    protected $warehouseLimiation = 3;
+
     private function stockLocationValidation(Request $req){
         return validator($req->all(),[
             'name' => 'required|string|max:50',
@@ -22,6 +24,7 @@ class StockLocationController extends Controller
             'main' => 'nullable|in,true,false|default:false'
         ]);
     }
+    
     //
     public function createStockLocation(Request $req){
         $user = UserService::getAuthUser();
@@ -38,6 +41,8 @@ class StockLocationController extends Controller
             $hasMain = StockLocation::where('company_id',$user->company_id)->take(1)->value('main');
             if($hasMain) return ApiResponse::Duplicated('The main wareharehouse is already exists');
         }
+        $count = StockLocation::where('company_id',$user->company_id)->count();
+        if($count == $this->warehouseLimiation) return ApiResponse::ValidateFail('Warehouse has reached limit '.$this->warehouseLimiation.' of '.$this->warehouseLimiation);
         $create = StockLocation::create($inputs);
         if($create) return ApiResponse::JsonResult(null,false,'Created');
         return ApiResponse::Error('Fail to create');
