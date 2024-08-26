@@ -1,11 +1,13 @@
 <?php
 
 namespace App\Services;
+use App\Models\Bank;
 use App\Models\Branch;
 use App\Models\Brand;
 use App\Models\Category;
 use App\Models\City;
 use App\Models\Country;
+use App\Models\Customer;
 use App\Models\CustomerType;
 use App\Models\ExpenseCategory;
 use App\Models\Product;
@@ -13,9 +15,12 @@ use App\Models\ProductGroup;
 use App\Models\ProductModel;
 use App\Models\ProductTag;
 use App\Models\ProductVariantTag;
+use App\Models\Service;
+use App\Models\Stock;
 use App\Models\StockLocationType;
 use App\Models\Vendor;
 use App\Models\VendorType;
+use Helper;
 use User;
 
 class GeneralSettingService
@@ -38,6 +43,49 @@ class GeneralSettingService
 
     static function getProducts($user){
         return Product::where('company_id',$user->company_id)->selectRaw('id,name')->get();
+    }
+
+    static function getCustomers($user){
+        $rows = Customer::where('company_id',$user->company_id)->selectRaw('name,phone,id')->get();
+        foreach($rows as $row){
+            if($row->name){
+                $row->name = $row->phone . '('.$row->name.')';
+            }else $row->name = $row->phone;
+            unset($row->phone);
+        }
+        return $rows;
+    }
+
+    static function getBanks($user){
+        return Bank::selectRaw('id,name')->get();
+    }
+
+    static function getStockItems($user){
+        $stockItems = Stock::with(['variant:id,size,color,condition,retail_price,expires_at,product_id,company_id','variant.product','variant.photos'])->selectRaw('sku,variant_id,qty,retail_price,id,company_id')->where('company_id',$user->company_id)->get();
+        foreach($stockItems as $item){
+            $item->product_name = $item->variant->product->name;
+            $item->product_description = $item->variant->product->description;
+            $item->color = $item->variant->color;
+            $item->size = $item->variant->size;
+            $item->expires_at = $item->variant->expires_at;
+            $item->condition = $item->variant->condition;
+            $item->product_code = $item->variant->product->code;
+            $item->retail_price = $item->retail_price > 0 ? $item->retail_price : $item->variant->retail_price;
+            foreach($item->variant->photos as $photo){
+                    if($photo->is_thumbnail){
+                        var_dump($photo->directory);
+                        $item->image_url = Helper::getImageUrl($photo->photo_file_name,$item->company_id,$photo->directory);
+                    }
+                    if(!$item->image_url) $item->image_url = Helper::getImageUrl($photo->photo_file_name,$item->company_id,$photo->directory);
+            }
+
+            unset($item->variant);
+        }
+        return $stockItems;
+    }
+
+    static function getServices($user){
+        return Service::selectRaw('id,name,price')->where('company_id',$user->company_id)->get();
     }
 
     static function getTags($user){

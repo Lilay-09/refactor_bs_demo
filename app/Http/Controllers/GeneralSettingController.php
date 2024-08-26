@@ -44,6 +44,31 @@ class GeneralSettingController extends Controller
     }
 
 
+    public function formPOS(){
+        $user = UserService::getAuthUser();
+        $obj = (object)[
+            'customers' => $this->gs::getCustomers($user),
+            'tags' => $this->gs::getTags($user),
+            'categories' => $this->gs::getProductCategories($user),
+            'brands' => $this->gs::getBrands($user)
+        ];
+        return ApiResponse::JsonResult($obj);
+    }
+
+    public function formPosItems(){
+        $user = UserService::getAuthUser();
+        $obj = (object)[
+            'items' => $this->gs::getStockItems($user),
+            'service' => $this->gs::getServices($user),
+        ];
+        return ApiResponse::JsonResult($obj);
+    }
+
+    public function getBanks(){
+        $user = UserService::getAuthUser();
+        return ApiResponse::JsonResult($this->gs::getBanks($user));
+    }
+
     public function getProducts(Request $req){
         $user = UserService::getAuthUser();
         return ApiResponse::JsonResult($this->gs::getProducts($user));
