@@ -177,7 +177,7 @@ class ProductController extends Controller
         if (is_string($tags)) {
             $tags = explode(',', strtolower($tags));
         }
-        $query = Product::with(['specifications:id,name,value,product_id','tags:id,tag,product_id','variants.photos'])->where('branch_id',$user->branch_id)->selectRaw('id,name,code,description');
+        $query = Product::with(['specifications:id,name,value,product_id','tags:id,tag,product_id','variants.photos'])->where('branch_id',$user->branch_id)->orderByRaw('DATE(created_at) DESC')->selectRaw('id,name,code,description');
         if (!empty($tags)){
             $query->whereHas('tags', function($query) use ($tags) {
                 $query->whereRaw('LOWER(tag) IN (?)', [$tags]);
@@ -196,8 +196,12 @@ class ProductController extends Controller
     public function getProductById(Request $req){
         $user = UserService::getAuthUser();
         $id = $req->id ? $req->id : $req->query('id');
-        $products = Product::where('branch_id',$user->branch_id)->find($id);
-        return ApiResponse::JsonResult($products,false,'get product');
+        $product = Product::with(['getModel:id,brand_id','variants:id,product_id,size,color,weight,length,expires_at,condition,material,cost,retail_price','tags:id,tag,product_id'])->where('branch_id',$user->branch_id)->find($id);
+        if($product){
+            $product->brand_id = $product->getModel->brand_id;
+            unset($product->getModel);
+        }
+        return ApiResponse::JsonResult($product,false,'get product');
     }
 
     function createProductVariant(Request $req){
@@ -305,8 +309,8 @@ class ProductController extends Controller
         $specs = isset($inputs['specs']) ? $inputs['specs'] : [];
         $tags = isset($inputs['tags']) ? $inputs['tags'] : [];
         $cost = isset($inputs['cost']) ? $inputs['cost'] : null;
-        $retail_price = isset($inputs['retail_price']) ? $inputs['retail_price'] : null;
-        $wholesale_price = isset($inputs['wholesale_price']) ? $inputs['wholesale_price'] : null;
+        $retail_price = $inputs['retail_price'] ?? 0;
+        $wholesale_price = $inputs['wholesale_price'] ?? 0;
         unset($inputs['variants'],$inputs['specs'],$inputs['tags']);
         DB::beginTransaction();
         try{
@@ -429,6 +433,7 @@ class ProductController extends Controller
         if(!$fkId) $fkId = isset($fk['variant_id']) ? $fk['variant_id'] : null;
         $keys = array_keys($fk);
         if(!$fk) return DataResponse::ValidateFail($keys[0].' is required');
+        $ids = [];
         foreach($tags as $tag){
             // return $tag;
             $id = isset($tag['id']) ? $tag['id']:null;
@@ -445,14 +450,20 @@ class ProductController extends Controller
                 $tag = ProductVariantTag::where('branch_id',$branch_id)->find($id);
                 $update = $tag->update($inputs);
                 if(!$update) return DataResponse::Error('Fail to update tag');
+                $ids[] = $id;
             }else{
                 $duplicateName = ProductVariantTag::where('tag',$inputs['tag'])->where($fk)->where('branch_id',$branch_id)->first();
                 if($duplicateName) return DataResponse::Duplicated('It seems like you try to add tag but got duplicated by tag ('.$tag['tag'].')');
                 $inputs['create_uid'] = $userId;
                 $create = ProductVariantTag::create($inputs);
                 if(!$create) return DataResponse::Error('Fail to create');
+                $ids[] = $create->id;
             }
+
+
         }
+        //** DELETE where if not provided */
+        ProductVariantTag::where($keys[0],$fkId)->whereNotIn('id',$ids)->delete();
         return DataResponse::JsonResult(null,false,'Saved');
     }
 

@@ -73,12 +73,10 @@ class GeneralSettingService
             $item->retail_price = $item->retail_price > 0 ? $item->retail_price : $item->variant->retail_price;
             foreach($item->variant->photos as $photo){
                     if($photo->is_thumbnail){
-                        var_dump($photo->directory);
                         $item->image_url = Helper::getImageUrl($photo->photo_file_name,$item->company_id,$photo->directory);
                     }
                     if(!$item->image_url) $item->image_url = Helper::getImageUrl($photo->photo_file_name,$item->company_id,$photo->directory);
             }
-
             unset($item->variant);
         }
         return $stockItems;
