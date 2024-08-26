@@ -37,9 +37,20 @@ class GeneralSettingController extends Controller
         $obj = (object)[
             'groups' => $this->gs::getProductGroups($user),
             'brands' => $this->gs::getBrands($user),
+            'tags' => $this->gs::getTags($user),
             'categories' => $this->gs::getProductCategories($user)
         ];
         return ApiResponse::JsonResult($obj);
+    }
+
+
+    public function getProducts(Request $req){
+        $user = UserService::getAuthUser();
+        return ApiResponse::JsonResult($this->gs::getProducts($user));
+    }
+    public function getStockLocationTypes(){
+        $user = UserService::getAuthUser();
+        return ApiResponse::JsonResult($this->gs::getStockLocationTypes($user));
     }
 
     public function formSupplier(){
@@ -48,6 +59,24 @@ class GeneralSettingController extends Controller
             'vendor_types' => $this->gs::getVendorTypes($user),
             // 'cities' => $this->gs::getCities($user),
             'countries' => $this->gs::getCountries($user)
+        ];
+        return ApiResponse::JsonResult($obj);
+    }
+
+    public function formWarehouse(){
+        $user = UserService::getAuthUser();
+        $obj = (object)[
+            'warehouse_types' => $this->gs::getStockLocationTypes($user),
+            'branches' => $this->gs::getBranches($user),
+        ];
+        return ApiResponse::JsonResult($obj);
+    }
+
+    public function formPurchase(){
+        $user = UserService::getAuthUser();
+        $obj = (object)[
+            'vendors' => $this->gs::getStockLocationTypes($user),
+            'branches' => $this->gs::getBranches($user),
         ];
         return ApiResponse::JsonResult($obj);
     }
@@ -64,10 +93,11 @@ class GeneralSettingController extends Controller
         return ApiResponse::JsonResult($models);
     }
 
-    public function getModelByBrand(Request $req){
+
+    public function getModelsByBrand(Request $req){
         $brand_id = $req->brand_id;
         $user = UserService::getAuthUser();
-        $models = $this->gs::getModelByBrand($brand_id,$user);
+        $models = $this->gs::getModelsByBrand($brand_id,$user);
         return ApiResponse::JsonResult($models);
     }
 

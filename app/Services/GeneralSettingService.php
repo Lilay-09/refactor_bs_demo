@@ -1,14 +1,19 @@
 <?php
 
 namespace App\Services;
+use App\Models\Branch;
 use App\Models\Brand;
 use App\Models\Category;
 use App\Models\City;
 use App\Models\Country;
 use App\Models\CustomerType;
 use App\Models\ExpenseCategory;
+use App\Models\Product;
 use App\Models\ProductGroup;
 use App\Models\ProductModel;
+use App\Models\ProductTag;
+use App\Models\ProductVariantTag;
+use App\Models\StockLocationType;
 use App\Models\Vendor;
 use App\Models\VendorType;
 use User;
@@ -24,11 +29,19 @@ class GeneralSettingService
         return ProductModel::where('company_id',$user->company_id)->selectRaw('id,name')->get();
     }
 
-    static function getModelByBrand($brand_id,$user){
+    static function getModelsByBrand($brand_id,$user){
         return ProductModel::where('company_id',$user->company_id)->where('brand_id',$brand_id)->selectRaw('id,name')->get();
     }
     static function getProductGroups($user){
         return ProductGroup::where('company_id',$user->company_id)->selectRaw('id,name')->get();
+    }
+
+    static function getProducts($user){
+        return Product::where('company_id',$user->company_id)->selectRaw('id,name')->get();
+    }
+
+    static function getTags($user){
+        return ProductTag::where('company_id',$user->company_id)->selectRaw('id,name,name as label')->get();
     }
 
     static function getCustomerTypes($user){
@@ -36,7 +49,7 @@ class GeneralSettingService
     }
 
     static function getProductCategories($user){
-        return Category::where('company_id',$user->company_id)->get();
+        return Category::where('company_id',$user->company_id)->selectRaw('id,name')->get();
     }
     static function getBrands($user){
         return Brand::where('company_id',$user->company_id)->selectRaw('id,name')->get();
@@ -56,5 +69,12 @@ class GeneralSettingService
 
     static function getVendorTypes($user){
         return VendorType::where('company_id',$user->company_id)->selectRaw('id,name')->get();
+    }
+
+    static function getStockLocationTypes($user){
+        return StockLocationType::selectRaw('id,name')->get();
+    }
+    static function getBranches($user){
+        return Branch::where('company_id',$user->company_id)->selectRaw('id,name')->get();
     }
 }

@@ -70,7 +70,7 @@ class ProductTagController extends Controller
     public function deleteProductTag(Request $req){
         $id = $req->id;
         $user = UserService::getAuthUser();
-        $tag = ProductVariantTag::where('branch_id',$user->branch_id)->find($id);
+        $tag = ProductTag::where('branch_id',$user->branch_id)->find($id);
         if($tag){
             $tag->delete();
             return ApiResponse::JsonResult(null,false,'Deleted');

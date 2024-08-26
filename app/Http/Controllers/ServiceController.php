@@ -50,7 +50,7 @@ class ServiceController extends Controller
 
     public function getServices(Request $req){
         $user = UserService::getAuthUser();
-        $query = Service::where('branch_id',$user->branch_id)->selectRaw('id,name,name_kh,photo_file_name');
+        $query = Service::where('branch_id',$user->branch_id)->selectRaw('id,price,description,name,name_kh,photo_file_name');
         if($req->search){
             $query->where('name','ilike','%'.$req->search.'%')->orWhere('name_kh','ilike','%'.$req->search.'%');
         }
@@ -95,6 +95,7 @@ class ServiceController extends Controller
             Helper::deleteImageFile($serivce->photo_file_name,$user->company_id,self::$imgDir);
             $photoFile = Helper::base64ToImageFile($photo,$user->company_id,self::$imgDir);
             if($photoFile) $inputs['photo_file_name'] = $photoFile;
+            else $inputs['photo_file_name'] = null;
         }
         $update = $serivce->update($inputs);
         if($update) return ApiResponse::JsonResult(null,false,'Updated');
@@ -111,7 +112,7 @@ class ServiceController extends Controller
             if($usedInReceipt || $useInInvoice) return ApiResponse::ValidateFail('To keep history record, you cannot delete the used service');
             Helper::deleteImageFile($service->photo_file_name,$user->company_id,self::$imgDir);
             $service->delete();
-            return ApiResponse::JsonResult(null);
+            return ApiResponse::JsonResult(null.false,'Deleted');
         }
         return ApiResponse::NotFound('Service not found');
     }

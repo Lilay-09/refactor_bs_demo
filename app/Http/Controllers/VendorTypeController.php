@@ -81,6 +81,7 @@ class VendorTypeController extends Controller
             $inUsed = Vendor::where('vendor_type_id',$id)->first();
             if($inUsed) return ApiResponse::ValidateFail('Vendor type is used by vendor.');
             $vendorType->delete();
+            return ApiResponse::JsonResult(null,false,'Deleted');
         }
         return ApiResponse::NotFound('Vendor type not found');
     }

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use ApiResponse;
 use App\Http\Controllers\Controller;
+use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Models\ProductVariantPhoto;
 use App\Models\PurchaseOrderItem;
@@ -38,8 +39,12 @@ class ProductVariantController extends Controller
         $inputs['create_uid'] = $user->id;
         $photos = isset($inputs['photos']) ? $inputs['photos'] : [];
         unset($inputs['photos']);
+        $productInfo = Product::find($inputs['product_id']);
         $create = ProductVariant::create($inputs);
         $product = new ProductController();
+        $inputs['cost'] = $inputs['cost'] ?? $productInfo->cost;
+        $inputs['retail_price'] = $inputs['retail_price']?? $productInfo->retail_price;
+        $inputs['wholesale_price'] = $inputs['wholesale_price'] ?? $productInfo->wholesale_price;
         if(isset($photos[0])){
             $savePhoto = $product->updateOrCreateVariantPhotos($photos,$user->company_id,$create->id);
             if($savePhoto->status_code == 422) return ApiResponse::ValidateFail($savePhoto->message);
@@ -68,10 +73,14 @@ class ProductVariantController extends Controller
         $photos = $inputs['photos'];
         unset($inputs['photos']);
         $variant = ProductVariant::where('branch_id',$user->branch_id)->find($id);
-        $update = $variant->update($inputs);
         $product = new ProductController();
         $savePhoto = $product->updateOrCreateVariantPhotos($photos,$user->company_id,$id);
         if($savePhoto->status_code == 422) return ApiResponse::ValidateFail($savePhoto->message);
+        $productInfo = Product::find($inputs['product_id']);
+        $inputs['cost'] = $inputs['cost'] ?? $productInfo->cost;
+        $inputs['retail_price'] = $inputs['retail_price']?? $productInfo->retail_price;
+        $inputs['wholesale_price'] = $inputs['wholesale_price'] ?? $productInfo->wholesale_price;
+        $update = $variant->update($inputs);
         if(!$update) return ApiResponse::Error('Fail to update variant');
         return ApiResponse::JsonResult(null,false,'Updated');
     }
@@ -79,15 +88,40 @@ class ProductVariantController extends Controller
     public function getVariantById(Request $req,$id=null){
         $user = UserService::getAuthUser();
         $id = $id ? $id : $req->id;
-        $variant = ProductVariant::where('branch_id',$user->branch_id)->where('id',$id)->selectRaw('id,size,color,sku,weight,width,length,expires_at,condition,condition_percentage,material,product_id')->first();
+        $variant = ProductVariant::with(['photos:id,variant_id,photo_file_name,directory,is_thumbnail'])->where('branch_id',$user->branch_id)->where('id',$id)->selectRaw('id,size,color,cost,retail_price,sku,weight,width,length,expires_at,condition,condition_percentage,material,product_id,company_id')->first();
+        if($variant){
+            foreach($variant->photos as $photo){
+                $photo->image_url = Helper::getImageUrl($photo->photo_file_name,$variant->company_id,$photo->directory);
+                unset($photo->directory);
+            }
+        }
         return ApiResponse::JsonResult($variant);
 
     }
     public function getVariantByProductId(Request $req,$product_id=null){
         $user = UserService::getAuthUser();
         $product_id = $product_id ? $product_id : $req->product_id;
-        $variants = ProductVariant::where('branch_id',$user->branch_id)->where('product_id',$product_id)->selectRaw('id,size,color,sku,weight,width,length,expires_at,condition,condition_percentage,material,product_id')->get();
+        $variants = ProductVariant::where('branch_id',$user->branch_id)->where('product_id',$product_id)->selectRaw('id,size,color,sku,weight,width,length,expires_at,condition,condition_percentage,material,product_id,company_id')->get();
         return ApiResponse::JsonResult($variants);
+    }
+
+    public function getVariants(Request $req){
+        $user = UserService::getAuthUser();
+        $query = ProductVariant::with(['product:id,name,code','photos:id,variant_id,photo_file_name,directory,is_thumbnail'])->where('branch_id',$user->branch_id);
+        $variants = $query->get();
+        foreach($variants as $vr){
+            $vr->product_name = $vr->product->name;
+            $vr->code = $vr->product->code;
+            foreach($vr->photos as $photo){
+                 if($photo->is_thumbnail){
+                    $vr->image_url = Helper::getImageUrl($photo->photo_file_name,$vr->company_id,$photo->directory);
+                 }
+                 if(!$vr->image_url) $vr->image_url = Helper::getImageUrl($photo->photo_file_name,$vr->company_id,$photo->directory);
+                // unset($vr->photos);
+            }
+            unset($vr->product);
+        }
+        return ApiResponse::Pagination($variants);
     }
 
     public function deleteVariantPhoto(Request $req){

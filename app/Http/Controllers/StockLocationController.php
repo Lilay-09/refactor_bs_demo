@@ -21,10 +21,12 @@ class StockLocationController extends Controller
             'address' => 'nullable|string|max:150',
             'address_kh' => 'nullable|string|max:150',
             'type_id' => 'required|int|exists:stock_location_types,id',
-            'main' => 'nullable|in,true,false|default:false'
+            'use_branch_id' => 'nullable|int|exists:branches,id',
+            'main' => 'nullable|in:0,1',
+            'inactive' => 'nullable|in:0,1'
         ]);
     }
-    
+
     //
     public function createStockLocation(Request $req){
         $user = UserService::getAuthUser();
@@ -36,7 +38,7 @@ class StockLocationController extends Controller
         $inputs['update_uid'] = $userId;
         $inputs['company_id'] = $user->company_id;
         $inputs['branch_id'] = isset($inputs['branch_id']) ? $inputs['branch_id'] : $user->branch_id;
-        $isMain = $inputs['main'] ?? null;
+        $isMain = $inputs['main'] ?? false;
         if($isMain){
             $hasMain = StockLocation::where('company_id',$user->company_id)->take(1)->value('main');
             if($hasMain) return ApiResponse::Duplicated('The main wareharehouse is already exists');
@@ -50,9 +52,19 @@ class StockLocationController extends Controller
 
     public function getStockLocations(Request $req){
         $user = UserService::getAuthUser();
-        $rows = StockLocation::where('branch_id',$user->branch_id)->get();
+        $rows = StockLocation::with('type:id,name')->where('branch_id',$user->branch_id)->selectRaw('id,name,inactive,address,main,type_id,use_branch_id')->get();
+        foreach($rows as $row){
+            $row->warehouse_type = $row->type->name;
+            if($row->inactive) $row->status = 'Inactive';
+            else $row->status = 'Active';
+            if($row->main){
+                $row->warehouse_type = $row->warehouse_type.' (Main)';
+            }else $row->warehouse_type = $row->warehouse_type.' (Local Shop)';
+            unset($row->type);
+        }
         return ApiResponse::JsonResult($rows);
     }
+
     public function getStockLocation(Request $req,$id){
         $user = UserService::getAuthUser();
         $rows = StockLocation::where('branch_id',$user->branch_id)->find($id);
@@ -69,8 +81,11 @@ class StockLocationController extends Controller
         $inputs['update_uid'] = $user->id;
         $inputs['company_id'] = $user->company_id;
         $inputs['branch_id'] = isset($inputs['branch_id']) ? $inputs['branch_id'] : $user->branch_id;
-         $hasMain = StockLocation::where('company_id',$user->company_id)->where('id','!=',$id)->take(1)->value('main');
-        if($hasMain) return ApiResponse::Duplicated('The main wareharehouse is already exists');
+        $isMain = isset($inputs['main']) ? $inputs['main'] : false;
+        if($isMain) {
+            $hasMain = StockLocation::where('company_id',$user->company_id)->where('id','!=',$id)->take(1)->value('main');
+            if($hasMain) return ApiResponse::Duplicated('The main wareharehouse is already exists');
+        }
         $update = $stockLocation->update($inputs);
         if($update) return ApiResponse::JsonResult(null,false,'Updated');
         return ApiResponse::Error('Fail to update');
