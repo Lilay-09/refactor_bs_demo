@@ -38,13 +38,20 @@ class ProductController extends Controller
             'specs' => 'nullable|array',
             'variants' => 'nullable|array',
             'photos' => 'nullable|array'
+        ],[
+            'model_id.required' => 'Please select model',
+            'model_id.exists' => 'Please select model',
+            'group_id.required' => 'Please select group',
+            'group_id.exists' => 'Please select group',
+            'category_id.required' => 'Please select category',
+            'category_id.exists' => 'Please select category'
         ]);
     }
 
     public function createProduct(Request $req){
         $user = UserService::getAuthUser();
         $validate = $this->productValidation($req);
-        if($validate->fails()) return ApiResponse::ValidateFail($validate->errors()->all());
+        if($validate->fails()) return ApiResponse::ValidateFail($validate->errors()->first());
         $inputs = $validate->validated();
 
         //* add user info
@@ -55,9 +62,9 @@ class ProductController extends Controller
         $variants =  isset($inputs['variants']) ? $inputs['variants'] : [];
         $specs = isset($inputs['specs']) ? $inputs['specs'] : [];
         $tags = isset($inputs['tags']) ? $inputs['tags'] : [];
-        $cost = isset($inputs['cost']) ? $inputs['cost'] : null;
-        $retail_price = isset($inputs['retail_price']) ? $inputs['retail_price'] : null;
-        $wholesale_price = isset($inputs['wholesale_price']) ? $inputs['wholesale_price'] : null;
+        $cost = isset($inputs['cost']) ? $inputs['cost'] : 0;
+        $retail_price = isset($inputs['retail_price']) ? $inputs['retail_price'] : 0;
+        $wholesale_price = isset($inputs['wholesale_price']) ? $inputs['wholesale_price'] : 0;
         unset($inputs['variants'],$inputs['specs'],$inputs['tags']);
 
         DB::beginTransaction();
@@ -106,7 +113,9 @@ class ProductController extends Controller
         return validator($req->all(),[
                 'variant_id' => 'required|int|exists:product_variants,id',
                 'photo' => 'required|string',
-                'is_thumbnail' => 'nullable|in:true,false|default:false'
+                'is_thumbnail' => 'nullable|boolean'
+            ],[
+                'photo.required' => 'Image is empty, Please add the image'
             ]);
     }
     function updateOrCreateVariantPhotos($photos,$company_id,$variantId){
@@ -118,21 +127,25 @@ class ProductController extends Controller
             if($validate->fails()) return DataResponse::ValidateFail($validate->errors()->first());
             $inputs = $validate->validated();
             $file_name =  Helper::base64ToImageFile($inputs['photo'],$company_id,'product_variant');
+            // if(!$file_name) return DataResponse::ValidateFail('It seems like the photo is empty!');
             $inputs['photo_file_name'] = $file_name;
             unset($inputs['photo']);
             if($id){
+
                 $photoCount = ProductVariantPhoto::where('id','!=',$id)->where('variant_id',$inputs['variant_id'])->count();
                 if($photoCount == $this->limitImages) {
                     Helper::deleteImageFile($file_name,$company_id,'product_variant');
                     return DataResponse::ValidateFail('Each variant can only store up to '.$this->limitImages.' photos');
                 }
                 $productVariantPhoto = ProductVariantPhoto::find($id);
+                $inputs['photo_file_name'] = $file_name ?? $productVariantPhoto->photo_file_name;
                 if(!$productVariantPhoto) {
                     Helper::deleteImageFile($file_name,$company_id,'product_variant');
                     return DataResponse::ValidateFail('photo not found');
                 }
                 //* delete exists img
-                Helper::deleteImageFile($productVariantPhoto->photo_file_name,$company_id,'product_variant');
+                if($file_name) Helper::deleteImageFile($productVariantPhoto->photo_file_name,$company_id,'product_variant');
+
                 $update = $productVariantPhoto->update($inputs);
                 if(!$update) {
                     Helper::deleteImageFile($file_name,$company_id,'product_variant');
@@ -151,7 +164,6 @@ class ProductController extends Controller
                     return DataResponse::Error('Fail to add photo');
                 }
                 //** delete insert file in local storage if commit to db fail  */
-
             }
         }
         return DataResponse::JsonResult(null,false,'Photo added');
@@ -211,6 +223,7 @@ class ProductController extends Controller
             'tags' => 'nullable|array',
             'photos' => 'nullable|array'
         ],[
+            'condition.required' => 'Condition must be one of (new,second hand)',
             'condition.in' => 'Condition must be one of (new,second hand)'
         ]);
     }
@@ -354,7 +367,7 @@ class ProductController extends Controller
      *
      * create or update variants on update Product function
      */
-    private function updateOrCreateProductVaraints($variants,$productId,$user,$cost=null,$retail_price=null,$wholesale_price=null){
+    private function updateOrCreateProductVaraints($variants,$productId,$user,$cost=0,$retail_price=0,$wholesale_price=0){
         $branch_id = $user->branch_id;
         $userId = $user->id;
         $company_id = $user->company_id;

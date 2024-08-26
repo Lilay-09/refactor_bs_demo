@@ -124,6 +124,9 @@ class Helper{
      */
     static function base64ToImageFile($base64String, $companyId, $dirName,$ext=null)
     {
+        $base64String = self::ensureBase64Prefix($base64String);
+
+        if(!self::isValidBase64Image($base64String)) return null;
         // Construct the base directory path
         $baseFolder = public_path('uploads/images/' . $companyId . '/' . $dirName);
 
@@ -170,7 +173,7 @@ class Helper{
         $filePath = $baseFolder . '/' . $fileName;
 
         // Check if the file exists
-        if (file_exists($filePath)) {
+        if (file_exists($filePath) && $fileName) {
             // Attempt to delete the file
             if (unlink($filePath)) {
                 return true; // File deleted successfully
@@ -187,6 +190,7 @@ class Helper{
     {
         // Construct the relative file path for the URL
         $relativeFilePath = 'uploads/images/' . $companyId . '/' . $dirName . '/' . $fileName;
+        // var_dump($relativeFilePath);
 
         // Construct the full file path on the server
         $filePath = public_path($relativeFilePath);
@@ -217,12 +221,11 @@ class Helper{
                 $baseFolder = public_path('uploads/documents/' . $companyId . '/' . $dirName);
                 $baseUrl = 'uploads/documents/';
                 break;
-            // Add more cases as needed for other types
             default:
                 throw new Exception('Invalid file type specified.');
         }
 
-        // Construct the full file path on the server
+        // full path
         $filePath = $baseFolder . '/' . $fileName;
         // Construct the URL for the file
         $fileUrl = asset($baseUrl . $companyId . '/' . $dirName . '/' . $fileName);
@@ -236,6 +239,8 @@ class Helper{
         }
     }
 
+
+    // check full path base 64
     static function isValidBase64Image($base64String)
     {
         // Check if the string has the correct base64 format for an image
@@ -294,6 +299,26 @@ class Helper{
             if ($onSuccess) $onSuccess();
             return (object)['status_code' => 200, 'status' => 'OK', 'code' => $new_code];
         }
+    }
+
+    static function ensureBase64Prefix($base64String, $imageType = 'png')
+    {
+        // Define a pattern to match the existing base64 prefix
+        $prefixPattern = '/^data:image\/(\w+);base64,/';
+
+        // Check if the base64 string has a prefix
+        if (preg_match($prefixPattern, $base64String, $matches)) {
+            // If it has a prefix, but the image type is different, replace it with the correct one
+            $existingType = $matches[1];
+            if ($existingType !== $imageType) {
+                $base64String = preg_replace($prefixPattern, "data:image/{$imageType};base64,", $base64String);
+            }
+        } else {
+            // If no prefix is found, add the correct one
+            $base64String = "data:image/{$imageType};base64," . $base64String;
+        }
+
+        return $base64String;
     }
 
     public static function filterSpecialChars($str) {
