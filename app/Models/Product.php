@@ -42,6 +42,10 @@ class Product extends Model
         return $this->hasMany(ProductVariantTag::class,'product_id','id');
     }
 
+    public function getModel(){
+        return $this->belongsTo(ProductModel::class,'model_id','id');
+    }
+
     public function category(){
         return $this->belongsTo(Category::class,'category_id','id');
     }
