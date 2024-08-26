@@ -39,9 +39,9 @@ class ProductVariant extends Model
         return $this->belongsTo(Product::class,'product_id','id');
     }
 
-    public function onePhoto(){
-        return $this->hasOne(ProductVariantPhoto::class,'product_variant_id','id')->orWhere('is_thumbnail',1)->first();
-    }
+    // public function onePhoto(){
+    //     return $this->hasOne(ProductVariantPhoto::class,'product_variant_id','id')->orWhere('is_thumbnail',1)->first();
+    // }
 
     public function photos(){
         return $this->hasMany(ProductVariantPhoto::class,'variant_id','id');
