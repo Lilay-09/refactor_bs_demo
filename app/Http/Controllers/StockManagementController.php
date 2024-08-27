@@ -97,7 +97,7 @@ class StockManagementController extends Controller
             if($create){
                 $purchaseId = $create->id;
                 $mergedItems = $this->mergerOrderItems($orderItems,$purchaseId,$discountInfo);
-                return $mergedItems;
+                // return $mergedItems;
                 if($mergedItems->status_code == 422) return ApiResponse::ValidateFail($mergedItems->message);
                 $totalAmt = $mergedItems->data->total;
                 $totalDue = $mergedItems->data->total_due;
@@ -425,11 +425,11 @@ class StockManagementController extends Controller
                 $totalRow = $merged[$key]['qty'] * $unitPrice;
                 $total += $totalRow;
                 $due_amount = $this->calculatePrice($unitPrice,$merged[$key]['qty'],$discountAmount,$discountType);
-                if($defaultDiscountType == '%'){
-                    $due_amount = $due_amount - ($totalRow * $defaultDiscountAmt/100);
-                }else{
-                    $due_amount = $due_amount - $defaultDiscountAmt;
-                }
+                // if($defaultDiscountType == '%'){
+                //     $due_amount = $due_amount - ($totalRow * $defaultDiscountAmt/100);
+                // }else{
+                //     $due_amount = $due_amount - $defaultDiscountAmt;
+                // }
                 if($due_amount < 0) return DataResponse::ValidateFail('The discount amount cannot exceed the payable price. Please enter a valid discount.');
                 $totalDue += $due_amount;
                 $merged[$key]['due_amount'] = $due_amount;
@@ -439,16 +439,22 @@ class StockManagementController extends Controller
                 $total += $totalRow;
                 $merged[$key] = $row;
                 $due_amount = $this->calculatePrice($unitPrice,$qty,$discountAmount,$discountType);
-                if($defaultDiscountType == '%'){
-                    $due_amount = $due_amount - ($totalRow * $defaultDiscountAmt / 100);
-                }else {
-                    $due_amount = $due_amount - $defaultDiscountAmt;
-                }
+                // if($defaultDiscountType == '%'){
+                //     $due_amount = $due_amount - ($totalRow * $defaultDiscountAmt / 100);
+                // }else {
+                //     $due_amount = $due_amount - $defaultDiscountAmt;
+                // }
                 if($due_amount < 0) return DataResponse::ValidateFail('The discount amount cannot exceed the payable price. Please enter a valid discount.');
                 $totalDue += $due_amount;
                 $merged[$key]['due_amount'] = $due_amount;
                 $merged[$key]['total_amount'] = $totalRow;
             }
+        }
+
+        if($defaultDiscountType == '%'){
+            $totalDue = $totalDue - ($totalDue * $defaultDiscountAmt/100);
+        }else{
+            $totalDue = $totalDue - $defaultDiscountAmt;
         }
         return DataResponse::JsonResult((object)[
             'items' => array_values($merged),
