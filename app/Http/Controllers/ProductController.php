@@ -177,7 +177,7 @@ class ProductController extends Controller
         if (is_string($tags)) {
             $tags = explode(',', strtolower($tags));
         }
-        $query = Product::with(['specifications:id,name,value,product_id','tags:id,tag,product_id','variants.photos'])->where('branch_id',$user->branch_id)->orderByRaw('DATE(created_at) DESC')->selectRaw('id,name,code,description');
+        $query = Product::with(['specifications:id,name,value,product_id','tags:id,tag,product_id','variants.photos','getModel:id,name,brand_id','getModel.brand:id,name'])->where('branch_id',$user->branch_id)->orderByRaw('DATE(created_at) DESC')->selectRaw('id,name,code,description,model_id');
         if (!empty($tags)){
             $query->whereHas('tags', function($query) use ($tags) {
                 $query->whereRaw('LOWER(tag) IN (?)', [$tags]);
@@ -190,6 +190,11 @@ class ProductController extends Controller
                 });
         }
         $products = $query->get();
+        foreach($products as $product){
+            $product->brand_name = $product->getModel->brand->name;
+            $product->model_name = $product->getModel->name;
+            unset($product->getModel);
+        }
         return ApiResponse::Pagination($products,$req,'get product list');
     }
 

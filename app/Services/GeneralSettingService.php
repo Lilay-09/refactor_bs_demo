@@ -14,24 +14,34 @@ use App\Models\Product;
 use App\Models\ProductGroup;
 use App\Models\ProductModel;
 use App\Models\ProductTag;
+use App\Models\ProductVariant;
 use App\Models\ProductVariantTag;
 use App\Models\Service;
 use App\Models\Stock;
+use App\Models\StockLocation;
 use App\Models\StockLocationType;
 use App\Models\Vendor;
 use App\Models\VendorType;
 use Helper;
-use User;
 
 class GeneralSettingService
 {
     // Your service methods go here
     public static function getOptionsVendor($user){
-        return Vendor::where('branch_id',$user->branch_id)->selectRaw('id,name,phone')->get();
+        $vendors = Vendor::where('branch_id',$user->branch_id)->selectRaw('id,name,phone')->get();
+        foreach($vendors as $v){
+            $v->name = $v->phone.'('.($v->name ?? 'no name').')';
+        }
+        return $vendors;
     }
+
 
     static function getModels($user){
         return ProductModel::where('company_id',$user->company_id)->selectRaw('id,name')->get();
+    }
+
+    static function getWarhouses($user){
+        return StockLocation::where('company_id',$user->company_id)->selectRaw('id,name')->get();
     }
 
     static function getModelsByBrand($brand_id,$user){
@@ -44,6 +54,16 @@ class GeneralSettingService
     static function getProducts($user){
         return Product::where('company_id',$user->company_id)->selectRaw('id,name')->get();
     }
+
+    static function getProductVariants($user){
+        $variants = ProductVariant::with('product')->where('company_id',$user->company_id)->selectRaw('id,product_id,size,color,sku,weight,width,length,expires_at,condition,material,cost')->get();
+        foreach($variants as $vr){
+            $vr->product_name = ($vr->product->code?($vr->product->code.'|'):'').$vr->product->name . '(Condition: '.$vr->condition.($vr->size ? ',Size: '.$vr->size:'').($vr->color ? ',Color: '.$vr->color:'').')';
+            unset($vr->product);
+        }
+        return $variants;
+    }
+
 
     static function getCustomers($user){
         $rows = Customer::where('company_id',$user->company_id)->selectRaw('name,phone,id')->get();

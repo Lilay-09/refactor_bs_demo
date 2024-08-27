@@ -59,7 +59,7 @@ class GeneralSettingController extends Controller
         $user = UserService::getAuthUser();
         $obj = (object)[
             'items' => $this->gs::getStockItems($user),
-            'service' => $this->gs::getServices($user),
+            'service' => $this->gs::getProducts($user),
         ];
         return ApiResponse::JsonResult($obj);
     }
@@ -100,8 +100,9 @@ class GeneralSettingController extends Controller
     public function formPurchase(){
         $user = UserService::getAuthUser();
         $obj = (object)[
-            'vendors' => $this->gs::getStockLocationTypes($user),
-            'branches' => $this->gs::getBranches($user),
+            'vendors' => $this->gs::getOptionsVendor($user),
+            'warehouses' => $this->gs::getWarhouses($user),
+            'items' => $this->gs::getProductVariants($user),
         ];
         return ApiResponse::JsonResult($obj);
     }
