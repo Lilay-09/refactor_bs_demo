@@ -27,6 +27,11 @@ class Customer extends Model
     ];
 
     protected $casts = [
-        'updated_at' => 'date:d-M-Y'
+        'updated_at' => 'date:d-M-Y',
+        'created_at' => 'date:d-M-Y'
     ];
+
+    public function type(){
+        return $this->belongsTo(CustomerType::class,'customer_type_id','id');
+    }
 }

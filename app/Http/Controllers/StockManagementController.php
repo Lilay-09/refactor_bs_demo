@@ -52,6 +52,8 @@ class StockManagementController extends Controller
             'issue_date' => 'required|date',
             'remarks' => 'nullable|string|max:250',
             'expect_arrival_date' => 'nullable|date',
+            'discount_amount' => 'nullable|numeric',
+            'discount_type' => 'nullable|in:$,%',
             'order_items' => 'required|array'
         ]);
     }
@@ -65,7 +67,7 @@ class StockManagementController extends Controller
         $user = UserService::getAuthUser();
         $userId = $user->id;
         $validate = $this->purchaseOrderValidation($req);
-        if($validate->fails()) return ApiResponse::ValidateFail($validate->errors()->first());
+        if($validate->fails()) return ApiResponse::ValidateFail($validate->errors()->first(),$validate->errors());
         $inputs = $validate->validated();
         $inputs['create_uid'] = $userId;
         $inputs['update_uid'] = $userId;
@@ -81,12 +83,27 @@ class StockManagementController extends Controller
 
         $poCode = 'PO'.date('dMYhis');
         $inputs['po_code'] = $poCode;
+        $discount = $inputs['discount_amount'] ?? 0;
+        $discountType = $inputs['discount_type'] ?? '%';
+        if($discount < 0) return ApiResponse::JsonResult(null,false,'Discount must be positive number');
+        $discountInfo = (object)[
+            'amount' => $discount,
+            'type' => $discountType
+        ];
+
         DB::beginTransaction();
         try{
             $create = PurchaseOrder::create($inputs);
             if($create){
                 $purchaseId = $create->id;
-                $createItems = $this->createOrUpdatePurchaseOrderItems($orderItems,$purchaseId,$user);
+                $mergedItems = $this->mergerOrderItems($orderItems,$purchaseId,$discountInfo);
+                return $mergedItems;
+                if($mergedItems->status_code == 422) return ApiResponse::ValidateFail($mergedItems->message);
+                $totalAmt = $mergedItems->data->total;
+                $totalDue = $mergedItems->data->total_due;
+                $items = $mergedItems->data->items;
+
+                $createItems = $this->createOrUpdatePurchaseOrderItems($items,$purchaseId,$user,$discountInfo);
                 if($createItems->error){
                     if($createItems->status_code == 422) return ApiResponse::ValidateFail($createItems->message);
                     if($createItems->status_code == 409) return ApiResponse::Duplicated($createItems->message);
@@ -94,11 +111,11 @@ class StockManagementController extends Controller
                 }
                 // * Set total price of added items
                 PurchaseOrder::find($purchaseId)->update([
-                    'total_amount' => $createItems->data->total_amount,
-                    'due_amount' => $createItems->data->due_amount
+                    'total_amount' => $totalAmt,
+                    'due_amount' => $totalDue
                 ]);
             }
-            DB::commit();
+            // DB::commit();
             return ApiResponse::JsonResult(null,false,'Created');
         }catch(Exception $e){
             DB::rollBack();
@@ -347,20 +364,21 @@ class StockManagementController extends Controller
         ]);
     }
 
-    private function createOrUpdatePurchaseOrderItems($orderItems,$purchaseId,$user){
+    private function createOrUpdatePurchaseOrderItems($orderItems,$purchaseId,$user,$discountInfo=[]){
         $userId = $user->id;
         $branchId = $user->branch_id;
         $companyId = $user->company_id;
         //* merge item by same unit_price && discount_amount && discount_type
-        $mergeItems = $this->mergerOrderItems($orderItems);
+        // $mergeItems = $this->mergerOrderItems($orderItems,$discountInfo);
         // return array_values($mergeItems);
         $due_amount = 0;
         $total_amount = 0;
-        foreach($mergeItems as $row){
+        return $orderItems;
+        foreach($orderItems as $row){
             $id = isset($row['id']) ? $row['id']:null;
             $row['purchase_id'] = $purchaseId;
-            $validate = $this->purchaseOrderItemValidation(new Request($row));
-            if($validate->fails()) return DataResponse::ValidateFail($validate->errors()->first());
+            // $validate = $this->purchaseOrderItemValidation(new Request($row));
+            // if($validate->fails()) return DataResponse::ValidateFail($validate->errors()->first());
             $inputs = $validate->validated();
             $productId = ProductVariant::find($inputs['variant_id'])->take(1)->value('product_id');
             $inputs['update_uid'] = $userId;
@@ -386,10 +404,16 @@ class StockManagementController extends Controller
         ],false,'Saved');
     }
 
-
-    private function mergerOrderItems($items){
+    private function mergerOrderItems($items,$purchaseId,$discountInfo=[]){
         $merged = [];
+        $defaultDiscountAmt = $discountInfo->amount;
+        $defaultDiscountType = $discountInfo->type;
+        $total = 0;
+        $totalDue = 0;
         foreach ($items as $row) {
+            $row['purchase_id'] = $purchaseId;
+            $validate = $this->purchaseOrderItemValidation(new Request($row));
+            if($validate->fails()) return DataResponse::ValidateFail($validate->errors()->first(),$validate->errors());
             $key = $row['variant_id'].'-'.$row['discount_amount'].'-'.$row['discount_type'];
             $unitPrice = $row['unit_price'];
             $qty = $row['qty'];
@@ -398,15 +422,39 @@ class StockManagementController extends Controller
             if (isset($merged[$key])) {
                 //* Merge quantities and prices, you can adjust this to fit your needs
                 $merged[$key]['qty'] += $row['qty'];
-                $merged[$key]['due_amount'] = $this->calculatePrice($unitPrice,$merged[$key]['qty'],$discountAmount,$discountType);
-                $merged[$key]['total_amount'] = $merged[$key]['qty'] * $unitPrice;
+                $totalRow = $merged[$key]['qty'] * $unitPrice;
+                $total += $totalRow;
+                $due_amount = $this->calculatePrice($unitPrice,$merged[$key]['qty'],$discountAmount,$discountType);
+                if($defaultDiscountType == '%'){
+                    $due_amount = $due_amount - ($totalRow * $defaultDiscountAmt/100);
+                }else{
+                    $due_amount = $due_amount - $defaultDiscountAmt;
+                }
+                if($due_amount < 0) return DataResponse::ValidateFail('The discount amount cannot exceed the payable price. Please enter a valid discount.');
+                $totalDue += $due_amount;
+                $merged[$key]['due_amount'] = $due_amount;
+                $merged[$key]['total_amount'] = $totalRow;
             } else {
+                $totalRow = $qty * $unitPrice;
+                $total += $totalRow;
                 $merged[$key] = $row;
-                $merged[$key]['due_amount'] = $this->calculatePrice($unitPrice,$qty,$discountAmount,$discountType);
-                $merged[$key]['total_amount'] = $qty * $unitPrice;
+                $due_amount = $this->calculatePrice($unitPrice,$qty,$discountAmount,$discountType);
+                if($defaultDiscountType == '%'){
+                    $due_amount = $due_amount - ($totalRow * $defaultDiscountAmt / 100);
+                }else {
+                    $due_amount = $due_amount - $defaultDiscountAmt;
+                }
+                if($due_amount < 0) return DataResponse::ValidateFail('The discount amount cannot exceed the payable price. Please enter a valid discount.');
+                $totalDue += $due_amount;
+                $merged[$key]['due_amount'] = $due_amount;
+                $merged[$key]['total_amount'] = $totalRow;
             }
         }
-        return array_values($merged);
+        return DataResponse::JsonResult((object)[
+            'items' => array_values($merged),
+            'total_due' => $totalDue,
+            'total' => $total
+        ]);
     }
 
     //** End Purchase Order Process */
@@ -414,8 +462,6 @@ class StockManagementController extends Controller
     //** Start Stockmovement */
 
     //** ----------------- */
-
-
 
 
 

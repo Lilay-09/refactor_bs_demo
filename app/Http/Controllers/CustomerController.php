@@ -51,11 +51,15 @@ class CustomerController extends Controller
 
     public function getCustomers(Request $req){
         $user = UserService::getAuthUser();
-        $query = Customer::where('company_id',$user->company_id);
+        $query = Customer::with('type:id,name')->where('company_id',$user->company_id);
         if($req->search){
             $query->where('name','ilike','%'.$req->search.'%')->orWhere('name_kh','ilike','%'.$req->search.'%')->orWhere('phone',$req->search);
         }
         $rows = $query->get();
+        foreach($rows as $row){
+            $row->customer_type = $row->type->name;
+            unset($row->type);
+        }
         return ApiResponse::Pagination($rows,$req);
     }
 

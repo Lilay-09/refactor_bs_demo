@@ -152,6 +152,6 @@ class ProductVariantController extends Controller
             ProductVariantPhoto::find($photo->id)->delete();
         }
         $variant->delete();
-        return ApiResponse::JsonResult(null,false,'Photo deleted');
+        return ApiResponse::JsonResult(null,false,'Variant deleted');
     }
 }
