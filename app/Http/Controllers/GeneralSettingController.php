@@ -59,7 +59,7 @@ class GeneralSettingController extends Controller
         $user = UserService::getAuthUser();
         $obj = (object)[
             'items' => $this->gs::getStockItems($user),
-            'service' => $this->gs::getProducts($user),
+            'service' => $this->gs::getServices($user),
         ];
         return ApiResponse::JsonResult($obj);
     }
