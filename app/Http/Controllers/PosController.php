@@ -308,13 +308,13 @@ class PosController extends Controller
                 //-- overall discount = %  => item discount + overall disAmount
                 $totalPrice = $unitPrice * $merged[$key]['qty'];
                 $due_amount = $stckMng->calculatePrice($unitPrice,$merged[$key]['qty'],$discountAmount,$discountType);
-                if($discount->type == '%') {
-                    $due_amount = $due_amount - ($totalPrice * ($discount->amount + $defaultCustomerDisAmount) / 100);
-                }
+                // if($discount->type == '%') {
+                //     $due_amount = $due_amount - ($totalPrice * ($discount->amount + $defaultCustomerDisAmount) / 100);
+                // }
 
-                if($discount->type == '$') {
-                    $due_amount = $due_amount - $discount->amount - ($totalPrice * $defaultCustomerDisAmount / 100);
-                };
+                // if($discount->type == '$') {
+                //     $due_amount = $due_amount - $discount->amount - ($totalPrice * $defaultCustomerDisAmount / 100);
+                // };
                 $due_amount = $due_amount + ($due_amount * $tax / 100);
                 $due_amount = number_format($due_amount,2);
                 $total_due += $due_amount;
@@ -328,12 +328,12 @@ class PosController extends Controller
                 $totalPrice = $unitPrice * $qty;
                 $due_amount = $stckMng->calculatePrice($unitPrice,$qty,$discountAmount,$discountType);
 
-                if($discount->type == '%') {
-                    $due_amount = $due_amount - ($totalPrice * ($discount->amount + $defaultCustomerDisAmount) / 100);
-                }
-                if($discount->type == '$') {
-                    $due_amount = $due_amount - $discount->amount - ($totalPrice * $defaultCustomerDisAmount / 100);
-                };
+                // if($discount->type == '%') {
+                //     $due_amount = $due_amount - ($totalPrice * ($discount->amount + $defaultCustomerDisAmount) / 100);
+                // }
+                // if($discount->type == '$') {
+                //     $due_amount = $due_amount - $discount->amount - ($totalPrice * $defaultCustomerDisAmount / 100);
+                // };
                 // var_dump($due_amount);
                 // $discountedAmount = $due_amount - ($due_amount * $defaultCustomerDisAmount / 100); // Apply discount
                 $due_amount = $due_amount + ($due_amount * $tax / 100);
@@ -349,6 +349,13 @@ class PosController extends Controller
             $merged[$key]['tax'] = $tax;
             $merged[$key]['variant_id'] = $variantId;
             $merged[$key]['cost'] = $stock->cost;
+        }
+        if($discountType == '$'){
+            $totalDis = $defaultCustomerDisAmount + $discount->amount;
+            $total_due = $total_due - ($total_due * $totalDis / 100);
+        }else{
+            $afterDisAmount = $total_due - $discount->amount;
+            $total_due = $afterDisAmount - ($total_due * $defaultCustomerDisAmount / 100);
         }
         return DataResponse::JsonResult((object)[
             'total_amount' => $total_amount,
@@ -385,13 +392,13 @@ class PosController extends Controller
                 $merged[$key]['qty'] += $inputs['qty'];
                 $totalPrice = $unitPrice * $merged[$key]['qty'];
                 $due_amount = $stckMng->calculatePrice($unitPrice,$merged[$key]['qty'],$discountAmount,$discountType);
-                if($discount->type == '%') {
-                    $due_amount = $due_amount - ($totalPrice * ($discount->amount + $defaultCustomerDisAmount) / 100);
-                }
+                // if($discount->type == '%') {
+                //     $due_amount = $due_amount - ($totalPrice * ($discount->amount + $defaultCustomerDisAmount) / 100);
+                // }
 
-                if($discount->type == '$') {
-                    $due_amount = $due_amount - $discount->amount - ($totalPrice * $defaultCustomerDisAmount / 100);
-                };
+                // if($discount->type == '$') {
+                //     $due_amount = $due_amount - $discount->amount - ($totalPrice * $defaultCustomerDisAmount / 100);
+                // };
                 $due_amount = $due_amount + ($due_amount * $tax / 100);
                 $due_amount = number_format($due_amount,2);
                 $total_due += $due_amount;
@@ -405,12 +412,12 @@ class PosController extends Controller
                 $totalPrice = $unitPrice * $qty;
                 $due_amount = $stckMng->calculatePrice($unitPrice,$qty,$discountAmount,$discountType);
 
-                if($discount->type == '%') {
-                    $due_amount = $due_amount - ($totalPrice * ($discount->amount + $defaultCustomerDisAmount) / 100);
-                }
-                if($discount->type == '$') {
-                    $due_amount = $due_amount - $discount->amount - ($totalPrice * $defaultCustomerDisAmount / 100);
-                };
+                // if($discount->type == '%') {
+                //     $due_amount = $due_amount - ($totalPrice * ($discount->amount + $defaultCustomerDisAmount) / 100);
+                // }
+                // if($discount->type == '$') {
+                //     $due_amount = $due_amount - $discount->amount - ($totalPrice * $defaultCustomerDisAmount / 100);
+                // };
                 $due_amount = $due_amount + ($due_amount * $tax / 100);
                 $due_amount = number_format($due_amount,2);
                 $total_due += $due_amount;
@@ -424,6 +431,13 @@ class PosController extends Controller
             $merged[$key]['tax'] = $tax;
         }
         if($total_due < 0) return DataResponse::ValidateFail('It seems like your discount is grather than service cost');
+        if($discountType == '$'){
+            $totalDis = $defaultCustomerDisAmount + $discount->amount;
+            $total_due = $total_due - ($total_due * $totalDis / 100);
+        }else{
+            $afterDisAmount = $total_due - $discount->amount;
+            $total_due = $afterDisAmount - ($total_due * $defaultCustomerDisAmount / 100);
+        }
         return DataResponse::JsonResult((object)[
             'total_amount' => $total_amount,
             'total_due' => $total_due,
