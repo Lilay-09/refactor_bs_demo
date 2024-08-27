@@ -103,7 +103,11 @@ class GeneralSettingService
     }
 
     static function getServices($user){
-        return Service::selectRaw('id,name,price')->where('company_id',$user->company_id)->get();
+        $services =  Service::selectRaw('id,name,price,photo_file_name')->where('company_id',$user->company_id)->get();
+        foreach($services as $service){
+            $service->image_url = Helper::getImageUrl($service->photo_file_name,$user->company_id,'service');
+        }
+        return $services;
     }
 
     static function getTags($user){
