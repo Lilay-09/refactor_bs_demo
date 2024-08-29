@@ -36,4 +36,8 @@ class Stock extends Model
     public function variant(){
         return $this->belongsTo(ProductVariant::class,'variant_id','id');
     }
+
+    public function stockLocation(){
+        return $this->belongsTo(StockLocation::class,'stock_location_id','id');
+    }
 }

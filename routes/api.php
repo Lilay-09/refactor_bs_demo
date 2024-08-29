@@ -140,10 +140,14 @@ Route::middleware('jwt')->group(function(){
                 Route::put('/{id?}',[StockLocationController::class,'updateStockLocation']);
             });
 
+            Route::prefix('transfer')->group(function(){
+                Route::post('',[StockManagementController::class,'stockTransform']);
+            });
+
             Route::prefix('item')->group(function(){
                 Route::get('',[StockController::class,'getStockItems']);
                 Route::get('/{id?}',[StockController::class,'getStockItem']);
-                Route::put('price/{sku?}',[StockController::class,'setStockItemPrices']);
+                Route::put('price/{id?}',[StockController::class,'setStockItemPrices']);
             });
         });
     });

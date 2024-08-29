@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use ApiResponse;
 use App\Http\Controllers\Controller;
 use App\Models\DailyStock;
+use App\Models\MovementType;
 use App\Models\PoPaymentSlip;
 use App\Models\ProductVariant;
 use App\Models\PurchaseOrder;
@@ -42,7 +43,7 @@ class StockManagementController extends Controller
 
 
     function getStockMovementTypesArray(){
-        return StockMovementType::all()->pluck('name')->toArray();
+        return MovementType::all()->pluck('name')->toArray();
     }
 
     //** Purchase Order */
@@ -51,6 +52,7 @@ class StockManagementController extends Controller
             'vendor_id' => 'required|int|exists:vendors,id',
             'issue_date' => 'required|date',
             'remarks' => 'nullable|string|max:250',
+            'tax' => 'nullable|numberic',
             'expect_arrival_date' => 'nullable|date',
             'discount_amount' => 'nullable|numeric',
             'discount_type' => 'nullable|in:$,%',
@@ -85,6 +87,7 @@ class StockManagementController extends Controller
         $inputs['po_code'] = $poCode;
         $discount = $inputs['discount_amount'] ?? 0;
         $discountType = $inputs['discount_type'] ?? '%';
+        $tax = $inputs['tax'] ?? 0;
         if($discount < 0) return ApiResponse::JsonResult(null,false,'Discount must be positive number');
         $discountInfo = (object)[
             'amount' => $discount,
@@ -99,7 +102,7 @@ class StockManagementController extends Controller
                 $mergedItems = $this->mergerOrderItems($orderItems,$purchaseId,$discountInfo);
                 // return $mergedItems;
                 if($mergedItems->status_code == 422) return ApiResponse::ValidateFail($mergedItems->message);
-                $totalAmt = $mergedItems->data->total;
+                $totalAmt = $mergedItems->data->total + ($mergedItems->data->total * $tax / 100);
                 $totalDue = $mergedItems->data->total_due;
                 $items = $mergedItems->data->items;
 
@@ -115,7 +118,7 @@ class StockManagementController extends Controller
                     'due_amount' => $totalDue
                 ]);
             }
-            // DB::commit();
+            DB::commit();
             return ApiResponse::JsonResult(null,false,'Created');
         }catch(Exception $e){
             DB::rollBack();
@@ -319,12 +322,14 @@ class StockManagementController extends Controller
 
     public function getPurchaseOrders(Request $req){
         $user = UserService::getAuthUser();
-        $rows = PurchaseOrder::where('branch_id',$user->branch_id)->get();
-        $orderItems = PurchaseOrderItem::from('purchase_order_items as oi')->join('product_variants as pv','oi.variant_id','pv.id')->join('products as p','p.id','=','pv.product_id')->join('models as m','m.id','p.model_id')
-        ->selectRaw('oi.qty,oi.total_price,oi.unit_price,oi.discount_type,oi.discount_amount,pv.size,pv.color,pv.sku,pv.weight,pv.width,pv.length,pv.expires_at,pv.condition,condition_percentage,pv.material,m.name as model_name,p.name,p.code,description')
-        ->get();
+        $rows = PurchaseOrder::with(['status','vendor'])->where('branch_id',$user->branch_id)->get();
+        // $orderItems = PurchaseOrderItem::from('purchase_order_items as oi')->join('product_variants as pv','oi.variant_id','pv.id')->join('products as p','p.id','=','pv.product_id')->join('models as m','m.id','p.model_id')
+        // ->selectRaw('oi.qty,oi.total_price,oi.unit_price,oi.discount_type,oi.discount_amount,pv.size,pv.color,pv.sku,pv.weight,pv.width,pv.length,pv.expires_at,pv.condition,condition_percentage,pv.material,m.name as model_name,p.name,p.code,description')
+        // ->get();
         foreach($rows as $row){
-            $row->order_items = $this->getPurchaseOrderItems($orderItems,$row->variant_id);
+            $row->status_text = $row->status->name;
+            $row->vendor_name = $row->vendor->phone . $row->vendor->name ? ('('.$row->vendor->name.')'):'';
+            unset($row->status,$row->vendor);
         }
         return ApiResponse::JsonResult($rows);
     }
@@ -373,28 +378,29 @@ class StockManagementController extends Controller
         // return array_values($mergeItems);
         $due_amount = 0;
         $total_amount = 0;
-        return $orderItems;
+        // return $orderItems;
         foreach($orderItems as $row){
             $id = isset($row['id']) ? $row['id']:null;
             $row['purchase_id'] = $purchaseId;
             // $validate = $this->purchaseOrderItemValidation(new Request($row));
             // if($validate->fails()) return DataResponse::ValidateFail($validate->errors()->first());
-            $inputs = $validate->validated();
-            $productId = ProductVariant::find($inputs['variant_id'])->take(1)->value('product_id');
-            $inputs['update_uid'] = $userId;
-            $inputs['branch_id'] = $branchId;
-            $inputs['company_id'] = $companyId;
-            $inputs['product_id'] = $productId;
+            // $inputs = $validate->validated();
+            // $inputs = [];
+            $productId = ProductVariant::find($row['variant_id'])->take(1)->value('product_id');
+            $row['update_uid'] = $userId;
+            $row['branch_id'] = $branchId;
+            $row['company_id'] = $companyId;
+            $row['product_id'] = $productId;
             if($id){
                 $poItem = PurchaseOrderItem::where('branch_id',$branchId)->find($id);
             }else{
-                $inputs['create_uid'] = $userId;
+                $row['create_uid'] = $userId;
                 //* calculate order item
                 // $total_price = $this->calculatePrice($unitPrice,$qty,$discountAmount,$discountType);
-                $inputs['total_price'] = $row['due_amount'];
+                $row['total_price'] = $row['due_amount'];
                 $total_amount += $row['total_amount'];
                 $due_amount += $row['due_amount'];
-                $create = PurchaseOrderItem::create($inputs);
+                $create = PurchaseOrderItem::create($row);
                 if(!$create) return DataResponse::Error('fail to save purchase items');
             }
         }
@@ -412,6 +418,7 @@ class StockManagementController extends Controller
         $totalDue = 0;
         foreach ($items as $row) {
             $row['purchase_id'] = $purchaseId;
+            $row['discount_amount'] = $row['discount_amount'] ?? 0;
             $validate = $this->purchaseOrderItemValidation(new Request($row));
             if($validate->fails()) return DataResponse::ValidateFail($validate->errors()->first(),$validate->errors());
             $key = $row['variant_id'].'-'.$row['discount_amount'].'-'.$row['discount_type'];
@@ -626,9 +633,9 @@ class StockManagementController extends Controller
 
 
     function stockMovementValidation(Request $req){
-        // $movementTypes = implode(',',$this->getStockMovementTypesArray());
+        $movementTypes = implode(',',$this->getStockMovementTypesArray());
         return validator($req->all(),[
-            // 'movement_type' => 'required|in:'.$movementTypes,
+            'movement_type' => 'required|in:'.$movementTypes,
             'variant_id' => 'required|int|exists:product_variants,id',
             'cost' => 'nullable|numeric',
             'adjustment_qty' => 'nullable|numeric',
@@ -638,6 +645,8 @@ class StockManagementController extends Controller
             'receive_qty' => 'nullable|numeric'
         ]);
     }
+
+
 
 
     /**
@@ -681,6 +690,12 @@ class StockManagementController extends Controller
         return DataResponse::JsonResult(null,false,'Stock log created');
     }
 
+
+    public function stockTransform(Request $req){
+        $validate = validator($req->all());
+        if($validate->fails()) return ApiResponse::ValidateFail($validate->errors()->first());
+        $inputs = $validate->validated();
+    }
 
     function savePaymentSlip($purchaseId,$photo,$user,$amount=0){
         $image = Helper::base64ToImageFile($photo,$user->company_id,'purchase_payment_slip');

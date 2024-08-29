@@ -41,6 +41,10 @@ class PurchaseOrder extends Model
         return $this->belongsTo(PurchaseStatuses::class, 'status_id', 'id');
     }
 
+    public function vendor(){
+        return $this->belongsTo(Vendor::class, 'vendor_id', 'id');
+    }
+
     public function orderItems(){
         return $this->hasMany(PurchaseOrderItem::class,'purchase_id','id')->with(['variant']);
     }
