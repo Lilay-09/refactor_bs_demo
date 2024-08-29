@@ -23,6 +23,7 @@ use App\Models\StockLocationType;
 use App\Models\Vendor;
 use App\Models\VendorType;
 use Helper;
+use Request;
 
 class GeneralSettingService
 {
@@ -66,7 +67,7 @@ class GeneralSettingService
 
 
     static function getCustomers($user){
-        $rows = Customer::where('company_id',$user->company_id)->selectRaw('name,phone,id')->get();
+        $rows = Customer::where('company_id',$user->company_id)->selectRaw('name,phone,id,discount_percent')->get();
         foreach($rows as $row){
             if($row->name){
                 $row->name = $row->phone . '('.$row->name.')';
@@ -147,4 +148,5 @@ class GeneralSettingService
     static function getBranches($user){
         return Branch::where('company_id',$user->company_id)->selectRaw('id,name')->get();
     }
+
 }

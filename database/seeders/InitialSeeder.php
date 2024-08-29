@@ -5,11 +5,11 @@ namespace Database\Seeders;
 use App\Models\AdjustmentType;
 use App\Models\Bank;
 use App\Models\CustomerType;
+use App\Models\MovementType;
 use App\Models\PaymentMethod;
 use App\Models\PurchaseStatuses;
 use App\Models\StockLocation;
 use App\Models\StockLocationType;
-use App\Models\StockMovementType;
 use App\Models\VendorType;
 use DB;
 use Illuminate\Database\Seeder;
@@ -178,6 +178,14 @@ class InitialSeeder extends Seeder
             [
                 'name' => 'Fully Paid'
             ]
+        ]);
+        MovementType::insert([
+            ['name' => 'Transfer In'],
+            ['name' => 'Transfer Out'],
+            ['name' => 'Sold'],
+            ['name' => 'Receive Order'],
+            ['name' => 'Donation'],
+            ['name' => 'Return']
         ]);
 
         StockLocation::insert([

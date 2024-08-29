@@ -150,7 +150,7 @@ class PosController extends Controller
 
         $paymentAmout = number_format($cash + $bankAmt,2);
         if($paymentAmout > $total_due) return DataResponse::ValidateFail('The payment amount is $'.$total_due.' only');
-        if($paymentAmout !== $total_due)  return DataResponse::ValidateFail('Payment amount must be $'.$total_due.', but your input is only $'.$paymentAmout.'. missing $'.abs($total_due - $paymentAmout).'!!!');
+        if($paymentAmout !== $total_due)  return DataResponse::ValidateFail('Payment amount must be $'.$total_due.', but your input is $'.$paymentAmout.'. missing $'.abs($total_due - $paymentAmout).'!!!');
 
         $createReceipt = Receipt::create([
             'receipt_date' => now(),
