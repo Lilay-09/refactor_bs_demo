@@ -231,6 +231,7 @@ Route::middleware('jwt')->group(function(){
             Route::get('products',[GeneralSettingController::class,'getProducts']);
             Route::get('customerTypes',[GeneralSettingController::class,'getCustomerTypes']);
             Route::get('brands',[GeneralSettingController::class,'getBrands']);
+            Route::get('warehouses',[GeneralSettingController::class,'getWarehouses']);
             Route::get('banks',[GeneralSettingController::class,'getBanks']);
             Route::get('brand/models/{brand_id?}',[GeneralSettingController::class,'getModelsByBrand']);
             Route::get('expenseCategories',[GeneralSettingController::class,'getExpenseCategories']);

@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Brand;
 use App\Models\CustomerType;
 use App\Models\ProductModel;
+use App\Models\StockLocation;
 use App\Services\GeneralSettingService;
 use App\Services\UserService;
 use Illuminate\Http\Request;
@@ -43,6 +44,12 @@ class GeneralSettingController extends Controller
         return ApiResponse::JsonResult($obj);
     }
 
+
+    public function getWarehouses (){
+        $user = UserService::getAuthUser();
+        $stockLocation = StockLocation::where('company_id',$user->company_id)->selectRaw('id,name')->get();
+        return ApiResponse::JsonResult($stockLocation);
+    }
 
     public function formPOS(){
         $user = UserService::getAuthUser();

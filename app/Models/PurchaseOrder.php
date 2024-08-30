@@ -37,6 +37,10 @@ class PurchaseOrder extends Model
         'branch_id'
     ];
 
+    protected $casts = [
+        'issue_date' => 'date:d-M-Y'
+    ];
+
     public function status(){
         return $this->belongsTo(PurchaseStatuses::class, 'status_id', 'id');
     }

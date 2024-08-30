@@ -25,6 +25,7 @@ class Receipt extends Model
         'general',
         'remarks',
         'currency',
+        'default_discount',
         'stock_location_id',
         'invoice_id',
         'branch_id',

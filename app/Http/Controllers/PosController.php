@@ -87,7 +87,8 @@ class PosController extends Controller
 
         $discountInfo = (object)[
             'amount' => $inputs['discount_amount'] ?? 0,
-            'type' => $inputs['discount_type'] ?? '%'
+            'type' => $inputs['discount_type'] ?? '%',
+            'default_discount' => $defaultCustomerDisAmount
         ];
         $tax = $inputs['tax'] ?? 0;
 
@@ -161,6 +162,7 @@ class PosController extends Controller
             'general' => $isGeneral,
             'update_uid' => $user->id,
             'create_uid' => $user->id,
+            'default_discount' => $discountInfo->default_discount,
             'discount_amount' => $discountInfo->amount,
             'discount_type' => $discountInfo->type,
             'company_id' => $user->company_id,
@@ -488,6 +490,7 @@ class PosController extends Controller
             'due_date' => $dueDate,
             'customer_id' => $customerId,
             'customer_phone' => $customerPhone,
+            'default_discount' => $discountInfo->default_discount,
             'total_amount' => $total_amount,
             'tax' => $tax,
             'due_amount' => $total_due,
@@ -508,6 +511,7 @@ class PosController extends Controller
             'customer_id' => $customerId,
             'tax' => $tax,
             'due_amount' => $total_due,
+            'default_discount' => $discountInfo->default_discount,
             'paid_amount' => $paymentAmout,
             'general' => $isGeneral,
             'update_uid' => $user->id,
