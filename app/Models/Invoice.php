@@ -19,6 +19,7 @@ class Invoice extends Model
         'due_date',
         'total_amount',
         'due_amount',
+        'default_discount',
         'paid_amount',
         'discount_percent',
         'discount_amount',

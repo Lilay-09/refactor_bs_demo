@@ -143,9 +143,12 @@ class StockManagementController extends Controller
             'receive_date' => 'nullable|date',
             'stock_location_id' => 'required|int|exists:stock_locations,id',
             'order_items' => 'required|array',
-            'pay_amount' => 'nullable|numeric',
+            'pay_amount' => 'required|numeric',
             'tax' => 'nullable|numeric'
             // 'payment_slip' => 'nullable|string',
+        ],[
+            'stock_location_id.required' => 'Please select warehouse',
+            'stock_location_id.exists' => 'Please choose valid warehouse'
         ]);
         if($validate->fails()) return ApiResponse::ValidateFail($validate->errors()->first());
         $inputs = $validate->validated();
@@ -171,13 +174,13 @@ class StockManagementController extends Controller
             $allReceive = ($purchaseOrder->paid_amount == $receive->data->amount_due);
             if($allReceive) $status_id = 6;
             // return $receive;
-            // if($payAmount !== $receive->data->amount_due) return ApiResponse::ValidateFail('Pay amount must be '.$receive->data->amount_due);
+            if($payAmount !== $receive->data->amount_due) return ApiResponse::ValidateFail('Pay amount must be '.$receive->data->amount_due);
             $purchaseOrder->update([
                 'paid_amount' => $purchaseOrder->paid_amount + $receive->data->amount_due,
                 'status_id' => $status_id,
             ]);
-            DB::commit();
-            // return DailyStock::get();
+            // DB::commit();
+            // return StockMovement::get();
             return ApiResponse::JsonResult(null,false,'Received!');
         }catch(Exception $e){
             DB::rollBack();
@@ -270,6 +273,7 @@ class StockManagementController extends Controller
                 $skip_message .= 'skip row['.($key+1).'], because it has already received all => quantity ='.$purchaseOrderItem->received_qty.',';
                 continue;
             }
+
             $amountDue += $this->calculatePrice($unitPrice,$receiveQty,$discountAmt,$disType);
 
             if($openQty < $receiveQty){
@@ -338,11 +342,14 @@ class StockManagementController extends Controller
         $id = $id ? $id : $req->id;
         $user = UserService::getAuthUser();
         $row = PurchaseOrder::where('branch_id',$user->branch_id)->find($id);
-        $orderItems = PurchaseOrderItem::from('purchase_order_items as oi')->join('product_variants as pv','oi.variant_id','pv.id')->join('products as p','p.id','=','pv.product_id')->join('models as m','m.id','p.model_id')
-        ->selectRaw('oi.id,oi.qty,oi.total_price,oi.unit_price,oi.discount_type,oi.discount_amount,pv.size,pv.color,pv.sku,pv.weight,pv.width,pv.length,pv.expires_at,pv.condition,condition_percentage,pv.material,m.name as model_name,p.name,p.code,description')
+        $orderItems = PurchaseOrderItem::from('purchase_order_items as oi')->where('oi.purchase_id',$id)->join('product_variants as pv','oi.variant_id','pv.id')->join('products as p','p.id','=','pv.product_id')->join('models as m','m.id','p.model_id')
+        ->selectRaw('oi.id,oi.qty,oi.received_qty,oi.total_price,oi.unit_price,oi.discount_type,oi.discount_amount,pv.size,pv.color,pv.sku,pv.weight,pv.width,pv.length,pv.expires_at,pv.condition,condition_percentage,pv.material,m.name as model_name,p.name,p.code,description')
         ->get();
         if($row){
             $row->order_items = $this->getPurchaseOrderItems($orderItems,$row->variant_id);
+            $row->status_text = $row->status->name;
+            $row->vendor_name = $row->vendor->phone . ($row->vendor->name ? ('('.$row->vendor->name.')'):'');
+            unset($row->status,$row->vendor);
         }
         return ApiResponse::JsonResult($row);
     }
@@ -351,6 +358,9 @@ class StockManagementController extends Controller
         $items = [];
         foreach($orderItems as $item){
             if($item->variant_id == $variantId){
+                $item->product_name = $item->name .' |'.'Color: '.$item->color.', Size: '.$item->size.', Condition: '.$item->condition;
+                $openQty = $item->qty - $item->received_qty;//$item->received_qty > 0 ? $item->qty - $item->received_qty:0;
+                $item->open_qty = abs($openQty);
                 $items[] = $item;
             }
         }
@@ -625,7 +635,8 @@ class StockManagementController extends Controller
 
         $stockMovement = $this->createStockMovementLog([
             'variant_id' => $variant_id,
-            'cost' => $itemCost
+            'cost' => $itemCost,
+            'movement_type' => 'Receive Order'
         ],$targetCol,$targetValue,$user);
         if($stockMovement->status_code == 422) return DataResponse::ValidateFail($stockMovement->message);
         return DataResponse::JsonResult(null,false,'Stock prepared!');
@@ -643,6 +654,8 @@ class StockManagementController extends Controller
             'transfer_out_qty' => 'nullable|numeric',
             'sold_qty' => 'nullable|numeric',
             'receive_qty' => 'nullable|numeric'
+        ],[
+            'movement_type.in' => 'Movement type must be one of '.$movementTypes
         ]);
     }
 
