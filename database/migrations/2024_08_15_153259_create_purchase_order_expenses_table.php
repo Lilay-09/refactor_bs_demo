@@ -20,9 +20,11 @@ return new class extends Migration
                   ->onDelete('cascade');
             $table->enum('expense_type', ['Goods', 'Shipping', 'Handling', 'Tax', 'Discount', 'Other'])
             ->default('Goods');
+            $table->unsignedBigInteger('pmt_status_id')->default(1);
             $table->decimal('amount', 15, 2);
             $table->date('expense_date')->default(now());
-            $table->string('description')->nullable();
+            $table->string('description',250)->nullable();
+
         });
     }
 

@@ -14,12 +14,13 @@ return new class extends Migration
         Schema::create('po_payment_slips', function (Blueprint $table) {
             $table->id();
             $table->unsignedBigInteger('purchase_id');
+            $table->unsignedBigInteger('purchase_expense_id')->nullable();
             $table->decimal('amount')->default(0);
             $table->unsignedBigInteger('payment_id')->nullable();
             $table->string('photo_file_name',200);
             $table->string('directory')->default('purchase_payment_slip');
             $table->foreign('purchase_id')->references('id')->on('purchase_orders');
-            $table->foreign('payment_id')->references('id')->on('po_payments');
+            $table->foreign('purchase_expense_id')->references('id')->on('purchase_order_expenses');
             $table->timestamps();
         });
     }

@@ -138,6 +138,7 @@ Route::middleware('jwt')->group(function(){
                 Route::get('',[StockLocationController::class,'getStockLocations']);
                 Route::get('/{id?}',[StockLocationController::class,'getStockLocation']);
                 Route::put('/{id?}',[StockLocationController::class,'updateStockLocation']);
+                Route::get('warehouse/items/{id?}',[StockLocationController::class,'getStockItemByWarehouse']);
             });
 
             Route::prefix('transfer')->group(function(){
@@ -241,6 +242,8 @@ Route::middleware('jwt')->group(function(){
         Route::prefix('form')->group(function(){
             Route::get('product',[GeneralSettingController::class,'getFormProduct']);
             Route::get('purchase',[GeneralSettingController::class,'formPurchase']);
+            Route::get('transfer',[GeneralSettingController::class,'formTransfer']);
+            Route::get('receive',[GeneralSettingController::class,'formReceive']);
             Route::get('supplier',[GeneralSettingController::class,'formSupplier']);
             Route::get('pos',[GeneralSettingController::class,'formPOS']);
             Route::get('pos/items',[GeneralSettingController::class,'formPosItems']);

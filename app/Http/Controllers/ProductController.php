@@ -65,6 +65,9 @@ class ProductController extends Controller
         $cost = isset($inputs['cost']) ? $inputs['cost'] : 0;
         $retail_price = isset($inputs['retail_price']) ? $inputs['retail_price'] : 0;
         $wholesale_price = isset($inputs['wholesale_price']) ? $inputs['wholesale_price'] : 0;
+        $inputs['cost'] = $cost;
+        $inputs['retail_price'] = $retail_price;
+        $inputs['wholesale_price'] = $wholesale_price;
         unset($inputs['variants'],$inputs['specs'],$inputs['tags']);
 
         DB::beginTransaction();
@@ -132,11 +135,11 @@ class ProductController extends Controller
             unset($inputs['photo']);
             if($id){
 
-                $photoCount = ProductVariantPhoto::where('id','!=',$id)->where('variant_id',$inputs['variant_id'])->count();
-                if($photoCount == $this->limitImages) {
-                    Helper::deleteImageFile($file_name,$company_id,'product_variant');
-                    return DataResponse::ValidateFail('Each variant can only store up to '.$this->limitImages.' photos');
-                }
+                // $photoCount = ProductVariantPhoto::where('id','!=',$id)->where('variant_id',$inputs['variant_id'])->count();
+                // if($photoCount == $this->limitImages) {
+                //     Helper::deleteImageFile($file_name,$company_id,'product_variant');
+                //     return DataResponse::ValidateFail('Each variant can only store up to '.$this->limitImages.' photos');
+                // }
                 $productVariantPhoto = ProductVariantPhoto::find($id);
                 $inputs['photo_file_name'] = $file_name ?? $productVariantPhoto->photo_file_name;
                 if(!$productVariantPhoto) {
@@ -153,11 +156,11 @@ class ProductController extends Controller
                 }
                 //* delete old image
             }else{
-                $photoCount = ProductVariantPhoto::where('variant_id',$inputs['variant_id'])->count();
-                if($photoCount == $this->limitImages){
-                    Helper::deleteImageFile($file_name,$company_id,'product_variant');
-                    return DataResponse::ValidateFail('Each variant can only store up to '.$this->limitImages.' photos');
-                }
+                // $photoCount = ProductVariantPhoto::where('variant_id',$inputs['variant_id'])->count();
+                // if($photoCount == $this->limitImages){
+                //     Helper::deleteImageFile($file_name,$company_id,'product_variant');
+                //     return DataResponse::ValidateFail('Each variant can only store up to '.$this->limitImages.' photos');
+                // }
                 $photo = ProductVariantPhoto::create($inputs);
                 if(!$photo){
                     Helper::deleteImageFile($file_name,$company_id,'product_variant');

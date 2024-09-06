@@ -63,6 +63,7 @@ class JwtAuthMiddleware
                 if($payloadArr['type'] == 'refresh') return ApiResponse::Unauthorized('Invalid Token');
                 if($payloadArr['system_admin'] === 0) return response()->json([
                     'status_code' => 403,
+                    'status' => 'Invalid Token',
                     'error_message' => 'Access Denied',
                     'errors' => []
                 ],403);

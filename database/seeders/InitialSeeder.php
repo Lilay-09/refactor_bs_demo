@@ -150,7 +150,10 @@ class InitialSeeder extends Seeder
         PaymentMethod::insert([
             ['name' => 'Cash'],
             ['name' => 'Bank'],
-            ['name' => 'Credit Card']
+            ['name' => 'Credit Card'],
+            ['name' => 'Gift Card'],
+            ['name' => 'COD'],
+            ['name' => 'Check'],
         ]);
 
         Bank::insert([

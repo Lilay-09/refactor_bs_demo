@@ -4,8 +4,10 @@ namespace App\Http\Controllers;
 
 use ApiResponse;
 use App\Http\Controllers\Controller;
+use App\Models\Stock;
 use App\Models\StockLocation;
 use App\Services\UserService;
+use Helper;
 use Illuminate\Http\Request;
 
 class StockLocationController extends Controller
@@ -69,6 +71,32 @@ class StockLocationController extends Controller
         $user = UserService::getAuthUser();
         $rows = StockLocation::where('branch_id',$user->branch_id)->find($id);
         return ApiResponse::JsonResult($rows);
+    }
+
+    public function getStockItemByWarehouse(Request $req){
+        $id = $req->id;
+        $stockItems = Stock::with(['variant.product','stockLocation.type','variant.photos'])->where('stock_location_id',$id)->get();
+        foreach($stockItems as $item){
+            $item->product_name = $item->variant->product->name;
+            $item->size = $item->variant->size;
+            $item->product_name = $item->variant->product->name;
+            $item->product_description = $item->variant->product->description;
+            $item->color = $item->variant->color;
+            $item->expires_at = $item->variant->expires_at;
+            $item->condition = $item->variant->condition;
+            $item->product_code = $item->variant->product->code;
+            $item->product_details = 'Color: '.$item->color.', Size: '.$item->size.', Condition: '.$item->condition;
+            $item->retail_price = $item->retail_price > 0 ? $item->retail_price : $item->variant->retail_price;
+            $item->warehouse = $item->stockLocation->name.($item->stockLocation->main ? ' (Main Warehouse)':' (Branch Shop)');
+            foreach($item->variant->photos as $photo){
+                if($photo->is_thumbnail){
+                    $item->image_url = Helper::getImageUrl($photo->photo_file_name,$item->company_id,$photo->directory);
+                }
+                if($item->image_url) $item->image_url = Helper::getImageUrl($photo->photo_file_name,$item->company_id,$photo->directory);
+            }
+            unset($item->stockLocation,$item->variant);
+        }
+        return ApiResponse::Pagination($stockItems,$req);
     }
 
     public function updateStockLocation(Request $req,$id){

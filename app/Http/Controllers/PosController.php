@@ -8,6 +8,7 @@ use App\Models\Customer;
 use App\Models\DailyStock;
 use App\Models\Invoice;
 use App\Models\InvoiceItem;
+use App\Models\InvoicePayment;
 use App\Models\InvoiceSerivce;
 use App\Models\Receipt;
 use App\Models\ReceiptItem;
@@ -101,20 +102,14 @@ class PosController extends Controller
         if($mergeService->status_code == 404) return ApiResponse::NotFound($mergeService->message);
         DB::beginTransaction();
         try{
-            if(!$customer_id){
-                //--- Walk in customer => direct to receipt
-                $genReceipt = $this->generateReceipt($req,$mergeItems,$mergeService,$discountInfo,$tax,$user);
-                if($genReceipt->status_code == 422) return ApiResponse::ValidateFail($genReceipt->message);
-                if($genReceipt->status_code == 404) return ApiResponse::NotFound($genReceipt->message);
-                if($genReceipt->status_code == 500) return ApiResponse::Error($genReceipt->message);
-            }else{
-                $genReceipt = $this->generateInvoice($req,$mergeItems,$mergeService,$discountInfo,$tax,$user,$customer);
-                if($genReceipt->status_code == 422) return ApiResponse::ValidateFail($genReceipt->message);
-                if($genReceipt->status_code == 404) return ApiResponse::NotFound($genReceipt->message);
-                if($genReceipt->status_code == 500) return ApiResponse::Error($genReceipt->message);
-            }
+
+            $getInvoice = $this->generateInvoice($req,$mergeItems,$mergeService,$discountInfo,$tax,$user,$customer);
+            if($getInvoice->status_code == 422) return ApiResponse::ValidateFail($getInvoice->message);
+            if($getInvoice->status_code == 404) return ApiResponse::NotFound($getInvoice->message);
+            if($getInvoice->status_code == 500) return ApiResponse::Error($getInvoice->message);
+
             DB::commit();
-            // return ReceiptPayment::get();
+            // return Invoice::get();
             return ApiResponse::JsonResult(null,false,'Created');
 
         }catch(Exception $e){
@@ -123,7 +118,6 @@ class PosController extends Controller
             Log::error($e->getTraceAsString());
         }
     }
-
 
     function generateReceipt(Request $req,$mergeItems,$mergeServices,$discountInfo,$tax,$user){
         $validate = validator($req->all(),[
@@ -477,14 +471,16 @@ class PosController extends Controller
         if($bankAmt>0){
             if(!$bankId) return DataResponse::ValidateFail('Please select bank');
         }
-        $customerId = $customer->id;
-        $customerPhone = $customer->phone;
+        $customerId = $customer->id ?? null;
+        $customerPhone = $customer->phone ?? null;
 
         $paymentAmout = number_format($cash + $bankAmt,2);
         if($paymentAmout > $total_due) return DataResponse::ValidateFail('The payment amount is $'.$total_due.' only');
         if($paymentAmout != $total_due)  return DataResponse::ValidateFail('Payment amount must be $'.$total_due.', but your input is only $'.$paymentAmout.'. missing $'.abs($total_due - $paymentAmout).'!!!');
-
-
+        $walkIn = 1;
+        if(!$customerId) $walkIn = 1;
+        $status_id = 3;/// payment status 3 = fully paid
+        if($paymentAmout && $paymentAmout < $total_due) $status_id = 2; // *partially paid
         $createInvoice = Invoice::create([
             'issue_date' => $issueDate,
             'due_date' => $dueDate,
@@ -493,37 +489,37 @@ class PosController extends Controller
             'default_discount' => $discountInfo->default_discount,
             'total_amount' => $total_amount,
             'tax' => $tax,
+            'walkin' => $walkIn,
             'due_amount' => $total_due,
             'paid_amount' => $paymentAmout,
             'update_uid' => $user->id,
             'create_uid' => $user->id,
-            'status_id' => 3,
+            'status_id' => $status_id,
             'discount_amount' => $discountInfo->amount,
             'discount_type' => $discountInfo->type,
             'company_id' => $user->company_id,
             'branch_id' => $user->branch_id
         ]);
 
-        $createReceipt = Receipt::create([
-            'receipt_date' => now(),
-            'customer_phone' => $customerPhone,
-            'total_amount' => $total_amount,
-            'customer_id' => $customerId,
-            'tax' => $tax,
-            'due_amount' => $total_due,
-            'default_discount' => $discountInfo->default_discount,
-            'paid_amount' => $paymentAmout,
-            'general' => $isGeneral,
-            'update_uid' => $user->id,
-            'create_uid' => $user->id,
-            'discount_amount' => $discountInfo->amount,
-            'discount_type' => $discountInfo->type,
-            'company_id' => $user->company_id,
-            'branch_id' => $user->branch_id
-        ]);
-        if(!$createReceipt) return DataResponse::Error('Fail to generate receipt');
+        // $createReceipt = Receipt::create([
+        //     'receipt_date' => now(),
+        //     'customer_phone' => $customerPhone,
+        //     'total_amount' => $total_amount,
+        //     'customer_id' => $customerId,
+        //     'tax' => $tax,
+        //     'due_amount' => $total_due,
+        //     'default_discount' => $discountInfo->default_discount,
+        //     'paid_amount' => $paymentAmout,
+        //     'general' => $isGeneral,
+        //     'update_uid' => $user->id,
+        //     'create_uid' => $user->id,
+        //     'discount_amount' => $discountInfo->amount,
+        //     'discount_type' => $discountInfo->type,
+        //     'company_id' => $user->company_id,
+        //     'branch_id' => $user->branch_id
+        // ]);
+        // if(!$createReceipt) return DataResponse::Error('Fail to generate receipt');
         $invoiceId = $createInvoice->id;
-        $receiptId = $createReceipt->id;
         if(isset($items[0])){
             $generateReceiptItems = $this->generateInvoiceItems($items,$invoiceId,$user);
             if($generateReceiptItems->error) return $generateReceiptItems;
@@ -535,15 +531,15 @@ class PosController extends Controller
 
         //** add payment history */
         if($cash){
-            ReceiptPayment::create([
-                'receipt_id' => $receiptId,
+            InvoicePayment::create([
+                'invoice_id' => $invoiceId,
                 'method' => 'Cash',
                 'amount' => $cash,
             ]);
         }
         if($bankAmt){
-            ReceiptPayment::create([
-                'receipt_id' => $receiptId,
+            InvoicePayment::create([
+                'invoice_id' => $invoiceId,
                 'method' => 'Bank',
                 'amount' => $bankAmt,
                 'bank_id' => $bankId,
@@ -551,7 +547,7 @@ class PosController extends Controller
             ]);
         }
 
-        $ref_code = Helper::setRefCode('invoice_code_controls','invoices','ref_code',$user->branch_id,$user->company_id,$receiptId,date('Y-m-d'),'INV');
+        $ref_code = Helper::setRefCode('invoice_code_controls','invoices','ref_code',$user->branch_id,$user->company_id,$invoiceId,date('Y-m-d'),'INV');
         if($ref_code->status !== 'OK') return DataResponse::Error('Fail to generate ref code');
         return DataResponse::JsonResult(null);
     }
