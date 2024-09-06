@@ -104,11 +104,29 @@ class GeneralSettingController extends Controller
         return ApiResponse::JsonResult($obj);
     }
 
+    public function formReceive(){
+        $user = UserService::getAuthUser();
+        $obj = (object)[
+            'warehouses' => $this->gs::getWarhouses($user),
+            'banks'=> $this->gs::getBanks($user),
+        ];
+        return ApiResponse::JsonResult($obj);
+    }
+
+    public function formTransfer(){
+        $user = UserService::getAuthUser();
+        $obj = (object)[
+            'warehouses' => $this->gs::getWarhouses($user),
+        ];
+        return ApiResponse::JsonResult($obj);
+    }
+
     public function formPurchase(){
         $user = UserService::getAuthUser();
         $obj = (object)[
             'vendors' => $this->gs::getOptionsVendor($user),
             'warehouses' => $this->gs::getWarhouses($user),
+            'banks'=> $this->gs::getBanks($user),
             'items' => $this->gs::getProductVariants($user),
         ];
         return ApiResponse::JsonResult($obj);

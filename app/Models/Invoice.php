@@ -13,6 +13,7 @@ class Invoice extends Model
         'id',
         'ref_code',
         'tax',
+        'walkin',
         'issue_date',
         'customer_id',
         'customer_phone',

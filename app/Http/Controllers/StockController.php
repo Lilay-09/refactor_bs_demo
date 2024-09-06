@@ -31,7 +31,7 @@ class StockController extends Controller
                 }
                 if($item->image_url) $item->image_url = Helper::getImageUrl($photo->photo_file_name,$item->company_id,$photo->directory);
             }
-            unset($item->stockLocation,$item->varaint);
+            unset($item->stockLocation,$item->variant);
         }
         return ApiResponse::Pagination($stockItems,$req);
     }

@@ -18,7 +18,8 @@ return new class extends Migration
             $table->string('ref_code')->nullable();
             $table->decimal('tax')->default(0);
             $table->decimal('exchange_rate')->default(0);
-            $table->unsignedBigInteger('customer_id');
+            $table->unsignedBigInteger('customer_id')->nullable();
+            $table->boolean('walkin')->default(1);
             $table->date('issue_date')->default(now());
             $table->date('due_date')->default(now());
             $table->string('customer_phone')->nullable();

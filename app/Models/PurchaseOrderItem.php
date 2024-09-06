@@ -17,6 +17,7 @@ class PurchaseOrderItem extends Model
         'product_id',
         'qty',
         'unit_price',
+        'due_amount',
         'total_price',
         'discount_amount',
         'discount_type',
