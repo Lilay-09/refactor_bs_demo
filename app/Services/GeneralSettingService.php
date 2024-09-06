@@ -37,6 +37,19 @@ class GeneralSettingService
     }
 
 
+    public static function getMovementType($targetCol){
+        $movementTypes = [
+            'receive_qty' => 'Receive Order',
+            'transfer_in_qty' => 'Transfer In',
+            'transfer_out_qty' => 'Transfer Out',
+            'sold_qty' => 'Sold',
+            'return_qty' => 'Return',
+        ];
+        return $movementTypes[$targetCol] ?? null;
+    }
+
+
+
     static function getModels($user){
         return ProductModel::where('company_id',$user->company_id)->selectRaw('id,name')->get();
     }
