@@ -18,6 +18,7 @@ use App\Models\ReceivePoItem;
 use App\Models\Stock;
 use App\Models\StockLocation;
 use App\Models\StockMovement;
+use App\Services\GeneralSettingService;
 use App\Services\UserService;
 use DataResponse;
 use Exception;
@@ -719,6 +720,7 @@ class StockManagementController extends Controller
         $userId = $user->id;
         $companyId = $user->company_id;
         $operator = isset($this->stockOperator[$targetCol]) ? $this->stockOperator[$targetCol] : null;
+        $variant = ProductVariant::where('company_id',$companyId)->find($variant_id);
         if(!$operator) return DataResponse::ValidateFail('You provided the wrong target.');
         if(!$stockLocationId) $stockLocationId = StockLocation::where('company_id',$companyId)->where('branch_id',$branchId)->take(1)->value('id');
         //** --- daily stock process -----------
@@ -739,13 +741,7 @@ class StockManagementController extends Controller
             //** take one stock ending qty where created_at < today */
             $targetColValue += $operator.$targetValue;
             $stock = DailyStock::where('branch_id',$branchId)->where('variant_id',$variant_id)->where('stock_location_id',$stockLocationId)->orderBy('created_at','DESC')->where('created_at','<',$today)->first();
-            // $beginQty = $targetValue;
-            // $endingQty = $targetValue;
-            // $targetColValue += $operator.$targetValue;
-            // var_dump($beginQty);
-            // var_dump($st)
             if($stock) {
-                $beginQty += $stock->ending_qty + ($operator.$targetValue);
                 $endingQty += $stock->ending_qty + ($operator.$targetValue);
             }else{
                 $beginQty = $targetValue;
@@ -766,11 +762,9 @@ class StockManagementController extends Controller
                 'update_uid' => $userId,
                 'create_uid' => $userId
             ];
-            // var_dump($arr);
             $createDailyStock = DailyStock::create($arr);
             if(!$createDailyStock) return DataResponse::Error('Fail to save daily stock');
         }else{
-            $beginQty += $operator.$targetValue;
             $endingQty += $operator.$targetValue;
             $arr = [
                 'stock_location_id' => $stockLocationId,
@@ -796,15 +790,20 @@ class StockManagementController extends Controller
         $foundBySku = Stock::where('branch_id',$branchId)->where('stock_location_id',$stockLocationId)->where('sku',$sku)->where('cost',$itemCost)->first();
         if($itemRef){
             if(is_numeric($itemRef)) {
-                $foundBySku = Stock::where('id',$itemRef)->first();
+                $foundBySku = Stock::where('id',$itemRef)->where('stock_location_id',$stockLocationId)->first();
             }
             else {
-                $foundBySku = Stock::where('sku',$itemRef)->first();
+                $foundBySku = Stock::where('sku',$itemRef)->where('stock_location_id',$stockLocationId)->first();
             }
         }
 
+
         $stockQty = 0;
+        $retail_price = $variant->retail_price;
+        $wholesale_price = $variant->wholesale_price;
         if($foundBySku){
+            $retail_price = $foundBySku->retail_price;
+            $wholesale_price = $foundBySku->wholesale_price;
             $stockQty = $foundBySku->qty;
             $stockQty += $operator.$targetValue;
             $updateStock = $foundBySku->update([
@@ -812,6 +811,8 @@ class StockManagementController extends Controller
                 'qty' => $stockQty,
                 'variant_id' => $variant_id,
                 'cost' => $itemCost,
+                'retail_price' => $retail_price,
+                'wholesale_price' => $wholesale_price,
                 'update_uid' => $userId,
                 'company_id' => $companyId,
                 'branch_id' => $branchId
@@ -825,6 +826,8 @@ class StockManagementController extends Controller
                 'qty' => $stockQty,
                 // 'batch_number'=> date('YMdhis').mt_rand(1000, 9999),
                 'variant_id' => $variant_id,
+                'retail_price' => $variant->retail_price,
+                'wholesale_price' => $variant->wholesale_price,
                 'cost' => $itemCost,
                 'create_uid' => $userId,
                 'update_uid' => $userId,
@@ -838,7 +841,8 @@ class StockManagementController extends Controller
         $stockMovement = $this->createStockMovementLog([
             'variant_id' => $variant_id,
             'cost' => $itemCost,
-            'movement_type' => 'Receive Order'
+            'retail_price' => $retail_price,
+            'wholesale_price' => $wholesale_price
         ],$targetCol,$targetValue,$user);
         if($stockMovement->status_code == 422) return DataResponse::ValidateFail($stockMovement->message);
         return DataResponse::JsonResult(null,false,'Stock prepared!');
@@ -851,6 +855,8 @@ class StockManagementController extends Controller
             'movement_type' => 'required|in:'.$movementTypes,
             'variant_id' => 'required|int|exists:product_variants,id',
             'cost' => 'nullable|numeric',
+            'retail_price' => 'nullable|numeric',
+            'wholesale_price' => 'nullable|numeric',
             'adjustment_qty' => 'nullable|numeric',
             'transfer_in_qty' => 'nullable|numeric',
             'transfer_out_qty' => 'nullable|numeric',
@@ -873,11 +879,14 @@ class StockManagementController extends Controller
      */
     function createStockMovementLog($arr,$targetCol,$targetValue,$user):object{
         $today = date('Y-m-d');
-        $arr[$targetCol] = $targetValue;
+        // $arr[$targetCol] = $targetValue;
         $branch_id = $user->branch_id;
         $userId = $user->id;
         $companyId = $user->company_id;
         $operator = $this->stockOperator[$targetCol];
+        $arr['movement_type'] = GeneralSettingService::getMovementType($targetCol);
+
+
         $validate = $this->stockMovementValidation(new Request($arr));
         if($validate->fails()) return DataResponse::ValidateFail($validate->errors()->first());
         // print_r($operator);
@@ -885,18 +894,19 @@ class StockManagementController extends Controller
         $inputs['update_uid'] = $userId;
         $inputs['branch_id'] = $branch_id;
         $inputs['company_id'] = $companyId;
+        $inputs['type'] = $inputs['movement_type'];
         //** ------ daily stock movement log by user */
-        $todayMovement = StockMovement::where('branch_id',$branch_id)->where('cost',$inputs['cost'])->where('variant_id',$inputs['variant_id'])->where('create_uid',$userId)->whereDate('created_at',$today)->first();
+        $todayMovement = StockMovement::where('branch_id',$branch_id)->where('type',$inputs['type'])->where('cost',$inputs['cost'])->where('variant_id',$inputs['variant_id'])->where('create_uid',$userId)->whereDate('created_at',$today)->first();
         if($todayMovement){
             // print_r('asdfs');
             $adjustStock = $todayMovement->{$targetCol};
             $adjustStock += $operator.$targetValue;
-            $inputs[$targetCol] = $adjustStock;
+            $inputs['qty'] = $adjustStock;
             $update = $todayMovement->update($inputs);
             if(!$update) return DataResponse::Error('Fail to update stock movement log!');
         }else{
             $inputs['create_uid'] = $userId;
-            $inputs[$targetCol] = $operator.$targetValue;
+            $inputs['qty'] = $operator.$targetValue;
             $create = StockMovement::create($inputs);
             if(!$create) return DataResponse::Error('Fail to create stock movement log!');
         }
@@ -905,19 +915,73 @@ class StockManagementController extends Controller
         return DataResponse::JsonResult(null,false,'Stock log created');
     }
 
-    public function stockTransfer(Request $req){
-        $user = UserService::getAuthUser();
-        $validate = validator($req->all(),[
-            'from_warehouse_id' => 'required|int|exists:stock_locations,id',
-            'to_warehouse_id' => 'required|int|exists:stock_locations,id'
-        ]);
-    }
+    // public function stockTransfer(Request $req){
+        // $user = UserService::getAuthUser();
+        // $validate = validator($req->all(),[
+        //     'from_warehouse_id' => 'required|int|exists:stock_locations,id',
+        //     'to_warehouse_id' => 'required|int|exists:stock_locations,id',
+        //     'ref_number' => 'nullable|string|max:30',
+        //     'items' => 'required|array',
+        // ]);
+
+        // if($validate->fails()) return ApiResponse::ValidateFail($validate->errors()->first());
+    // }
 
 
     public function stockTransform(Request $req){
-        $validate = validator($req->all());
+        $user = UserService::getAuthUser();
+        $validate = validator($req->all(),[
+            'from_warehouse_id' => 'required|int|exists:stock_locations,id',
+            'to_warehouse_id' => 'required|int|exists:stock_locations,id',
+            'ref_number' => 'nullable|string|max:30',
+            'items' => 'required|array',
+        ],[
+            'from_warehouse_id.required' => 'You must select stock warehouse',
+            'to_warehouse_id.required' => 'You must select warehouse where you want to transfer in'
+        ]);
         if($validate->fails()) return ApiResponse::ValidateFail($validate->errors()->first());
         $inputs = $validate->validated();
+        $fromWarehouseId = $inputs['from_warehouse_id'];
+        $toWarehouseId = $inputs['to_warehouse_id'];
+        if($fromWarehouseId == $toWarehouseId) return ApiResponse::ValidateFail('You cannot transfer to the same warehouse');
+        $items = $inputs['items'];
+        DB::beginTransaction();
+        try{
+            $validateItems = $this->prepareTransferItems($items,$fromWarehouseId,$toWarehouseId,$user);
+            if($validateItems->status_code == 422) return ApiResponse::Error($validateItems->message);
+            // DB::commit();
+            return DailyStock::get();
+        }catch(Exception $e){
+            Log::error($e->getMessage());
+            Log::error($e->getTraceAsString());
+            DB::rollBack();
+        }
+        return $inputs;
+    }
+
+    function prepareTransferStock($warehosueId,$variant_id,$targetCol,$targetQty,$user,$cost,$itemRef){
+        return $this->prepareStock($warehosueId,$variant_id,$targetCol,$targetQty,$user,$cost,$itemRef);
+    }
+
+    function prepareTransferItems($items,$fromWarehouse_id,$toWarehouseId,$user){
+        foreach($items as $key=>$item){
+            $tranferQty = $item['tranfer_qty'];
+            $existItem = Stock::where('company_id',$user->company_id)->where('id',$item['id'])->where('stock_location_id',$fromWarehouse_id)->first();
+            if(!$existItem) return DataResponse::ValidateFail('Item not found in warehouse');
+            if($tranferQty > $existItem->qty) return DataResponse::ValidateFail('Your transfer qty is exceeded the existing');
+
+            //** tranfer Out */
+            $transferOut = $this->prepareTransferStock($fromWarehouse_id,$existItem->variant_id,'transfer_out_qty',$tranferQty,$user,$existItem->cost,$item['id']);
+            if($transferOut->status_code == 422) return DataResponse::ValidateFail($transferOut->message);
+            if($transferOut->status_code == 500) return DataResponse::Error($transferOut->message);
+
+            //** transfer In */
+            $tranferIn = $this->prepareTransferStock($toWarehouseId,$existItem->variant_id,'transfer_in_qty',$tranferQty,$user,$existItem->cost,$item['id']);
+            if($tranferIn->status_code == 422) return DataResponse::ValidateFail($tranferIn->message);
+            if($tranferIn->status_code == 500) return DataResponse::Error($tranferIn->message);
+
+        }
+        return DataResponse::JsonResult(null);
     }
 
     function savePaymentSlip($purchaseId,$photo,$user,$amount=0){
