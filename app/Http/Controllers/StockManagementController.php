@@ -800,13 +800,13 @@ class StockManagementController extends Controller
         // if($targetCol == 'receive_qty'){
         $sku = $this->createSkuCode($modelId,$categoryId,$condition,$branchId,$variant_id,$expirationDate);
 
-        $foundBySku = Stock::where('branch_id',$branchId)->where('stock_location_id',$stockLocationId)->where('sku',$sku)->where('cost',$itemCost)->first();
+        $foundBySku = Stock::where('branch_id',$branchId)->where('stock_location_id',$stockLocationId)->where('sku',$sku)->first();
         if($itemRef){
             if(is_numeric($itemRef)) {
-                $foundBySku = Stock::where('branch_id',$branchId)->where('id',$itemRef)->where('cost',$itemCost)->where('stock_location_id',$stockLocationId)->first();
+                $foundBySku = Stock::where('branch_id',$branchId)->where('id',$itemRef)->where('stock_location_id',$stockLocationId)->first();
             }
             else {
-                $foundBySku = Stock::where('branch_id',$branchId)->where('sku',$itemRef)->where('cost',$itemCost)->where('stock_location_id',$stockLocationId)->first();
+                $foundBySku = Stock::where('branch_id',$branchId)->where('sku',$itemRef)->where('stock_location_id',$stockLocationId)->first();
             }
         }
         $stockQty = 0;

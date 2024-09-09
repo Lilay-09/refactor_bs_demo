@@ -116,7 +116,7 @@ class ProductVariantController extends Controller
 
     public function getVariants(Request $req){
         $user = UserService::getAuthUser();
-        $query = ProductVariant::with(['product:id,name,code','photos:id,variant_id,photo_file_name,directory,is_thumbnail'])->where('branch_id',$user->branch_id);
+        $query = ProductVariant::where('inactive',0)->with(['product:id,name,code','photos:id,variant_id,photo_file_name,directory,is_thumbnail'])->where('branch_id',$user->branch_id);
         $variants = $query->get();
         foreach($variants as $vr){
             $vr->product_name = $vr->product->name;

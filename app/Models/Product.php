@@ -23,6 +23,7 @@ class Product extends Model
         'update_uid',
         'branch_id',
         'cost',
+        'inactive',
         'retail_price',
         'wholesale_price',
         'company_id'
