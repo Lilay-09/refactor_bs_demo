@@ -12,9 +12,7 @@ use Illuminate\Http\Request;
 
 class StockLocationController extends Controller
 {
-
     protected $warehouseLimiation = 3;
-
     private function stockLocationValidation(Request $req){
         return validator($req->all(),[
             'name' => 'required|string|max:50',
@@ -92,7 +90,7 @@ class StockLocationController extends Controller
                 if($photo->is_thumbnail){
                     $item->image_url = Helper::getImageUrl($photo->photo_file_name,$item->company_id,$photo->directory);
                 }
-                if($item->image_url) $item->image_url = Helper::getImageUrl($photo->photo_file_name,$item->company_id,$photo->directory);
+                if(!$item->image_url) $item->image_url = Helper::getImageUrl($photo->photo_file_name,$item->company_id,$photo->directory);
             }
             unset($item->stockLocation,$item->variant);
         }

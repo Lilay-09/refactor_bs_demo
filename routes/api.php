@@ -143,6 +143,7 @@ Route::middleware('jwt')->group(function(){
 
             Route::prefix('transfer')->group(function(){
                 Route::post('',[StockManagementController::class,'stockTransform']);
+                Route::get('',[StockManagementController::class,'getTransferList']);
             });
 
             Route::prefix('item')->group(function(){

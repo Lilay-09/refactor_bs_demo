@@ -1,4 +1,5 @@
 <?php
+use Milon\Barcode\DNS1D;
 class ApiResponse
 {
     static function ValidateFail($message=null,$errors=[]){
@@ -325,6 +326,42 @@ class Helper{
         // This regex will match any character that is not a letter (a-z, A-Z), a digit (0-9), or a space
         return preg_replace('/[^a-zA-Z0-9\s]/', '', $str);
     }
+
+    public static function generateBarcode($code,$company_id,$dirName='barcode',$type='C39')
+    {
+        // if (!is_numeric($code) || strlen($code) !== 12) {
+        //     throw new \Exception('Invalid UPC-A code. The code must be a 12-digit numeric value.');
+        // }
+
+        $dns1d = new DNS1D();
+
+        // Generate the barcode as a PNG image
+        $barcode = $dns1d->getBarcodePNG($code, $type);
+
+        // Check if barcode generation was successful
+        if ($barcode === false) {
+            \Log::error('Barcode generation failed', ['code' => $code, 'type' => $type]);
+            throw new \Exception('Barcode generation failed.');
+        }
+
+        // Convert to image file
+        $file = self::base64ToImageFile($barcode, $company_id, $dirName, 'png');
+
+        // Return the file path
+        return $file;
+        // $dns1d = new DNS1D();
+
+        // // Generate the barcode as a PNG image
+        // $barcode = $dns1d->getBarcodePNG($code, $type);
+        // $file = self::base64ToImageFile($barcode,$company_id,$dirName,'png');
+
+        // // Return the raw PNG data
+        // return $file;
+    }
+
+
+
+
 
 }
 

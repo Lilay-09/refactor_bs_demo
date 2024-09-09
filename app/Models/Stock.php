@@ -16,6 +16,8 @@ class Stock extends Model
         'stock_location_id',
         'variant_id',
         'qty',
+        'barcode',
+        'barcode_file',
         'cost',
         'wholesale_price',
         'retail_price',

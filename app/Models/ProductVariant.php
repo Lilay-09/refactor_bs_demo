@@ -46,4 +46,8 @@ class ProductVariant extends Model
     public function photos(){
         return $this->hasMany(ProductVariantPhoto::class,'variant_id','id');
     }
+
+    public function stocks(){
+        return $this->hasMany(Stock::class,'variant_id','id');
+    }
 }
