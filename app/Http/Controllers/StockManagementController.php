@@ -106,8 +106,7 @@ class StockManagementController extends Controller
 
         unset($inputs['order_items'],$inputs['pmt_description'],$inputs['bank_photo'],$inputs['cash_photo'],$inputs['bank_id'],$inputs['photo'],$inputs['bank_amount'],$inputs['bank_number']);
 
-        $poCode = 'PO'.date('dMYhis');
-        $inputs['po_code'] = $poCode;
+
         $discount = $inputs['discount_amount'] ?? 0;
         $discountType = $inputs['discount_type'] ?? '%';
         $tax = $inputs['tax'] ?? 0;
@@ -125,6 +124,11 @@ class StockManagementController extends Controller
         try{
             $create = PurchaseOrder::create($inputs);
             if($create){
+                //** add po code */
+                $poCode = 'PO-'.str_pad($create->id, 8, '0', STR_PAD_LEFT);
+                PurchaseOrder::find($create->id)->update([
+                    'po_code' => $poCode
+                ]);
                 $purchaseId = $create->id;
                 $mergedItems = $this->mergerOrderItems($orderItems,$purchaseId,$discountInfo);
                 if($mergedItems->status_code == 422) return ApiResponse::ValidateFail($mergedItems->message);
@@ -364,7 +368,7 @@ class StockManagementController extends Controller
     }
 
 
-    private function createSkuCode($modelId,$categoryId,$condition,$branchId,$cost,$variantId,$expirationDate=null){
+    private function createSkuCode($modelId,$categoryId,$condition,$branch_id,$variantId,$expirationDate=null){
         /**
          * @var mixed
          * format SKUcategory_model_conditionExpiration_date example SKU1_1_NEW_120241108 or SKU1_1_NEW_1 , expiration_date can be null
@@ -375,7 +379,7 @@ class StockManagementController extends Controller
         // $model = strtoupper(substr($model,0,3));
         // $category = strtoupper(substr($category,0,3));
         $condition = strtoupper(substr($condition,0,3));
-        $sku = 'SKU'.$categoryId.'_'.$modelId.'_'.$condition.$variantId.'_'.$branchId.'_'.$cost;
+        $sku = 'SKU'.$categoryId.'-'.$modelId.'-'.$condition.$variantId.'-'.$branch_id;//.'-'.$cost;
         if($expirationDate) {
             $expirationDate = date('Ymd',strtotime($expirationDate));
             return $sku.$expirationDate;
@@ -493,9 +497,18 @@ class StockManagementController extends Controller
             $categoryId = $item->product->category_id;
             $condition = $item->condition;
             $prepareStock = $this->prepareStock($stockLocationId,$item->id,'receive_qty',$receiveQty,$user,$purchaseOrderItem->unit_price,null,$modelId,$categoryId,$condition,$expiration_date);
-            // return $prepareStock;
             if($prepareStock->status_code == 422) return DataResponse::ValidateFail($prepareStock->message);
             if($prepareStock->status_code == 500) return DataResponse::Error($prepareStock->message);
+            $stockMovement = $this->createStockMovementLog([
+                'variant_id' => $item->id,
+                'cost' => $purchaseOrderItem->unit_price,
+                'retail_price' => $item->retail_price,
+                'wholesale_price' => $item->wholesale_price,
+            ],'receive_qty',$receiveQty,$user);
+            if($stockMovement->status_code == 422) return DataResponse::ValidateFail($stockMovement->message);
+            return DataResponse::JsonResult(null,false,'Stock prepared!');
+            // return $prepareStock;
+
         }
 
         return DataResponse::JsonResult((object)[
@@ -785,19 +798,17 @@ class StockManagementController extends Controller
         //* ---------- Stock Process Here ----------
 
         // if($targetCol == 'receive_qty'){
-        $sku = $this->createSkuCode($modelId,$categoryId,$condition,$branchId,$itemCost,$variant_id,$expirationDate);
+        $sku = $this->createSkuCode($modelId,$categoryId,$condition,$branchId,$variant_id,$expirationDate);
 
         $foundBySku = Stock::where('branch_id',$branchId)->where('stock_location_id',$stockLocationId)->where('sku',$sku)->where('cost',$itemCost)->first();
         if($itemRef){
             if(is_numeric($itemRef)) {
-                $foundBySku = Stock::where('id',$itemRef)->where('stock_location_id',$stockLocationId)->first();
+                $foundBySku = Stock::where('branch_id',$branchId)->where('id',$itemRef)->where('cost',$itemCost)->where('stock_location_id',$stockLocationId)->first();
             }
             else {
-                $foundBySku = Stock::where('sku',$itemRef)->where('stock_location_id',$stockLocationId)->first();
+                $foundBySku = Stock::where('branch_id',$branchId)->where('sku',$itemRef)->where('cost',$itemCost)->where('stock_location_id',$stockLocationId)->first();
             }
         }
-
-
         $stockQty = 0;
         $retail_price = $variant->retail_price;
         $wholesale_price = $variant->wholesale_price;
@@ -806,7 +817,7 @@ class StockManagementController extends Controller
             $wholesale_price = $foundBySku->wholesale_price;
             $stockQty = $foundBySku->qty;
             $stockQty += $operator.$targetValue;
-            $updateStock = $foundBySku->update([
+            $updateArr = [
                 'stock_location_id' => $stockLocationId,
                 'qty' => $stockQty,
                 'variant_id' => $variant_id,
@@ -816,15 +827,23 @@ class StockManagementController extends Controller
                 'update_uid' => $userId,
                 'company_id' => $companyId,
                 'branch_id' => $branchId
-            ]);
+            ];
+            if(!$foundBySku->barcode || !$foundBySku->barcode_file){
+                $date = date('Ymd');
+                $barNum = str_pad($date.$foundBySku->id, 14, '0', STR_PAD_RIGHT);
+                $barcodeFile = Helper::generateBarcode($barNum,$companyId);
+                if(!$barcodeFile) return DataResponse::ValidateFail('Fail to create barcode');
+                $updateArr['barcode'] = $barNum;
+                $updateArr['barcode_file'] = $barcodeFile;
+            }
+            $updateStock = $foundBySku->update($updateArr);
             if(!$updateStock) return DataResponse::Error('Fail to update stock.');
         }else{
             $stockQty += $operator.$targetValue;
-            $addNewStock = Stock::insert([
+            $addNewStock = Stock::create([
                 'sku' => $sku,
                 'stock_location_id' => $stockLocationId,
                 'qty' => $stockQty,
-                // 'batch_number'=> date('YMdhis').mt_rand(1000, 9999),
                 'variant_id' => $variant_id,
                 'retail_price' => $variant->retail_price,
                 'wholesale_price' => $variant->wholesale_price,
@@ -835,16 +854,27 @@ class StockManagementController extends Controller
                 'branch_id' => $branchId
             ]);
             if(!$addNewStock) return DataResponse::Error('Fail to add new stock!');
+            //** new barcode */
+            $stockId = $addNewStock->id;
+            $date = date('Ymd');
+            $barNum = str_pad($date.$stockId, 14, '0', STR_PAD_RIGHT);
+            $barcodeFile = Helper::generateBarcode($barNum,$companyId);
+            if(!$barcodeFile) return DataResponse::ValidateFail('Fail to create barcode');
+            Stock::find($stockId)->update([
+                'barcode' => $barNum,
+                'barcode_file' => $barcodeFile
+            ]);
+
         }
         // }
 
-        $stockMovement = $this->createStockMovementLog([
-            'variant_id' => $variant_id,
-            'cost' => $itemCost,
-            'retail_price' => $retail_price,
-            'wholesale_price' => $wholesale_price
-        ],$targetCol,$targetValue,$user);
-        if($stockMovement->status_code == 422) return DataResponse::ValidateFail($stockMovement->message);
+        // $stockMovement = $this->createStockMovementLog([
+        //     'variant_id' => $variant_id,
+        //     'cost' => $itemCost,
+        //     'retail_price' => $retail_price,
+        //     'wholesale_price' => $wholesale_price,
+        // ],$targetCol,$targetValue,$user);
+        // if($stockMovement->status_code == 422) return DataResponse::ValidateFail($stockMovement->message);
         return DataResponse::JsonResult(null,false,'Stock prepared!');
     }
 
@@ -859,7 +889,11 @@ class StockManagementController extends Controller
             'wholesale_price' => 'nullable|numeric',
             'adjustment_qty' => 'nullable|numeric',
             'transfer_in_qty' => 'nullable|numeric',
+            'reference_no' => 'nullable|string|max:30',
             'transfer_out_qty' => 'nullable|numeric',
+            'from_location_id' => 'nullable|int',
+            'to_location_id' => 'nullable|int',
+            'status' => 'nullable|in:pending,approved,transfered',
             'sold_qty' => 'nullable|numeric',
             'receive_qty' => 'nullable|numeric'
         ],[
@@ -892,6 +926,7 @@ class StockManagementController extends Controller
         // print_r($operator);
         $inputs = $validate->validated();
         $inputs['update_uid'] = $userId;
+        $inputs['transfer_uid'] = $userId;
         $inputs['branch_id'] = $branch_id;
         $inputs['company_id'] = $companyId;
         $inputs['type'] = $inputs['movement_type'];
@@ -914,6 +949,8 @@ class StockManagementController extends Controller
 
         return DataResponse::JsonResult(null,false,'Stock log created');
     }
+
+
 
     // public function stockTransfer(Request $req){
         // $user = UserService::getAuthUser();
@@ -942,43 +979,90 @@ class StockManagementController extends Controller
         if($validate->fails()) return ApiResponse::ValidateFail($validate->errors()->first());
         $inputs = $validate->validated();
         $fromWarehouseId = $inputs['from_warehouse_id'];
+        $ref_number = $inputs['ref_number'] ?? null;
         $toWarehouseId = $inputs['to_warehouse_id'];
         if($fromWarehouseId == $toWarehouseId) return ApiResponse::ValidateFail('You cannot transfer to the same warehouse');
         $items = $inputs['items'];
         DB::beginTransaction();
         try{
-            $validateItems = $this->prepareTransferItems($items,$fromWarehouseId,$toWarehouseId,$user);
+            $validateItems = $this->prepareTransferItems($items,$fromWarehouseId,$toWarehouseId,$user,$ref_number);
+            // return $validateItems;
             if($validateItems->status_code == 422) return ApiResponse::Error($validateItems->message);
-            // DB::commit();
-            return DailyStock::get();
+            DB::commit();
+            return ApiResponse::JsonResult(null,false,'Stock transfered!');
         }catch(Exception $e){
             Log::error($e->getMessage());
             Log::error($e->getTraceAsString());
             DB::rollBack();
+            return ApiResponse::Error('Fail to transfer');
         }
-        return $inputs;
+    }
+
+    public function getTransferList(Request $req){
+        $user = UserService::getAuthUser();
+        $transfers = StockMovement::where('company_id',$user->company_id)->where('branch_id',$user->branch_id)->whereIn('type',['Transfer Out'])->with(['transOutWarehouse','transInWarehouse'])->get();
+        foreach($transfers as $tr){
+            $tr->transfer_location = $tr->transOutWarehouse->name . ' To '. $tr->transInWarehouse->name;
+            $tr->status = strtoupper($tr->status);
+            unset($tr->transInWarehouse,$tr->transOutWarehouse);
+        }
+        return ApiResponse::Pagination($transfers,$req);
     }
 
     function prepareTransferStock($warehosueId,$variant_id,$targetCol,$targetQty,$user,$cost,$itemRef){
-        return $this->prepareStock($warehosueId,$variant_id,$targetCol,$targetQty,$user,$cost,$itemRef);
+        $item = ProductVariant::with('product')->find($variant_id);
+        $modelId = $item->product->model_id;
+        $categoryId = $item->product->category_id;
+        $condition = $item->condition;
+        return $this->prepareStock($warehosueId,$variant_id,$targetCol,$targetQty,$user,$cost,$itemRef,$modelId,$categoryId,$condition);
     }
 
-    function prepareTransferItems($items,$fromWarehouse_id,$toWarehouseId,$user){
+    function prepareTransferItems($items,$fromWarehouse_id,$toWarehouseId,$user,$reference_no){
         foreach($items as $key=>$item){
-            $tranferQty = $item['tranfer_qty'];
+            $transferQty = $item['transfer_qty'];
             $existItem = Stock::where('company_id',$user->company_id)->where('id',$item['id'])->where('stock_location_id',$fromWarehouse_id)->first();
             if(!$existItem) return DataResponse::ValidateFail('Item not found in warehouse');
-            if($tranferQty > $existItem->qty) return DataResponse::ValidateFail('Your transfer qty is exceeded the existing');
+            if($transferQty > $existItem->qty) return DataResponse::ValidateFail('Your transfer qty is exceeded the existing');
 
             //** tranfer Out */
-            $transferOut = $this->prepareTransferStock($fromWarehouse_id,$existItem->variant_id,'transfer_out_qty',$tranferQty,$user,$existItem->cost,$item['id']);
+            $transferOut = $this->prepareTransferStock($fromWarehouse_id,$existItem->variant_id,'transfer_out_qty',$transferQty,$user,$existItem->cost,$item['id']);
             if($transferOut->status_code == 422) return DataResponse::ValidateFail($transferOut->message);
             if($transferOut->status_code == 500) return DataResponse::Error($transferOut->message);
 
+            if(!$transferOut->error){
+                $stockMovement = $this->createStockMovementLog([
+                    'variant_id' => $existItem->variant_id,
+                    'cost' => $existItem->cost,
+                    'retail_price' => $existItem->retail_price,
+                    'wholesale_price' => $existItem->wholesale_price,
+                    'reference_no' => $reference_no,
+                    'from_location_id' => $fromWarehouse_id,
+                    'status' => 'transfered',
+                    'transfer_date' => now(),
+                    'to_location_id' => $toWarehouseId
+                ],'transfer_out_qty',$transferQty,$user);
+                if($stockMovement->status_code == 422) return DataResponse::ValidateFail($stockMovement->message);
+            }
+
             //** transfer In */
-            $tranferIn = $this->prepareTransferStock($toWarehouseId,$existItem->variant_id,'transfer_in_qty',$tranferQty,$user,$existItem->cost,$item['id']);
-            if($tranferIn->status_code == 422) return DataResponse::ValidateFail($tranferIn->message);
-            if($tranferIn->status_code == 500) return DataResponse::Error($tranferIn->message);
+            $transferIn = $this->prepareTransferStock($toWarehouseId,$existItem->variant_id,'transfer_in_qty',$transferQty,$user,$existItem->cost,$existItem->sku); //* note => last param use sku to find if item exists in stock
+            if($transferIn->status_code == 422) return DataResponse::ValidateFail($transferIn->message);
+            if($transferIn->status_code == 500) return DataResponse::Error($transferIn->message);
+
+            if(!$transferIn->error){
+                $stockMovement = $this->createStockMovementLog([
+                    'variant_id' => $existItem->variant_id,
+                    'cost' => $existItem->cost,
+                    'retail_price' => $existItem->retail_price,
+                    'wholesale_price' => $existItem->wholesale_price,
+                    'reference_no' => $reference_no,
+                    'from_location_id' => $fromWarehouse_id,
+                    'status' => 'transfered',
+                    'transfer_date' => now(),
+                    'to_location_id' => $toWarehouseId
+                ],'transfer_in_qty',$transferQty,$user);
+                if($stockMovement->status_code == 422) return DataResponse::ValidateFail($stockMovement->message);
+            }
 
         }
         return DataResponse::JsonResult(null);

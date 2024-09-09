@@ -180,7 +180,7 @@ class ProductController extends Controller
         if (is_string($tags)) {
             $tags = explode(',', strtolower($tags));
         }
-        $query = Product::with(['specifications:id,name,value,product_id','tags:id,tag,product_id','variants.photos','getModel:id,name,brand_id','getModel.brand:id,name'])->where('branch_id',$user->branch_id)->orderByRaw('DATE(created_at) DESC')->selectRaw('id,name,code,description,model_id');
+        $query = Product::with(['specifications:id,name,value,product_id','tags:id,tag,product_id','variants.photos','variants.stocks','getModel:id,name,brand_id','getModel.brand:id,name'])->where('branch_id',$user->branch_id)->orderByRaw('DATE(created_at) DESC')->selectRaw('id,name,code,description,model_id');
         if (!empty($tags)){
             $query->whereHas('tags', function($query) use ($tags) {
                 $query->whereRaw('LOWER(tag) IN (?)', [$tags]);
@@ -196,6 +196,17 @@ class ProductController extends Controller
         foreach($products as $product){
             $product->brand_name = $product->getModel->brand->name;
             $product->model_name = $product->getModel->name;
+            foreach ($product->variants as $vr) {
+                // Initialize stock quantity to 0
+                $vr->stock_qty = 0;
+                // Check if the product has associated stocks
+                if (isset($vr->stocks[0])) {
+                    // Sum up the stock quantities for each stock entry related to the variant
+                    foreach ($vr->stocks as $stock) {
+                        $vr->stock_qty += $stock->qty;
+                    }
+                }
+            }
             unset($product->getModel);
         }
         return ApiResponse::Pagination($products,$req,'get product list');
@@ -207,7 +218,19 @@ class ProductController extends Controller
         $product = Product::with(['getModel:id,brand_id','variants:id,product_id,size,color,weight,length,expires_at,condition,material,cost,retail_price','tags:id,tag,product_id'])->where('branch_id',$user->branch_id)->find($id);
         if($product){
             $product->brand_id = $product->getModel->brand_id;
+            foreach ($product->variants as $vr) {
+                // Initialize stock quantity to 0
+                $vr->stock_qty = 0;
+                // Check if the product has associated stocks
+                if (isset($vr->stocks[0])) {
+                    // Sum up the stock quantities for each stock entry related to the variant
+                    foreach ($vr->stocks as $stock) {
+                        $vr->stock_qty += $stock->qty;
+                    }
+                }
+            }
             unset($product->getModel);
+
         }
         return ApiResponse::JsonResult($product,false,'get product');
     }

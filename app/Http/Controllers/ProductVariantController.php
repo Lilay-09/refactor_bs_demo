@@ -73,6 +73,15 @@ class ProductVariantController extends Controller
         $photos = $inputs['photos'];
         unset($inputs['photos']);
         $variant = ProductVariant::where('branch_id',$user->branch_id)->find($id);
+        $existInStock = Stock::where('variant_id',$id)->first();
+        if($existInStock){
+            if(
+                $inputs['condition'] != $variant->condition
+                || $inputs['size'] != $variant->size || $inputs['color'] != $variant->color
+                ){
+                return ApiResponse::ValidateFail('This item exists in stock you cannot change any info except image or price');
+            }
+        }
         $product = new ProductController();
         $savePhoto = $product->updateOrCreateVariantPhotos($photos,$user->company_id,$id);
         if($savePhoto->status_code == 422) return ApiResponse::ValidateFail($savePhoto->message);

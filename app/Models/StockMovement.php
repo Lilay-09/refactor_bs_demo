@@ -26,4 +26,12 @@ class StockMovement extends Model
         'branch_id',
         'company_id'
     ];
+
+    public function transOutWarehouse(){
+        return $this->belongsTo(StockLocation::class,'from_location_id','id');
+    }
+
+    public function transInWarehouse(){
+        return $this->belongsTo(StockLocation::class,'to_location_id','id');
+    }
 }
