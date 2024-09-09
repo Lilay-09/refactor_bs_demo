@@ -132,6 +132,7 @@ Route::middleware('jwt')->group(function(){
             Route::get('/{id?}',[StockManagementController::class,'getPurchaseOrder']);
             Route::put('',[StockManagementController::class,'updatePurchaseOrder']);
         });
+
         Route::prefix('stock')->group(function(){
             Route::prefix('location')->group(function(){
                 Route::post('',[StockLocationController::class,'createStockLocation']);
@@ -161,6 +162,8 @@ Route::middleware('jwt')->group(function(){
     Route::prefix('product')->group(function(){
         Route::post('/',[ProductController::class,'createProduct']);
         Route::get('/',[ProductController::class,'getProducts']);
+        Route::delete('/void/{id?}',[ProductController::class,'voidProduct']);
+        Route::put('/void/{id?}',[ProductController::class,'unVoidProduct']);
 
         Route::post('variant',[ProductVariantController::class,'createVariant']);
         Route::get('variant',[ProductVariantController::class,'getVariants']);

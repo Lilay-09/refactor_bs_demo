@@ -176,22 +176,42 @@ class ProductController extends Controller
     public function getProducts(Request $req){
         $user = UserService::getAuthUser();
         $tags = $req->tag;
+        $inactive = $req->inactive ?? 0;
         $search = $req->search;
+        $categoryId = $req->category_id ?? null;
+        $groupId = $req->group_id ?? null;
+        $brandId = $req->brand_id ?? null;
         if (is_string($tags)) {
             $tags = explode(',', strtolower($tags));
         }
-        $query = Product::with(['specifications:id,name,value,product_id','tags:id,tag,product_id','variants.photos','variants.stocks','getModel:id,name,brand_id','getModel.brand:id,name'])->where('branch_id',$user->branch_id)->orderByRaw('DATE(created_at) DESC')->selectRaw('id,name,code,description,model_id');
+        $query = Product::where('inactive',$inactive)->with(['specifications:id,name,value,product_id','tags:id,tag,product_id','variants.photos','variants.stocks','getModel:id,name,brand_id','getModel.brand:id,name'])->where('branch_id',$user->branch_id)->orderByRaw('DATE(created_at) DESC')->selectRaw('id,name,code,description,model_id,category_id,group_id');
         if (!empty($tags)){
             $query->whereHas('tags', function($query) use ($tags) {
                 $query->whereRaw('LOWER(tag) IN (?)', [$tags]);
             });
         }
+
+        if (is_numeric($categoryId)) {
+            $query->where('category_id', $categoryId);
+        }
+
+        if (is_numeric($groupId)) {
+            $query->where('group_id', $groupId);
+        }
+
+        if (is_numeric($brandId)) {
+            $query->whereHas('getModel.brand',function($query) use ($brandId){
+                $query->where('id',$brandId);
+            });
+        }
+
         if ($search) {
-            $query->where('name', 'ilike', '%' . $search . '%')
+            $query->whereRaw('name ilike \''.$search.'\' or code = \''.$search.'\'')
                 ->orWhereHas('variants', function($query) use ($search) {
                     $query->where('color', 'ilike', '%' . $search . '%');
                 });
         }
+
         $products = $query->get();
         foreach($products as $product){
             $product->brand_name = $product->getModel->brand->name;
@@ -515,4 +535,36 @@ class ProductController extends Controller
 
     }
 
+    public function voidProduct(Request $req){
+        $id = $req->id;
+        $user = UserService::getAuthUser();
+        $branch_id = $user->branch_id;
+        $product = Product::where('branch_id',$branch_id)->find($id);
+        if(!$product) return ApiResponse::NotFound('Product not found');
+        $product->update([
+            'inactive' => 1,
+            'update_uid' => $user->id
+        ]);
+        ProductVariant::where('product_id',$id)->update([
+            'inactive' => 1,
+            'update_uid' => $user->id
+        ]);
+        return ApiResponse::JsonResult(null,false,'Voided');
+    }
+    public function unVoidProduct(Request $req){
+        $id = $req->id;
+        $user = UserService::getAuthUser();
+        $branch_id = $user->branch_id;
+        $product = Product::where('branch_id',$branch_id)->find($id);
+        if(!$product) return ApiResponse::NotFound('Product not found');
+        $product->update([
+            'inactive' => 0,
+            'update_uid' => $user->id
+        ]);
+        ProductVariant::where('product_id',$id)->update([
+            'inactive' => 0,
+            'update_uid' => $user->id
+        ]);
+        return ApiResponse::JsonResult(null,false,'Voided');
+    }
 }
