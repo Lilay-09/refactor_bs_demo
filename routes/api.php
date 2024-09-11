@@ -22,6 +22,8 @@ use App\Http\Controllers\ServiceController;
 use App\Http\Controllers\StockController;
 use App\Http\Controllers\StockLocationController;
 use App\Http\Controllers\StockManagementController;
+use App\Http\Controllers\UserController;
+use App\Http\Controllers\UserManagementController;
 use App\Http\Controllers\VendorController;
 use App\Http\Controllers\VendorTypeController;
 use App\Http\Middleware\JwtAuthMiddleware;
@@ -33,9 +35,14 @@ Route::prefix('auth')->group(function(){
 });
 
 Route::middleware('jwt')->group(function(){
-    Route::prefix('user')->group(function(){
-        Route::get('/profile', function (Request $request) {
-            return response()->json(['data'=>['user'=>['name'=>'test']]]);
+    Route::prefix('management')->group(function(){
+        Route::get('/user', [UserController::class,'getUsers']);
+        Route::prefix('role')->group(function(){
+            Route::post('/', [UserManagementController::class,'createRole']);
+            Route::get('/', [UserManagementController::class,'getRoles']);
+            Route::get('/{id?}', [UserManagementController::class,'getRole']);
+            Route::put('/{id?}', [UserManagementController::class,'updateRole']);
+            Route::delete('/{id?}', [UserManagementController::class,'deleteRole']);
         });
     });
     Route::prefix('company')->group(function(){

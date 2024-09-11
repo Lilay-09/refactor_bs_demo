@@ -19,11 +19,16 @@ class User extends Authenticatable implements JWTSubject
      * @var array<int, string>
      */
     protected $fillable = [
-        'name',
         'email',
         'password',
+        'user_name',
+        'first_name',
+        'last_name',
+        'last_login',
         'id',
-        'phone'
+        'phone',
+        'system_admin',
+        'lock'
     ];
 
     /**
@@ -54,4 +59,13 @@ class User extends Authenticatable implements JWTSubject
     {
         return [];
     }
+
+    protected static function booted()
+{
+    static::creating(function ($model) {
+        if (is_null($model->start_date)) {
+            $model->start_date = $model->created_at;
+        }
+    });
+}
 }
