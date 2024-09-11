@@ -178,9 +178,9 @@ class ProductController extends Controller
         $tags = $req->tag;
         $inactive = $req->inactive ?? 0;
         $search = $req->search;
-        $categoryId = $req->category_id ?? null;
-        $groupId = $req->group_id ?? null;
-        $brandId = $req->brand_id ?? null;
+        $categories = $req->categories ?? [];
+        $groups = $req->groups ?? [];
+        $brands = $req->brands ?? [];
         if (is_string($tags)) {
             $tags = explode(',', strtolower($tags));
         }
@@ -191,17 +191,17 @@ class ProductController extends Controller
             });
         }
 
-        if (is_numeric($categoryId)) {
-            $query->where('category_id', $categoryId);
+        if(!empty($groups)){
+            $query->whereIn('category_id', $groups);
         }
 
-        if (is_numeric($groupId)) {
-            $query->where('group_id', $groupId);
+        if(!empty($categories)){
+            $query->whereIn('category_id', $categories);
         }
 
-        if (is_numeric($brandId)) {
-            $query->whereHas('getModel.brand',function($query) use ($brandId){
-                $query->where('id',$brandId);
+        if(!empty($brands)){
+            $query->whereHas('getModel.brand',function($query) use ($brands){
+                $query->whereIn('id', $brands);
             });
         }
 

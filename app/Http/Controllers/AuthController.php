@@ -26,11 +26,16 @@ class AuthController extends Controller
         $input = $validate->validated();
         $account = $input['username'];
         $password = $input['password'];
+        date_default_timezone_set('Asia/Phnom_Penh');
+        $today = date('Y-m-d H:i:s');
         $user = User::where('email',$account)->orWhere('phone',$account)->selectRaw('email,phone,id,system_admin')->first();
         if(!$user) return  ApiResponse::NotFound('Invalid Username or password');
         if($user){
             $user->roles = UserService::getRolesByUsers($user->id);
         }
+        User::find($user->id)->update([
+            'last_login' => $today
+        ]);
         $credentials = [
             'password' => $password
         ];
