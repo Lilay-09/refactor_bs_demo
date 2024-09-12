@@ -23,6 +23,7 @@ class ProductGroupController extends Controller
         $name_kh = $req->name_kh;
         // $description = $req->description;
         $user = UserService::getAuthUser();
+
         $create = ProductGroup::create([
             'name' => $name,
             'name_kh' => $name_kh,
@@ -39,7 +40,12 @@ class ProductGroupController extends Controller
     public function productGroups(Request $req){
         if($req->id) return $this->productGroup($req);
         $user = UserService::getAuthUser();
-        $proGroups = ProductGroup::where('company_id',$user->company_id)->selectRaw('name,id,name_kh')->get();
+        $search = $req->search;
+        $query = ProductGroup::where('company_id',$user->company_id)->selectRaw('name,id,name_kh');
+        if($search){
+            $query->where('name','ilike','%'.$search.'%');
+        }
+        $proGroups = $query->get();
         return ApiResponse::Pagination($proGroups,$req);
     }
 

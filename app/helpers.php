@@ -197,13 +197,13 @@ class Helper{
         $filePath = public_path($relativeFilePath);
 
         // Check if the file exists
-        if (file_exists($filePath)) {
+        if (file_exists($filePath) && $fileName) {
             // File exists, return the public URL
             return asset($relativeFilePath);
         }
 
         // File does not exist, return a default placeholder URL or null
-        return asset('uploads/images/default-placeholder.png'); // Adjust with your placeholder image path
+        return null; // Adjust with your placeholder image path
     }
 
     static function getFileUrl($fileName, $companyId, $dirName, $type = 'image')

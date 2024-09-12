@@ -8,6 +8,7 @@ use App\Http\Controllers\CompanyProfileController;
 use App\Http\Controllers\CountryController;
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\CustomerTypeController;
+use App\Http\Controllers\ExhangeRateController;
 use App\Http\Controllers\ExpenseCategoryController;
 use App\Http\Controllers\ExpenseController;
 use App\Http\Controllers\GeneralSettingController;
@@ -46,9 +47,17 @@ Route::middleware('jwt')->group(function(){
         });
     });
     Route::prefix('company')->group(function(){
-        Route::post('update',[CompanyProfileController::class,'update']);
-        Route::get('profile',[CompanyProfileController::class,'profile']);
-        Route::get('info',[CompanyProfileController::class,'info']);
+        Route::put('',[CompanyProfileController::class,'update']);
+        Route::get('',[CompanyProfileController::class,'getCompanyProfile']);
+        // Route::get('branches',[CompanyProfileController::class,'branches']);
+    });
+
+    Route::prefix('xrate')->group(function(){
+        Route::post('',[ExhangeRateController::class,'create']);
+        Route::get('',[ExhangeRateController::class,'getXRates']);
+        Route::get('{id?}',[ExhangeRateController::class,'getXRate']);
+        Route::put('{id?}',[ExhangeRateController::class,'update']);
+        Route::delete('{id?}',[ExhangeRateController::class,'delete']);
         // Route::get('branches',[CompanyProfileController::class,'branches']);
     });
 
