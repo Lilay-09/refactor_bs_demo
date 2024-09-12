@@ -19,7 +19,7 @@ class CustomerController extends Controller
             'name_kh' => 'nullable|string|max:150',
             'phone' => 'required|string|min:8|max:25',
             'email' => 'nullable|email',
-            'discount_percent' => 'nullable|numeric|min:1|max:100',
+            'discount_percent' => 'nullable|numeric|min:0|max:100',
             'address' => 'nullable|string|max:250',
             'address_kh' => 'nullable|string|max:250',
             'customer_type_id' => 'required|int|exists:customer_types,id'
