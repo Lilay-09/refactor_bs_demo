@@ -5,21 +5,22 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class Bank extends Model
+class ExchangeRate extends Model
 {
     use HasFactory;
-    protected $table = 'Banks';
-
+    protected $table = 'exchange_rate';
     protected $fillable = [
-        'id',
-        'name',
-        'name_kh',
-        'photo_file_name',
-        'photo_file_name_kh',
-        'inactive',
+        'x_date',
+        'buy_rate',
+        'sell_rate',
         'create_uid',
         'update_uid',
         'company_id',
-        'branch_id'
+        'branch_id',
+        'currency_pair'
+    ];
+
+    protected $casts = [
+        'x_date' => 'date:d-M-Y',
     ];
 }

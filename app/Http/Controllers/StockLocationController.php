@@ -12,7 +12,7 @@ use Illuminate\Http\Request;
 
 class StockLocationController extends Controller
 {
-    protected $warehouseLimiation = 3;
+    protected $warehouseLimiation = 1;
     private function stockLocationValidation(Request $req){
         return validator($req->all(),[
             'name' => 'required|string|max:50',
@@ -39,6 +39,7 @@ class StockLocationController extends Controller
         $inputs['company_id'] = $user->company_id;
         $inputs['branch_id'] = isset($inputs['branch_id']) ? $inputs['branch_id'] : $user->branch_id;
         $isMain = $inputs['main'] ?? false;
+
         if($isMain){
             $hasMain = StockLocation::where('company_id',$user->company_id)->take(1)->value('main');
             if($hasMain) return ApiResponse::Duplicated('The main wareharehouse is already exists');

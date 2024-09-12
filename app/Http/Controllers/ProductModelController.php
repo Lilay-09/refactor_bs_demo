@@ -44,7 +44,12 @@ class ProductModelController extends Controller
     public function productModels(Request $req){
         if($req->id) return $this->productModel($req);
         $user = UserService::getAuthUser();
-        $models = ProductModel::where('company_id',$user->company_id)->selectRaw('id,name,name_kh,brand_id')->get();
+        $search = $req->search;
+        $query = ProductModel::where('company_id',$user->company_id)->selectRaw('id,name,name_kh,brand_id');
+        if($search){
+            $query->where('name','ilike','%'.$search.'%');
+        }
+        $models = $query->get();
         return ApiResponse::Pagination($models,$req);
     }
 

@@ -32,7 +32,12 @@ class ProductTagController extends Controller
 
     public function getProductTags(Request $req){
         $user = UserService::getAuthUser();
-        $tags = ProductTag::where('branch_id',$user->branch_id)->selectRaw('id,name,name_kh')->get();
+        $search = $req->search;
+        $query = ProductTag::where('branch_id',$user->branch_id)->selectRaw('id,name,name_kh');
+        if($search){
+            $query->where('name','ilike','%'.$search.'%');
+        }
+        $tags = $query->get();
         return ApiResponse::Pagination($tags,$req);
     }
 
