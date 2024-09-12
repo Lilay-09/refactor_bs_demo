@@ -19,7 +19,7 @@ return [
 
     'allowed_methods' => ['*'],
 
-    'allowed_origins' => ['https://pos-vihicle.gtechcambodia.com','http://localhost:3000','http://localhost:3006','https://pos-motor-fe.vercel.app'],
+    'allowed_origins' => ['https://pos-vihicle.gtechcambodia.com','http://localhost:3000','http://localhost:3006','https://pos-motor-fe.vercel.app','*'],
 
     'allowed_origins_patterns' => [],
 

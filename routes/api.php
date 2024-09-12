@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\BankController;
 use App\Http\Controllers\BrandController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\CityController;
@@ -58,6 +59,15 @@ Route::middleware('jwt')->group(function(){
         Route::get('{id?}',[ExhangeRateController::class,'getXRate']);
         Route::put('{id?}',[ExhangeRateController::class,'update']);
         Route::delete('{id?}',[ExhangeRateController::class,'delete']);
+        // Route::get('branches',[CompanyProfileController::class,'branches']);
+    });
+
+    Route::prefix('bank')->group(function(){
+        Route::post('',[BankController::class,'create']);
+        Route::get('',[BankController::class,'getBanks']);
+        Route::get('{id?}',[BankController::class,'getBank']);
+        Route::put('{id?}',[BankController::class,'update']);
+        Route::delete('{id?}',[BankController::class,'delete']);
         // Route::get('branches',[CompanyProfileController::class,'branches']);
     });
 

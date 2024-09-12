@@ -29,7 +29,7 @@ class Expense extends Model
 
     protected $casts = [
         'updated_at' => 'date:d-M-Y',
-        'expense_date' => 'date:d-m-Y'
+        'expense_date' => 'date:d-M-Y'
     ];
 
     public function user(){

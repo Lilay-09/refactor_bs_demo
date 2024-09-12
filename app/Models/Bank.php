@@ -8,10 +8,9 @@ use Illuminate\Database\Eloquent\Model;
 class Bank extends Model
 {
     use HasFactory;
-    protected $table = 'Banks';
+    protected $table = 'banks';
 
     protected $fillable = [
-        'id',
         'name',
         'name_kh',
         'photo_file_name',
@@ -22,4 +21,10 @@ class Bank extends Model
         'company_id',
         'branch_id'
     ];
+
+     public function getInactiveAttribute($value){
+        return $value ? 1 : 0;
+    }
+
+
 }
