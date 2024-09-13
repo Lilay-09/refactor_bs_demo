@@ -488,6 +488,7 @@ class ProductController extends Controller
         foreach($tags as $tag){
             // return $tag;
             $id = isset($tag['id']) ? $tag['id']:null;
+            if(!isset($tag[$keys[0]])) return DataResponse::ValidateFail('Please check your tags form');
             $tag[$keys[0]] = $fkId;
             $validate = $this->TagValidation(new Request($tag));
             if($validate->fails()) return DataResponse::ValidateFail($validate->errors()->first());
