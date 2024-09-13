@@ -14,6 +14,8 @@ class ExchangeRate extends Model
         'buy_rate',
         'sell_rate',
         'create_uid',
+        'void',
+        'void_uid',
         'update_uid',
         'company_id',
         'branch_id',

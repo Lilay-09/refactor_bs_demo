@@ -59,6 +59,7 @@ Route::middleware('jwt')->group(function(){
         Route::get('{id?}',[ExhangeRateController::class,'getXRate']);
         Route::put('{id?}',[ExhangeRateController::class,'update']);
         Route::delete('{id?}',[ExhangeRateController::class,'delete']);
+        Route::put('void/{id?}',[ExhangeRateController::class,'void']);
 
     });
     Route::prefix('tax')->group(function(){
@@ -78,6 +79,7 @@ Route::middleware('jwt')->group(function(){
         Route::get('{id?}',[BankController::class,'getBank']);
         Route::put('{id?}',[BankController::class,'update']);
         Route::delete('{id?}',[BankController::class,'delete']);
+        Route::put('void/{id?}',[BankController::class,'void']);
         // Route::get('branches',[CompanyProfileController::class,'branches']);
     });
 
