@@ -40,13 +40,14 @@ class CompanyProfileController extends Controller
         $photo = $inputs['photo'] ?? null;
         if(Helper::isValidBase64Image($photo) || !$photo){
             Helper::deleteImageFile($company->photo_file_name,$company->id,'company');
+            $inputs['photo_file_name'] = null;
         }
         if($photo){
             $inputs['photo_file_name'] = Helper::base64ToImageFile($photo,$user->company_id,'company');
         }
         $update = $company->update($inputs);
-        if(!$update && $inputs['photo_file_name']){
-            Helper::deleteImageFile($inputs['photo_file_name'],$company->id,'company');
+        if(!$update){
+            if(!$inputs['photo_file_name']) Helper::deleteImageFile($inputs['photo_file_name'],$company->id,'company');
             return ApiResponse::Error('Fail to update company profile');
         }
         return ApiResponse::JsonResult(null,false,'Updated');
