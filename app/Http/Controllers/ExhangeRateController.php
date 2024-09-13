@@ -37,7 +37,7 @@ class ExhangeRateController extends Controller
         $user = UserService::getAuthUser();
         $id = $req->id;
         $validate = $this->xRateValidation($req);
-        $exchangeRate = ExchangeRate::where('company_id',$user->company_id)->find($id);
+        $exchangeRate = ExchangeRate::where('company_id',$user->company_id)->where('void',0)->find($id);
         if(!$exchangeRate) return ApiResponse::NotFound('Exchange rate not found');
         if($validate->fails()) return ApiResponse::ValidateFail($validate->errors()->first());
         $inputs = $validate->validated();
@@ -51,7 +51,7 @@ class ExhangeRateController extends Controller
 
     public function getXRates(Request $req){
         $user = UserService::getAuthUser();
-        $query = ExchangeRate::where('company_id',$user->company_id);
+        $query = ExchangeRate::where('company_id',$user->company_id)->where('void',0);
         $exchangeRates = $query->get();
         return ApiResponse::Pagination($exchangeRates,$req);
     }
@@ -59,7 +59,19 @@ class ExhangeRateController extends Controller
     public function getXRate(Request $req){
         $user = UserService::getAuthUser();
         $id = $req->id;
-        $exchangeRate = ExchangeRate::where('company_id',$user->company_id)->find($id);
+        $exchangeRate = ExchangeRate::where('company_id',$user->company_id)->where('void',0)->find($id);
         return ApiResponse::JsonResult($exchangeRate);
+    }
+
+    public function void(Request $req){
+        $user = UserService::getAuthUser();
+        $id = $req->id;
+        $exchangeRate = ExchangeRate::where('company_id',$user->company_id)->where('void',0)->find($id);
+        if(!$exchangeRate) return ApiResponse::NotFound('Exchange rate not found');
+        $exchangeRate->update([
+            'void' => 1,
+            'void_uid' => $user->id
+        ]);
+        return ApiResponse::JsonResult(null,false,'Voided');
     }
 }

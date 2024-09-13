@@ -25,7 +25,7 @@ class BankController extends Controller
 
     public function getBanks(Request $req){
         $user = UserService::getAuthUser();
-        $query = Bank::where('company_id',$user->company_id)->orderByDesc('created_at');
+        $query = Bank::where('company_id',$user->company_id)->where('void',0)->orderByDesc('created_at');
         $banks = $query->get();
         foreach ($banks as $bank){
             $bank->qr = Helper::getImageUrl($bank->photo_file_name,$user->company_id,$this->imgDir);
@@ -36,7 +36,7 @@ class BankController extends Controller
     public function getBank(Request $req){
         $user = UserService::getAuthUser();
         $id = $req->id;
-        $bank = Bank::where('company_id',$user->company_id)->find($id);
+        $bank = Bank::where('company_id',$user->company_id)->where('void',0)->find($id);
         if($bank){
             $bank->qr = Helper::getImageUrl($bank->photo_file_name,$user->company_id,$this->imgDir);
         }
@@ -87,5 +87,17 @@ class BankController extends Controller
         $update = $bank->update($inputs);
         if(!$update) return ApiResponse::Error('Fail to update');
         return ApiResponse::JsonResult(null,false,'Updated');
+    }
+
+    public function void(Request $req){
+        $id = $req->id;
+        $user = UserService::getAuthUser();
+        $bank = Bank::where('company_id',$user->company_id)->where('void',0)->find($id);
+        if(!$bank) return ApiResponse::NotFound('Bank not found');
+        $bank->update([
+            'void' => 1,
+            'void_uid' => $user->id
+        ]);
+        return ApiResponse::JsonResult(null,false,'Voided');
     }
 }

@@ -19,6 +19,8 @@ class Bank extends Model
         'create_uid',
         'update_uid',
         'company_id',
+        'void',
+        'void_uid',
         'branch_id'
     ];
 
