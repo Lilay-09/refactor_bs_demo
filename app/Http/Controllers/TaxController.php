@@ -38,14 +38,14 @@ class TaxController extends Controller
 
     public function getTaxes(Request $req){
         $user = UserService::getAuthUser();
-        $taxes = Tax::where('company_id',$user->branch_id)->get();
+        $taxes = Tax::where('company_id',$user->branch_id)->where('void',0)->get();
         return ApiResponse::JsonResult($taxes);
     }
 
     public function getTax(Request $req,$id=null){
         $id = $id ? $id : $req->id;
         $user = UserService::getAuthUser();
-        $tax = Tax::where('company_id',$user->company_id)->find($id);
+        $tax = Tax::where('company_id',$user->company_id)->where('void',0)->find($id);
         return ApiResponse::JsonResult($tax);
     }
 
@@ -56,7 +56,7 @@ class TaxController extends Controller
         $name = $inputs['name'];
         $id = $id ? $id :$req->id;
         $user = UserService::getAuthUser();
-        $tax = Tax::where('company_id',$user->company_id)->find($id);
+        $tax = Tax::where('company_id',$user->company_id)->where('void',0)->find($id);
         if(!$tax) return ApiResponse::NotFound('Tax not found');
 
         $existsTaxName = Tax::where('name',$req->name)->where('company_id',$user->company_id)->where('id','!=',$id)->take(1)->value('id');
@@ -69,5 +69,31 @@ class TaxController extends Controller
         if($update) return ApiResponse::JsonResult(null,false,'Update');
 
         return ApiResponse::Error('Fail to update');
+    }
+
+    public function void(Request $req,$id=null){
+        $id = $id ? $id :$req->id;
+        $user = UserService::getAuthUser();
+        $tax = Tax::where('company_id',$user->company_id)->where('void',0)->find($id);
+        if(!$tax) return ApiResponse::NotFound('Tax not found');
+        $update = $tax->update([
+            'void' => 1,
+            'void_uid' => $user->id
+        ]);
+        if($update) return ApiResponse::JsonResult(null,false,'Voided');
+        return ApiResponse::Error('Fail to void');
+    }
+
+    public function unVoid(Request $req,$id=null){
+        $id = $id ? $id :$req->id;
+        $user = UserService::getAuthUser();
+        $tax = Tax::where('company_id',$user->company_id)->where('void',1)->find($id);
+        if(!$tax) return ApiResponse::NotFound('Tax not found');
+        $update = $tax->update([
+            'void' => 0,
+        ]);
+        if($update) return ApiResponse::JsonResult(null,false,'Voided');
+
+        return ApiResponse::Error('Fail to void');
     }
 }

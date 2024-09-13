@@ -66,6 +66,8 @@ Route::middleware('jwt')->group(function(){
         Route::get('',[TaxController::class,'getTaxes']);
         Route::get('{id?}',[TaxController::class,'getTax']);
         Route::put('{id?}',[TaxController::class,'update']);
+        Route::put('void/{id?}',[TaxController::class,'void']);
+        Route::put('unvoid/{id?}',[TaxController::class,'unVoide']);
         Route::delete('{id?}',[TaxController::class,'delete']);
     });
 
