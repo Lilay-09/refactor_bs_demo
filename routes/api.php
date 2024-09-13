@@ -24,6 +24,7 @@ use App\Http\Controllers\ServiceController;
 use App\Http\Controllers\StockController;
 use App\Http\Controllers\StockLocationController;
 use App\Http\Controllers\StockManagementController;
+use App\Http\Controllers\TaxController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\UserManagementController;
 use App\Http\Controllers\VendorController;
@@ -50,7 +51,6 @@ Route::middleware('jwt')->group(function(){
     Route::prefix('company')->group(function(){
         Route::put('',[CompanyProfileController::class,'update']);
         Route::get('',[CompanyProfileController::class,'getCompanyProfile']);
-        // Route::get('branches',[CompanyProfileController::class,'branches']);
     });
 
     Route::prefix('xrate')->group(function(){
@@ -59,7 +59,14 @@ Route::middleware('jwt')->group(function(){
         Route::get('{id?}',[ExhangeRateController::class,'getXRate']);
         Route::put('{id?}',[ExhangeRateController::class,'update']);
         Route::delete('{id?}',[ExhangeRateController::class,'delete']);
-        // Route::get('branches',[CompanyProfileController::class,'branches']);
+
+    });
+    Route::prefix('tax')->group(function(){
+        Route::post('',[TaxController::class,'create']);
+        Route::get('',[TaxController::class,'getTaxes']);
+        Route::get('{id?}',[TaxController::class,'getTax']);
+        Route::put('{id?}',[TaxController::class,'update']);
+        Route::delete('{id?}',[TaxController::class,'delete']);
     });
 
     Route::prefix('bank')->group(function(){
@@ -88,6 +95,7 @@ Route::middleware('jwt')->group(function(){
             Route::put('/{id?}',[ExpenseCategoryController::class,'updateExpenseCategory']);
             Route::delete('/{id?}',[ExpenseCategoryController::class,'deleteExpenseCategory']);
         });
+
 
         Route::post('/',[ExpenseController::class,'createExpense']);
         Route::get('/',[ExpenseController::class,'getExpenses']);
