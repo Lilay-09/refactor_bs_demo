@@ -94,8 +94,37 @@ class GeneralSettingService
         return Bank::selectRaw('id,name')->get();
     }
 
-    static function getStockItems($user){
-        $stockItems = Stock::with(['variant:id,size,color,condition,retail_price,expires_at,product_id,company_id','variant.product','variant.photos'])->selectRaw('sku,variant_id,qty,retail_price,id,company_id')->where('company_id',$user->company_id)->get();
+    static function getStockItems($user,$req=null){
+        $product_code = $req->product_code;
+        $brand_id = $req->brand_id;
+        $category_id = $req->category_id;
+        $tags = $req->tags;
+        if (is_string($tags)) {
+            $tags = explode(',', strtolower($tags));
+        }
+        $query = Stock::with(['variant:id,size,color,condition,retail_price,expires_at,product_id,company_id','variant.product','variant.photos'])->selectRaw('sku,variant_id,qty,retail_price,id,company_id')->where('company_id',$user->company_id);
+        if(isset($tags[0])){
+            $query->whereHas('variant.product.tags', function ($query) use ($tags){
+                $query->whereIn('tag',$tags);
+            });
+        }
+        if($product_code){
+            $query->whereHas('variant.product',function ($query) use ($product_code){
+                $query->where('code',$product_code);
+            });
+        }
+        if($brand_id){
+            $query->whereHas('variant.product.getModel',function ($query) use ($brand_id){
+                $query->where('brand_id',$brand_id);
+            });
+        }
+
+        if($category_id){
+            $query->whereHas('variant.product',function ($query) use ($category_id){
+                $query->where('category_id',$category_id);
+            });
+        }
+        $stockItems = $query->get();
         foreach($stockItems as $item){
             $item->product_name = $item->variant->product->name;
             $item->product_description = $item->variant->product->description;
@@ -111,12 +140,12 @@ class GeneralSettingService
                     }
                     if(!$item->image_url) $item->image_url = Helper::getImageUrl($photo->photo_file_name,$item->company_id,$photo->directory);
             }
-            unset($item->variant);
+            // unset($item->variant);
         }
         return $stockItems;
     }
 
-    static function getServices($user){
+    static function getServices($user,$req=null){
         $services =  Service::selectRaw('id,name,price,photo_file_name')->where('company_id',$user->company_id)->get();
         foreach($services as $service){
             $service->image_url = Helper::getImageUrl($service->photo_file_name,$user->company_id,'service');
