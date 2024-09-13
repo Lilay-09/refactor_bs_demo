@@ -6,14 +6,16 @@ use ApiResponse;
 use App\Http\Controllers\Controller;
 use App\Models\Bank;
 use App\Services\UserService;
+use Helper;
 use Illuminate\Http\Request;
 
 class BankController extends Controller
 {
     //
+    protected $imgDir = 'payment_method';
     function bankValidation(Request $req){
         return validator($req->all(),[
-            'inactive' => 'required|in:true,false',
+            'inactive' => 'required|in:0,1',
             'name' => 'required|string|max:30',
             'name_kh' => 'nullable|string|max:30',
             'kh_qr' => 'nullable|string',
@@ -23,8 +25,11 @@ class BankController extends Controller
 
     public function getBanks(Request $req){
         $user = UserService::getAuthUser();
-        $query = Bank::where('company_id',$user->company_id);
+        $query = Bank::where('company_id',$user->company_id)->orderByDesc('created_at');
         $banks = $query->get();
+        foreach ($banks as $bank){
+            $bank->qr = Helper::getImageUrl($bank->photo_file_name,$user->company_id,$this->imgDir);
+        }
         return ApiResponse::Pagination($banks);
     }
 
@@ -32,6 +37,9 @@ class BankController extends Controller
         $user = UserService::getAuthUser();
         $id = $req->id;
         $bank = Bank::where('company_id',$user->company_id)->find($id);
+        if($bank){
+            $bank->qr = Helper::getImageUrl($bank->photo_file_name,$user->company_id,$this->imgDir);
+        }
         return ApiResponse::JsonResult($bank);
     }
 
@@ -44,9 +52,16 @@ class BankController extends Controller
         $inputs['update_uid'] = $user->id;
         $inputs['company_id'] = $user->company_id;
         $inputs['branch_id'] = $user->branch_id;
+        $qr = $inputs['qr'] ?? null;
+        if($qr){
+            $inputs['photo_file_name'] = Helper::base64ToImageFile($qr,$user->company_id,$this->imgDir);
+        }
         $create = Bank::create($inputs);
-        if(!$create) return ApiResponse::Error('Fail to create');
-        return ApiResponse::Error('Fail to create');
+        if(!$create) {
+            if(!$inputs['photo_file_name']) Helper::deleteImageFile($inputs['photo_file_name'],$user->company_id,$this->imgDir);
+            return ApiResponse::Error('Fail to create');
+        }
+        return ApiResponse::JsonResult(null,false,'Created');
     }
 
 
@@ -61,8 +76,16 @@ class BankController extends Controller
         $inputs['update_uid'] = $user->id;
         $inputs['company_id'] = $user->company_id;
         $inputs['branch_id'] = $user->branch_id;
+        $qr = $inputs['qr'] ?? null;
+        if(Helper::isValidBase64Image($qr) || !$qr){
+            Helper::deleteImageFile($bank->photo_file_name,$user->company_id,$this->imgDir);
+            $inputs['photo_file_name'] = null;
+        }
+        if($qr){
+            $inputs['photo_file_name'] = Helper::base64ToImageFile($qr,$user->company_id,$this->imgDir);
+        }
         $update = $bank->update($inputs);
         if(!$update) return ApiResponse::Error('Fail to update');
-        return ApiResponse::Error('Fail to create');
+        return ApiResponse::JsonResult(null,false,'Updated');
     }
 }
