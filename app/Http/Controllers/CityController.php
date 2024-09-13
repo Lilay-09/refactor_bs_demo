@@ -75,9 +75,6 @@ class CityController extends Controller
         $update = $city->update($inputs);
         if($update) return ApiResponse::JsonResult(null,false,'Update');
 
-        return ApiResponse::JsonResult([
-            'error' => true,
-            'message' => 'Fail to save country'
-        ],500);
+        return ApiResponse::Error('Fail to update');
     }
 }
