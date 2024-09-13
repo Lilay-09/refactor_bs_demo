@@ -482,13 +482,14 @@ class ProductController extends Controller
         $company_id = $user->company_id;
         $fkId = isset($fk['product_id']) ? $fk['product_id']:null;
         if(!$fkId) $fkId = isset($fk['variant_id']) ? $fk['variant_id'] : null;
+        if(!$fkId) return DataResponse::ValidateFail('Please check your tags form');
         $keys = array_keys($fk);
         if(!$fk) return DataResponse::ValidateFail($keys[0].' is required');
         $ids = [];
         foreach($tags as $tag){
             // return $tag;
             $id = isset($tag['id']) ? $tag['id']:null;
-            if(!isset($tag[$keys[0]])) return DataResponse::ValidateFail('Please check your tags form');
+            if(!isset($tag['tag'])) return DataResponse::ValidateFail('Please check your tags form');
             $tag[$keys[0]] = $fkId;
             $validate = $this->TagValidation(new Request($tag));
             if($validate->fails()) return DataResponse::ValidateFail($validate->errors()->first());

@@ -62,11 +62,11 @@ class GeneralSettingController extends Controller
         return ApiResponse::JsonResult($obj);
     }
 
-    public function formPosItems(){
+    public function formPosItems(Request $req){
         $user = UserService::getAuthUser();
         $obj = (object)[
-            'items' => $this->gs::getStockItems($user),
-            'service' => $this->gs::getServices($user),
+            'items' => $this->gs::getStockItems($user,$req),
+            'service' => $this->gs::getServices($user,$req),
         ];
         return ApiResponse::JsonResult($obj);
     }
