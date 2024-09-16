@@ -35,6 +35,15 @@ class GeneralSettingController extends Controller
     //     return ApiResponse::JsonResult($this->gs::getFormProductOptionByType($req->type,$user));
     // }
 
+    public function getFormUser(){
+        $user = UserService::getAuthUser();
+        $obj = (object)[
+            'roles' => $this->gs::getRoles($user),
+            'branches' => $this->gs::getBranches($user),
+        ];
+        return ApiResponse::JsonResult($obj);
+    }
+
     public function getFormProduct(){
         $user = UserService::getAuthUser();
         $obj = (object)[
