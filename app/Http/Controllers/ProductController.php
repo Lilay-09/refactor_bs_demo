@@ -184,7 +184,7 @@ class ProductController extends Controller
         if (is_string($tags)) {
             $tags = explode(',', strtolower($tags));
         }
-        $query = Product::where('inactive',$inactive)->with(['specifications:id,name,value,product_id','tags:id,tag,product_id','variants.photos','variants.stocks','getModel:id,name,brand_id','getModel.brand:id,name'])->where('branch_id',$user->branch_id)->orderByRaw('DATE(created_at) DESC')->selectRaw('id,name,code,description,model_id,category_id,group_id');
+        $query = Product::where('void',0)->with(['specifications:id,name,value,product_id','tags:id,tag,product_id','variants.photos','variants.stocks','getModel:id,name,brand_id','getModel.brand:id,name'])->where('branch_id',$user->branch_id)->orderByRaw('DATE(created_at) DESC')->selectRaw('id,name,code,description,model_id,category_id,group_id');
         if (!empty($tags)){
             $query->whereHas('tags', function($query) use ($tags) {
                 $query->whereRaw('LOWER(tag) IN (?)', [$tags]);
@@ -206,7 +206,7 @@ class ProductController extends Controller
         }
 
         if ($search) {
-            $query->whereRaw('name ilike \''.$search.'\' or code = \''.$search.'\'')
+            $query->whereRaw('name ilike \'%'.$search.'%\' or code = \''.$search.'\'')
                 ->orWhereHas('variants', function($query) use ($search) {
                     $query->where('color', 'ilike', '%' . $search . '%');
                 });
@@ -235,7 +235,7 @@ class ProductController extends Controller
     public function getProductById(Request $req){
         $user = UserService::getAuthUser();
         $id = $req->id ? $req->id : $req->query('id');
-        $product = Product::with(['getModel:id,brand_id','variants:id,product_id,size,color,weight,length,expires_at,condition,material,cost,retail_price','tags:id,tag,product_id'])->where('branch_id',$user->branch_id)->find($id);
+        $product = Product::where('void',0)->with(['getModel:id,brand_id','variants:id,product_id,size,color,weight,length,expires_at,condition,material,cost,retail_price','tags:id,tag,product_id'])->where('branch_id',$user->branch_id)->find($id);
         if($product){
             $product->brand_id = $product->getModel->brand_id;
             foreach ($product->variants as $vr) {
@@ -273,7 +273,7 @@ class ProductController extends Controller
             'condition' => 'required|in:new,second hand',
             'condition_percentage' => 'nullable|string',
             'cost' => 'nullable|numeric',
-            'retail_price' => 'nullable|numeric',
+            'retail_price' => 'required|numeric',
             'wholesale_price' => 'nullable|numeric',
             'tags' => 'nullable|array',
             'photos' => 'nullable|array'
@@ -367,7 +367,7 @@ class ProductController extends Controller
         try{
             $update = $product->update($inputs);
             if($update){
-                $updateVariant = $this->updateOrCreateProductVaraints($variants,$productId,$user,$cost,$retail_price,$wholesale_price);
+            $updateVariant = $this->updateOrCreateProductVaraints($variants,$productId,$user,$cost,$retail_price,$wholesale_price);
                 if($updateVariant->error){
                     if($updateVariant->status_code == 422) return ApiResponse::ValidateFail($updateVariant->message);
                     if($updateVariant->status_code == 500) return ApiResponse::Error($updateVariant->message);
@@ -541,15 +541,15 @@ class ProductController extends Controller
         $id = $req->id;
         $user = UserService::getAuthUser();
         $branch_id = $user->branch_id;
-        $product = Product::where('branch_id',$branch_id)->find($id);
+        $product = Product::where('branch_id',$branch_id)->where('void',0)->find($id);
         if(!$product) return ApiResponse::NotFound('Product not found');
         $product->update([
-            'inactive' => 1,
-            'update_uid' => $user->id
+            'void' => 1,
+            'void_ui' => $user->id
         ]);
         ProductVariant::where('product_id',$id)->update([
-            'inactive' => 1,
-            'update_uid' => $user->id
+            'void' => 1,
+            'void_uid' => $user->id
         ]);
         return ApiResponse::JsonResult(null,false,'Voided');
     }
@@ -560,12 +560,12 @@ class ProductController extends Controller
         $product = Product::where('branch_id',$branch_id)->find($id);
         if(!$product) return ApiResponse::NotFound('Product not found');
         $product->update([
-            'inactive' => 0,
-            'update_uid' => $user->id
+            'void' => 0,
+            'void_uid' => $user->id
         ]);
         ProductVariant::where('product_id',$id)->update([
-            'inactive' => 0,
-            'update_uid' => $user->id
+            'void' => 0,
+            'void_uid' => $user->id
         ]);
         return ApiResponse::JsonResult(null,false,'Voided');
     }

@@ -173,7 +173,7 @@ Route::middleware('jwt')->group(function(){
         });
 
         Route::prefix('stock')->group(function(){
-            Route::prefix('location')->group(function(){
+            Route::prefix(prefix: 'location')->group(function(){
                 Route::post('',[StockLocationController::class,'createStockLocation']);
                 Route::get('',[StockLocationController::class,'getStockLocations']);
                 Route::get('/{id?}',[StockLocationController::class,'getStockLocation']);
@@ -201,8 +201,8 @@ Route::middleware('jwt')->group(function(){
     Route::prefix('product')->group(function(){
         Route::post('/',[ProductController::class,'createProduct']);
         Route::get('/',[ProductController::class,'getProducts']);
-        Route::delete('/void/{id?}',[ProductController::class,'voidProduct']);
-        Route::put('/void/{id?}',[ProductController::class,'unVoidProduct']);
+        Route::put('/void/{id?}',[ProductController::class,'voidProduct']);
+        Route::put('/unvoid/{id?}',[ProductController::class,'unVoidProduct']);
 
         Route::post('variant',[ProductVariantController::class,'createVariant']);
         Route::get('variant',[ProductVariantController::class,'getVariants']);
@@ -265,6 +265,10 @@ Route::middleware('jwt')->group(function(){
         Route::prefix('expense')->group(function(){
             Route::get('category',[ReportController::class,'getExpenseByCategory']);
             Route::get('monthly',[ReportController::class,'getMonthlyExpense']);
+        });
+
+        Route::prefix('sale')->group(function(){
+            Route::get('product',[ReportController::class,'SaleProduct']);
         });
     });
 
