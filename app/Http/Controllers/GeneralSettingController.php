@@ -6,8 +6,10 @@ use ApiResponse;
 use App\Http\Controllers\Controller;
 use App\Models\Brand;
 use App\Models\CustomerType;
+use App\Models\ExchangeRate;
 use App\Models\ProductModel;
 use App\Models\StockLocation;
+use App\Models\Tax;
 use App\Services\GeneralSettingService;
 use App\Services\UserService;
 use Illuminate\Http\Request;
@@ -57,7 +59,9 @@ class GeneralSettingController extends Controller
             'customers' => $this->gs::getCustomers($user),
             'tags' => $this->gs::getTags($user),
             'categories' => $this->gs::getProductCategories($user),
-            'brands' => $this->gs::getBrands($user)
+            'brands' => $this->gs::getBrands($user),
+            'exchange_rate' => ExchangeRate::where('company_id',$user->company_id)->take(1)->value('sell_rate') ?? 0,
+            'tax' => Tax::where('company_id',$user->company_id)->take(1)->value('amount') ?? 0
         ];
         return ApiResponse::JsonResult($obj);
     }
