@@ -291,6 +291,7 @@ class PosController extends Controller
             $stock = $this->getStockItem($inputs['item_ref']);
             if(!$stock) return DataResponse::NotFound('Item not found in stock.');
             $unitPrice = $stock->retail_price;
+            if(!$unitPrice || $unitPrice <=0) return DataResponse::NotFound('Please check your product price, it seems like there is no price!');
             $variantId = $stock->variant_id;
             $discountAmount = $inputs['discount_amount'] ?? 0;
             $discountType = $inputs['discount_type'] ?? null;

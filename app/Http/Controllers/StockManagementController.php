@@ -831,10 +831,7 @@ class StockManagementController extends Controller
             if(!$foundBySku->barcode || !$foundBySku->barcode_file){
                 $date = date('Ymd');
                 $barNum = str_pad($date.$foundBySku->id, 14, '0', STR_PAD_RIGHT);
-                $barcodeFile = Helper::generateBarcode($barNum,$companyId);
-                if(!$barcodeFile) return DataResponse::ValidateFail('Fail to create barcode');
                 $updateArr['barcode'] = $barNum;
-                $updateArr['barcode_file'] = $barcodeFile;
             }
             $updateStock = $foundBySku->update($updateArr);
             if(!$updateStock) return DataResponse::Error('Fail to update stock.');
@@ -858,11 +855,8 @@ class StockManagementController extends Controller
             $stockId = $addNewStock->id;
             $date = date('Ymd');
             $barNum = str_pad($date.$stockId, 14, '0', STR_PAD_RIGHT);
-            $barcodeFile = Helper::generateBarcode($barNum,$companyId);
-            if(!$barcodeFile) return DataResponse::ValidateFail('Fail to create barcode');
             Stock::find($stockId)->update([
                 'barcode' => $barNum,
-                'barcode_file' => $barcodeFile
             ]);
 
         }

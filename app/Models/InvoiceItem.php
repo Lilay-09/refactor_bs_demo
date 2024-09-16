@@ -22,4 +22,8 @@ class InvoiceItem extends Model
         'discount_type',
         'description'
     ];
+
+    public function invoice(){
+        return $this->belongsTo(Invoice::class);
+    }
 }

@@ -6,6 +6,8 @@ use ApiResponse;
 use App\Http\Controllers\Controller;
 use App\Models\Expense;
 use App\Models\ExpenseCategory;
+use App\Models\InvoiceItem;
+use App\Models\ProductVariant;
 use App\Services\UserService;
 use Illuminate\Http\Request;
 
@@ -44,5 +46,23 @@ class ReportController extends Controller
             unset($ep->month,$ep->year);
         }
         return ApiResponse::JsonResult(array_values($mergeExpense));
+    }
+
+
+    //** sales breakdown */
+    public function SaleProduct(Request $req){
+        $user = UserService::getAuthUser();
+        $query = InvoiceItem::with(['invoice']);
+        $query->whereHas('invoice',function ($query) use ($user){
+            $query->where('company_id',$user->company_id);
+        });
+        $product = $query->get();
+        $obj = (object)[
+            'title' => 'Sale Product',
+            'product' => $product,
+
+        ];
+
+        return ApiResponse::JsonResult($obj);
     }
 }
