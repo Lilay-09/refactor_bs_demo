@@ -40,7 +40,10 @@ Route::prefix('auth')->group(function(){
 Route::middleware('jwt')->group(function(){
     Route::prefix('management')->group(function(){
         Route::get('/user', [UserController::class,'getUsers']);
+        Route::get('/user/{id?}', [UserController::class,'getUser']);
+        Route::put('/user/{id?}', [UserManagementController::class,'updateUser']);
         Route::put('/user/set-lock/{id?}', [UserManagementController::class,'setLockUser']);
+        Route::put('/user/change-password/{id?}', [UserManagementController::class,'userChangePassword']);
         Route::prefix('role')->group(function(){
             Route::post('/', [UserManagementController::class,'createRole']);
             Route::get('/', [UserManagementController::class,'getRoles']);
@@ -289,6 +292,7 @@ Route::middleware('jwt')->group(function(){
 
         Route::prefix('form')->group(function(){
             Route::get('product',[GeneralSettingController::class,'getFormProduct']);
+            Route::get('user',[GeneralSettingController::class,'getFormUser']);
             Route::get('purchase',[GeneralSettingController::class,'formPurchase']);
             Route::get('transfer',[GeneralSettingController::class,'formTransfer']);
             Route::get('receive',[GeneralSettingController::class,'formReceive']);

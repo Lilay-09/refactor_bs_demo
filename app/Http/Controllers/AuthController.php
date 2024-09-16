@@ -29,6 +29,7 @@ class AuthController extends Controller
         date_default_timezone_set('Asia/Phnom_Penh');
         $today = date('Y-m-d H:i:s');
         $user = User::where('email',$account)->orWhere('phone',$account)->selectRaw('email,phone,id,system_admin')->first();
+        if(!$user->system_admin && $user->lock) return ApiResponse::Unauthorized('You have no access to this application.');
         if(!$user) return  ApiResponse::NotFound('Invalid Username or password');
         if($user){
             $user->roles = UserService::getRolesByUsers($user->id);

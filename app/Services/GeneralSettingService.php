@@ -16,6 +16,7 @@ use App\Models\ProductModel;
 use App\Models\ProductTag;
 use App\Models\ProductVariant;
 use App\Models\ProductVariantTag;
+use App\Models\Role;
 use App\Models\Service;
 use App\Models\Stock;
 use App\Models\StockLocation;
@@ -191,4 +192,7 @@ class GeneralSettingService
         return Branch::where('company_id',$user->company_id)->selectRaw('id,name')->get();
     }
 
+    static function getRoles($user){
+        return Role::where('company_id',$user->company_id)->get();
+    }
 }

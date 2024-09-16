@@ -21,6 +21,7 @@ class UserManagementController extends Controller
             'email' => 'nullable|string|max:100',
             'phone' => 'nullable|string|max:20',
             'lock' => 'nullable|in:true,false',
+            'branch_id' => 'nullable|exists:branches,id',
             'role_id' => 'nullable|exists:roles,id'
         ]);
     }
@@ -41,6 +42,7 @@ class UserManagementController extends Controller
             'email' => $inputs['email'],
             'user_name' => $inputs['first_name']. '' .$inputs['last_name'],
             'phone' => $inputs['phone'],
+            'branch_id' => $inputs['branch_id']
         ]);
         if($update){
             if($role_id){
@@ -53,6 +55,30 @@ class UserManagementController extends Controller
             }
             return ApiResponse::JsonResult(null,false,'Updated');
         }
+    }
+
+    public function userChangePassword(Request $req){
+        $authUser = UserService::getAuthUser();
+        $id = $req->id;
+        $validate = validator($req->all(),[
+            'new_password' => 'required|string|min:6|max:20'
+        ]);
+        if($validate->fails()) return ApiResponse::ValidateFail($validate->errors()->first());
+        $inputs = $validate->validated();
+        $new_password = $inputs['new_password'];
+        $user = User::where('company_id',$authUser->company_id)->find($id);
+        if(!$user) return ApiResponse::NotFound('User not found');
+        $newHash = \Hash::make($new_password);
+        $update = $user->update([
+            'udpate_uid' => $authUser->id,
+            'company_id' => $authUser->company_id,
+            'branch_id' => $authUser->branch_id,
+            'password' => $newHash
+        ]);
+
+        if(!$update) return ApiResponse::Error('fail to change password');
+        return ApiResponse::JsonResult(null,false,'Password has been changed');
+
     }
 
     public function setLockUser(Request $req){
