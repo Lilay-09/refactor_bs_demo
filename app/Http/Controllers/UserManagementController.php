@@ -8,6 +8,7 @@ use App\Models\Role;
 use App\Models\User;
 use App\Models\UserRoles;
 use App\Services\UserService;
+use Hash;
 use Helper;
 use Illuminate\Http\Request;
 
@@ -22,14 +23,52 @@ class UserManagementController extends Controller
             'email' => 'nullable|string|max:100',
             'phone' => 'nullable|string|max:20',
             'lock' => 'nullable|in:true,false',
-            'branch_id' => 'nullable|exists:branches,id',
-            'role_id' => 'nullable|exists:roles,id',
-            'photo' => 'nullable|string'
+            'branch_id' => 'required|exists:branches,id',
+            'role_id' => 'required|exists:roles,id',
+            'photo' => 'nullable|string',
+            'password' => 'nullable|string|min:6|max:20'
         ]);
     }
 
     public function createUser(Request $req){
-        
+        $authUser = UserService::getAuthUser();
+        $validate = $this->userValidation($req);
+        if($validate->fails()) return ApiResponse::ValidateFail($validate->errors()->first());
+        $inputs = $validate->validated();
+        $role_id = $inputs['role_id'] ?? null;
+        $photo = $inputs['photo'] ?? null;
+        $hPwd = Hash::make($inputs['password']);
+        $createArr = [
+            'last_login' => null,
+            'create_uid' => $authUser->id,
+            'update_uid' => $authUser->id,
+            'branch_id' => $inputs['branch_id'] ?? $authUser->branch_id,
+            'company_id' => $authUser->company_id,
+            'first_name' => $inputs['first_name'],
+            'last_name' => $inputs['last_name'],
+            'email' => $inputs['email'],
+            'user_name' => $inputs['first_name']. ' ' .$inputs['last_name'],
+            'phone' => $inputs['phone'],
+            'password' => $hPwd
+        ];
+
+        if(Helper::isValidBase64Image($photo)){
+            $photo_file = Helper::base64ToImageFile($photo,$authUser->company_id,'user_profile');
+            $createArr['photo_file_name'] = $photo_file;
+        }
+
+        $createUser = User::create($createArr);
+        if(!$createUser){
+            Helper::deleteImageFile($createArr['photo_file_name'],$authUser->company_id,'user_profile');
+            return ApiResponse::Error('Fail to create user');
+        }
+        if($role_id){
+            UserRoles::create([
+                'user_id' => $createUser->id,
+                'role_id' => $role_id
+            ]);
+        }
+        return ApiResponse::JsonResult(null,false,'Created');
     }
 
 
@@ -52,6 +91,11 @@ class UserManagementController extends Controller
             'phone' => $inputs['phone'],
             'branch_id' => $inputs['branch_id']
         ];
+        $createdAt = $user->created_at ?? null;
+        if($createdAt && !$user->start_date){
+            $updateArr['start_date'] = $createdAt;
+            // return ApiResponse::ValidateFail('fail now'.$user->created_at);
+        }
         if(!$photo || Helper::isValidBase64Image($photo)){
             $photo_file = Helper::base64ToImageFile($photo,$authUser->company_id,'user_profile');
             $updateArr['photo_file_name'] = $photo_file;
@@ -61,12 +105,21 @@ class UserManagementController extends Controller
         $update = $user->update($updateArr);
         if($update){
             if($role_id){
-                $userRole = UserRoles::where('user_id',$id);
-                if(!$userRole) return ApiResponse::NotFound('Role not found');
-                $updateUserRole = $userRole->update([
-                    'role_id' => $role_id
-                ]);
-                if(!$updateUserRole) return ApiResponse::Error('Fail to update role');
+                $userRole = UserRoles::where('user_id',$id)->first();
+                if(!$userRole) {
+                    $updateUserRole = UserRoles::create([
+                        'user_id' => $id,
+                        'role_id' => $role_id
+                    ]);
+                    if(!$updateUserRole) return ApiResponse::Error('Fail to update role');
+                }else{
+                    $updateUserRole = $userRole->update([
+                        'role_id' => $role_id,
+                        'user_id' => $id
+                    ]);
+                    if(!$updateUserRole) return ApiResponse::Error('Fail to update role');
+                }
+
             }
             return ApiResponse::JsonResult(null,false,'Updated');
         }
@@ -83,7 +136,7 @@ class UserManagementController extends Controller
         $new_password = $inputs['new_password'];
         $user = User::where('company_id',$authUser->company_id)->find($id);
         if(!$user) return ApiResponse::NotFound('User not found');
-        $newHash = \Hash::make($new_password);
+        $newHash = Hash::make($new_password);
         $update = $user->update([
             'udpate_uid' => $authUser->id,
             'company_id' => $authUser->company_id,

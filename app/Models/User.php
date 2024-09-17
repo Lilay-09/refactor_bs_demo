@@ -25,12 +25,21 @@ class User extends Authenticatable implements JWTSubject
         'first_name',
         'last_name',
         'last_login',
+        'start_date',
         'id',
         'phone',
         'photo_file_name',
         'system_admin',
+        'create_uid',
+        'update_uid',
+        'branch_id',
+        'company_id',
         'lock'
     ];
+
+    public function user_roles(){
+        return $this->hasMany(UserRoles::class,'user_id','id');
+    }
 
     /**
      * The attributes that should be hidden for serialization.

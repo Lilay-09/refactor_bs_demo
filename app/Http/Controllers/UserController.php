@@ -17,7 +17,27 @@ class UserController extends Controller
 
     public function getUsers(Request $req){
         $user = UserService::getAuthUser();
-        $userList = User::where('company_id',$user->company_id)->selectRaw('user_name,phone,email,phone,system_admin,lock,id,last_login,start_date,branch_id,photo_file_name')->get();
+        $role = $req->role;
+        $branch = $req->branch;
+        $search = $req->search;
+        $query = User::where('company_id',$user->company_id)->with(['user_roles'])->selectRaw('user_name,phone,email,phone,system_admin,lock,id,last_login,start_date,branch_id,photo_file_name')->orderByDesc('id');
+        if($role){
+            $roleArr = explode(',',$role);
+            $query->whereHas('user_roles',function($query) use($roleArr){
+                $query->whereIn('role_id',$roleArr);
+            });
+        }
+        if($search){
+            $query->where('first_name','ilike','%'.$search.'%')
+            ->orWhere('last_name','ilike','%'.$search.'%')
+            ->orWhere('user_name','ilike','%'.$search.'%')
+            ->orWhere('phone','ilike','%'.$search.'%');
+        }
+        if($branch){
+            $branchArr = explode(',',$branch);
+            $query->whereIn('branch_id',$branchArr);
+        }
+        $userList = $query->get();
         foreach($userList as $u){
             $u->image_url = Helper::getImageUrl($u->photo_file_name,$user->company_id,$this->userProfileDir);
         }
