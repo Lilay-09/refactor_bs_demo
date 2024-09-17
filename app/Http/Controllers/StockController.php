@@ -14,6 +14,8 @@ class StockController extends Controller
     public function getStockItems(Request $req){
         $warehouse = $req->warehouse;
         $supplier = $req->supplier;
+        $startDate = $req->startDate;
+        $endDate = $req->endDate;
         $item = $req->item;
         $status = $req->status;
 
@@ -23,6 +25,25 @@ class StockController extends Controller
             $query->whereHas('variant.product',function ($query) use ($item){
                 $query->where('name','ilike','%'.$item.'%')->orWhere('code','ilike','%'.$item.'%');
             })->orWhere('sku','ilike','%'.$item.'%')->orWhere('barcode','ilike','%'.$item.'%');
+        }
+
+        if($status){
+            $statusArr = explode(',',$status);
+            if(in_array(1,$statusArr)){
+                $query->orWhere('qty','>','0');
+            }
+            if(in_array(2,$statusArr)){
+                $query->orWhere('qty','=','0');
+            }
+            if(in_array(3,$statusArr)){
+                $query->whereNotNull('expiration_date');
+            }
+        }
+
+        if($startDate && $endDate){
+            $startDate = date('Y-m-d',strtotime($startDate));
+            $endDate = date('Y-m-d',strtotime($endDate));
+            $query->whereBetween('expiration_date',[$startDate,$endDate]);
         }
 
         if($warehouse){
