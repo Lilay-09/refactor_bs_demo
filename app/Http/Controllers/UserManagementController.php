@@ -28,6 +28,10 @@ class UserManagementController extends Controller
         ]);
     }
 
+    public function createUser(Request $req){
+        
+    }
+
 
     public function updateUser(Request $req){
         $authUser = UserService::getAuthUser();

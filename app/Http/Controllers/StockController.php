@@ -16,26 +16,26 @@ class StockController extends Controller
         $supplier = $req->supplier;
         $startDate = $req->startDate;
         $endDate = $req->endDate;
-        $item = $req->item;
+        $search = $req->search;
         $status = $req->status;
 
         $query = Stock::with(['variant.product','stockLocation.type','variant.photos']);
 
-        if($item){
-            $query->whereHas('variant.product',function ($query) use ($item){
-                $query->where('name','ilike','%'.$item.'%')->orWhere('code','ilike','%'.$item.'%');
-            })->orWhere('sku','ilike','%'.$item.'%')->orWhere('barcode','ilike','%'.$item.'%');
+        if($search){
+            $query->whereHas('variant.product',function ($query) use ($search){
+                $query->where('name','ilike','%'.$search.'%')->orWhere('code','ilike','%'.$search.'%');
+            })->orWhere('sku','ilike','%'.$search.'%')->orWhere('barcode','ilike','%'.$search.'%');
         }
 
         if($status){
             $statusArr = explode(',',$status);
-            if(in_array(1,$statusArr)){
+            if(in_array('in-stock',$statusArr)){
                 $query->orWhere('qty','>','0');
             }
-            if(in_array(2,$statusArr)){
-                $query->orWhere('qty','<=','10');
+            if(in_array('out-stock',$statusArr)){
+                $query->orWhere('qty','=','0');
             }
-            if(in_array(3,$statusArr)){
+            if(in_array('expire',$statusArr)){
                 $query->whereNotNull('expiration_date');
             }
         }

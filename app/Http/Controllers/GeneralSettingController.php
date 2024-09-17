@@ -123,9 +123,9 @@ class GeneralSettingController extends Controller
         $obj = (object)[
             'warehouses' => $this->gs::getStockLocationTypes($user),
             'statuses' => [
-                (object)['value' => 'in-stock','label' => 'In Stock'],
-                (object)['value' => 'out-stock','label' => 'Out Stock'],
-                (object)['value' => 'expire','label' => 'Expire']
+                (object)['id'=>1,'value' => 'in-stock','label' => 'In Stock'],
+                (object)['id'=>2,'value' => 'out-stock','label' => 'Out Stock'],
+                (object)['id'=>3,'value' => 'expire','label' => 'Expire']
             ],
             'suppliers' => $this->gs::getOptionsVendor($user)
         ];
