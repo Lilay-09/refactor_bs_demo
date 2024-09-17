@@ -33,7 +33,6 @@ class GeneralSettingService
         $vendors = Vendor::where('branch_id',$user->branch_id)->selectRaw('id,name,phone,id as value')->get();
         foreach($vendors as $v){
             $v->name = $v->phone.'('.($v->name ?? 'no name').')';
-            $v->label = $v->phone.'('.($v->name ?? 'no name').')';
         }
         return $vendors;
     }
@@ -57,7 +56,7 @@ class GeneralSettingService
     }
 
     static function getWarhouses($user){
-        return StockLocation::where('company_id',$user->company_id)->selectRaw('id,name,id as value,name as label')->get();
+        return StockLocation::where('company_id',$user->company_id)->selectRaw('id,name')->get();
     }
 
     static function getModelsByBrand($brand_id,$user){
@@ -93,7 +92,7 @@ class GeneralSettingService
     }
 
     static function getBanks($user){
-        return Bank::selectRaw('id,name')->get();
+        return Bank::selectRaw('id,name')->where('void',0)->get();
     }
 
     static function getStockItems($user,$req=null){
@@ -148,7 +147,7 @@ class GeneralSettingService
     }
 
     static function getServices($user,$req=null){
-        $services =  Service::selectRaw('id,name,price,photo_file_name')->where('company_id',$user->company_id)->get();
+        $services =  Service::selectRaw('id,name,price,photo_file_name')->where('void',0)->where('company_id',$user->company_id)->get();
         foreach($services as $service){
             $service->image_url = Helper::getImageUrl($service->photo_file_name,$user->company_id,'service');
         }
@@ -156,41 +155,41 @@ class GeneralSettingService
     }
 
     static function getTags($user){
-        return ProductTag::where('company_id',$user->company_id)->selectRaw('id,name,name as label')->get();
+        return ProductTag::where('company_id',$user->company_id)->where('void',0)->selectRaw('id,name,name as label')->get();
     }
 
     static function getCustomerTypes($user){
-        return CustomerType::where('branch_id',$user->branch_id)->selectRaw('id,name')->get();
+        return CustomerType::where('branch_id',$user->branch_id)->where('void',0)->selectRaw('id,name')->get();
     }
 
     static function getProductCategories($user){
-        return Category::where('company_id',$user->company_id)->selectRaw('id,name')->get();
+        return Category::where('company_id',$user->company_id)->where('void',0)->selectRaw('id,name')->get();
     }
     static function getBrands($user){
-        return Brand::where('company_id',$user->company_id)->selectRaw('id,name')->get();
+        return Brand::where('company_id',$user->company_id)->where('void',0)->selectRaw('id,name')->get();
     }
 
     static function getExpenseCategories($user){
-        return ExpenseCategory::where('company_id',$user->company_id)->selectRaw('id,name')->get();
+        return ExpenseCategory::where('company_id',$user->company_id)->where('void',0)->selectRaw('id,name')->get();
     }
 
     static function getCities($user){
-        return City::selectRaw('id,name')->get();
+        return City::selectRaw('id,name')->where('void',0)->get();
     }
 
     static function getCountries($user){
-        return Country::where('company_id',$user->company_id)->selectRaw('id,name')->get();
+        return Country::where('company_id',$user->company_id)->where('void',0)->selectRaw('id,name')->get();
     }
 
     static function getVendorTypes($user){
-        return VendorType::where('company_id',$user->company_id)->selectRaw('id,name')->get();
+        return VendorType::where('company_id',$user->company_id)->where('void',0)->selectRaw('id,name')->get();
     }
 
     static function getStockLocationTypes($user){
-        return StockLocationType::selectRaw('id,name,name as label,id as value')->get();
+        return StockLocationType::selectRaw('id,name')->where('void',0)->get();
     }
     static function getBranches($user){
-        return Branch::where('company_id',$user->company_id)->selectRaw('id,name')->get();
+        return Branch::where('company_id',$user->company_id)->where('void',0)->selectRaw('id,name')->get();
     }
 
     static function getRoles($user){

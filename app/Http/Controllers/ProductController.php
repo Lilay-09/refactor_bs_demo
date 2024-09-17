@@ -35,6 +35,7 @@ class ProductController extends Controller
             'retail_price' => 'nullable|numeric|between:0,999999.99',
             'wholesale_price' => 'nullable|numeric|between:0,999999.99',
             'tags' => 'nullable|array',
+            'supplier_id' => 'nullable|exists:vendors,id',
             'specs' => 'nullable|array',
             'variants' => 'nullable|array',
             'photos' => 'nullable|array'
@@ -184,7 +185,7 @@ class ProductController extends Controller
         if (is_string($tags)) {
             $tags = explode(',', strtolower($tags));
         }
-        $query = Product::where('void',0)->with(['specifications:id,name,value,product_id','tags:id,tag,product_id','variants.photos','variants.stocks','getModel:id,name,brand_id','getModel.brand:id,name'])->where('branch_id',$user->branch_id)->orderByRaw('DATE(created_at) DESC')->selectRaw('id,name,code,description,model_id,category_id,group_id');
+        $query = Product::where('void',0)->with(['specifications:id,name,value,product_id','tags:id,tag,product_id','variants.photos','variants.stocks','getModel:id,name,brand_id','getModel.brand:id,name'])->where('branch_id',$user->branch_id)->orderByRaw('DATE(created_at) DESC')->selectRaw('id,name,code,description,model_id,category_id,group_id,supplier_id');
         if (!empty($tags)){
             $query->whereHas('tags', function($query) use ($tags) {
                 $query->whereRaw('LOWER(tag) IN (?)', [$tags]);

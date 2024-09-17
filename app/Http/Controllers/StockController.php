@@ -12,7 +12,52 @@ class StockController extends Controller
 {
     //
     public function getStockItems(Request $req){
-        $stockItems = Stock::with(['variant.product','stockLocation.type','variant.photos'])->get();
+        $warehouse = $req->warehouse;
+        $supplier = $req->supplier;
+        $startDate = $req->startDate;
+        $endDate = $req->endDate;
+        $item = $req->item;
+        $status = $req->status;
+
+        $query = Stock::with(['variant.product','stockLocation.type','variant.photos']);
+
+        if($item){
+            $query->whereHas('variant.product',function ($query) use ($item){
+                $query->where('name','ilike','%'.$item.'%')->orWhere('code','ilike','%'.$item.'%');
+            })->orWhere('sku','ilike','%'.$item.'%')->orWhere('barcode','ilike','%'.$item.'%');
+        }
+
+        if($status){
+            $statusArr = explode(',',$status);
+            if(in_array(1,$statusArr)){
+                $query->orWhere('qty','>','0');
+            }
+            if(in_array(2,$statusArr)){
+                $query->orWhere('qty','=','0');
+            }
+            if(in_array(3,$statusArr)){
+                $query->whereNotNull('expiration_date');
+            }
+        }
+
+        if($startDate && $endDate){
+            $startDate = date('Y-m-d',strtotime($startDate));
+            $endDate = date('Y-m-d',strtotime($endDate));
+            $query->whereBetween('expiration_date',[$startDate,$endDate]);
+        }
+
+        if($warehouse){
+            $warehouseArr = explode(',',$warehouse);
+            $query->whereIn('stock_location_id',$warehouseArr);
+        }
+        if($supplier){
+            $supplierArr = explode(',',$supplier);
+            $query->whereHas('variant.product.supplier',function ($query) use ($supplierArr){
+                $query->whereIn('id',$supplierArr);
+            });
+        }
+
+        $stockItems = $query->get();
         foreach($stockItems as $item){
             $item->product_name = $item->variant->product->name;
             $item->size = $item->variant->size;
