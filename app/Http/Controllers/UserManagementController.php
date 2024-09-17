@@ -8,6 +8,7 @@ use App\Models\Role;
 use App\Models\User;
 use App\Models\UserRoles;
 use App\Services\UserService;
+use Helper;
 use Illuminate\Http\Request;
 
 class UserManagementController extends Controller
@@ -22,7 +23,8 @@ class UserManagementController extends Controller
             'phone' => 'nullable|string|max:20',
             'lock' => 'nullable|in:true,false',
             'branch_id' => 'nullable|exists:branches,id',
-            'role_id' => 'nullable|exists:roles,id'
+            'role_id' => 'nullable|exists:roles,id',
+            'photo' => 'nullable|string'
         ]);
     }
 
@@ -36,14 +38,23 @@ class UserManagementController extends Controller
         if($validate->fails()) return ApiResponse::ValidateFail($validate->errors()->first());
         $inputs = $validate->validated();
         $role_id = $inputs['role_id'] ?? null;
-        $update = $user->update([
+        $photo = $inputs['photo'] ?? null;
+
+        $updateArr = [
             'first_name' => $inputs['first_name'],
             'last_name' => $inputs['last_name'],
             'email' => $inputs['email'],
             'user_name' => $inputs['first_name']. '' .$inputs['last_name'],
             'phone' => $inputs['phone'],
             'branch_id' => $inputs['branch_id']
-        ]);
+        ];
+        if(!$photo || Helper::isValidBase64Image($photo)){
+            $photo_file = Helper::base64ToImageFile($photo,$authUser->company_id,'user_profile');
+            $updateArr['photo_file_name'] = $photo_file;
+                //** delete exists photo */
+            Helper::deleteImageFile($user->photo_file_name,$authUser->company_id,'user_profile');
+        }
+        $update = $user->update($updateArr);
         if($update){
             if($role_id){
                 $userRole = UserRoles::where('user_id',$id);
