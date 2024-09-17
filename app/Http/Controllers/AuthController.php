@@ -28,7 +28,7 @@ class AuthController extends Controller
         $password = $input['password'];
         date_default_timezone_set('Asia/Phnom_Penh');
         $today = date('Y-m-d H:i:s');
-        $user = User::where('email',$account)->orWhere('phone',$account)->selectRaw('email,phone,id,system_admin')->first();
+        $user = User::where('email',$account)->orWhere('phone',$account)->selectRaw('email,phone,id,system_admin,lock')->first();
         $systemAdmin = $user->system_admin ?? false;
         if($user->lock) {
             if($systemAdmin) return ApiResponse::Unauthorized('You have no access to this application.');
