@@ -50,6 +50,7 @@ class GeneralSettingController extends Controller
             'groups' => $this->gs::getProductGroups($user),
             'brands' => $this->gs::getBrands($user),
             'tags' => $this->gs::getTags($user),
+            'suppliers' => $this->gs::getOptionsVendor($user),
             'categories' => $this->gs::getProductCategories($user)
         ];
         return ApiResponse::JsonResult($obj);

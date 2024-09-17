@@ -25,6 +25,8 @@ class Product extends Model
         'cost',
         'void',
         'void_uid',
+        'photo_file_name',
+        'supplier_id',
         'inactive',
         'retail_price',
         'wholesale_price',
@@ -51,5 +53,9 @@ class Product extends Model
 
     public function category(){
         return $this->belongsTo(Category::class,'category_id','id');
+    }
+
+    public function supplier(){
+        return $this->belongsTo(Vendor::class,'supplier_id','id');
     }
 }

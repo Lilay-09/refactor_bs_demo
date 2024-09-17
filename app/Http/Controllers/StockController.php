@@ -12,7 +12,31 @@ class StockController extends Controller
 {
     //
     public function getStockItems(Request $req){
-        $stockItems = Stock::with(['variant.product','stockLocation.type','variant.photos'])->get();
+        $warehouse = $req->warehouse;
+        $supplier = $req->supplier;
+        $item = $req->item;
+        $status = $req->status;
+
+        $query = Stock::with(['variant.product','stockLocation.type','variant.photos']);
+
+        if($item){
+            $query->whereHas('variant.product',function ($query) use ($item){
+                $query->where('name','ilike','%'.$item.'%')->orWhere('code','ilike','%'.$item.'%');
+            })->orWhere('sku','ilike','%'.$item.'%')->orWhere('barcode','ilike','%'.$item.'%');
+        }
+
+        if($warehouse){
+            $warehouseArr = explode(',',$warehouse);
+            $query->whereIn('stock_location_id',$warehouseArr);
+        }
+        if($supplier){
+            $supplierArr = explode(',',$supplier);
+            $query->whereHas('variant.product.supplier',function ($query) use ($supplierArr){
+                $query->whereIn('id',$supplierArr);
+            });
+        }
+
+        $stockItems = $query->get();
         foreach($stockItems as $item){
             $item->product_name = $item->variant->product->name;
             $item->size = $item->variant->size;

@@ -2,7 +2,7 @@
 namespace App\Traits;
 use Illuminate\Database\Schema\Blueprint;
 trait BaseMigrationField{
-    public function AddBaseFields(Blueprint $table,$useSoftDelete=false){
+    public function AddBaseFields(Blueprint $table,$useVoid=true){
         $table->id();
         $table->timestamp("created_at")->useCurrent();
         $table->timestamp("updated_at")->useCurrent()->useCurrentOnUpdate();
@@ -25,9 +25,9 @@ trait BaseMigrationField{
          * add soft delete if needed
          */
 
-        // if($useSoftDelete){
-        //     $table->softDeletes();
-        //     $table->unsignedInteger("delete_uid");
-        // }
+        if($useVoid){
+            $table->boolean('void')->default(0);
+            $table->unsignedBigInteger('void_uid')->nullable();
+        }
     }
 }
