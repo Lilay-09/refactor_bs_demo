@@ -33,7 +33,7 @@ class AuthController extends Controller
         $isLock = $user->lock ?? false;
 
         if($isLock) {
-            if($systemAdmin) return ApiResponse::Unauthorized('You have no access to this application.');
+            if(!$systemAdmin) return ApiResponse::Unauthorized('You have no access to this application.');
         }
         if(!$user) return  ApiResponse::NotFound('Invalid Username or password');
         if($user){
