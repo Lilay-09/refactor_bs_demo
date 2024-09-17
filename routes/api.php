@@ -300,6 +300,7 @@ Route::middleware('jwt')->group(function(){
             Route::get('pos',[GeneralSettingController::class,'formPOS']);
             Route::get('pos/items',[GeneralSettingController::class,'formPosItems']);
             Route::get('warehouse',[GeneralSettingController::class,'formWarehouse']);
+            Route::get('stock/filter',[GeneralSettingController::class,'getFromStockFilter']);
         });
     });
 
