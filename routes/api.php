@@ -40,6 +40,7 @@ Route::prefix('auth')->group(function(){
 Route::middleware('jwt')->group(function(){
     Route::prefix('management')->group(function(){
         Route::get('/user', [UserController::class,'getUsers']);
+        Route::post('/user',[UserManagementController::class,'createUser']);
         Route::get('/user/{id?}', [UserController::class,'getUser']);
         Route::put('/user/{id?}', [UserManagementController::class,'updateUser']);
         Route::put('/user/set-lock/{id?}', [UserManagementController::class,'setLockUser']);
