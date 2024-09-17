@@ -30,9 +30,10 @@ class GeneralSettingService
 {
     // Your service methods go here
     public static function getOptionsVendor($user){
-        $vendors = Vendor::where('branch_id',$user->branch_id)->selectRaw('id,name,phone')->get();
+        $vendors = Vendor::where('branch_id',$user->branch_id)->selectRaw('id,name,phone,id as value')->get();
         foreach($vendors as $v){
             $v->name = $v->phone.'('.($v->name ?? 'no name').')';
+            $v->label = $v->phone.'('.($v->name ?? 'no name').')';
         }
         return $vendors;
     }
@@ -56,7 +57,7 @@ class GeneralSettingService
     }
 
     static function getWarhouses($user){
-        return StockLocation::where('company_id',$user->company_id)->selectRaw('id,name')->get();
+        return StockLocation::where('company_id',$user->company_id)->selectRaw('id,name,id as value,name as label')->get();
     }
 
     static function getModelsByBrand($brand_id,$user){
@@ -186,7 +187,7 @@ class GeneralSettingService
     }
 
     static function getStockLocationTypes($user){
-        return StockLocationType::selectRaw('id,name')->get();
+        return StockLocationType::selectRaw('id,name,name as label,id as value')->get();
     }
     static function getBranches($user){
         return Branch::where('company_id',$user->company_id)->selectRaw('id,name')->get();
