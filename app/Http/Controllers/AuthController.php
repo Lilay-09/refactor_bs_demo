@@ -30,7 +30,8 @@ class AuthController extends Controller
         $today = date('Y-m-d H:i:s');
         $user = User::where('email',$account)->orWhere('phone',$account)->selectRaw('email,phone,id,system_admin,lock')->first();
         $systemAdmin = $user->system_admin ?? false;
-        if($user->lock) {
+        $isLock = $user->lock ?? false;
+        if($isLock) {
             if($systemAdmin) return ApiResponse::Unauthorized('You have no access to this application.');
         }
         if(!$user) return  ApiResponse::NotFound('Invalid Username or password');
