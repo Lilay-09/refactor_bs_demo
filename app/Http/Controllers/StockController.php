@@ -33,7 +33,7 @@ class StockController extends Controller
                 $query->orWhere('qty','>','0');
             }
             if(in_array(2,$statusArr)){
-                $query->orWhere('qty','=','0');
+                $query->orWhere('qty','<=','10');
             }
             if(in_array(3,$statusArr)){
                 $query->whereNotNull('expiration_date');
