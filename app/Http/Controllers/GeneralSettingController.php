@@ -117,6 +117,20 @@ class GeneralSettingController extends Controller
         return ApiResponse::JsonResult($obj);
     }
 
+    public function getFromStockFilter(){
+        $user = UserService::getAuthUser();
+        $obj = (object)[
+            'warehouses' => $this->gs::getStockLocationTypes($user),
+            'statuses' => [
+                (object)['value' => 'in-stock','label' => 'In Stock'],
+                (object)['value' => 'out-stock','label' => 'Out Stock'],
+                (object)['value' => 'expire','label' => 'Expire']
+            ],
+            'suppliers' => $this->gs::getOptionsVendor($user)
+        ];
+        return ApiResponse::JsonResult($obj);
+    }
+
     public function formReceive(){
         $user = UserService::getAuthUser();
         $obj = (object)[

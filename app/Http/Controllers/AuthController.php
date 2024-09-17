@@ -31,6 +31,7 @@ class AuthController extends Controller
         $user = User::where('email',$account)->orWhere('phone',$account)->selectRaw('email,phone,id,system_admin,lock')->first();
         $systemAdmin = $user->system_admin ?? false;
         $isLock = $user->lock ?? false;
+
         if($isLock) {
             if($systemAdmin) return ApiResponse::Unauthorized('You have no access to this application.');
         }
@@ -66,8 +67,11 @@ class AuthController extends Controller
         $data = (object)[];
         $data->id = $user->id;
         $data->name = $user->id;
+        $data->user_name = $account;
+        $data->full_name = $user->first_name .' '.$user->last_login;
         $data->phone = $user->phone;
         $data->roles = $user->roles;
+
         $data->token = $token;
         return response()->json([
             'status_code' => 200,
