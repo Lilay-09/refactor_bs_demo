@@ -97,7 +97,7 @@ class GeneralSettingController extends Controller
 
     public function getStockSku(Request $req){
         $user = UserService::getAuthUser();
-        return ApiResponse::JsonResult($this->gs::getStockSku($user));
+        return ApiResponse::JsonResult($this->gs::getStockOption($user));
     }
     public function getStockLocationTypes(){
         $user = UserService::getAuthUser();
