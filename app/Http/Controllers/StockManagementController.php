@@ -1034,15 +1034,16 @@ class StockManagementController extends Controller
         $inputs = $validate->validated();
         $qty = $inputs['qty'];
         $sku = $inputs['sku'];
-        $missingItems = StockMovement::where('company_id',$user->company_id)->where('type','Missing')->find($id);
-        if(!$missingItems) return ApiResponse::NotFound('Missing item not found');
+        $missingItem = StockMovement::where('company_id',$user->company_id)->where('type','Missing')->find($id);
+        if(!$missingItem) return ApiResponse::NotFound('Missing item not found');
+        if($missingItem->status === 'approved') return ApiResponse::Duplicated('This item has already been approved.');
         $existItem = Stock::where('company_id',$user->company_id)->orWhere('sku',$sku)->first();
         if(!$existItem) return DataResponse::ValidateFail('Item not found in warehouse');
         if($qty > $existItem->qty) return DataResponse::ValidateFail('It seems like your stock quantity is lower than missing quantity. Stock found '.$existItem->qty.' unit');
         $reason = $inputs['reason'];
         $operator = $this->stockOperator['missing_qty'];
         $qty = $operator.$qty;
-        $update = $missingItems->update([
+        $update = $missingItem->update([
             'missing_qty' => $qty,
             'item_ref' => $sku,
             'description' => $reason
