@@ -71,8 +71,14 @@ class GeneralSettingService
         return Product::where('company_id',$user->company_id)->selectRaw('id,name')->get();
     }
 
-    static function getStockSku($user){
-        return Stock::where('company_id',$user->company_id)->selectRaw('sku')->get();
+    static function getStockOption($user){
+        $query = Stock::where('company_id',$user->company_id)->with(['variant','variant.product'])->selectRaw('sku,variant_id');
+        $stocks = $query->get();
+        foreach($stocks as $item){
+            $item->item_name = $item->variant->product->name.' |Color: '.$item->variant->color.', Size: '.$item->variant->size.', Condition: '.$item->variant->condition;
+            unset($item->variant);
+        }
+        return $stocks;
     }
 
     static function getProductVariants($user){
@@ -101,10 +107,10 @@ class GeneralSettingService
     }
 
     static function getStockItems($user,$req=null){
-        $product_code = $req->product_code;
-        $brand_id = $req->brand_id;
-        $category_id = $req->category_id;
-        $tags = $req->tags;
+        $product_code = $req->product_code ?? null;
+        $brand_id = $req->brand_id ?? null;
+        $category_id = $req->category_id ?? null;
+        $tags = $req->tags ?? null;
         if (is_string($tags)) {
             $tags = explode(',', strtolower($tags));
         }
@@ -140,6 +146,7 @@ class GeneralSettingService
             $item->condition = $item->variant->condition;
             $item->product_code = $item->variant->product->code;
             $item->retail_price = $item->retail_price > 0 ? $item->retail_price : $item->variant->retail_price;
+            $item->product_details = 'Color: '.$item->color.', Size: '.$item->size.', Condition: '.$item->condition;
             foreach($item->variant->photos as $photo){
                     if($photo->is_thumbnail){
                         $item->image_url = Helper::getImageUrl($photo->photo_file_name,$item->company_id,$photo->directory);

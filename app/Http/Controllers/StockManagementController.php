@@ -891,6 +891,7 @@ class StockManagementController extends Controller
             'status' => 'nullable|in:pending,approved,transfered',
             'sold_qty' => 'nullable|numeric',
             'description' => 'nullable|string|max:250',
+            'item_ref' => 'nullable|string|max:250',
             'receive_qty' => 'nullable|numeric'
         ],[
             'movement_type.in' => 'Movement type must be one of '.$movementTypes
@@ -907,7 +908,7 @@ class StockManagementController extends Controller
      * @param mixed $variant_id
      * @return void
      */
-    function createStockMovementLog($arr,$targetCol,$targetValue,$user,$useAutoApprove=true):object{
+    function createStockMovementLog($arr,$targetCol,$targetValue,$user,$useAutoApprove=true,$alwaysCreate=false):object{
         $today = date('Y-m-d');
         // $arr[$targetCol] = $targetValue;
         $branch_id = $user->branch_id;
@@ -922,30 +923,33 @@ class StockManagementController extends Controller
         // print_r($operator);
         $inputs = $validate->validated();
         $inputs['update_uid'] = $userId;
-        $inputs['transfer_uid'] = $userId;
         $inputs['branch_id'] = $branch_id;
         $inputs['company_id'] = $companyId;
         $inputs['type'] = $inputs['movement_type'];
+        if($targetCol == 'tranfer_in_qty' || $targetCol == 'tranfer_out_qty') $inputs['transfer_uid'] = $userId;
         if($useAutoApprove){
             $inputs['approved_uid'] = $userId;
             $inputs['approved_date'] = now();
         }
         //** ------ daily stock movement log by user */
+        $id = null;
         $todayMovement = StockMovement::where('branch_id',$branch_id)->where('type',$inputs['type'])->where('cost',$inputs['cost'])->where('variant_id',$inputs['variant_id'])->where('create_uid',$userId)->whereDate('created_at',$today)->first();
-        if($todayMovement){
+        if($todayMovement && $todayMovement->status !== 'approved' && !$alwaysCreate){
             // print_r('asdfs');
             $adjustStock = $todayMovement->{$targetCol};
             $adjustStock += $operator.$targetValue;
             $inputs[$targetCol] = $adjustStock;
+            $id = $todayMovement->id;
             $update = $todayMovement->update($inputs);
             if(!$update) return DataResponse::Error('Fail to update stock movement log!');
         }else{
             $inputs['create_uid'] = $userId;
             $inputs[$targetCol] = $operator.$targetValue;
             $create = StockMovement::create($inputs);
+            $id = $create->id;
             if(!$create) return DataResponse::Error('Fail to create stock movement log!');
         }
-        return DataResponse::JsonResult(null,false,'Stock log created');
+        return DataResponse::JsonResult((object)['id' => $id],false,'Stock log created');
     }
 
 
@@ -982,20 +986,26 @@ class StockManagementController extends Controller
                 $existItem = Stock::where('company_id',$user->company_id)->where('id',$id)->orWhere('sku',$sku)->orWhere('barcode',$barcode)->first();
                 if(!$existItem) return DataResponse::ValidateFail('Item not found in warehouse');
                 if($missingQty > $existItem->qty) return DataResponse::ValidateFail('It seems like your stock quantity is lower than missing quantity. Stock found '.$existItem->qty.' unit');
-                $variant = ProductVariant::with('product')->find($existItem->variant_id);
-                $modelId = $variant->product->model_id;
-                $categoryId = $variant->product->category_id;
-                $condition = $variant->condition;
+                // $variant = ProductVariant::with('product')->find($existItem->variant_id);
+                // $modelId = $variant->product->model_id;
+                // $categoryId = $variant->product->category_id;
+                // $condition = $variant->condition;
                 $stockMovement = $this->createStockMovementLog([
                     'from_location_id' => $existItem->stock_location_id,
-                    'variant_id' => $variant->id,
+                    'variant_id' => $existItem->variant_id,
                     'description'=>$inputs['reason'] ?? null,
                     'cost' => $existItem->cost,
                     'item_ref' => $existItem->sku,
                     'retail_price' => $existItem->retail_price,
                     'wholesale_price' => $existItem->wholesale_price,
-                ],'missing_qty',$missingQty,$user,false);
+                ],'missing_qty',$missingQty,$user,useAutoApprove: false,alwaysCreate: true);
                 if($stockMovement->status_code == 422) return DataResponse::ValidateFail($stockMovement->message);
+
+                //** Set code */
+                $missingCode = 'MISS-'.str_pad($stockMovement->data->id, 8, '0', STR_PAD_LEFT);
+                StockMovement::find($stockMovement->data->id)->update([
+                    'reference_no' => $missingCode
+                ]);
             }
             DB::commit();
             // return StockMovement::where('type','Missing')->get();
@@ -1010,16 +1020,48 @@ class StockManagementController extends Controller
 
     public function getStockMissingItem(Request $req){
         $user = UserService::getAuthUser();
-        $query = StockMovement::where('void',0)->where('company_id',$user->company_id)->where('type','Missing');
+        $query = StockMovement::with(['createUser','updateUser','approveUser','transOutWarehouse'])->selectRaw('from_location_id,status,id,reference_no,missing_qty,variant_id,item_ref,create_uid,update_uid')->where('void',0)->where('company_id',$user->company_id)->where('type','Missing');
         $missingItems = $query->get();
+
+        $stockItems = GeneralSettingService::getStockItems($user);
+        foreach($missingItems as $item){
+            $stockItemDetails = $this->getStockMovementItemDetails($stockItems,$item->item_ref);
+            $item->create_user_name = $item->createUser->user_name;
+            $item->missing_qty = abs($item->missing_qty);
+            $item->update_user_name = $item->updateUser->user_name;
+            $item->approve_user_name = $item->approveUser ? $item->approveUser->name : null;
+            $item->warehouse = $item->transOutWarehouse ? $item->transOutWarehouse->name : null;
+            $item->item_name = $stockItemDetails->product_name. ' |'.$stockItemDetails->product_details;
+            unset($item->createUser,$item->approveUser,$item->updateUser,$item->transOutWarehouse);
+        }
         return ApiResponse::Pagination($missingItems,$req);
+    }
+
+    private function getStockMovementItemDetails($rows,$sku){
+        foreach($rows as $row){
+            if($row->sku == $sku){
+                return $row;
+            }
+        }
     }
 
     public function getOneStockMissingItem(Request $req){
         $id = $req->id;
         $user = UserService::getAuthUser();
-        $missingItems = StockMovement::where('void',0)->where('company_id',$user->company_id)->where('type','Missing')->find($id);
-        return ApiResponse::JsonResult($missingItems);
+        $stockItems = GeneralSettingService::getStockItems($user);
+        $missintItem = StockMovement::with(['createUser','updateUser','approveUser','transOutWarehouse'])->selectRaw('from_location_id,status,id,reference_no,missing_qty,variant_id,item_ref,create_uid,update_uid')->where('void',0)->where('company_id',$user->company_id)->where('type','Missing')->find($id);
+        if(!$missintItem) return ApiResponse::NotFound('Could not found the missing item');
+        $stockItemDetails = $this->getStockMovementItemDetails($stockItems,$missintItem->item_ref);
+        $missintItem->missing_qty = abs($missintItem->missing_qty);
+        $missintItem->create_user_name = $missintItem->createUser->user_name;
+        $missintItem->update_user_name = $missintItem->updateUser->user_name;
+        $missintItem->approve_user_name = $missintItem->approveUser ? $missintItem->approveUser->name : null;
+        $missintItem->warehouse = $missintItem->transOutWarehouse ? $missintItem->transOutWarehouse->name : null;
+        $missintItem->item_name = $stockItemDetails->product_name. ' |'.$stockItemDetails->product_details;
+
+
+        unset($missintItem->approveUser,$missintItem->createUser,$missintItem->updateUser,$missintItem->transOutWarehouse);
+        return ApiResponse::JsonResult($missintItem);
     }
 
     public function updateStockMissingItem(Request $req){
