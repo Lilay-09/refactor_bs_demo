@@ -935,7 +935,6 @@ class StockManagementController extends Controller
         $id = null;
         $todayMovement = StockMovement::where('branch_id',$branch_id)->where('type',$inputs['type'])->where('cost',$inputs['cost'])->where('variant_id',$inputs['variant_id'])->where('create_uid',$userId)->whereDate('created_at',$today)->first();
         if($todayMovement && $todayMovement->status !== 'approved' && !$alwaysCreate){
-            // print_r('asdfs');
             $adjustStock = $todayMovement->{$targetCol};
             $adjustStock += $operator.$targetValue;
             $inputs[$targetCol] = $adjustStock;
@@ -1031,7 +1030,7 @@ class StockManagementController extends Controller
             $item->update_user_name = $item->updateUser->user_name;
             $item->approve_user_name = $item->approveUser ? $item->approveUser->name : null;
             $item->warehouse = $item->transOutWarehouse ? $item->transOutWarehouse->name : null;
-            $item->item_name = $stockItemDetails->product_name. ' |'.$stockItemDetails->product_details;
+            $item->item_name = $stockItemDetails ? $stockItemDetails->product_name. ' |'.$stockItemDetails->product_details:'';
             unset($item->createUser,$item->approveUser,$item->updateUser,$item->transOutWarehouse);
         }
         return ApiResponse::Pagination($missingItems,$req);
