@@ -12,6 +12,7 @@ class StockMovement extends Model
     protected $fillable = [
         'id',
         'variant_id',
+        'item_ref',
         'reference_no',
         'from_location_id',
         'to_location_id',
@@ -22,6 +23,7 @@ class StockMovement extends Model
         'wholesale_price',
         'transfer_uid',
         'qty',
+        'status',
         'approved_uid',
         'approved_date',
         'description',
