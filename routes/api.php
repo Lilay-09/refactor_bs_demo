@@ -190,6 +190,7 @@ Route::middleware('jwt')->group(function(){
                 Route::post('',[StockManagementController::class,'stockTransform']);
                 Route::get('',[StockManagementController::class,'getTransferList']);
             });
+            Route::post('missing',[StockManagementController::class,'stockMissingItem']);
 
             Route::prefix('item')->group(function(){
                 Route::get('',[StockController::class,'getStockItems']);

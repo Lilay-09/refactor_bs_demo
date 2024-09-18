@@ -36,6 +36,7 @@ class StockManagementController extends Controller
         'transfer_out_qty' => '-',
         'sold_qty' => '-',
         'return_qty' => '+',
+        'missing_qty' => '-'
     ];
 
     protected $movementTypes = [
@@ -44,6 +45,7 @@ class StockManagementController extends Controller
         'transfer_out_qty' => '-',
         'sold_qty' => '-',
         'return_qty' => '+',
+        'missing_qty' => '-'
     ];
 
 
@@ -858,7 +860,6 @@ class StockManagementController extends Controller
             Stock::find($stockId)->update([
                 'barcode' => $barNum,
             ]);
-
         }
         // }
 
@@ -889,6 +890,7 @@ class StockManagementController extends Controller
             'to_location_id' => 'nullable|int',
             'status' => 'nullable|in:pending,approved,transfered',
             'sold_qty' => 'nullable|numeric',
+            'description' => 'nullable|string|max:250',
             'receive_qty' => 'nullable|numeric'
         ],[
             'movement_type.in' => 'Movement type must be one of '.$movementTypes
@@ -905,14 +907,14 @@ class StockManagementController extends Controller
      * @param mixed $variant_id
      * @return void
      */
-    function createStockMovementLog($arr,$targetCol,$targetValue,$user):object{
+    function createStockMovementLog($arr,$targetCol,$targetValue,$user,$useAutoApprove=true):object{
         $today = date('Y-m-d');
         // $arr[$targetCol] = $targetValue;
         $branch_id = $user->branch_id;
         $userId = $user->id;
         $companyId = $user->company_id;
         $operator = $this->stockOperator[$targetCol];
-        $arr['movement_type'] = GeneralSettingService::getMovementType($targetCol);
+        $arr['movement_type'] = $arr['movement_type'] ?? GeneralSettingService::getMovementType($targetCol);
 
 
         $validate = $this->stockMovementValidation(new Request($arr));
@@ -924,6 +926,10 @@ class StockManagementController extends Controller
         $inputs['branch_id'] = $branch_id;
         $inputs['company_id'] = $companyId;
         $inputs['type'] = $inputs['movement_type'];
+        if($useAutoApprove){
+            $inputs['approved_uid'] = $userId;
+            $inputs['approved_date'] = now();
+        }
         //** ------ daily stock movement log by user */
         $todayMovement = StockMovement::where('branch_id',$branch_id)->where('type',$inputs['type'])->where('cost',$inputs['cost'])->where('variant_id',$inputs['variant_id'])->where('create_uid',$userId)->whereDate('created_at',$today)->first();
         if($todayMovement){
@@ -939,11 +945,8 @@ class StockManagementController extends Controller
             $create = StockMovement::create($inputs);
             if(!$create) return DataResponse::Error('Fail to create stock movement log!');
         }
-
-
         return DataResponse::JsonResult(null,false,'Stock log created');
     }
-
 
 
     // public function stockTransfer(Request $req){
@@ -957,6 +960,56 @@ class StockManagementController extends Controller
 
         // if($validate->fails()) return ApiResponse::ValidateFail($validate->errors()->first());
     // }
+
+    public function stockMissingItem(Request $req){
+        $user = UserService::getAuthUser();
+        $validate = validator($req->all(),[
+            'items' => 'required|array',
+        ]);
+        if($validate->fails()) return ApiResponse::ValidateFail($validate->errors()->first());
+        $inputs = $validate->validated();
+        $items = $inputs['items'];
+        DB::beginTransaction();
+        try{
+            foreach($items as $key=>$item){
+                $missingQty = $item['qty'];
+                $id = $item['id'] ?? null;
+                $sku = $item['sku'] ?? null;
+                $barcode = $item['barcode'] ?? null;
+                if($missingQty < 0) return ApiResponse::ValidateFail('Invalid missing value!');
+                $existItem = Stock::where('company_id',$user->company_id)->where('id',$id)->orWhere('sku',$sku)->orWhere('barcode',$barcode)->first();
+                if(!$existItem) return DataResponse::ValidateFail('Item not found in warehouse');
+                if($missingQty > $existItem->qty) return DataResponse::ValidateFail('It seems like your stock quantity is lower than missing quantity. Stock found '.$existItem->qty.' unit');
+                $variant = ProductVariant::with('product')->find($existItem->variant_id);
+                $modelId = $variant->product->model_id;
+                $categoryId = $variant->product->category_id;
+                $condition = $variant->condition;
+                $prepareStock = $this->prepareStock($existItem->stock_location_id,$existItem->variant_id,'missing_qty',$missingQty,$user,$existItem->cost,$item['id'],$modelId,$categoryId,$condition);
+                if($prepareStock->status_code == 422) return DataResponse::ValidateFail($prepareStock->message);
+                if($prepareStock->status_code == 500) return DataResponse::Error($prepareStock->message);
+                $stockMovement = $this->createStockMovementLog([
+                    'from_location_id' => $existItem->stock_location_id,
+                    'variant_id' => $variant->id,
+                    'type'=> 'sdfsdf',
+                    'description'=>$inputs['reason'] ?? null,
+                    'cost' => $existItem->cost,
+                    'retail_price' => $existItem->retail_price,
+                    'wholesale_price' => $existItem->wholesale_price,
+                ],'missing_qty',$missingQty,$user);
+                if($stockMovement->status_code == 422) return DataResponse::ValidateFail($stockMovement->message);
+            }
+                DB::commit();
+
+            // return Stock::get();
+            // return StockMovement::get();
+            return ApiResponse::JsonResult(null,false,'Created');
+        }catch(Exception $e){
+            Log::error($e->getMessage());
+            Log::error($e->getTraceAsString());
+            DB::rollBack();
+            return ApiResponse::Error('Fail to save missing item');
+        }
+    }
 
 
     public function stockTransform(Request $req){
@@ -991,6 +1044,9 @@ class StockManagementController extends Controller
             return ApiResponse::Error('Fail to transfer');
         }
     }
+
+
+
 
     public function getTransferList(Request $req){
         $user = UserService::getAuthUser();
