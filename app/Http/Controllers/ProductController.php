@@ -35,7 +35,7 @@ class ProductController extends Controller
             'retail_price' => 'nullable|numeric|between:0,999999.99',
             'wholesale_price' => 'nullable|numeric|between:0,999999.99',
             'tags' => 'nullable|array',
-            'supplier_id' => 'nullable|exists:vendors,id',
+            'supplier_id' => 'nullable|int|exists:vendors,id',
             'specs' => 'nullable|array',
             'variants' => 'nullable|array',
             'photos' => 'nullable|array'

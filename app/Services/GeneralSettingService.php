@@ -44,6 +44,7 @@ class GeneralSettingService
             'transfer_in_qty' => 'Transfer In',
             'transfer_out_qty' => 'Transfer Out',
             'sold_qty' => 'Sold',
+            'missing_qty' => 'Missing',
             'return_qty' => 'Return',
         ];
         return $movementTypes[$targetCol] ?? null;

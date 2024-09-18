@@ -6,6 +6,7 @@ use ApiResponse;
 use App\Models\User;
 use App\Services\AuthService;
 use App\Services\UserService;
+use Helper;
 use Illuminate\Http\Request;
 use Tymon\JWTAuth\Exceptions\JWTException;
 use Tymon\JWTAuth\Facades\JWTAuth;
@@ -28,7 +29,7 @@ class AuthController extends Controller
         $password = $input['password'];
         date_default_timezone_set('Asia/Phnom_Penh');
         $today = date('Y-m-d H:i:s');
-        $user = User::where('email',$account)->orWhere('phone',$account)->selectRaw('email,phone,id,system_admin,lock')->first();
+        $user = User::where('email',$account)->orWhere('phone',$account)->selectRaw('photo_file_name,email,phone,id,system_admin,lock,company_id')->first();
         $systemAdmin = $user->system_admin ?? false;
         $isLock = $user->lock ?? false;
 
@@ -68,10 +69,10 @@ class AuthController extends Controller
         $data->id = $user->id;
         $data->name = $user->id;
         $data->user_name = $account;
-        $data->full_name = $user->first_name .' '.$user->last_login;
+        $data->profile = Helper::getImageUrl($user->photo_file_name,$user->company_id,'user_profile');
+        $data->full_name = $user->first_name.' '.$user->last_login;
         $data->phone = $user->phone;
         $data->roles = $user->roles;
-
         $data->token = $token;
         return response()->json([
             'status_code' => 200,
