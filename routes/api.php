@@ -190,7 +190,15 @@ Route::middleware('jwt')->group(function(){
                 Route::post('',[StockManagementController::class,'stockTransform']);
                 Route::get('',[StockManagementController::class,'getTransferList']);
             });
-            Route::post('missing',[StockManagementController::class,'stockMissingItem']);
+            Route::prefix('missing')->group(function(){
+                Route::post('',[StockManagementController::class,'stockMissingItem']);
+                Route::get('',[StockManagementController::class,'getStockMissingItem']);
+                Route::get('/{id}',[StockManagementController::class,'getOneStockMissingItem']);
+                Route::put('/{id}',[StockManagementController::class,'updateStockMissingItem']);
+                Route::put('approve/{id}',[StockManagementController::class,'approveMissingItem']);
+                Route::delete('void/{id}',[StockManagementController::class,'voidStockMissingItem']);
+            });
+
 
             Route::prefix('item')->group(function(){
                 Route::get('',[StockController::class,'getStockItems']);
@@ -283,6 +291,7 @@ Route::middleware('jwt')->group(function(){
     Route::prefix('setting')->group(function(){
         Route::prefix('option')->group(function(){
             Route::get('products',[GeneralSettingController::class,'getProducts']);
+            Route::get('stock/sku',[GeneralSettingController::class,'getStockSku']);
             Route::get('customerTypes',[GeneralSettingController::class,'getCustomerTypes']);
             Route::get('brands',[GeneralSettingController::class,'getBrands']);
             Route::get('warehouses',[GeneralSettingController::class,'getWarehouses']);

@@ -71,6 +71,10 @@ class GeneralSettingService
         return Product::where('company_id',$user->company_id)->selectRaw('id,name')->get();
     }
 
+    static function getStockSku($user){
+        return Stock::where('company_id',$user->company_id)->selectRaw('sku')->get();
+    }
+
     static function getProductVariants($user){
         $variants = ProductVariant::with('product')->where('company_id',$user->company_id)->selectRaw('id,product_id,size,color,sku,weight,width,length,expires_at,condition,material,cost')->get();
         foreach($variants as $vr){
