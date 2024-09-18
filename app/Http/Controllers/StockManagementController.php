@@ -931,21 +931,24 @@ class StockManagementController extends Controller
             $inputs['approved_date'] = now();
         }
         //** ------ daily stock movement log by user */
+        $id = null;
         $todayMovement = StockMovement::where('branch_id',$branch_id)->where('type',$inputs['type'])->where('cost',$inputs['cost'])->where('variant_id',$inputs['variant_id'])->where('create_uid',$userId)->whereDate('created_at',$today)->first();
         if($todayMovement){
             // print_r('asdfs');
             $adjustStock = $todayMovement->{$targetCol};
             $adjustStock += $operator.$targetValue;
             $inputs[$targetCol] = $adjustStock;
+            $id = $todayMovement->id;
             $update = $todayMovement->update($inputs);
             if(!$update) return DataResponse::Error('Fail to update stock movement log!');
         }else{
             $inputs['create_uid'] = $userId;
             $inputs[$targetCol] = $operator.$targetValue;
             $create = StockMovement::create($inputs);
+            $id = $create->id;
             if(!$create) return DataResponse::Error('Fail to create stock movement log!');
         }
-        return DataResponse::JsonResult(null,false,'Stock log created');
+        return DataResponse::JsonResult((object)['id' => $id],false,'Stock log created');
     }
 
 
@@ -996,6 +999,12 @@ class StockManagementController extends Controller
                     'wholesale_price' => $existItem->wholesale_price,
                 ],'missing_qty',$missingQty,$user,false);
                 if($stockMovement->status_code == 422) return DataResponse::ValidateFail($stockMovement->message);
+
+                //** Set code */
+                $missingCode = 'PO-'.str_pad($stockMovement->data->id, 8, '0', STR_PAD_LEFT);
+                StockMovement::find($stockMovement->data->id)->update([
+                    'reference_code' => $missingCode
+                ]);
             }
             DB::commit();
             // return StockMovement::where('type','Missing')->get();
