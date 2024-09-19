@@ -35,6 +35,7 @@ class UserService
                     'error'=>false,
                     'status_code' => 200,
                     'status' => 'OK',
+                    'id' => $hasUser->id,
                     'company_id' => $hasUser->company_id,
                     'branch_id' => $hasUser->branch_id,
                     'user'=>$hasUser
