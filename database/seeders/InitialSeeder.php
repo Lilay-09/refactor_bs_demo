@@ -190,6 +190,7 @@ class InitialSeeder extends Seeder
             ['name' => 'Donation'],
             ['name' => 'Return'],
             ['name' => 'Missing'],
+            ['name' => 'Take Out'],
         ]);
 
         StockLocation::insert([
