@@ -13,6 +13,7 @@ use App\Http\Controllers\ExhangeRateController;
 use App\Http\Controllers\ExpenseCategoryController;
 use App\Http\Controllers\ExpenseController;
 use App\Http\Controllers\GeneralSettingController;
+use App\Http\Controllers\InternalController;
 use App\Http\Controllers\PosController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ProductGroupController;
@@ -38,6 +39,10 @@ Route::prefix('auth')->group(function(){
 });
 
 Route::middleware('jwt')->group(function(){
+    Route::prefix('internal')->group(function(){
+        Route::post('movementType',[InternalController::class,'createMovementType']);
+    });
+
     Route::prefix('management')->group(function(){
         Route::get('/user', [UserController::class,'getUsers']);
         Route::post('/user',[UserManagementController::class,'createUser']);
@@ -197,6 +202,15 @@ Route::middleware('jwt')->group(function(){
                 Route::put('/{id}',[StockManagementController::class,'updateStockMissingItem']);
                 Route::put('approve/{id}',[StockManagementController::class,'approveMissingItem']);
                 Route::delete('void/{id}',[StockManagementController::class,'voidStockMissingItem']);
+            });
+
+            Route::prefix('takeOut')->group(function(){
+                Route::post('',[StockManagementController::class,'createTakeOutStock']);
+                Route::get('',[StockManagementController::class,'getTakeOutStock']);
+                Route::get('/{id}',[StockManagementController::class,'getOneTakeOutStock']);
+                Route::put('/{id}',[StockManagementController::class,'updateTakeOutStock']);
+                Route::put('approve/{id}',[StockManagementController::class,'approveTakeOutStock']);
+                Route::delete('void/{id}',[StockManagementController::class,'voidTakeOutStock']);
             });
 
 

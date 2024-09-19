@@ -24,6 +24,8 @@ class StockMovement extends Model
         'transfer_uid',
         'qty',
         'status',
+        'void',
+        'void_uid',
         'approved_uid',
         'approved_date',
         'description',

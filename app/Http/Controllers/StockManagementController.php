@@ -1036,7 +1036,7 @@ class StockManagementController extends Controller
             $item->create_user_name = $item->createUser->user_name;
             $item->missing_qty = abs($item->missing_qty);
             $item->update_user_name = $item->updateUser->user_name;
-            $item->approve_user_name = $item->approveUser ? $item->approveUser->name : null;
+            $item->approve_user_name = $item->approveUser ? $item->approveUser->user_name : null;
             $item->warehouse = $item->transOutWarehouse ? $item->transOutWarehouse->name : null;
             $item->item_name = $stockItemDetails ? $stockItemDetails->product_name. ' |'.$stockItemDetails->product_details:'';
             unset($item->createUser,$item->approveUser,$item->updateUser,$item->transOutWarehouse);
@@ -1063,7 +1063,7 @@ class StockManagementController extends Controller
         $missintItem->missing_qty = abs($missintItem->missing_qty);
         $missintItem->create_user_name = $missintItem->createUser->user_name;
         $missintItem->update_user_name = $missintItem->updateUser->user_name;
-        $missintItem->approve_user_name = $missintItem->approveUser ? $missintItem->approveUser->name : null;
+        $missintItem->approve_user_name = $missintItem->approveUser ? $missintItem->approveUser->user_name : null;
         $missintItem->warehouse = $missintItem->transOutWarehouse ? $missintItem->transOutWarehouse->name : null;
         $missintItem->item_name = $stockItemDetails ? $stockItemDetails->product_name. ' |'.$stockItemDetails->product_details:'';
         $missintItem->created_at = date('Y-m-d',strtotime($missintItem->created_at));
