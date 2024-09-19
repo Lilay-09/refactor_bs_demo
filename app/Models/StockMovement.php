@@ -30,6 +30,8 @@ class StockMovement extends Model
         'create_uid',
         'update_uid',
         'branch_id',
+        'created_at',
+        'updated_at',
         'company_id'
     ];
 
@@ -37,11 +39,16 @@ class StockMovement extends Model
         return $this->belongsTo(StockLocation::class,'from_location_id','id');
     }
 
+    protected $casts = [
+        'created_at' => 'datetime:Y-m-d H:i:s',
+        'updated_at' => 'datetime:Y-m-d H:i:s'
+    ];
+
     public function transInWarehouse(){
         return $this->belongsTo(StockLocation::class,'to_location_id','id');
     }
 
-    
+
 
     public function createUser(){
         return $this->belongsTo(User::class,'create_uid','id');

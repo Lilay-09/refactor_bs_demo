@@ -36,7 +36,7 @@ class StockManagementController extends Controller
         'transfer_out_qty' => '-',
         'sold_qty' => '-',
         'return_qty' => '+',
-        'missing_qty' => '-'
+        'take_out_qty' => '-'
     ];
 
     protected $movementTypes = [
@@ -45,7 +45,8 @@ class StockManagementController extends Controller
         'transfer_out_qty' => '-',
         'sold_qty' => '-',
         'return_qty' => '+',
-        'missing_qty' => '-'
+        'missing_qty' => '-',
+        'take_out_qty' => '-'
     ];
 
 
@@ -744,7 +745,10 @@ class StockManagementController extends Controller
         $beginQty = 0;
         $endingQty = 0;
         $targetColValue = 0;
-
+        //** convert target col */
+        if(in_array($targetCol,['take_out_qty','donation_qty'])){
+            $targetCol = 'adjustment_qty';
+        }
         if($todayStock){
             $beginQty = $todayStock->begin_qty;
             $endingQty = $todayStock->ending_qty;
@@ -917,7 +921,6 @@ class StockManagementController extends Controller
         $operator = $this->stockOperator[$targetCol];
         $arr['movement_type'] = $arr['movement_type'] ?? GeneralSettingService::getMovementType($targetCol);
 
-
         $validate = $this->stockMovementValidation(new Request($arr));
         if($validate->fails()) return DataResponse::ValidateFail($validate->errors()->first());
         // print_r($operator);
@@ -926,6 +929,11 @@ class StockManagementController extends Controller
         $inputs['branch_id'] = $branch_id;
         $inputs['company_id'] = $companyId;
         $inputs['type'] = $inputs['movement_type'];
+        //** convert target col */
+        if(in_array($targetCol,['take_out_qty','donation_qty'])){
+            $targetCol = 'adjustment_qty';
+            if($targetValue > 0) $targetValue = '-'.$targetValue;
+        }
         if($targetCol == 'tranfer_in_qty' || $targetCol == 'tranfer_out_qty') $inputs['transfer_uid'] = $userId;
         if($useAutoApprove){
             $inputs['approved_uid'] = $userId;
@@ -1019,7 +1027,7 @@ class StockManagementController extends Controller
 
     public function getStockMissingItem(Request $req){
         $user = UserService::getAuthUser();
-        $query = StockMovement::with(['createUser','updateUser','approveUser','transOutWarehouse'])->selectRaw('from_location_id,status,id,reference_no,missing_qty,variant_id,item_ref,create_uid,update_uid')->where('void',0)->where('company_id',$user->company_id)->where('type','Missing');
+        $query = StockMovement::with(['createUser','updateUser','approveUser','transOutWarehouse'])->selectRaw('updated_at,approved_date,created_at,from_location_id,status,id,reference_no,missing_qty,variant_id,item_ref,create_uid,update_uid')->where('void',0)->where('company_id',$user->company_id)->where('type','Missing');
         $missingItems = $query->get();
 
         $stockItems = GeneralSettingService::getStockItems($user);
@@ -1042,13 +1050,14 @@ class StockManagementController extends Controller
                 return $row;
             }
         }
+        return null;
     }
 
     public function getOneStockMissingItem(Request $req){
         $id = $req->id;
         $user = UserService::getAuthUser();
         $stockItems = GeneralSettingService::getStockItems($user);
-        $missintItem = StockMovement::with(['createUser','updateUser','approveUser','transOutWarehouse'])->selectRaw('from_location_id,status,id,reference_no,missing_qty,variant_id,item_ref,create_uid,update_uid')->where('void',0)->where('company_id',$user->company_id)->where('type','Missing')->find($id);
+        $missintItem = StockMovement::with(['createUser','updateUser','approveUser','transOutWarehouse'])->selectRaw('updated_at,approved_date,created_at,from_location_id,status,id,reference_no,missing_qty,variant_id,item_ref,create_uid,update_uid')->where('void',0)->where('company_id',$user->company_id)->where('type','Missing')->find($id);
         if(!$missintItem) return ApiResponse::NotFound('Could not found the missing item');
         $stockItemDetails = $this->getStockMovementItemDetails($stockItems,$missintItem->item_ref);
         $missintItem->missing_qty = abs($missintItem->missing_qty);
@@ -1056,8 +1065,8 @@ class StockManagementController extends Controller
         $missintItem->update_user_name = $missintItem->updateUser->user_name;
         $missintItem->approve_user_name = $missintItem->approveUser ? $missintItem->approveUser->name : null;
         $missintItem->warehouse = $missintItem->transOutWarehouse ? $missintItem->transOutWarehouse->name : null;
-        $missintItem->item_name = $stockItemDetails->product_name. ' |'.$stockItemDetails->product_details;
-
+        $missintItem->item_name = $stockItemDetails ? $stockItemDetails->product_name. ' |'.$stockItemDetails->product_details:'';
+        $missintItem->created_at = date('Y-m-d',strtotime($missintItem->created_at));
 
         unset($missintItem->approveUser,$missintItem->createUser,$missintItem->updateUser,$missintItem->transOutWarehouse);
         return ApiResponse::JsonResult($missintItem);
@@ -1094,7 +1103,16 @@ class StockManagementController extends Controller
     }
 
     public function voidStockMissingItem(Request $req){
-
+        $id = $req->id;
+        $user = UserService::getAuthUser();
+        $missingItem = StockMovement::where('company_id',$user->company_id)->where('type','Missing')->find($id);
+        if(!$missingItem) return ApiResponse::NotFound('Missing item not found');
+        $void = $missingItem->update([
+            'void' => 1,
+            'void_uid' => $user->id
+        ]);
+        if($void) return ApiResponse::JsonResult(null,false,'Voided');
+        return ApiResponse::Error('Fail to void');
     }
 
     public function approveMissingItem(Request $req){
@@ -1125,6 +1143,57 @@ class StockManagementController extends Controller
 
 
     //** end missing item */
+
+    //** start adjustment item [Take out */
+    public function createTakeOutStock(Request $req){
+        $user = UserService::getAuthUser();
+        $validate = validator($req->all(),[
+            'items' => 'required|array',
+        ]);
+        if($validate->fails()) return ApiResponse::ValidateFail($validate->errors()->first());
+        $inputs = $validate->validated();
+        $items = $inputs['items'];
+        DB::beginTransaction();
+        try{
+            foreach($items as $key=>$item){
+                $takeOutQty = $item['qty'];
+                $id = $item['id'] ?? null;
+                $sku = $item['sku'] ?? null;
+                $barcode = $item['barcode'] ?? null;
+                if($takeOutQty < 0) return ApiResponse::ValidateFail('Invalid take out value!');
+                $existItem = Stock::where('company_id',$user->company_id)->where('id',$id)->orWhere('sku',$sku)->orWhere('barcode',$barcode)->first();
+                if(!$existItem) return DataResponse::ValidateFail('Item not found in warehouse');
+                if($takeOutQty > $existItem->qty) return DataResponse::ValidateFail('It seems like your stock quantity is lower than missing quantity. Stock found '.$existItem->qty.' unit');
+                $stockMovement = $this->createStockMovementLog([
+                    'from_location_id' => $existItem->stock_location_id,
+                    'variant_id' => $existItem->variant_id,
+                    'description'=>$inputs['reason'] ?? null,
+                    'cost' => $existItem->cost,
+                    'item_ref' => $existItem->sku,
+                    'retail_price' => $existItem->retail_price,
+                    'wholesale_price' => $existItem->wholesale_price,
+                ],'take_out_qty','-'.$takeOutQty,$user,useAutoApprove: false,alwaysCreate: true);
+                if($stockMovement->status_code == 422) return DataResponse::ValidateFail($stockMovement->message);
+
+                //** Set code */
+                $missingCode = 'MISS-'.str_pad($stockMovement->data->id, 8, '0', STR_PAD_LEFT);
+                StockMovement::find($stockMovement->data->id)->update([
+                    'reference_no' => $missingCode
+                ]);
+            }
+            // DB::commit();
+            return StockMovement::where('type','Take Out')->get();
+            return ApiResponse::JsonResult(null,false,'Created');
+        }catch(Exception $e){
+            Log::error($e->getMessage());
+            Log::error($e->getTraceAsString());
+            DB::rollBack();
+            return ApiResponse::Error('Fail to save missing item');
+        }
+    }
+
+
+
 
 
     public function stockTransform(Request $req){
@@ -1159,8 +1228,6 @@ class StockManagementController extends Controller
             return ApiResponse::Error('Fail to transfer');
         }
     }
-
-
 
 
     public function getTransferList(Request $req){
