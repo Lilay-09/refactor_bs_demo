@@ -18,4 +18,8 @@ class UserRoles extends Model
         'user_id',
         'role_id'
     ];
+
+    public function role(){
+        return $this->belongsTo(Role::class,'role_id','id');
+    }
 }

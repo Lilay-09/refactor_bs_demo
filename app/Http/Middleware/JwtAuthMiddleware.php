@@ -56,7 +56,7 @@ class JwtAuthMiddleware
             }
             $hasUser = UserService::getAuthUser();
 
-            if($hasUser){
+            if(!$hasUser->error){
                 $payload = JWTAuth::getPayload($token);
                 // Log::info('JWT token generated successfully.', ['token_payload' => $payload->toArray()]);
                 $payloadArr = $payload->toArray();
@@ -68,7 +68,7 @@ class JwtAuthMiddleware
                     'errors' => []
                 ],403);
             }else{
-                return ApiResponse::Unauthorized('User does not exists.');
+                return ApiResponse::Unauthorized($hasUser->message);
             }
             // return $next($request);
         } catch (TokenInvalidException $e) {

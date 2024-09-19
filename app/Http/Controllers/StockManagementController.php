@@ -87,6 +87,7 @@ class StockManagementController extends Controller
     public function createPurchaseOrder(Request $req){
         $imgDir = 'purchase_expense';
         $user = UserService::getAuthUser();
+        if($user->error) return ApiResponse::flex($user);
         $userId = $user->id;
         $validate = $this->purchaseOrderValidation($req);
         if($validate->fails()) return ApiResponse::ValidateFail($validate->errors()->first(),$validate->errors());
@@ -215,6 +216,7 @@ class StockManagementController extends Controller
         $id = $id ? $id : $req->id;
         $imgDir = 'purchase_expense';
         $user = UserService::getAuthUser();
+        if($user->error) return ApiResponse::flex($user);
         $userId = $user->id;
         $branchId = $user->branch_id;
         $companyId = $user->company_id;
@@ -551,6 +553,7 @@ class StockManagementController extends Controller
     public function approvePurchaseOrder(Request $req,$id=null){
         $id = $id ? $id :$req->id;
         $user = UserService::getAuthUser();
+        if($user->error) return ApiResponse::flex($user);
         $userId = $user->id;
         $branchId = $user->branch_id;
         $purchaseOrder = PurchaseOrder::where('branch_id',$branchId)->find($id);
@@ -567,6 +570,7 @@ class StockManagementController extends Controller
 
     public function getPurchaseOrders(Request $req){
         $user = UserService::getAuthUser();
+        if($user->error) return ApiResponse::flex($user);
         $rows = PurchaseOrder::with(['status','vendor'])->where('branch_id',$user->branch_id)->get();
         // $orderItems = PurchaseOrderItem::from('purchase_order_items as oi')->join('product_variants as pv','oi.variant_id','pv.id')->join('products as p','p.id','=','pv.product_id')->join('models as m','m.id','p.model_id')
         // ->selectRaw('oi.qty,oi.total_price,oi.unit_price,oi.discount_type,oi.discount_amount,pv.size,pv.color,pv.sku,pv.weight,pv.width,pv.length,pv.expires_at,pv.condition,condition_percentage,pv.material,m.name as model_name,p.name,p.code,description')
@@ -582,6 +586,7 @@ class StockManagementController extends Controller
     public function getPurchaseOrder(Request $req,$id=null){
         $id = $id ? $id : $req->id;
         $user = UserService::getAuthUser();
+        if($user->error) return ApiResponse::flex($user);
         $row = PurchaseOrder::where('branch_id',$user->branch_id)->find($id);
         $orderItems = PurchaseOrderItem::from('purchase_order_items as oi')->where('oi.purchase_id',$id)->join('product_variants as pv','oi.variant_id','pv.id')->join('products as p','p.id','=','pv.product_id')->join('models as m','m.id','p.model_id')
         ->selectRaw('oi.id,oi.qty,oi.received_qty,oi.total_price,oi.unit_price,oi.discount_type,oi.discount_amount,pv.size,pv.color,pv.sku,pv.weight,pv.width,pv.length,pv.expires_at,pv.condition,condition_percentage,pv.material,m.name as model_name,p.name,p.code,description')
@@ -1037,7 +1042,7 @@ class StockManagementController extends Controller
 
     public function getStockMissingItem(Request $req){
         $user = UserService::getAuthUser();
-        $query = StockMovement::with(['createUser','updateUser','approveUser','transOutWarehouse'])->selectRaw('type,updated_at,approved_date,approved_uid,created_at,from_location_id,status,id,reference_no,missing_qty,variant_id,item_ref,create_uid,update_uid')->where('void',0)->where('company_id',$user->company_id)->where('type','Missing');
+        $query = StockMovement::with(['createUser','updateUser','approveUser','transOutWarehouse'])->selectRaw('description as reason,type,updated_at,approved_date,approved_uid,created_at,from_location_id,status,id,reference_no,missing_qty,variant_id,item_ref,create_uid,update_uid')->where('void',0)->where('company_id',$user->company_id)->where('type','Missing');
         $missingItems = $query->get();
 
         $stockItems = GeneralSettingService::getStockItems($user);
@@ -1067,7 +1072,7 @@ class StockManagementController extends Controller
         $id = $req->id;
         $user = UserService::getAuthUser();
         $stockItems = GeneralSettingService::getStockItems($user);
-        $missintItem = StockMovement::with(['createUser','updateUser','approveUser','transOutWarehouse'])->selectRaw('type,approved_uid,updated_at,approved_date,created_at,from_location_id,status,id,reference_no,missing_qty,variant_id,item_ref,create_uid,update_uid')->where('void',0)->where('company_id',$user->company_id)->where('type','Missing')->find($id);
+        $missintItem = StockMovement::with(['createUser','updateUser','approveUser','transOutWarehouse'])->selectRaw('description as reason,type,approved_uid,updated_at,approved_date,created_at,from_location_id,status,id,reference_no,missing_qty,variant_id,item_ref,create_uid,update_uid')->where('void',0)->where('company_id',$user->company_id)->where('type','Missing')->find($id);
         if(!$missintItem) return ApiResponse::NotFound('Could not found the missing item');
         $stockItemDetails = $this->getStockMovementItemDetails($stockItems,$missintItem->item_ref);
         $missintItem->missing_qty = abs($missintItem->missing_qty);
@@ -1079,7 +1084,7 @@ class StockManagementController extends Controller
         $missintItem->created_at = date('Y-m-d',strtotime($missintItem->created_at));
 
         unset($missintItem->approveUser,$missintItem->createUser,$missintItem->updateUser,$missintItem->transOutWarehouse);
-        return ApiResponse::JsonResult($missintItem,'Get One Missing Item');
+        return ApiResponse::JsonResult($missintItem,false,'Get One Missing Item');
     }
 
     public function updateStockMissingItem(Request $req){
@@ -1214,7 +1219,7 @@ class StockManagementController extends Controller
 
     public function getTakeOutStock(Request $req){
         $user = UserService::getAuthUser();
-        $query = StockMovement::with(['createUser','updateUser','approveUser','transOutWarehouse'])->selectRaw('approved_uid,type,updated_at,approved_date,created_at,from_location_id,status,id,reference_no,adjustment_qty as take_out_qty,variant_id,item_ref,create_uid,update_uid')->where('void',0)->where('company_id',$user->company_id)->where('type','Take Out');
+        $query = StockMovement::with(['createUser','updateUser','approveUser','transOutWarehouse'])->selectRaw('description as reason,approved_uid,type,updated_at,approved_date,created_at,from_location_id,status,id,reference_no,adjustment_qty as take_out_qty,variant_id,item_ref,create_uid,update_uid')->where('void',0)->where('company_id',$user->company_id)->where('type','Take Out');
         $takeOutStocks = $query->get();
         $stockItems = GeneralSettingService::getStockItems($user);
         foreach($takeOutStocks as $item){
@@ -1235,7 +1240,7 @@ class StockManagementController extends Controller
         $id = $req->id;
         $user = UserService::getAuthUser();
         $stockItems = GeneralSettingService::getStockItems($user);
-        $takeOutStock = StockMovement::with(['createUser','updateUser','approveUser','transOutWarehouse'])->selectRaw('approved_uid,type,updated_at,approved_date,created_at,from_location_id,status,id,reference_no,adjustment_qty as take_out_qty,variant_id,item_ref,create_uid,update_uid')->where('void',0)->where('company_id',$user->company_id)->where('type','Take Out')->find($id);
+        $takeOutStock = StockMovement::with(['createUser','updateUser','approveUser','transOutWarehouse'])->selectRaw('description as reason,approved_uid,type,updated_at,approved_date,created_at,from_location_id,status,id,reference_no,adjustment_qty as take_out_qty,variant_id,item_ref,create_uid,update_uid')->where('void',0)->where('company_id',$user->company_id)->where('type','Take Out')->find($id);
         if(!$takeOutStock) return ApiResponse::NotFound('Could not found the take out item');
         $stockItemDetails = $this->getStockMovementItemDetails($stockItems,$takeOutStock->item_ref);
         $takeOutStock->take_out_qty = abs($takeOutStock->take_out_qty);
@@ -1246,7 +1251,7 @@ class StockManagementController extends Controller
         $takeOutStock->item_name = $stockItemDetails ? $stockItemDetails->product_name. ' |'.$stockItemDetails->product_details:'';
         $takeOutStock->created_at = date('Y-m-d',strtotime($takeOutStock->created_at));
         unset($takeOutStock->approveUser,$takeOutStock->createUser,$takeOutStock->updateUser,$takeOutStock->transOutWarehouse);
-        return ApiResponse::JsonResult($takeOutStock,'Get One Take Out Stock');
+        return ApiResponse::JsonResult($takeOutStock,false,'Get One Take Out Stock');
     }
 
     public function updateTakeOutStock(Request $req){
@@ -1281,7 +1286,8 @@ class StockManagementController extends Controller
 
     public function voidTakeOutStock(Request $req){
         $id = $req->id;
-        $user = UserService::getAuthUser();
+        $user = UserService::getAuthUser('void');
+        if($user->error) return ApiResponse::flex($user);
         $takeOutStock = StockMovement::where('company_id',$user->company_id)->where('type','Take Out')->find($id);
         if(!$takeOutStock) return ApiResponse::NotFound('Take out item not found');
         if($takeOutStock->status === 'approved') return ApiResponse::ValidateFail('You cannot void approved record!');
@@ -1295,6 +1301,7 @@ class StockManagementController extends Controller
 
     public function approveTakeOutStock(Request $req){
         $user = UserService::getAuthUser();
+        if($user->error) return ApiResponse::flex($user);
         $id = $req->id;
         $missingItem = StockMovement::where('company_id',$user->company_id)->where('type','Take Out')->find($id);
         if(!$missingItem) return ApiResponse::NotFound('Take out item not found.');
@@ -1333,6 +1340,7 @@ class StockManagementController extends Controller
 
     public function stockTransform(Request $req){
         $user = UserService::getAuthUser();
+        if($user->error) return ApiResponse::flex($user);
         $validate = validator($req->all(),[
             'from_warehouse_id' => 'required|int|exists:stock_locations,id',
             'to_warehouse_id' => 'required|int|exists:stock_locations,id',
@@ -1367,6 +1375,7 @@ class StockManagementController extends Controller
 
     public function getTransferList(Request $req){
         $user = UserService::getAuthUser();
+        if($user->error) return ApiResponse::flex($user);
         $transfers = StockMovement::where('company_id',$user->company_id)->where('branch_id',$user->branch_id)->whereIn('type',['Transfer Out'])->with(['transOutWarehouse','transInWarehouse'])->get();
         foreach($transfers as $tr){
             $tr->transfer_location = $tr->transOutWarehouse->name . ' To '. $tr->transInWarehouse->name;

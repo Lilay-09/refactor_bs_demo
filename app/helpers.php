@@ -84,6 +84,22 @@ class ApiResponse
             'message'=> $message
         ],200);
     }
+
+    static function Forbidden($message='Has no permmision to access')
+    {
+        return response()->json([
+            'error' => true,
+            'status' => 'Forbidden',
+            'message' => $message,
+            'errors' => []
+        ],403);
+    }
+
+    static function flex($objJson=null,$status_code=null){
+        $status_code = $status_code ?? $objJson->status_code ?? $objJson->data->status_code;
+        unset($objJson->data->status_code,$objJson->status_code);
+        return response()->json($objJson,$status_code);
+    }
 }
 
 class Helper{
@@ -464,6 +480,17 @@ class DataResponse //extends Model
             'page_no' => $currentPage,
             'errors'=>[],
             'message'=> null
+        ];
+    }
+
+    static function Forbidden($message='You has no permmision to access or do the action')
+    {
+        return (object)[
+            'status_code' => 403,
+            'error' => true,
+            'status' => 'Forbidden',
+            'message' => $message,
+            'errors' => []
         ];
     }
 }
