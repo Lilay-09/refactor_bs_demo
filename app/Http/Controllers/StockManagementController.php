@@ -933,6 +933,7 @@ class StockManagementController extends Controller
         if(in_array($targetCol,['take_out_qty','donation_qty'])){
             $targetCol = 'adjustment_qty';
             if($targetValue > 0) $targetValue = '-'.$targetValue;
+            $operator = null;
         }
         if($targetCol == 'tranfer_in_qty' || $targetCol == 'tranfer_out_qty') $inputs['transfer_uid'] = $userId;
         if($useAutoApprove){
@@ -952,6 +953,7 @@ class StockManagementController extends Controller
         }else{
             $inputs['create_uid'] = $userId;
             $inputs[$targetCol] = $operator.$targetValue;
+            var_dump($inputs);
             $create = StockMovement::create($inputs);
             $id = $create->id;
             if(!$create) return DataResponse::Error('Fail to create stock movement log!');
@@ -992,7 +994,7 @@ class StockManagementController extends Controller
                 if($missingQty < 0) return ApiResponse::ValidateFail('Invalid missing value!');
                 $existItem = Stock::where('company_id',$user->company_id)->where('id',$id)->orWhere('sku',$sku)->orWhere('barcode',$barcode)->first();
                 if(!$existItem) return DataResponse::ValidateFail('Item not found in warehouse');
-                if($missingQty > $existItem->qty) return DataResponse::ValidateFail('It seems like your stock quantity is lower than missing quantity. Stock found '.$existItem->qty.' unit');
+                if($missingQty > $existItem->qty) return DataResponse::ValidateFail('It seems like your stock quantity is lower than missing quantity. Stock found '.$existItem->qty.' unit by sku('.$sku.')');
                 // $variant = ProductVariant::with('product')->find($existItem->variant_id);
                 // $modelId = $variant->product->model_id;
                 // $categoryId = $variant->product->category_id;
@@ -1027,7 +1029,7 @@ class StockManagementController extends Controller
 
     public function getStockMissingItem(Request $req){
         $user = UserService::getAuthUser();
-        $query = StockMovement::with(['createUser','updateUser','approveUser','transOutWarehouse'])->selectRaw('updated_at,approved_date,created_at,from_location_id,status,id,reference_no,missing_qty,variant_id,item_ref,create_uid,update_uid')->where('void',0)->where('company_id',$user->company_id)->where('type','Missing');
+        $query = StockMovement::with(['createUser','updateUser','approveUser','transOutWarehouse'])->selectRaw('updated_at,approved_date,approved_uid,created_at,from_location_id,status,id,reference_no,missing_qty,variant_id,item_ref,create_uid,update_uid')->where('void',0)->where('company_id',$user->company_id)->where('type','Missing');
         $missingItems = $query->get();
 
         $stockItems = GeneralSettingService::getStockItems($user);
@@ -1057,7 +1059,7 @@ class StockManagementController extends Controller
         $id = $req->id;
         $user = UserService::getAuthUser();
         $stockItems = GeneralSettingService::getStockItems($user);
-        $missintItem = StockMovement::with(['createUser','updateUser','approveUser','transOutWarehouse'])->selectRaw('updated_at,approved_date,created_at,from_location_id,status,id,reference_no,missing_qty,variant_id,item_ref,create_uid,update_uid')->where('void',0)->where('company_id',$user->company_id)->where('type','Missing')->find($id);
+        $missintItem = StockMovement::with(['createUser','updateUser','approveUser','transOutWarehouse'])->selectRaw('approved_uid,updated_at,approved_date,created_at,from_location_id,status,id,reference_no,missing_qty,variant_id,item_ref,create_uid,update_uid')->where('void',0)->where('company_id',$user->company_id)->where('type','Missing')->find($id);
         if(!$missintItem) return ApiResponse::NotFound('Could not found the missing item');
         $stockItemDetails = $this->getStockMovementItemDetails($stockItems,$missintItem->item_ref);
         $missintItem->missing_qty = abs($missintItem->missing_qty);
@@ -1089,7 +1091,7 @@ class StockManagementController extends Controller
         if($missingItem->status === 'approved') return ApiResponse::Duplicated('This item has already been approved.');
         $existItem = Stock::where('company_id',$user->company_id)->orWhere('sku',$sku)->first();
         if(!$existItem) return DataResponse::ValidateFail('Item not found in warehouse');
-        if($qty > $existItem->qty) return DataResponse::ValidateFail('It seems like your stock quantity is lower than missing quantity. Stock found '.$existItem->qty.' unit');
+        if($qty > $existItem->qty) return DataResponse::ValidateFail('It seems like your stock quantity is lower than missing quantity. Stock found '.$existItem->qty.' unit by sku('.$sku.')');
         $reason = $inputs['reason'];
         $operator = $this->stockOperator['missing_qty'];
         $qty = $operator.$qty;
@@ -1107,6 +1109,7 @@ class StockManagementController extends Controller
         $user = UserService::getAuthUser();
         $missingItem = StockMovement::where('company_id',$user->company_id)->where('type','Missing')->find($id);
         if(!$missingItem) return ApiResponse::NotFound('Missing item not found');
+        if($missingItem->status === 'approved') return ApiResponse::ValidateFail('You cannot void approve record');
         $void = $missingItem->update([
             'void' => 1,
             'void_uid' => $user->id
@@ -1126,13 +1129,14 @@ class StockManagementController extends Controller
         $modelId = $variant->product->model_id;
         $categoryId = $variant->product->category_id;
         $condition = $variant->condition;
+        if(!$missingItem->item_ref) return ApiResponse::ValidateFail('Some fields contain invalid information, you cannot approve!');
         $approve = $missingItem->update([
             'approved_uid' => $user->id,
             'approved_date' => now(),
             'status' => 'approved'
         ]);
         if($approve){
-            $prepareStock = $this->prepareStock($missingItem->from_location_id,$missingItem->variant_id,'missing_qty',$missingQty,$user,$missingItem->cost,$missingItem->reference_no,$modelId,$categoryId,$condition);
+            $prepareStock = $this->prepareStock($missingItem->from_location_id,$missingItem->variant_id,'missing_qty',$missingQty,$user,$missingItem->cost,$missingItem->item_ref,$modelId,$categoryId,$condition);
             if($prepareStock->status_code == 422) return DataResponse::ValidateFail($prepareStock->message);
             if($prepareStock->status_code == 500) return DataResponse::Error($prepareStock->message);
             return ApiResponse::JsonResult(null,false,'Approved');
@@ -1163,7 +1167,7 @@ class StockManagementController extends Controller
                 if($takeOutQty < 0) return ApiResponse::ValidateFail('Invalid take out value!');
                 $existItem = Stock::where('company_id',$user->company_id)->where('id',$id)->orWhere('sku',$sku)->orWhere('barcode',$barcode)->first();
                 if(!$existItem) return DataResponse::ValidateFail('Item not found in warehouse');
-                if($takeOutQty > $existItem->qty) return DataResponse::ValidateFail('It seems like your stock quantity is lower than missing quantity. Stock found '.$existItem->qty.' unit');
+                if($takeOutQty > $existItem->qty) return DataResponse::ValidateFail('It seems like your stock quantity is lower than missing quantity. Stock found '.$existItem->qty.' unit by sku('.$sku.')');
                 $stockMovement = $this->createStockMovementLog([
                     'from_location_id' => $existItem->stock_location_id,
                     'variant_id' => $existItem->variant_id,

@@ -29,6 +29,7 @@ class StockMovement extends Model
         'approved_uid',
         'approved_date',
         'description',
+        'adjustment_qty',
         'create_uid',
         'update_uid',
         'branch_id',
