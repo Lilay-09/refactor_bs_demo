@@ -196,7 +196,7 @@ Route::middleware('jwt')->group(function(){
                 Route::get('',[StockManagementController::class,'getTransferList']);
             });
             Route::prefix('missing')->group(function(){
-                Route::post('',[StockManagementController::class,'stockMissingItem']);
+                Route::post('',[StockManagementController::class,'createStockMissingItem']);
                 Route::get('',[StockManagementController::class,'getStockMissingItem']);
                 Route::get('/{id}',[StockManagementController::class,'getOneStockMissingItem']);
                 Route::put('/{id}',[StockManagementController::class,'updateStockMissingItem']);

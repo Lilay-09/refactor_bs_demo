@@ -16,6 +16,8 @@ use App\Models\ReceiptItem;
 use App\Models\ReceivePo;
 use App\Models\ReceivePoItem;
 use App\Models\Stock;
+use App\Models\StockAdjustment;
+use App\Models\StockAdjustmentDetail;
 use App\Models\StockLocation;
 use App\Models\StockMovement;
 use App\Services\AuthService;
@@ -771,8 +773,9 @@ class StockManagementController extends Controller
             //** take one stock ending qty where created_at < today */
             $targetColValue += $operator.$targetValue;
             $stock = DailyStock::where('branch_id',$branchId)->where('variant_id',$variant_id)->where('stock_location_id',$stockLocationId)->orderBy('created_at','DESC')->where('created_at','<',$today)->first();
-            if($stock->ending_qty <=0) return DataResponse::ValidateFail('Stock qty found '.$stock->ending_qty);
+
             if($stock) {
+                if($stock->ending_qty  <=0) return DataResponse::ValidateFail('Stock qty found '.$stock->ending_qty);
                 $endingQty += $stock->ending_qty + ($operator.$targetValue);
                 $beginQty = $stock->ending_qty;
             }else{
@@ -975,62 +978,52 @@ class StockManagementController extends Controller
     }
 
 
-    // public function stockTransfer(Request $req){
-        // $user = UserService::getAuthUser();
-        // $validate = validator($req->all(),[
-        //     'from_warehouse_id' => 'required|int|exists:stock_locations,id',
-        //     'to_warehouse_id' => 'required|int|exists:stock_locations,id',
-        //     'ref_number' => 'nullable|string|max:30',
-        //     'items' => 'required|array',
-        // ]);
-
-        // if($validate->fails()) return ApiResponse::ValidateFail($validate->errors()->first());
-    // }
-
 
     //** Missing Item */
-    public function stockMissingItem(Request $req){
-        $user = UserService::getAuthUser();
-        $validate = validator($req->all(),[
+    public function stockAdjustmentValidation(Request $req){
+        return validator($req->all(),[
+            'reason' => 'nullable|max:300',
             'items' => 'required|array',
+            'warehouse_id' => 'required|int|exists:stock_locations,id'
         ]);
+    }
+
+    public function stockAdjustItemValidation(Request $req){
+        return validator($req->all(),[
+            'sku' => 'required|string|exists:stocks,sku',
+            'qty' => 'required|int|min:1',
+            'stock_adjustment_id' => 'required|exists:stock_adjustments,id',
+            'reason' => 'nullable|string|max:200'
+        ]);
+    }
+
+    public function createStockMissingItem(Request $req){
+        $user = UserService::getAuthUser();
+        $validate = $this->stockAdjustmentValidation($req);
         if($validate->fails()) return ApiResponse::ValidateFail($validate->errors()->first());
         $inputs = $validate->validated();
         $items = $inputs['items'];
+        unset($inputs['items']);
         DB::beginTransaction();
         try{
-            foreach($items as $key=>$item){
-                $missingQty = $item['qty'];
-                $id = $item['id'] ?? null;
-                $sku = $item['sku'] ?? null;
-                $barcode = $item['barcode'] ?? null;
-                if($missingQty < 0) return ApiResponse::ValidateFail('Invalid missing value!');
-                $existItem = Stock::where('company_id',$user->company_id)->where('id',$id)->orWhere('sku',$sku)->orWhere('barcode',$barcode)->first();
-                if(!$existItem) return DataResponse::ValidateFail('Item not found in warehouse');
-                if($missingQty > $existItem->qty) return DataResponse::ValidateFail('It seems like your stock quantity is lower than missing quantity. Stock found '.$existItem->qty.' unit by sku('.$sku.')');
-                // $variant = ProductVariant::with('product')->find($existItem->variant_id);
-                // $modelId = $variant->product->model_id;
-                // $categoryId = $variant->product->category_id;
-                // $condition = $variant->condition;
-                $stockMovement = $this->createStockMovementLog([
-                    'from_location_id' => $existItem->stock_location_id,
-                    'variant_id' => $existItem->variant_id,
-                    'description'=>$inputs['reason'] ?? null,
-                    'cost' => $existItem->cost,
-                    'item_ref' => $existItem->sku,
-                    'retail_price' => $existItem->retail_price,
-                    'wholesale_price' => $existItem->wholesale_price,
-                ],'missing_qty',$missingQty,$user,useAutoApprove: false,alwaysCreate: true);
-                if($stockMovement->status_code == 422) return DataResponse::ValidateFail($stockMovement->message);
-
-                //** Set code */
-                $missingCode = 'MISS-'.str_pad($stockMovement->data->id, 8, '0', STR_PAD_LEFT);
-                StockMovement::find($stockMovement->data->id)->update([
-                    'reference_no' => $missingCode
-                ]);
-            }
+            $inputs['create_uid'] = $user->id;
+            $inputs['update_uid'] = $user->id;
+            $inputs['branch_id'] = $user->branch_id;
+            $inputs['company_id'] = $user->company_id;
+            $inputs['type'] = 'Missing';
+            $warehouseId = $inputs['warehouse_id'];
+            $create = StockAdjustment::create($inputs);
+            if(!$create) return ApiResponse::Error('Fail to create!');
+            $missingCode = 'MISS-'.str_pad($create->id, 8, '0', STR_PAD_LEFT);
+            StockAdjustment::find($create->id)->update([
+                'ref_code' => $missingCode
+            ]);
+            $mergeItem = $this->mergerAdjustmentDetails($items,$create->id);
+            if($mergeItem->error) return ApiResponse::flex($mergeItem);
+            $items = $mergeItem->data;
+            $createItems = $this->createOrUpdateAdjustmentDetails($items,$create->id,$warehouseId,$missingCode,$user,'missing_qty');
+            if($createItems->error) return ApiResponse::flex($createItems);
             DB::commit();
-            // return StockMovement::where('type','Missing')->get();
             return ApiResponse::JsonResult(null,false,'Created');
         }catch(Exception $e){
             Log::error($e->getMessage());
@@ -1040,21 +1033,163 @@ class StockManagementController extends Controller
         }
     }
 
+    public function voidAllMissingStock(Request $req){
+        $id = $req->id;
+        $user = UserService::getAuthUser();
+        $missingStock = StockAdjustment::where('company_id',$user->company_id)->where('type','Missing')->find($id);
+        if(!$missingStock) return ApiResponse::NotFound('Missing Stock not found!');
+        $void = $missingStock->update([
+            'void_uid' => $user->branch_id,
+            'void' => 1,
+        ]);
+        if($void) {
+            StockAdjustmentDetail::where('stock_adjustment_id',$id)->update([
+                'void_uid' => $user->id,
+                'void' => 1,
+            ]);
+            return ApiResponse::JsonResult(null,false,'All items has been voided!');
+        }
+        return ApiResponse::Error('Fail to void item');
+    }
+    public function voidByCheckItem(Request $req){
+        $id = $req->id;
+        $user = UserService::getAuthUser();
+        $missingStock = StockAdjustment::where('company_id',$user->company_id)->where('type','Missing')->find($id);
+        if(!$missingStock) return ApiResponse::NotFound('Missing Stock not found!');
+        $items = $req->items;
+        $skipRows = null;
+        $success = 0;
+        if(!$items) return ApiResponse::ValidateFail('Please input valid items');
+        foreach($items as $key=>$item){
+            $id = $item['id'] ?? null;
+            if(!$id) return ApiResponse::ValidateFail('Please provide item identity!');
+            $detail = StockAdjustmentDetail::where('stock_adjustment_id',$id)->find($id);
+            if($detail->void) {
+                $skipRows .= ($key+1).',';
+            }else{
+                $detail->update([
+                    'void' => 1,
+                    'void_uid' => $user->id
+                ]);
+                $success += 1;
+            }
+        }
+        return ApiResponse::JsonResult((object)[
+            'success' => $success,
+            'skip_rows' => $skipRows
+        ]);
+    }
+
+    public function voidByItem(Request $req){
+        $id = $req->id;
+        $user = UserService::getAuthUser();
+    }
+
+    /**
+     * alert approve and unapproved count
+     * approve all
+     * approve by check item
+     * approve specific row
+     */
+
+    private function mergerAdjustmentDetails($items,$adjustId){
+        $mergeArr = [];
+        foreach($items as $item){
+            $item['stock_adjustment_id'] = $adjustId;
+            $id = $item['id'] ?? null;
+            $reqItem = new Request($item);
+            $validateItem = $this->stockAdjustItemValidation($reqItem);
+            if($validateItem->fails()) return DataResponse::ValidateFail($validateItem->errors()->first());
+            $inputs = $validateItem->validated();
+            $reason = $inputs['reason'] ?? null;
+            $key = $inputs['sku'].'-'.$reason.'-'.$id;
+            $inputs['id'] = $id;
+            if(isset($mergeArr[$key])){
+                $mergeArr[$key]['qty'] += $inputs['qty'];
+            }else{
+                $mergeArr[$key] = $inputs;
+            }
+        }
+
+        return DataResponse::JsonResult(array_values($mergeArr));
+
+    }
+
+    private function createOrUpdateAdjustmentDetails($items,$adjustId,$warehouseId,$missingCode,$user,$targetCol){
+        $keepItems = [];
+        foreach($items as $key=>$item){
+            $item['stock_adjustment_id'] = $adjustId;
+            $id = $item['id'] ?? null;
+
+            $reqItem = new Request($item);
+            $validateItem = $this->stockAdjustItemValidation($reqItem);
+            if($validateItem->fails()) return DataResponse::ValidateFail($validateItem->errors()->first());
+            $item = $validateItem->validated();
+            $qty = $item['qty'];
+            $sku = $item['sku'];
+            if($qty < 0) return DataResponse::ValidateFail('Invalid missing value!');
+            $existItem = Stock::where('company_id',$user->company_id)->orWhere('sku',$sku)->where('stock_location_id',$warehouseId)->first();
+            if(!$existItem) return DataResponse::ValidateFail('Item not found in warehouse');
+            if($qty > $existItem->qty) return DataResponse::ValidateFail('It seems like your stock quantity is lower than missing quantity. Stock found '.$existItem->qty.' unit by sku('.$sku.')');
+            $item['update_uid'] = $user->id;
+            $item['company_id'] = $user->company_id;
+            $item['branch_id'] = $user->branch_id;
+            $item['status'] = 'pending';
+            $item['warehouse_id'] = $warehouseId;
+            $item['item_ref'] = $sku;
+            unset($item['sku']);
+            if($id){
+                $adjustItem = StockAdjustmentDetail::where('void',0)->find($id);
+                if(!$adjustItem) return DataResponse::NotFound('Adjustment details not found by row '.($key+1));
+                $keepItems['id'] = $id;
+                $update = $adjustItem->update($item);
+                if(!$update) return DataResponse::Error('Fail to update');
+                // $stockMovement = $this->createStockMovementLog([
+                //     'from_location_id' => $warehouseId,
+                //     'variant_id' => $existItem->variant_id,
+                //     'description'=>$inputs['reason'] ?? null,
+                //     'cost' => $existItem->cost,
+                //     'item_ref' => $existItem->sku,
+                //     'reference_no' => $missingCode,
+                //     'retail_price' => $existItem->retail_price,
+                //     'wholesale_price' => $existItem->wholesale_price,
+                // ],$targetCol,$qty,$user,useAutoApprove: false,alwaysCreate: true);
+            }else{
+                $item['create_uid'] = $user->id;
+                $createDetails = StockAdjustmentDetail::create($item);
+                $keepItems['id'] = $createDetails->id;
+                if(!$createDetails) return DataResponse::Error('Fail to create missing details.');
+                $stockMovement = $this->createStockMovementLog([
+                    'from_location_id' => $warehouseId,
+                    'variant_id' => $existItem->variant_id,
+                    'description'=>$inputs['reason'] ?? null,
+                    'cost' => $existItem->cost,
+                    'item_ref' => $existItem->sku,
+                    'reference_no' => $missingCode,
+                    'retail_price' => $existItem->retail_price,
+                    'wholesale_price' => $existItem->wholesale_price,
+                ],$targetCol,$qty,$user,useAutoApprove: false,alwaysCreate: true);
+                if($stockMovement->status_code == 422) return DataResponse::ValidateFail($stockMovement->message);
+            }
+        }
+        //** if not provide delete */
+        StockAdjustmentDetail::where('stock_adjustment_id',$adjustId)->whereNotIn('id',$keepItems)->delete();
+        return DataResponse::JsonResult(null,false,'Saved');
+    }
+
     public function getStockMissingItem(Request $req){
         $user = UserService::getAuthUser();
-        $query = StockMovement::with(['createUser','updateUser','approveUser','transOutWarehouse'])->selectRaw('description as reason,type,updated_at,approved_date,approved_uid,created_at,from_location_id,status,id,reference_no,missing_qty,variant_id,item_ref,create_uid,update_uid')->where('void',0)->where('company_id',$user->company_id)->where('type','Missing');
+        $query = StockAdjustment::where('type','Missing')->where('void',0)->with(['warehouse','createUser','updateUser','approveUser'])->selectRaw('id,ref_code,reason,type,status,approved_uid,approved_date,create_uid,update_uid,warehouse_id');
         $missingItems = $query->get();
-
         $stockItems = GeneralSettingService::getStockItems($user);
         foreach($missingItems as $item){
             $stockItemDetails = $this->getStockMovementItemDetails($stockItems,$item->item_ref);
             $item->create_user_name = $item->createUser->user_name;
-            $item->missing_qty = abs($item->missing_qty);
             $item->update_user_name = $item->updateUser->user_name;
             $item->approve_user_name = $item->approveUser ? $item->approveUser->user_name : null;
-            $item->warehouse = $item->transOutWarehouse ? $item->transOutWarehouse->name : null;
-            $item->item_name = $stockItemDetails ? $stockItemDetails->product_name. ' |'.$stockItemDetails->product_details:'';
-            unset($item->createUser,$item->approveUser,$item->updateUser,$item->transOutWarehouse);
+            $item->warehouse_name = $item->warehouse ? $item->warehouse->name : null;
+            // $item->item_name = $stockItemDetails ? $stockItemDetails->product_name. ' |'.$stockItemDetails->product_details:'';
+            unset($item->createUser,$item->approveUser,$item->updateUser,$item->warehouse);
         }
         return ApiResponse::Pagination($missingItems,$req,'Get All Missing Items');
     }
@@ -1072,49 +1207,79 @@ class StockManagementController extends Controller
         $id = $req->id;
         $user = UserService::getAuthUser();
         $stockItems = GeneralSettingService::getStockItems($user);
-        $missintItem = StockMovement::with(['createUser','updateUser','approveUser','transOutWarehouse'])->selectRaw('description as reason,type,approved_uid,updated_at,approved_date,created_at,from_location_id,status,id,reference_no,missing_qty,variant_id,item_ref,create_uid,update_uid')->where('void',0)->where('company_id',$user->company_id)->where('type','Missing')->find($id);
-        if(!$missintItem) return ApiResponse::NotFound('Could not found the missing item');
-        $stockItemDetails = $this->getStockMovementItemDetails($stockItems,$missintItem->item_ref);
+        $missintItem = StockAdjustment::with(['warehouse','createUser','updateUser','approveUser','details:id,stock_adjustment_id,item_ref as sku,qty,reason,status,approved_date,approved_uid,update_uid,create_uid'])->selectRaw('id,ref_code,reason,type,status,approved_uid,approved_date,create_uid,update_uid,warehouse_id')->where('void',0)->where('company_id',$user->company_id)->where('type','Missing')->find($id);
+        if(!$missintItem) return ApiResponse::NotFound('Could not found the missing stock');
         $missintItem->missing_qty = abs($missintItem->missing_qty);
         $missintItem->create_user_name = $missintItem->createUser->user_name;
         $missintItem->update_user_name = $missintItem->updateUser->user_name;
         $missintItem->approve_user_name = $missintItem->approveUser ? $missintItem->approveUser->user_name : null;
-        $missintItem->warehouse = $missintItem->transOutWarehouse ? $missintItem->transOutWarehouse->name : null;
-        $missintItem->item_name = $stockItemDetails ? $stockItemDetails->product_name. ' |'.$stockItemDetails->product_details:'';
+        $missintItem->warehouse_name = $missintItem->warehouse ? $missintItem->warehouse->name : null;
         $missintItem->created_at = date('Y-m-d',strtotime($missintItem->created_at));
+        $approvedCount = 0;
+        $unapprovedCount = 0;
+        foreach($missintItem->details as $detail){
+            $stockItemDetails = $this->getStockMovementItemDetails($stockItems,$detail->sku);
+            $detail->create_user_name = $detail->createUser->user_name;
+            $detail->update_user_name = $detail->updateUser->user_name;
+            $detail->approve_user_name = $detail->approveUser ? $detail->approveUser->user_name : null;
+            $detail->item_name = $stockItemDetails ? $stockItemDetails->product_name. ' |'.$stockItemDetails->product_details:'';
+            if($detail->status === 'approved') $approvedCount +=1;
+            else $unapprovedCount += 1;
+            unset($detail->createUser,$detail->approveUser,$detail->updateUser);
+        }
+        $missintItem->approved_count = $approvedCount;
+        $missintItem->unapproved_count = $unapprovedCount;
 
-        unset($missintItem->approveUser,$missintItem->createUser,$missintItem->updateUser,$missintItem->transOutWarehouse);
-        return ApiResponse::JsonResult($missintItem,false,'Get One Missing Item');
+        unset($missintItem->approveUser,$missintItem->createUser,$missintItem->updateUser,$missintItem->warehouse);
+        return ApiResponse::JsonResult($missintItem,false,'Get One Missing Stock');
     }
+
 
     public function updateStockMissingItem(Request $req){
         $id = $req->id;
         $user = UserService::getAuthUser();
-        $validate = validator($req->all(),[
-            'sku' => 'required|string|exists:stocks,sku',
-            'qty' => 'required|int',
-            'reason' => 'nullable|string|max:250'
-        ]);
+        $validate = $this->stockAdjustmentValidation($req);
         if($validate->fails()) return ApiResponse::ValidateFail($validate->errors()->first());
         $inputs = $validate->validated();
-        $qty = $inputs['qty'];
-        $sku = $inputs['sku'];
-        $missingItem = StockMovement::where('company_id',$user->company_id)->where('type','Missing')->find($id);
+        $missingItem = StockAdjustment::where('company_id',$user->company_id)->where('type','Missing')->find($id);
         if(!$missingItem) return ApiResponse::NotFound('Missing item not found');
-        if($missingItem->status === 'approved') return ApiResponse::Duplicated('You cannot modify approved item!');
-        $existItem = Stock::where('company_id',$user->company_id)->orWhere('sku',$sku)->first();
-        if(!$existItem) return DataResponse::ValidateFail('Item not found in warehouse');
-        if($qty > $existItem->qty) return DataResponse::ValidateFail('It seems like your stock quantity is lower than missing quantity. Stock found '.$existItem->qty.' unit by sku('.$sku.')');
-        $reason = $inputs['reason'];
-        $operator = $this->stockOperator['missing_qty'];
-        $qty = $operator.$qty;
-        $update = $missingItem->update([
-            'missing_qty' => $qty,
-            'item_ref' => $sku,
-            'description' => $reason
-        ]);
-        if(!$update) return ApiResponse::Error('Fail to update');
-        return ApiResponse::JsonResult(null,false,'Updated');
+        if($missingItem->status === 'all approved') return ApiResponse::Duplicated('You cannot modify approved!');
+        $items = $inputs['items'];
+        unset($inputs['items']);
+        DB::beginTransaction();
+        try{
+            $inputs['update_uid'] = $user->id;
+            $inputs['branch_id'] = $user->branch_id;
+            $inputs['company_id'] = $user->company_id;
+            $update = $missingItem->update($inputs);
+            if(!$update) return ApiResponse::Error('Fail to update missing stock');
+            $mergeItem = $this->mergerAdjustmentDetails($items,$id);
+            if($mergeItem->error) return ApiResponse::flex($mergeItem);
+            $items = $mergeItem->data;
+            $updateItems = $this->createOrUpdateAdjustmentDetails($items,$id,$missingItem->warehouse_id,$missingItem->ref_code,$user,'missing_qty');
+            if($updateItems->error) return ApiResponse::flex($updateItems);
+            DB::commit();
+            return ApiResponse::JsonResult(null,false,'Updated');
+        }catch(Exception $e){
+            Log::error($e->getMessage());
+            Log::error($e->getTraceAsString());
+            DB::rollBack();
+            return ApiResponse::Error('Fail to save missing item');
+        }
+
+        // $existItem = Stock::where('company_id',$user->company_id)->where('sku',$sku)->first();
+        // if(!$existItem) return DataResponse::ValidateFail('Item not found in warehouse');
+        // if($qty > $existItem->qty) return DataResponse::ValidateFail('It seems like your stock quantity is lower than missing quantity. Stock found '.$existItem->qty.' unit by sku('.$sku.')');
+        // $reason = $inputs['reason'];
+        // $operator = $this->stockOperator['missing_qty'];
+        // $qty = $operator.$qty;
+        // $update = $missingItem->update([
+        //     'missing_qty' => $qty,
+        //     'item_ref' => $sku,
+        //     'description' => $reason
+        // ]);
+        // if(!$update) return ApiResponse::Error('Fail to update');
+        // return ApiResponse::JsonResult(null,false,'Updated');
     }
 
     public function voidStockMissingItem(Request $req){
