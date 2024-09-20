@@ -102,12 +102,10 @@ class PosController extends Controller
         if($mergeService->status_code == 404) return ApiResponse::NotFound($mergeService->message);
         DB::beginTransaction();
         try{
-
             $getInvoice = $this->generateInvoice($req,$mergeItems,$mergeService,$discountInfo,$tax,$user,$customer);
             if($getInvoice->status_code == 422) return ApiResponse::ValidateFail($getInvoice->message);
             if($getInvoice->status_code == 404) return ApiResponse::NotFound($getInvoice->message);
             if($getInvoice->status_code == 500) return ApiResponse::Error($getInvoice->message);
-
             DB::commit();
             // return Invoice::get();
             return ApiResponse::JsonResult(null,false,'Created');

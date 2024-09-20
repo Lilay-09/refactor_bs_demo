@@ -321,6 +321,7 @@ Route::middleware('jwt')->group(function(){
 
         Route::prefix('form')->group(function(){
             Route::get('product',[GeneralSettingController::class,'getFormProduct']);
+            Route::get('adjustment',[GeneralSettingController::class,'getFormAdjustment']);
             Route::get('user',[GeneralSettingController::class,'getFormUser']);
             Route::get('purchase',[GeneralSettingController::class,'formPurchase']);
             Route::get('transfer',[GeneralSettingController::class,'formTransfer']);

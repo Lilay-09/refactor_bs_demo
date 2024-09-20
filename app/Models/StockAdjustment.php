@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use Carbon\Carbon;
+use Config;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
@@ -25,6 +27,21 @@ class StockAdjustment extends Model
         'company_id',
         'branch_id',
     ];
+
+    protected $casts = [
+        'created_at' => 'datetime:Y-m-d H:i:s',
+        'updated_at' => 'datetime:Y-m-d H:i:s'
+    ];
+
+    public function getCreatedAtAttribute($value)
+    {
+        return Carbon::parse($value)->setTimezone(config('app.timezone'))->format('Y-m-d H:i:s');
+    }
+
+    public function getUpdatedAtAttribute($value)
+    {
+        return Carbon::parse($value)->setTimezone(config('app.timezone'))->format('Y-m-d H:i:s');
+    }
 
     public function warehouse(){
         return $this->belongsTo(StockLocation::class,'warehouse_id','id');
