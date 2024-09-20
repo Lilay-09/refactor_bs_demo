@@ -200,8 +200,12 @@ Route::middleware('jwt')->group(function(){
                 Route::get('',[StockManagementController::class,'getStockMissingItem']);
                 Route::get('/{id}',[StockManagementController::class,'getOneStockMissingItem']);
                 Route::put('/{id}',[StockManagementController::class,'updateStockMissingItem']);
-                Route::put('approve/{id}',[StockManagementController::class,'approveMissingItem']);
-                Route::delete('void/{id}',[StockManagementController::class,'voidStockMissingItem']);
+                Route::put('approve/item/{id}',[StockManagementController::class,'approveMissingItemById']);
+                Route::put('approve/list/{id}',[StockManagementController::class,'approveListMissingItems']);
+                Route::put('approve/all/{id}',[StockManagementController::class,'approveAllMissingItems']);
+                Route::delete('void/all/{id}',[StockManagementController::class,'voidAllMissingStock']);
+                Route::delete('void/list/{id}',[StockManagementController::class,'voidByCheckItem']);
+                Route::delete('void/item/{id}',[StockManagementController::class,'voidByItem']);
             });
 
             Route::prefix('takeOut')->group(function(){
