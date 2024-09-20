@@ -1164,7 +1164,7 @@ class StockManagementController extends Controller
                 $update = $adjustItem->update($item);
                 if(!$update) return DataResponse::Error('Fail to update');
                 $operator = $this->stockOperator['missing_qty'];
-                StockMovement::where('reference_no',$id)->update([
+                StockMovement::where('reference_no',$id)->where('company_id',$user->company_id)->update([
                     'item_ref' => $existItem->sku,
                     'variant_id' => $existItem->variant_id,
                     'missing_qty' => $operator.$qty,
@@ -1201,12 +1201,10 @@ class StockManagementController extends Controller
         $missingItems = $query->get();
         $stockItems = GeneralSettingService::getStockItems($user);
         foreach($missingItems as $item){
-            $stockItemDetails = $this->getStockMovementItemDetails($stockItems,$item->item_ref);
             $item->create_user_name = $item->createUser->user_name;
             $item->update_user_name = $item->updateUser->user_name;
             $item->approve_user_name = $item->approveUser ? $item->approveUser->user_name : null;
             $item->warehouse_name = $item->warehouse ? $item->warehouse->name : null;
-            // $item->item_name = $stockItemDetails ? $stockItemDetails->product_name. ' |'.$stockItemDetails->product_details:'';
             unset($item->createUser,$item->approveUser,$item->updateUser,$item->warehouse);
         }
         return ApiResponse::Pagination($missingItems,$req,'Get All Missing Items');
@@ -1300,25 +1298,67 @@ class StockManagementController extends Controller
         return ApiResponse::Error('Fail to void');
     }
 
-    public function approveListMissingItems(){
-
+    public function approveListMissingItems(Request $req){
+        $user = UserService::getAuthUser();
+        $id = $req->id;
+        $items = $req->items ?? [];
+        if(empty($items)) return ApiResponse::ValidateFail('Please provide list of approve items');
+        $missingStock = StockAdjustment::where('void',0)->where('company_id',$user->company_id)->find($id);
+        if(!$missingStock) return ApiResponse::NotFound('Missing stock not found');
+        if($missingStock->status === 'all approved') return ApiResponse::Duplicated('All items were approved, you cannot approve again!');
+        DB::beginTransaction();
+        try{
+            foreach($items as $key=>$item){
+                $rowId = $item['id'] ?? null;
+                if(!$rowId) return ApiResponse::ValidateFail('Please provide item identity!');
+                $detail = StockAdjustmentDetail::find($rowId);
+                if(!$detail) return ApiResponse::NotFound('Adjustment Item not found by row '.($key + 1).'.');
+                $missingQty = $detail->qty;
+                $prepareStock = $this->prepareStock($missingStock->warehouse_id,$detail->variant_id,'missing_qty',$missingQty,$user,$detail->cost,$detail->item_ref);
+                if($prepareStock->error) return ApiResponse::flex($prepareStock);
+                $this->updateAdjustmentStock($id,$user);
+                return Stock::get();
+            }
+        }catch(Exception $e){
+            Log::error($e->getMessage());
+            Log::error($e->getTraceAsString());
+            DB::rollBack();
+            return ApiResponse::Error('Fail to approve missing item');
+        }
     }
 
-    public function approveAllMissingItems(){
+    public function approveAllMissingItems(Request $req){
+        $id = $req->id;
+        $user = UserService::getAuthUser();
+        $missingStock = StockAdjustment::where('void',0)->where('company_id',$user->company_id)->find($id);
+        if(!$missingStock) return ApiResponse::NotFound('Missing stock not found');
+        if($missingStock->status === 'all approved') return ApiResponse::Duplicated('All items were approved, you cannot approve again!');
+        $missingStock->update([
+            'status' => 'all approved',
+            'approved_date' => now(),
+            'approved_uid' => $user->id
+        ]);
+        StockAdjustmentDetail::where('stock_adjustment_id',$id)->update([
+            'status' => 'approved',
+            'approved_date' => now(),
+            'approved_uid' => $user->id
+        ]);
 
+        return ApiResponse::JsonResult(null,false,'All items has approved!');
     }
 
     public function approveMissingItemById(Request $req){
         $id = $req->id;
         $user = UserService::getAuthUser();
-        $detail = StockAdjustmentDetail::where('void',0)->find($id);
+        $detail = StockAdjustmentDetail::where('void',0)->where('company_id',$user->company_id)->find($id);
         if(!$detail) return ApiResponse::NotFound('Item not found');
         $warehouseId = StockAdjustment::where('void',0)->where('id',$detail->stock_adjustment_id)->take(1)->value('warehouse_id');
         if(!$warehouseId) return ApiResponse::NotFound('Warehouse not found!');
+        if($detail->status == 'approved') return ApiResponse::Duplicated('This item has already approved!');
         DB::beginTransaction();
         try{
             $detail->update([
-                'status' => 'approve',
+                'status' => 'approved',
                 'approved_uid' => $user->id,
                 'approved_date' => now(),
             ]);
@@ -1326,9 +1366,9 @@ class StockManagementController extends Controller
             $prepareStock = $this->prepareStock($warehouseId,$detail->variant_id,'missing_qty',$missingQty,$user,$detail->cost,$detail->item_ref);
             if($prepareStock->error) return ApiResponse::flex($prepareStock);
             DB::commit();
-            // return Stock::where('sku',$detail->item_ref)->get();
             //** Update Parent Status */
-            return ApiResponse::JsonResult(null,false,'Approved! Your stock has been reduced by 15 units out.');
+            $this->updateAdjustmentStock($detail->stock_adjustment_id,$user);
+            return ApiResponse::JsonResult(null,false,'Approved! Your stock has been reduced by '.$missingQty.' unit(s) out.');
         }catch(Exception $e){
             Log::error($e->getMessage());
             Log::error($e->getTraceAsString());
@@ -1337,13 +1377,26 @@ class StockManagementController extends Controller
         }
     }
 
-    private function udpateMissingStockStatus($id){
-        $queryChildren = StockAdjustmentDetail::where('stock_adjustment_id')->where('void',0);
+    private function updateAdjustmentStock($id,$user){
+        $queryChildren = StockAdjustmentDetail::where('company_id',$user->company_id)->where('stock_adjustment_id',$id)->where('void',0);
         $childCount = $queryChildren->count();
         $children = $queryChildren->get();
+        $approveCount = 0;
         foreach($children as $child){
-
+            if($child->status == 'approved') $approveCount +=1;
         }
+        if($approveCount > 0 || $approveCount > $childCount){
+            StockAdjustment::where('company_id',$user->company_id)->find($id)->update([
+                'status' => 'partially approved',
+                'approved_uid' => $user->id,
+                'approved_date' => now(),
+            ]);
+        }
+        if($approveCount == $childCount) StockAdjustment::where('company_id',$user->company_id)->find($id)->update([
+            'status' => 'all approved',
+            'approved_uid' => $user->id,
+            'approved_date' => now(),
+        ]);
     }
 
     public function approveMissingItem(Request $req){
