@@ -56,6 +56,16 @@ class GeneralSettingController extends Controller
         return ApiResponse::JsonResult($obj);
     }
 
+    public function getFormAdjustment(){
+        $user = UserService::getAuthUser();
+        $obj = (object)[
+            'warehouses' => $this->gs::getWarhouses($user),
+            'statuses' => $this->gs::getAdjustmentStatuses(),
+            'approve_statuses' => $this->gs::getAdjustmentApproveStatuses(),
+        ];
+        return ApiResponse::JsonResult($obj);
+    }
+
 
     public function getWarehouses (){
         $user = UserService::getAuthUser();

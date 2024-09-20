@@ -1197,15 +1197,39 @@ class StockManagementController extends Controller
 
     public function getStockMissingItem(Request $req){
         $user = UserService::getAuthUser();
-        $query = StockAdjustment::where('type','Missing')->where('void',0)->with(['warehouse','createUser','updateUser','approveUser'])->selectRaw('id,ref_code,reason,type,status,approved_uid,approved_date,create_uid,update_uid,warehouse_id');
+        $search = $req->search ?? null;
+        $startDate = $req->startDate ?? null;
+        $endDate = $req->endDate ?? null;
+        $status = $req->status ?? null;
+        $query = StockAdjustment::where('type','Missing')->where('void',0)->where('company_id',$user->company_id)->with(['warehouse','createUser','updateUser','approveUser'])->selectRaw('id,ref_code,reason,type,status,approved_uid,approved_date,create_uid,update_uid,warehouse_id,created_at,updated_at');
+        if($search){
+            $query->where('ref_code','ilike','%'.$search.'%')
+            ->orWhereHas('details',function($q) use($search){
+                $q->where('item_ref','ilike','%'.$search.'%');
+            });
+        }
+        if($status){
+            $statusArr = explode(',',$status);
+            $query->whereIn('status',$statusArr);
+        }
+        if($startDate && $endDate){
+            $startDate = strtotime($startDate);
+            $endDate = strtotime($endDate);
+            $query->whereBetween('approved_date',[$startDate,$endDate]);
+        }
         $missingItems = $query->get();
-        $stockItems = GeneralSettingService::getStockItems($user);
+        $totalQty = 0;
         foreach($missingItems as $item){
             $item->create_user_name = $item->createUser->user_name;
             $item->update_user_name = $item->updateUser->user_name;
             $item->approve_user_name = $item->approveUser ? $item->approveUser->user_name : null;
             $item->warehouse_name = $item->warehouse ? $item->warehouse->name : null;
             unset($item->createUser,$item->approveUser,$item->updateUser,$item->warehouse);
+            $item->total_qty = 0;
+            foreach($item->details as $detail){
+                $item->total_qty += $detail->qty;
+            }
+            unset($item->details);
         }
         return ApiResponse::Pagination($missingItems,$req,'Get All Missing Items');
     }

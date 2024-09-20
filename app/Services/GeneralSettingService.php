@@ -61,6 +61,35 @@ class GeneralSettingService
         return StockLocation::where('company_id',$user->company_id)->selectRaw('id,name')->get();
     }
 
+    static function getAdjustmentStatuses(){
+        return [
+            (object)[
+                'label' => 'Pending',
+                'value' => 'pending'
+            ],
+            (object)[
+                'label' => 'Partially Approved',
+                'value' => 'partially approved'
+            ],
+            (object)[
+                'label' => 'All Approved',
+                'value' => 'all approved'
+            ],
+        ];
+    }
+    static function getAdjustmentApproveStatuses(){
+        return [
+            (object)[
+                'label' => 'Approved',
+                'value' => 'approved'
+            ],
+            (object)[
+                'label' => 'Pending',
+                'value' => 'pending'
+            ]
+        ];
+    }
+
     static function getModelsByBrand($brand_id,$user){
         return ProductModel::where('company_id',$user->company_id)->where('brand_id',$brand_id)->selectRaw('id,name')->get();
     }
