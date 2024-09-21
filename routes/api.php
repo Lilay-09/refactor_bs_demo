@@ -203,19 +203,35 @@ Route::middleware('jwt')->group(function(){
                 Route::put('approve/item/{id}',[StockManagementController::class,'approveMissingItemById']);
                 Route::put('approve/list/{id}',[StockManagementController::class,'approveListMissingItems']);
                 Route::put('approve/all/{id}',[StockManagementController::class,'approveAllMissingItems']);
+                Route::put('void/list',[StockManagementController::class,'']);
                 Route::delete('void/all/{id}',[StockManagementController::class,'voidAllMissingStock']);
+                Route::delete('void/list',[]);
+                Route::get('unapprove/count',[StockManagementController::class,'countUnapproveOnMissingStock']);
                 Route::delete('void/list/{id}',[StockManagementController::class,'voidByCheckItem']);
                 Route::delete('void/item/{id}',[StockManagementController::class,'voidByItem']);
             });
 
             Route::prefix('takeOut')->group(function(){
                 Route::post('',[StockManagementController::class,'createTakeOutStock']);
-                Route::get('',[StockManagementController::class,'getTakeOutStock']);
-                Route::get('/{id}',[StockManagementController::class,'getOneTakeOutStock']);
-                Route::put('/{id}',[StockManagementController::class,'updateTakeOutStock']);
-                Route::put('approve/{id}',[StockManagementController::class,'approveTakeOutStock']);
-                Route::delete('void/{id}',[StockManagementController::class,'voidTakeOutStock']);
+                Route::get('',[StockManagementController::class,'getStockMissingItem']);
+                Route::get('/{id}',[StockManagementController::class,'getOneStockMissingItem']);
+                Route::put('/{id}',[StockManagementController::class,'updateStockMissingItem']);
+                Route::put('approve/item/{id}',[StockManagementController::class,'approveMissingItemById']);
+                Route::put('approve/list/{id}',[StockManagementController::class,'approveListMissingItems']);
+                Route::put('approve/all/{id}',[StockManagementController::class,'approveAllMissingItems']);
+                Route::delete('void/all/{id}',[StockManagementController::class,'voidAllMissingStock']);
+                Route::delete('void/list/{id}',[StockManagementController::class,'voidByCheckItem']);
+                Route::delete('void/item/{id}',[StockManagementController::class,'voidByItem']);
             });
+
+            // Route::prefix('takeOut')->group(function(){
+            //     Route::post('',[StockManagementController::class,'createTakeOutStock']);
+            //     Route::get('',[StockManagementController::class,'getTakeOutStock']);
+            //     Route::get('/{id}',[StockManagementController::class,'getOneTakeOutStock']);
+            //     Route::put('/{id}',[StockManagementController::class,'updateTakeOutStock']);
+            //     Route::put('approve/{id}',[StockManagementController::class,'approveTakeOutStock']);
+            //     Route::delete('void/{id}',[StockManagementController::class,'voidTakeOutStock']);
+            // });
 
 
             Route::prefix('item')->group(function(){
@@ -333,5 +349,4 @@ Route::middleware('jwt')->group(function(){
             Route::get('stock/filter',[GeneralSettingController::class,'getFromStockFilter']);
         });
     });
-
 });

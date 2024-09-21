@@ -67,12 +67,12 @@ class GeneralSettingService
                 'label' => 'Pending',
                 'value' => 'pending'
             ],
+            // (object)[
+            //     'label' => 'Partially Approved',
+            //     'value' => 'partially approved'
+            // ],
             (object)[
-                'label' => 'Partially Approved',
-                'value' => 'partially approved'
-            ],
-            (object)[
-                'label' => 'All Approved',
+                'label' => 'Success',
                 'value' => 'all approved'
             ],
         ];

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
@@ -29,6 +30,16 @@ class StockAdjustmentDetail extends Model
         'company_id',
         'branch_id',
     ];
+
+    public function getCreatedAtAttribute($value)
+    {
+        return Carbon::parse($value)->setTimezone(config('app.timezone'))->format('Y-m-d H:i:s');
+    }
+
+    public function getUpdatedAtAttribute($value)
+    {
+        return Carbon::parse($value)->setTimezone(config('app.timezone'))->format('Y-m-d H:i:s');
+    }
 
     public function createUser(){
         return $this->belongsTo(User::class,'create_uid','id');
