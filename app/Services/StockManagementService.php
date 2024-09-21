@@ -147,6 +147,7 @@ class StockManagementService
         $startDate = $req->startDate ?? null;
         $endDate = $req->endDate ?? null;
         $status = $req->status ?? null;
+        $warehouse = $req->warehouse ?? null;
         $query = StockAdjustment::where('type',$type)->where('void',0)->where('company_id',$user->company_id)->with(['warehouse','createUser','updateUser','approveUser'])->selectRaw('id,ref_code,reason,type,status,approved_uid,approved_date,create_uid,update_uid,warehouse_id,created_at,updated_at');
         if($search){
             $query->where('ref_code','ilike','%'.$search.'%')
@@ -154,13 +155,20 @@ class StockManagementService
                 $q->where('item_ref','ilike','%'.$search.'%');
             });
         }
+
         if($status){
             $statusArr = explode(',',$status);
             $statusArr = array_map(function ($status) {
                 return $status === 'partially approved' ? 'pending' : $status;
             }, $statusArr);
             $query->whereIn('status', $statusArr);
+        }
 
+        if($warehouse){
+            $warehouseArr = explode(',',$warehouse);
+            $query->whereHas('warehouse', function($q) use($warehouseArr){
+                $q->whereIn('id',$warehouseArr);
+            });
         }
         if($startDate && $endDate){
             $startDate = strtotime($startDate);
