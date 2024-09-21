@@ -98,11 +98,15 @@ class CustomerController extends Controller
     public function deleteCustomer(Request $req){
         $id = $req->id;
         $user = UserService::getAuthUser();
-        $customer = Customer::where('company_id',$user->company_id)->find($id);
+        $customer = Customer::where('company_id',$user->company_id)->where('void',0)->find($id);
         if($customer){
-            $recordedInInvoice = Invoice::where('customer_id',$id)->first();
-            if($recordedInInvoice) return ApiResponse::ValidateFail('To keep customer history, you cannot delete!');
-            $customer->delete();
+            // $recordedInInvoice = Invoice::where('customer_id',$id)->first();
+            // if($recordedInInvoice) return ApiResponse::ValidateFail('To keep customer history, you cannot delete!');
+            // $customer->delete();
+            $customer->update([
+                'void' => 1,
+                'void_uid' => $user->id
+            ]);
             return ApiResponse::JsonResult(null);
         }
         return ApiResponse::NotFound('Customer not found');
