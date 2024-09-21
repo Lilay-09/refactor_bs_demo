@@ -200,15 +200,19 @@ Route::middleware('jwt')->group(function(){
                 Route::get('',[StockManagementController::class,'getStockMissingItem']);
                 Route::get('/{id}',[StockManagementController::class,'getOneStockMissingItem']);
                 Route::put('/{id}',[StockManagementController::class,'updateStockMissingItem']);
+
                 Route::put('approve/item/{id}',[StockManagementController::class,'approveMissingItemById']);
-                Route::put('approve/list/{id}',[StockManagementController::class,'approveListMissingItems']);
-                Route::put('approve/all/{id}',[StockManagementController::class,'approveAllMissingItems']);
-                Route::put('void/list',[StockManagementController::class,'']);
-                Route::delete('void/all/{id}',[StockManagementController::class,'voidAllMissingStock']);
-                Route::delete('void/list',[]);
+                Route::put('approve/item/list/{id}',[StockManagementController::class,'approveListMissingItems']);
+                Route::put('approve/list',[StockManagementController::class,'approveAllMissingStock']);
+                Route::put('approve/{id}',[StockManagementController::class,'approveAllMissingItems']);
+
+
+                Route::delete('void/list',[StockManagementController::class,'voidAllMissingStock']);
+                Route::delete('void/{id}',[StockManagementController::class,'voidParentAndRelatedMissingItems']);
+                Route::delete('void/item/list/{id}',[StockManagementController::class,'voidMissingStockByCheckItem']);
+                Route::delete('void/item/{id}',[StockManagementController::class,'voidMissingStockByItem']);
+
                 Route::get('unapprove/count',[StockManagementController::class,'countUnapproveOnMissingStock']);
-                Route::delete('void/list/{id}',[StockManagementController::class,'voidByCheckItem']);
-                Route::delete('void/item/{id}',[StockManagementController::class,'voidByItem']);
             });
 
             Route::prefix('takeOut')->group(function(){

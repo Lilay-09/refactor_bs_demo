@@ -351,6 +351,7 @@ class StockManagementController extends Controller
             $this->updatePurchaseStatus($id);
 
             DB::commit();
+            // return Stock::get();
             return ApiResponse::JsonResult(null,false,'Received!');
         }catch(Exception $e){
             DB::rollBack();
@@ -381,25 +382,6 @@ class StockManagementController extends Controller
         }
     }
 
-
-    private function createSkuCode($modelId,$categoryId,$condition,$branch_id,$variantId,$expirationDate=null){
-        /**
-         * @var mixed
-         * format SKUcategory_model_conditionExpiration_date example SKU1_1_NEW_120241108 or SKU1_1_NEW_1 , expiration_date can be null
-         * note* => expiration_date is optional if item has add it.
-         */
-        // $model = ProductModel::where('branch_id',$branchId)->find($modelId)->take(1)->value('name');
-        // $category = Category::where('branch_id',$branchId)->find($categoryId)->take(1)->value('name');
-        // $model = strtoupper(substr($model,0,3));
-        // $category = strtoupper(substr($category,0,3));
-        $condition = strtoupper(substr($condition,0,3));
-        $sku = 'SKU'.$categoryId.'-'.$modelId.'-'.$condition.$variantId.'-'.$branch_id;//.'-'.$cost;
-        if($expirationDate) {
-            $expirationDate = date('Ymd',strtotime($expirationDate));
-            return $sku.$expirationDate;
-        }
-        return $sku;
-    }
 
     public function createPurchaseOrderExpense(Request $req){
         $validate = validator($req->all(),[
@@ -510,7 +492,7 @@ class StockManagementController extends Controller
             $modelId = $item->product->model_id;
             $categoryId = $item->product->category_id;
             $condition = $item->condition;
-            $prepareStock = $this->prepareStock($stockLocationId,$item->id,'receive_qty',$receiveQty,$user,$purchaseOrderItem->unit_price,null,$modelId,$categoryId,$condition,$expiration_date);
+            $prepareStock = $this->stockMngService->prepareStock($stockLocationId,$item->id,'receive_qty',$receiveQty,$user,$purchaseOrderItem->unit_price,null,$modelId,$categoryId,$condition,$expiration_date);
             if($prepareStock->status_code == 422) return DataResponse::ValidateFail($prepareStock->message);
             if($prepareStock->status_code == 500) return DataResponse::Error($prepareStock->message);
             $stockMovement = $this->stockMngService->createStockMovementLog([
@@ -743,191 +725,166 @@ class StockManagementController extends Controller
      * note* This prepareStock can be use to update stock by => [sold_qty,return_qty,adjustment_qty,transfer_in_qty,transfer_out_qty];
      */
 
-     //* itemRef can be sku or id
-    public function prepareStock($stockLocationId=null,$variant_id,$targetColOrKey,$targetValue,$user,$itemCost,$itemRef=null,$modelId=null,$categoryId=null,$condition=null,$expirationDate=null){
-        $today = date('Y-m-d');
-        $branchId = $user->branch_id;
-        $userId = $user->id;
-        $companyId = $user->company_id;
-        $targetCol = $targetColOrKey;
-        $operator = isset($this->stockOperator[$targetCol]) ? $this->stockOperator[$targetCol] : null;
-        $variant = ProductVariant::where('company_id',$companyId)->find($variant_id);
-        if(!$operator) return DataResponse::ValidateFail('You provided the wrong target.');
-        if(!$stockLocationId) $stockLocationId = StockLocation::where('company_id',$companyId)->where('branch_id',$branchId)->take(1)->value('id');
-        //** --- daily stock process -----------
-        $todayStock = DailyStock::where('branch_id',$branchId)->where('variant_id',$variant_id)->where('stock_location_id',$stockLocationId)->whereDate('created_at',$today)->first();
-        // return $todayStock;
-        $beginQty = 0;
-        $endingQty = 0;
-        $targetColValue = 0;
-        //** convert target col */
-        if(in_array($targetCol,['take_out_qty','donation_qty'])){
-            $targetCol = 'adjustment_qty';
-            $operator = '-';
-        }
-        if($todayStock){
-            $beginQty = $todayStock->begin_qty;
-            $endingQty = $todayStock->ending_qty;
-            $targetColValue = $todayStock->{$targetCol} + ($operator.$targetValue);
-        }
-        if(!in_array($targetCol,['return_qty','adjustment_qty']) && $targetValue < 0) return DataResponse::ValidateFail('Qty can not be negative');
+    //  //* itemRef can be sku or id
+    // public function prepareStock($stockLocationId=null,$variant_id,$targetColOrKey,$targetValue,$user,$itemCost,$itemRef=null,$modelId=null,$categoryId=null,$condition=null,$expirationDate=null){
+    //     $today = date('Y-m-d');
+    //     $branchId = $user->branch_id;
+    //     $userId = $user->id;
+    //     $companyId = $user->company_id;
+    //     $targetCol = $targetColOrKey;
+    //     $operator = isset($this->stockOperator[$targetCol]) ? $this->stockOperator[$targetCol] : null;
+    //     $variant = ProductVariant::where('company_id',$companyId)->find($variant_id);
+    //     if(!$operator) return DataResponse::ValidateFail('You provided the wrong target.');
+    //     if(!$stockLocationId) $stockLocationId = StockLocation::where('company_id',$companyId)->where('branch_id',$branchId)->take(1)->value('id');
+    //     //** --- daily stock process -----------
+    //     $todayStock = DailyStock::where('branch_id',$branchId)->where('variant_id',$variant_id)->where('stock_location_id',$stockLocationId)->whereDate('created_at',$today)->first();
+    //     // return $todayStock;
+    //     $beginQty = 0;
+    //     $endingQty = 0;
+    //     $targetColValue = 0;
+    //     //** convert target col */
+    //     if(in_array($targetCol,['take_out_qty','donation_qty'])){
+    //         $targetCol = 'adjustment_qty';
+    //         $operator = '-';
+    //     }
+    //     if($todayStock){
+    //         $beginQty = $todayStock->begin_qty;
+    //         $endingQty = $todayStock->ending_qty;
+    //         $targetColValue = $todayStock->{$targetCol} + ($operator.$targetValue);
+    //     }
+    //     if(!in_array($targetCol,['return_qty','adjustment_qty']) && $targetValue < 0) return DataResponse::ValidateFail('Qty can not be negative');
 
-        if(!$todayStock) {
-            //** take one stock ending qty where created_at < today */
-            $targetColValue += $operator.$targetValue;
-            $stock = DailyStock::where('branch_id',$branchId)->where('variant_id',$variant_id)->where('stock_location_id',$stockLocationId)->orderBy('created_at','DESC')->where('created_at','<',$today)->first();
+    //     if(!$todayStock) {
+    //         //** take one stock ending qty where created_at < today */
+    //         $targetColValue += $operator.$targetValue;
+    //         $stock = DailyStock::where('branch_id',$branchId)->where('variant_id',$variant_id)->where('stock_location_id',$stockLocationId)->orderBy('created_at','DESC')->where('created_at','<',$today)->first();
 
-            if($stock) {
-                if($stock->ending_qty  <=0) return DataResponse::ValidateFail('Stock qty found '.$stock->ending_qty);
-                $endingQty += $stock->ending_qty + ($operator.$targetValue);
-                $beginQty = $stock->ending_qty;
-            }else{
-                $beginQty = $targetValue;
-                $endingQty = $targetValue;
-            }
-            if($beginQty < 0 || $endingQty < 0){
-                return DataResponse::ValidateFail('The quantity is negative.,cannot set to daily stock');
-            }
+    //         if($stock) {
+    //             if($stock->ending_qty  <=0) return DataResponse::ValidateFail('Stock qty found '.$stock->ending_qty);
+    //             $endingQty += $stock->ending_qty + ($operator.$targetValue);
+    //             $beginQty = $stock->ending_qty;
+    //         }else{
+    //             $beginQty = $targetValue;
+    //             $endingQty = $targetValue;
+    //         }
+    //         if($beginQty < 0 || $endingQty < 0){
+    //             return DataResponse::ValidateFail('The quantity is negative.,cannot set to daily stock');
+    //         }
 
-            $arr = [
-                'stock_location_id' => $stockLocationId,
-                'variant_id' => $variant_id,
-                $targetCol => $targetColValue,
-                'begin_qty' => $beginQty,
-                'ending_qty' => $endingQty,
-                'branch_id' => $branchId,
-                'company_id' => $companyId,
-                'update_uid' => $userId,
-                'create_uid' => $userId
-            ];
-            $createDailyStock = DailyStock::create($arr);
-            if(!$createDailyStock) return DataResponse::Error('Fail to save daily stock');
-        }else{
-            $endingQty += $operator.$targetValue;
-            $arr = [
-                'stock_location_id' => $stockLocationId,
-                'variant_id' => $variant_id,
-                $targetCol => $targetColValue,
-                'begin_qty' => $beginQty,
-                'ending_qty' => $endingQty,
-                'branch_id' => $branchId,
-                'company_id' => $companyId,
-                'update_uid' => $userId
-            ];
+    //         $arr = [
+    //             'stock_location_id' => $stockLocationId,
+    //             'variant_id' => $variant_id,
+    //             $targetCol => $targetColValue,
+    //             'begin_qty' => $beginQty,
+    //             'ending_qty' => $endingQty,
+    //             'branch_id' => $branchId,
+    //             'company_id' => $companyId,
+    //             'update_uid' => $userId,
+    //             'create_uid' => $userId
+    //         ];
+    //         $createDailyStock = DailyStock::create($arr);
+    //         if(!$createDailyStock) return DataResponse::Error('Fail to save daily stock');
+    //     }else{
+    //         $endingQty += $operator.$targetValue;
+    //         $arr = [
+    //             'stock_location_id' => $stockLocationId,
+    //             'variant_id' => $variant_id,
+    //             $targetCol => $targetColValue,
+    //             'begin_qty' => $beginQty,
+    //             'ending_qty' => $endingQty,
+    //             'branch_id' => $branchId,
+    //             'company_id' => $companyId,
+    //             'update_uid' => $userId
+    //         ];
 
-            $updateDailyStock = $todayStock->update($arr);
-            if(!$updateDailyStock) return DataResponse::Error('Fail to update daily stock');
-        }
+    //         $updateDailyStock = $todayStock->update($arr);
+    //         if(!$updateDailyStock) return DataResponse::Error('Fail to update daily stock');
+    //     }
 
-        // return $operator;
-        //* ---------- Stock Process Here ----------
+    //     // return $operator;
+    //     //* ---------- Stock Process Here ----------
 
-        // if($targetCol == 'receive_qty'){
-        $sku = $this->createSkuCode($modelId,$categoryId,$condition,$branchId,$variant_id,$expirationDate);
+    //     // if($targetCol == 'receive_qty'){
+    //     $sku = $this->createSkuCode($modelId,$categoryId,$condition,$branchId,$variant_id,$expirationDate);
 
-        $foundBySku = Stock::where('branch_id',$branchId)->where('stock_location_id',$stockLocationId)->where('sku',$sku)->first();
-        if($itemRef){
-            if(is_numeric($itemRef)) {
-                $foundBySku = Stock::where('branch_id',$branchId)->where('id',$itemRef)->where('stock_location_id',$stockLocationId)->first();
-            }
-            else {
-                $foundBySku = Stock::where('branch_id',$branchId)->where('sku',$itemRef)->where('stock_location_id',$stockLocationId)->first();
-            }
-        }
-        $stockQty = 0;
-        $retail_price = $variant->retail_price;
-        $wholesale_price = $variant->wholesale_price;
-        if($foundBySku){
-            if($foundBySku->qty <=0) return DataResponse::ValidateFail('Stock quantity found '.$foundBySku->qty);
-            $retail_price = $foundBySku->retail_price;
-            $wholesale_price = $foundBySku->wholesale_price;
-            $stockQty = $foundBySku->qty;
-            $stockQty += $operator.$targetValue;
-            $updateArr = [
-                'stock_location_id' => $stockLocationId,
-                'qty' => $stockQty,
-                'variant_id' => $variant_id,
-                'cost' => $itemCost,
-                'retail_price' => $retail_price,
-                'wholesale_price' => $wholesale_price,
-                'update_uid' => $userId,
-                'company_id' => $companyId,
-                'branch_id' => $branchId
-            ];
-            if(!$foundBySku->barcode || !$foundBySku->barcode_file){
-                $date = date('Ymd');
-                $barNum = str_pad($date.$foundBySku->id, 14, '0', STR_PAD_RIGHT);
-                $updateArr['barcode'] = $barNum;
-            }
-            $updateStock = $foundBySku->update($updateArr);
-            if(!$updateStock) return DataResponse::Error('Fail to update stock.');
-        }else{
-            $stockQty += $operator.$targetValue;
-            $addNewStock = Stock::create([
-                'sku' => $sku,
-                'stock_location_id' => $stockLocationId,
-                'qty' => $stockQty,
-                'variant_id' => $variant_id,
-                'retail_price' => $variant->retail_price,
-                'wholesale_price' => $variant->wholesale_price,
-                'cost' => $itemCost,
-                'create_uid' => $userId,
-                'update_uid' => $userId,
-                'company_id' => $companyId,
-                'branch_id' => $branchId
-            ]);
-            if(!$addNewStock) return DataResponse::Error('Fail to add new stock!');
-            //** new barcode */
-            $stockId = $addNewStock->id;
-            $date = date('Ymd');
-            $barNum = str_pad($date.$stockId, 14, '0', STR_PAD_RIGHT);
-            Stock::find($stockId)->update([
-                'barcode' => $barNum,
-            ]);
-        }
-        return DataResponse::JsonResult(null,false,'Stock prepared!');
-    }
+    //     $foundBySku = Stock::where('branch_id',$branchId)->where('stock_location_id',$stockLocationId)->where('sku',$sku)->first();
+    //     if($itemRef){
+    //         if(is_numeric($itemRef)) {
+    //             $foundBySku = Stock::where('branch_id',$branchId)->where('id',$itemRef)->where('stock_location_id',$stockLocationId)->first();
+    //         }
+    //         else {
+    //             $foundBySku = Stock::where('branch_id',$branchId)->where('sku',$itemRef)->where('stock_location_id',$stockLocationId)->first();
+    //         }
+    //     }
+    //     $stockQty = 0;
+    //     $retail_price = $variant->retail_price;
+    //     $wholesale_price = $variant->wholesale_price;
+    //     if($foundBySku){
+    //         if($foundBySku->qty <=0) return DataResponse::ValidateFail('Stock quantity found '.$foundBySku->qty);
+    //         $retail_price = $foundBySku->retail_price;
+    //         $wholesale_price = $foundBySku->wholesale_price;
+    //         $stockQty = $foundBySku->qty;
+    //         $stockQty += $operator.$targetValue;
+    //         $updateArr = [
+    //             'stock_location_id' => $stockLocationId,
+    //             'qty' => $stockQty,
+    //             'variant_id' => $variant_id,
+    //             'cost' => $itemCost,
+    //             'retail_price' => $retail_price,
+    //             'wholesale_price' => $wholesale_price,
+    //             'update_uid' => $userId,
+    //             'company_id' => $companyId,
+    //             'branch_id' => $branchId
+    //         ];
+    //         if(!$foundBySku->barcode || !$foundBySku->barcode_file){
+    //             $date = date('Ymd');
+    //             $barNum = str_pad($date.$foundBySku->id, 14, '0', STR_PAD_RIGHT);
+    //             $updateArr['barcode'] = $barNum;
+    //         }
+    //         $updateStock = $foundBySku->update($updateArr);
+    //         if(!$updateStock) return DataResponse::Error('Fail to update stock.');
+    //     }else{
+    //         $stockQty += $operator.$targetValue;
+    //         $addNewStock = Stock::create([
+    //             'sku' => $sku,
+    //             'stock_location_id' => $stockLocationId,
+    //             'qty' => $stockQty,
+    //             'variant_id' => $variant_id,
+    //             'retail_price' => $variant->retail_price,
+    //             'wholesale_price' => $variant->wholesale_price,
+    //             'cost' => $itemCost,
+    //             'create_uid' => $userId,
+    //             'update_uid' => $userId,
+    //             'company_id' => $companyId,
+    //             'branch_id' => $branchId
+    //         ]);
+    //         if(!$addNewStock) return DataResponse::Error('Fail to add new stock!');
+    //         //** new barcode */
+    //         $stockId = $addNewStock->id;
+    //         $date = date('Ymd');
+    //         $barNum = str_pad($date.$stockId, 14, '0', STR_PAD_RIGHT);
+    //         Stock::find($stockId)->update([
+    //             'barcode' => $barNum,
+    //         ]);
+    //     }
+    //     return DataResponse::JsonResult(null,false,'Stock prepared!');
+    // }
 
 
     //** Missing Item */
-    public function stockAdjustmentValidation(Request $req){
-        return validator($req->all(),[
-            'reason' => 'nullable|max:300',
-            'items' => 'required|array',
-            'warehouse_id' => 'required|int|exists:stock_locations,id'
-        ]);
-    }
-
-    public function stockAdjustItemValidation(Request $req){
-        return validator($req->all(),[
-            'sku' => 'required|string|exists:stocks,sku',
-            'qty' => 'required|int|min:1',
-            'stock_adjustment_id' => 'required|exists:stock_adjustments,id',
-            'reason' => 'nullable|string|max:200'
-        ]);
-    }
-
     public function createStockMissingItem(Request $req){
         return $this->stockMngService->createAdjustmentStock($req,'MISS','Missing','missing_qty');
     }
 
     public function voidAllMissingStock(Request $req){
-        $id = $req->id;
         $user = UserService::getAuthUser();
-        $missingStock = StockAdjustment::where('company_id',$user->company_id)->where('type','Missing')->find($id);
-        if(!$missingStock) return ApiResponse::NotFound('Missing Stock not found!');
-        $void = $missingStock->update([
-            'void_uid' => $user->branch_id,
-            'void' => 1,
-        ]);
-        if($void) {
-            StockAdjustmentDetail::where('stock_adjustment_id',$id)->update([
-                'void_uid' => $user->id,
-                'void' => 1,
-            ]);
-            return ApiResponse::JsonResult(null,false,'All items has been voided!');
-        }
-        return ApiResponse::Error('Fail to void item');
+        return $this->stockMngService->voidAllAdjustment($req,'Missing',$user);
+    }
+
+
+    public function approveAllMissingStock(Request $req){
+        $user = UserService::getAuthUser();
+        return $this->stockMngService->approveAllAjustment($req,'Missing','missing_qty',$user);
     }
 
     /**
@@ -935,49 +892,17 @@ class StockManagementController extends Controller
      * @param \Illuminate\Http\Request $req
      * @return mixed|\Illuminate\Http\JsonResponse
      */
-    public function voidByCheckItem(Request $req){
-        $id = $req->id;
+    public function voidMissingStockByCheckItem(Request $req){
         $user = UserService::getAuthUser();
-        $missingStock = StockAdjustment::where('company_id',$user->company_id)->where('void',0)->where('type','Missing')->find($id);
-        if(!$missingStock) return ApiResponse::NotFound('Missing Stock info not found!');
-        $items = $req->items;
-        $skipRows = 'no row skip!';
-        $success = 0;
-        if(!$items) return ApiResponse::ValidateFail('Please input valid items');
-        foreach($items as $key=>$item){
-            $rowid = $item['id'] ?? null;
-            if(!$rowid) return ApiResponse::ValidateFail('Please provide item identity!');
-            $detail = StockAdjustmentDetail::where('stock_adjustment_id',$id)->where('void',0)->find($rowid);
-            if(!$detail) return ApiResponse::ValidateFail('Item not found!');
-            if($detail->void) {
-                $skipRows .= ($key+1).',';
-            }else{
-                $detail->update([
-                    'void' => 1,
-                    'void_uid' => $user->id
-                ]);
-                $success += 1;
-            }
-        }
-        return ApiResponse::JsonResult((object)[
-            'success' => $success,
-            'skip_rows' => $skipRows
-        ],false,'Voided '. $success. ' row(s).');
+        return $this->stockMngService->voidAdjustmentByCheckItem($req,'Missing',$user);
     }
     /**
      * void by item
      */
 
-    public function voidByItem(Request $req){
-        $id = $req->id;
+    public function voidMissingStockByItem(Request $req){
         $user = UserService::getAuthUser();
-        $detail = StockAdjustmentDetail::where('void',0)->find($id);
-        if(!$detail) return ApiResponse::NotFound('Item not found');
-        $detail->update([
-            'void' => 1,
-            'void_uid' => $user->id
-        ]);
-        return ApiResponse::JsonResult(null,false,'Voided');
+        return $this->stockMngService->voidAdjustmentByItem($req,$user);
     }
 
     public function countUnapproveOnMissingStock(Request $req){
@@ -988,54 +913,13 @@ class StockManagementController extends Controller
 
     public function getStockMissingItem(Request $req){
         $user = UserService::getAuthUser();
-        $search = $req->search ?? null;
-        $startDate = $req->startDate ?? null;
-        $endDate = $req->endDate ?? null;
-        $status = $req->status ?? null;
-        $query = StockAdjustment::where('type','Missing')->where('void',0)->where('company_id',$user->company_id)->with(['warehouse','createUser','updateUser','approveUser'])->selectRaw('id,ref_code,reason,type,status,approved_uid,approved_date,create_uid,update_uid,warehouse_id,created_at,updated_at');
-        if($search){
-            $query->where('ref_code','ilike','%'.$search.'%')
-            ->orWhereHas('details',function($q) use($search){
-                $q->where('item_ref','ilike','%'.$search.'%');
-            });
-        }
-        if($status){
-            $statusArr = explode(',',$status);
-            $statusArr = array_map(function ($status) {
-                return $status === 'partially approved' ? 'pending' : $status;
-            }, $statusArr);
-            $query->whereIn('status', $statusArr);
+        return $this->stockMngService->getStockAdjustmentList($req,'Missing',$user);
 
-        }
-        if($startDate && $endDate){
-            $startDate = strtotime($startDate);
-            $endDate = strtotime($endDate);
-            $query->whereBetween('approved_date',[$startDate,$endDate]);
-        }
-        $missingItems = $query->get();
-        $totalQty = 0;
-        foreach($missingItems as $item){
-            $item->create_user_name = $item->createUser->user_name;
-            $item->update_user_name = $item->updateUser->user_name;
-            $item->approve_user_name = $item->approveUser ? $item->approveUser->user_name : null;
-            $item->warehouse_name = $item->warehouse ? $item->warehouse->name : null;
-            unset($item->createUser,$item->approveUser,$item->updateUser,$item->warehouse);
-            $item->total_qty = 0;
-            foreach($item->details as $detail){
-                $item->total_qty += $detail->qty;
-            }
-            unset($item->details);
-        }
-        return ApiResponse::Pagination($missingItems,$req,'Get All Missing Items');
     }
+    public function voidParentAndRelatedMissingItems(Request $req){
+        $user = UserService::getAuthUser();
+        return $this->stockMngService->voidAdjustmentAndRelatedItems($req,'Missing',$user);
 
-    private function getStockMovementItemDetails($rows,$sku){
-        foreach($rows as $row){
-            if($row->sku == $sku){
-                return $row;
-            }
-        }
-        return null;
     }
 
     public function getOneStockMissingItem(Request $req){
@@ -1047,120 +931,68 @@ class StockManagementController extends Controller
         return $this->stockMngService->updateAdjustmentStock($req,'Missing','missing_qty');
     }
 
-    public function voidStockMissingItem(Request $req){
-        $id = $req->id;
-        $user = UserService::getAuthUser();
-        $missingItem = StockMovement::where('company_id',$user->company_id)->where('type','Missing')->find($id);
-        if(!$missingItem) return ApiResponse::NotFound('Missing item not found');
-        if($missingItem->status === 'approved') return ApiResponse::ValidateFail('You cannot void approved record!');
-        $void = $missingItem->update([
-            'void' => 1,
-            'void_uid' => $user->id
-        ]);
-        if($void) return ApiResponse::JsonResult(null,false,'Voided');
-        return ApiResponse::Error('Fail to void');
-    }
-
     public function approveListMissingItems(Request $req){
         $user = UserService::getAuthUser();
-        $id = $req->id;
-        $items = $req->items ?? [];
-        if(empty($items)) return ApiResponse::ValidateFail('Please provide list of approve items');
-        $missingStock = StockAdjustment::where('void',0)->where('company_id',$user->company_id)->find($id);
-        if(!$missingStock) return ApiResponse::NotFound('Missing stock not found');
-        if($missingStock->status === 'all approved') return ApiResponse::Duplicated('All items were approved, you cannot approve again!');
-        DB::beginTransaction();
-        try{
-            foreach($items as $key=>$item){
-                $rowId = $item['id'] ?? null;
-                if(!$rowId) return ApiResponse::ValidateFail('Please provide item identity!');
-                $detail = StockAdjustmentDetail::find($rowId);
-                if(!$detail) return ApiResponse::NotFound('Adjustment Item not found by row '.($key + 1).'.');
-                $missingQty = $detail->qty;
-                $prepareStock = $this->prepareStock($missingStock->warehouse_id,$detail->variant_id,'missing_qty',$missingQty,$user,$detail->cost,$detail->item_ref);
-                if($prepareStock->error) return ApiResponse::flex($prepareStock);
-                $this->updateAdjustmentStockStatus($id,$user);
-                return Stock::get();
-            }
-        }catch(Exception $e){
-            Log::error($e->getMessage());
-            Log::error($e->getTraceAsString());
-            DB::rollBack();
-            return ApiResponse::Error('Fail to approve missing item');
-        }
+        return $this->stockMngService->approveAdjustmentByCheckList($req,'Missing','missing_qty',$user);
     }
 
     public function approveAllMissingItems(Request $req){
-        $id = $req->id;
         $user = UserService::getAuthUser();
-        $missingStock = StockAdjustment::where('void',0)->where('company_id',$user->company_id)->find($id);
-        if(!$missingStock) return ApiResponse::NotFound('Missing stock not found');
-        if($missingStock->status === 'all approved') return ApiResponse::Duplicated('All items were approved, you cannot approve again!');
-        $missingStock->update([
-            'status' => 'all approved',
-            'approved_date' => now(),
-            'approved_uid' => $user->id
-        ]);
-        StockAdjustmentDetail::where('stock_adjustment_id',$id)->update([
-            'status' => 'approved',
-            'approved_date' => now(),
-            'approved_uid' => $user->id
-        ]);
-
-        return ApiResponse::JsonResult(null,false,'All items has approved!');
+        return $this->stockMngService->approveAdjustmentAndRelatedItems($req,'Missing','missing_qty',$user);
     }
 
     public function approveMissingItemById(Request $req){
-        $id = $req->id;
         $user = UserService::getAuthUser();
-        $detail = StockAdjustmentDetail::where('void',0)->where('company_id',$user->company_id)->find($id);
-        if(!$detail) return ApiResponse::NotFound('Item not found');
-        $warehouseId = StockAdjustment::where('void',0)->where('id',$detail->stock_adjustment_id)->take(1)->value('warehouse_id');
-        if(!$warehouseId) return ApiResponse::NotFound('Warehouse not found!');
-        if($detail->status == 'approved') return ApiResponse::Duplicated('This item has already approved!');
-        DB::beginTransaction();
-        try{
-            $detail->update([
-                'status' => 'approved',
-                'approved_uid' => $user->id,
-                'approved_date' => now(),
-            ]);
-            $missingQty = $detail->qty;
-            $prepareStock = $this->prepareStock($warehouseId,$detail->variant_id,'missing_qty',$missingQty,$user,$detail->cost,$detail->item_ref);
-            if($prepareStock->error) return ApiResponse::flex($prepareStock);
-            DB::commit();
-            //** Update Parent Status */
-            $this->updateAdjustmentStockStatus($detail->stock_adjustment_id,$user);
-            return ApiResponse::JsonResult(null,false,'Approved! Your stock has been reduced by '.$missingQty.' unit(s) out.');
-        }catch(Exception $e){
-            Log::error($e->getMessage());
-            Log::error($e->getTraceAsString());
-            DB::rollBack();
-            return ApiResponse::Error('Fail to save missing item');
-        }
+        return $this->stockMngService->approveByItemId($req,'Missing','missing_qty',$user);
+
+        // $detail = StockAdjustmentDetail::where('void',0)->where('company_id',$user->company_id)->find($id);
+        // if(!$detail) return ApiResponse::NotFound('Item not found');
+        // $warehouseId = StockAdjustment::where('void',0)->where('id',$detail->stock_adjustment_id)->take(1)->value('warehouse_id');
+        // if(!$warehouseId) return ApiResponse::NotFound('Warehouse not found!');
+        // if($detail->status == 'approved') return ApiResponse::Duplicated('This item has already approved!');
+        // DB::beginTransaction();
+        // try{
+        //     $detail->update([
+        //         'status' => 'approved',
+        //         'approved_uid' => $user->id,
+        //         'approved_date' => now(),
+        //     ]);
+        //     $missingQty = $detail->qty;
+        //     $prepareStock = $this->prepareStock($warehouseId,$detail->variant_id,'missing_qty',$missingQty,$user,$detail->cost,$detail->item_ref);
+        //     if($prepareStock->error) return ApiResponse::flex($prepareStock);
+        //     DB::commit();
+        //     //** Update Parent Status */
+        //     $this->updateAdjustmentStockStatus($detail->stock_adjustment_id,$user);
+        //     return ApiResponse::JsonResult(null,false,'Approved! Your stock has been reduced by '.$missingQty.' unit(s) out.');
+        // }catch(Exception $e){
+        //     Log::error($e->getMessage());
+        //     Log::error($e->getTraceAsString());
+        //     DB::rollBack();
+        //     return ApiResponse::Error('Fail to save missing item');
+        // }
     }
 
-    private function updateAdjustmentStockStatus($id,$user){
-        $queryChildren = StockAdjustmentDetail::where('company_id',$user->company_id)->where('stock_adjustment_id',$id)->where('void',0);
-        $childCount = $queryChildren->count();
-        $children = $queryChildren->get();
-        $approveCount = 0;
-        foreach($children as $child){
-            if($child->status == 'approved') $approveCount +=1;
-        }
-        if($approveCount > 0 || $approveCount > $childCount){
-            StockAdjustment::where('company_id',$user->company_id)->find($id)->update([
-                'status' => 'partially approved',
-                'approved_uid' => $user->id,
-                'approved_date' => now(),
-            ]);
-        }
-        if($approveCount == $childCount) StockAdjustment::where('company_id',$user->company_id)->find($id)->update([
-            'status' => 'all approved',
-            'approved_uid' => $user->id,
-            'approved_date' => now(),
-        ]);
-    }
+    // private function updateAdjustmentStockStatus($id,$user){
+    //     $queryChildren = StockAdjustmentDetail::where('company_id',$user->company_id)->where('stock_adjustment_id',$id)->where('void',0);
+    //     $childCount = $queryChildren->count();
+    //     $children = $queryChildren->get();
+    //     $approveCount = 0;
+    //     foreach($children as $child){
+    //         if($child->status == 'approved') $approveCount +=1;
+    //     }
+    //     if($approveCount > 0 || $approveCount > $childCount){
+    //         StockAdjustment::where('company_id',$user->company_id)->find($id)->update([
+    //             'status' => 'partially approved',
+    //             'approved_uid' => $user->id,
+    //             'approved_date' => now(),
+    //         ]);
+    //     }
+    //     if($approveCount == $childCount) StockAdjustment::where('company_id',$user->company_id)->find($id)->update([
+    //         'status' => 'all approved',
+    //         'approved_uid' => $user->id,
+    //         'approved_date' => now(),
+    //     ]);
+    // }
 
     public function approveMissingItem(Request $req){
         $user = UserService::getAuthUser();

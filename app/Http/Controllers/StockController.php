@@ -18,9 +18,7 @@ class StockController extends Controller
         $endDate = $req->endDate;
         $search = $req->search;
         $status = $req->status;
-
         $query = Stock::with(['variant.product','stockLocation.type','variant.photos']);
-
         if($search){
             $query->whereHas('variant.product',function ($query) use ($search){
                 $query->where('name','ilike','%'.$search.'%')->orWhere('code','ilike','%'.$search.'%');
