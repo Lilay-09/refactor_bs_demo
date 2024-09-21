@@ -10,6 +10,7 @@ use App\Models\StockAdjustment;
 use App\Models\StockAdjustmentDetail;
 use App\Models\StockLocation;
 use App\Models\StockMovement;
+use Carbon\Carbon;
 use DataResponse;
 use DB;
 use Exception;
@@ -171,12 +172,13 @@ class StockManagementService
             });
         }
         if($startDate && $endDate){
-            $startDate = strtotime($startDate);
-            $endDate = strtotime($endDate);
-            $query->whereBetween('approved_date',[$startDate,$endDate]);
+            $startDate = Carbon::parse($startDate); // Ensures the format is correct
+            $endDate = Carbon::parse($endDate);
+            $startDate = date('Y-m-d',strtotime($startDate));
+            $endDate = date('Y-m-d',strtotime($endDate));
+            $query->whereBetween('approved_date',[$startDate,$endDate])->orWhereDate('approved_date',$endDate);
         }
         $missingItems = $query->orderByDesc('id')->get();
-        $totalQty = 0;
         foreach($missingItems as $item){
             $item->create_user_name = $item->createUser->user_name;
             $item->update_user_name = $item->updateUser->user_name;
