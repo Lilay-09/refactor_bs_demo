@@ -45,6 +45,7 @@ Route::middleware('jwt')->group(function(){
 
     Route::prefix('management')->group(function(){
         Route::get('/user', [UserController::class,'getUsers']);
+        Route::get('user/profile',[UserController::class,'getProfile']);
         Route::post('/user',[UserManagementController::class,'createUser']);
         Route::get('/user/{id?}', [UserController::class,'getUser']);
         Route::put('/user/{id?}', [UserManagementController::class,'updateUser']);
@@ -160,14 +161,14 @@ Route::middleware('jwt')->group(function(){
             Route::get('',[CustomerTypeController::class,'getCustomerTypes']);
             Route::get('/{id?}',[CustomerTypeController::class,'getCustomerType']);
             Route::put('/{id?}',[CustomerTypeController::class,'updateCustomerType']);
-            Route::delete('/{id?}',[CustomerTypeController::class,'deleteCustomerType']);
+            Route::delete('void/{id?}',[CustomerTypeController::class,'voidCustomerType']);
 
         });
         Route::post('',[CustomerController::class,'createCustomer']);
         Route::get('',[CustomerController::class,'getCustomers']);
         Route::get('/{id?}',[CustomerController::class,'getCustomer']);
         Route::put('/{id?}',[CustomerController::class,'updateCustomer']);
-        Route::delete('/{id?}',[CustomerController::class,'deleteCustomer']);
+        Route::delete('void/{id?}',[CustomerController::class,'voidCustomer']);
     });
 
     Route::prefix('inventory')->group(function(){
@@ -213,19 +214,27 @@ Route::middleware('jwt')->group(function(){
                 Route::delete('void/item/{id}',[StockManagementController::class,'voidMissingStockByItem']);
 
                 Route::get('unapprove/count',[StockManagementController::class,'countUnapproveOnMissingStock']);
+
             });
 
             Route::prefix('takeOut')->group(function(){
                 Route::post('',[StockManagementController::class,'createTakeOutStock']);
-                Route::get('',[StockManagementController::class,'getStockMissingItem']);
-                Route::get('/{id}',[StockManagementController::class,'getOneStockMissingItem']);
-                Route::put('/{id}',[StockManagementController::class,'updateStockMissingItem']);
+                Route::get('',[StockManagementController::class,'getTakeOutStockList']);
+                Route::get('/{id}',[StockManagementController::class,'getOneTakeOutStock']);
+                Route::put('/{id}',[StockManagementController::class,'updateTakeOutStock']);
+
                 Route::put('approve/item/{id}',[StockManagementController::class,'approveMissingItemById']);
-                Route::put('approve/list/{id}',[StockManagementController::class,'approveListMissingItems']);
-                Route::put('approve/all/{id}',[StockManagementController::class,'approveAllMissingItems']);
-                Route::delete('void/all/{id}',[StockManagementController::class,'voidAllMissingStock']);
-                Route::delete('void/list/{id}',[StockManagementController::class,'voidByCheckItem']);
-                Route::delete('void/item/{id}',[StockManagementController::class,'voidByItem']);
+                Route::put('approve/item/list/{id}',[StockManagementController::class,'approveListMissingItems']);
+                Route::put('approve/list',[StockManagementController::class,'approveAllMissingStock']);
+                Route::put('approve/{id}',[StockManagementController::class,'approveAllMissingItems']);
+
+
+                Route::delete('void/list',[StockManagementController::class,'voidAllTakeOutStock']);
+                Route::delete('void/{id}',[StockManagementController::class,'voidParentAndRelatedTakeOutItems']);
+                Route::delete('void/item/list/{id}',[StockManagementController::class,'voidMissingStockByCheckItem']);
+                Route::delete('void/item/{id}',[StockManagementController::class,'voidMissingStockByItem']);
+
+                Route::get('unapprove/count',[StockManagementController::class,'countUnapprovedTakeOut']);
             });
 
             // Route::prefix('takeOut')->group(function(){

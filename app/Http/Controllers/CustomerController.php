@@ -35,7 +35,7 @@ class CustomerController extends Controller
         $inputs['branch_id'] = $user->branch_id;
         $inputs['company_id'] = $user->company_id;
         $customerId = $inputs['customer_type_id'];
-        $defaultDiscount = CustomerType::where('company_id',$user->company_id)->where('id',$customerId)->take(1)->value('discount_percent');
+        $defaultDiscount = CustomerType::where('company_id',$user->company_id)->where('void',0)->where('id',$customerId)->take(1)->value('discount_percent');
         $inputs['discount_percent'] = isset($inputs['discount_percent']) ? $inputs['discount_percent'] : $defaultDiscount;
         $duplicatedPhone = Customer::where('company_id',$user->company_id)->where('phone',$inputs['phone'])->first();
         if($duplicatedPhone) {
@@ -51,7 +51,7 @@ class CustomerController extends Controller
 
     public function getCustomers(Request $req){
         $user = UserService::getAuthUser();
-        $query = Customer::with('type:id,name')->where('company_id',$user->company_id);
+        $query = Customer::with('type:id,name')->where('void',0)->where('company_id',$user->company_id);
         if($req->search){
             $query->where('name','ilike','%'.$req->search.'%')->orWhere('name_kh','ilike','%'.$req->search.'%')->orWhere('phone',$req->search);
         }
@@ -66,28 +66,29 @@ class CustomerController extends Controller
     public function getCustomer(Request $req,$id=null){
         $id = $id ? $id : $req->id;
         $user = UserService::getAuthUser();
-        $row = Customer::where('company_id',$user->company_id)->find($id);
+        $row = Customer::where('company_id',$user->company_id)->where('void',0)->find($id);
         return ApiResponse::JsonResult($row);
     }
 
     public function updateCustomer(Request $req,$id=null){
+        $user = UserService::getAuthUser();
         $id = $id ? $id : $req->id;
+        $customer = Customer::where('company_id',$user->company_id)->where('void',0)->find($id);
+        if(!$customer) return ApiResponse::NotFound('Customer not found');
         $validate = $this->customerValidation($req);
         if($validate->fails()) return ApiResponse::ValidateFail($validate->errors()->first());
-        $user = UserService::getAuthUser();
         $inputs = $validate->validated();
         $inputs['update_uid'] = $user->id;
         $inputs['branch_id'] = $user->branch_id;
         $inputs['company_id'] = $user->company_id;
-        $duplicatedPhone = Customer::where('company_id',$user->company_id)->where('id','!=',$id)->where('company_id',$user->company_id)->where('phone',$inputs['phone'])->first();
+        $duplicatedPhone = Customer::where('company_id',$user->company_id)->where('void',0)->where('id','!=',$id)->where('company_id',$user->company_id)->where('phone',$inputs['phone'])->first();
         if($duplicatedPhone) {
             $isDiffBranch = $duplicatedPhone->branch_id !== $user->branch_id;
             $diffBranchText = null;
             if($isDiffBranch) $diffBranchText = ' but in another branch';
             return ApiResponse::Duplicated('Phone number '.$inputs['phone'].' is already taken.'.$diffBranchText);
         }
-        $customer = Customer::where('company_id',$user->company_id)->find($id);
-        if(!$customer) return ApiResponse::NotFound('Customer not found');
+
         $defaultDiscount = $customer->discount_percent > 0 ? $customer->discount_percent :  CustomerType::where('company_id',$user->company_id)->where('id',$id)->take(1)->value('discount_percent');
         $inputs['discount_percent'] = isset($inputs['discount_percent']) ? $inputs['discount_percent'] : $defaultDiscount;
         $update = $customer->update($inputs);
@@ -95,7 +96,7 @@ class CustomerController extends Controller
         return ApiResponse::Error('Fail to update');
     }
 
-    public function deleteCustomer(Request $req){
+    public function voidCustomer(Request $req){
         $id = $req->id;
         $user = UserService::getAuthUser();
         $customer = Customer::where('company_id',$user->company_id)->where('void',0)->find($id);
@@ -107,7 +108,7 @@ class CustomerController extends Controller
                 'void' => 1,
                 'void_uid' => $user->id
             ]);
-            return ApiResponse::JsonResult(null);
+            return ApiResponse::JsonResult(null,false,'Customer is voided');
         }
         return ApiResponse::NotFound('Customer not found');
     }
