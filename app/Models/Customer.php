@@ -18,6 +18,8 @@ class Customer extends Model
         'phone',
         'address',
         'description',
+        'void',
+        'void_uid',
         'customer_type_id',
         'address_kh',
         'create_uid',

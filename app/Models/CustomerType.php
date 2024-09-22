@@ -16,6 +16,8 @@ class CustomerType extends Model
         'discount_percent',
         'create_uid',
         'update_uid',
+        'void',
+        'void_uid',
         'branch_id',
         'company_id'
     ];

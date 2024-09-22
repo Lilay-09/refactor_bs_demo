@@ -184,6 +184,7 @@ class StockManagementService
             $item->update_user_name = $item->updateUser->user_name;
             $item->approve_user_name = $item->approveUser ? $item->approveUser->user_name : null;
             $item->warehouse_name = $item->warehouse ? $item->warehouse->name : null;
+            if($item->status == 'all approved') $item->status = 'approved';
             unset($item->createUser,$item->approveUser,$item->updateUser,$item->warehouse);
             $item->total_qty = 0;
             foreach($item->details as $detail){
@@ -465,9 +466,8 @@ class StockManagementService
         return null;
     }
 
-    public function getOneAdjustmentItem(Request $req,$type){
+    public function getOneAdjustmentItem(Request $req,$type,$user){
         $id = $req->id;
-        $user = UserService::getAuthUser();
         $stockItems = GeneralSettingService::getStockItems($user);
         $adjustmentItem = StockAdjustment::with(['warehouse','createUser','updateUser','approveUser','details:id,stock_adjustment_id,item_ref as sku,qty,reason,status,approved_date,approved_uid,update_uid,create_uid'])->selectRaw('id,ref_code,reason,type,status,approved_uid,approved_date,create_uid,update_uid,warehouse_id')->where('void',0)->where('company_id',$user->company_id)->where('type',$type)->find($id);
         if(!$adjustmentItem) return ApiResponse::NotFound('Could not found the missing stock');
@@ -497,9 +497,8 @@ class StockManagementService
     }
 
 
-    public function updateAdjustmentStock(Request $req,$type,$targetCol){
+    public function updateAdjustmentStock(Request $req,$type,$targetCol,$user){
         $id = $req->id;
-        $user = UserService::getAuthUser();
         $validate = $this->stockAdjustmentValidation($req);
         if($validate->fails()) return ApiResponse::ValidateFail($validate->errors()->first());
         $inputs = $validate->validated();

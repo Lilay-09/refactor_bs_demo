@@ -71,11 +71,11 @@ class User extends Authenticatable implements JWTSubject
     }
 
     protected static function booted()
-{
-    static::creating(function ($model) {
-        if (is_null($model->start_date)) {
-            $model->start_date = $model->created_at;
-        }
-    });
-}
+    {
+        static::creating(function ($model) {
+            if (is_null($model->start_date)) {
+                $model->start_date = $model->created_at;
+            }
+        });
+    }
 }

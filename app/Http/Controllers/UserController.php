@@ -44,6 +44,18 @@ class UserController extends Controller
         return ApiResponse::Pagination($userList, $req);
     }
 
+
+    public function getProfile(){
+        $authUser = UserService::getAuthUser();
+        $id = $authUser->id;
+        $user = User::where('company_id',$authUser->company_id)->selectRaw('user_name,first_name,last_name,phone,email,phone,branch_id,photo_file_name')->find($id);
+        if($user){
+            $user->role_id = UserRoles::where('user_id',$id)->take(1)->value('role_id');
+            $user->image_url = Helper::getImageUrl($user->photo_file_name,$authUser->company_id,$this->userProfileDir);
+        }
+        return ApiResponse::JsonResult($user);
+    }
+
     public function getUser(Request $req){
         $authUser = UserService::getAuthUser();
         $id = $req->id;

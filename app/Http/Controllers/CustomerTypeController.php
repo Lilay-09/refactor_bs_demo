@@ -30,7 +30,7 @@ class CustomerTypeController extends Controller
         $inputs['branch_id'] = $user->branch_id;
         $inputs['company_id'] = $user->company_id;
 
-        $duplicateName = CustomerType::where('company_id',$user->company_id)->where('name',$inputs['name'])->first();
+        $duplicateName = CustomerType::where('company_id',$user->company_id)->where('void',0)->where('name',$inputs['name'])->first();
         if($duplicateName) {
             $isDiffBranch = $duplicateName->branch_id !== $user->branch_id;
             $diffBranchText = null;
@@ -44,14 +44,14 @@ class CustomerTypeController extends Controller
 
     public function getCustomerTypes(Request $req){
         $user = UserService::getAuthUser();
-        $rows = CustomerType::where('branch_id',$user->branch_id)->get();
+        $rows = CustomerType::where('company_id',$user->company_id)->where('void',0)->get();
         return ApiResponse::Pagination($rows,$req);
     }
 
     public function getCustomerType(Request $req,$id=null){
         $id = $id ? $id : $req->id;
         $user = UserService::getAuthUser();
-        $row = CustomerType::where('branch_id',$user->branch_id)->find($id);
+        $row = CustomerType::where('branch_id',$user->branch_id)->where('void',0)->find($id);
         return ApiResponse::JsonResult($row);
     }
 
@@ -65,24 +65,27 @@ class CustomerTypeController extends Controller
         $inputs['update_uid'] = $user->id;
         $inputs['branch_id'] = $user->branch_id;
         $inputs['company_id'] = $user->company_id;
-        $vendorType = CustomerType::where('branch_id',$user->branch_id)->find($id);
-        if(!$vendorType) return ApiResponse::NotFound('Vendor type not found');
+        $vendorType = CustomerType::where('branch_id',$user->branch_id)->where('void',0)->find($id);
+        if(!$vendorType) return ApiResponse::NotFound('Customer type not found');
         $update = $vendorType->update($inputs);
         if($update) return ApiResponse::JsonResult(null,false,'Updated');
         return ApiResponse::Error('Fail to update');
     }
 
-    public function deleteCustomerType(Request $req){
+    public function voidCustomerType(Request $req){
         $user = UserService::getAuthUser();
         $id = $req->id;
-        $customerType = CustomerType::where('branch_id',$user->branch_id)->find($id);
+        $customerType = CustomerType::where('branch_id',$user->branch_id)->where('void',0)->find($id);
         if($customerType){
             $inUse = Customer::where('customer_type_id',$id)->first();
-            if($inUse) return ApiResponse::ValidateFail('This Customer Type is used by customers, cannot delete!');
-            $customerType->delete();
-            return ApiResponse::JsonResult(null,false,'Deleted');
+            if($inUse) return ApiResponse::ValidateFail('This Customer Type is applied to customers, cannot void this!');
+            $customerType->update([
+                'void' => 1,
+                'void_uid' => $user->id
+            ]);
+            return ApiResponse::JsonResult(null,false,'Voided');
         }
-        return ApiResponse::NotFound('Brand not found');
+        return ApiResponse::NotFound('Customer type not found');
     }
 
 

@@ -41,7 +41,7 @@ class StockController extends Controller
         if($startDate && $endDate){
             $startDate = date('Y-m-d',strtotime($startDate));
             $endDate = date('Y-m-d',strtotime($endDate));
-            $query->whereBetween('expiration_date',[$startDate,$endDate]);
+            $query->whereBetween('expiration_date',[$startDate,$endDate])->orWhereDate('expiration_date',$endDate);
         }
 
         if($warehouse){
