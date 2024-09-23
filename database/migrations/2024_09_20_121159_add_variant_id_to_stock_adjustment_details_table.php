@@ -26,7 +26,7 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('stock_adjustment_details', function (Blueprint $table) {
-            // 
+            //
             $table->dropForeign(['variant_id']);
 
             // Drop columns

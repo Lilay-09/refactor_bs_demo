@@ -14,7 +14,9 @@ class InvoicePayment extends Model
         'invoice_id',
         'method',
         'bank_id',
+        'amount_kh',
         'amount',
+        'currency',
         'bank_number',
     ];
 }

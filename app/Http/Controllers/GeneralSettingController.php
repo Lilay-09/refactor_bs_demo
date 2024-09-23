@@ -80,7 +80,7 @@ class GeneralSettingController extends Controller
             'tags' => $this->gs::getTags($user),
             'categories' => $this->gs::getProductCategories($user),
             'brands' => $this->gs::getBrands($user),
-            'exchange_rate' => ExchangeRate::where('company_id',$user->company_id)->take(1)->value('sell_rate') ?? 0,
+            'exchange_rate' => $this->gs->getSellExchangeRate($user),
             'tax' => Tax::where('company_id',$user->company_id)->take(1)->value('amount') ?? 0
         ];
         return ApiResponse::JsonResult($obj);

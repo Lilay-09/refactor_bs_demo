@@ -9,6 +9,7 @@ use App\Models\City;
 use App\Models\Country;
 use App\Models\Customer;
 use App\Models\CustomerType;
+use App\Models\ExchangeRate;
 use App\Models\ExpenseCategory;
 use App\Models\Product;
 use App\Models\ProductGroup;
@@ -209,6 +210,10 @@ class GeneralSettingService
     }
     static function getBrands($user){
         return Brand::where('company_id',$user->company_id)->where('void',0)->selectRaw('id,name')->get();
+    }
+
+    static function getSellExchangeRate($user){
+        return ExchangeRate::where('company_id',$user->company_id)->where('void',0)->take(1)->value('sell_rate') ?? 4000;
     }
 
     static function getExpenseCategories($user){

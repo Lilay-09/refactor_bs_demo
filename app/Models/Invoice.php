@@ -17,6 +17,8 @@ class Invoice extends Model
         'issue_date',
         'customer_id',
         'customer_phone',
+        'change',
+        'change_kh',
         'due_date',
         'total_amount',
         'due_amount',

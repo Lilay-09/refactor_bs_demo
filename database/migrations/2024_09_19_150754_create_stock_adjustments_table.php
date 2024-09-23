@@ -14,7 +14,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('stock_adjustments', function (Blueprint $table) {
-            $this->AddBaseFields($table);
+            $this->AddBaseFields($table,true);
             $table->string('ref_code',50)->nullable();
             $table->string('reason',350)->nullable();
             $table->string('type',50);

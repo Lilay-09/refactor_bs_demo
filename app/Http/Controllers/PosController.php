@@ -17,6 +17,8 @@ use App\Models\ReceiptService;
 use App\Models\Service;
 use App\Models\Stock;
 use App\Models\StockMovement;
+use App\Services\GeneralSettingService;
+use App\Services\StockManagementService;
 use App\Services\UserService;
 use DataResponse;
 use Exception;
@@ -102,10 +104,9 @@ class PosController extends Controller
         if($mergeService->status_code == 404) return ApiResponse::NotFound($mergeService->message);
         DB::beginTransaction();
         try{
-            $getInvoice = $this->generateInvoice($req,$mergeItems,$mergeService,$discountInfo,$tax,$user,$customer);
-            if($getInvoice->status_code == 422) return ApiResponse::ValidateFail($getInvoice->message);
-            if($getInvoice->status_code == 404) return ApiResponse::NotFound($getInvoice->message);
-            if($getInvoice->status_code == 500) return ApiResponse::Error($getInvoice->message);
+            $genInvoice = $this->generateInvoice($req,$mergeItems,$mergeService,$discountInfo,$tax,$user,$customer);
+            // return $genInvoice;
+            if($genInvoice->error) return ApiResponse::flex($genInvoice);
             DB::commit();
             // return Invoice::get();
             return ApiResponse::JsonResult(null,false,'Created');
@@ -199,9 +200,8 @@ class PosController extends Controller
         foreach($items as $item){
             $itemRef = $item['item_ref'];
             $qty = $item['qty'];
-            $stockManagement = new StockManagementController();
+            $stockManagement = new StockManagementService();
             $prepareStock = $stockManagement->prepareStock(null,$item->variant_id,'sold_qty',$qty,$user,$item['cost'],$itemRef);
-            // return $prepareStock;
             ReceiptItem::create([
                 'receipt_id' => $receiptId,
                 'unit_price' => $item['unit_price'],
@@ -231,8 +231,8 @@ class PosController extends Controller
         foreach($items as $item){
             $itemRef = $item['item_ref'];
             $qty = $item['qty'];
-            $stockManagement = new StockManagementController();
-            $prepareStock = $stockManagement->prepareStock(null,$item['variant_id'],'sold_qty',$qty,$user,$item['cost'],$itemRef);
+            $stockManagementService = new StockManagementService();
+            $prepareStock = $stockManagementService->prepareStock(null,$item['variant_id'],'sold_qty',$qty,$user,$item['cost'],$itemRef);
             // return $prepareStock;
             $item['invoice_id'] = $invoiceId;
             InvoiceItem::create([
@@ -467,9 +467,14 @@ class PosController extends Controller
         $total_amount = $mergeItems->data->total_amount + $mergeServices->data->total_amount;
         $total_due = $mergeItems->data->total_due + $mergeServices->data->total_due;
         $cash = $inputs['cash'] ?? 0;
+        $cashKh = $inputs['cash_kh'] ?? 0;
+        $changeKh = $inputs['change_kh'] ?? 0;
+        $change = $inputs['change'] ?? 0;
         $bankNumber = $inputs['bank_number'] ?? null;
         $bankId = $inputs['bank_id'] ?? null;
         $bankAmt = $inputs['bank_amount'] ?? 0;
+        $bankAmtKh = $inputs['bank_amount_kh'] ?? 0;
+        $exchangeRate = GeneralSettingService::getSellExchangeRate($user) ?? 4000;
         $dueDate = $inputs['due_date'] ?? now();
         $issueDate = $inputs['issue_date'] ?? now();
 
@@ -479,9 +484,16 @@ class PosController extends Controller
         $customerId = $customer->id ?? null;
         $customerPhone = $customer->phone ?? null;
 
+        $validPayment = $this->posPaymentValidation($total_due,$cash,$cashKh,$bankAmt,$bankAmtKh,$change,$changeKh,$exchangeRate);
+        if($validPayment->error) return $validPayment;
+        $paymentChangeData = $validPayment->data;
+        $change = $paymentChangeData->change;
+        $changeKh = $paymentChangeData->change_kh;
+
+
         $paymentAmout = number_format($cash + $bankAmt,2);
-        if($paymentAmout > $total_due) return DataResponse::ValidateFail('The payment amount is $'.$total_due.' only');
-        if($paymentAmout != $total_due)  return DataResponse::ValidateFail('Payment amount must be $'.$total_due.', but your input is only $'.$paymentAmout.'. missing $'.abs($total_due - $paymentAmout).'!!!');
+        // if($paymentAmout > $total_due) return DataResponse::ValidateFail('The payment amount is $'.$total_due.' only');
+        // if($paymentAmout != $total_due)  return DataResponse::ValidateFail('Payment amount must be $'.$total_due.', but your input is only $'.$paymentAmout.'. missing $'.abs($total_due - $paymentAmout).'!!!');
         $walkIn = 1;
         if(!$customerId) $walkIn = 1;
         $status_id = 3;/// payment status 3 = fully paid
@@ -490,11 +502,11 @@ class PosController extends Controller
             'issue_date' => $issueDate,
             'due_date' => $dueDate,
             'customer_id' => $customerId,
+            'change' => $change,
+            'change_kh' => $changeKh,
             'customer_phone' => $customerPhone,
             'default_discount' => $discountInfo->default_discount,
-            'change_kh' => $inputs['change_kh'],
-            'change' => $inputs['change'],
-            'exchange_rate' => $inputs['exchange_rate'],
+            'exchange_rate' => $exchangeRate,
             'total_amount' => $total_amount,
             'tax' => $tax,
             'walkin' => $walkIn,
@@ -510,6 +522,7 @@ class PosController extends Controller
         ]);
 
         $invoiceId = $createInvoice->id;
+        // return Invoice::find($invoiceId);
         if(isset($items[0])){
             $generateReceiptItems = $this->generateInvoiceItems($items,$invoiceId,$user);
             if($generateReceiptItems->error) return $generateReceiptItems;
@@ -527,6 +540,29 @@ class PosController extends Controller
                 'amount' => $cash,
             ]);
         }
+
+        if($cashKh){
+            InvoicePayment::create([
+                'invoice_id' => $invoiceId,
+                'method' => 'Cash',
+                'currency' => 'KHR',
+                'amount' => 0,
+                'amount_kh' => $cashKh,
+            ]);
+        }
+
+        if($bankAmtKh){
+            InvoicePayment::create([
+                'invoice_id' => $invoiceId,
+                'method' => 'Bank',
+                'amount_kh' => $bankAmtKh,
+                'currency' => 'KHR',
+                'bank_id' => $bankId,
+                'amount' => 0,
+                'bank_number' => $bankNumber
+            ]);
+        }
+
         if($bankAmt){
             InvoicePayment::create([
                 'invoice_id' => $invoiceId,
@@ -536,10 +572,340 @@ class PosController extends Controller
                 'bank_number' => $bankNumber
             ]);
         }
+        // return InvoicePayment::where('invoice_id',$invoiceId)->get();
+        // return Stock::get();
 
         $ref_code = Helper::setRefCode('invoice_code_controls','invoices','ref_code',$user->branch_id,$user->company_id,$invoiceId,date('Y-m-d'),'INV');
         if($ref_code->status !== 'OK') return DataResponse::Error('Fail to generate ref code');
         return DataResponse::JsonResult(null);
+    }
+
+
+
+
+    private function posPaymentValidation($totalDue,$cash,$cashKh,$bankAmt,$bankAmtKh,$change,$changeKh,$exchangeRate){
+        $dueInKh = $totalDue * $exchangeRate;
+        $totalChange = 0;
+        if(!$cash && !$cashKh && !$bankAmt && !$bankAmtKh) return DataResponse::Error('Please enter payment amount to continue.');
+
+        //** only cash in KHR */
+        if($cashKh && !$cash && !$bankAmt && !$bankAmtKh) {
+            // $payableCashKh = $totalDue * $exchangeRate;
+            if($cashKh < $dueInKh) return DataResponse::ValidateFail('Amount in KHR must at least '.$dueInKh.'៛');
+            if($change && !$changeKh){
+                $changeKhToUs = ($cashKh - $dueInKh) / $exchangeRate;
+                if($change != $changeKhToUs) return DataResponse::ValidateFail('Change in USD must be equal to $'.$changeKhToUs);
+            }
+            if(!$change && $changeKh){
+                $changableKh = $cashKh - $dueInKh;
+                if($changableKh != $changeKh) return DataResponse::ValidateFail('Change in KHR must be '.$changableKh.'៛');
+            }
+
+            if($changeKh && $change){
+                $changeKhToUs = number_format($cashKh / $exchangeRate,2);
+                $dueChange = $changeKhToUs - $totalDue;
+                $dueChangeKh = $dueChange * $exchangeRate;
+                $inputChangeKhToUs = ($changeKh / $exchangeRate);
+                if($changeKh > $dueChangeKh){
+                    return DataResponse::ValidateFail('You provide change in KHR is invalid!');
+                }
+                $suggestionChangeInUSD = $changeKhToUs - $totalDue - $inputChangeKhToUs;
+                $totalChange = $inputChangeKhToUs + $change;
+                if($totalChange != abs($dueChange)){
+                    $message = 'if change in KHR is ('.$changeKh.'៛), so change in USD must be ($'.$suggestionChangeInUSD.')';
+                    return DataResponse::ValidateFail($message);
+                }
+            }
+        }
+
+        //** only cash in USD */
+        else if($cash && !$cashKh && !$bankAmt && !$bankAmtKh) {
+            if($cash < $totalDue) return DataResponse::ValidateFail('Amount in USD must at least $'.$totalDue);
+            if($cash > $totalDue && !$change && !$changeKh) {
+                $changeInUSD = number_format($cash - $totalDue,2);
+                $changableKh = ($cash - $totalDue) * $exchangeRate;
+                return DataResponse::ValidateFail('Amount is greater than due amount, you have to add change amount, change in KHR is '.$changableKh. ' or in USD ('.$changeInUSD.')');
+            }
+            if($change && !$changeKh){
+                $changableUSD = $cash - $totalDue;
+                if($change != $changableUSD) return DataResponse::ValidateFail('Receive amount is $'.$cash.' and due amount is '.$totalDue.',so Change in USD must be equal to $'.$changableUSD);
+            }
+
+            if(!$change && $changeKh){
+                $totalAmtInKh = $totalDue * $exchangeRate;
+                $changeKhToUs = $cash * $exchangeRate;
+                if($changeKhToUs < $changeKh) return DataResponse::ValidateFail('You provide change in KHR is invalid!');
+                if($changeKh > $totalAmtInKh){
+                    $changableKh = $changeKhToUs - $totalAmtInKh;
+                    return DataResponse::ValidateFail('Change in KHR must be '.$changableKh.'៛');
+                }else{
+                    $changableKh = $totalAmtInKh - $changeKh;
+                    return DataResponse::ValidateFail('Change in KHR must be '.$changableKh.'៛');
+                }
+            }
+
+            if($changeKh && $change){
+                $changeKhToUs = number_format($changeKh / $exchangeRate,2);
+                $totalChange = $change + $changeKhToUs;
+                $dueChange = $cash - $totalDue;
+                if($cash > $totalDue){
+                    if($change > $dueChange){
+                        return DataResponse::ValidateFail('You provide change in USD is invalid!');
+                    }
+                }
+                $suggestionChangeInKHR = $dueChange - $change > 0 ? ($dueChange - $change) * $exchangeRate : 0;
+                if($totalChange != abs($dueChange)){
+                    $message = 'if change in USD is ($'.$change.'), so change in KHR must be ('.$suggestionChangeInKHR.'៛)';
+                    return DataResponse::ValidateFail($message);
+                }
+                if(($cash - $totalChange) != $totalDue) return DataResponse::ValidateFail('Payment amount in USD must be $'.$totalDue);
+            }
+
+        }
+
+        //** only bank amount in KHR */
+        else if($bankAmtKh && !$cashKh && !$bankAmt && !$cash) {
+            if($bankAmtKh < $dueInKh) return DataResponse::ValidateFail('Amount in KHR must at least '.$dueInKh);
+            if($bankAmtKh > $dueInKh && !$change && !$changeKh) {
+                $changableKh = number_format($bankAmtKh - $dueInKh,2);
+                $changeInUSD = ($bankAmtKh - $dueInKh) / $exchangeRate;
+                return DataResponse::ValidateFail('Amount is greater than due amount, you have to add change amount, change in KHR is '.$changableKh. ' or in USD ('.$changeInUSD.')');
+            }
+            if($change && !$changeKh){
+                $changeKhToUs = ($bankAmtKh - $dueInKh) / $exchangeRate;
+                if($change != $changeKhToUs) return DataResponse::ValidateFail('Change in USD must be equal to $'.$changeKhToUs);
+            }
+            if(!$change && $changeKh){
+                $changableKh = $bankAmtKh - $dueInKh;
+                if($changableKh != $changeKh) return DataResponse::ValidateFail('Change in KHR must be '.$changableKh.'៛');
+            }
+
+            if($changeKh && $change){
+                $changeKhToUs = number_format($bankAmtKh / $exchangeRate,2);
+                $dueChange = $changeKhToUs - $totalDue;
+                $dueChangeKh = $dueChange * $exchangeRate;
+                $inputChangeKhToUs = ($changeKh / $exchangeRate);
+                if($changeKh > $dueChangeKh){
+                    return DataResponse::ValidateFail('You provide change in KHR is invalid!');
+                }
+                $suggestionChangeInUSD = $changeKhToUs - $totalDue - $inputChangeKhToUs;
+                $totalChange = $inputChangeKhToUs + $change;
+                if($totalChange != abs($dueChange)){
+                    $message = 'if change in KHR is ('.$changeKh.'៛), so change in USD must be ($'.$suggestionChangeInUSD.')';
+                    return DataResponse::ValidateFail($message);
+                }
+            }
+        }
+
+        //** only bank amount in USD */
+        else if($bankAmt && !$cashKh && !$bankAmtKh && !$cash) {
+            if($bankAmt < $totalDue) return DataResponse::ValidateFail('Amount in KHR must at least '.$dueInKh);
+            if($bankAmt > $totalDue && !$change && !$changeKh) {
+                $changableKh = number_format($bankAmtKh - $dueInKh,2);
+                $changeInUSD = ($bankAmtKh - $dueInKh) / $exchangeRate;
+                return DataResponse::ValidateFail('Amount is greater than due amount, you have to add change amount, change in KHR is '.$changableKh. ' or in USD ('.$changeInUSD.')');
+            }
+            if($change && !$changeKh){
+                $changeKhToUs = ($bankAmtKh - $dueInKh) / $exchangeRate;
+                if($change != $changeKhToUs) return DataResponse::ValidateFail('Change in USD must be equal to $'.$changeKhToUs);
+            }
+
+            if(!$change && $changeKh){
+                $totalAmtInKh = $bankAmt * $exchangeRate;
+                $changeKhToUs = $changeKh / $exchangeRate;
+                $paymentAmtInKh = $totalDue * $exchangeRate;
+                if($changeKh > $totalAmtInKh){
+                    $changableKh = $changeKhToUs - $totalAmtInKh;
+                    return DataResponse::ValidateFail('Change in KHR must be '.$changableKh.'៛');
+                }else{
+                    $changableKh = $totalAmtInKh - $paymentAmtInKh;
+                    return DataResponse::ValidateFail('Change in KHR must be '.$changableKh.'៛');
+                }
+            }
+
+            if($changeKh && $change){
+                $changeKhToUs = number_format($changeKh / $exchangeRate,2);
+                $totalChange = $change + $changeKhToUs;
+                $dueChange = $bankAmt - $totalDue;
+                if($bankAmt > $totalDue){
+                    if($change > $dueChange){
+                        return DataResponse::ValidateFail('You provide change in USD is invalid!');
+                    }
+                }
+                $suggestionChangeInKHR = $dueChange - $change > 0 ? ($dueChange - $change) * $exchangeRate : 0;
+                if($totalChange != abs($dueChange)){
+                    $message = 'if change in USD is ($'.$change.'), so change in KHR must be ('.$suggestionChangeInKHR.'៛)';
+                    return DataResponse::ValidateFail($message);
+                }
+                if(($bankAmt - $totalChange) != $totalDue) return DataResponse::ValidateFail('Payment amount in USD must be $'.$totalDue);
+            }
+        }
+
+        //** both cash USD and KHR */
+        else if($cash && $cashKh && !$bankAmt && !$bankAmtKh){
+            $cashkhToUs = $cashKh / $exchangeRate;
+            $finalDue = number_format($cashkhToUs + $cash,2);
+            if($finalDue != $totalDue) {
+                $remainingUSD = $totalDue - $finalDue;
+                $remainingKHR = number_format($remainingUSD * $exchangeRate,2);
+                if($change && !$changeKh){
+                    if($change != $remainingUSD) return DataResponse::ValidateFail('Change in USD must be '.$remainingUSD);
+                }
+                if($changeKh && !$change){
+                    if($change != $remainingKHR) return DataResponse::ValidateFail('Change in KHR must be '.$remainingKHR.'៛');
+                }
+                if($changeKh && $change){
+                    $changeKhToUs = number_format($changeKh / $exchangeRate,2);
+                    $totalChange = $change + $changeKhToUs;
+                    $dueChange = 0;
+                    if($totalChange != abs($dueChange)) return DataResponse::ValidateFail('Total change in both KHR and USD must be $'.$remainingUSD.' in USD or '.$remainingKHR.'៛ in KHR by exchange rate ('.$exchangeRate.' KHR)');
+                }
+                if(($finalDue - $totalChange) != $totalDue) return DataResponse::ValidateFail($finalDue.', total='.$totalDue.'remaining => USD '.$remainingUSD.' or KHR '.$remainingKHR);
+            }
+        }
+
+        //** cash and bank amount in KHR */
+        else if ($cash && $bankAmtKh && !$cashKh && !$bankAmt){
+            $bankKhToUs = $bankAmtKh / $exchangeRate;
+            $finalDue = number_format($bankKhToUs + $cash,2);
+            if($finalDue != $totalDue) {
+                $remainingUSD = abs($totalDue - $finalDue);
+                $remainingKHR = number_format($remainingUSD * $exchangeRate,2);
+                if($change && !$changeKh){
+                    if($change != $remainingUSD) return DataResponse::ValidateFail('Change in USD must be '.$remainingUSD);
+                    $totalChange = $change;
+                }
+                if($changeKh && !$change){
+                    if($change != $remainingKHR) return DataResponse::ValidateFail('Change in KHR must be '.$remainingKHR.'៛');
+                    $totalChange = $changeKh / $exchangeRate;
+                }
+                if($changeKh && $change){
+                    $changeKhToUs = number_format($changeKh / $exchangeRate,2);
+                    $totalChange = $change + $changeKhToUs;
+                    $dueChange = 0;
+                    if($totalChange != abs($dueChange)) return DataResponse::ValidateFail('Total change in both KHR and USD must be $'.$remainingUSD.' in USD or '.$remainingKHR.'៛ in KHR by exchange rate ('.$exchangeRate.' KHR)');
+                }
+                if(($finalDue - $totalChange) != $totalDue) return DataResponse::ValidateFail($finalDue.', total='.$totalDue.'remaining => USD '.$remainingUSD.' or KHR '.$remainingKHR);
+            }
+        }
+
+        //** cash and bank amount in USD */
+        else if ($cash && $bankAmt && !$cashKh && !$bankAmtKh){
+            $totalAmt = $cash + $bankAmt;
+            if($totalAmt < $totalDue) return DataResponse::ValidateFail('Amount in USD must at least $'.$totalDue);
+            if($totalAmt > $totalDue && !$change && !$changeKh) {
+                $changeInUSD = number_format($totalAmt - $totalDue,2);
+                $changableKh = ($totalAmt - $totalDue) * $exchangeRate;
+                return DataResponse::ValidateFail('Amount is greater than due amount, you have to add change amount, change in KHR is '.$changableKh. ' or in USD ('.$changeInUSD.')');
+            }
+            if($change && !$changeKh){
+                $changableUSD = $totalAmt - $totalDue;
+                if($change != $changableUSD) return DataResponse::ValidateFail('Receive amount is $'.$totalAmt.' and due amount is '.$totalDue.',so Change in USD must be equal to $'.$changableUSD);
+            }
+
+            if(!$change && $changeKh){
+                $totalAmtInKh = $totalDue * $exchangeRate;
+                $changeKhToUs = $totalAmt * $exchangeRate;
+                if($changeKhToUs < $changeKh) return DataResponse::ValidateFail('You provide change in KHR is invalid!');
+                if($changeKh > $totalAmtInKh){
+                    $changableKh = $changeKhToUs - $totalAmtInKh;
+                    return DataResponse::ValidateFail('Change in KHR must be '.$changableKh.'៛');
+                }else{
+                    $changableKh = $totalAmtInKh - $changeKh;
+                    return DataResponse::ValidateFail('Change in KHR must be '.$changableKh.'៛');
+                }
+            }
+
+            if($changeKh && $change){
+                $changeKhToUs = number_format($changeKh / $exchangeRate,2);
+                $totalChange = $change + $changeKhToUs;
+                $dueChange = $totalAmt - $totalDue;
+                if($totalAmt > $totalDue){
+                    if($change > $dueChange){
+                        return DataResponse::ValidateFail('You provide change in USD is invalid!');
+                    }
+                }
+                $suggestionChangeInKHR = $dueChange - $change > 0 ? ($dueChange - $change) * $exchangeRate : 0;
+                if($totalChange != abs($dueChange)){
+                    $message = 'if change in USD is ($'.$change.'), so change in KHR must be ('.$suggestionChangeInKHR.'៛)';
+                    return DataResponse::ValidateFail($message);
+                }
+                if(($totalAmt - $totalChange) != $totalDue) return DataResponse::ValidateFail('Payment amount in USD must be $'.$totalDue);
+            }
+        }
+
+        //** both cash USD and KHR and Bank amount In USD */
+        else if($cash && $cashKh && $bankAmt && !$bankAmtKh){
+            $cashkhToUs = $cashKh / $exchangeRate;
+            $totalAmtInUSD = $cash + $bankAmt;
+            if(($totalAmtInUSD + $cashkhToUs) < $totalDue) return DataResponse::ValidateFail('It seems like your amount is lower than payable amount($'.$totalDue.')');
+            $finalDue = $cashkhToUs + $totalAmtInUSD;
+            if($finalDue != $totalDue) {
+                $remainingUSD = $totalDue - $finalDue;
+                $remainingKHR =$remainingUSD * $exchangeRate;
+                if($change && !$changeKh){
+                    if($change != $remainingUSD) return DataResponse::ValidateFail('Change in USD must be '.$remainingUSD);
+                }
+                if($changeKh && !$change){
+                    if($change != $remainingKHR) return DataResponse::ValidateFail('Change in KHR must be '.$remainingKHR.'៛');
+                }
+                if($changeKh && $change){
+                    $changeKhToUs = $changeKh / $exchangeRate;
+                    $totalChange = $change + $changeKhToUs;
+                    $dueChange = $finalDue - $totalDue;
+                    if($totalChange != abs($dueChange)){
+                        var_dump($totalChange);
+                        if($change > $dueChange){
+                            return DataResponse::ValidateFail('It seems like your change in USD is greater than due change in USD $'.$dueChange.' or in KHR '.$dueChange * $exchangeRate.'៛');
+                        }
+                        else{
+                            $suggestionChangeInKHR = ($dueChange - $change) > 0 ? ($dueChange - $change) * $exchangeRate : 0;
+                            $message = 'if change in USD is ($'.$change.'), so change in KHR must be ('.$suggestionChangeInKHR.'៛)';
+                            return DataResponse::ValidateFail($message);
+                        }
+                    }
+                }
+                if(($finalDue - $totalChange) != $totalDue) return DataResponse::ValidateFail($finalDue.', total='.$totalDue.'remaining => USD '.$remainingUSD.' or KHR '.$remainingKHR);
+            }
+        }
+
+        //** both cash USD and KHR and Bank amount In KHR */
+        else if($cash && $cashKh && $bankAmtKh && !$bankAmt){
+            $amountKhToUs = ($cashKh + $bankAmtKh) / $exchangeRate;
+            $finalDue = $amountKhToUs + $cash;
+            if($finalDue != $totalDue) {
+                $remainingUSD = $totalDue - $finalDue;
+                $remainingKHR = number_format($remainingUSD * $exchangeRate,2);
+                if($change && !$changeKh){
+                    if($change != $remainingUSD) return DataResponse::ValidateFail('Change in USD must be '.$remainingUSD);
+                }
+                if($changeKh && !$change){
+                    if($change != $remainingKHR) return DataResponse::ValidateFail('Change in KHR must be '.$remainingKHR.'៛');
+                }
+                if($changeKh && $change){
+                    $changeKhToUs = number_format($changeKh / $exchangeRate,2);
+                    $totalChange = $change + $changeKhToUs;
+                    $dueChange = $finalDue - $totalDue;
+                    if($totalChange != abs($dueChange)){
+                        if($change > $dueChange) return DataResponse::ValidateFail('Invalid change value in USD');
+                        else{
+                            $suggestionChangeInKHR = ($dueChange - $change) * $exchangeRate;
+                            $message = 'if change in USD is ($'.$change.'), so change in KHR must be ('.$suggestionChangeInKHR.'៛)';
+                            return DataResponse::ValidateFail($message);
+                        }
+                    }
+                }
+                if(($finalDue - $totalChange) != $totalDue) return DataResponse::ValidateFail($finalDue.', total='.$totalDue.'remaining => USD '.$remainingUSD.' or KHR '.$remainingKHR);
+            }
+        }
+
+        return DataResponse::JsonResult((object)[
+            'change' => $change ?? 0,
+            'change_kh' => $changeKh ?? 0,
+            'cash' => $cash ?? 0,
+            'cash_kh' => $cashKh ?? 0,
+            'cash_kh_to_us' => $bankKhToUs ?? 0
+        ]);
     }
 
 }
