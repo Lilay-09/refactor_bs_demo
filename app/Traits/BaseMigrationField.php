@@ -2,7 +2,7 @@
 namespace App\Traits;
 use Illuminate\Database\Schema\Blueprint;
 trait BaseMigrationField{
-    public function AddBaseFields(Blueprint $table,$useVoid=true){
+    public function AddBaseFields(Blueprint $table,$useVoid=false){
         $table->id();
         $table->timestamp("created_at")->useCurrent();
         $table->timestamp("updated_at")->useCurrent()->useCurrentOnUpdate();

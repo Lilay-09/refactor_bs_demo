@@ -38,7 +38,7 @@ class ServiceController extends Controller
         $inputs['company_id'] = $user->company_id;
         $photo = $inputs['photo'] ?? null;
         unset($inputs['photo']);
-        $duplicateName = Service::where('branch_id',$user->branch_id)->where('name',$name)->first();
+        $duplicateName = Service::where('branch_id',$user->branch_id)->where('void',0)->where('name',$name)->first();
         if($duplicateName) return ApiResponse::Duplicated('Category ('.$name.') is already exists.');
         $photoFile = Helper::base64ToImageFile($photo,$user->company_id,self::$imgDir);
         if($photoFile) $inputs['photo_file_name'] = $photoFile;
@@ -50,7 +50,7 @@ class ServiceController extends Controller
 
     public function getServices(Request $req){
         $user = UserService::getAuthUser();
-        $query = Service::where('branch_id',$user->branch_id)->selectRaw('id,price,description,name,name_kh,photo_file_name');
+        $query = Service::where('branch_id',$user->branch_id)->where('void',0)->selectRaw('id,price,description,name,name_kh,photo_file_name');
         if($req->search){
             $query->where('name','ilike','%'.$req->search.'%')->orWhere('name_kh','ilike','%'.$req->search.'%');
         }
@@ -65,7 +65,7 @@ class ServiceController extends Controller
     public function getService(Request $req,$id=null){
         $id = $id ? $id : $req->id;
         $user = UserService::getAuthUser();
-        $service = Service::where('branch_id',$user->branch_id)->find($id);
+        $service = Service::where('branch_id',$user->branch_id)->where('void',0)->find($id);
         if($service) $service->image_url = Helper::getFileUrl($service->photo_file_name,$user->company_id,self::$imgDir);
         return ApiResponse::JsonResult($service);
     }
@@ -81,7 +81,7 @@ class ServiceController extends Controller
         $inputs = $validate->validated();
         $id = $id ? $id : $req->id;
         $user = UserService::getAuthUser();
-        $serivce = Service::where('branch_id',$user->branch_id)->find($id);
+        $serivce = Service::where('branch_id',$user->branch_id)->where('void',0)->find($id);
         if(!$serivce) return ApiResponse::NotFound('Service not found');
         $name = $inputs['name'];
         // $name_kh = $inputs['name_kh'] ?? null;
@@ -101,6 +101,22 @@ class ServiceController extends Controller
         if($update) return ApiResponse::JsonResult(null,false,'Updated');
         return ApiResponse::Error('Fail to update');
     }
+
+
+    public function voidService(Request $req){
+        $id = $req->id;
+        $user = UserService::getAuthUser();
+        $service = Service::where('branch_id',$user->branch_id)->where('void',0)->find($id);
+        if($service){
+            $service->update([
+                'void' => 1,
+                'void_uid' => $user->id
+            ]);
+            return ApiResponse::JsonResult(null.false,'Voided');
+        }
+        return ApiResponse::NotFound('Service not found');
+    }
+
 
     public function deleteService(Request $req){
         $id = $req->id;

@@ -46,7 +46,7 @@ class ProductVariantController extends Controller
         $inputs['retail_price'] = $inputs['retail_price']?? $productInfo->retail_price;
         $inputs['wholesale_price'] = $inputs['wholesale_price'] ?? $productInfo->wholesale_price;
         if(isset($photos[0])){
-            $savePhoto = $product->updateOrCreateVariantPhotos($photos,$user->company_id,$create->id);
+            $savePhoto = $product->updateOrCreateVariantPhotos($photos,$user->company_id,$create->id,$user);
             if($savePhoto->status_code == 422) return ApiResponse::ValidateFail($savePhoto->message);
         }
         if(!$create) return ApiResponse::Error('Fail to create variant');
@@ -75,15 +75,18 @@ class ProductVariantController extends Controller
         $variant = ProductVariant::where('branch_id',$user->branch_id)->find($id);
         $existInStock = Stock::where('variant_id',$id)->first();
         if($existInStock){
+            $validMaterial = ($variant->material && $inputs['material'] != $variant->material);
+            $validColor = ($inputs['color'] != $variant->color && $variant->color);
+            $validSize = ($inputs['size'] != $variant->size && $variant->size);
             if(
-                $inputs['condition'] != $variant->condition
-                || $inputs['size'] != $variant->size || $inputs['color'] != $variant->color
+                $inputs['condition'] != $variant->condition || $inputs['product_id'] != $variant->product_id
+                || $validSize || $validColor  || $validMaterial
                 ){
                 return ApiResponse::ValidateFail('This item exists in stock you cannot change any info except image or price');
             }
         }
         $product = new ProductController();
-        $savePhoto = $product->updateOrCreateVariantPhotos($photos,$user->company_id,$id);
+        $savePhoto = $product->updateOrCreateVariantPhotos($photos,$user->company_id,$id,$user);
         if($savePhoto->status_code == 422) return ApiResponse::ValidateFail($savePhoto->message);
         $productInfo = Product::find($inputs['product_id']);
         $inputs['cost'] = $inputs['cost'] ?? $productInfo->cost;
@@ -98,15 +101,34 @@ class ProductVariantController extends Controller
         $user = UserService::getAuthUser();
         $id = $id ? $id : $req->id;
         $variant = ProductVariant::with(['photos:id,variant_id,photo_file_name,directory,is_thumbnail'])->where('branch_id',$user->branch_id)->where('id',$id)->selectRaw('id,size,color,cost,retail_price,sku,weight,width,length,expires_at,condition,condition_percentage,material,product_id,company_id')->first();
+        // $stockItems = Stock::get();
         if($variant){
             foreach($variant->photos as $photo){
                 $photo->image_url = Helper::getImageUrl($photo->photo_file_name,$variant->company_id,$photo->directory);
                 unset($photo->directory);
             }
+            $useVariant = Stock::where('variant_id',$id)->first() ? false:true;
+            $editableSize = ($useVariant || !$variant->size);
+            $editableColor = ($useVariant || !$variant->color);
+            $editableMaterial = ($useVariant || !$variant->material);
+            $editableCondition = ($useVariant || !$variant->condition);
+            $variant->editable_product = $useVariant ?? false;
+            $variant->editable_size = $editableSize;
+            $variant->editable_color = $editableColor;
+            $variant->editable_material = $editableMaterial;
+            $variant->editable_condition = $editableCondition;
         }
         return ApiResponse::JsonResult($variant);
 
     }
+
+    public function useStockVariant($rows,$variant_id){
+        foreach($rows as $row){
+            if($row->variant_id == $variant_id) return true;
+        }
+        return false;
+    }
+
     public function getVariantByProductId(Request $req,$product_id=null){
         $user = UserService::getAuthUser();
         $product_id = $product_id ? $product_id : $req->product_id;

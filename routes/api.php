@@ -99,7 +99,7 @@ Route::middleware('jwt')->group(function(){
         Route::get('',[ServiceController::class,'getServices']);
         Route::get('/{id?}',[ServiceController::class,'getService']);
         Route::put('/{id?}',[ServiceController::class,'updateService']);
-        Route::delete('/{id?}',[ServiceController::class,'deleteService']);
+        Route::delete('void/{id?}',[ServiceController::class,'voidService']);
     });
 
 
@@ -146,13 +146,13 @@ Route::middleware('jwt')->group(function(){
             Route::get('',[VendorTypeController::class,'getVendorTypes']);
             Route::get('/{id?}',[VendorTypeController::class,'getVendorType']);
             Route::put('/{id?}',[VendorTypeController::class,'updateVendorType']);
-            Route::delete('/{id?}',[VendorTypeController::class,'deleteVendorType']);
+            Route::delete('void/{id?}',[VendorTypeController::class,'voidVendorType']);
         });
         Route::post('',[VendorController::class,'createVendor']);
         Route::get('',[VendorController::class,'getVendors']);
         Route::get('/{id?}',[VendorController::class,'getVendor']);
         Route::put('/{id?}',[VendorController::class,'updateVendor']);
-        Route::delete('/{id?}',[VendorController::class,'deleteVendor']);
+        Route::delete('void/{id?}',[VendorController::class,'voidVendor']);
     });
 
     Route::prefix('customer')->group(function(){

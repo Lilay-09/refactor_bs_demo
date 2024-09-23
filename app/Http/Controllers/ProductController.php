@@ -122,7 +122,7 @@ class ProductController extends Controller
                 'photo.required' => 'Image is empty, Please add the image'
             ]);
     }
-    function updateOrCreateVariantPhotos($photos,$company_id,$variantId){
+    function updateOrCreateVariantPhotos($photos,$company_id,$variantId,$user){
         foreach($photos as $photo){
             $photo['variant_id'] = $variantId;
             $request = new Request($photo);
@@ -135,13 +135,12 @@ class ProductController extends Controller
             $inputs['photo_file_name'] = $file_name;
             unset($inputs['photo']);
             if($id){
-
+                $productVariantPhoto = ProductVariantPhoto::find($id);
                 // $photoCount = ProductVariantPhoto::where('id','!=',$id)->where('variant_id',$inputs['variant_id'])->count();
                 // if($photoCount == $this->limitImages) {
                 //     Helper::deleteImageFile($file_name,$company_id,'product_variant');
                 //     return DataResponse::ValidateFail('Each variant can only store up to '.$this->limitImages.' photos');
                 // }
-                $productVariantPhoto = ProductVariantPhoto::find($id);
                 $inputs['photo_file_name'] = $file_name ?? $productVariantPhoto->photo_file_name;
                 if(!$productVariantPhoto) {
                     Helper::deleteImageFile($file_name,$company_id,'product_variant');
@@ -452,7 +451,7 @@ class ProductController extends Controller
                 $update = $variant->update($inputs);
                 if(!$update) return DataResponse::Error('Fail to update variant');
                 if(isset($photos[0])){
-                    $savePhoto = $this->updateOrCreateVariantPhotos($photos,$company_id,$id);
+                    $savePhoto = $this->updateOrCreateVariantPhotos($photos,$company_id,$id,$user);
                     if($savePhoto->status_code == 422) return DataResponse::ValidateFail($savePhoto->message);
                 }
             }else{
@@ -460,7 +459,7 @@ class ProductController extends Controller
                 $create = ProductVariant::create($inputs);
                 if(!$create) return DataResponse::Error('Fail to create variant');
                 if(isset($photos[0])){
-                    $savePhoto = $this->updateOrCreateVariantPhotos($photos,$company_id,$create->id);
+                    $savePhoto = $this->updateOrCreateVariantPhotos($photos,$company_id,$create->id,$user);
                     if($savePhoto->status_code == 422) return DataResponse::ValidateFail($savePhoto->message);
                 }
             }

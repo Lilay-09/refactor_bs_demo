@@ -28,16 +28,13 @@ class CountryController extends Controller
         $inputs['company_id'] = $user->company_id;
         $inputs['create_uid'] = $user->id;
         $inputs['update_uid'] = $user->id;
-        $existCountry = Country::where('name',$req->name)->where('branch_id',$user->branch_id)->take(1)->value('id');
+        $existCountry = Country::where('name',$req->name)->where('void',0)->where('company_id',$user->company_id)->take(1)->value('id');
         if($existCountry) return ApiResponse::Duplicated('Country ('.$req->name.') is already exists.');
 
         $create = Country::create($inputs);
         if($create) return ApiResponse::JsonResult(null,false,'Created');
 
-        return ApiResponse::JsonResult([
-            'error' => true,
-            'message' => 'Fail to save country'
-        ],500);
+        return ApiResponse::Error('Fail to create');
     }
 
     public function countries(Request $req){
@@ -45,45 +42,54 @@ class CountryController extends Controller
         if($req->id){
             return $this->country($req);
         }
-        $countries = Country::with('cities:id,country_id,name,name_kh')->where('branch_id',$user->branch_id)->get();
+        $countries = Country::with('cities:id,country_id,name,name_kh')->where('void',0)->where('company_id',$user->company_id)->get();
         return ApiResponse::JsonResult($countries);
     }
 
 
     public function country(Request $req){
         $user = UserService::getAuthUser();
-        $country = Country::selectRaw('id,name,name_kh')->where('branch_id',$user->branch_id)->where('id',$req->id)->first();
+        $country = Country::selectRaw('id,name,name_kh')->where('void',0)->where('company_id',$user->company_id)->where('id',$req->id)->first();
         return ApiResponse::JsonResult($country);
     }
 
     public function getCities(Request $req,$id = null){
         $user = UserService::getAuthUser();
-        $cities = City::where('country_id',$req->country_id)->where('branch_id',$user->branch_id)->get();
+        $cities = City::where('country_id',$req->country_id)->where('void',0)->where('company_id',$user->company_id)->get();
         return ApiResponse::JsonResult($cities);
     }
 
     public function updateCountry(Request $req,$id=null){
+        $user = UserService::getAuthUser();
         $validate = $this->countryValidation($req);
         if($validate->fails()) return ApiResponse::ValidateFail($validate->errors()->first());
         $inputs = $validate->validated();
         $id = $id ? $id : $req->id;
-        $user = UserService::getAuthUser();
-        $inputs['branch_id'] = $user->branch_id;
+
+        $inputs['company_id'] = $user->branch_id;
         $inputs['company_id'] = $user->company_id;
         $inputs['update_uid'] = $user->id;
-        $country = Country::where('branch_id',$user->branch_id)->find($id);
+        $country = Country::where('company_id',$user->company_id)->where('void',0)->find($id);
         if(!$country) return ApiResponse::NotFound('Country not found');
 
-        $existCountry = Country::where('name',$req->name)->where('branch_id',$user->branch_id)->where('id','!=',$id)->take(1)->value('id');
+        $existCountry = Country::where('name',$req->name)->where('company_id',$user->company_id)->where('id','!=',$id)->take(1)->value('id');
         if($existCountry) return ApiResponse::Duplicated('Country ('.$req->name.') is already exists.');
-
         $update = $country->update($inputs);
         if($update) return ApiResponse::JsonResult(null,false,'Updated');
         return ApiResponse::Error('Fail to update');
     }
 
-    public function deleteCountry(Request $req){
+    public function voidCountry(Request $req){
+        $user = UserService::getAuthUser();
+        $id = $req->id;
+        $country = Country::where('company_id',$user->company_id)->where('void',0)->find($id);
+        if(!$country) return ApiResponse::NotFound('Country not found');
+        $country->update([
+            'void' => 1,
+            'void_uid' => $user->id
+        ]);
 
+        return ApiResponse::JsonResult(null,false,'Voided');
     }
 
 }

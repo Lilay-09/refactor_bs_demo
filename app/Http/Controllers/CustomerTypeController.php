@@ -12,16 +12,17 @@ use Illuminate\Http\Request;
 class CustomerTypeController extends Controller
 {
     //
-    private function vendorTypeValidation(Request $req){
+    private function customerTypeValidation(Request $req){
         return validator($req->all(),[
             'name' => 'required|string|max:50',
-            'name_kh' => 'nullable|string|max:100'
+            'name_kh' => 'nullable|string|max:100',
+            'discount_percent' => 'nullable|numeric|min:0|max:100'
         ]);
     }
 
     public function createCustomerType(Request $req){
         $user = UserService::getAuthUser();
-        $validate = $this->vendorTypeValidation($req);
+        $validate = $this->customerTypeValidation($req);
         if($validate->fails()) return ApiResponse::ValidateFail($validate->errors()->first());
 
         $inputs = $validate->validated();
@@ -58,7 +59,7 @@ class CustomerTypeController extends Controller
     public function updateCustomerType(Request $req,$id=null){
         $id = $id ? $id : $req->id;
         $user = UserService::getAuthUser();
-        $validate = $this->vendorTypeValidation($req);
+        $validate = $this->customerTypeValidation($req);
         if($validate->fails()) return ApiResponse::ValidateFail($validate->errors()->first());
 
         $inputs = $validate->validated();
@@ -77,7 +78,7 @@ class CustomerTypeController extends Controller
         $id = $req->id;
         $customerType = CustomerType::where('branch_id',$user->branch_id)->where('void',0)->find($id);
         if($customerType){
-            $inUse = Customer::where('customer_type_id',$id)->first();
+            $inUse = Customer::where('customer_type_id',$id)->where('void',0)->first();
             if($inUse) return ApiResponse::ValidateFail('This Customer Type is applied to customers, cannot void this!');
             $customerType->update([
                 'void' => 1,
@@ -87,7 +88,5 @@ class CustomerTypeController extends Controller
         }
         return ApiResponse::NotFound('Customer type not found');
     }
-
-
 }
 
