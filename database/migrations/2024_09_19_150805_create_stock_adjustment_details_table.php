@@ -14,7 +14,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('stock_adjustment_details', function (Blueprint $table) {
-            $this->AddBaseFields($table);
+            $this->AddBaseFields($table,true);
             $table->unsignedBigInteger('stock_adjustment_id');
             $table->string('item_ref');
             $table->unsignedInteger('qty');

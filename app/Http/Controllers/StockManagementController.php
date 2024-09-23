@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use ApiResponse;
 use App\Http\Controllers\Controller;
-use App\Models\DailyStock;
 use App\Models\MovementType;
 use App\Models\PoPaymentSlip;
 use App\Models\ProductVariant;
@@ -15,11 +14,7 @@ use App\Models\PurchaseOrderItem;
 use App\Models\ReceivePo;
 use App\Models\ReceivePoItem;
 use App\Models\Stock;
-use App\Models\StockAdjustment;
-use App\Models\StockAdjustmentDetail;
-use App\Models\StockLocation;
 use App\Models\StockMovement;
-use App\Services\GeneralSettingService;
 use App\Services\StockManagementService;
 use App\Services\UserService;
 use DataResponse;
@@ -60,10 +55,9 @@ class StockManagementController extends Controller
     }
     protected $stockMngService;
 
-    public function __construct(StockManagementService $sv){
+    public function __construct(?StockManagementService $sv=null){
         $this->stockMngService = $sv;
     }
-
     //** Purchase Order */
     private function purchaseOrderValidation(Request $req){
         return validator($req->all(),[
