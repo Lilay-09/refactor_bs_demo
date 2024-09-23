@@ -160,7 +160,7 @@ class StockManagementService
         if($status){
             $statusArr = explode(',',$status);
             $statusArr = array_map(function ($status) {
-                return $status === 'partially approved' ? 'pending' : $status;
+                return $status === 'partially approved' ? ($status == 'approved' ? 'all approved': 'pending') : $status;
             }, $statusArr);
             $query->whereIn('status', $statusArr);
         }
@@ -377,6 +377,7 @@ class StockManagementService
         $id = $req->id;
         $StockAdjustment = StockAdjustment::where('company_id',$user->company_id)->where('type',$type)->find($id);
         if(!$StockAdjustment) return ApiResponse::NotFound('Missing Stock not found!');
+        if($StockAdjustment->status == 'all approved') return ApiResponse::JsonResult('Missing Stock has already approved, You cannot void!');
         $void = $StockAdjustment->update([
             'void_uid' => $user->branch_id,
             'void' => 1,

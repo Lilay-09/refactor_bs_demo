@@ -31,7 +31,7 @@ class VendorTypeController extends Controller
         $inputs['branch_id'] = $user->branch_id;
         $inputs['company_id'] = $user->company_id;
 
-        $duplicateName = VendorType::where('company_id',$user->company_id)->where('name',$inputs['name'])->first();
+        $duplicateName = VendorType::where('company_id',$user->company_id)->where('void',0)->where('name',$inputs['name'])->first();
         if($duplicateName) {
             $isDiffBranch = $duplicateName->branch_id !== $user->branch_id;
             $diffBranchText = null;
@@ -45,7 +45,7 @@ class VendorTypeController extends Controller
 
     public function getVendorTypes(Request $req){
         $user = UserService::getAuthUser();
-        $rows = VendorType::where('branch_id',$user->branch_id)->get();
+        $rows = VendorType::where('company_id',$user->company_id)->where('void',0)->get();
         return ApiResponse::Pagination($rows,$req);
     }
 
@@ -59,18 +59,33 @@ class VendorTypeController extends Controller
     public function updateVendorType(Request $req,$id=null){
         $id = $id ? $id : $req->id;
         $user = UserService::getAuthUser();
+        $vendorType = VendorType::where('branch_id',$user->branch_id)->where('void',0)->find($id);
+        if(!$vendorType) return ApiResponse::NotFound('Vendor type not found');
         $validate = $this->vendorTypeValidation($req);
         if($validate->fails()) return ApiResponse::ValidateFail($validate->errors()->first());
-
         $inputs = $validate->validated();
         $inputs['update_uid'] = $user->id;
         $inputs['branch_id'] = $user->branch_id;
         $inputs['company_id'] = $user->company_id;
-        $vendorType = VendorType::where('branch_id',$user->branch_id)->find($id);
-        if(!$vendorType) return ApiResponse::NotFound('Vendor type not found');
         $update = $vendorType->update($inputs);
         if($update) return ApiResponse::JsonResult(null,false,'Updated');
         return ApiResponse::Error('Fail to update');
+    }
+
+    public function voidVendorType(Request $req){
+        $user = UserService::getAuthUser();
+        $id = $req->id;
+        $vendorType = VendorType::where('company_id',$user->company_id)->where('void',0)->find($id);
+        if($vendorType){
+            $inUsed = Vendor::where('vendor_type_id',$id)->where('void',0)->first();
+            if($inUsed) return ApiResponse::ValidateFail('Vendor type is used by vendor.');
+            $vendorType->update([
+                'void' => 1,
+                'void_uid' => $user->id
+            ]);
+            return ApiResponse::JsonResult(null,false,'Voided');
+        }
+        return ApiResponse::NotFound('Vendor type not found');
     }
 
     public function deleteVendorType(Request $req){

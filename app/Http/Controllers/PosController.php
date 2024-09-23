@@ -448,6 +448,12 @@ class PosController extends Controller
             'bank_id' => 'nullable|exists:banks,id',
             'bank_number' => 'nullable|string|max:50',
             'bank_amount' => 'nullable|numeric',
+            'bank_amount_kh' => 'nullable|numeric',
+            'cash_kh' => 'nullable|numeric',
+            'change' => 'nullable|numeric',
+            'change_kh' => 'nullable|numeric',
+            'exchange_rate' => 'nullable|numeric',
+            'tax' => 'nullable|numeric',
             'issue_date' => 'nullable|date',
             'due_date' => 'nullable|date',
             "remarks" => 'nullable|string|250'
@@ -486,6 +492,9 @@ class PosController extends Controller
             'customer_id' => $customerId,
             'customer_phone' => $customerPhone,
             'default_discount' => $discountInfo->default_discount,
+            'change_kh' => $inputs['change_kh'],
+            'change' => $inputs['change'],
+            'exchange_rate' => $inputs['exchange_rate'],
             'total_amount' => $total_amount,
             'tax' => $tax,
             'walkin' => $walkIn,
@@ -500,24 +509,6 @@ class PosController extends Controller
             'branch_id' => $user->branch_id
         ]);
 
-        // $createReceipt = Receipt::create([
-        //     'receipt_date' => now(),
-        //     'customer_phone' => $customerPhone,
-        //     'total_amount' => $total_amount,
-        //     'customer_id' => $customerId,
-        //     'tax' => $tax,
-        //     'due_amount' => $total_due,
-        //     'default_discount' => $discountInfo->default_discount,
-        //     'paid_amount' => $paymentAmout,
-        //     'general' => $isGeneral,
-        //     'update_uid' => $user->id,
-        //     'create_uid' => $user->id,
-        //     'discount_amount' => $discountInfo->amount,
-        //     'discount_type' => $discountInfo->type,
-        //     'company_id' => $user->company_id,
-        //     'branch_id' => $user->branch_id
-        // ]);
-        // if(!$createReceipt) return DataResponse::Error('Fail to generate receipt');
         $invoiceId = $createInvoice->id;
         if(isset($items[0])){
             $generateReceiptItems = $this->generateInvoiceItems($items,$invoiceId,$user);

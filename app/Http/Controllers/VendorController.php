@@ -35,7 +35,7 @@ class VendorController extends Controller
         $inputs['update_uid'] = $user->id;
         $inputs['branch_id'] = $user->branch_id;
         $inputs['company_id'] = $user->company_id;
-        $duplicatedPhone = Vendor::where('company_id',$user->company_id)->where('phone',$inputs['phone'])->first();
+        $duplicatedPhone = Vendor::where('company_id',$user->company_id)->where('void',0)->where('phone',$inputs['phone'])->first();
         if($duplicatedPhone) {
             $isDiffBranch = $duplicatedPhone->branch_id !== $user->branch_id;
             $diffBranchText = null;
@@ -50,7 +50,7 @@ class VendorController extends Controller
     public function getVendors(Request $req){
         $search = $req->search;
         $user = UserService::getAuthUser();
-        $query = Vendor::with('getVendorType')->where('branch_id',$user->branch_id);
+        $query = Vendor::with('getVendorType')->where('void',0)->where('branch_id',$user->branch_id);
         if($search){
             $search = Helper::filterSpecialChars($search);
             $query->where('name','ilike','%'.$search.'%')->orWhere('phone',$search);
@@ -79,7 +79,7 @@ class VendorController extends Controller
         $inputs['update_uid'] = $user->id;
         $inputs['branch_id'] = $user->branch_id;
         $inputs['company_id'] = $user->company_id;
-        $duplicatedPhone = Vendor::where('company_id',$user->company_id)->where('id','!=',$id)->where('phone',$inputs['phone'])->first();
+        $duplicatedPhone = Vendor::where('company_id',$user->company_id)->where('void',0)->where('id','!=',$id)->where('phone',$inputs['phone'])->first();
         if($duplicatedPhone) {
             $isDiffBranch = $duplicatedPhone->branch_id !== $user->branch_id;
             $diffBranchText = null;
@@ -91,6 +91,21 @@ class VendorController extends Controller
         $update = $vendor->update($inputs);
         if($update) return ApiResponse::JsonResult(null,false,'Updated');
         return ApiResponse::Error('Fail to update');
+    }
+
+
+    public function voidVendor(Request $req){
+        $id = $req->id;
+        $user = UserService::getAuthUser();
+        $vendor = Vendor::where('company_id',$user->company_id)->where('void',0)->find($id);
+        if($vendor){
+            $vendor->update([
+                'void' => 1,
+                'void_uid' => $user->id
+            ]);
+            return ApiResponse::JsonResult(null,false,'Deleted');
+        }
+        return ApiResponse::NotFound('Vendor not found');
     }
 
     public function deleteVendor(Request $req){
