@@ -9,6 +9,7 @@ use App\Models\ProductVariant;
 use App\Models\ProductVariantPhoto;
 use App\Models\ProductVariantSpecification;
 use App\Models\ProductVariantTag;
+use App\Models\Stock;
 use App\Services\UserService;
 use DataResponse;
 use Exception;
@@ -182,10 +183,11 @@ class ProductController extends Controller
         $categories = $req->categories ?? [];
         $groups = $req->groups ?? [];
         $brands = $req->brands ?? [];
+        $void = $req->void ?? 0;
         if (is_string($tags)) {
             $tags = explode(',', strtolower($tags));
         }
-        $query = Product::where('void',0)->with(['specifications:id,name,value,product_id','tags:id,tag,product_id','variants.photos','variants.stocks','getModel:id,name,brand_id','getModel.brand:id,name'])->where('branch_id',$user->branch_id)->orderByRaw('DATE(created_at) DESC')->selectRaw('id,name,code,description,model_id,category_id,group_id,supplier_id');
+        $query = Product::where('void',$void)->with(['specifications:id,name,value,product_id','tags:id,tag,product_id','variants.photos','variants.stocks','getModel:id,name,brand_id','getModel.brand:id,name'])->where('branch_id',$user->branch_id)->orderByRaw('DATE(created_at) DESC')->selectRaw('id,name,code,description,model_id,category_id,group_id,supplier_id');
         if (!empty($tags)){
             $query->whereHas('tags', function($query) use ($tags) {
                 $query->whereRaw('LOWER(tag) IN (?)', [$tags]);
@@ -546,6 +548,11 @@ class ProductController extends Controller
         $branch_id = $user->branch_id;
         $product = Product::where('branch_id',$branch_id)->where('void',0)->find($id);
         if(!$product) return ApiResponse::NotFound('Product not found');
+        $variantId = ProductVariant::where('product_id',$id)->take(1)->where('void',0)->value('id');
+        if($variantId){
+            $existsStock = Stock::where('void',0)->where('variant_id',$variantId)->first();
+            if($existsStock) return ApiResponse::ValidateFail('This product is running on stock, you can not delete it');
+        }
         $product->update([
             'void' => 1,
             'void_ui' => $user->id
