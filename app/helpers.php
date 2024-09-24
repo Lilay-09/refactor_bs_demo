@@ -2,6 +2,7 @@
 use Milon\Barcode\DNS1D;
 class ApiResponse
 {
+
     static function ValidateFail($message=null,$errors=[]){
         return response()->json([
             'error' => true,

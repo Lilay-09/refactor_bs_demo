@@ -223,28 +223,19 @@ Route::middleware('jwt')->group(function(){
                 Route::get('/{id}',[StockManagementController::class,'getOneTakeOutStock']);
                 Route::put('/{id}',[StockManagementController::class,'updateTakeOutStock']);
 
-                Route::put('approve/item/{id}',[StockManagementController::class,'approveMissingItemById']);
-                Route::put('approve/item/list/{id}',[StockManagementController::class,'approveListMissingItems']);
-                Route::put('approve/list',[StockManagementController::class,'approveAllMissingStock']);
-                Route::put('approve/{id}',[StockManagementController::class,'approveAllMissingItems']);
+                Route::put('approve/item/{id}',[StockManagementController::class,'approveTakeOutItemById']);
+                Route::put('approve/item/list/{id}',[StockManagementController::class,'approveListTakeOutItems']);
+                Route::put('approve/list',[StockManagementController::class,'approveAllTakeOutStock']);
+                Route::put('approve/{id}',[StockManagementController::class,'approveAllTakeOutItems']);
 
 
                 Route::delete('void/list',[StockManagementController::class,'voidAllTakeOutStock']);
                 Route::delete('void/{id}',[StockManagementController::class,'voidParentAndRelatedTakeOutItems']);
-                Route::delete('void/item/list/{id}',[StockManagementController::class,'voidMissingStockByCheckItem']);
-                Route::delete('void/item/{id}',[StockManagementController::class,'voidMissingStockByItem']);
+                Route::delete('void/item/list/{id}',[StockManagementController::class,'voidTakeOutStockByCheckItem']);
+                Route::delete('void/item/{id}',[StockManagementController::class,'voidTakeOutStockByItem']);
 
                 Route::get('unapprove/count',[StockManagementController::class,'countUnapprovedTakeOut']);
             });
-
-            // Route::prefix('takeOut')->group(function(){
-            //     Route::post('',[StockManagementController::class,'createTakeOutStock']);
-            //     Route::get('',[StockManagementController::class,'getTakeOutStock']);
-            //     Route::get('/{id}',[StockManagementController::class,'getOneTakeOutStock']);
-            //     Route::put('/{id}',[StockManagementController::class,'updateTakeOutStock']);
-            //     Route::put('approve/{id}',[StockManagementController::class,'approveTakeOutStock']);
-            //     Route::delete('void/{id}',[StockManagementController::class,'voidTakeOutStock']);
-            // });
 
 
             Route::prefix('item')->group(function(){
