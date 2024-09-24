@@ -10,7 +10,7 @@
 database/schema.sql
 *.sql
 *.schema
-.env
+# .env
 .env.backup
 .env.production
 .phpactor.json
@@ -23,5 +23,3 @@ yarn-error.log
 /.fleet
 /.idea
 /.vscode
-/Stock
-/GTECT Stock Management
