@@ -12,7 +12,7 @@ class ProductModel extends Model
     protected $table = 'models';
 
     protected $fillable = [
-        'id','name','name_kh','brand_id','create_uid','update_uid','company_id','branch_id'
+        'id','name','name_kh','brand_id','create_uid','update_uid','company_id','branch_id','void','void_uid'
     ];
 
     public function brand(){

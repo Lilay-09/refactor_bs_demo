@@ -18,6 +18,8 @@ class PurchaseOrderItem extends Model
         'qty',
         'unit_price',
         'due_amount',
+        'void',
+        'void_uid',
         'total_price',
         'discount_amount',
         'discount_type',

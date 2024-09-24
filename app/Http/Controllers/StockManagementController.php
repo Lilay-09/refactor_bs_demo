@@ -552,7 +552,7 @@ class StockManagementController extends Controller
     public function getPurchaseOrders(Request $req){
         $user = UserService::getAuthUser();
         if($user->error) return ApiResponse::flex($user);
-        $rows = PurchaseOrder::with(['status','vendor'])->where('branch_id',$user->branch_id)->get();
+        $rows = PurchaseOrder::where('void',0)->with(['status','vendor'])->where('branch_id',$user->branch_id)->get();
         // $orderItems = PurchaseOrderItem::from('purchase_order_items as oi')->join('product_variants as pv','oi.variant_id','pv.id')->join('products as p','p.id','=','pv.product_id')->join('models as m','m.id','p.model_id')
         // ->selectRaw('oi.qty,oi.total_price,oi.unit_price,oi.discount_type,oi.discount_amount,pv.size,pv.color,pv.sku,pv.weight,pv.width,pv.length,pv.expires_at,pv.condition,condition_percentage,pv.material,m.name as model_name,p.name,p.code,description')
         // ->get();
@@ -561,15 +561,15 @@ class StockManagementController extends Controller
             $row->vendor_name = $row->vendor->phone . $row->vendor->name ? ('('.$row->vendor->name.')'):'';
             unset($row->status,$row->vendor);
         }
-        return ApiResponse::JsonResult($rows);
+        return ApiResponse::Pagination($rows,$req);
     }
 
     public function getPurchaseOrder(Request $req,$id=null){
         $id = $id ? $id : $req->id;
         $user = UserService::getAuthUser();
         if($user->error) return ApiResponse::flex($user);
-        $row = PurchaseOrder::where('branch_id',$user->branch_id)->find($id);
-        $orderItems = PurchaseOrderItem::from('purchase_order_items as oi')->where('oi.purchase_id',$id)->join('product_variants as pv','oi.variant_id','pv.id')->join('products as p','p.id','=','pv.product_id')->join('models as m','m.id','p.model_id')
+        $row = PurchaseOrder::where('branch_id',$user->branch_id)->where('void',0)->find($id);
+        $orderItems = PurchaseOrderItem::from('purchase_order_items as oi')->where('oi.void',0)->where('oi.purchase_id',$id)->join('product_variants as pv','oi.variant_id','pv.id')->join('products as p','p.id','=','pv.product_id')->join('models as m','m.id','p.model_id')
         ->selectRaw('oi.id,oi.qty,oi.received_qty,oi.total_price,oi.unit_price,oi.discount_type,oi.discount_amount,pv.size,pv.color,pv.sku,pv.weight,pv.width,pv.length,pv.expires_at,pv.condition,condition_percentage,pv.material,m.name as model_name,p.name,p.code,description')
         ->get();
         if($row){

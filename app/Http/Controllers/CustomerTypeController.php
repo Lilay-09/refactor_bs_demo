@@ -45,7 +45,7 @@ class CustomerTypeController extends Controller
 
     public function getCustomerTypes(Request $req){
         $user = UserService::getAuthUser();
-        $rows = CustomerType::where('company_id',$user->company_id)->where('void',0)->get();
+        $rows = CustomerType::where('company_id',$user->company_id)->where('void',0)->orderByDesc('id')->get();
         return ApiResponse::Pagination($rows,$req);
     }
 

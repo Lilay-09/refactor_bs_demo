@@ -10,6 +10,6 @@ class ProductGroup extends Model
     use HasFactory;
     protected $table = 'product_groups';
     protected $fillable = [
-        'id','name','name_kh','create_uid','update_uid','company_id','branch_id'
+        'id','name','name_kh','create_uid','update_uid','company_id','branch_id','void','void_uid'
     ];
 }

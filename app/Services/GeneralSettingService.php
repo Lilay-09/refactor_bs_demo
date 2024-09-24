@@ -31,7 +31,7 @@ class GeneralSettingService
 {
     // Your service methods go here
     public static function getOptionsVendor($user){
-        $vendors = Vendor::where('branch_id',$user->branch_id)->selectRaw('id,name,phone,id as value')->get();
+        $vendors = Vendor::where('branch_id',$user->branch_id)->where('void',0)->selectRaw('id,name,phone,id as value')->get();
         foreach($vendors as $v){
             $v->name = $v->phone.'('.($v->name ?? 'no name').')';
         }
@@ -55,11 +55,11 @@ class GeneralSettingService
 
 
     static function getModels($user){
-        return ProductModel::where('company_id',$user->company_id)->selectRaw('id,name')->get();
+        return ProductModel::where('company_id',$user->company_id)->where('void',0)->selectRaw('id,name')->get();
     }
 
     static function getWarhouses($user){
-        return StockLocation::where('company_id',$user->company_id)->selectRaw('id,name')->get();
+        return StockLocation::where('company_id',$user->company_id)->whher('void',0)->selectRaw('id,name')->get();
     }
 
     static function getAdjustmentStatuses(){
@@ -92,18 +92,18 @@ class GeneralSettingService
     }
 
     static function getModelsByBrand($brand_id,$user){
-        return ProductModel::where('company_id',$user->company_id)->where('brand_id',$brand_id)->selectRaw('id,name')->get();
+        return ProductModel::where('company_id',$user->company_id)->where('void',0)->where('brand_id',$brand_id)->selectRaw('id,name')->get();
     }
     static function getProductGroups($user){
-        return ProductGroup::where('company_id',$user->company_id)->selectRaw('id,name')->get();
+        return ProductGroup::where('company_id',$user->company_id)->where('void',0)->selectRaw('id,name')->get();
     }
 
     static function getProducts($user){
-        return Product::where('company_id',$user->company_id)->selectRaw('id,name')->get();
+        return Product::where('company_id',$user->company_id)->where('void',0)->selectRaw('id,name')->get();
     }
 
     static function getStockOption($user){
-        $query = Stock::where('company_id',$user->company_id)->with(['variant','variant.product'])->selectRaw('sku,variant_id');
+        $query = Stock::where('company_id',$user->company_id)->with(['variant','variant.product'])->where('void',0)->selectRaw('sku,variant_id');
         $stocks = $query->get();
         foreach($stocks as $item){
             $item->item_name = $item->variant->product->name.' |Color: '.$item->variant->color.', Size: '.$item->variant->size.', Condition: '.$item->variant->condition;
@@ -113,7 +113,7 @@ class GeneralSettingService
     }
 
     static function getProductVariants($user){
-        $variants = ProductVariant::with('product')->where('company_id',$user->company_id)->selectRaw('id,product_id,size,color,sku,weight,width,length,expires_at,condition,material,cost')->get();
+        $variants = ProductVariant::with('product')->where('void',0)->where('company_id',$user->company_id)->selectRaw('id,product_id,size,color,sku,weight,width,length,expires_at,condition,material,cost')->get();
         foreach($variants as $vr){
             $vr->product_name = ($vr->product->code?($vr->product->code.'|'):'').$vr->product->name . '(Condition: '.$vr->condition.($vr->size ? ',Size: '.$vr->size:'').($vr->color ? ',Color: '.$vr->color:'').')';
             unset($vr->product);
@@ -123,7 +123,7 @@ class GeneralSettingService
 
 
     static function getCustomers($user){
-        $rows = Customer::where('company_id',$user->company_id)->selectRaw('name,phone,id,discount_percent')->get();
+        $rows = Customer::where('company_id',$user->company_id)->where('void',0)->selectRaw('name,phone,id,discount_percent')->get();
         foreach($rows as $row){
             if($row->name){
                 $row->name = $row->phone . '('.$row->name.')';
@@ -145,7 +145,7 @@ class GeneralSettingService
         if (is_string($tags)) {
             $tags = explode(',', strtolower($tags));
         }
-        $query = Stock::with(['variant:id,size,color,condition,retail_price,expires_at,product_id,company_id','variant.product','variant.photos'])->selectRaw('sku,variant_id,qty,retail_price,id,company_id')->where('company_id',$user->company_id);
+        $query = Stock::with(['variant:id,size,color,condition,retail_price,expires_at,product_id,company_id','variant.product','variant.photos'])->where('void',0)->selectRaw('sku,variant_id,qty,retail_price,id,company_id')->where('company_id',$user->company_id);
         if(isset($tags[0])){
             $query->whereHas('variant.product.tags', function ($query) use ($tags){
                 $query->whereIn('tag',$tags);
@@ -240,6 +240,6 @@ class GeneralSettingService
     }
 
     static function getRoles($user){
-        return Role::where('company_id',$user->company_id)->get();
+        return Role::where('company_id',$user->company_id)->where('void',0)->get();
     }
 }

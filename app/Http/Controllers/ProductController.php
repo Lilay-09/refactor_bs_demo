@@ -69,6 +69,7 @@ class ProductController extends Controller
         $inputs['cost'] = $cost;
         $inputs['retail_price'] = $retail_price;
         $inputs['wholesale_price'] = $wholesale_price;
+        $inputs['supplier_id'] = $inputs['supplier_id'] ?? null;
         unset($inputs['variants'],$inputs['specs'],$inputs['tags']);
 
         DB::beginTransaction();
@@ -383,6 +384,8 @@ class ProductController extends Controller
                     if($updateTag->error){
                         return $updateTag->status_code == 422 ? ApiResponse::ValidateFail($updateTag->message) : ApiResponse::Error($updateTag->message);
                     }
+                }else{
+                    ProductVariantTag::where('product_id',$productId)->delete();
                 }
             }
 

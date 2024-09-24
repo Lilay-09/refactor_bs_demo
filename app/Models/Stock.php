@@ -26,6 +26,8 @@ class Stock extends Model
         'created_at',
         'updated_at',
         'create_uid',
+        'void',
+        'void_uid',
         'update_uid',
         'branch_id',
         'company_id',

@@ -33,7 +33,7 @@ class ProductTagController extends Controller
     public function getProductTags(Request $req){
         $user = UserService::getAuthUser();
         $search = $req->search;
-        $query = ProductTag::where('branch_id',$user->branch_id)->selectRaw('id,name,name_kh');
+        $query = ProductTag::where('branch_id',$user->branch_id)->where('void',0)->selectRaw('id,name,name_kh');
         if($search){
             $query->where('name','ilike','%'.$search.'%');
         }
@@ -43,7 +43,7 @@ class ProductTagController extends Controller
 
     public function productTag(Request $req){
         $user = UserService::getAuthUser();
-        $tag = ProductTag::where('branch_id',$user->branch_id)->selectRaw('id,name,name_kh')->find($req->id);
+        $tag = ProductTag::where('branch_id',$user->branch_id)->where('void',0)->selectRaw('id,name,name_kh')->find($req->id);
         return ApiResponse::JsonResult($tag);
     }
 
@@ -62,7 +62,7 @@ class ProductTagController extends Controller
         if($validate->fails()) return ApiResponse::ValidateFail($validate->errors()->first());
         $inputs = $validate->validated();
         $id = $inputs['id'];
-        $tag = ProductTag::where('branch_id',$user->branch_id)->find($id);
+        $tag = ProductTag::where('branch_id',$user->branch_id)->where('void',0)->find($id);
         if(!$tag) return ApiResponse::NotFound('Tag not found');
         $inputs['update_uid'] = $user->id;
         $inputs['company_id'] = $user->company_id;
@@ -70,6 +70,20 @@ class ProductTagController extends Controller
         $update = $tag->update($inputs);
         if($update) return ApiResponse::JsonResult(null,false,'Updated');
         return ApiResponse::Error('Fail to update');
+    }
+
+    public function voidProductTag(Request $req){
+        $id = $req->id;
+        $user = UserService::getAuthUser();
+        $tag = ProductTag::where('branch_id',$user->branch_id)->where('void',0)->find($id);
+        if($tag){
+            $tag->update([
+                'void' => 1,
+                'void_uid' => $user->id
+            ]);
+            return ApiResponse::JsonResult(null,false,'Voided');
+        }
+        return ApiResponse::NotFound('Tag not found!');
     }
 
     public function deleteProductTag(Request $req){
