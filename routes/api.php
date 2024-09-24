@@ -223,28 +223,19 @@ Route::middleware('jwt')->group(function(){
                 Route::get('/{id}',[StockManagementController::class,'getOneTakeOutStock']);
                 Route::put('/{id}',[StockManagementController::class,'updateTakeOutStock']);
 
-                Route::put('approve/item/{id}',[StockManagementController::class,'approveMissingItemById']);
-                Route::put('approve/item/list/{id}',[StockManagementController::class,'approveListMissingItems']);
-                Route::put('approve/list',[StockManagementController::class,'approveAllMissingStock']);
-                Route::put('approve/{id}',[StockManagementController::class,'approveAllMissingItems']);
+                Route::put('approve/item/{id}',[StockManagementController::class,'approveTakeOutItemById']);
+                Route::put('approve/item/list/{id}',[StockManagementController::class,'approveListTakeOutItems']);
+                Route::put('approve/list',[StockManagementController::class,'approveAllTakeOutStock']);
+                Route::put('approve/{id}',[StockManagementController::class,'approveAllTakeOutItems']);
 
 
                 Route::delete('void/list',[StockManagementController::class,'voidAllTakeOutStock']);
                 Route::delete('void/{id}',[StockManagementController::class,'voidParentAndRelatedTakeOutItems']);
-                Route::delete('void/item/list/{id}',[StockManagementController::class,'voidMissingStockByCheckItem']);
-                Route::delete('void/item/{id}',[StockManagementController::class,'voidMissingStockByItem']);
+                Route::delete('void/item/list/{id}',[StockManagementController::class,'voidTakeOutStockByCheckItem']);
+                Route::delete('void/item/{id}',[StockManagementController::class,'voidTakeOutStockByItem']);
 
                 Route::get('unapprove/count',[StockManagementController::class,'countUnapprovedTakeOut']);
             });
-
-            // Route::prefix('takeOut')->group(function(){
-            //     Route::post('',[StockManagementController::class,'createTakeOutStock']);
-            //     Route::get('',[StockManagementController::class,'getTakeOutStock']);
-            //     Route::get('/{id}',[StockManagementController::class,'getOneTakeOutStock']);
-            //     Route::put('/{id}',[StockManagementController::class,'updateTakeOutStock']);
-            //     Route::put('approve/{id}',[StockManagementController::class,'approveTakeOutStock']);
-            //     Route::delete('void/{id}',[StockManagementController::class,'voidTakeOutStock']);
-            // });
 
 
             Route::prefix('item')->group(function(){
@@ -262,14 +253,14 @@ Route::middleware('jwt')->group(function(){
     Route::prefix('product')->group(function(){
         Route::post('/',[ProductController::class,'createProduct']);
         Route::get('/',[ProductController::class,'getProducts']);
-        Route::put('/void/{id?}',[ProductController::class,'voidProduct']);
+        Route::delete('/void/{id?}',[ProductController::class,'voidProduct']);
         Route::put('/unvoid/{id?}',[ProductController::class,'unVoidProduct']);
 
         Route::post('variant',[ProductVariantController::class,'createVariant']);
         Route::get('variant',[ProductVariantController::class,'getVariants']);
         Route::put('/variant/{id?}',[ProductVariantController::class,'updateVariant']);
         Route::get('/variant/{id?}',[ProductVariantController::class,'getVariantById']);
-        Route::delete('/variant/{id?}',[ProductVariantController::class,'deleteVariant']);
+        Route::delete('/variant/void/{id?}',[ProductVariantController::class,'voidVariant']);
         Route::delete('variant/photo/{id?}',[ProductVariantController::class,'deleteVariantPhoto']);
         Route::get('/variants/{product_id?}',[ProductVariantController::class,'getVariantByProductId']);
 
@@ -278,7 +269,7 @@ Route::middleware('jwt')->group(function(){
             Route::get('',[ProductTagController::class,'getProductTags']);
             Route::get('/{id?}',[ProductTagController::class,'productTag']);
             Route::put('/{id?}',[ProductTagController::class,'updateProductTag']);
-            Route::delete('/{id?}',[ProductTagController::class,'deleteProductTag']);
+            Route::delete('void/{id?}',[ProductTagController::class,'voidProductTag']);
         });
 
         Route::get('/{id?}',[ProductController::class,'getProductById']);
@@ -294,7 +285,7 @@ Route::middleware('jwt')->group(function(){
         Route::get('/',[CategoryController::class,'categories']);
         Route::get('/{id?}',[CategoryController::class,'category']);
         Route::put('/{id?}',[CategoryController::class,'updateCategory']);
-        Route::delete('/{id?}',[CategoryController::class,'deleteCategory']);
+        Route::delete('void/{id?}',[CategoryController::class,'voidCategory']);
     });
 
 
@@ -303,7 +294,7 @@ Route::middleware('jwt')->group(function(){
         Route::get('/',[BrandController::class,'brands']);
         Route::get('/{id?}',[BrandController::class,'brand']);
         Route::put('/{id?}',[BrandController::class,'updateBrand']);
-        Route::delete('/{id?}',[BrandController::class,'deleteBrand']);
+        Route::delete('void/{id?}',[BrandController::class,'voidBrand']);
     });
 
     Route::prefix('model')->group(function(){
@@ -311,7 +302,7 @@ Route::middleware('jwt')->group(function(){
         Route::get('/',[ProductModelController::class,'productModels']);
         Route::get('/{id?}',[ProductModelController::class,'productModel']);
         Route::put('/{id?}',[ProductModelController::class,'updateProductModel']);
-        Route::delete('/{id?}',[ProductModelController::class,'deleteModel']);
+        Route::delete('void/{id?}',[ProductModelController::class,'voidModel']);
     });
 
     Route::prefix('group')->group(function(){
@@ -319,7 +310,7 @@ Route::middleware('jwt')->group(function(){
         Route::get('/',[ProductGroupController::class,'productGroups']);
         Route::get('/{id?}',[ProductGroupController::class,'productGroup']);
         Route::put('/{id?}',[ProductGroupController::class,'updateGroup']);
-        Route::delete('/{id?}',[ProductGroupController::class,'deleteGroup']);
+        Route::delete('void/{id?}',[ProductGroupController::class,'voidGroup']);
     });
 
     Route::prefix('report')->group(function (){

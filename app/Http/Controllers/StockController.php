@@ -50,8 +50,8 @@ class StockController extends Controller
         }
         if($supplier){
             $supplierArr = explode(',',$supplier);
-            $query->whereHas('variant.product.supplier',function ($query) use ($supplierArr){
-                $query->whereIn('id',$supplierArr);
+            $query->whereHas('variant.product',function ($query) use ($supplierArr){
+                $query->whereIn('supplier_id',$supplierArr);
             });
         }
 
@@ -81,8 +81,8 @@ class StockController extends Controller
 
     public function getStockItem(Request $req,$ref=null){
         $ref = $ref ? $ref : $req->ref;
-        $stockItem = Stock::with('variant.product')->where('sku',$ref)->orderByRaw('DATE(created_at) desc')->first();
-        if(!$stockItem) if(is_numeric($ref)) $stockItem = Stock::with('variant.product')->orderByRaw('DATE(created_at) desc')->find($ref);
+        $stockItem = Stock::with('variant.product')->where('sku',$ref)->where('void',0)->orderByRaw('DATE(created_at) desc')->first();
+        if(!$stockItem) if(is_numeric($ref)) $stockItem = Stock::with('variant.product')->where('void',0)->orderByRaw('DATE(created_at) desc')->find($ref);
         if($stockItem){
             $stockItem->product_name = $stockItem->variant->product->name;
             $stockItem->size = $stockItem->variant->size;

@@ -18,6 +18,8 @@ class Service extends Model
         'price',
         'branch_id',
         'company_id',
+        'void',
+        'void_uid',
         'create_uid',
         'update_uid',
         'photo_file_name'

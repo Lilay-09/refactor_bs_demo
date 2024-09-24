@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
@@ -22,6 +23,8 @@ class ProductVariant extends Model
         'length',
         'expires_at',
         'condition',
+        'void',
+        'void_uid',
         'cost',
         'retail_price',
         'wholesale_price',
@@ -49,5 +52,15 @@ class ProductVariant extends Model
 
     public function stocks(){
         return $this->hasMany(Stock::class,'variant_id','id');
+    }
+
+    public function getCreatedAtAttribute($value)
+    {
+        return Carbon::parse($value)->setTimezone(config('app.timezone'))->format('Y-m-d H:i:s');
+    }
+
+    public function getUpdatedAtAttribute($value)
+    {
+        return Carbon::parse($value)->setTimezone(config('app.timezone'))->format('Y-m-d H:i:s');
     }
 }

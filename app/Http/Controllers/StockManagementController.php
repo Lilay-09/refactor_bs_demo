@@ -552,7 +552,7 @@ class StockManagementController extends Controller
     public function getPurchaseOrders(Request $req){
         $user = UserService::getAuthUser();
         if($user->error) return ApiResponse::flex($user);
-        $rows = PurchaseOrder::with(['status','vendor'])->where('branch_id',$user->branch_id)->get();
+        $rows = PurchaseOrder::where('void',0)->with(['status','vendor'])->where('branch_id',$user->branch_id)->get();
         // $orderItems = PurchaseOrderItem::from('purchase_order_items as oi')->join('product_variants as pv','oi.variant_id','pv.id')->join('products as p','p.id','=','pv.product_id')->join('models as m','m.id','p.model_id')
         // ->selectRaw('oi.qty,oi.total_price,oi.unit_price,oi.discount_type,oi.discount_amount,pv.size,pv.color,pv.sku,pv.weight,pv.width,pv.length,pv.expires_at,pv.condition,condition_percentage,pv.material,m.name as model_name,p.name,p.code,description')
         // ->get();
@@ -561,15 +561,15 @@ class StockManagementController extends Controller
             $row->vendor_name = $row->vendor->phone . $row->vendor->name ? ('('.$row->vendor->name.')'):'';
             unset($row->status,$row->vendor);
         }
-        return ApiResponse::JsonResult($rows);
+        return ApiResponse::Pagination($rows,$req);
     }
 
     public function getPurchaseOrder(Request $req,$id=null){
         $id = $id ? $id : $req->id;
         $user = UserService::getAuthUser();
         if($user->error) return ApiResponse::flex($user);
-        $row = PurchaseOrder::where('branch_id',$user->branch_id)->find($id);
-        $orderItems = PurchaseOrderItem::from('purchase_order_items as oi')->where('oi.purchase_id',$id)->join('product_variants as pv','oi.variant_id','pv.id')->join('products as p','p.id','=','pv.product_id')->join('models as m','m.id','p.model_id')
+        $row = PurchaseOrder::where('branch_id',$user->branch_id)->where('void',0)->find($id);
+        $orderItems = PurchaseOrderItem::from('purchase_order_items as oi')->where('oi.void',0)->where('oi.purchase_id',$id)->join('product_variants as pv','oi.variant_id','pv.id')->join('products as p','p.id','=','pv.product_id')->join('models as m','m.id','p.model_id')
         ->selectRaw('oi.id,oi.qty,oi.received_qty,oi.total_price,oi.unit_price,oi.discount_type,oi.discount_amount,pv.size,pv.color,pv.sku,pv.weight,pv.width,pv.length,pv.expires_at,pv.condition,condition_percentage,pv.material,m.name as model_name,p.name,p.code,description')
         ->get();
         if($row){
@@ -720,6 +720,11 @@ class StockManagementController extends Controller
         return $this->stockMngService->approveAllAjustment($req,'Missing','missing_qty',$user);
     }
 
+    public function approveAllTakeOutStock(Request $req){
+        $user = UserService::getAuthUser();
+        return $this->stockMngService->approveAllAjustment($req,'Take Out', 'take_out_qty',$user);
+    }
+
     public function voidMissingStockByCheckItem(Request $req){
         $user = UserService::getAuthUser();
         return $this->stockMngService->voidAdjustmentByCheckItem($req,'Missing',$user);
@@ -729,8 +734,7 @@ class StockManagementController extends Controller
      */
 
     public function voidMissingStockByItem(Request $req){
-        $user = UserService::getAuthUser();
-        return $this->stockMngService->voidAdjustmentByItem($req,$user);
+
     }
 
     public function countUnapproveOnMissingStock(Request $req){
@@ -770,10 +774,13 @@ class StockManagementController extends Controller
         return $this->stockMngService->approveAdjustmentAndRelatedItems($req,'Missing','missing_qty',$user);
     }
 
+
+
     public function approveMissingItemById(Request $req){
         $user = UserService::getAuthUser();
         return $this->stockMngService->approveByItemId($req,'Missing','missing_qty',$user);
     }
+
 
     //** end missing item */
 
@@ -813,7 +820,30 @@ class StockManagementController extends Controller
         return $this->stockMngService->voidAdjustmentAndRelatedItems($req,'Take Out',$user);
     }
 
+    public function voidTakeOutStockByCheckItem(Request $req){
+        $user = UserService::getAuthUser();
+        return $this->stockMngService->voidAdjustmentByCheckItem($req,'Take Out',$user);
+    }
 
+    public function voidTakeOutStockByItem(Request $req){
+        $user = UserService::getAuthUser();
+        return $this->stockMngService->voidAdjustmentByItem($req,$user);
+    }
+
+    public function approveTakeOutItemById(Request $req){
+        $user = UserService::getAuthUser();
+        return $this->stockMngService->approveByItemId($req,'Take Out','take_out_qty',$user);
+    }
+
+    public function approveListTakeOutItems(Request $req){
+        $user = UserService::getAuthUser();
+        return $this->stockMngService->approveAdjustmentByCheckList($req,'Take Out','take_out_qty',$user);
+    }
+
+    public function approveAllTakeOutItems(Request $req){
+        $user = UserService::getAuthUser();
+        return $this->stockMngService->approveAdjustmentAndRelatedItems($req, 'Take Out','take_out_qty',$user);
+    }
 
 
     //** end adjustment */
@@ -870,7 +900,7 @@ class StockManagementController extends Controller
         $modelId = $item->product->model_id;
         $categoryId = $item->product->category_id;
         $condition = $item->condition;
-        return $this->prepareStock($warehosueId,$variant_id,$targetCol,$targetQty,$user,$cost,$itemRef,$modelId,$categoryId,$condition);
+        return $this->stockMngService->prepareStock($warehosueId,$variant_id,$targetCol,$targetQty,$user,$cost,$itemRef,$modelId,$categoryId,$condition);
     }
 
     function prepareTransferItems($items,$fromWarehouse_id,$toWarehouseId,$user,$reference_no){

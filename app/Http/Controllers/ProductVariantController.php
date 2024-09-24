@@ -39,7 +39,8 @@ class ProductVariantController extends Controller
         $inputs['create_uid'] = $user->id;
         $photos = isset($inputs['photos']) ? $inputs['photos'] : [];
         unset($inputs['photos']);
-        $productInfo = Product::find($inputs['product_id']);
+        $productInfo = Product::where('void',0)->find($inputs['product_id']);
+        if(!$productInfo) return ApiResponse::NotFound('Product not found');
         $create = ProductVariant::create($inputs);
         $product = new ProductController();
         $inputs['cost'] = $inputs['cost'] ?? $productInfo->cost;
@@ -72,7 +73,7 @@ class ProductVariantController extends Controller
         $inputs['update_uid'] = $user->id;
         $photos = $inputs['photos'];
         unset($inputs['photos']);
-        $variant = ProductVariant::where('branch_id',$user->branch_id)->find($id);
+        $variant = ProductVariant::where('branch_id',$user->branch_id)->where('void',0)->find($id);
         $existInStock = Stock::where('variant_id',$id)->first();
         if($existInStock){
             $validMaterial = ($variant->material && $inputs['material'] != $variant->material);
@@ -88,7 +89,8 @@ class ProductVariantController extends Controller
         $product = new ProductController();
         $savePhoto = $product->updateOrCreateVariantPhotos($photos,$user->company_id,$id,$user);
         if($savePhoto->status_code == 422) return ApiResponse::ValidateFail($savePhoto->message);
-        $productInfo = Product::find($inputs['product_id']);
+        $productInfo = Product::where('void',0)->find($inputs['product_id']);
+        if(!$productInfo) return ApiResponse::NotFound('Product not found');
         $inputs['cost'] = $inputs['cost'] ?? $productInfo->cost;
         $inputs['retail_price'] = $inputs['retail_price']?? $productInfo->retail_price;
         $inputs['wholesale_price'] = $inputs['wholesale_price'] ?? $productInfo->wholesale_price;
@@ -100,14 +102,14 @@ class ProductVariantController extends Controller
     public function getVariantById(Request $req,$id=null){
         $user = UserService::getAuthUser();
         $id = $id ? $id : $req->id;
-        $variant = ProductVariant::with(['photos:id,variant_id,photo_file_name,directory,is_thumbnail'])->where('branch_id',$user->branch_id)->where('id',$id)->selectRaw('id,size,color,cost,retail_price,sku,weight,width,length,expires_at,condition,condition_percentage,material,product_id,company_id')->first();
+        $variant = ProductVariant::where('void',0)->with(['photos:id,variant_id,photo_file_name,directory,is_thumbnail'])->where('branch_id',$user->branch_id)->where('id',$id)->selectRaw('id,size,color,cost,retail_price,sku,weight,width,length,expires_at,condition,condition_percentage,material,product_id,company_id')->first();
         // $stockItems = Stock::get();
         if($variant){
             foreach($variant->photos as $photo){
                 $photo->image_url = Helper::getImageUrl($photo->photo_file_name,$variant->company_id,$photo->directory);
                 unset($photo->directory);
             }
-            $useVariant = Stock::where('variant_id',$id)->first() ? false:true;
+            $useVariant = Stock::where('variant_id',$id)->where('void',0)->first() ? false:true;
             $editableSize = ($useVariant || !$variant->size);
             $editableColor = ($useVariant || !$variant->color);
             $editableMaterial = ($useVariant || !$variant->material);
@@ -132,14 +134,14 @@ class ProductVariantController extends Controller
     public function getVariantByProductId(Request $req,$product_id=null){
         $user = UserService::getAuthUser();
         $product_id = $product_id ? $product_id : $req->product_id;
-        $variants = ProductVariant::where('branch_id',$user->branch_id)->where('product_id',$product_id)->selectRaw('id,size,color,sku,weight,width,length,expires_at,condition,condition_percentage,material,product_id,company_id')->get();
+        $variants = ProductVariant::where('void',0)->where('branch_id',$user->branch_id)->where('product_id',$product_id)->selectRaw('id,size,color,sku,weight,width,length,expires_at,condition,condition_percentage,material,product_id,company_id')->get();
         return ApiResponse::JsonResult($variants);
     }
 
     public function getVariants(Request $req){
         $user = UserService::getAuthUser();
         $search = $req->search ?? null;
-        $query = ProductVariant::where('inactive',0)->with(['product:id,name,code','photos:id,variant_id,photo_file_name,directory,is_thumbnail'])->where('branch_id',$user->branch_id);
+        $query = ProductVariant::where('void',0)->where('inactive',0)->orderByDesc('id')->with(['product:id,name,code','photos:id,variant_id,photo_file_name,directory,is_thumbnail'])->where('branch_id',$user->branch_id);
         if($search){
             $query->whereHas('product',function($query)use($search){
                 $query->where('code',$search);
@@ -164,7 +166,7 @@ class ProductVariantController extends Controller
     public function deleteVariantPhoto(Request $req){
         $id = $req->id;
         $user = UserService::getAuthUser();
-        $photo = ProductVariantPhoto::find($id);
+        $photo = ProductVariantPhoto::where('void',0)->find($id);
         if(!$photo) return ApiResponse::NotFound('The photo not found');
         if($photo){
             Helper::deleteImageFile($photo->photo_file_name,$user->company_id,$photo->directory);
@@ -173,17 +175,40 @@ class ProductVariantController extends Controller
         return ApiResponse::JsonResult(null,false,'Photo deleted');
     }
 
+
+    public function voidVariant(Request $req){
+        $id = $req->id;
+        $user = UserService::getAuthUser();
+        $variant = ProductVariant::where('branch_id',$user->branch_id)->where('void',0)->find($id);
+        if(!$variant) return ApiResponse::NotFound('Variant not found');
+
+        // clear variant photos
+        $inPurhcase = PurchaseOrderItem::where('void',0)->where('variant_id',$id)->first();
+        $inStock = Stock::where('variant_id',$id)->where('void',0)->first();
+        if($inStock || $inPurhcase) return ApiResponse::ValidateFail('This variant is running in stock, you cannot void it.');
+        $photos = ProductVariantPhoto::where('variant_id',$id)->get();
+        foreach($photos as $photo){
+            Helper::deleteImageFile($photo->photo_file_name,$user->company_id,$photo->directory);
+            ProductVariantPhoto::find($photo->id)->delete();
+        }
+        $variant->update([
+            'void' => 1,
+            'void_uid' => $user->id
+        ]);
+        return ApiResponse::JsonResult(null,false,'Voided');
+    }
+
     public function deleteVariant(Request $req){
         $id = $req->id;
         $user = UserService::getAuthUser();
-        $variant = ProductVariant::where('branch_id',$user->branch_id)->find($id);
+        $variant = ProductVariant::where('branch_id',$user->branch_id)->where('void',0)->find($id);
         if(!$variant) return ApiResponse::NotFound('Variant not found');
 
         // clear variant photos
         $photos = ProductVariantPhoto::where('variant_id',$id)->get();
         foreach($photos as $photo){
-            $inPurhcase = PurchaseOrderItem::where('variant_id',$id)->first();
-            $inStock = Stock::where('variant_id',$id)->first();
+            $inPurhcase = PurchaseOrderItem::where('variant_id',$id)->where('void',0)->first();
+            $inStock = Stock::where('variant_id',$id)->where('void',0)->first();
             if($inStock || $inPurhcase) return ApiResponse::ValidateFail('This variant is running in stock, you cannot delete it.');
             Helper::deleteImageFile($photo->photo_file_name,$user->company_id,$photo->directory);
             ProductVariantPhoto::find($photo->id)->delete();

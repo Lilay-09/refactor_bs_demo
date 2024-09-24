@@ -229,6 +229,9 @@ class StockManagementService
     public function approveAdjustmentByCheckList(Request $req,$type,$targetColOrKey,$user){
         $id = $req->id;
         $items = $req->items ?? [];
+        $success = 0;
+        $skipCount = 0;
+        $skipRows = [];
         if(empty($items)) return ApiResponse::ValidateFail('Please provide list of approve items');
         $stockAdjustment = StockAdjustment::where('void',0)->where('type',$type)->where('company_id',$user->company_id)->find($id);
         if(!$stockAdjustment) return ApiResponse::NotFound('Missing stock not found');
@@ -240,7 +243,11 @@ class StockManagementService
                 if(!$rowId) return ApiResponse::ValidateFail('Please provide item identity!');
                 $detail = StockAdjustmentDetail::where('void',0)->find($rowId);
                 if(!$detail) return ApiResponse::NotFound('Adjustment Item not found by row '.($key + 1).'.');
-                if($detail->status == 'approved') continue;
+                if($detail->status == 'approved') {
+                    $skipCount +=1;
+                    $skipRows[] = $detail->item_ref;
+                    continue;
+                }
                 $qty = $detail->qty;
                 $detail->update([
                     'approved_date' => now(),
@@ -250,9 +257,18 @@ class StockManagementService
                 $prepareStock = $this->prepareStock($stockAdjustment->warehouse_id,$detail->variant_id,$targetColOrKey,$qty,$user,$detail->cost,$detail->item_ref);
                 if($prepareStock->error) return ApiResponse::flex($prepareStock);
                 $this->updateAdjustmentStockStatus($id,'Missing',$user);
+                $success +=1;
             }
             DB::commit();
-            return ApiResponse::JsonResult(null,false,'Approved');
+            // return ApiResponse::JsonResult(null,false,'Approved');
+            return ApiResponse::JsonRaw((object)[
+                'error' => false,
+                'status' => 'OK',
+                'message' => 'Approved!',
+                'success_count' => $success,
+                'skip' => implode(',',$skipRows),
+                'skip_count' => $skipCount
+            ]);
         }catch(Exception $e){
             Log::error($e->getMessage());
             Log::error($e->getTraceAsString());

@@ -28,7 +28,7 @@ class ExpenseCategoryController extends Controller
         $inputs['update_uid'] = $user->id;
         $inputs['branch_id'] = $user->branch_id;
         $inputs['company_id'] = $user->company_id;
-        $duplicateName = ExpenseCategory::where('name',$inputs['name'])->first();
+        $duplicateName = ExpenseCategory::where('void',0)->where('name',$inputs['name'])->first();
         if($duplicateName) return ApiResponse::Duplicated('Category ('.$inputs['name'].') is already exists.');
         $create = ExpenseCategory::create($inputs);
         if($create) return ApiResponse::JsonResult(null,false,'Created');

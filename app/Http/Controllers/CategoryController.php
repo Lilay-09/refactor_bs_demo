@@ -35,7 +35,7 @@ class CategoryController extends Controller
         $inputs['update_uid'] = $user->id;
         $inputs['branch_id'] = $user->branch_id;
         $inputs['company_id'] = $user->company_id;
-        $duplicateName = Category::where('company_id',$user->company_id)->where('name',$name)->first();
+        $duplicateName = Category::where('void',0)->where('company_id',$user->company_id)->where('name',$name)->first();
         if($duplicateName) return ApiResponse::Duplicated('Category ('.$name.') is already exists.');
         $create = Category::create($inputs);
         if($create) return ApiResponse::JsonResult(null,false,'Created');
@@ -44,7 +44,7 @@ class CategoryController extends Controller
 
     public function categories(Request $req){
         $user = UserService::getAuthUser();
-        $query = Category::where('company_id',$user->company_id)->selectRaw('id,name,name_kh');
+        $query = Category::where('company_id',$user->company_id)->where('void',0)->selectRaw('id,name,name_kh');
         if($req->search){
             $query->where('name','ilike','%'.$req->search.'%')->orWhere('name_kh','ilike','%'.$req->search.'%');
         }
@@ -55,7 +55,7 @@ class CategoryController extends Controller
     public function category(Request $req,$id=null){
         $id = $id ? $id : $req->id;
         $user = UserService::getAuthUser();
-        $category = Category::where('company_id',$user->company_id)->find($id);
+        $category = Category::where('company_id',$user->company_id)->where('void',0)->find($id);
         return ApiResponse::JsonResult($category);
     }
 
@@ -82,6 +82,22 @@ class CategoryController extends Controller
         $update = $category->update($inputs);
         if($update) return ApiResponse::JsonResult(null,false,'Updated');
         return ApiResponse::Error('Fail to update');
+    }
+
+    public function voidCategory(Request $req){
+        $user = UserService::getAuthUser();
+        $id = $req->id;
+        $category = Category::where('company_id',$user->company_id)->where('void',0)->find($id);
+        if($category){
+            $inUse = Product::where('category_id',$id)->where('void',0)->first();
+            if($inUse) return ApiResponse::ValidateFail('Category is used in product');
+            $category->update([
+                'void' => 1,
+                'void_uid' => $user->id,
+            ]);
+            return ApiResponse::JsonResult(null,false,'Voided');
+        }
+        return ApiResponse::NotFound('Category not found');
     }
 
     public function deleteCategory(Request $req){

@@ -37,11 +37,11 @@ class CustomerController extends Controller
         $customerId = $inputs['customer_type_id'];
         $defaultDiscount = CustomerType::where('company_id',$user->company_id)->where('void',0)->where('id',$customerId)->take(1)->value('discount_percent');
         $inputs['discount_percent'] = isset($inputs['discount_percent']) ? $inputs['discount_percent'] : $defaultDiscount;
-        $duplicatedPhone = Customer::where('company_id',$user->company_id)->where('phone',$inputs['phone'])->first();
+        $duplicatedPhone = Customer::where('company_id',$user->company_id)->where('void',0)->where('phone',$inputs['phone'])->first();
         if($duplicatedPhone) {
-            $isDiffBranch = $duplicatedPhone->branch_id !== $user->branch_id;
+            // $isDiffBranch = $duplicatedPhone->branch_id !== $user->branch_id;
             $diffBranchText = null;
-            if($isDiffBranch) $diffBranchText = ' but in another branch';
+            // if($isDiffBranch) $diffBranchText = ' but in another branch';
             return ApiResponse::Duplicated('Phone number '.$inputs['phone'].' is already taken.'.$diffBranchText);
         }
         $create = Customer::create($inputs);
@@ -52,8 +52,15 @@ class CustomerController extends Controller
     public function getCustomers(Request $req){
         $user = UserService::getAuthUser();
         $query = Customer::with('type:id,name')->where('void',0)->where('company_id',$user->company_id);
-        if($req->search){
-            $query->where('name','ilike','%'.$req->search.'%')->orWhere('name_kh','ilike','%'.$req->search.'%')->orWhere('phone',$req->search);
+        // if($req->search){
+        //     $query->where('name','ilike','%'.$req->search.'%')->orWhere('name_kh','ilike','%'.$req->search.'%')->orWhere('phone','ilike','%'.$req->search.'%');
+        // }
+        if ($req->search) {
+            $query->where(function($q) use ($req) {
+                $q->where('name', 'ilike', '%' . $req->search . '%')
+                ->orWhere('name_kh', 'ilike', '%' . $req->search . '%')
+                ->orWhere('phone', 'ilike', '%' . $req->search . '%');
+            });
         }
         $rows = $query->get();
         foreach($rows as $row){

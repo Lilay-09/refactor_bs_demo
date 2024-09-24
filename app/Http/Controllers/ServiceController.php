@@ -112,7 +112,7 @@ class ServiceController extends Controller
                 'void' => 1,
                 'void_uid' => $user->id
             ]);
-            return ApiResponse::JsonResult(null.false,'Voided');
+            return ApiResponse::JsonResult(null,false,'Voided');
         }
         return ApiResponse::NotFound('Service not found');
     }
