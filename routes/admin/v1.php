@@ -14,7 +14,7 @@ use App\Http\Controllers\V1\UserManagementController;
 use Illuminate\Support\Facades\Route;
 
 
-Route::prefix('auth')->group(function(){
+Route::prefix('admin/v1/auth')->group(function(){
     Route::post('login',[AuthController::class,'login']);
 });
 
@@ -53,6 +53,7 @@ Route::middleware('jwt')->prefix('admin/v1/{lang}')->group(function(){
     Route::prefix('order')->group(function (){
         Route::post('/quick',[PickUpCenterController::class,'createQuickOrder']);
         Route::get('',[PickUpCenterController::class,'getOrders']);
+        Route::post('item',[PickUpCenterController::class,'addPackage']);
     });
 
 

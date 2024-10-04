@@ -15,9 +15,9 @@ return new class extends Migration
     {
         Schema::create('zones', function (Blueprint $table) {
             $this->AddBaseFields($table);
-            $table->string('code',35)->nullable();
-            $table->string('type',35)->nullable();
-            $table->string('name',35)->nullable();
+            $table->string('zone_code',35)->nullable();
+            $table->string('zone_type',35)->nullable();
+            $table->string('zone_name',35)->nullable();
             $table->string('commune',150)->comment('sangkat')->nullable();
             $table->string('district',150)->comment('khan')->nullable();
             $table->string('city',150)->nullable();

@@ -360,14 +360,31 @@ class InitialSeeder extends Seeder
         }
 
         //** Add Default Zone  */
-        DB::table('zones')->insert([
-            'type' => 'local',
-            'code' => 'C1',
-            'name' => 'ក្រាំធ្នង',
-            'district' => '',
-            'city' => '',
+        $zoneId = DB::table('zones')->insertGetId([
+            'zone_type' => 'local',
+            'zone_code' => 'C1',
+            'zone_name' => 'កោះពេជ្រ',
+            'district' => 'Chroy Changvar',
+            'city' => 'Phnom Penh',
             'country_id' => $countryId,
-            'desctiption' => 'description'
+            'desctiption' => 'description',
+            'create_uid' => $userId,
+            'update_uid' => $userId,
+            'branch_id' => $branchId,
+            'company_id' => $comapanyId,
+        ]);
+
+        $priceListId = DB::table('price_lists')->insertGetId([
+            // 'price' => 0,
+            'create_uid' => $userId,
+            'update_uid' => $userId,
+            'branch_id' => $branchId,
+            'company_id' => $comapanyId,
+        ]);
+
+        DB::table('price_list_zones')->insert([
+            'price_list_id' => $priceListId,
+            'zone_id' => $zoneId
         ]);
     }
 }
