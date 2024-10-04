@@ -40,14 +40,14 @@ class DistrictController extends Controller
 
     public function districts(Request $req){
         $user = UserService::getAuthUser();
-        $districts = District::where('branch_id',$user->branch_id)->selectRaw('name,id,name_kh,city_id')->get();
+        $districts = District::where('company_id',$user->company_id)->where('is_deleted',0)->selectRaw('name,id,name_kh,city_id')->get();
         return ApiResponse::Pagination($districts,$req);
     }
 
     public function district(Request $req,$id=null){
         $id = $id ? $id : $req->id;
         $user = UserService::getAuthUser();
-        $districts = District::where('branch_id',$user->branch_id)->selectRaw('name,id,name_kh,city_id')->find($id);
+        $districts = District::where('company_id',$user->company_id)->where('is_deleted',0)->selectRaw('name,id,name_kh,city_id')->find($id);
         return ApiResponse::Pagination($districts,$req);
     }
 
@@ -59,7 +59,7 @@ class DistrictController extends Controller
         $inputs = $validate->validated();
         $user = UserService::getAuthUser();
         $id = $id ? $id : $req->id;
-        $district = District::where('branch_id',$user->branch_id)->find($id);
+        $district = District::where('company_id',$user->company_id)->where('is_deleted',0)->find($id);
         if(!$district) return ApiResponse::NotFound('District not found');
         $inputs['update_uid'] = $user->id;
         $inputs['branch_id'] = $user->branch_id;
@@ -67,5 +67,18 @@ class DistrictController extends Controller
         $update = $district->update($inputs);
         if($update) return ApiResponse::JsonResult(null,false,'Updated');
         return ApiResponse::Error('failed to update');
+    }
+
+    public function voidDistrict(Request $req,$id=null){
+        $id = $id ? $id : $req->id;
+        $user = UserService::getAuthUser();
+        $district = District::where('company_id',$user->company_id)->where('is_deleted',0)->find($id);
+        if(!$district) return ApiResponse::NotFound('City not found');
+        $district->update([
+            'is_deleted' => 1,
+            'deleted_uid' => $user->id,
+            'deleted_datetime' => now()
+        ]);
+        return ApiResponse::JsonResult(null,false,'Deleted');
     }
 }

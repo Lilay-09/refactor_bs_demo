@@ -30,7 +30,7 @@ class CityController extends Controller
         $inputs['update_uid'] = $user->id;
         $inputs['branch_id'] = $user->branch_id;
         $inputs['company_id'] = $user->company_id;
-        $existCity = City::where('name',$name)->where('branch_id',$user->branch_id)->where('country_id',$country_id)->take(1)->value('id');
+        $existCity = City::where('name',$name)->where('company_id',$user->company_id)->where('is_deleted',0)->where('country_id',$country_id)->take(1)->value('id');
         if($existCity) return ApiResponse::Duplicated('City ('.$name.') is already exists.');
         $create = City::create($inputs);
 
@@ -44,15 +44,15 @@ class CityController extends Controller
 
     public function cities(Request $req){
         $user = UserService::getAuthUser();
-        $cities = City::with('districts:id,city_id,name,name_kh')->where('branch_id',$user->branch_id)->selectRaw('id,name,name_kh')->get();
-        return ApiResponse::JsonResult($cities);
+        $cities = City::where('is_deleted',0)->where('company_id',$user->company_id)->selectRaw('id,name,name_kh')->get();
+        return ApiResponse::JsonResult($cities,false,'Get cities');
     }
 
-    public function city(Request $req,$id=null){
-        $id = $id ? $id : $req->id;
+    public function city(Request $req){
+        $id = $req->id;
         $user = UserService::getAuthUser();
-        $city = City::where('branch_id',$user->branch_id)->find($id);
-        return ApiResponse::JsonResult($city);
+        $city = City::where('company_id',$user->company_id)->find($id);
+        return ApiResponse::JsonResult($city,false,'Get on city');
     }
 
     public function updateCity(Request $req,$id=null){
@@ -66,7 +66,7 @@ class CityController extends Controller
         $city = City::find($id)->where('branch_id',$user->branch_id);
         if(!$city) return ApiResponse::NotFound('City not found');
 
-        $existCity = City::where('name',$req->name)->where('branch_id',$user->branch_id)->where('country_id',$country_id)->where('id','!=',$id)->take(1)->value('id');
+        $existCity = City::where('name',$req->name)->where('is_deleted',0)->where('company_id',$user->company_id)->where('country_id',$country_id)->where('id','!=',$id)->take(1)->value('id');
         if($existCity) return ApiResponse::Duplicated('City('.$name.') is already taken.');
         // return $user;
         $inputs['update_uid'] = $user->id;
@@ -76,5 +76,18 @@ class CityController extends Controller
         if($update) return ApiResponse::JsonResult(null,false,'Update');
 
         return ApiResponse::Error('Fail to update');
+    }
+
+    public function voidCity(Request $req,$id=null){
+        $id = $id ? $id : $req->id;
+        $user = UserService::getAuthUser();
+        $city = City::where('company_id',$user->company_id)->where('is_deleted',0)->find($id);
+        if(!$city) return ApiResponse::NotFound('City not found');
+        $city->update([
+            'is_deleted' => 1,
+            'deleted_uid' => $user->id,
+            'deleted_datetime' => now()
+        ]);
+        return ApiResponse::JsonResult(null,false,'Deleted');
     }
 }

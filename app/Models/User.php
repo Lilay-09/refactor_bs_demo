@@ -18,23 +18,37 @@ class User extends Authenticatable implements JWTSubject
      *
      * @var array<int, string>
      */
+    protected $table = 'users';
     protected $fillable = [
-        'email',
-        'password',
-        'user_name',
+        'id',
         'first_name',
         'last_name',
-        'last_login',
-        'start_date',
-        'id',
-        'phone',
+        'user_name',
+        'name_km',
         'photo_file_name',
+        'email',
+        'gender',
+        'bio',
+        'latitude',
+        'longtitude',
+        'address',
+        'dob',
+        'otp',
+        'otp_expiration',
+        'last_login',
+        'passowrd',
+        'national_id',
         'system_admin',
+        'delete_account',
+        'plate_number',
+        'employee_type',
+        'shift',
+        'vehicle_type',
+        'driver_warehouse_id',
         'create_uid',
         'update_uid',
         'branch_id',
-        'company_id',
-        'lock'
+        'company_id'
     ];
 
     public function user_roles(){

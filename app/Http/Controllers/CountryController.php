@@ -28,7 +28,7 @@ class CountryController extends Controller
         $inputs['company_id'] = $user->company_id;
         $inputs['create_uid'] = $user->id;
         $inputs['update_uid'] = $user->id;
-        $existCountry = Country::where('name',$req->name)->where('void',0)->where('company_id',$user->company_id)->take(1)->value('id');
+        $existCountry = Country::where('name',$req->name)->where('is_deleted',0)->where('company_id',$user->company_id)->take(1)->value('id');
         if($existCountry) return ApiResponse::Duplicated('Country ('.$req->name.') is already exists.');
 
         $create = Country::create($inputs);
@@ -42,20 +42,20 @@ class CountryController extends Controller
         if($req->id){
             return $this->country($req);
         }
-        $countries = Country::with('cities:id,country_id,name,name_kh')->where('void',0)->where('company_id',$user->company_id)->get();
-        return ApiResponse::JsonResult($countries);
+        $countries = Country::where('is_deleted',0)->where('company_id',$user->company_id)->get();
+        return ApiResponse::Pagination($countries,$req);
     }
 
 
     public function country(Request $req){
         $user = UserService::getAuthUser();
-        $country = Country::selectRaw('id,name,name_kh')->where('void',0)->where('company_id',$user->company_id)->where('id',$req->id)->first();
+        $country = Country::selectRaw('id,name,name_kh')->where('is_deleted',0)->where('company_id',$user->company_id)->where('id',$req->id)->first();
         return ApiResponse::JsonResult($country);
     }
 
     public function getCities(Request $req,$id = null){
         $user = UserService::getAuthUser();
-        $cities = City::where('country_id',$req->country_id)->where('void',0)->where('company_id',$user->company_id)->get();
+        $cities = City::where('country_id',$req->country_id)->where('is_deleted',0)->where('company_id',$user->company_id)->get();
         return ApiResponse::JsonResult($cities);
     }
 
@@ -69,7 +69,7 @@ class CountryController extends Controller
         $inputs['company_id'] = $user->branch_id;
         $inputs['company_id'] = $user->company_id;
         $inputs['update_uid'] = $user->id;
-        $country = Country::where('company_id',$user->company_id)->where('void',0)->find($id);
+        $country = Country::where('company_id',$user->company_id)->where('is_deleted',0)->find($id);
         if(!$country) return ApiResponse::NotFound('Country not found');
 
         $existCountry = Country::where('name',$req->name)->where('company_id',$user->company_id)->where('id','!=',$id)->take(1)->value('id');
@@ -82,11 +82,12 @@ class CountryController extends Controller
     public function voidCountry(Request $req){
         $user = UserService::getAuthUser();
         $id = $req->id;
-        $country = Country::where('company_id',$user->company_id)->where('void',0)->find($id);
+        $country = Country::where('company_id',$user->company_id)->where('is_deleted',0)->find($id);
         if(!$country) return ApiResponse::NotFound('Country not found');
         $country->update([
-            'void' => 1,
-            'void_uid' => $user->id
+            'is_deleted' => 1,
+            'deleted_uid' => $user->id,
+            'deleted_datetime' => now()
         ]);
 
         return ApiResponse::JsonResult(null,false,'Voided');

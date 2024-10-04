@@ -23,7 +23,7 @@ class DistrictsTable extends Migration
             $table->unsignedBigInteger('city_id');
 
             //* relationship
-            $table->foreign('city_id')->references('id')->on('cities');
+            $table->foreign('city_id')->references('id')->on('cities')->onDelete('cascade');
         });
     }
 

@@ -17,7 +17,10 @@ class City extends Model
         'create_uid',
         'update_uid',
         'branch_id',
-        'company_id'
+        'company_id',
+        'is_deleted',
+        'deleted_datetime',
+        'deleted_uid'
     ];
 
     public function country(){

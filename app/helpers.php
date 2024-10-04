@@ -132,6 +132,36 @@ class Helper{
         return date('Y',strtotime($date));
     }
 
+    static function generateRandomPrefix($length = 4,$useUpperCase=true)
+    {
+        $characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+
+        $random = substr(str_shuffle($characters), 0, $length);
+
+        if (!$useUpperCase) {
+            return strtolower($random);
+        }
+
+        return $random;
+    }
+
+    static function setBarcode($tableName,$pkId,$companyId,$targetCol='qr_code'){
+        return DB::table($tableName)->where('id',$pkId)->update([
+            $targetCol => self::generateBarcodeString($pkId,$companyId)
+        ]);
+    }
+
+    static function generateBarcodeString($uniqueKey,$companyId){
+        $genCode = substr(strtoupper(string: uniqid('JPK')).self::generateRandomPrefix(5),0,12-strlen($uniqueKey));
+        $barcode = $genCode.$companyId.$uniqueKey;
+        return $barcode;
+    }
+
+    static function generateCode($prefix,$uniqueKey,$splitSign='-',$len=8){
+        $code = str_pad($uniqueKey, $len, "0", STR_PAD_LEFT);
+        return $prefix.$splitSign.$code;
+    }
+
     /**
      * Summary of base64ToImageFile
      * @param mixed $base64String
@@ -342,38 +372,6 @@ class Helper{
     public static function filterSpecialChars($str) {
         // This regex will match any character that is not a letter (a-z, A-Z), a digit (0-9), or a space
         return preg_replace('/[^a-zA-Z0-9\s]/', '', $str);
-    }
-
-    public static function generateBarcode($code,$company_id,$dirName='barcode',$type='C39')
-    {
-        // if (!is_numeric($code) || strlen($code) !== 12) {
-        //     throw new \Exception('Invalid UPC-A code. The code must be a 12-digit numeric value.');
-        // }
-
-        $dns1d = new DNS1D();
-
-        // Generate the barcode as a PNG image
-        $barcode = $dns1d->getBarcodePNG($code, $type);
-
-        // Check if barcode generation was successful
-        if ($barcode === false) {
-            \Log::error('Barcode generation failed', ['code' => $code, 'type' => $type]);
-            throw new \Exception('Barcode generation failed.');
-        }
-
-        // Convert to image file
-        $file = self::base64ToImageFile($barcode, $company_id, $dirName, 'png');
-
-        // Return the file path
-        return $file;
-        // $dns1d = new DNS1D();
-
-        // // Generate the barcode as a PNG image
-        // $barcode = $dns1d->getBarcodePNG($code, $type);
-        // $file = self::base64ToImageFile($barcode,$company_id,$dirName,'png');
-
-        // // Return the raw PNG data
-        // return $file;
     }
 
 }

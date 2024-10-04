@@ -12,6 +12,7 @@ use App\Models\StockLocation;
 use App\Models\StockLocationType;
 use App\Models\VendorType;
 use DB;
+use Helper;
 use Illuminate\Database\Seeder;
 
 class InitialSeeder extends Seeder
@@ -23,22 +24,72 @@ class InitialSeeder extends Seeder
      */
 
 
+    protected $cambodiaCities = [
+        'Phnom Penh',
+        'Siem Reap',
+        'Battambang',
+        'Sihanoukville',
+        'Kampong Cham',
+        'Kampot',
+        'Kandal',
+        'Banteay Meanchey',
+        'Kampong Chhnang',
+        'Kampong Speu',
+        'Kampong Thom',
+        'Kep',
+        'Koh Kong',
+        'Kratie',
+        'Mondulkiri',
+        'Oddar Meanchey',
+        'Pailin',
+        'Preah Vihear',
+        'Prey Veng',
+        'Pursat',
+        'Ratanakiri',
+        'Stung Treng',
+        'Svay Rieng',
+        'Takeo',
+        'Tbong Khmum'
+    ];
+
+    protected $phnomPenhDistricts = [
+        'Chamkarmon',
+        'Dangkao',
+        'Kamboul',
+        'Mean Chey',
+        'Por Sen Chey',
+        'Prampir Makara',
+        'Preaek Pnov',
+        'Russey Keo',
+        'Sen Sok',
+        'Chbar Ampov',
+        'Chroy Changvar',
+        'Toul Kork',
+        'Boeng Keng Kang',
+        'Khan Doun Penh',
+        'Khan Kandal',
+    ];
+
+
+
     public function run()
     {
         $userId  = DB::table('users')->insertGetId([
-            'first_name' => 'Root',
-            'last_name' => 'ឬសគុល',
-            'user_name' => 'some where',
+            'first_name' => 'JS',
+            'last_name' => 'ADMIN',
+            'user_name' => 'JS Admin',
             'phone' => '092335554',
-            'email' => 'root1@gmail.com',
-            'password' => \Hash::make('123456'),
+            'email' => 'admin@gmail.com',
+            'account_type' => 'admin',
+            'gender' => 'M',
+            'password' => \Hash::make('gt123456dms'),
             'system_admin' => true,
             'create_uid' => 1, //* just default val
             'update_uid' => 1, //* just default val
             'branch_id'=>1, //* just default val
             'company_id' => 1 //* just default val
-
         ]);
+
         $comapanyId  = DB::table('companies')->insertGetId([
             'name' => 'School Root',
             'name_km' => 'ក្រុមហ៊ុន',
@@ -61,6 +112,57 @@ class InitialSeeder extends Seeder
             'update_uid' => $userId
         ]);
 
+        //** Create Driver */
+
+        $driverId = DB::table('users')->insertGetId([
+            'first_name' => 'Driver',
+            'last_name' => '',
+            'user_name' => 'Driver',
+            'phone' => '092233445',
+            'email' => 'driver@gmail.com',
+            'account_type' => 'driver',
+            'gender' => 'M',
+            'vehicle_type' => 'Motorbike',
+            'password' => \Hash::make('123456'),
+            'create_uid' => $userId,
+            'update_uid' => $userId,
+            'branch_id'=> $branchId,
+            'shift_type' => 'full-time',
+            'start_time' => '8:00',
+            'end_time' => '17:00',
+            'company_id' => $comapanyId
+        ]);
+
+        DB::table('users')->where('id',$driverId)->update([
+            'code' => Helper::generateCode('JSD',$driverId,'')
+        ]);
+
+
+
+        //** Create Merchant */
+
+        $merchantId = DB::table('users')->insertGetId([
+            'first_name' => 'Merchant',
+            'last_name' => '',
+            'user_name' => 'Merchant',
+            'phone' => '012465653',
+            'email' => 'merchant@gmail.com',
+            'account_type' => 'merchant',
+            'gender' => 'M',
+            'password' => \Hash::make('123456'),
+            'create_uid' => $userId,
+            'update_uid' => $userId,
+            'branch_id'=> $branchId,
+            'company_id' => $comapanyId
+        ]);
+
+        DB::table('users')->where('id',$merchantId)->update([
+            'code' => Helper::generateCode('JSD',$merchantId,'')
+        ]);
+
+
+
+
         $roleId = DB::table('roles')->insertGetId([
             'name' => 'Admin',
             'description' => '',
@@ -75,51 +177,117 @@ class InitialSeeder extends Seeder
         ]);
 
         //**
-
+        $userCode = Helper::generateCode('JSA',$userId,'');
         $updateUser = DB::table('users')->where('id',$userId)->update([
+            'code' => $userCode,
             'create_uid' => $userId,
             'update_uid' => $userId,
             'branch_id' => $branchId,
             'company_id' => $comapanyId,
         ]);
 
-        PurchaseStatuses::insert([
-            [
-                'name' => 'Pending'
-            ],
-            [
-                'name' => 'Approved',
-            ],
-            [
-                'name' => 'Rejected',
-            ],
-            [
-                'name' => 'Canceled'
-            ],
-            [
-                'name' => 'Partially Received'
-            ],
-            [
-                'name' => 'Received'
-            ],
-
+        //warehouse
+        DB::table('warehouses')->insert([
+            'name' => 'Main Warehosue',
+            'company_id' => $comapanyId,
+            'branch_id' => $branchId
         ]);
 
-        AdjustmentType::insert([
-            ['name' => 'Damage'],
-            ['name' => 'Theft'],
-            ['name' => 'Return'],
-            ['name' => 'Donation'],
-            ['name' => 'Expire']
-        ]);
-
-        StockLocationType::insert([
-            ['name' => 'Warehouse'],
-            ['name' => 'Branch Store']
-        ]);
-        VendorType::insert([
+        DB::table('tracking_statuses')->insert([
             [
-                'name' => 'Manufacturers',
+                'id' => 1,
+                'name' => 'Available For Pick',
+                'stage' => 'pick',
+                'create_uid' => $userId,
+                'update_uid' => $userId,
+                'branch_id' => $branchId,
+                'company_id' => $comapanyId,
+            ],
+            [
+                'id' => 2,
+                'name' => 'Picked',
+                'stage' => 'pick',
+                'create_uid' => $userId,
+                'update_uid' => $userId,
+                'branch_id' => $branchId,
+                'company_id' => $comapanyId,
+            ],
+            [
+                'id' => 3,
+                'name' => 'Accepted For Pickup',
+                'stage' => 'pick',
+                'create_uid' => $userId,
+                'update_uid' => $userId,
+                'branch_id' => $branchId,
+                'company_id' => $comapanyId,
+            ],
+            [
+                'id' => 4,
+                'name' => 'Picked And Booked',
+                'stage' => 'pick',
+                'create_uid' => $userId,
+                'update_uid' => $userId,
+                'branch_id' => $branchId,
+                'company_id' => $comapanyId,
+            ],
+            [
+                'id' => 5,
+                'name' => 'At Warehouse',
+                'stage' => 'delivery',
+                'create_uid' => $userId,
+                'update_uid' => $userId,
+                'branch_id' => $branchId,
+                'company_id' => $comapanyId,
+            ],
+            [
+                'id' => 6,
+                'name' => 'On Delivery',
+                'stage' => 'delivery',
+                'create_uid' => $userId,
+                'update_uid' => $userId,
+                'branch_id' => $branchId,
+                'company_id' => $comapanyId,
+            ],
+            [
+                'id' => 7,
+                'name' => 'Delayed',
+                'stage' => 'delivery',
+                'create_uid' => $userId,
+                'update_uid' => $userId,
+                'branch_id' => $branchId,
+                'company_id' => $comapanyId,
+            ],
+            [
+                'id' => 8,
+                'name' => 'Delivered',
+                'stage' => 'delivery',
+                'create_uid' => $userId,
+                'update_uid' => $userId,
+                'branch_id' => $branchId,
+                'company_id' => $comapanyId,
+            ],
+            [
+                'id' => 9,
+                'name' => 'Failed',
+                'stage' => 'delivery',
+                'create_uid' => $userId,
+                'update_uid' => $userId,
+                'branch_id' => $branchId,
+                'company_id' => $comapanyId,
+            ],
+            [
+                'id' => 10,
+                'name' => 'Returned',
+                'stage' => 'delivery',
+                'create_uid' => $userId,
+                'update_uid' => $userId,
+                'branch_id' => $branchId,
+                'company_id' => $comapanyId,
+            ],
+            [
+                'id' => 11,
+                'name' => 'Canceled',
+                'stage' => 'pick',
                 'create_uid' => $userId,
                 'update_uid' => $userId,
                 'branch_id' => $branchId,
@@ -128,79 +296,78 @@ class InitialSeeder extends Seeder
         ]);
 
 
-        CustomerType::insert([
+        DB::table('vehicle_types')->insert([
             [
-                'name' => 'Normal Customer',
-                'discount_percent' => 0,
+                'name' => 'Van',
                 'create_uid' => $userId,
                 'update_uid' => $userId,
                 'branch_id' => $branchId,
-                'company_id' => $comapanyId
+                'company_id' => $comapanyId,
             ],
             [
-                'name' => 'Vip1 Customer',
-                "discount_percent" => 5,
+                'name' => 'Tuk Tuk',
                 'create_uid' => $userId,
                 'update_uid' => $userId,
                 'branch_id' => $branchId,
-                'company_id' => $comapanyId
+                'company_id' => $comapanyId,
+            ],
+            [
+                'name' => 'Motor',
+                'create_uid' => $userId,
+                'update_uid' => $userId,
+                'branch_id' => $branchId,
+                'company_id' => $comapanyId,
+            ],
+            [
+                'name' => 'Bike cycle',
+                'create_uid' => $userId,
+                'update_uid' => $userId,
+                'branch_id' => $branchId,
+                'company_id' => $comapanyId,
             ]
         ]);
 
-        PaymentMethod::insert([
-            ['name' => 'Cash'],
-            ['name' => 'Bank'],
-            ['name' => 'Credit Card'],
-            ['name' => 'Gift Card'],
-            ['name' => 'COD'],
-            ['name' => 'Check'],
-        ]);
-
-        Bank::insert([
-            ['name' => 'ABA','create_uid' => $userId,
-                'update_uid' => $userId,
-                'branch_id' => $branchId,
-                'company_id' => $comapanyId],
-            ['name' => 'ACLEDA','create_uid' => $userId,
-                'update_uid' => $userId,
-                'branch_id' => $branchId,
-                'company_id' => $comapanyId],
-            ['name' => 'VATANAK','create_uid' => $userId,
-                'update_uid' => $userId,
-                'branch_id' => $branchId,
-                'company_id' => $comapanyId]
-        ]);
-
-        DB::table('payment_statuses')->insert([
-            [
-                'name' => 'Pending'
-            ],
-            [
-                'name' => 'Partially Paid'
-            ],
-            [
-                'name' => 'Fully Paid'
-            ]
-        ]);
-        MovementType::insert([
-            ['name' => 'Transfer In'],
-            ['name' => 'Transfer Out'],
-            ['name' => 'Sold'],
-            ['name' => 'Receive Order'],
-            ['name' => 'Donation'],
-            ['name' => 'Return'],
-            ['name' => 'Missing'],
-            ['name' => 'Take Out'],
-        ]);
-
-        StockLocation::insert([
-            'name' => 'Main Warehouse',
-            'type_id' => 1,
-            'main' => true,
+        //** add default country and cities */
+        $countryId = DB::table('countries')->insertGetId([
+            'name' => 'Cambodia',
             'create_uid' => $userId,
             'update_uid' => $userId,
             'branch_id' => $branchId,
-            'company_id' => $comapanyId
+            'company_id' => $comapanyId,
+        ]);
+
+        foreach($this->cambodiaCities as $city){
+            $cityId = DB::table('cities')->insertGetId([
+                'country_id' => $countryId,
+                'name' => $city,
+                'create_uid' => $userId,
+                'update_uid' => $userId,
+                'branch_id' => $branchId,
+                'company_id' => $comapanyId,
+            ]);
+            if($city == 'Phnom Penh'){
+                foreach($this->phnomPenhDistricts as $district){
+                    DB::table('districts')->insert([
+                        'city_id' => $cityId,
+                        'name' => $district,
+                        'create_uid' => $userId,
+                        'update_uid' => $userId,
+                        'branch_id' => $branchId,
+                        'company_id' => $comapanyId,
+                    ]);
+                }
+            }
+        }
+
+        //** Add Default Zone  */
+        DB::table('zones')->insert([
+            'type' => 'local',
+            'code' => 'C1',
+            'name' => 'ក្រាំធ្នង',
+            'district' => '',
+            'city' => '',
+            'country_id' => $countryId,
+            'desctiption' => 'description'
         ]);
     }
 }

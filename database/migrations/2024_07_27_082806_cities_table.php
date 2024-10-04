@@ -23,7 +23,7 @@ class CitiesTable extends Migration
             $table->unsignedBigInteger('country_id');
 
             //* relationship
-            $table->foreign('country_id')->references('id')->on('countries');
+            $table->foreign('country_id')->references('id')->on('countries')->onDelete('cascade');
         });
     }
 
