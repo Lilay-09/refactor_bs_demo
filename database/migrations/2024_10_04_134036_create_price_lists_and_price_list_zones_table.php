@@ -15,6 +15,7 @@ return new class extends Migration
     {
         Schema::create('price_lists', function (Blueprint $table) {
             $this->AddBaseFields($table);
+            $table->string('zone_code',35)->nullable();
             $table->boolean('status')->default(true);
 
         });

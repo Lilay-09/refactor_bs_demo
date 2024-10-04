@@ -10,7 +10,7 @@
 database/schema.sql
 *.sql
 *.schema
-# .env
+.env
 .env.backup
 .env.production
 .phpactor.json

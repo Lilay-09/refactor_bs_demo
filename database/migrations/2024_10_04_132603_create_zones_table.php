@@ -18,8 +18,8 @@ return new class extends Migration
             $table->string('code',35)->nullable();
             $table->string('type',35)->nullable();
             $table->string('name',35)->nullable();
-            $table->string('commune',150)->nullable();
-            $table->string('district',150)->nullable();
+            $table->string('commune',150)->comment('sangkat')->nullable();
+            $table->string('district',150)->comment('khan')->nullable();
             $table->string('city',150)->nullable();
             $table->unsignedBigInteger('country_id')->nullable();
             $table->string('desctiption',500)->nullable();
