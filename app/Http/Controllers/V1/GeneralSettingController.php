@@ -1,13 +1,9 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\V1;
 
 use ApiResponse;
 use App\Http\Controllers\Controller;
-use App\Models\Brand;
-use App\Models\CustomerType;
-use App\Models\ExchangeRate;
-use App\Models\ProductModel;
 use App\Models\StockLocation;
 use App\Models\Tax;
 use App\Services\GeneralSettingService;

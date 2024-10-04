@@ -1,10 +1,10 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\V1;
 
 use ApiResponse;
+use App\Http\Controllers\Controller;
 use App\Models\CompanyProfile;
-use App\Services\CompanyProfileService;
 use App\Services\UserService;
 use Helper;
 use Illuminate\Http\Request;

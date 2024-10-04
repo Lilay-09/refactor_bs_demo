@@ -1,12 +1,12 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\V1;
 
 use ApiResponse;
+use App\Http\Controllers\Controller;
 use App\Models\City;
 use App\Services\UserService;
 use Illuminate\Http\Request;
-use Tymon\JWTAuth\Facades\JWTAuth;
 
 class CityController extends Controller
 {
