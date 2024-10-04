@@ -1,10 +1,10 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\V1;
 
 use ApiResponse;
+use App\Http\Controllers\Controller;
 use App\Models\Order;
-use App\Models\TrackingStatus;
 use App\Models\User;
 use App\Models\VehicleType;
 use App\Services\PickupCenterService;

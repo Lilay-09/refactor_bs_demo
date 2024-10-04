@@ -15,14 +15,16 @@ return new class extends Migration
     {
         Schema::create('price_lists', function (Blueprint $table) {
             $this->AddBaseFields($table);
-            $table->string('zone_code',35)->nullable();
+            $table->decimal('price',10,2)->default(0);
+            $table->
+            $table->boolean('apply_all')->default(false);
             $table->boolean('status')->default(true);
-
         });
 
         Schema::create('price_list_zones', function (Blueprint $table) {
             $this->AddBaseFields($table);
             $table->boolean('status')->default(true);
+
         });
     }
 
