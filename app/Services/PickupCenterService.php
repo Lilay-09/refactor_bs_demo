@@ -4,7 +4,7 @@ namespace App\Services;
 use App\Models\Package;
 use DataResponse;
 use Helper;
-use Request;
+use Illuminate\Http\Request;
 
 class PickupCenterService
 {
@@ -26,6 +26,7 @@ class PickupCenterService
             'receiver_address' => 'nullable|string',
             'zone_code' => 'required|string',
             'receiver_phone' => 'required|string',
+            'receiver_name' => 'required|string',
             'actual_kg' => 'nullable|numeric',
             'billed_kg' => 'nullable|numeric',
             'delivery_type' => 'nullable|string',

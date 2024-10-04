@@ -16,15 +16,22 @@ return new class extends Migration
         Schema::create('price_lists', function (Blueprint $table) {
             $this->AddBaseFields($table);
             $table->decimal('price',10,2)->default(0);
-            $table->
-            $table->boolean('apply_all')->default(false);
+            $table->string('currency_code',20)->default('USD');
+            $table->decimal('base_fee',10,2)->default(1.25);
+            $table->decimal('below_kg',10,2)->default(0);
+            $table->decimal('below_kg_price',10,2)->default(0);
+            $table->decimal('above_kg',10,2)->default(0);
+            $table->decimal('above_kg_price',10,2)->default(0);
+            $table->string('delivery_type',35)->default('normal');
+            $table->boolean('apply_all_zones')->default(false);
             $table->boolean('status')->default(true);
         });
 
         Schema::create('price_list_zones', function (Blueprint $table) {
-            $this->AddBaseFields($table);
-            $table->boolean('status')->default(true);
-
+            $table->unsignedBigInteger('price_list_id');
+            $table->unsignedBigInteger('zone_id');
+            $table->foreign('price_list_id')->references('id')->on('price_lists')->onDelete('cascade');
+            $table->foreign('zone_id')->references('id')->on('zones')->onDelete('cascade');
         });
     }
 

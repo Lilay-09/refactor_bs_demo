@@ -85,7 +85,9 @@ class PickUpCenterController extends Controller
         return ApiResponse::Pagination($orders,$req);
     }
 
-    public function createPackage(Request $req){
-
+    public function addPackage(Request $req){
+        $user = UserService::getAuthUser();
+        $create = $this->pkupService->createOrUpdatePackage($req);
+        return ApiResponse::flex($create);
     }
 }

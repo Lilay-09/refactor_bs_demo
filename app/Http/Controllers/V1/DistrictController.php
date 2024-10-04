@@ -37,27 +37,27 @@ class DistrictController extends Controller
     }
 
 
-    public function districts(Request $req){
+    public function getDistricts(Request $req){
         $user = UserService::getAuthUser();
         $districts = District::where('company_id',$user->company_id)->where('is_deleted',0)->selectRaw('name,id,name_kh,city_id')->get();
-        return ApiResponse::Pagination($districts,$req);
+        return ApiResponse::Pagination($districts,$req,'get all districts');
     }
 
-    public function district(Request $req,$id=null){
-        $id = $id ? $id : $req->id;
+    public function district(Request $req){
+        $id = $req->id;
         $user = UserService::getAuthUser();
         $districts = District::where('company_id',$user->company_id)->where('is_deleted',0)->selectRaw('name,id,name_kh,city_id')->find($id);
-        return ApiResponse::Pagination($districts,$req);
+        return ApiResponse::JsonResult($districts,false,'get one district');
     }
 
 
-    public function updateDistrict(Request $req,$id=null){
+    public function updateDistrict(Request $req){
         $validate = $this->districtValidation($req);
 
         if($validate->fails()) return ApiResponse::ValidateFail($validate->errors()->first());
         $inputs = $validate->validated();
         $user = UserService::getAuthUser();
-        $id = $id ? $id : $req->id;
+        $id = $req->id;
         $district = District::where('company_id',$user->company_id)->where('is_deleted',0)->find($id);
         if(!$district) return ApiResponse::NotFound('District not found');
         $inputs['update_uid'] = $user->id;

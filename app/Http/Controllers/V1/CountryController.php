@@ -54,18 +54,18 @@ class CountryController extends Controller
         return ApiResponse::JsonResult($country);
     }
 
-    public function getCities(Request $req,$id = null){
+    public function getCities(Request $req){
         $user = UserService::getAuthUser();
         $cities = City::where('country_id',$req->country_id)->where('is_deleted',0)->where('company_id',$user->company_id)->get();
         return ApiResponse::JsonResult($cities);
     }
 
-    public function updateCountry(Request $req,$id=null){
+    public function updateCountry(Request $req){
         $user = UserService::getAuthUser();
         $validate = $this->countryValidation($req);
         if($validate->fails()) return ApiResponse::ValidateFail($validate->errors()->first());
         $inputs = $validate->validated();
-        $id = $id ? $id : $req->id;
+        $id = $req->id;
 
         $inputs['company_id'] = $user->branch_id;
         $inputs['company_id'] = $user->company_id;
