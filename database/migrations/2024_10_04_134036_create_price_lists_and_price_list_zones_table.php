@@ -13,7 +13,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('price_lists', function (Blueprint $table) {
+        Schema::create('price_list', function (Blueprint $table) {
             $this->AddBaseFields($table);
             $table->decimal('price',10,2)->default(0);
             $table->string('currency_code',20)->default('USD');
@@ -30,7 +30,7 @@ return new class extends Migration
         Schema::create('price_list_zones', function (Blueprint $table) {
             $table->unsignedBigInteger('price_list_id');
             $table->unsignedBigInteger('zone_id');
-            $table->foreign('price_list_id')->references('id')->on('price_lists')->onDelete('cascade');
+            $table->foreign('price_list_id')->references('id')->on('price_list')->onDelete('cascade');
             $table->foreign('zone_id')->references('id')->on('zones')->onDelete('cascade');
         });
     }
@@ -40,7 +40,7 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('price_lists');
+        Schema::dropIfExists('price_list');
         Schema::dropIfExists('price_list_zones');
     }
 };

@@ -1,0 +1,77 @@
+<?php
+
+namespace App\Http\Controllers\V1;
+
+use ApiResponse;
+use App\Http\Controllers\Controller;
+use App\Models\Zone;
+use App\Services\UserService;
+use Illuminate\Http\Request;
+
+class ZoneController extends Controller
+{
+    //
+    public function zoneValidation(Request $req){
+        return validator($req->all(),[
+            'zone_code' => 'required|string|max:30',
+            'zone_name' => 'required|string|max:50',
+            'zone_type' => 'required|string|max:30',
+            'district' => "required|string|exists:districts,name",
+            'commune' => "nullable|string|exists:communes,name",
+            'city' => "required|string|exists:cities,name",
+            'country_id' => "required|string|exists:countries,id",
+            'description' => "nullable|string|max:250",
+        ]);
+    }
+
+    public function createZone(Request $req){
+        $user = UserService::getAuthUser();
+        $validate = $this->zoneValidation($req);
+        if($validate->fails()) return ApiResponse::ValidateFail($validate->errors()->first());
+        $inputs = $validate->validated();
+        $inputs['create_uid'] = $user->id;
+        $inputs['update_uid'] = $user->id;
+        $inputs['branch_id'] = $user->branch_id;
+        $inputs['company_id'] = $user->company_id;
+        $create = Zone::create($inputs);
+        if(!$create) return ApiResponse::Error('Fail to create zone');
+        return ApiResponse::JsonResult(null,false,'Zone created');
+    }
+
+    public function getZones(Request $req){
+        $user = UserService::getAuthUser();
+        $query = Zone::where('is_deleted',0)->with('country:id,name')->selectRaw('id,zone_code,zone_type,zone_name,commune,description,city,district,country_id,status')->where('company_id',$user->company_id);
+        $zones = $query->get();
+        foreach($zones as $zone){
+            $zone->country_name = $zone->country->name;
+            unset($zone->country);
+        }
+        return ApiResponse::Pagination($zones,$req,'Get Zones');
+    }
+
+    public function getOneZone(Request $req){
+        $id = $req->id;
+        $user = UserService::getAuthUser();
+        $zone = Zone::where(function($q){
+            $q->where('is_deleted',0)->orWhere('status',1);
+        })->where('company_id',$user->company_id)->selectRaw('id,zone_code,zone_type,zone_name,commune,description,city,district,country_id,status')->find($id);
+        if(!$zone) return ApiResponse::NotFound('Zone not found');
+        return ApiResponse::JsonResult($zone,false,'Get one zone');
+    }
+
+    public function updateZone(Request $req){
+        $user = UserService::getAuthUser();
+        $id = $req->id;
+        $zone = Zone::where('company_id',$user->company_id)->where('is_deleted',0)->find($id);
+        if(!$zone) return ApiResponse::NotFound('Zone not found');
+        $validate = $this->zoneValidation($req);
+        if($validate->fails()) return ApiResponse::ValidateFail($validate->errors()->first());
+        $inputs = $validate->validated();
+        $inputs['update_uid'] = $user->id;
+        $inputs['branch_id'] = $user->branch_id;
+        $inputs['company_id'] = $user->company_id;
+        $update = $zone->update($inputs);
+        if(!$update) return ApiResponse::Error('Fail to create zone');
+        return ApiResponse::JsonResult(null,false,'Zone Updated');
+    }
+}
