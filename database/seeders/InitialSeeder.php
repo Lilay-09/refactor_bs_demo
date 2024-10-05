@@ -367,14 +367,14 @@ class InitialSeeder extends Seeder
             'district' => 'Chroy Changvar',
             'city' => 'Phnom Penh',
             'country_id' => $countryId,
-            'desctiption' => 'description',
+            'description' => 'description',
             'create_uid' => $userId,
             'update_uid' => $userId,
             'branch_id' => $branchId,
             'company_id' => $comapanyId,
         ]);
 
-        $priceListId = DB::table('price_lists')->insertGetId([
+        $priceListId = DB::table('price_list')->insertGetId([
             // 'price' => 0,
             'create_uid' => $userId,
             'update_uid' => $userId,

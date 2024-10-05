@@ -23,15 +23,15 @@ class PickUpCenterController extends Controller
         $vehicleTypes = implode(',',VehicleType::where('is_deleted',0)->pluck('name')->toArray());
 
         return validator($req->all(),[
-            'sender_id' => 'required|int',
+            'merchant_id' => 'required|int',
             'warehouse_id' => 'required|int|exists:warehouses,id',
             'product_type' => 'nullable|string',
             'qty' => 'required|int|min:1',
-            'vehicle_type' => 'required|exists:vehicle_types,name',
+            'vehicle_type' => 'required|in:'.$vehicleTypes,
             'driver_id' => 'nullable|int',
             'pickup_address' => 'nullable|string|max:300'
         ],[
-            'sender_id.required' => 'Please select the sender',
+            'merchant_id.required' => 'Please select the sender',
             'vehicle_type.in' => 'Please select one of ('.$vehicleTypes.')',
             'warehouse_id.required' => 'Please select the warehouse',
             'qty.required' => 'Please enter number of package'
@@ -43,8 +43,8 @@ class PickUpCenterController extends Controller
         $validate = $this->orderValidation($req);
         if($validate->fails()) return ApiResponse::ValidateFail($validate->errors()->first());
         $inputs = $validate->validated();
-        $senderId = $inputs['sender_id'];
-        $validSender = User::where('is_deleted',0)->where('delete_account',0)->find($senderId);
+        $merchantId = $inputs['merchant_id'];
+        $validSender = User::where('is_deleted',0)->where('delete_account',0)->find($merchantId);
         if(!$validSender) return ApiResponse::ValidateFail('Invalid sender identity!');
         $inputs['create_uid'] = $user->id;
         $inputs['update_uid'] = $user->id;
@@ -55,7 +55,7 @@ class PickUpCenterController extends Controller
         $inputs['status_id'] = 3;
         if(!$driverId) $inputs['status_id'] = 1;
         else{
-            $validSender = User::where('is_deleted',0)->where('delete_account',0)->find($senderId);
+            $validSender = User::where('is_deleted',0)->where('delete_account',0)->find($merchantId);
             if(!$validSender) return ApiResponse::ValidateFail('Invalid sender identity!');
         }
 
@@ -73,7 +73,7 @@ class PickUpCenterController extends Controller
 
     public function getOrders(Request $req){
         $query = Order::with(['sender','tracking_status'])->where('is_deleted',0)
-            ->selectRaw('id,sender_id,status_id,driver_id,warehouse_id,vehicle_type,product_type,qty,pickup_address,code,created_at');
+            ->selectRaw('id,merchant_id,status_id,driver_id,warehouse_id,vehicle_type,product_type,qty,pickup_address,code,created_at');
         $orders = $query->get();
         foreach($orders as $order){
             $order->sender_name = $order->sender->user_name;
@@ -87,7 +87,7 @@ class PickUpCenterController extends Controller
 
     public function addPackage(Request $req){
         $user = UserService::getAuthUser();
-        $create = $this->pkupService->createOrUpdatePackage($req);
+        $create = $this->pkupService->createOrUpdatePackage($req,$user);
         return ApiResponse::flex($create);
     }
 }

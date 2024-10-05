@@ -4,13 +4,16 @@
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\V1\AuthController;
 use App\Http\Controllers\V1\CityController;
+use App\Http\Controllers\V1\CommuneController;
 use App\Http\Controllers\V1\CompanyProfileController;
 use App\Http\Controllers\V1\CountryController;
 use App\Http\Controllers\V1\DistrictController;
 use App\Http\Controllers\V1\ExhangeRateController;
+use App\Http\Controllers\V1\GeneralSettingController;
 use App\Http\Controllers\V1\PickUpCenterController;
 use App\Http\Controllers\V1\UserController;
 use App\Http\Controllers\V1\UserManagementController;
+use App\Http\Controllers\V1\ZoneController;
 use Illuminate\Support\Facades\Route;
 
 
@@ -57,6 +60,15 @@ Route::middleware('jwt')->prefix('admin/v1/{lang}')->group(function(){
     });
 
 
+    Route::prefix('zone')->group(function(){
+            Route::post('',[ZoneController::class,'createZone']);
+            Route::get('',[ZoneController::class,'getZones']);
+            Route::get('/{id}',[ZoneController::class,'getOneZone']);
+            Route::put('/{id}',[ZoneController::class,'updateZone']);
+            Route::delete('/{id}',[ZoneController::class,'deleteZone']);
+        });
+
+
 
     Route::prefix('location')->group(function(){
         Route::prefix('country')->group(function(){
@@ -84,8 +96,15 @@ Route::middleware('jwt')->prefix('admin/v1/{lang}')->group(function(){
             Route::put('/{id?}',[DistrictController::class,'updateDistrict']);
             Route::delete('/{id}',[DistrictController::class,'voidDistrict']);
         });
-    });
 
+        Route::prefix('commune')->group(function(){
+            Route::post('',[CommuneController::class,'createCommune']);
+            Route::get('',[CommuneController::class,'getCommunes']);
+            Route::get('/{id?}',[CommuneController::class,'getOneCommune']);
+            Route::put('/{id?}',[CommuneController::class,'updateCommune']);
+            Route::delete('/{id}',[CommuneController::class,'voidCommune']);
+        });
+    });
 
     Route::prefix('report')->group(function (){
         Route::prefix('expense')->group(function(){
@@ -103,6 +122,10 @@ Route::middleware('jwt')->prefix('admin/v1/{lang}')->group(function(){
     Route::prefix('setting')->group(function(){
         Route::prefix('option')->group(function(){
 
+            Route::get('country',[GeneralSettingController::class,'getOptionsCountry']);
+            Route::get('country/city/{country_id}',[GeneralSettingController::class,'getOptionsCityByCountry']);
+            Route::get('city/district/{city_id}',[GeneralSettingController::class,'getOptionsDistrictByCity']);
+            Route::get('district/commune/{district_id}',[GeneralSettingController::class,'getOptionsCommuneByDistrict']);
         });
 
         Route::prefix('form')->group(function(){
