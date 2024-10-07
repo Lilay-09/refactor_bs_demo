@@ -76,13 +76,13 @@ class ApiResponse
         return response()->json([
             'status' => "OK",
             'error' => false,
+            'message'=> $message,
             'data' => $limitation->values(),
             'per_page' => $perPage,
             'total' => $count,
             'total_page' => $total_page,
             'page_no' => $currentPage,
             'errors'=>[],
-            'message'=> $message
         ],200);
     }
 
@@ -455,7 +455,7 @@ class DataResponse //extends Model
         ];
     }
 
-    static function Pagination($data, $filter = null, $usage = "do not provide with get()")
+    static function Pagination($data, $filter = null, $message = "get list")
     {
         $filter = (object)$filter;
         $perPage = isset($filter->per_page) ? $filter->per_page : 10;
@@ -472,13 +472,14 @@ class DataResponse //extends Model
             'status' => "OK",
             'status_code' => 200,
             'error' => false,
+            'message'=> $message,
             'data' => $limitation->values(),
             'per_page' => $perPage,
             'total' => $count,
             'total_page' => $total_page,
             'page_no' => $currentPage,
             'errors'=>[],
-            'message'=> null
+
         ];
     }
 

@@ -1,4 +1,4 @@
 <?php
 
-use Illuminate\Support\Facades\Route;
+// use Illuminate\Support\Facades\Route;
 require __DIR__ . '/admin/v1.php';

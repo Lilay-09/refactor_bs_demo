@@ -38,7 +38,7 @@ class ExhangeRateController extends Controller
         $id = $req->id;
         $validate = $this->xRateValidation($req);
         $exchangeRate = ExchangeRate::where('company_id',$user->company_id)->where('void',0)->find($id);
-        if(!$exchangeRate) return ApiResponse::NotFound('Exchange rate not found');
+        if(!$exchangeRate) return ApiResponse::NotFound(__('messages.not_found'));
         if($validate->fails()) return ApiResponse::ValidateFail($validate->errors()->first());
         $inputs = $validate->validated();
         $inputs['update_uid'] = $user->id;
@@ -67,7 +67,7 @@ class ExhangeRateController extends Controller
         $user = UserService::getAuthUser();
         $id = $req->id;
         $exchangeRate = ExchangeRate::where('company_id',$user->company_id)->where('void',0)->find($id);
-        if(!$exchangeRate) return ApiResponse::NotFound('Exchange rate not found');
+        if(!$exchangeRate) return ApiResponse::NotFound(__('messages.not_found'));
         $exchangeRate->update([
             'void' => 1,
             'void_uid' => $user->id

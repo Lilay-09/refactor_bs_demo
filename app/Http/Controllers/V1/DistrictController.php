@@ -47,6 +47,7 @@ class DistrictController extends Controller
         $id = $req->id;
         $user = UserService::getAuthUser();
         $districts = District::where('company_id',$user->company_id)->where('is_deleted',0)->selectRaw('name,id,name_kh,city_id')->find($id);
+        if(!$districts) return ApiResponse::NotFound(__('messages.not_found'));
         return ApiResponse::JsonResult($districts,false,'get one district');
     }
 
@@ -59,7 +60,7 @@ class DistrictController extends Controller
         $user = UserService::getAuthUser();
         $id = $req->id;
         $district = District::where('company_id',$user->company_id)->where('is_deleted',0)->find($id);
-        if(!$district) return ApiResponse::NotFound('District not found');
+        if(!$district) return ApiResponse::NotFound(__('messages.not_found'));
         $inputs['update_uid'] = $user->id;
         $inputs['branch_id'] = $user->branch_id;
         $inputs['company_id'] = $user->company_id;
@@ -72,7 +73,7 @@ class DistrictController extends Controller
         $id = $id ? $id : $req->id;
         $user = UserService::getAuthUser();
         $district = District::where('company_id',$user->company_id)->where('is_deleted',0)->find($id);
-        if(!$district) return ApiResponse::NotFound('City not found');
+        if(!$district) return ApiResponse::NotFound(__('messages.not_found'));
         $district->update([
             'is_deleted' => 1,
             'deleted_uid' => $user->id,

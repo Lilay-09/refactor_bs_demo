@@ -73,11 +73,11 @@ class AuthController extends Controller
         $data->phone = $user->phone;
         $data->roles = $user->roles;
         $data->token = $token;
-        return response()->json([
-            'status_code' => 200,
-            'data' => $data,
-        ],200);
-
+        // return response()->json([
+        //     'status_code' => 200,
+        //     'data' => $data,
+        // ],200);
+        return ApiResponse::JsonResult($data,false,'Success');
         // ->withCookie(cookie('session_', $token, config('jwt.ttl'), '/', null, true, false)->withSameSite('None'))
         // ->withCookie(cookie('access_token', $token, config('jwt.ttl'), '/', null, true, true)->withSameSite('None'))
         // ->withCookie(cookie('refresh_token', $refreshToken, config('jwt.refresh_ttl'), '/', null, true, true)->withSameSite('None'));

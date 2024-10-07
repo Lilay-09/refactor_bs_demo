@@ -71,7 +71,7 @@ class CountryController extends Controller
         $inputs['company_id'] = $user->company_id;
         $inputs['update_uid'] = $user->id;
         $country = Country::where('company_id',$user->company_id)->where('is_deleted',0)->find($id);
-        if(!$country) return ApiResponse::NotFound('Country not found');
+        if(!$country) return ApiResponse::NotFound(__('messages.not_found'));
 
         $existCountry = Country::where('name',$req->name)->where('company_id',$user->company_id)->where('id','!=',$id)->take(1)->value('id');
         if($existCountry) return ApiResponse::Duplicated('Country ('.$req->name.') is already exists.');
@@ -84,7 +84,7 @@ class CountryController extends Controller
         $user = UserService::getAuthUser();
         $id = $req->id;
         $country = Country::where('company_id',$user->company_id)->where('is_deleted',0)->find($id);
-        if(!$country) return ApiResponse::NotFound('Country not found');
+        if(!$country) return ApiResponse::NotFound(__('messages.not_found'));
         $country->update([
             'is_deleted' => 1,
             'deleted_uid' => $user->id,

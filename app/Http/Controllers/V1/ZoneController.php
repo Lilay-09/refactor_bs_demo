@@ -55,7 +55,7 @@ class ZoneController extends Controller
         $zone = Zone::where(function($q){
             $q->where('is_deleted',0)->orWhere('status',1);
         })->where('company_id',$user->company_id)->selectRaw('id,zone_code,zone_type,zone_name,commune,description,city,district,country_id,status')->find($id);
-        if(!$zone) return ApiResponse::NotFound('Zone not found');
+        if(!$zone) return ApiResponse::NotFound(__('messages.not_found'));
         return ApiResponse::JsonResult($zone,false,'Get one zone');
     }
 
@@ -63,7 +63,7 @@ class ZoneController extends Controller
         $user = UserService::getAuthUser();
         $id = $req->id;
         $zone = Zone::where('company_id',$user->company_id)->where('is_deleted',0)->find($id);
-        if(!$zone) return ApiResponse::NotFound('Zone not found');
+        if(!$zone) return ApiResponse::NotFound(__('messages.not_found'));
         $validate = $this->zoneValidation($req);
         if($validate->fails()) return ApiResponse::ValidateFail($validate->errors()->first());
         $inputs = $validate->validated();
