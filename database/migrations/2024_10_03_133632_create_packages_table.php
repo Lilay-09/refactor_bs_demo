@@ -24,6 +24,7 @@ return new class extends Migration
             $table->unsignedBigInteger('status_id');
             $table->string('failure_notes',500)->nullable();
             $table->unsignedBigInteger('order_id');
+            $table->unsignedBigInteger('photo_id')->nullable();
             $table->string('payer',50);
             $table->boolean(column: 'cod')->default(0);
             $table->decimal('delivery_fee',10,2)->default(0);
@@ -33,7 +34,7 @@ return new class extends Migration
             $table->string('zone_name',50)->nullable();
             $table->string('receiver_phone',25);
             $table->string('receiver_name',50)->nullable();
-            $table->string('delivery_type',50);
+            $table->string('delivery_type',50)->default('normal');
             $table->decimal('actual_kg',10,2)->default(0);
             $table->decimal('billed_kg',10,2)->default(0);
             $table->dateTime('delivery_datetime')->nullable();

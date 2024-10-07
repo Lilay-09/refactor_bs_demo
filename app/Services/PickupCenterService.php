@@ -30,24 +30,25 @@ class PickupCenterService
             'receiver_name' => 'nullable|string',
             'actual_kg' => 'nullable|numeric',
             'billed_kg' => 'nullable|numeric',
-            'delivery_type' => 'nullable|string',
+            'delivery_type' => 'required|in:fast,normal',
             'additional_fee' => 'nullable|numeric'
         ]);
     }
 
     public function createOrUpdatePackage($orderId,Request $req,$user,$packageId=null){
         $validate = $this->packageValidation($req);
-        $req->order_id = $orderId;
         if($validate->fails()) return DataResponse::ValidateFail($validate->errors()->first());
         $inputs = $validate->validated();
         $inputs['company_id'] = $user->company_id;
         $inputs['branch_id'] = $user->branch_id;
         $inputs['update_uid'] = $user->id;
+        $inputs['order_id'] = $orderId;
         $price = $inputs['price'] ?? 0;
         $inputs['cod'] = 0;
         $inputs['price'] = $price;
         if($price) $inputs['cod'] = 1;
         $inputs['status_id'] = 5;
+
         if(!$packageId){
             $inputs['create_uid'] = $user->id;
             $createPackage = Package::create($inputs);
