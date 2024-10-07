@@ -24,8 +24,6 @@ class GeneralSettingController extends Controller
         $this->gs = $gs;
     }
 
-
-
     public function getOptionsCountry(Request $req){
         $user = UserService::getAuthUser();
         return ApiResponse::JsonResult($this->gs::optionsCountry($user));
@@ -44,6 +42,51 @@ class GeneralSettingController extends Controller
     public function getOptionsCommuneByDistrict(Request $req){
         $user = UserService::getAuthUser();
         return ApiResponse::JsonResult($this->gs::optionsCommuneByDistrict($req->district_id,$user));
+    }
+
+    public function getOptionsZone(Request $req){
+        $user = UserService::getAuthUser();
+        return ApiResponse::JsonResult($this->gs::optionsZone($user));
+    }
+
+    public function getFormPriceList(){
+        $user = UserService::getAuthUser();
+        $obj = (object)[
+            'zones' => $this->gs::optionsZone($user),
+            'delivery_types' => $this->gs::optionsDeliveryType()
+        ];
+        return ApiResponse::JsonResult($obj);
+    }
+
+    public function getFormPackage(){
+        $user = UserService::getAuthUser();
+        $obj = (object)[
+            'zones' => $this->gs::optionsZone($user),
+            'delivery_types' => $this->gs::optionsDeliveryType(),
+            'cod' => $this->gs::optionsCOD(),
+            'payers' => $this->gs::optionsPayer(),
+        ];
+        return ApiResponse::JsonResult($obj);
+    }
+
+    public function getPriceByZone(Request $req){
+        $user = UserService::getAuthUser();
+        $price = $this->gs::priceByZone($req->zone_id,$user);
+        if(!$price) return ApiResponse::NotFound('Price not found');
+        return ApiResponse::JsonResult($price,false,__('get zone price'));
+    }
+
+    public function getFormOrder(Request $req){
+        $user = UserService::getAuthUser();
+        $obj = (object)[
+            'merchants' => $this->gs::optionsMerchant($user),
+            'statuses' => $this->gs::optionsPickupStatus($user),
+            'warehouses' => $this->gs::optionsWarehouse($user),
+            'vehicle_types' => $this->gs::optionsVehicleType($user),
+            'drivers' => $this->gs::optionsDriver($user),
+            'product_types' => $this->gs::optionsProductType($user)
+        ];
+        return ApiResponse::JsonResult($obj);
     }
 
     // public function getFormUser(){

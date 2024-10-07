@@ -1,0 +1,32 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+
+class PriceList extends Model
+{
+    use HasFactory;
+    protected $table = 'price_list';
+
+    protected $fillable = [
+        'id',
+        'price',
+        'below_kg',
+        'below_kg_price',
+        'above_kg',
+        'above_kg_price',
+        'delivery_type',
+        'apply_all_zones',
+        'status',
+        'create_uid',
+        'update_uid',
+        'company_id',
+        'branch_id'
+    ];
+
+    public function zones(){
+        return $this->hasMany(PriceListZone::class,'price_list_id','id');
+    }
+}

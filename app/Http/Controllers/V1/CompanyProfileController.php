@@ -35,7 +35,7 @@ class CompanyProfileController extends Controller
         if($validate->fails()) return ApiResponse::ValidateFail($validate->errors()->first());
         $inputs = $validate->validated();
         $company = CompanyProfile::find($user->company_id);
-        if(!$company) return ApiResponse::NotFound('Company not found');
+        if(!$company) return ApiResponse::NotFound(__('messages.not_found'));
         $inputs['update_uid'] = $user->id;
         $photo = $inputs['photo'] ?? null;
         if(Helper::isValidBase64Image($photo) || !$photo){

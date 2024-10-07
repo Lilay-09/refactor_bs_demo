@@ -44,8 +44,8 @@ class Order extends Model
         'deleted_datetime'
     ];
 
-    public function sender(){
-        return $this->belongsTo(User::class,'sender_id','id')->where('is_deleted',0);
+    public function merchant(){
+        return $this->belongsTo(User::class,'merchant_id','id')->where('account_type','merchant')->where('is_deleted',0);
     }
 
     public function driver(){

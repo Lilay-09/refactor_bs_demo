@@ -36,6 +36,13 @@ class Package extends Model
         'delivery_date',
         'arrival_date',
         'exchange_rate',
-        'driver_id'
+        'driver_id',
+        'company_id',
+        'branch_id',
+        'create_uid',
+        'update_uid',
+        'is_deleted',
+        'deleted_uid',
+        'deleted_datetime'
     ];
 }
