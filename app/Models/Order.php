@@ -44,6 +44,10 @@ class Order extends Model
         'deleted_datetime'
     ];
 
+    public function packages(){
+        return $this->hasMany(Package::class,'order_id','id');
+    }
+
     public function merchant(){
         return $this->belongsTo(User::class,'merchant_id','id')->where('account_type','merchant')->where('is_deleted',0);
     }

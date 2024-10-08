@@ -21,4 +21,8 @@ class PriceListZone extends Model
         'price_list_id'
     ];
 
+    public function zone(){
+        return $this->belongsTo(Zone::class,'zone_id','id');
+    }
+
 }

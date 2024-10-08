@@ -374,6 +374,41 @@ class Helper{
         return preg_replace('/[^a-zA-Z0-9\s]/', '', $str);
     }
 
+    static function timeAgo($datetime) {
+    // Convert the datetime string into a timestamp
+        $timestamp = strtotime($datetime);
+
+        if ($timestamp === false) {
+            return 'Invalid date format';
+        }
+
+        // Calculate the time difference in seconds
+        $timeDifference = time() - $timestamp; // Current time minus given time
+        $units = [
+            'year' => 365 * 24 * 60 * 60,
+            'month' => 30 * 24 * 60 * 60,
+            'week' => 7 * 24 * 60 * 60,
+            'day' => 24 * 60 * 60,
+            'hour' => 60 * 60,
+            'minute' => 60,
+            'second' => 1,
+        ];
+
+        $result = [];
+
+        // Iterate through each time unit
+        foreach ($units as $unit => $value) {
+            if ($timeDifference >= $value) {
+                $count = floor($timeDifference / $value);
+                $result[] = $count . ' ' . $unit . ($count > 1 ? 's' : '');
+                $timeDifference -= $count * $value; // Subtract the calculated time
+            }
+        }
+
+        // Return a formatted string
+        return !empty($result) ? implode(', ', $result) . ' ago' : 'just now';
+    }
+
 }
 
 

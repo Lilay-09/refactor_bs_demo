@@ -31,4 +31,8 @@ class Zone extends Model
     public function country(){
         return $this->belongsTo(Country::class,'country_id','id');
     }
+
+    public function priceListZone(){
+        return $this->has(PriceListZone::class,'zone_id','id');
+    }
 }
