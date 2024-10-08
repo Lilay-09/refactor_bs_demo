@@ -30,12 +30,16 @@ class Package extends Model
         'receiver_phone',
         'receiver_name',
         'delivery_type',
+        'additional_fee',
+        'outstanding',
         'sender_id',
         'actual_kg',
         'billed_kg',
-        'delivery_date',
-        'arrival_date',
+        'delivered_date',
+        'assign_driver_datetime',
         'exchange_rate',
+        'merchant_total',
+        'driver_total',
         'driver_id',
         'company_id',
         'branch_id',
@@ -43,6 +47,11 @@ class Package extends Model
         'update_uid',
         'is_deleted',
         'deleted_uid',
-        'deleted_datetime'
+        'deleted_datetime',
+        'arrive_warehouse_datetime'
     ];
+
+    public function status(){
+        return $this->belongsTo(TrackingStatus::class,'status_id','id');
+    }
 }

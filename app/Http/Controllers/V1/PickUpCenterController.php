@@ -5,6 +5,7 @@ namespace App\Http\Controllers\V1;
 use ApiResponse;
 use App\Http\Controllers\Controller;
 use App\Models\Order;
+use App\Models\Package;
 use App\Models\User;
 use App\Models\VehicleType;
 use App\Services\GeneralSettingService;
@@ -65,16 +66,28 @@ class PickUpCenterController extends Controller
 
         $createOrder = Order::create($inputs);
         if(!$createOrder) return ApiResponse::Error('Fail to create order!');
-        $code = Helper::generateCode('JS',1,'',8);
+        $code = Helper::generateCode('JS',$createOrder->id,'',8);
         Order::find($createOrder->id)->update([
             'code' => $code
         ]);
-        return ApiResponse::JsonResult(null,false,'Order created');
+        return ApiResponse::JsonResult(null,false,'Order created ('.$code.')');
     }
 
     public function getOrders(Request $req){
         $query = Order::with(['merchant','tracking_status'])->where('is_deleted',0)
-            ->selectRaw('id,merchant_id,status_id,driver_id,warehouse_id,vehicle_type,product_type,qty,pickup_address,code,created_at');
+            ->orWhereHas('packages',function ($q) {
+                $q->where('is_deleted',0);
+            })
+            ->selectRaw('id,merchant_id,status_id,driver_id,warehouse_id,vehicle_type,product_type,qty,pickup_address,code,created_at')
+            ->orderBy('id','desc')
+            ->orderByDesc(function ($query): void {
+                $query->select('created_at')
+                    ->from('packages')
+                    ->whereColumn('packages.order_id', 'orders.id')
+                    ->orderBy('outstanding', 'desc')
+                    ->orderBy('created_at', 'desc')
+                    ->limit(1);
+            });
         $orders = $query->get();
         foreach($orders as $order){
             $order->merchant_name = $order->merchant->user_name;
@@ -111,6 +124,17 @@ class PickUpCenterController extends Controller
         return ApiResponse::JsonResult(null,false,__('Order '.$order->code.' has assigned to '.$driver->user_name));
     }
 
+    public function setAtWarehouse(Request $req){
+        $user = UserService::getAuthUser();
+        $orderId = $req->order_id;
+        $order = Order::where('is_deleted',0)->find($orderId);
+        if(!$order) return ApiResponse::NotFound(trans('messages.not_found',['info' => 'Order']));
+        $order->update([
+            'update_uid' => $user->id
+        ]);
+        return ApiResponse::JsonResult(__('messages.not_found'));
+    }
+
     public function addPackage(Request $req){
         $user = UserService::getAuthUser();
         $orderId = $req->order_id;
@@ -118,11 +142,68 @@ class PickUpCenterController extends Controller
         return ApiResponse::flex($create);
     }
 
+    public function getOnePackageById(Request $req){
+        $user = UserService::getAuthUser();
+        $id = $req->id;
+        $package = Package::where('company_id',$user->company_id)->where('is_deleted',0)->find($id);
+        if(!$package) return ApiResponse::NotFound(trans('messages.not_found',['info' => 'Package','khInfo' => 'កញ្ចប់​']));
+        $calFee = $this->pkupService->calculatePackageFee($package->zone_code,$package->price,$package->billed_kg,$package->actual_kg,$package->payer);
+        $package->total = $calFee->total;
+        return ApiResponse::JsonResult($package,false,__('messages.get one'));
+    }
+
+    public function getPackagesByOrderId(Request $req){
+        $user = UserService::getAuthUser();
+        $orderId = $req->order_id;
+        $packages = Package::where('order_id',$orderId)->where('company_id',$user->company_id)->where('is_deleted',0)->get();
+        return ApiResponse::Pagination($packages,$req);
+    }
+
     public function updatePackage(Request $req){
         $user = UserService::getAuthUser();
         $orderId = $req->order_id;
-        $packageId = $req->package_id;
-        $create = $this->pkupService->createOrUpdatePackage($orderId,$req,$user,$packageId);
-        return ApiResponse::flex($create);
+        $packageId = $req->id;
+        $update = $this->pkupService->createOrUpdatePackage($orderId,$req,$user,$packageId);
+        return ApiResponse::flex($update);
+    }
+
+    public function arriveWarehouse(Request $req){
+        $user = UserService::getAuthUser();
+        $orderId = $req->id;
+        $order = Order::where('company_id',$user->company_id)->where('is_deleted',0)->find($orderId);
+        if(!$order) return ApiResponse::NotFound(__('messages.not_found',['info' => 'Order']));
+        $order->update([
+            'status_id' => 5 //* at warehouse
+        ]);
+        if($order->status_id == 5) return ApiResponse::Duplicated(__('messages.already_at_warehouse'));
+        $query = Package::where('order_id',$orderId)->where('outstanding',1)->where('company_id',$user->company_id);
+        $count = $query->count();
+        if($count < 1) return ApiResponse::NotFound(__('messages.not_found',['info' => 'Package']));
+        $query->update([
+            'arrive_warehouse_datetime' => now(),
+            'outstanding' => 0,
+        ]);
+        return ApiResponse::JsonResult(null,false,__('messages.arrived'));
+    }
+
+    public function deletePackage(Request $req){
+        $user = UserService::getAuthUser();
+        $id = $req->id;
+        $order_id = $req->order_id;
+        $order = Order::where('company_id',$user->company_id)->where('is_deleted',0)->find($order_id);
+        if(!$order) return ApiResponse::NotFound(__('messages.not_found',['info' => 'Order']));
+        if($order->status_id == 5) return ApiResponse::Duplicated(__('messages.already_at_warehouse'));
+        if($order->status_id == 2) return ApiResponse::Forbidden(__('messages.no_access'));
+        if($order->status_id == 3) return ApiResponse::Forbidden(__('messages.no_access'));
+        if($order->status_id == 4) return ApiResponse::Forbidden(__('messages.no_access'));
+        $package = Package::where('company_id',$user->company_id)->where('order_id',$order_id)->where('is_deleted',0)->where('outstanding',1)->find($id);
+        if(!$package) return ApiResponse::NotFound(trans('messages.not_found',['info' => 'Package','khInfo' => 'កញ្ចប់​']));
+        $package->update([
+            'is_deleted' => 1,
+            'deleted_uid' => $user->id,
+            'deleted_datetime' => now()
+        ]);
+        $this->pkupService->updateOrderQty($package->order_id);
+        return ApiResponse::JsonResult(null,false,__('messages.deleted',['info' => 'Package','khInfo'=>'កញ្ចប់']));
     }
 }

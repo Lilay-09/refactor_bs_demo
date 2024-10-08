@@ -10,6 +10,7 @@ use App\Http\Controllers\V1\CountryController;
 use App\Http\Controllers\V1\DistrictController;
 use App\Http\Controllers\V1\ExhangeRateController;
 use App\Http\Controllers\V1\GeneralSettingController;
+use App\Http\Controllers\V1\PackageTrailController;
 use App\Http\Controllers\V1\PickUpCenterController;
 use App\Http\Controllers\V1\PriceListController;
 use App\Http\Controllers\V1\ProductTypeController;
@@ -51,7 +52,7 @@ Route::middleware(['jwt','localize'])->prefix('admin/v1/{lang}')->group(function
         Route::get('{id?}',[ExhangeRateController::class,'getXRate']);
         Route::put('{id?}',[ExhangeRateController::class,'update']);
         Route::delete('{id?}',[ExhangeRateController::class,'delete']);
-        Route::put('void/{id?}',[ExhangeRateController::class,'void']);
+        // Route::put('void/{id?}',[ExhangeRateController::class,'void']);
 
     });
 
@@ -59,8 +60,17 @@ Route::middleware(['jwt','localize'])->prefix('admin/v1/{lang}')->group(function
         Route::post('',[PickUpCenterController::class,'createQuickOrder']);
         Route::get('',[PickUpCenterController::class,'getOrders']);
         Route::put('{order_id}/driver/{driver_id?}',[PickUpCenterController::class,'assignDriver']);
+        Route::get('{order_id}/packages',[PickUpCenterController::class,'getPackagesByOrderId']);
         Route::post('{order_id}/package',[PickUpCenterController::class,'addPackage']);
-        // Route::put('')
+        Route::get('package/{id}',[PickUpCenterController::class,'getOnePackageById']);
+        Route::put('{id}/arrive',[PickUpCenterController::class,'arriveWarehouse']);
+        Route::put('{order_id}/package/{id}',[PickUpCenterController::class,'updatePackage']);
+        Route::delete('{order_id}/package/{id}',[PickUpCenterController::class,'deletePackage']);
+    });
+
+    Route::prefix('package')->group(function(){
+        Route::get('',[PackageTrailController::class,'getPackages']);
+        Route::delete('{id}',[PackageTrailController::class,'deletePackage']);
     });
 
 

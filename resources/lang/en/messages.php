@@ -1,11 +1,15 @@
 <?php
 return [
     'get_price_list' => 'Get Price List',
-    'get one price list' => 'Get One Price List',
-    'not_found' => 'Not Found',
+    'get one' => 'Get One :info',
+    'not_found' => ':info Not Found',
     'created' => 'Created',
+    'deleted' => ':info Deleted',
+    'arrived' => ':info Arrived',
     'updated' => 'Updated',
-    'Get List' => 'Get List',
-    'Get Orders' => 'Get Orders'
+    'get_list' => 'Get :info List',
+    'Get List' => 'Get :info List',
+    'Get Orders' => 'Get Orders',
+    'no_access' => 'No Access :info'
 ];
 
