@@ -45,6 +45,7 @@ class Package extends Model
         'branch_id',
         'create_uid',
         'update_uid',
+        'extra_charge',
         'is_deleted',
         'deleted_uid',
         'deleted_datetime',
