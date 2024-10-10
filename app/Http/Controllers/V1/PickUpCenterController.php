@@ -97,6 +97,24 @@ class PickUpCenterController extends Controller
         return ApiResponse::Pagination($orders,$req,__('messages.Get Orders'));
     }
 
+    public function changeMerchant(Request $req){
+        $user = UserService::getAuthUser();
+        $id = $req->id;
+        $merchant_id = $req->merchant_id;
+        $order = Order::where('is_deleted',0)->find($id);
+        if(!$order) return ApiResponse::Error(__('messages.not_found',['info' => 'Order']));
+        $status_id = $order->status_id;
+        if($order->status_id == 5) return ApiResponse::JsonResult(null,false,__('messages.at_warehouse'));
+        if($order->status_id == 6) return ApiResponse::JsonResult(null,false,__('messages.on_delivery'));
+        if($status_id == 1){
+            $order->update([
+                'update_uid' => $user->id,
+                'merchant_id' => $merchant_id
+            ]);
+        }
+        return ApiResponse::JsonResult(null,false,__('messages.updated'));
+    }
+
     public function assignDriver(Request $req){
         $driverId = $req->driver_id ?? null;
         $orderId = $req->order_id;

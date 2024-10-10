@@ -147,4 +147,5 @@ class PackageTrailController extends Controller
         if(!$dPackage) return DataResponse::Error(__('messages.error',['info' => 'Fail to assign package']));
         return DataResponse::JsonResult(null);
     }
+
 }

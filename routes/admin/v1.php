@@ -9,6 +9,7 @@ use App\Http\Controllers\V1\CompanyProfileController;
 use App\Http\Controllers\V1\CountryController;
 use App\Http\Controllers\V1\DistrictController;
 use App\Http\Controllers\V1\ExhangeRateController;
+use App\Http\Controllers\V1\FleetManagementController;
 use App\Http\Controllers\V1\GeneralSettingController;
 use App\Http\Controllers\V1\PackageTrailController;
 use App\Http\Controllers\V1\PickUpCenterController;
@@ -73,6 +74,11 @@ Route::middleware(['jwt','localize'])->prefix('admin/v1/{lang}')->group(function
         Route::put('{id}',[PackageTrailController::class,'updatePackage']);
         Route::put('{id}/driver/{driver_id}',[PackageTrailController::class,'assignDriver']);
         Route::delete('{id}',[PackageTrailController::class,'deletePackage']);
+    });
+
+    Route::prefix('trip')->group(function(){
+        Route::get('',[FleetManagementController::class,'getTrips']);
+        Route::get('{trip_id}/package',[FleetManagementController::class,'getTripPackages']);
     });
 
 

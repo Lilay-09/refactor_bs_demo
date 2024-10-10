@@ -26,4 +26,8 @@ class DeliveryPackage extends Model
         'create_uid',
         'update_uid'
     ];
+
+    public function status(){
+        return $this->belongsTo(TrackingStatus::class,'status_id','id');
+    }
 }
