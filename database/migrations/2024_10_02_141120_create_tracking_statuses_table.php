@@ -17,6 +17,7 @@ return new class extends Migration
             $this->AddBaseFields($table);
             $table->string('name',50)->nullable();
             $table->string('stage',50)->nullable();
+            $table->unsignedInteger('display_order')->default(0);
             $table->boolean('hidden')->default(false);
         });
     }

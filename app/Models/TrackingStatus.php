@@ -13,6 +13,7 @@ class TrackingStatus extends Model
     protected $fillable = [
         'id',
         'name',
-        'stage'
+        'stage',
+        'display_order'
     ];
 }

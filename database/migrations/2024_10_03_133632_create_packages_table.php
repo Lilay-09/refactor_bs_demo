@@ -26,7 +26,7 @@ return new class extends Migration
             $table->unsignedBigInteger('order_id');
             $table->unsignedBigInteger('photo_id')->nullable();
             $table->string('payer',50);
-            $table->boolean(column: 'cod')->default(0);
+            $table->boolean( 'cod')->default(0);
             $table->decimal('delivery_fee',10,2)->default(0);
             $table->string('receiver_address')->nullable();
             $table->boolean('outstanding')->default(1);
@@ -40,6 +40,8 @@ return new class extends Migration
             $table->dateTime('delivered_datetime')->nullable();
             $table->dateTime('assign_driver_datetime')->nullable();
             $table->dateTime('arrive_warehouse_datetime')->nullable();
+            $table->dateTime('completed_datetime')->nullable();
+            $table->decimal('extra_charge',10,2)->default(0);
             $table->unsignedBigInteger('driver_id');
 
             $table->foreign('status_id')->references('id')->on('tracking_statuses')->onDelete('cascade');

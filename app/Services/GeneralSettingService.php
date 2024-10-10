@@ -11,6 +11,7 @@ use App\Models\User;
 use App\Models\VehicleType;
 use App\Models\Warehouse;
 use App\Models\Zone;
+use DataResponse;
 use Helper;
 
 
@@ -137,6 +138,35 @@ class GeneralSettingService
             $q->where('zone_code',$zone_code);
         })
         ->first();
+    }
+
+    public static function calculatePackageFee($zone_code,$price,$billedKg,$actualKg,$payer){
+        $priceList = GeneralSettingService::getZonePriceByCode($zone_code);
+        if(!$priceList) return DataResponse::NotFound('Zone price not found');
+        $zPrice = $priceList->price > 0 ? $priceList->price : $priceList->base_fee;
+        $selectKg = $billedKg ?? $actualKg;
+        $additionalPrice = 0;
+        $merchant_total = $zPrice;
+        if($selectKg >= $priceList->above_kg){
+            $additionalPrice = $priceList->above_kg_price;
+        }else if($selectKg < $priceList->above_kg && $selectKg >= $priceList->below_kg){
+            $additionalPrice = $priceList->below_kg_price;
+        }
+
+        $driverTotal = $price;
+        $merchant_total += $additionalPrice;
+        $total = $price + $additionalPrice;
+        if($payer == 'receiver'){
+            $total += $zPrice;
+        }
+
+        return (object)[
+            "error" => false,
+            'delivery_fee' => $zPrice,
+            'driver_total' => $driverTotal,
+            'merchant_total' => $merchant_total,
+            'total' => $total
+        ];
     }
 
 }

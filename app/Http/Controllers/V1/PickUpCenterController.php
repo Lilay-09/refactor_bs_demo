@@ -75,19 +75,17 @@ class PickUpCenterController extends Controller
 
     public function getOrders(Request $req){
         $query = Order::with(['merchant','tracking_status'])->where('is_deleted',0)
-            ->orWhereHas('packages',function ($q) {
-                $q->where('is_deleted',0);
-            })
-            ->selectRaw('id,merchant_id,status_id,driver_id,warehouse_id,vehicle_type,product_type,qty,pickup_address,code,created_at')
-            ->orderBy('id','desc')
-            ->orderByDesc(function ($query): void {
-                $query->select('created_at')
-                    ->from('packages')
-                    ->whereColumn('packages.order_id', 'orders.id')
-                    ->orderBy('outstanding', 'desc')
-                    ->orderBy('created_at', 'desc')
-                    ->limit(1);
-            });
+            ->whereIn('status_id',[1,3])
+            ->selectRaw('id,merchant_id,status_id,driver_id,warehouse_id,vehicle_type,product_type,qty,pickup_address,code,created_at');
+            // ->orderBy('id','desc')
+            // ->orderByDesc(function ($query): void {
+            //     $query->select('created_at')
+            //         ->from('packages')
+            //         ->whereColumn('packages.order_id', 'orders.id')
+            //         ->orderBy('outstanding', 'desc')
+            //         ->orderBy('created_at', 'desc')
+            //         ->limit(1);
+            // });
         $orders = $query->get();
         foreach($orders as $order){
             $order->merchant_name = $order->merchant->user_name;
@@ -102,7 +100,7 @@ class PickUpCenterController extends Controller
     public function assignDriver(Request $req){
         $driverId = $req->driver_id ?? null;
         $orderId = $req->order_id;
-        $order = Order::where('is_deleted',0)->find($orderId);
+        $order = Order::where('is_deleted',0)->whereIn('status_id',[1,3])->find($orderId);
         if(!$order) return ApiResponse::NotFound('Order not found');
         if($driverId){
             $driver = GeneralSettingService::getDriverById($driverId);
@@ -147,7 +145,7 @@ class PickUpCenterController extends Controller
         $id = $req->id;
         $package = Package::where('company_id',$user->company_id)->where('is_deleted',0)->find($id);
         if(!$package) return ApiResponse::NotFound(trans('messages.not_found',['info' => 'Package','khInfo' => 'កញ្ចប់​']));
-        $calFee = $this->pkupService->calculatePackageFee($package->zone_code,$package->price,$package->billed_kg,$package->actual_kg,$package->payer);
+        $calFee = GeneralSettingService::calculatePackageFee($package->zone_code,$package->price,$package->billed_kg,$package->actual_kg,$package->payer);
         $package->total = $calFee->total;
         return ApiResponse::JsonResult($package,false,__('messages.get one'));
     }
@@ -155,7 +153,11 @@ class PickUpCenterController extends Controller
     public function getPackagesByOrderId(Request $req){
         $user = UserService::getAuthUser();
         $orderId = $req->order_id;
-        $packages = Package::where('order_id',$orderId)->where('company_id',$user->company_id)->where('is_deleted',0)->get();
+        $packages = Package::where('order_id',$orderId)->whereIn('status_id',[1,3,7])->with(['status'])->where('company_id',$user->company_id)->where('is_deleted',0)->get();
+        foreach($packages as $package){
+            $package->status_code = $package->status->name;
+            unset($package->status);
+        }
         return ApiResponse::Pagination($packages,$req);
     }
 
@@ -172,18 +174,19 @@ class PickUpCenterController extends Controller
         $orderId = $req->id;
         $order = Order::where('company_id',$user->company_id)->where('is_deleted',0)->find($orderId);
         if(!$order) return ApiResponse::NotFound(__('messages.not_found',['info' => 'Order']));
-        $order->update([
-            'status_id' => 5 //* at warehouse
-        ]);
         if($order->status_id == 5) return ApiResponse::Duplicated(__('messages.already_at_warehouse'));
         $query = Package::where('order_id',$orderId)->where('outstanding',1)->where('company_id',$user->company_id);
         $count = $query->count();
-        if($count < 1) return ApiResponse::NotFound(__('messages.not_found',['info' => 'Package']));
+        if($count < 1) return ApiResponse::NotFound(__('messages.no_found',['info' => 'Package']));
         $query->update([
             'arrive_warehouse_datetime' => now(),
             'outstanding' => 0,
+            'status_id' => 5 //** at warehouse */
         ]);
-        return ApiResponse::JsonResult(null,false,__('messages.arrived'));
+        $order->update([
+            'status_id' => 5 //* at warehouse
+        ]);
+        return ApiResponse::JsonResult(null,false,__('messages.arrived',['info' => 'Packages have']));
     }
 
     public function deletePackage(Request $req){
