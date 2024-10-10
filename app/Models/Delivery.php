@@ -30,4 +30,8 @@ class Delivery extends Model
         'deleted_uid',
         'deleted_datetime'
     ];
+
+    public function status(){
+        return $this->belongsTo(TrackingStatus::class,'status_id','id');
+    }
 }
