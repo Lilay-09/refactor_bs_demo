@@ -70,6 +70,8 @@ Route::middleware(['jwt','localize'])->prefix('admin/v1/{lang}')->group(function
 
     Route::prefix('package')->group(function(){
         Route::get('',[PackageTrailController::class,'getPackages']);
+        Route::put('{id}',[PackageTrailController::class,'updatePackage']);
+        Route::put('{id}/driver/{driver_id}',[PackageTrailController::class,'assignDriver']);
         Route::delete('{id}',[PackageTrailController::class,'deletePackage']);
     });
 

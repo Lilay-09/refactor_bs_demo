@@ -37,33 +37,33 @@ class PickupCenterService
         ]);
     }
 
-    public function calculatePackageFee($zone_code,$price,$billedKg,$actualKg,$payer){
-        $priceList = GeneralSettingService::getZonePriceByCode($zone_code);
-        if(!$priceList) return DataResponse::NotFound('Zone price not found');
-        $zPrice = $priceList->price > 0 ? $priceList->price : $priceList->base_fee;
-        $selectKg = $billedKg ?? $actualKg;
-        $additionalPrice = 0;
-        $merchant_total = $zPrice;
-        if($selectKg >= $priceList->above_kg){
-            $additionalPrice = $priceList->above_kg_price;
-        }else if($selectKg < $priceList->above_kg && $selectKg >= $priceList->below_kg){
-            $additionalPrice = $priceList->below_kg_price;
-        }
+    // public function calculatePackageFee($zone_code,$price,$billedKg,$actualKg,$payer){
+    //     $priceList = GeneralSettingService::getZonePriceByCode($zone_code);
+    //     if(!$priceList) return DataResponse::NotFound('Zone price not found');
+    //     $zPrice = $priceList->price > 0 ? $priceList->price : $priceList->base_fee;
+    //     $selectKg = $billedKg ?? $actualKg;
+    //     $additionalPrice = 0;
+    //     $merchant_total = $zPrice;
+    //     if($selectKg >= $priceList->above_kg){
+    //         $additionalPrice = $priceList->above_kg_price;
+    //     }else if($selectKg < $priceList->above_kg && $selectKg >= $priceList->below_kg){
+    //         $additionalPrice = $priceList->below_kg_price;
+    //     }
 
-        $driverTotal = $price;
-        $merchant_total += $additionalPrice;
-        $total = $price + $additionalPrice;
-        if($payer == 'receiver'){
-            $total += $zPrice;
-        }
+    //     $driverTotal = $price;
+    //     $merchant_total += $additionalPrice;
+    //     $total = $price + $additionalPrice;
+    //     if($payer == 'receiver'){
+    //         $total += $zPrice;
+    //     }
 
-        return (object)[
-            'delivery_fee' => $zPrice,
-            'driver_total' => $driverTotal,
-            'merchant_total' => $merchant_total,
-            'total' => $total
-        ];
-    }
+    //     return (object)[
+    //         'delivery_fee' => $zPrice,
+    //         'driver_total' => $driverTotal,
+    //         'merchant_total' => $merchant_total,
+    //         'total' => $total
+    //     ];
+    // }
 
     public function updateOrderQty($orderId){
         $count = Package::where('is_deleted',0)->where('order_id',$orderId)->count();
@@ -91,9 +91,10 @@ class PickupCenterService
         $payer = $inputs['payer'];
         $inputs['billed_kg'] = $actualKg;
         if($price > 0) $inputs['cod'] = 1;
-        $inputs['status_id'] = 5;
+        $inputs['status_id'] = 7;
         $zoneCode = $inputs['zone_code'];
-        $calPrice = $this->calculatePackageFee($zoneCode,$price,$billedKg,$actualKg,$payer);
+        $calPrice = GeneralSettingService::calculatePackageFee($zoneCode,$price,$billedKg,$actualKg,$payer);
+        if($calPrice->error) return $calPrice;
         $inputs['driver_total'] = $calPrice->driver_total;
         $inputs['merchant_total'] = $calPrice->merchant_total;
         $inputs['delivery_fee'] = $calPrice->delivery_fee;
@@ -106,10 +107,11 @@ class PickupCenterService
                 'qr_code' => $qrCode
             ]);
             $this->updateOrderQty($orderId);
-            return DataResponse::JsonResult(null,false,__('messages.created'));
+            return DataResponse::JsonResult(null,false,__('messages.created',['info' => 'Package Number ('.$qrCode.').']));
         }else{
-            $package = Package::where('is_deleted',0)->find($packageId);
-            if(!$package) return DataResponse::NotFound(trans('messages.not found',['info' => 'Package']));
+            $package = Package::where('is_deleted',0)->whereIn('status_id',[1,3,7])->find($packageId);
+            if(!$package) return DataResponse::NotFound(trans('messages.not_found',['info' => 'Package']));
+            // if($package->status_id == 5) return DataResponse::Forbidden(__('messages.no_access',['info' => 'This package has already assigned to driver']));
             $package->update($inputs);
             return DataResponse::JsonResult(null,false,__('messages.updated'));
         }

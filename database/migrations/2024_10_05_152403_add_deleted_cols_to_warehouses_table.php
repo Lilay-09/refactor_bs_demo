@@ -28,6 +28,10 @@ return new class extends Migration
     {
         Schema::table('warehouses', function (Blueprint $table) {
             //
+            $table->dropForeign(['deleted_uid']);
+
+            // Drop the columns
+            $table->dropColumn(['deleted_datetime', 'deleted_uid', 'is_deleted']);
         });
     }
 };

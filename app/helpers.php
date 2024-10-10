@@ -151,8 +151,8 @@ class Helper{
         ]);
     }
 
-    static function generateBarcodeString($uniqueKey,$companyId){
-        $genCode = substr(strtoupper(string: uniqid('JPK')).self::generateRandomPrefix(5),0,12-strlen($uniqueKey));
+    static function generateBarcodeString($uniqueKey,$companyId,$prefix='JPK'){
+        $genCode = substr(strtoupper(string: uniqid($prefix)).self::generateRandomPrefix(5),0,12-strlen($uniqueKey));
         $barcode = $genCode.$companyId.$uniqueKey;
         return $barcode;
     }
@@ -160,6 +160,37 @@ class Helper{
     static function generateCode($prefix,$uniqueKey,$splitSign='-',$len=8){
         $code = str_pad($uniqueKey, $len, "0", STR_PAD_LEFT);
         return $prefix.$splitSign.$code;
+    }
+
+    static function setFleetNumber($branchId,$controlTable,$targetTable,$targetId,$targetCol){
+        $strtotime = strtotime(now());
+        $year = date('Y',$strtotime);
+        $month = date('m',$strtotime);
+        $startIdx = 1;
+        $error = false;
+        $codeControl = DB::table($controlTable)->where('branch_id',$branchId)->where('year',$year)->where('month',$month)->first();
+        if(!$codeControl){
+            $create = DB::table($controlTable)->insert([
+                'last_idx' => $startIdx,
+                'branch_id' => $branchId,
+                'year' => $year,
+                'month' => $month,
+            ]);
+            if(!$create) $error = true;
+        }else{
+            $startIdx = $codeControl->last_idx + 1;
+        }
+
+        $code = $branchId.substr($year,2).$month.str_pad($startIdx, 8, "0", STR_PAD_LEFT);
+
+        $setCode = DB::table($targetTable)->where('id',$targetId)->update([
+            $targetCol => $code
+        ]);
+        if(!$setCode) $error = true;
+        return (object)[
+            'error' => $error,
+            'code' => $code
+        ];
     }
 
     /**
