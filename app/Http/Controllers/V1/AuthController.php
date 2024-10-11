@@ -28,7 +28,7 @@ class AuthController extends Controller
         $password = $input['password'];
         date_default_timezone_set('Asia/Phnom_Penh');
         $today = date('Y-m-d H:i:s');
-        $user = User::where('email',$account)->orWhere('phone',$account)->selectRaw('photo_file_name,email,phone,id,system_admin,lock,company_id')->first();
+        $user = User::where('email',$account)->orWhere('phone',$account)->selectRaw('photo_file_name,email,phone,id,system_admin,lock,company_id,account_type')->first();
         $systemAdmin = $user->system_admin ?? false;
         $isLock = $user->lock ?? false;
 
@@ -37,6 +37,7 @@ class AuthController extends Controller
         }
         if(!$user) return  ApiResponse::NotFound('Invalid Username or password');
         if($user){
+            if($user->account_type != 'admin') return ApiResponse::Forbidden('You have no access to this application.');
             $user->roles = UserService::getRolesByUsers($user->id);
         }
         User::find($user->id)->update([
