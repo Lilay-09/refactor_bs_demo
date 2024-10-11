@@ -26,12 +26,16 @@ class FleetManagementController extends Controller
 
     public function getTripPackages(Request $req){
         $trip_id = $req->trip_id;
-        $delivery = DeliveryPackage::from('delivery_packages as dp')
+        $packages = DeliveryPackage::from('delivery_packages as dp')
             ->where('dp.delivery_id', $trip_id)
             ->join('packages as p', 'dp.package_id', '=', 'p.id')
             ->with(['status'])
-            ->selectRaw('dp.')
+            ->selectRaw('dp.status_id,dp.package_id,delivery_id,p.qr_code,p.product_type,p.price,p.dim_x,dim_z,dim_y,dp.failure_notes')
             ->get();
-        return ApiResponse::JsonResult($delivery,false,__('messages.get_list'));
+        foreach($packages as $package){
+            $package->status_code = $package->status->name;
+            unset($package->status);
+        }
+        return ApiResponse::JsonResult($packages,false,__('messages.get_list'));
     }
 }

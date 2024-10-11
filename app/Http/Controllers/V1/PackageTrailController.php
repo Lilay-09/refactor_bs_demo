@@ -93,8 +93,6 @@ class PackageTrailController extends Controller
             $trip = $this->createOrUpdateTrip($driver_id,$id,$validDriver->vehicle_type,$user,$notes);
             if($trip->error) return ApiResponse::flex($trip);
             DB::commit();
-            // return DeliveryPackage::get();
-            // return $pacakge->with('status')->find($id);
             return ApiResponse::JsonResult(null,false,__('messages.assigned',['info' => '']));
         }catch(Exception $e){
             DB::rollBack();
@@ -136,6 +134,7 @@ class PackageTrailController extends Controller
         //** add delivery tracking */
         $dPackage = DeliveryPackage::create([
             'notes' => $notes,
+            'driver_id' => $driverId,
             'delivery_id' => $deliveryId,
             'package_id' => $packageId,
             'status_id' => 6, // On Delivery
@@ -144,6 +143,7 @@ class PackageTrailController extends Controller
             'branch_id' => $user->branch_id,
             'company_id' => $user->company_id,
         ]);
+
         if(!$dPackage) return DataResponse::Error(__('messages.error',['info' => 'Fail to assign package']));
         return DataResponse::JsonResult(null);
     }

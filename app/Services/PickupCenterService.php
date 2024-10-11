@@ -98,6 +98,7 @@ class PickupCenterService
         $inputs['driver_total'] = $calPrice->driver_total;
         $inputs['merchant_total'] = $calPrice->merchant_total;
         $inputs['delivery_fee'] = $calPrice->delivery_fee;
+        $inputs['product_type'] = $inputs['product_type'] ?? $order->product_type;
         if(!$packageId){
             $inputs['create_uid'] = $user->id;
             $createPackage = Package::create($inputs);
@@ -110,7 +111,7 @@ class PickupCenterService
             return DataResponse::JsonResult(null,false,__('messages.created',['info' => 'Package Number ('.$qrCode.').']));
         }else{
             $package = Package::where('is_deleted',0)->whereIn('status_id',[1,3,7])->find($packageId);
-            if(!$package) return DataResponse::NotFound(trans('messages.not_found',['info' => 'Package']));
+            if(!$package) return DataResponse::NotFound(trans('messages.not_found',['info' => 'Package','khInfo' => 'កញ្ចប់']));
             // if($package->status_id == 5) return DataResponse::Forbidden(__('messages.no_access',['info' => 'This package has already assigned to driver']));
             $package->update($inputs);
             return DataResponse::JsonResult(null,false,__('messages.updated'));

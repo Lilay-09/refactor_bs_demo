@@ -2,15 +2,6 @@
 
 namespace Database\Seeders;
 
-use App\Models\AdjustmentType;
-use App\Models\Bank;
-use App\Models\CustomerType;
-use App\Models\MovementType;
-use App\Models\PaymentMethod;
-use App\Models\PurchaseStatuses;
-use App\Models\StockLocation;
-use App\Models\StockLocationType;
-use App\Models\VendorType;
 use DB;
 use Helper;
 use Illuminate\Database\Seeder;
@@ -158,6 +149,21 @@ class InitialSeeder extends Seeder
 
         DB::table('users')->where('id',$merchantId)->update([
             'code' => Helper::generateCode('JSD',$merchantId,'')
+        ]);
+        DB::table('users')->insertGetId([
+            'first_name' => 'Test',
+            'last_name' => 'Admin',
+            'user_name' => 'Test Admin',
+            'phone' => '092335552',
+            'email' => 'testadmin@gmail.com',
+            'account_type' => 'admin',
+            'gender' => 'M',
+            'password' => \Hash::make('gt123456dms'),
+            'system_admin' => false,
+            'create_uid' => $userId,
+            'update_uid' => $userId, //* just default val
+            'branch_id'=>$branchId, //* just default val
+            'company_id' => $comapanyId //* just default val
         ]);
 
 

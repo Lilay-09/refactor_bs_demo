@@ -17,16 +17,14 @@ return new class extends Migration
             $this->AddBaseFields($table);
             $table->unsignedBigInteger('delivery_id');
             $table->unsignedBigInteger('package_id');
-            $table->unsignedBigInteger('driver_id');
             $table->unsignedBigInteger('status_id');
-            $table->dateTime('drop_datetime')->nullable();
+            $table->dateTime('delivered_datetime')->nullable();
             $table->string('driver_notes',500)->nullable();
             $table->string('notes',500)->nullable();
 
             $table->foreign('delivery_id')->references('id')->on('deliveries')->onDelete('cascade');
-            $table->foreign('driver_id')->references('id')->on('users')->onDelete('cascade');
             $table->foreign('status_id')->references('id')->on('tracking_statuses')->onDelete('cascade');
-            $table->foreign('package_id')->references('id')->on('packages')->onDelete('cascade');;
+            $table->foreign('package_id')->references('id')->on('packages')->onDelete('cascade');
         });
     }
 

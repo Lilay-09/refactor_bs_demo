@@ -25,6 +25,7 @@ class Package extends Model
         'cod',
         'driver_id',
         'delivery_fee',
+        'failed_datetime',
         'receiver_address',
         'zone_code',
         'zone_name',
