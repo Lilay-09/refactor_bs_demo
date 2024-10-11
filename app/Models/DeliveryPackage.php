@@ -18,6 +18,7 @@ class DeliveryPackage extends Model
         'delivery_id',
         'failed_datetime',
         'delivered_datetime',
+        'assign_driver_datetime',
         'package_id',
         'is_deleted',
         'deleted_datetime',

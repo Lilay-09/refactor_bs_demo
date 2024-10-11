@@ -6,6 +6,8 @@ use ApiResponse;
 use App\Http\Controllers\Controller;
 use App\Models\Delivery;
 use App\Models\DeliveryPackage;
+use App\Models\Package;
+use App\Services\GeneralSettingService;
 use App\Services\UserService;
 use Illuminate\Http\Request;
 
@@ -37,5 +39,45 @@ class FleetManagementController extends Controller
             unset($package->status);
         }
         return ApiResponse::JsonResult($packages,false,__('messages.get_list'));
+    }
+
+    public function setPackageStatus(Request $req){
+        $user = UserService::getAuthUser();
+        $trip_id = $req->trip_id;
+        $package_id = $req->package_id;
+        $status = $req->status;
+        $failure_notes = $req->failure_notes ?? null;
+        if(!$status) return ApiResponse::ValidateFail(__('messages.not_found',['info' => 'Status']));
+        // $deliveryPackage = DeliveryPackage::where('company_id',$user->company_id)->where('delivery_id',$trip_id)->where('package_id',$package_id)->where('is_deleted',0)->first();
+        // if(!$deliveryPackage) return ApiResponse::NotFound(__('messages.not_found',['info' => 'Package','khInfo' => 'កញ្ចប់']));
+        $package = Package::where('company_id',$user->company_id)->where('is_deleted',0)->find($package_id);
+        if(!$package) return ApiResponse::NotFound(__('messages.not_found',['info' => 'Package','khInfo' => 'កញ្ចប់']));
+        // $deliveryPackage->update([
+        //     'delivered_datetime' => $status == 2 ? now():null,
+        //     'update_uid' => $user->id,
+        //     'failed_datetime' => $status == 1 ? now() : null,
+        //     'failure_notes' => $status == 1 ? $failure_notes : null,
+        //     'status_id' => $status == 2 ? 9 : 10
+        // ]);
+        $package->update([
+            'update_uid' => $user->id,
+            'failure_notes' => $status == 1 ? $failure_notes : null,
+            'failed_date' => $status == 1 ? now() : null,
+            'delivered_datetime' => $status == 2 ? now():null,
+            'status_id' => $status == 2 ? 9 : 10
+        ]);
+        GeneralSettingService::setDeliveryStatus($trip_id,$user);
+        return ApiResponse::JsonResult(null,false,__('messages.updated'));
+    }
+
+    public function takeOutPackage(Request $req){
+        $user = UserService::getAuthUser();
+        $trip_id = $req->trip_id;
+        $package_id = $req->package_id;
+        $deliveryPackage = DeliveryPackage::where('company_id',$user->company_id)->where('delivery_id',$trip_id)->where('package_id',$package_id)->where('is_deleted',0)->first();
+        if(!$deliveryPackage) return ApiResponse::NotFound(__('messages.not_found',['info' => 'Package','khInfo' => 'កញ្ចប់']));
+        $package = Package::where('company_id',$user->company_id)->where('is_deleted',0)->find($package_id);
+        if(!$package) return ApiResponse::NotFound(__('messages.not_found',['info' => 'Package','khInfo' => 'កញ្ចប់']));
+
     }
 }
