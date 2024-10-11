@@ -31,6 +31,15 @@ class Delivery extends Model
         'deleted_datetime'
     ];
 
+
+    public $cast = [
+        'depart_datetime' => 'DateTime:d-M-y H:i:s'
+    ];
+    public function getDepartDatetimeAttribute($value)
+    {
+        return \Carbon\Carbon::parse($value)->format('d-M-y H:i:s');
+    }
+
     public function status(){
         return $this->belongsTo(TrackingStatus::class,'status_id','id');
     }

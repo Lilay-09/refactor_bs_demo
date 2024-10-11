@@ -6,7 +6,7 @@ class ApiResponse
     static function ValidateFail($message=null,$errors=[]){
         return response()->json([
             'error' => true,
-            'status' => 'Unprocessable ',
+            'status' => 'Unprocessable',
             'errors' => $errors,
             'message' => $message,
         ],422);

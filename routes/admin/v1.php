@@ -6,6 +6,7 @@ use App\Http\Controllers\V1\AuthController;
 use App\Http\Controllers\V1\CityController;
 use App\Http\Controllers\V1\CommuneController;
 use App\Http\Controllers\V1\CompanyProfileController;
+use App\Http\Controllers\V1\CompletedPackageController;
 use App\Http\Controllers\V1\CountryController;
 use App\Http\Controllers\V1\DistrictController;
 use App\Http\Controllers\V1\ExhangeRateController;
@@ -79,6 +80,11 @@ Route::middleware(['jwt','localize'])->prefix('admin/v1/{lang}')->group(function
     Route::prefix('trip')->group(function(){
         Route::get('',[FleetManagementController::class,'getTrips']);
         Route::get('{trip_id}/package',[FleetManagementController::class,'getTripPackages']);
+        Route::put('{trip_id}/package/status',[FleetManagementController::class,'setPackageStatus']);
+    });
+
+    Route::prefix('finish')->group(function(){
+        Route::get('package',[CompletedPackageController::class,'getFinishedPackages']);
     });
 
 
