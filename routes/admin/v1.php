@@ -60,6 +60,7 @@ Route::middleware(['jwt','localize'])->prefix('admin/v1/{lang}')->group(function
 
     Route::prefix('order')->group(function (){
         Route::post('',[PickUpCenterController::class,'createQuickOrder']);
+        Route::put('/{id}',[PickUpCenterController::class,'updateQuickOrder']);
         Route::get('',[PickUpCenterController::class,'getOrders']);
         Route::put('{order_id}/driver/{driver_id?}',[PickUpCenterController::class,'assignDriver']);
         Route::get('{order_id}/packages',[PickUpCenterController::class,'getPackagesByOrderId']);

@@ -90,10 +90,10 @@ class PickupCenterService
         $inputs['actual_kg'] = $actualKg;
         $payer = $inputs['payer'];
         $inputs['billed_kg'] = $actualKg;
-        if($price > 0) $inputs['cod'] = 1;
+        $cod = $inputs['cod'];
         $inputs['status_id'] = 7;
         $zoneCode = $inputs['zone_code'];
-        $calPrice = GeneralSettingService::calculatePackageFee($zoneCode,$price,$billedKg,$actualKg,$payer);
+        $calPrice = GeneralSettingService::calculatePackageFee($zoneCode,$price,$billedKg,$actualKg,$payer,$cod);
         if($calPrice->error) return $calPrice;
         $inputs['driver_total'] = $calPrice->driver_total;
         $inputs['merchant_total'] = $calPrice->merchant_total;

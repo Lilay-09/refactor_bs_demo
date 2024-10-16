@@ -142,7 +142,7 @@ class GeneralSettingService
         ->first();
     }
 
-    public static function calculatePackageFee($zone_code,$price,$billedKg,$actualKg,$payer){
+    public static function calculatePackageFee($zone_code,$price,$billedKg,$actualKg,$payer,$cod){
         $priceList = GeneralSettingService::getZonePriceByCode($zone_code);
         if(!$priceList) return DataResponse::NotFound('Zone price not found');
         $zPrice = $priceList->price > 0 ? $priceList->price : $priceList->base_fee;
@@ -154,13 +154,14 @@ class GeneralSettingService
         }else if($selectKg < $priceList->above_kg && $selectKg >= $priceList->below_kg){
             $additionalPrice = $priceList->below_kg_price;
         }
-
-        $driverTotal = $price;
+        $driverTotal = 0;
+        if($cod) $driverTotal += $price;
         $merchant_total += $additionalPrice;
         $total = $price + $additionalPrice;
         if($payer == 'receiver'){
             $total += $zPrice;
             $merchant_total = 0;
+            $driverTotal += $zPrice;
         }
 
         return (object)[
@@ -172,40 +173,42 @@ class GeneralSettingService
         ];
     }
 
-    public static function setDeliveryStatus($id,$user): void{
-
+    public static function updateTripStatus($id,$user): void{
         $trip = Delivery::where('is_deleted',0)->where('company_id',$user->company_id)->find($id);
         if($trip){
+            $queryDeliveryPackage = DeliveryPackage::where('delivery_id',$id);
             $deliveredCount = 0;
-            $completeStatus = 0;
-            $pQuery = DeliveryPackage::where('delivery_id',$id)->where('company_id',$user->company_id)->where('is_deleted',0);
-            $packages = $pQuery->get();
-            $onDelivery = 0;
+            $isCompleted = 0;
             $failCount = 0;
-            $count = $pQuery->count();
-            foreach($packages as $package){
-                if($package->status_id == 9){
-                    $deliveredCount +=1;
+            $stillOnDelivery = 0;
+            $packages = $queryDeliveryPackage->get();
+            foreach($packages as $pck){
+                if($pck->status_id == 9){
+                    $deliveredCount += 1;
+                }else if($pck->status_id == 10){
+                    $failCount += 1;
                 }
-                if($package->status_id == 6) $onDelvery = 1;
-                if($package->status_id == 10) $failCount +=1;
-
-            }
-            if($count == $deliveredCount){
-                $completeStatus = 15; // all completed
-            }else{
-                if(!$onDelivery && $failCount>0){
-                    if($failCount == $count) $completeStatus = 17; // failed
-                    else $completeStatus = $completeStatus = 16; // Done
+                if($pck->status_id == 6){
+                    $stillOnDelivery = 6;
                 }
             }
-
-            if($completeStatus) $trip->update([
-                'updated_uid' => $user->id,
-                'status_id' => $completeStatus
+            if($trip->package_count == $failCount){
+                $status_id = 17;
+                $isCompleted = 1;
+            }else if($trip->package_count == $deliveredCount){
+                $status_id = 15;
+            }else if($trip->package_count > $deliveredCount){
+                $status_id = 16;
+                if($stillOnDelivery) $status_id = 14;
+            }
+            $trip->update([
+                'is_completed' => $isCompleted,
+                'update_uid' => $user->id,
+                'failed_count' => $failCount,
+                'status_id' => $status_id,
+                'delivered_count' => $deliveredCount
             ]);
         }
-
     }
 
 }
