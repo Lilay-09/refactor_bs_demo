@@ -113,7 +113,7 @@ class InitialSeeder extends Seeder
             'email' => 'driver@gmail.com',
             'account_type' => 'driver',
             'gender' => 'M',
-            'vehicle_type' => 'Motorbike',
+            'vehicle_type' => 'Motor',
             'password' => \Hash::make('123456'),
             'create_uid' => $userId,
             'update_uid' => $userId,

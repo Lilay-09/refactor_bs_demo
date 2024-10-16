@@ -111,8 +111,29 @@ class Helper{
         return true;
     }
 
-    static function dateYMD($date){
-        return date('Y-m-d',strtotime($date));
+    static function dateYMD($date,$format='Y-m-d'){
+        $date = preg_replace('/\s+\(.*?\)/', '', $date); // Remove "(Indochina Time)"
+
+        // Format the GMT string to a compatible format for DateTime
+        $date = str_replace('GMT', '', $date); // Remove GMT
+        $date = str_replace('0700', '+0700', $date); // Ensure the offset is correctly formatted
+
+        // Create a DateTime object from the cleaned GMT date string
+        $gmtDateTime = DateTime::createFromFormat('D M d Y H:i:s O', trim($date));
+
+        // Check if the DateTime object was created successfully
+        if ($gmtDateTime === false) {
+            return date($format,strtotime($date));
+        }
+
+        // Set the timezone to ICT (Indochina Time)
+        $ictTimezone = new DateTimeZone('Asia/Phnom_Penh');
+
+        // Convert to ICT
+        $gmtDateTime->setTimezone($ictTimezone);
+
+        // Return the date in Y-m-d H:i:s format
+        return $gmtDateTime->format($format);
     }
 
     static function dateDMY($date){

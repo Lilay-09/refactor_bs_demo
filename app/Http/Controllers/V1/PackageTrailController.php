@@ -27,7 +27,7 @@ class PackageTrailController extends Controller
         ->where('outstanding',0)
         // ->whereNotIn('status_id',[]) // at warehouse
         ->where('company_id',$user->company_id)
-        ->selectRaw('id,qr_code,driver_id,product_type,dim_z,dim_x,dim_y,status_id,failure_notes,payer,cod,delivery_fee,receiver_address,zone_code,zone_name,receiver_name,receiver_phone,delivered_datetime,assign_driver_datetime,arrive_warehouse_datetime,driver_total,merchant_total');
+        ->selectRaw('id,qr_code,price,driver_id,product_type,dim_z,dim_x,dim_y,status_id,failure_notes,payer,cod,delivery_fee,receiver_address,zone_code,zone_name,receiver_name,receiver_phone,delivered_datetime,assign_driver_datetime,arrive_warehouse_datetime,driver_total,merchant_total');
         $packages = $query->get();
         foreach($packages as $pkg){
             $pkg->status_code = $pkg->status->name;
@@ -51,17 +51,16 @@ class PackageTrailController extends Controller
         $inputs['branch_id'] = $user->branch_id;
         $inputs['update_uid'] = $user->id;
         $price = $inputs['price'] ?? 0;
-        $inputs['cod'] = 0;
+        // $inputs['cod'] = 0;
         $inputs['price'] = $price;
         $actualKg = $inputs['actual_kg'] ?? 0;
         $billedKg = $inputs['billed_kg'] ?? 0;
         $inputs['actual_kg'] = $actualKg;
         $payer = $inputs['payer'];
         $inputs['billed_kg'] = $actualKg;
-        if($price > 0) $inputs['cod'] = 1;
         $inputs['status_id'] = 5; //** add warehouse */
         $zoneCode = $inputs['zone_code'];
-        $calPrice = GeneralSettingService::calculatePackageFee($zoneCode,$price,$billedKg,$actualKg,$payer);
+        $calPrice = GeneralSettingService::calculatePackageFee($zoneCode,$price,$billedKg,$actualKg,$payer,$inputs['cod']);
         if($calPrice->error) return $calPrice;
         $inputs['driver_total'] = $calPrice->driver_total;
         $inputs['merchant_total'] = $calPrice->merchant_total;
@@ -81,7 +80,9 @@ class PackageTrailController extends Controller
         if(!$pacakge) return ApiResponse::NotFound(__('messages.not_found',['info' => 'Package','khInfo' => 'កញ្ចប់']));
         if($pacakge->driver_id){
             $deliveryPackage = DeliveryPackage::where('package_id',$id)->where('is_deleted',0)->first();
-            if($deliveryPackage->status_id !== 10) return ApiResponse::Duplicated(__('messages.has already assigned',['info' => 'Package']));
+            if($deliveryPackage){
+                if($deliveryPackage->status_id !== 10) return ApiResponse::Duplicated(__('messages.has already assigned',['info' => 'Package']));
+            }
         }
         DB::beginTransaction();
         try{
@@ -104,7 +105,7 @@ class PackageTrailController extends Controller
 
     public function createOrUpdateTrip($driverId,$packageId,$vehicleType,$user,$notes){
         $today = date('Y-m-d');
-        $todayDelivery = Delivery::whereDate('depart_datetime',$today)->where('driver_id',$driverId)->first();
+        $todayDelivery = Delivery::whereDate('depart_datetime',$today)->where('company_id',$user->company_id)->where('driver_id',$driverId)->first();
         if(!$todayDelivery){
             $create = Delivery::create([
                 'driver_id' => $driverId,
@@ -143,6 +144,8 @@ class PackageTrailController extends Controller
             'branch_id' => $user->branch_id,
             'company_id' => $user->company_id,
         ]);
+
+        GeneralSettingService::updateTripStatus($deliveryId,$user);
 
         if(!$dPackage) return DataResponse::Error(__('messages.error',['info' => 'Fail to assign package']));
         return DataResponse::JsonResult(null);

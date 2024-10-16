@@ -23,7 +23,6 @@ class PickUpCenterController extends Controller
     }
     private function orderValidation(Request $req){
         $vehicleTypes = implode(',',VehicleType::where('is_deleted',0)->pluck('name')->toArray());
-
         return validator($req->all(),[
             'merchant_id' => 'required|int',
             'warehouse_id' => 'required|int|exists:warehouses,id',
@@ -59,6 +58,7 @@ class PickUpCenterController extends Controller
         else{
             $validDriver = User::where('is_deleted',0)->where('delete_account',0)->where('account_type','driver')->find($driverId);
             if(!$validDriver) return ApiResponse::ValidateFail('Invalid driver identity!');
+            if($validDriver->vehicle_type != $inputs['vehicle_type']) return ApiResponse::ValidateFail(__('messages.error',['info' => 'Driver vehicle type and chosen vehicle type is different!']));
         }
 
         if($user->account_type == 'driver') $inputs['booking_channel'] = 'driver';
@@ -73,19 +73,43 @@ class PickUpCenterController extends Controller
         return ApiResponse::JsonResult(null,false,'Order created ('.$code.')');
     }
 
+    public function updateQuickOrder(Request $req){
+        $user = UserService::getAuthUser();
+        $id = $req->id;
+        $order = Order::where('is_deleted',0)->find($id);
+        if(!$order) return ApiResponse::NotFound(__('messages.not_found',['info' => 'Order']));
+        if($order->status_id == 5) return ApiResponse::Duplicated(__('messages.error',['info' => 'Order has already input details!']));
+        $validate = $this->orderValidation($req);
+        if($validate->fails()) return ApiResponse::ValidateFail($validate->errors()->first());
+        $inputs = $validate->validated();
+        $merchantId = $inputs['merchant_id'];
+        $validMerchant = User::where('is_deleted',0)->where('delete_account',0)->where('account_type','merchant')->find($merchantId);
+        if(!$validMerchant) return ApiResponse::ValidateFail('Invalid sender identity!');
+        $inputs['create_uid'] = $user->id;
+        $inputs['update_uid'] = $user->id;
+        $inputs['branch_id'] = $user->branch_id;
+        $inputs['company_id'] = $user->company_id;
+        $inputs['booking_channel'] = 'admin';
+        $driverId = $inputs['driver_id'] ?? null;
+        $inputs['status_id'] = 3; //** accepted for pick up*/
+        if(!$driverId) $inputs['status_id'] = 1; //** available for pick */
+        else{
+            $validDriver = User::where('is_deleted',0)->where('delete_account',0)->where('account_type','driver')->find($driverId);
+            if(!$validDriver) return ApiResponse::ValidateFail('Invalid driver identity!');
+            if($validDriver->vehicle_type != $inputs['vehicle_type']) return ApiResponse::ValidateFail(__('messages.error',['info' => 'Driver vehicle type and chosen vehicle type is different!']));
+        }
+
+        if($user->account_type == 'driver') $inputs['booking_channel'] = 'driver';
+        else if($user->account_type == 'merchant') $inputs['booking_channel'] = 'merchant';
+        $update = $order->update($inputs);
+        if(!$update) return ApiResponse::Error(__('messages.error',['info' => 'Fail to update order']));
+        return ApiResponse::JsonResult(null,false,__('messages.updated',['info' => 'Order has']));
+    }
+
     public function getOrders(Request $req){
         $query = Order::with(['merchant','tracking_status'])->where('is_deleted',0)
             ->whereIn('status_id',[1,3])
             ->selectRaw('id,merchant_id,status_id,driver_id,warehouse_id,vehicle_type,product_type,qty,pickup_address,code,created_at');
-            // ->orderBy('id','desc')
-            // ->orderByDesc(function ($query): void {
-            //     $query->select('created_at')
-            //         ->from('packages')
-            //         ->whereColumn('packages.order_id', 'orders.id')
-            //         ->orderBy('outstanding', 'desc')
-            //         ->orderBy('created_at', 'desc')
-            //         ->limit(1);
-            // });
         $orders = $query->get();
         foreach($orders as $order){
             $order->merchant_name = $order->merchant->user_name;
@@ -131,6 +155,8 @@ class PickUpCenterController extends Controller
             if($order->status_id == 4) return ApiResponse::Duplicated(__('messages.Order has already been Picked And Booked'));
             //* if order status = Picked And Booked
             if($order->status_id == 11) return ApiResponse::Duplicated(__('messages.Order has been cancled'));
+
+            if($driver->vehicle_type != $order->vehicle_type) return ApiResponse::ValidateFail(__('messages.error',['info' => 'Your Order vehicle type is ('.$order->vehicle_type.') and driver vehicle is '.$driver->vehicle_type]));
         }
 
         $order->update([
@@ -148,7 +174,7 @@ class PickUpCenterController extends Controller
         $order->update([
             'update_uid' => $user->id
         ]);
-        return ApiResponse::JsonResult(__('messages.not_found'));
+        return ApiResponse::JsonResult(null, false,'Arrived warehouse');
     }
 
     public function addPackage(Request $req){
@@ -163,7 +189,7 @@ class PickUpCenterController extends Controller
         $id = $req->id;
         $package = Package::where('company_id',$user->company_id)->where('is_deleted',0)->find($id);
         if(!$package) return ApiResponse::NotFound(trans('messages.not_found',['info' => 'Package','khInfo' => 'កញ្ចប់​']));
-        $calFee = GeneralSettingService::calculatePackageFee($package->zone_code,$package->price,$package->billed_kg,$package->actual_kg,$package->payer);
+        $calFee = GeneralSettingService::calculatePackageFee($package->zone_code,$package->price,$package->billed_kg,$package->actual_kg,$package->payer,$package->cod);
         $package->total = $calFee->total;
         return ApiResponse::JsonResult($package,false,__('messages.get one'));
     }
