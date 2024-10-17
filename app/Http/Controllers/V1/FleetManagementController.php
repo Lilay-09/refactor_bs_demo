@@ -32,13 +32,14 @@ class FleetManagementController extends Controller
             ->where('dp.delivery_id', $trip_id)
             ->join('packages as p', 'dp.package_id', '=', 'p.id')
             ->with(['status'])
+            ->orderByDesc('id')
             ->selectRaw('dp.status_id,dp.package_id,delivery_id,p.qr_code,p.product_type,p.price,p.dim_x,p.dim_z,p.dim_y,dp.failure_notes')
             ->get();
         foreach($packages as $package){
             $package->status_code = $package->status->name;
             unset($package->status);
         }
-        return ApiResponse::JsonResult($packages,false,__('messages.get_list',['info' => 'Package']));
+        return ApiResponse::JsonResult($packages,__('messages.get_list',['info' => 'Package']));
     }
 
     public function setPackageStatus(Request $req){
@@ -52,6 +53,7 @@ class FleetManagementController extends Controller
         if(!$status) return ApiResponse::ValidateFail(__('messages.not_found',['info' => 'Status']));
         $package = Package::where('company_id',$user->company_id)->where('is_deleted',0)->find($package_id);
         if(!$package) return ApiResponse::NotFound(__('messages.not_found',['info' => 'Package','khInfo' => 'កញ្ចប់']));
+        if($package->status_id != 6) return ApiResponse::ValidateFail(__('messages.error',['info' => 'Package must be on delivery before set to delivered or failed.']));
         $package->update([
             'update_uid' => $user->id,
             'failure_notes' => $status == 1 ? $failure_notes : null,
@@ -59,6 +61,7 @@ class FleetManagementController extends Controller
             'delivered_datetime' => $status == 2 ? now():null,
             'status_id' => $status == 2 ? 9 : 10
         ]);
+
         DeliveryPackage::where('package_id',$package_id)->update([
             'update_uid' => $user->id,
             'failure_notes' => $status == 1 ? $failure_notes : null,
@@ -67,7 +70,7 @@ class FleetManagementController extends Controller
             'status_id' => $status == 2 ? 9 : 10
         ]);
         GeneralSettingService::updateTripStatus($trip_id,$user);
-        return ApiResponse::JsonResult(null,false,__('messages.updated'));
+        return ApiResponse::JsonResult(null,__('messages.updated'));
     }
 
 

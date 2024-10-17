@@ -33,7 +33,7 @@ class CountryController extends Controller
         if($existCountry) return ApiResponse::Duplicated('Country ('.$req->name.') is already exists.');
 
         $create = Country::create($inputs);
-        if($create) return ApiResponse::JsonResult(null,false,'Created');
+        if($create) return ApiResponse::JsonResult(null,'Created');
 
         return ApiResponse::Error('Fail to create');
     }
@@ -56,7 +56,9 @@ class CountryController extends Controller
 
     public function getCities(Request $req){
         $user = UserService::getAuthUser();
-        $cities = City::where('country_id',$req->country_id)->where('is_deleted',0)->where('company_id',$user->company_id)->get();
+        $cities = City::where('country_id',$req->country_id)->where('is_deleted',0)
+        ->orderByDesc('id')
+        ->where('company_id',$user->company_id)->get();
         return ApiResponse::JsonResult($cities);
     }
 
@@ -76,7 +78,7 @@ class CountryController extends Controller
         $existCountry = Country::where('name',$req->name)->where('company_id',$user->company_id)->where('id','!=',$id)->take(1)->value('id');
         if($existCountry) return ApiResponse::Duplicated('Country ('.$req->name.') is already exists.');
         $update = $country->update($inputs);
-        if($update) return ApiResponse::JsonResult(null,false,'Updated');
+        if($update) return ApiResponse::JsonResult(null,'Updated');
         return ApiResponse::Error('Fail to update');
     }
 
@@ -91,7 +93,7 @@ class CountryController extends Controller
             'deleted_datetime' => now()
         ]);
 
-        return ApiResponse::JsonResult(null,false,'Voided');
+        return ApiResponse::JsonResult(null,'Voided');
     }
 
 }

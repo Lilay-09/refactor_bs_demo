@@ -42,7 +42,7 @@ class PickUpCenterController extends Controller
     public function createQuickOrder(Request $req){
         $user = UserService::getAuthUser();
         $validate = $this->orderValidation($req);
-        if($validate->fails()) return ApiResponse::ValidateFail($validate->errors()->first());
+        if($validate->fails()) return ApiResponse::ValidateFail($validate->errors()->first(),$validate->errors());
         $inputs = $validate->validated();
         $merchantId = $inputs['merchant_id'];
         $validMerchant = User::where('is_deleted',0)->where('delete_account',0)->where('account_type','merchant')->find($merchantId);
@@ -70,7 +70,7 @@ class PickUpCenterController extends Controller
         Order::find($createOrder->id)->update([
             'code' => $code
         ]);
-        return ApiResponse::JsonResult(null,false,'Order created ('.$code.')');
+        return ApiResponse::JsonResult(null,'Order created ('.$code.')');
     }
 
     public function updateQuickOrder(Request $req){
@@ -103,7 +103,7 @@ class PickUpCenterController extends Controller
         else if($user->account_type == 'merchant') $inputs['booking_channel'] = 'merchant';
         $update = $order->update($inputs);
         if(!$update) return ApiResponse::Error(__('messages.error',['info' => 'Fail to update order']));
-        return ApiResponse::JsonResult(null,false,__('messages.updated',['info' => 'Order has']));
+        return ApiResponse::JsonResult(null,__('messages.updated',['info' => 'Order has']));
     }
 
     public function getOrders(Request $req){
@@ -128,8 +128,8 @@ class PickUpCenterController extends Controller
         $order = Order::where('is_deleted',0)->find($id);
         if(!$order) return ApiResponse::Error(__('messages.not_found',['info' => 'Order']));
         $status_id = $order->status_id;
-        if($order->status_id == 5) return ApiResponse::JsonResult(null,false,__('messages.at_warehouse'));
-        if($order->status_id == 6) return ApiResponse::JsonResult(null,false,__('messages.on_delivery'));
+        if($order->status_id == 5) return ApiResponse::JsonResult(null,__('messages.at_warehouse'));
+        if($order->status_id == 6) return ApiResponse::JsonResult(null,__('messages.on_delivery'));
         if($status_id == 1){
             $order->update([
                 'update_uid' => $user->id,
@@ -162,8 +162,8 @@ class PickUpCenterController extends Controller
         $order->update([
             'status_id' => ($driverId != 0 && $driverId) ? 3 : 1
         ]);
-        if(!$driverId) return ApiResponse::JsonResult(null,false,__('Order '.$order->code.' is available now'));
-        return ApiResponse::JsonResult(null,false,__('Order '.$order->code.' has assigned to '.$driver->user_name));
+        if(!$driverId) return ApiResponse::JsonResult(null,__('Order '.$order->code.' is available now'));
+        return ApiResponse::JsonResult(null,__('Order '.$order->code.' has assigned to '.$driver->user_name));
     }
 
     public function setAtWarehouse(Request $req){
@@ -174,7 +174,7 @@ class PickUpCenterController extends Controller
         $order->update([
             'update_uid' => $user->id
         ]);
-        return ApiResponse::JsonResult(null, false,'Arrived warehouse');
+        return ApiResponse::JsonResult(null,'Arrived warehouse');
     }
 
     public function addPackage(Request $req){
@@ -191,7 +191,7 @@ class PickUpCenterController extends Controller
         if(!$package) return ApiResponse::NotFound(trans('messages.not_found',['info' => 'Package','khInfo' => 'កញ្ចប់​']));
         $calFee = GeneralSettingService::calculatePackageFee($package->zone_code,$package->price,$package->billed_kg,$package->actual_kg,$package->payer,$package->cod);
         $package->total = $calFee->total;
-        return ApiResponse::JsonResult($package,false,__('messages.get one'));
+        return ApiResponse::JsonResult($package,__('messages.get one'));
     }
 
     public function getPackagesByOrderId(Request $req){
@@ -230,7 +230,7 @@ class PickUpCenterController extends Controller
         $order->update([
             'status_id' => 5 //* at warehouse
         ]);
-        return ApiResponse::JsonResult(null,false,__('messages.arrived',['info' => 'Packages have']));
+        return ApiResponse::JsonResult(null,__('messages.arrived',['info' => 'Packages have']));
     }
 
     public function deletePackage(Request $req){
@@ -251,6 +251,6 @@ class PickUpCenterController extends Controller
             'deleted_datetime' => now()
         ]);
         $this->pkupService->updateOrderQty($package->order_id);
-        return ApiResponse::JsonResult(null,false,__('messages.deleted',['info' => 'Package','khInfo'=>'កញ្ចប់']));
+        return ApiResponse::JsonResult(null,__('messages.deleted',['info' => 'Package','khInfo'=>'កញ្ចប់']));
     }
 }

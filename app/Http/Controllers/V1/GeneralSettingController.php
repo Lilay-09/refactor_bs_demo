@@ -73,7 +73,7 @@ class GeneralSettingController extends Controller
         $user = UserService::getAuthUser();
         $price = $this->gs::priceByZone($req->zone_id,$user);
         if(!$price) return ApiResponse::NotFound('Price not found');
-        return ApiResponse::JsonResult($price,false,__('get zone price'));
+        return ApiResponse::JsonResult($price,__('get zone price'));
     }
 
     public function getFormOrder(Request $req){

@@ -32,14 +32,16 @@ class DistrictController extends Controller
         $inputs['branch_id'] = $user->branch_id;
         $inputs['company_id'] = $user->company_id;
         $create = City::create($inputs);
-        if($create) return ApiResponse::JsonResult(null,false,'Created');
+        if($create) return ApiResponse::JsonResult(null,'Created');
         return ApiResponse::Error('failed to create');
     }
 
 
     public function getDistricts(Request $req){
         $user = UserService::getAuthUser();
-        $districts = District::where('company_id',$user->company_id)->where('is_deleted',0)->selectRaw('name,id,name_kh,city_id')->get();
+        $districts = District::where('company_id',$user->company_id)->where('is_deleted',0)
+        ->orderByDesc('id')
+        ->selectRaw('name,id,name_kh,city_id')->get();
         return ApiResponse::Pagination($districts,$req,'get all districts');
     }
 
@@ -48,7 +50,7 @@ class DistrictController extends Controller
         $user = UserService::getAuthUser();
         $districts = District::where('company_id',$user->company_id)->where('is_deleted',0)->selectRaw('name,id,name_kh,city_id')->find($id);
         if(!$districts) return ApiResponse::NotFound(__('messages.not_found'));
-        return ApiResponse::JsonResult($districts,false,'get one district');
+        return ApiResponse::JsonResult($districts,'get one district');
     }
 
 
@@ -65,7 +67,7 @@ class DistrictController extends Controller
         $inputs['branch_id'] = $user->branch_id;
         $inputs['company_id'] = $user->company_id;
         $update = $district->update($inputs);
-        if($update) return ApiResponse::JsonResult(null,false,'Updated');
+        if($update) return ApiResponse::JsonResult(null,'Updated');
         return ApiResponse::Error('failed to update');
     }
 
@@ -79,6 +81,6 @@ class DistrictController extends Controller
             'deleted_uid' => $user->id,
             'deleted_datetime' => now()
         ]);
-        return ApiResponse::JsonResult(null,false,'Deleted');
+        return ApiResponse::JsonResult(null,'Deleted');
     }
 }

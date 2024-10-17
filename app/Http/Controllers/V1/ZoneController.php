@@ -33,6 +33,10 @@ class ZoneController extends Controller
         $inputs['update_uid'] = $user->id;
         $inputs['branch_id'] = $user->branch_id;
         $inputs['company_id'] = $user->company_id;
+        $existsType = Zone::where('zone_code',$inputs['zone_code'])->first();
+        if($existsType) return ApiResponse::Duplicated(__('messages.error',[
+            'info' => 'Zone code ('.$inputs['zone_code'].') is already exists.'
+        ]));
         $create = Zone::create($inputs);
         if(!$create) return ApiResponse::Error('Fail to create zone');
         return ApiResponse::JsonResult(null,false,'Zone created');
@@ -67,6 +71,10 @@ class ZoneController extends Controller
         $validate = $this->zoneValidation($req);
         if($validate->fails()) return ApiResponse::ValidateFail($validate->errors()->first());
         $inputs = $validate->validated();
+        $existsType = Zone::where('zone_code',$inputs['zone_code'])->where('id','!=',$id)->first();
+        if($existsType) return ApiResponse::Duplicated(__('messages.error',[
+            'info' => 'Zone code ('.$inputs['zone_code'].') is already exists.'
+        ]));
         $inputs['update_uid'] = $user->id;
         $inputs['branch_id'] = $user->branch_id;
         $inputs['company_id'] = $user->company_id;

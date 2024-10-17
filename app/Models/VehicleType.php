@@ -16,6 +16,9 @@ class VehicleType extends Model
         'create_uid',
         'update_uid',
         'company_id',
-        'branch_id'
+        'branch_id',
+        'is_deleted',
+        'delete_uid',
+        'deleted_datetime'
     ];
 }

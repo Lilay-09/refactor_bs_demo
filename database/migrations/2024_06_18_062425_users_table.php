@@ -56,8 +56,12 @@ class UsersTable extends Migration
             $table->unsignedBigInteger('update_uid');
             $table->unsignedBigInteger('branch_id');
             $table->unsignedBigInteger('company_id');
-
-            // $table->foreign('company_id')->references('id')->on('companies');
+            $table->dateTime('employment_date')->nullable();
+            $table->string('relative_name',50)->nullable();
+            $table->string('relative_phone',25)->nullable();
+            $table->string('relative_relationship',50)->nullable();
+            $table->string('relative_address',500)->nullable();
+            $table->decimal('salary',10,2)->default(0);
         });
     }
 
@@ -69,6 +73,6 @@ class UsersTable extends Migration
     public function down()
     {
         //
-        // Schema::dropIfExists('users');
+        Schema::dropIfExists('users');
     }
 }
