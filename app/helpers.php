@@ -30,7 +30,7 @@ class ApiResponse
         ],401);
     }
 
-    static function JsonResult($data,$error=false,$message=null,$errors=[],$statusCode=200,$status="OK"){
+    static function JsonResult($data,$message=null,$error=false,$errors=[],$statusCode=200,$status="OK"){
         return response()->json([
             'error' => $error,
             'status' => $status,
@@ -374,26 +374,31 @@ class Helper{
         return str_pad($num, $len, '0', STR_PAD_LEFT);
     }
 
-    static function setRefCode($tbl_code_control,$target_tbl,$target_col,$branch_id,$company_id,$newID,$issue_date = null,$prefix='CODE', $len = null,$onSuccess = null){
+    static function setRefCode($tbl_code_control,$target_tbl,$target_col,$branch_id,$company_id,$newID,$issue_date = null,$prefix='CODE', $len = 5,$onSuccess = null){
         if (!$len) $len = 5;
         if (!$newID) return DataResponse::ValidateFail('Identity should be input');
         $year = $issue_date?date('Y', strtotime($issue_date)):date('Y');
-
-        $row = DB::table($tbl_code_control . " as c")->where('c.branch_id', $branch_id)->where('c.company_id',$company_id)->where('c.issue_year',$year)->selectRaw("c.last_id,c.prefix,c.issue_year")->take(1)->get()->first();
+        $qRow = DB::table($tbl_code_control . " as c")->where('c.branch_id', $branch_id)
+        ->where('prefix',$prefix)
+        ->where('c.company_id',$company_id)
+        ->selectRaw("c.last_id,c.prefix,c.issue_year");
+        if($issue_date) $qRow->where('c.issue_year',$year);
+        $row = $qRow->first();
 
         $next_num = 0;
-            if ($row && $row->issue_year == $year){
-                $next_num = $row->last_id;
-                $year = $row->issue_year;
-            }
-            $next_num++;
-            //example ref number => 2300001 || prefix-2300001
-            $new_code = substr($year,-2) . self::formatNumber($next_num, $len);
-            if($prefix) $new_code = $prefix.'-'.$new_code;
-
-            $x = DB::table($target_tbl)->where('id', $newID)->update([$target_col => $new_code]);
-            if ($x || $x === 1) {
-            $updated = DB::table($tbl_code_control)->where('branch_id', $branch_id)->where('company_id',$company_id)->where('issue_year', $year)->update(['last_id' => $next_num]);
+        if ($row){
+            $next_num = $row->last_id;
+            if($row->issue_year == $year) $year = $row->issue_year;
+        }
+        $next_num++;
+        //example ref number => 2300001 || prefix-2300001
+        $new_code = substr($year,-2) . self::formatNumber($next_num, $len);
+        if($prefix) $new_code = $prefix.'-'.$new_code;
+        $x = DB::table($target_tbl)->where('id', $newID)->update([$target_col => $new_code]);
+        if ($x || $x === 1) {
+            $Qupdated = DB::table($tbl_code_control)->where('branch_id', $branch_id)->where('prefix',$prefix);
+            if($issue_date) $Qupdated->where('issue_year', $year);
+            $updated = $Qupdated->where('company_id',$company_id)->update(['last_id' => $next_num]);
             $insert_arr = ['branch_id' => $branch_id, 'issue_year' => $year,'last_id' => $next_num,'company_id' => $company_id,'prefix'=>$prefix];
             if (!$updated) DB::table($tbl_code_control)->insert($insert_arr);
             if ($onSuccess) $onSuccess();

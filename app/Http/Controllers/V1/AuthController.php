@@ -78,7 +78,7 @@ class AuthController extends Controller
         //     'status_code' => 200,
         //     'data' => $data,
         // ],200);
-        return ApiResponse::JsonResult($data,false,'Success');
+        return ApiResponse::JsonResult($data,'Success');
         // ->withCookie(cookie('session_', $token, config('jwt.ttl'), '/', null, true, false)->withSameSite('None'))
         // ->withCookie(cookie('access_token', $token, config('jwt.ttl'), '/', null, true, true)->withSameSite('None'))
         // ->withCookie(cookie('refresh_token', $refreshToken, config('jwt.refresh_ttl'), '/', null, true, true)->withSameSite('None'));

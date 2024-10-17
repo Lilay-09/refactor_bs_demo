@@ -28,7 +28,10 @@ class ProductTypeController extends Controller
         $inputs['update_uid'] = $user->id;
         $inputs['branch_id'] = $user->branch_id;
         $inputs['company_id'] = $user->company_id;
-
+        $existsType = ProductType::where('name',$inputs['name'])->first();
+        if($existsType) return ApiResponse::Duplicated(__('messages.error',[
+            'info' => 'Product type ('.$inputs['name'].') is already exists.'
+        ]));
         $create = ProductType::create($inputs);
         if(!$create) return ApiResponse::Error('Fail to create');
         return ApiResponse::JsonResult(null,__('messages.created'));
@@ -46,7 +49,7 @@ class ProductTypeController extends Controller
         $id = $req->id;
         $productType = ProductType::where('is_deleted',0)->where('company_id',$user->company_id)->find($id);
         if(!$productType) return ApiResponse::NotFound(__('messages.not_found'));
-        return ApiResponse::JsonResult($productType,false,'Get Product types');
+        return ApiResponse::JsonResult($productType,'Get Product types');
     }
 
     public function updateProductType(Request $req){
@@ -57,12 +60,16 @@ class ProductTypeController extends Controller
         $validate = $this->productTypeValidation($req);
         if($validate->fails()) return ApiResponse::ValidateFail($validate->errors()->first());
         $inputs = $validate->validated();
+        $existsType = ProductType::where('name',$inputs['name'])->where('id','!=',$id)->first();
+        if($existsType) return ApiResponse::Duplicated(__('messages.error',[
+            'info' => 'Product type ('.$inputs['name'].') is already exists.'
+        ]));
         $inputs['update_uid'] = $user->id;
         $inputs['branch_id'] = $user->branch_id;
         $inputs['company_id'] = $user->company_id;
         $udpate = $productType->update($inputs);
         if(!$udpate) return ApiResponse::Error('Fail to update');
-        return ApiResponse::JsonResult(null,false,__('messages.updated'));
+        return ApiResponse::JsonResult(null,__('messages.updated'));
     }
 }
 

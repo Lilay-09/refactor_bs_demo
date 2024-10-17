@@ -68,7 +68,7 @@ class UserManagementController extends Controller
                 'role_id' => $role_id
             ]);
         }
-        return ApiResponse::JsonResult(null,false,'Created');
+        return ApiResponse::JsonResult(null,'Created');
     }
 
 
@@ -121,7 +121,7 @@ class UserManagementController extends Controller
                 }
 
             }
-            return ApiResponse::JsonResult(null,false,'Updated');
+            return ApiResponse::JsonResult(null,'Updated');
         }
     }
 
@@ -145,7 +145,7 @@ class UserManagementController extends Controller
         ]);
 
         if(!$update) return ApiResponse::Error('fail to change password');
-        return ApiResponse::JsonResult(null,false,'Password has been changed');
+        return ApiResponse::JsonResult(null,'Password has been changed');
 
     }
 
@@ -167,7 +167,7 @@ class UserManagementController extends Controller
             $user->update($inputs);
         }
 
-        return ApiResponse::JsonResult(null,false,$msg);
+        return ApiResponse::JsonResult(null,$msg);
     }
 
     function roleValidation(Request $req){
@@ -189,7 +189,7 @@ class UserManagementController extends Controller
         if($exists) return ApiResponse::ValidateFail('Role ('.$inputs['name'].') is already exists');
         $create = Role::create($inputs);
         if(!$create) return ApiResponse::Error('Fail to create role');
-        return ApiResponse::JsonResult(null,false,'Created');
+        return ApiResponse::JsonResult(null,'Created');
     }
 
 
@@ -208,7 +208,7 @@ class UserManagementController extends Controller
         if($exists) return ApiResponse::ValidateFail('Role ('.$inputs['name'].') is already exists');
         $update = $role->update($inputs);
         if(!$update) return ApiResponse::Error('Fail to update role');
-        return ApiResponse::JsonResult(null,false,'Updated');
+        return ApiResponse::JsonResult(null,'Updated');
     }
 
     public function getRoles(Request $req){
@@ -233,7 +233,7 @@ class UserManagementController extends Controller
         $role = Role::where('company_id',$user->company_id)->find($id);
         if(!$role)return ApiResponse::NotFound('Role does not exist');
         $role->delete();
-        return ApiResponse::JsonResult(null,false,'Role deleted');
+        return ApiResponse::JsonResult(null,'Role deleted');
     }
 
 }

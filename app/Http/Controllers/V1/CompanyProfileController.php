@@ -50,7 +50,7 @@ class CompanyProfileController extends Controller
             if(!$inputs['photo_file_name']) Helper::deleteImageFile($inputs['photo_file_name'],$company->id,'company');
             return ApiResponse::Error('Fail to update company profile');
         }
-        return ApiResponse::JsonResult(null,false,'Updated');
+        return ApiResponse::JsonResult(null,'Updated');
 
     }
 

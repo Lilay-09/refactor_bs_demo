@@ -18,6 +18,7 @@ use App\Http\Controllers\V1\PriceListController;
 use App\Http\Controllers\V1\ProductTypeController;
 use App\Http\Controllers\V1\UserController;
 use App\Http\Controllers\V1\UserManagementController;
+use App\Http\Controllers\V1\VehicleTypeController;
 use App\Http\Controllers\V1\ZoneController;
 use Illuminate\Support\Facades\Route;
 
@@ -111,6 +112,14 @@ Route::middleware(['jwt','localize'])->prefix('admin/v1/{lang}')->group(function
         Route::get('/{id}',[ProductTypeController::class,'getOneProductType']);
         Route::put('/{id}',[ProductTypeController::class,'updateProductType']);
         Route::delete('/{id}',[ProductTypeController::class,'deleteProductType']);
+    });
+
+    Route::prefix('vehicleType')->group(function(){
+        Route::post('',[VehicleTypeController::class,'createVehicleType']);
+        Route::get('',[VehicleTypeController::class,'getVehicleTypes']);
+        Route::get('/{id}',[VehicleTypeController::class,'getOneVehicleType']);
+        Route::put('/{id}',[VehicleTypeController::class,'updateVehicleType']);
+        Route::delete('/{id}',[VehicleTypeController::class,'deleteVehicleType']);
     });
 
 

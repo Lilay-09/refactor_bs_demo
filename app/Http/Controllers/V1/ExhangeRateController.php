@@ -29,7 +29,7 @@ class ExhangeRateController extends Controller
         $inputs['company_id'] = $user->company_id;
         $inputs['branch_id'] = $user->branch_id;
         $create = ExchangeRate::create($inputs);
-        if($create) return ApiResponse::JsonResult(null,false,'Created');
+        if($create) return ApiResponse::JsonResult(null,'Created');
         return ApiResponse::Error('Fail to create');
     }
 
@@ -45,7 +45,7 @@ class ExhangeRateController extends Controller
         $inputs['company_id'] = $user->company_id;
         $inputs['branch_id'] = $user->branch_id;
         $update = $exchangeRate->update($inputs);
-        if($update) return ApiResponse::JsonResult(null,false,'Updated');
+        if($update) return ApiResponse::JsonResult(null,'Updated');
         return ApiResponse::Error('Fail to update');
     }
 
@@ -72,6 +72,6 @@ class ExhangeRateController extends Controller
             'void' => 1,
             'void_uid' => $user->id
         ]);
-        return ApiResponse::JsonResult(null,false,'Voided');
+        return ApiResponse::JsonResult(null,'Voided');
     }
 }

@@ -66,7 +66,7 @@ class PackageTrailController extends Controller
         $inputs['merchant_total'] = $calPrice->merchant_total;
         $inputs['delivery_fee'] = $calPrice->delivery_fee;
         $package->update($inputs);
-        return ApiResponse::JsonResult(null,false,__('messages.updated'));
+        return ApiResponse::JsonResult(null,__('messages.updated'));
     }
 
     public function assignDriver(Request $req){
@@ -78,6 +78,7 @@ class PackageTrailController extends Controller
         if(!$validDriver) return ApiResponse::NotFound(__('messages.not_found',['info' => 'Driver']));
         $pacakge = Package::where('company_id',$user->company_id)->where('is_deleted',0)->where('outstanding',0)->find($id);
         if(!$pacakge) return ApiResponse::NotFound(__('messages.not_found',['info' => 'Package','khInfo' => 'កញ្ចប់']));
+        if($pacakge->status_id == 9) return ApiResponse::Duplicated(__('messages.error',['info' => 'This package has already delivered']));
         if($pacakge->driver_id){
             $deliveryPackage = DeliveryPackage::where('package_id',$id)->where('is_deleted',0)->first();
             if($deliveryPackage){
@@ -94,7 +95,7 @@ class PackageTrailController extends Controller
             $trip = $this->createOrUpdateTrip($driver_id,$id,$validDriver->vehicle_type,$user,$notes);
             if($trip->error) return ApiResponse::flex($trip);
             DB::commit();
-            return ApiResponse::JsonResult(null,false,__('messages.assigned',['info' => '']));
+            return ApiResponse::JsonResult(null,__('messages.assigned',['info' => '']));
         }catch(Exception $e){
             DB::rollBack();
             Log::error($e->getMessage());
@@ -107,6 +108,11 @@ class PackageTrailController extends Controller
         $today = date('Y-m-d');
         $todayDelivery = Delivery::whereDate('depart_datetime',$today)->where('company_id',$user->company_id)->where('driver_id',$driverId)->first();
         if(!$todayDelivery){
+            $QuerylastPackage = DeliveryPackage::where('package_id',$packageId)->where('is_deleted',0);
+            $hasFailPackage = $QuerylastPackage->get();
+            if(isset($hasFailPackage[0])) $QuerylastPackage->update([
+                'delay_count' => 1,
+            ]);
             $create = Delivery::create([
                 'driver_id' => $driverId,
                 'depart_datetime' => now(),
@@ -125,6 +131,7 @@ class PackageTrailController extends Controller
         }else{
             $deliveryId = $todayDelivery->id;
             $todayDelivery->update([
+                'delay_count' => $todayDelivery->delay_count + 1,
                 'package_count' => $todayDelivery->package_count + 1,
                 'update_uid' => $user->id,
                 'branch_id' => $user->branch_id,

@@ -19,7 +19,8 @@ return new class extends Migration
             $table->string('bank_name',50);
             $table->string('bank_number',50);
             $table->string('account_name',50);
-            $table->boolean('is_primary ')->default(0);
+            $table->string('qr_image',200)->nullable();
+            $table->boolean('is_primary')->default(0);
             $table->foreign('user_id')->references('id')->on('users')->onDelete('cascade');
         });
     }

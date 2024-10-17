@@ -50,7 +50,7 @@ class PriceListController extends Controller
             }
         }
 
-        return ApiResponse::JsonResult(null,false,'Created');
+        return ApiResponse::JsonResult(null,'Created');
     }
 
     public function getPriceList(Request $req){
@@ -71,7 +71,7 @@ class PriceListController extends Controller
         })->where('company_id',$user->company_id)->find($id);
         if(!$priceList) return ApiResponse::NotFound(__('messages.not_found'));
 
-        return ApiResponse::JsonResult($priceList,false,__('messages.get one price list'));
+        return ApiResponse::JsonResult($priceList,__('messages.get one price list'));
     }
 
 
@@ -103,7 +103,7 @@ class PriceListController extends Controller
                 ]);
             }
         }
-        return ApiResponse::JsonResult(null,false,'Updated');
+        return ApiResponse::JsonResult(null,'Updated');
     }
 
     public function voidPriceList(Request $req){
@@ -120,6 +120,6 @@ class PriceListController extends Controller
             'deleted_datetime' => now()
         ]);
 
-        return ApiResponse::JsonResult(null,false,'Deleted');
+        return ApiResponse::JsonResult(null,'Deleted');
     }
 }

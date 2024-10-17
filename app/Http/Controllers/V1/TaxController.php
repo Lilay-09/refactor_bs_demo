@@ -31,7 +31,7 @@ class TaxController extends Controller
         if($existTaxName) return ApiResponse::Duplicated('Tax ('.$name.') is already exists.');
         $create = Tax::create($inputs);
 
-        if($create) return ApiResponse::JsonResult(null,false,'Created');
+        if($create) return ApiResponse::JsonResult(null,'Created');
 
         return ApiResponse::Error('Fail to create');
     }
@@ -66,7 +66,7 @@ class TaxController extends Controller
         $inputs['branch_id'] = $user->branch_id;
         $inputs['company_id'] = $user->company_id;
         $update = $tax->update($inputs);
-        if($update) return ApiResponse::JsonResult(null,false,'Update');
+        if($update) return ApiResponse::JsonResult(null,'Update');
 
         return ApiResponse::Error('Fail to update');
     }
@@ -80,7 +80,7 @@ class TaxController extends Controller
             'void' => 1,
             'void_uid' => $user->id
         ]);
-        if($update) return ApiResponse::JsonResult(null,false,'Voided');
+        if($update) return ApiResponse::JsonResult(null,'Voided');
         return ApiResponse::Error('Fail to void');
     }
 
@@ -92,7 +92,7 @@ class TaxController extends Controller
         $update = $tax->update([
             'void' => 0,
         ]);
-        if($update) return ApiResponse::JsonResult(null,false,'Voided');
+        if($update) return ApiResponse::JsonResult(null,'Voided');
 
         return ApiResponse::Error('Fail to void');
     }
