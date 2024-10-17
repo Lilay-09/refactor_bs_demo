@@ -14,6 +14,8 @@ return [
     'no_found' => 'No :info Found',
     'assigned' => ':info assigned',
     'error' => ':info',
+    'info' => ':info',
+    'saved' => ':info Saved',
     'has already assigned' => ':info has already assigned'
 ];
 

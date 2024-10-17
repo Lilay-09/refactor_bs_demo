@@ -1,17 +1,26 @@
 <?php
 
 namespace App\Services;
-use App\Models\BranchSubscription;
-use App\Models\Role;
 use App\Models\User;
+use App\Models\UserBank;
 use App\Models\UserRoles;
 use DataResponse;
-use Request;
+use DB;
+use Exception;
+use Helper;
+use Log;
+use Illuminate\Http\Request;
 use Tymon\JWTAuth\Facades\JWTAuth;
 
 class UserService
 {
     // Your service methods go here
+
+    protected static $user_prefix = [
+        'admin' => 'JSA',
+        'driver' => 'JSD',
+        'merchant' => 'JSM'
+    ];
     public static function getAuthUser($action=''){
         $user = JWTAuth::user();
         if($user){
@@ -57,16 +66,13 @@ class UserService
 
     private static function userValidation(Request $req,$userClass){
         $baseFields = [
-            // 'first_name' => 'nullable|string|max:50',
-            // 'last_name' => 'nullable|string|max:50',
+            'first_name' => 'nullable|string|max:50',
+            'last_name' => 'nullable|string|max:50',
             'user_name' => 'nullable|max:100',
             'name_km' => 'nullable|max:100',
             'email' => 'nullable|string|max:100',
-            'phone' => 'nullable|string|max:20',
-            'lock' => 'nullable|in:true,false',
-            'gender' => 'nullable|in:M,F,O',
-            'branch_id' => 'required|exists:branches,id',
-            'role_id' => 'required|exists:roles,id',
+            'phone' => 'required|string|max:20',
+            'gender' => 'required|in:M,F,O',
             'photo' => 'nullable|string',
             'address' => 'nullable|string|max:500',
             'password' => 'nullable|string|min:6|max:20'
@@ -75,20 +81,19 @@ class UserService
             'gender.in' => 'Gender must be one of M,F,O'
         ];
         if($userClass == 'admin'){
-
             return validator($req->all(),$baseFields);
         }else if($userClass == 'driver'){
             $baseFields['employment_date'] = 'nullable|string|max:100';
-            $baseFields['shift_type'] = 'nullable|string|max:100';
-            $baseFields['vehicle_type'] = 'nullable|string|max:50';
-            $baseFields['plate_number'] = 'nullable|string|max:100';
-            $baseFields['plate_number'] = 'nullable|string|max:100';
+            $baseFields['shift_type'] = 'nullable|string|max:35';
+            $baseFields['vehicle_type'] = 'required|string|exists:vehicle_types,name';
+            $baseFields['plate_number'] = 'nullable|string|max:50';
             $baseFields['relative_name'] = 'nullable|string|max:50';
             $baseFields['relative_phone'] = 'nullable|string|max:50';
             $baseFields['relative_relationship'] = 'nullable|string|max:50';
             $baseFields['relative_address'] = 'nullable|string|max:500';
             $baseFields['salary'] = 'nullable|numeric';
-
+            $baseFields['bank_info'] = 'nullable|array';
+            $baseFields['user_name'] = 'required|max:100';
             return validator($req->all(),$baseFields);
         }else if($userClass == 'merchant'){
             return validator($req->all(),$baseFields);
@@ -96,7 +101,73 @@ class UserService
     }
 
 
-    public static function createOrUpdateUser(Request $req,$user_class='admin',$id){
+    public static function createOrUpdateUser(Request $req,$user_class='admin',$user,$id=null){
+        $validate = self::userValidation($req,$user_class);
+        if($validate->fails()) return DataResponse::ValidateFail($validate->errors()->first(),$validate->errors());
+        $inputs = $validate->validated();
+        $bankInfo = $inputs['bank_info'];
+        $photo = $inputs['photo'];
+        $inputs['account_type'] = $user_class;
+        $inputs['update_uid'] = $user->id;
+        $inputs['branch_id'] = $user->branch_id;
+        $inputs['company_id'] = $user->company_id;
+        $inputs['account_type'] = $user_class;
+        unset($inputs['bank_info'],$inputs['photo'],$inputs['role_id']);
+        DB::beginTransaction();
+        try{
+            if($id){
+                $user = User::where('account_type',$user_class)->where('is_deleted',0)->find($id);
+                if(!$user) return DataResponse::NotFound(__('messages.not_found',['info' => 'User']));
+                $update = $user->update($inputs);
+                if(!$update) return DataResponse::Error(__('messages.error',['info' => 'Fail to update']));
+                $userId = $id;
+            }else{
+                $inputs['create_uid'] = $user->id;
+                $existsInfo = User::where('account_type',$user_class)->where('is_deleted',0);
+                $existsEmail = $existsInfo->where('email',$inputs['email'])->first();
+                $existsPhone = $existsInfo->where('email',$inputs['email'])->first();
+                $existsNationalId = $existsInfo->where('email',$inputs['email'])->first();
+                if($existsEmail) return DataResponse::Duplicated(__('messages.error',[
+                    'info' => 'Email has already taken.'
+                ]));
+                if($existsNationalId) return DataResponse::Duplicated(__('messages.error',[
+                    'info' => 'National ID is already exists.'
+                ]));
+                if($existsPhone) return DataResponse::Duplicated(__('messages.error',[
+                    'info' => 'Phone number('.$inputs['phone'].') has already taken.'
+                ]));
 
+                $create = User::create($inputs);
+                if(!$create) return DataResponse::Error(__('messages.error',['info' => 'Fail to create']));
+                Helper::setRefCode('user_code_control','users','code',$user->branch_id,$user->company_id,$create->id,null,self::$user_prefix[$user_class]);
+                // return DataResponse::JsonResult(null,false,__('messages.created'));
+                $userId = $create->id;
+            }
+            if(isset($bankInfo[0])){
+                self::saveUserBanks($bankInfo,$userId,$user);
+            }
+            return DataResponse::JsonResult(null,false,__('messages.saved'));
+        }catch(Exception $e){
+            DB::rollBack();
+            Log::error($e->getMessage());
+            return DataResponse::Error(__('messages.error',['info' => 'Fail to create']));
+        }
+    }
+
+    private static function saveUserBanks($bankInfo,$userId,$user){
+        foreach($bankInfo as $bank){
+            $id = $bank['id'] ?? null;
+            $bank['update_uid'] = $user->id;
+            $bank['branch_id'] = $user->branch_id;
+            $bank['company_id'] = $user->company_id;
+            $bank['user_id'] = $userId;
+            if(!isset($bank['bank_name'])) return DataResponse::ValidateFail(__('messages.error',['info' =>'Please enter bank name']));
+            if($id){
+                UserBank::where('id',$id)->update($bank);
+            }else{
+                $bank['create_uid'] = $user->id;
+                UserBank::create($bank);
+            }
+        }
     }
 }
