@@ -21,6 +21,7 @@ class User extends Authenticatable implements JWTSubject
     protected $table = 'users';
     protected $fillable = [
         'id',
+        'code',
         'first_name',
         'last_name',
         'user_name',
@@ -28,6 +29,7 @@ class User extends Authenticatable implements JWTSubject
         'photo_file_name',
         'email',
         'gender',
+        'phone',
         'bio',
         'latitude',
         'longtitude',
@@ -36,19 +38,35 @@ class User extends Authenticatable implements JWTSubject
         'otp',
         'otp_expiration',
         'last_login',
-        'passowrd',
+        'password',
         'national_id',
         'system_admin',
+        'lock',
         'delete_account',
+        'account_type',
         'plate_number',
-        'employee_type',
-        'shift',
+        'shift_type',
+        'start_time',
+        'has_account',
+        'end_time',
         'vehicle_type',
         'driver_warehouse_id',
+        'employment_date',
+        'relative_name',
+        'relative_phone',
+        'relative_relationship',
+        'relative_address',
+        'salary',
+        'is_available',
+        'business_type',
+        'client_type_id',
         'create_uid',
         'update_uid',
         'branch_id',
-        'company_id'
+        'company_id',
+        'is_deleted',
+        'deleted_uid',
+        'deleted_datetime'
     ];
 
     public function user_roles(){
@@ -86,10 +104,10 @@ class User extends Authenticatable implements JWTSubject
 
     protected static function booted()
     {
-        static::creating(function ($model) {
-            if (is_null($model->start_date)) {
-                $model->start_date = $model->created_at;
-            }
-        });
+        // static::creating(function ($model) {
+        //     if (is_null($model->start_date)) {
+        //         $model->start_date = $model->created_at;
+        //     }
+        // });
     }
 }

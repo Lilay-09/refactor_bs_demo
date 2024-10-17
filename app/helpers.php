@@ -96,10 +96,10 @@ class ApiResponse
         ],403);
     }
 
-    static function flex($objJson=null,$status_code=null){
-        $status_code = $status_code ?? $objJson->status_code ?? $objJson->data->status_code;
-        unset($objJson->data->status_code,$objJson->status_code);
-        return response()->json($objJson,$status_code);
+    static function flex($object=null,$status_code=null){
+        $status_code = $status_code ?? $object->status_code ?? $object->data->status_code;
+        unset($object->data->status_code,$object->status_code);
+        return response()->json($object,$status_code);
     }
 }
 

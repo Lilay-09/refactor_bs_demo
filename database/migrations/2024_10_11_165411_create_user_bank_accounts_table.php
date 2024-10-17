@@ -16,9 +16,9 @@ return new class extends Migration
         Schema::create('user_bank_accounts', function (Blueprint $table) {
             $this->AddBaseFields($table);
             $table->unsignedBigInteger('user_id');
-            $table->string('bank_name',50);
-            $table->string('bank_number',50);
-            $table->string('account_name',50);
+            $table->string('bank_name',50)->nullable();;
+            $table->string('bank_number',50)->nullable();
+            $table->string('account_name',50)->nullable();
             $table->string('qr_image',200)->nullable();
             $table->boolean('is_primary')->default(0);
             $table->foreign('user_id')->references('id')->on('users')->onDelete('cascade');

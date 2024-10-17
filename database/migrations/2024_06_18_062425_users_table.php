@@ -18,8 +18,8 @@ class UsersTable extends Migration
         Schema::create('users',function(Blueprint $table){
             $table->id();
             $table->string('code',35)->nullable();
-            $table->string('first_name',50);
-            $table->string('last_name',50);
+            $table->string('first_name',50)->nullable();
+            $table->string('last_name',50)->nullable();
             $table->string('user_name',100)->nullable();
             $table->string('name_km',100)->nullable();
             $table->string('photo_file_name',200)->nullable();
@@ -34,11 +34,12 @@ class UsersTable extends Migration
             $table->string('otp',20)->nullable();
             $table->dateTime('otp_expiration')->nullable();
             $table->dateTime('last_login')->nullable();
-            $table->string('password',300);
+            $table->string('password',300)->nullable();
             $table->string('national_id',35)->nullable();
             $table->boolean('system_admin')->default(false);
             $table->boolean('lock')->default(false);
             $table->boolean('delete_account')->default(false);
+            $table->boolean('has_account')->default(false);
             $table->boolean('is_deleted')->default(0);
             $table->unsignedBigInteger('deleted_uid')->nullable();
             $table->foreign('deleted_uid')->references('id')->on('users')->onDelete('cascade');

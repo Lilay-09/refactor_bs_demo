@@ -9,6 +9,8 @@ use App\Http\Controllers\V1\CompanyProfileController;
 use App\Http\Controllers\V1\CompletedPackageController;
 use App\Http\Controllers\V1\CountryController;
 use App\Http\Controllers\V1\DistrictController;
+use App\Http\Controllers\V1\DriverManagement;
+use App\Http\Controllers\V1\DriverManagementController;
 use App\Http\Controllers\V1\ExhangeRateController;
 use App\Http\Controllers\V1\FleetManagementController;
 use App\Http\Controllers\V1\GeneralSettingController;
@@ -42,6 +44,17 @@ Route::middleware(['jwt','localize'])->prefix('admin/v1/{lang}')->group(function
             Route::get('/{id?}', [UserManagementController::class,'getRole']);
             Route::put('/{id?}', [UserManagementController::class,'updateRole']);
             Route::delete('/{id?}', [UserManagementController::class,'deleteRole']);
+        });
+    });
+
+    Route::prefix('driver')->group(function(){
+        Route::post('',[DriverManagementController::class,'createDriver']);
+        Route::get('',[DriverManagementController::class,'getDrivers']);
+        Route::get('/{id}',[DriverManagementController::class,'getOneDriver']);
+        Route::put('/{id}',[DriverManagementController::class,'updateDriver']);
+
+        Route::prefix('{id}/commission')->group(function(){
+            Route::get('',[DriverManagementController::class,'getDriverCommissions']);
         });
     });
     Route::prefix('company')->group(function(){
