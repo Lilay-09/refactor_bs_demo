@@ -13,7 +13,15 @@ class TrackingStatus extends Model
     protected $fillable = [
         'id',
         'name',
+        'hidden',
         'stage',
-        'display_order'
+        'display_order',
+        'company_id',
+        'is_deleted',
+        'deleted_uid',
+        'deleted_datetime',
+        'branch_id',
+        'create_uid',
+        'update_uid'
     ];
 }

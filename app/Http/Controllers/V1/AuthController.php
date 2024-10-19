@@ -28,10 +28,9 @@ class AuthController extends Controller
         $password = $input['password'];
         date_default_timezone_set('Asia/Phnom_Penh');
         $today = date('Y-m-d H:i:s');
-        $user = User::where('email',$account)->orWhere('phone',$account)->selectRaw('photo_file_name,email,phone,id,system_admin,lock,company_id,account_type')->first();
+        $user = User::where('email',$account)->orWhere('phone',$account)->orWhere('login_name',$account)->selectRaw('photo_file_name,email,phone,id,system_admin,lock,company_id,account_type,login_name')->first();
         $systemAdmin = $user->system_admin ?? false;
         $isLock = $user->lock ?? false;
-
         if($isLock) {
             if(!$systemAdmin) return ApiResponse::Unauthorized('You have no access to this application.');
         }
@@ -48,6 +47,7 @@ class AuthController extends Controller
         ];
         if($user->email == $account) $credentials['email'] = $account;
         else if($user->phone == $account) $credentials['phone'] = $account;
+        else if($user->login_name == $account) $credentials['login_name'] = $account;
         try {
             if(!$token = JWTAuth::attempt($credentials)) {
                 return ApiResponse::Unauthorized('invalid_credentials');

@@ -29,7 +29,7 @@ return new class extends Migration
             $table->string('code',50)->nullable();
             $table->string('tracking_number',50)->nullable();
             $table->string('pickup_notes',500)->nullable();
-            $table->dateTime('datetime')->nullable();
+            $table->dateTime('order_datetime')->nullable();
             $table->boolean('is_completed')->default(0);
             $table->decimal('loc_lat',9,6)->nullable();
             $table->decimal('loc_lng',9,6)->nullable();

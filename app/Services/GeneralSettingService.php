@@ -30,6 +30,20 @@ class GeneralSettingService
         return Zone::where('status',1)->where('company_id',$user->company_id)->orWhere('is_deleted',0)->selectRaw('id,zone_name,zone_code')->orderByDesc('id')->get();
     }
 
+    public static function optionsTrackingStatus($user,$exludeIds=[],$stage=null){
+        $q = TrackingStatus::where('hidden',0)->where('is_deleted',0)
+        ->where('company_id',$user->company_id)
+        ->selectRaw('id,name');
+        if($stage){
+            $q->where('stage',$stage);
+        }
+        if(isset($exludeIds[0])){
+            $q->whereNotIn('id',$exludeIds);
+        }
+        $statuses = $q->get();
+        return $statuses;
+    }
+
     public static function optionsWarehouse($user){
         return Warehouse::where('is_deleted',0)->where('company_id',$user->company_id)->selectRaw('name,id')->orderByDesc('id')->get();
     }
