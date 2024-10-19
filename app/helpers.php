@@ -97,7 +97,7 @@ class ApiResponse
     }
 
     static function flex($object=null,$status_code=null){
-        $status_code = $status_code ?? $object->status_code ?? $object->data->status_code;
+        $status_code = $status_code ?? $object?->status_code ?? $object?->data->status_code;
         unset($object->data->status_code,$object->status_code);
         return response()->json($object,$status_code);
     }

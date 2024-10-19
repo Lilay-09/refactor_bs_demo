@@ -33,6 +33,7 @@ class Order extends Model
         'actual_pkg_count',
         'detail_type',
         'warehouse_id',
+        'order_datetime',
         'booking_channel',
         'create_uid',
         'update_uid',

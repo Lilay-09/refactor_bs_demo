@@ -49,6 +49,11 @@ class GeneralSettingController extends Controller
         return ApiResponse::JsonResult($this->gs::optionsZone($user));
     }
 
+    public function getOptionsPickupStatus(){
+        $user = UserService::getAuthUser();
+        return ApiResponse::JsonResult($this->gs::optionsTrackingStatus($user,[20],'pick'));
+    }
+
     public function getFormPriceList(){
         $user = UserService::getAuthUser();
         $obj = (object)[
@@ -87,6 +92,11 @@ class GeneralSettingController extends Controller
             'product_types' => $this->gs::optionsProductType($user)
         ];
         return ApiResponse::JsonResult($obj);
+    }
+
+    public function getOptionsDriver(){
+        $user = UserService::getAuthUser();
+        return ApiResponse::JsonResult($this->gs::optionsDriver($user));
     }
 
     // public function getFormUser(){

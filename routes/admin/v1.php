@@ -9,7 +9,6 @@ use App\Http\Controllers\V1\CompanyProfileController;
 use App\Http\Controllers\V1\CompletedPackageController;
 use App\Http\Controllers\V1\CountryController;
 use App\Http\Controllers\V1\DistrictController;
-use App\Http\Controllers\V1\DriverManagement;
 use App\Http\Controllers\V1\DriverManagementController;
 use App\Http\Controllers\V1\ExhangeRateController;
 use App\Http\Controllers\V1\FleetManagementController;
@@ -55,7 +54,10 @@ Route::middleware(['jwt','localize'])->prefix('admin/v1/{lang}')->group(function
 
         Route::prefix('{id}/commission')->group(function(){
             Route::get('',[DriverManagementController::class,'getDriverCommissions']);
+            Route::put('',[DriverManagementController::class,'saveDriverCommission']);
         });
+
+        Route::post('/{id}/account',[DriverManagementController::class,'createDriverAccount']);
     });
     Route::prefix('company')->group(function(){
         Route::put('',[CompanyProfileController::class,'update']);
@@ -190,6 +192,8 @@ Route::middleware(['jwt','localize'])->prefix('admin/v1/{lang}')->group(function
     Route::prefix('setting')->group(function(){
         Route::prefix('option')->group(function(){
             Route::get('zone',[GeneralSettingController::class,'getOptionsZone']);
+            Route::get('pickup/status',[GeneralSettingController::class,'getOptionsPickupStatus']);
+            Route::get('driver',[GeneralSettingController::class,'getOptionsDriver']);
             Route::get('zone/price/{zone_id}',[GeneralSettingController::class,'getPriceByZone']);
             Route::get('country',[GeneralSettingController::class,'getOptionsCountry']);
             Route::get('country/city/{country_id}',[GeneralSettingController::class,'getOptionsCityByCountry']);

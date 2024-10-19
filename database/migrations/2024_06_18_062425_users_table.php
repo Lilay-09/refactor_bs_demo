@@ -20,6 +20,7 @@ class UsersTable extends Migration
             $table->string('code',35)->nullable();
             $table->string('first_name',50)->nullable();
             $table->string('last_name',50)->nullable();
+            $table->string('login_name',50)->nullable();
             $table->string('user_name',100)->nullable();
             $table->string('name_km',100)->nullable();
             $table->string('photo_file_name',200)->nullable();

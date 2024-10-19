@@ -71,6 +71,19 @@ class ProductTypeController extends Controller
         if(!$udpate) return ApiResponse::Error('Fail to update');
         return ApiResponse::JsonResult(null,__('messages.updated'));
     }
+
+    public function deleteProductType(Request $req){
+        $user = UserService::getAuthUser();
+        $id = $req->id;
+        $productType = ProductType::where('is_deleted',0)->where('company_id',$user->company_id)->find($id);
+        if(!$productType) return ApiResponse::NotFound(__('messages.not_found'));
+        $productType->update([
+            'deleted_uid' => $user->id,
+            'is_deleted' => 1,
+            'deleted_datetime' => now()
+        ]);
+        return ApiResponse::JsonResult(null,__('messages.deleted',['info' => 'Product type']));
+    }
 }
 
 

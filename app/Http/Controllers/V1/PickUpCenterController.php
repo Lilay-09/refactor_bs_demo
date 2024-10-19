@@ -52,6 +52,7 @@ class PickUpCenterController extends Controller
         $inputs['branch_id'] = $user->branch_id;
         $inputs['company_id'] = $user->company_id;
         $inputs['booking_channel'] = 'admin';
+        $inputs['order_datetime'] = now();
         $driverId = $inputs['driver_id'] ?? null;
         $inputs['status_id'] = 3; //** accepted for pick up*/
         if(!$driverId) $inputs['status_id'] = 1; //** available for pick */

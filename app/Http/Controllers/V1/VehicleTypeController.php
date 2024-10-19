@@ -29,15 +29,20 @@ class VehicleTypeController extends Controller
         $validate = $this->vehicleTypeValiation($req);
         if($validate->fails()) return DataResponse::ValidateFail($validate->errors()->first(),$validate->errors());
         $inputs = $validate->validated();
+        $inputs['update_uid'] = $user->id;
+        $inputs['branch_id'] = $user->branch_id;
+        $inputs['company_id'] = $user->company_id;
         $updateOrCreate = null;
-        if($vehicleType){
-            $existsType = VehicleType::where('name',$inputs['name'])->first();
+        if($vehicleType){ //** update */
+            $existsType = VehicleType::where('name',$inputs['name'])->where('id','!=',$id)->first();
             if($existsType) return ApiResponse::Duplicated(__('messages.error',[
                 'info' => 'Product type ('.$inputs['name'].') is already exists.'
             ]));
             $updateOrCreate = $vehicleType->update($inputs);
         }else{
-            $existsType = VehicleType::where('name',$inputs['name'])->where('id','!=',$$id)->first();
+            //** create here */
+            $inputs['create_uid'] = $user->id;
+            $existsType = VehicleType::where('name',$inputs['name'])->first();
             if($existsType) return ApiResponse::Duplicated(__('messages.error',[
                 'info' => 'Product type ('.$inputs['name'].') is already exists.'
             ]));
@@ -74,11 +79,16 @@ class VehicleTypeController extends Controller
 
 
 
-    public function delete(Request $req){
-        $id = $req->id;
+    public function deleteVehicleType(Request $req){
         $user = UserService::getAuthUser();
-        $vehicleType = VehicleType::where('company_id',$user->company_id)->where('is_deleted',0)->find($id);
-        if(!$vehicleType) return DataResponse::NotFound(__('messages.not_found',['info' => 'Vehicle type']));
-        return ApiResponse::flex($this->createOrUpdateVehicleType($req,$id));
+        $id = $req->id;
+        $productType = VehicleType::where('is_deleted',0)->where('company_id',$user->company_id)->find($id);
+        if(!$productType) return ApiResponse::NotFound(__('messages.not_found'));
+        $productType->update([
+            'deleted_uid' => $user->id,
+            'is_deleted' => 1,
+            'deleted_datetime' => now()
+        ]);
+        return ApiResponse::JsonResult(null,__('messages.deleted',['info' => 'Vehicle type']));
     }
 }

@@ -33,6 +33,64 @@ class DriverManagementController extends Controller
         return ApiResponse::JsonResult($driver,__('messages.get one'));
     }
 
+
+    private function driverCommissionValidation(Request $req){
+        return validator($req->all(),[
+            'normal_pickup_commission' => 'nullable|numeric',
+            'normal_delivery_commission' => 'nullable|numeric',
+            'fast_pickup_commission' => 'nullable|numeric',
+            'fast_delivery_commission' => 'nullable|numeric'
+        ]);
+    }
+
+    public function saveDriverCommission(Request $req){
+        $user = UserService::getAuthUser();
+        $validate = $this->driverCommissionValidation($req);
+        $driver_id = $req->id;
+        if($validate->fails()) return ApiResponse::ValidateFail($validate);
+        $inputs = $validate->validated();
+        $driverCommissions = DriverCommission::where('driver_id',$driver_id)->where('is_deleted',0)->first();
+        $success = 0;
+        $normal_pickup_commission = $inputs['normal_pickup_commission'] ?? 0;
+        $normal_delivery_commission = $inputs['normal_delivery_commission'] ?? 0;
+        $fast_pickup_commission = $inputs['fast_pickup_commission'] ?? 0;
+        $fast_delivery_commission = $inputs['fast_delivery_commission'] ?? 0;
+        $commissionArr = [
+            [
+                'driver_id' => $driver_id,
+                'delivery_type' => 'normal',
+                'pickup_commission' =>  $normal_pickup_commission,
+                'delivery_commission' => $normal_delivery_commission
+            ],
+            [
+                'driver_id' => $driver_id,
+                'delivery_type' => 'fast',
+                'pickup_commission' =>  $fast_pickup_commission,
+                'delivery_commission' => $fast_delivery_commission
+            ],
+        ];
+        if($driverCommissions){
+            foreach($commissionArr as $c){
+                $c['update_uid'] = $user->id;
+                $c['branch_id'] = $user->branch_id;
+                $c['company_id'] = $user->company_id;
+                DriverCommission::where('driver_id',$driver_id)->where('is_deleted',0)->where('delivery_type',$c['delivery_type'])->update($c);
+                $success = 1;
+            }
+        }else{
+            foreach($commissionArr as $c){
+                $c['create_uid'] = $user->id;
+                $c['update_uid'] = $user->id;
+                $c['branch_id'] = $user->branch_id;
+                $c['company_id'] = $user->company_id;
+                DriverCommission::create($c);
+                $success = 1;
+            }
+        }
+        if($success) return ApiResponse::JsonResult(null,__('messages.saved'));
+        return ApiResponse::Error(__('messages.error',['info' => 'Fail to save commission']));
+    }
+
     public function getDriverCommissions(Request $req){
         $user = UserService::getAuthUser();
         $id = $req->id;
@@ -46,7 +104,7 @@ class DriverManagementController extends Controller
             'fast_pickup_commission' => 0,
             'fast_delivery_commission' => 0
         ];
-        $driverCommissions = DriverCommission::where('driver_id',$id)->where('is_deleted',0)->get();
+        $driverCommissions = DriverCommission::where('driver_id',$id)->where('is_deleted',0)->orderByDesc('id')->get();
         foreach($driverCommissions as $driverComm){
             if($driverComm->delivery_type == 'fast'){
                 $dc->fast_pickup_commission = $driverComm->pickup_commission;
@@ -60,7 +118,6 @@ class DriverManagementController extends Controller
         foreach($dc as $key=>$d){
             $driver->{$key} = $dc->{$key};
         }
-
         return ApiResponse::JsonResult($driver,__('messages.info',['info' => 'Get Diver Commissions']));
     }
 
@@ -68,6 +125,14 @@ class DriverManagementController extends Controller
         $user = UserService::getAuthUser();
         $id = $req->id;
         $createDriver = UserService::createOrUpdateUser($req,'driver',$user,$id);
+        return ApiResponse::flex($createDriver);
+    }
+
+
+    public function createDriverAccount(Request $req){
+        $user = UserService::getAuthUser();
+        $driverId = $req->id;
+        $createDriver = UserService::createLoginAccount($req,$driverId,'driver',$user);
         return ApiResponse::flex($createDriver);
     }
 }

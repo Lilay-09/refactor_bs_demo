@@ -1,6 +1,7 @@
 <?php
 
 namespace App\Services;
+use ApiResponse;
 use App\Models\User;
 use App\Models\UserBank;
 use App\Models\UserRoles;
@@ -105,7 +106,7 @@ class UserService
         $validate = self::userValidation($req,$user_class);
         if($validate->fails()) return DataResponse::ValidateFail($validate->errors()->first(),$validate->errors());
         $inputs = $validate->validated();
-        $bankInfo = $inputs['bank_info'];
+        $bankInfo = $inputs['bank_info'] ?? [];
         $photo = $inputs['photo'];
         $inputs['account_type'] = $user_class;
         $inputs['update_uid'] = $user->id;
@@ -144,8 +145,10 @@ class UserService
                 $userId = $create->id;
             }
             if(isset($bankInfo[0])){
-                self::saveUserBanks($bankInfo,$userId,$user);
+                $saveUserBank = self::saveUserBanks($bankInfo,$userId,$user);
+                if($saveUserBank->error) return $saveUserBank;
             }
+            DB::commit();
             return DataResponse::JsonResult(null,false,__('messages.saved'));
         }catch(Exception $e){
             DB::rollBack();
@@ -161,13 +164,55 @@ class UserService
             $bank['branch_id'] = $user->branch_id;
             $bank['company_id'] = $user->company_id;
             $bank['user_id'] = $userId;
+            $bankNumber = $bank['bank_number'] ?? null;
+            $accountName = $bank['account_name'] ?? null;
             if(!isset($bank['bank_name'])) return DataResponse::ValidateFail(__('messages.error',['info' =>'Please enter bank name']));
+            $qUserBank = UserBank::where('user_id',$userId);
+            if($id) $qUserBank->where('id','!=',$id);
+            // if($existsBank){
+            $existsBankInfo = $qUserBank->where('bank_name',$bank['bank_name'])->where('bank_number',$bankNumber)
+            ->where('account_name',$accountName)->first();
+            if($existsBankInfo) return DataResponse::ValidateFail(__('messages.error',['info' => 'It seems like you try to add duplicated bank info']));
+            // }
             if($id){
-                UserBank::where('id',$id)->update($bank);
+                $userBank = UserBank::where('user_id',$userId)->where('id',$id)->first();
+                if(!$userBank) return DataResponse::ValidateFail(__('messages.error',['info' => 'Wrong bank identity']));
+                $userBank->update($bank);
             }else{
                 $bank['create_uid'] = $user->id;
                 UserBank::create($bank);
             }
         }
+        return DataResponse::JsonResult(null,false,__('messages.saved'));
+    }
+
+
+    private static function createLoginValidation(Request $req){
+        return validator($req->all(),[
+            'login_name' => 'required|string|max:50',
+            'password' => 'required|string|max:50',
+            'confirm_password' => 'required|string|max:50',
+        ]);
+    }
+
+
+    public static function createLoginAccount(Request $req,$userId,$userClass,$authUser){
+        $user = User::where('company_id',$authUser->company_id)->where('is_deleted',0)->where('account_type',$userClass)->find($userId);
+        if(!$user) return DataResponse::NotFound(__('messages.not_found',['info' => 'User']));
+        if($user->has_account) return DataResponse::Duplicated('User ('.$user->user_name.') already has an account!');
+        $validate = self::createLoginValidation($req);
+        if($validate->fails()) return DataResponse::ValidateFail($validate->errors()->first());
+        $inputs = $validate->validated();
+        $loginName = $inputs['login_name'];
+        $pwd = $inputs['password'];
+        $cfPwd = $inputs['confirm_password'];
+        if($pwd !== $cfPwd) return DataResponse::ValidateFail(__('messages.error',['info' => 'Password not match !']));
+        $hpwd = \Hash::make($pwd);
+        $user->update([
+            'has_account' => true,
+            'login_name' => $loginName,
+            'password' => $hpwd
+        ]);
+        return DataResponse::JsonResult(null,false,__('messages.created'));
     }
 }
