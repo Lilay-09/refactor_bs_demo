@@ -32,7 +32,7 @@ class FleetManagementController extends Controller
             ->where('dp.delivery_id', $trip_id)
             ->join('packages as p', 'dp.package_id', '=', 'p.id')
             ->with(['status'])
-            ->orderByDesc('id')
+            ->orderByDesc('p.id')
             ->selectRaw('dp.status_id,dp.package_id,delivery_id,p.qr_code,p.product_type,p.price,p.dim_x,p.dim_z,p.dim_y,dp.failure_notes')
             ->get();
         foreach($packages as $package){

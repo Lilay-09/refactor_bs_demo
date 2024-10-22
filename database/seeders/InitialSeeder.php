@@ -473,8 +473,20 @@ class InitialSeeder extends Seeder
             'company_id' => $comapanyId,
         ]);
 
+        $priceListNameId = DB::table('price_list_names')->insertGetId([
+            'name' => 'Default',
+            'kg_marker' => 3,
+            'create_uid' => $userId,
+            'update_uid' => $userId,
+            'branch_id' => $branchId,
+            'company_id' => $comapanyId,
+        ]);
+
         $priceListId = DB::table('price_list')->insertGetId([
-            // 'price' => 0,
+            'price_list_name_id' => $priceListNameId,
+            'base_fee' => 1.25,
+            'below_kg' => 3,
+            'above_kg' => 3,
             'create_uid' => $userId,
             'update_uid' => $userId,
             'branch_id' => $branchId,

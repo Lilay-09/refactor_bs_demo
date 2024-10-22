@@ -54,6 +54,21 @@ class GeneralSettingController extends Controller
         return ApiResponse::JsonResult($this->gs::optionsTrackingStatus($user,[20],'pick'));
     }
 
+    public function getFormSetOrderStatus(){
+        $user = UserService::getAuthUser();
+
+        $obj = [
+            'statuses' => $this->gs::optionsTrackingStatus($user,[20],'pick'),
+            'drivers' => $this->gs::optionsDriver($user)
+        ];
+        return ApiResponse::JsonResult($obj,'get form set order status');
+    }
+
+    public function getOptionsPriceListName(Request $req){
+        $user = UserService::getAuthUser();
+        return ApiResponse::JsonResult($this->gs::optionsPriceListName($user));
+    }
+
     public function getFormPriceList(){
         $user = UserService::getAuthUser();
         $obj = (object)[
