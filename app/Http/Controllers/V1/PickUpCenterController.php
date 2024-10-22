@@ -29,7 +29,7 @@ class PickUpCenterController extends Controller
             'product_type' => 'nullable|string|exists:product_types,name',
             'qty' => 'required|int|min:1',
             'vehicle_type' => 'required|in:'.$vehicleTypes,
-            'driver_id' => 'nullable|int',
+            'driver_id' => 'nullable',
             'pickup_address' => 'nullable|string|max:300'
         ],[
             'merchant_id.required' => 'Please select the sender',
@@ -54,6 +54,10 @@ class PickUpCenterController extends Controller
         $inputs['booking_channel'] = 'admin';
         $inputs['order_datetime'] = now();
         $driverId = $inputs['driver_id'] ?? null;
+        if($driverId == 0){
+            $driverId = null;
+            unset($inputs['driver_id']);
+        }
         $inputs['status_id'] = 3; //** accepted for pick up*/
         if(!$driverId) $inputs['status_id'] = 1; //** available for pick */
         else{
