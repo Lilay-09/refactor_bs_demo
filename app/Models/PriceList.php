@@ -15,6 +15,7 @@ class PriceList extends Model
         'price',
         'below_kg',
         'below_kg_price',
+        'price_list_name_id',
         'above_kg',
         'above_kg_price',
         'delivery_type',
@@ -27,6 +28,11 @@ class PriceList extends Model
     ];
 
     public function zones(){
-        return $this->hasMany(PriceListZone::class,'price_list_id','id');
+        return $this->hasManyThrough(Zone::class,PriceListZone::class,'price_list_id','id','id','zone_id');
     }
+
+    public function priceListName(){
+        return $this->hasOne(PriceListName::class,'id','id');
+    }
+
 }

@@ -23,6 +23,8 @@ class Zone extends Model
         'status',
         'create_uid',
         'update_uid',
+        'company_id',
+        'branch_id',
         'is_deleted',
         'deleted_uid',
         'deleted_datetime'

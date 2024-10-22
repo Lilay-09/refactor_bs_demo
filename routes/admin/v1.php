@@ -1,6 +1,7 @@
 <?php
 
 
+use App\Http\Controllers\PriceListNameController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\V1\AuthController;
 use App\Http\Controllers\V1\CityController;
@@ -76,7 +77,10 @@ Route::middleware(['jwt','localize'])->prefix('admin/v1/{lang}')->group(function
 
     Route::prefix('order')->group(function (){
         Route::post('',[PickUpCenterController::class,'createQuickOrder']);
+        Route::get('/{id}',[PickUpCenterController::class,'getOneOrder']);
         Route::put('/{id}',[PickUpCenterController::class,'updateQuickOrder']);
+        Route::put('{id}/status',[PickUpCenterController::class,'setOrderStatus']);
+        Route::delete('/{id}',[PickUpCenterController::class,'deleteOrder']);
         Route::get('',[PickUpCenterController::class,'getOrders']);
         Route::put('{order_id}/driver/{driver_id?}',[PickUpCenterController::class,'assignDriver']);
         Route::get('{order_id}/packages',[PickUpCenterController::class,'getPackagesByOrderId']);
@@ -113,13 +117,23 @@ Route::middleware(['jwt','localize'])->prefix('admin/v1/{lang}')->group(function
         Route::delete('/{id}',[ZoneController::class,'deleteZone']);
     });
 
-    Route::prefix('pricelist')->group(function(){
+    Route::prefix('priceList')->group(function(){
+        Route::get('zone',[PriceListController::class,'getPriceZones']);
         Route::post('',[PriceListController::class,'createPriceList']);
-        Route::get('',[PriceListController::class,'getPriceList']);
+        // Route::get('',[PriceListController::class,'getPriceList']);
+        Route::put('assign',[PriceListController::class,'assignZoneToPriceList']);
         Route::get('/{id}',[PriceListController::class,'getOnePriceList']);
         Route::put('/{id}',[PriceListController::class,'updatePriceList']);
         Route::delete('/{id}',[PriceListController::class,'deletePriceList']);
+
+        Route::prefix('name')->group(function(){
+            Route::post('',[PriceListNameController::class,'createPriceListName']);
+            Route::get('{id}',[PriceListNameController::class,'getOnePriceListName']);
+            Route::put('{id}',[PriceListNameController::class,'updatePriceListName']);
+        });
     });
+
+
 
     Route::prefix('productType')->group(function(){
         Route::post('',[ProductTypeController::class,'createProductType']);
@@ -188,7 +202,6 @@ Route::middleware(['jwt','localize'])->prefix('admin/v1/{lang}')->group(function
     });
 
 
-
     Route::prefix('setting')->group(function(){
         Route::prefix('option')->group(function(){
             Route::get('zone',[GeneralSettingController::class,'getOptionsZone']);
@@ -199,12 +212,14 @@ Route::middleware(['jwt','localize'])->prefix('admin/v1/{lang}')->group(function
             Route::get('country/city/{country_id}',[GeneralSettingController::class,'getOptionsCityByCountry']);
             Route::get('city/district/{city_id}',[GeneralSettingController::class,'getOptionsDistrictByCity']);
             Route::get('district/commune/{district_id}',[GeneralSettingController::class,'getOptionsCommuneByDistrict']);
+            Route::get('priceList/name',[GeneralSettingController::class,'getOptionsPriceListName']);
         });
 
         Route::prefix('form')->group(function(){
             Route::get('pricelist',[GeneralSettingController::class,'getFormPriceList']);
             Route::get('quickOrder',[GeneralSettingController::class,'getFormOrder']);
             Route::get('package',[GeneralSettingController::class,'getFormPackage']);
+            Route::get('order/status',[GeneralSettingController::class,'getFormSetOrderStatus']);
         });
     });
 });

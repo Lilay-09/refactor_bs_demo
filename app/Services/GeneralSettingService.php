@@ -7,6 +7,7 @@ use App\Models\Delivery;
 use App\Models\DeliveryPackage;
 use App\Models\District;
 use App\Models\PriceList;
+use App\Models\PriceListname;
 use App\Models\ProductType;
 use App\Models\TrackingStatus;
 use App\Models\User;
@@ -73,7 +74,7 @@ class GeneralSettingService
 
     public static function optionsVehicleType($user){
         return VehicleType::where('company_id',$user->company_id)->where('is_deleted',0)
-        ->selectRaw('name,name as value')->orderByDesc('id')->get();
+        ->selectRaw('name,name as value,id')->orderByDesc('id')->get();
     }
 
     public static function optionsProductType($user){
@@ -96,23 +97,26 @@ class GeneralSettingService
         return Commune::where('is_deleted',0)->where('company_id',$user->company_id)->where('district_id',$cityId)->selectRaw('name,id')->orderByDesc('id')->get();
     }
 
+    public static function optionsStatusPackageOnDelivery(){
+
+    }
+
     public static function priceByZone($zone_id,$user){
-        $row =  PriceList::with(['zones'])
-        ->where('status',1)
-        ->where('company_id',$user->company_id)
-        ->where('is_deleted',0)
-        ->whereHas('zones',function($q) use($zone_id){
-            $q->where('zone_id',$zone_id);
-        })
-        ->orderByDesc('id')
-        ->selectRaw('base_fee,id,price')
-        ->first();
+        $row = PriceList::with(['zones'])
+            ->where('status',1)
+            ->where('company_id',$user->company_id)
+            ->where('is_deleted',0)
+            ->whereHas('zones',function($q) use($zone_id){
+                $q->where('zone_id',$zone_id);
+            })
+            ->orderByDesc('id')
+            ->selectRaw('base_fee,id,price')
+            ->first();
         if($row) {
             $row->base_fee = $row->price > 0 ? $row->price : $row->base_fee;
             unset($row->zones,$row->price);
         }
         return $row;
-
     }
 
     public static function optionsCOD(){
@@ -143,6 +147,10 @@ class GeneralSettingService
 
     public static function optionsDeliveryType(){
         return self::$deliveryTypes;
+    }
+
+    public static function optionsPriceListName($user){
+        return PriceListname::where('company_id',$user->company_id)->orderByDesc('id')->selectRaw('id,name,kg_marker')->get();
     }
 
     public static function getZonePriceByCode($zone_code){

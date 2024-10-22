@@ -17,7 +17,7 @@ return new class extends Migration
             $this->AddBaseFields($table);
             $table->decimal('price',10,2)->default(0);
             $table->string('currency_code',20)->default('USD');
-            $table->decimal('base_fee',10,2)->default(1.25);
+            $table->decimal('base_fee',10,2)->default(0);
             $table->decimal('below_kg',10,2)->default(0);
             $table->decimal('below_kg_price',10,2)->default(0);
             $table->decimal('above_kg',10,2)->default(0);

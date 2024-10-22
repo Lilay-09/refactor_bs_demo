@@ -64,6 +64,9 @@ class UsersTable extends Migration
             $table->string('relative_relationship',50)->nullable();
             $table->string('relative_address',500)->nullable();
             $table->decimal('salary',10,2)->default(0);
+            $table->boolean('cod')->default(0);
+            $table->decimal('cod_fee')->default(0);
+            $table->unsignedBigInteger('referrer_uid')->nullable();
         });
     }
 

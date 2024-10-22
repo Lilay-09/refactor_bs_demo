@@ -74,12 +74,36 @@ class PickUpCenterController extends Controller
         return ApiResponse::JsonResult(null,'Order created ('.$code.')');
     }
 
+    public function deleteOrder(Request $req){
+        $user = UserService::getAuthUser();
+        $id = $req->id;
+        $order = Order::with('tracking_status')->where('is_deleted',0)->find($id);
+        if(!$order) return ApiResponse::NotFound(__('messages.not_found',['info' => 'Order']));
+        $status = $order->tracking_status->name;
+        if($order->status_id == 5) return ApiResponse::Duplicated(__('messages.error',['info' => 'Order packages have arrived warehouse']));
+        if($order->status_id == 2) return ApiResponse::ValidateFail(__('messages.error',['info' => 'Order has '.$status]));
+        if($order->status_id == 3) return ApiResponse::ValidateFail(__('messages.error',['info' => 'Order has '.$status]));
+        if($order->status_id == 4) return ApiResponse::ValidateFail(__('messages.error',['info' => 'Order has '.$status]));
+        $order->update([
+            'is_deleted' => 1,
+            'delete_uid' => $user->id,
+            'deleted_datetime' => now()
+        ]);
+        Package::where('order_id',$id)->update([
+            'is_deleted' => 1,
+            'delete_uid' => $user->id,
+            'deleted_datetime' => now()
+        ]);
+
+        return ApiResponse::JsonResult(null,__('messages.deleted',['info' => 'Order']));
+    }
+
     public function updateQuickOrder(Request $req){
         $user = UserService::getAuthUser();
         $id = $req->id;
         $order = Order::where('is_deleted',0)->find($id);
         if(!$order) return ApiResponse::NotFound(__('messages.not_found',['info' => 'Order']));
-        if($order->status_id == 5) return ApiResponse::Duplicated(__('messages.error',['info' => 'Order has already input details!']));
+        if($order->status_id == 5) return ApiResponse::Duplicated(__('messages.error',['info' => 'Order has already inputed details!']));
         $validate = $this->orderValidation($req);
         if($validate->fails()) return ApiResponse::ValidateFail($validate->errors()->first());
         $inputs = $validate->validated();
@@ -99,7 +123,6 @@ class PickUpCenterController extends Controller
             if(!$validDriver) return ApiResponse::ValidateFail('Invalid driver identity!');
             if($validDriver->vehicle_type != $inputs['vehicle_type']) return ApiResponse::ValidateFail(__('messages.error',['info' => 'Driver vehicle type and chosen vehicle type is different!']));
         }
-
         if($user->account_type == 'driver') $inputs['booking_channel'] = 'driver';
         else if($user->account_type == 'merchant') $inputs['booking_channel'] = 'merchant';
         $update = $order->update($inputs);
@@ -107,30 +130,69 @@ class PickUpCenterController extends Controller
         return ApiResponse::JsonResult(null,__('messages.updated',['info' => 'Order has']));
     }
 
+    public function setOrderStatus(Request $req){
+        $user = UserService::getAuthUser();
+        $id = $req->id;
+        $status_id = $req->status_id;
+        $driver_id = $req->driver_id;
+        if($status_id == 1 && $driver_id) return ApiResponse::ValidateFail(__('messages.error',['info' => 'Status Available for Pickup cannot assign to driver']));
+        if(!$status_id) return ApiResponse::ValidateFail(__('messages.error',['info' => 'Please']));
+        $order = Order::with('tracking_status')->where('is_deleted',0)->where('company_id',$user->company_id)->find($id);
+        if(!$order) return ApiResponse::NotFound(__('messages.not_found',['info' => 'Order']));
+        $status = $order->tracking_status->name;
+        if($order->status_id == 5) return ApiResponse::Duplicated(__('messages.error',['info' => 'Order packages have arrived warehouse']));
+        if($order->status_id == 2) return ApiResponse::ValidateFail(__('messages.error',['info' => 'Order has '.$status]));
+        if($order->status_id == 3) return ApiResponse::ValidateFail(__('messages.error',['info' => 'Order has '.$status]));
+        if($order->status_id == 4) return ApiResponse::ValidateFail(__('messages.error',['info' => 'Order has '.$status]));
+        if($status_id == 1){
+            $driver_id = null;
+        }
+        $order->update([
+            'driver_id' => $driver_id,
+            'udpate_uid' => $user->id,
+            'branch_id' => $user->branch_id
+        ]);
+
+        return ApiResponse::JsonResult(null,__('messages.info',['info' => 'Status has changed']));
+    }
+
     public function getOrders(Request $req){
-        $query = Order::with(['merchant','tracking_status'])->where('is_deleted',0)
-            ->whereIn('status_id',[1,3])
-            ->selectRaw('id,merchant_id,status_id,driver_id,warehouse_id,vehicle_type,product_type,qty,pickup_address,code,created_at');
+        $user = UserService::getAuthUser();
+        $query = Order::with(['merchant','tracking_status','driver'])->where('is_deleted',0)
+            ->whereIn('status_id',[1,2,3,4])
+            ->where('company_id',$user->company_id)
+            ->selectRaw('id,merchant_id,status_id,order_datetime,driver_id,warehouse_id,vehicle_type,product_type,qty,pickup_address,code,created_at');
         $orders = $query->get();
         foreach($orders as $order){
             $order->merchant_name = $order->merchant->user_name;
             $order->merchant_code = $order->merchant->code;
             if(!$order->product_type) $order->product_type = 'Others';
             $order->status = $order->tracking_status->name;
-            unset($order->merchant,$order->tracking_status);
+            $order->driver_name = $order->driver->user_name;
+            $order->driver_code = $order->driver->code;
+            unset($order->merchant,$order->driver,$order->tracking_status);
         }
         return ApiResponse::Pagination($orders,$req,__('messages.Get Orders'));
+    }
+
+    public function getOneOrder(Request $req){
+        $user = UserService::getAuthUser();
+        $id = $req->id;
+        $order = Order::with(['merchant','tracking_status'])->where('is_deleted',0)
+            ->where('company_id',$user->company_id)
+            ->selectRaw('id,merchant_id,status_id,order_datetime,driver_id,warehouse_id,vehicle_type,product_type,qty,pickup_address,code,created_at')
+            ->find($id);
+        return ApiResponse::JsonResult($order,__('messages.get one'));
     }
 
     public function changeMerchant(Request $req){
         $user = UserService::getAuthUser();
         $id = $req->id;
         $merchant_id = $req->merchant_id;
-        $order = Order::where('is_deleted',0)->find($id);
+        $order = Order::with('tracking_status')->where('is_deleted',0)->find($id);
         if(!$order) return ApiResponse::Error(__('messages.not_found',['info' => 'Order']));
         $status_id = $order->status_id;
-        if($order->status_id == 5) return ApiResponse::JsonResult(null,__('messages.at_warehouse'));
-        if($order->status_id == 6) return ApiResponse::JsonResult(null,__('messages.on_delivery'));
+        if($order->status_id !== 1) return ApiResponse::ValidateFail(__('messages.error',['info' => 'Order is '.$order->tracking_status->name]));
         if($status_id == 1){
             $order->update([
                 'update_uid' => $user->id,
