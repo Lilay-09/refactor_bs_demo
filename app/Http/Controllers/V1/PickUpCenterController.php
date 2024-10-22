@@ -215,11 +215,11 @@ class PickUpCenterController extends Controller
             $driver = GeneralSettingService::getDriverById($driverId);
             if(!$driver) return ApiResponse::ValidateFail('Invalid driver identity!');
             //* if order status = picked
-            if($order->status_id == 2) return ApiResponse::Duplicated(__('messages.Order has already been picked'));
+            if($order->status_id == 2 && $order->driver_id) return ApiResponse::Duplicated(__('messages.Order has already been picked'));
             //* if order status = Accepted For Pickup
-            if($order->status_id == 3) return ApiResponse::Duplicated(__('messages.Order has already been accepted for picked'));
+            if($order->status_id == 3 && $order->driver_id) return ApiResponse::Duplicated(__('messages.Order has already been accepted for picked'));
             //* if order status = Picked And Booked
-            if($order->status_id == 4) return ApiResponse::Duplicated(__('messages.Order has already been Picked And Booked'));
+            if($order->status_id == 4 && $order->driver_id) return ApiResponse::Duplicated(__('messages.Order has already been Picked And Booked'));
             //* if order status = Picked And Booked
             if($order->status_id == 11) return ApiResponse::Duplicated(__('messages.Order has been cancled'));
 
@@ -227,6 +227,7 @@ class PickUpCenterController extends Controller
         }
 
         $order->update([
+            'driver_id' => $driverId,
             'status_id' => ($driverId != 0 && $driverId) ? 3 : 1
         ]);
         if(!$driverId) return ApiResponse::JsonResult(null,__('Order '.$order->code.' is available now'));
