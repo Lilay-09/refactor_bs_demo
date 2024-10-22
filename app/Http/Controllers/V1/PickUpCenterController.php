@@ -168,8 +168,8 @@ class PickUpCenterController extends Controller
             $order->merchant_code = $order->merchant->code;
             if(!$order->product_type) $order->product_type = 'Others';
             $order->status = $order->tracking_status->name;
-            $order->driver_name = $order->driver->user_name;
-            $order->driver_code = $order->driver->code;
+            $order->driver_name = $order->driver?->user_name;
+            $order->driver_code = $order->driver?->code;
             unset($order->merchant,$order->driver,$order->tracking_status);
         }
         return ApiResponse::Pagination($orders,$req,__('messages.Get Orders'));
