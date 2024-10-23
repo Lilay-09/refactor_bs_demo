@@ -87,18 +87,22 @@ class PriceListController extends Controller
                 ]);
                 $priceListId = $create->id;
             }
+            $useIds = [];
             foreach($zoneIds as $idx=>$id){
                 $existZone = Zone::where('is_deleted',0)->find($id);
                 if(!$existZone) return ApiResponse::NotFound(__('messages.not_found',['info' => 'Zone']).' at row '.($idx+1));
                 $priceListZone = PriceListZone::where('price_list_id',$priceListId)->where('zone_id',$id)->first();
+                $useIds[] = $id;
                 if($priceListZone && $isUpdate) continue;
                 PriceListZone::create([
                     'zone_id' => $id,
                     'price_list_id' => $priceListId,
                 ]);
             }
-            // DB::commit();
-            return $this->getPriceZones($req);
+            PriceListZone::where('price_list_id',$priceListId)->whereNotIn('zone_id',$zoneIds)->delete();
+            // return $useIds;
+            DB::commit();
+            return ApiResponse::JsonResult(null,__('messages.assigned'));
 
         }catch(Exception $e){
             Log::error($e->getMessage());
@@ -106,66 +110,31 @@ class PriceListController extends Controller
         }
     }
 
-    // public function createZonePrice(Request $req){
-    //     $user = UserService::getAuthUser();
-    //     $validate = validator($req->all(),[
-    //         'price_list_name_id' => 'required|exists:price_list_names,id',
-    //         'zones' => 'required|array'
-    //     ]);
-    //     if($validate->fails()) return ApiResponse::ValidateFail($validate->errors()->first());
-    //     $inputs = $validate->validated();
-    //     $zoneIds = $inputs[ 'zones'];
-    //     $priceListName = PriceListname::where('is_deleted',0)->find($inputs['price_list_name_id']);
-    //     if(!$priceListName) return ApiResponse::NotFound(__('messages.not_found',['info' => 'Price List']));
-    //     $priceList = PriceList::where('company_id',$user->company_id)->where('is_deleted',0)->find($inputs['price_list_name_id']);
-    //     $priceListId = $priceList->id ?? null;
-    //     if(!$priceList){
-    //         $create = PriceList::create([
-    //             'price' => 0,
-    //             'below_kg' => $priceListName->kg_marker,
-    //             'above_kg' => $priceListName->kg_marker,
-    //             'delivery_type' => 'normal',
-    //             'create_uid' => $user->id,
-    //             'update_uid' => $user->id,
-    //             'company_id' => $user->company_id,
-    //             'branch_id' => $user->branch_id,
-    //         ]);
-    //         if(!$create) return ApiResponse::Error(__('messages.error',['info' => 'Fail to create']));
-    //         $priceListId = $create->id;
-    //     }
-    //     foreach($zoneIds as $idx=>$id){
-    //         $existZone = Zone::where('is_deleted',0)->find($id);
-    //         if(!$existZone) return ApiResponse::NotFound(__('messages.not_found',['info' => 'Zone']).' at row '.($idx+1));
-            // $priceListZone = PriceListZone::where('price_list_id',$priceListId)->where('zone_id',$id)->first();
-            // if($priceListZone) continue;
-    //         PriceListZone::create([
-    //             'zone_id' => $id,
-    //             'price_list_id' => $priceListId,
-    //         ]);
-    //     }
-
-
-    // }
-
-    public function getPriceList(Request $req){
+    public function createOrUpdatePriceList(Request $req){
         $user = UserService::getAuthUser();
-        $query = PriceList::with(['zones'])->where(function($q){
-            $q->where('is_deleted',0)->orWhere('status',1);
-        })->where('company_id',$user->company_id);
-        $priceList = $query->get();
-        return ApiResponse::Pagination($priceList,$req,__('messages.get_price_list'));
+        $validate = validator($req->all(),[
+            'id' => 'nullable|int',
+            'delivery_type' => 'required|string',
+            'base_fee' => 'nullable|numeric',
+            'additional_fee' => 'nullable|numeric',
+            'key' => 'required|in:below,above'
+        ],[
+            'key.in' => 'Key must be one of below,above'
+        ]);
+        if($validate->fails()) return ApiResponse::ValidateFail($validate->errors()->first());
+        $inputs = $validate->validated();
+        $id = $inputs['id'] ?? null;
+        $deliveryType = $inputs['delivery_type'];
+        $baseFee = $inputs[ 'base_fee'] ?? 0;
+        $insertOrUpdateArr = [
+            'base_fee' => $baseFee,
+        ];
 
-    }
-
-    public function getOnePriceList(Request $req){
-        $user = UserService::getAuthUser();
-        $id = $req->id;
-        $priceList = PriceList::where(function($q){
-            $q->where('is_deleted',0)->orWhere('status',1);
-        })->where('company_id',$user->company_id)->find($id);
-        if(!$priceList) return ApiResponse::NotFound(__('messages.not_found'));
-
-        return ApiResponse::JsonResult($priceList,__('messages.get one price list'));
+        if($id){
+            $priceList = PriceList::where('delivery_type',$deliveryType)->find($id);
+            if(!$priceList) return ApiResponse::NotFound(__('messages.not_found',['info' => 'Price List']));
+            $priceList->update($insertOrUpdateArr);
+        }
     }
 
 
@@ -216,7 +185,12 @@ class PriceListController extends Controller
 
         return ApiResponse::JsonResult(null,'Deleted');
     }
-
+    /**
+     * Summary of getPriceZones
+     * @param \Illuminate\Http\Request $req
+     * @return mixed|\Illuminate\Http\JsonResponse
+     *
+     */
     public function getPriceZones(Request $req){
         // $priceListNameId = $req->price_list_name_id ?? null;
         $arrObj = [
@@ -234,7 +208,6 @@ class PriceListController extends Controller
             ]
         ];
         $priceList = PriceList::with(['zones'])->get();
-        // return $priceList;
         foreach ($priceList as $pl) {
             // $key = $pl->price_list_name_id;
             foreach ($arrObj as &$arr) {
@@ -250,13 +223,10 @@ class PriceListController extends Controller
                         ];  // Collect zone names into an array
                         $zoneCodes[] = $z->zone_code;
                     }
-
                     // Join all zone names into a single string, separated by commas
                     $zonesString = implode(', ', $zoneCodes);
-
                     // Determine the additional_fee based on the key ('below' or 'above')
                     $additionalFee = ($arr['key'] == 'below') ? ($pl->below_kg_price ?? 0) : ($pl->above_kg_price ?? 0);
-
                     // Flag to track whether 'fast' and 'normal' delivery types are found
                     $fastFound = false;
                     $normalFound = false;

@@ -155,10 +155,10 @@ class GeneralSettingService
 
     public static function getZonePriceByCode($zone_code){
         $user = UserService::getAuthUser();
-        return PriceList::where('is_deleted',0)
+        return PriceList::with('zones')->where('is_deleted',0)
         ->where('status',1)
         ->where('company_id',$user->company_id)
-        ->whereHas('zones.zone',function ($q) use ($zone_code){
+        ->whereHas('zones',function ($q) use ($zone_code){
             $q->where('zone_code',$zone_code);
         })
         ->first();
