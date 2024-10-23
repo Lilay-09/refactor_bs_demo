@@ -140,6 +140,53 @@ class Helper{
         return $date ? date('d-M-Y',strtotime($date)):null;
     }
 
+    static function formatDateTime($datetime, $format = 'd-M-Y h:i:s', $useMeridiem = true) {
+        // Add AM/PM notation if required in the output format
+        $meridiemF = $useMeridiem ? ' A' : '';  // Add space before AM/PM if needed
+
+        // Parse the datetime using the fixed 'd-m-Y H:i:s' input format (24-hour format)
+        $date = DateTime::createFromFormat('d-m-Y H:i:s', $datetime);
+
+        if ($date) {
+            // Adjust the output format (replace 'H' with 'h' for 12-hour format if needed)
+            $outputFormat = str_replace('H', 'h', $format) . $meridiemF;
+            return $date->format($outputFormat);
+        } else {
+            return "Invalid datetime format";
+        }
+    }
+
+    static function formatCustomDateTime($datetime, $outputFormat = 'd-M-Y h:i:s', $useMeridiem = true) {
+        // Default timezone
+        $timezone = new DateTimeZone(date_default_timezone_get());
+
+        // Check for Indochina Time
+        if (strpos($datetime, 'Indochina Time') !== false) {
+            $datetime = str_replace('Indochina Time', '', $datetime);  // Remove the timezone text
+            $timezone = new DateTimeZone(config('app.timezone'));  // Set the timezone
+        }
+
+        // Parse the datetime
+        try {
+            $date = new DateTime(trim($datetime), $timezone);
+        } catch (Exception $e) {
+            return "Invalid datetime format";  // Return error if parsing fails
+        }
+
+        // Adjust the output format (replace 'H' with 'h' for 12-hour format if needed)
+        if ($useMeridiem) {
+            $outputFormat = str_replace('H', 'h', $outputFormat);
+        }
+        $meridiem = $useMeridiem ? 'A' : '';
+        // Return the formatted datetime string
+        return $date->format($outputFormat.' '.$meridiem);
+    }
+
+
+
+
+
+
     static function dateBTW($startDate,$endDate,$targetDate):bool{
         $sd = date('Y-m-d',strtotime($startDate));
         $ed = date('Y-m-d',strtotime($endDate));

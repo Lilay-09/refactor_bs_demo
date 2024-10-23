@@ -11,6 +11,7 @@ use App\Http\Controllers\V1\CompletedPackageController;
 use App\Http\Controllers\V1\CountryController;
 use App\Http\Controllers\V1\DistrictController;
 use App\Http\Controllers\V1\DriverManagementController;
+use App\Http\Controllers\V1\DriverTransactionController;
 use App\Http\Controllers\V1\ExhangeRateController;
 use App\Http\Controllers\V1\FleetManagementController;
 use App\Http\Controllers\V1\GeneralSettingController;
@@ -59,6 +60,11 @@ Route::middleware(['jwt','localize'])->prefix('admin/v1/{lang}')->group(function
         });
 
         Route::post('/{id}/account',[DriverManagementController::class,'createDriverAccount']);
+
+        //** Driver Commission Module */
+        Route::prefix('commission')->group(function(){
+            Route::get('package',[DriverTransactionController::class,'getDriverDeliveredPackages']);
+        });
     });
     Route::prefix('company')->group(function(){
         Route::put('',[CompanyProfileController::class,'update']);
@@ -74,6 +80,8 @@ Route::middleware(['jwt','localize'])->prefix('admin/v1/{lang}')->group(function
         // Route::put('void/{id?}',[ExhangeRateController::class,'void']);
 
     });
+
+    //** Begin PickUp Center */
 
     Route::prefix('order')->group(function (){
         Route::post('',[PickUpCenterController::class,'createQuickOrder']);
@@ -98,11 +106,15 @@ Route::middleware(['jwt','localize'])->prefix('admin/v1/{lang}')->group(function
         Route::delete('{id}',[PackageTrailController::class,'deletePackage']);
     });
 
+    //** End Pickup Center */
+
+    //** Begin Fleet Management */
     Route::prefix('trip')->group(function(){
         Route::get('',[FleetManagementController::class,'getTrips']);
         Route::get('{trip_id}/package',[FleetManagementController::class,'getTripPackages']);
         Route::put('{trip_id}/package/status',[FleetManagementController::class,'setPackageStatus']);
     });
+    //** End Fleet Management */
 
     Route::prefix('finish')->group(function(){
         Route::get('package',[CompletedPackageController::class,'getFinishedPackages']);

@@ -154,6 +154,7 @@ class PickUpCenterController extends Controller
         $order->update([
             'driver_id' => $driver_id,
             'udpate_uid' => $user->id,
+            'status_id' => $status_id,
             'branch_id' => $user->branch_id
         ]);
 
@@ -168,6 +169,8 @@ class PickUpCenterController extends Controller
             ->selectRaw('id,merchant_id,status_id,order_datetime,driver_id,warehouse_id,vehicle_type,product_type,qty,pickup_address,code,created_at');
         $orders = $query->get();
         foreach($orders as $order){
+            $order->order_date = Helper::dateDMY($order->order_datetime);
+            $order->order_time = Helper::formatCustomDateTime($order->order_datetime,'H:i:s');
             $order->merchant_name = $order->merchant->user_name;
             $order->merchant_code = $order->merchant->code;
             if(!$order->product_type) $order->product_type = 'Others';

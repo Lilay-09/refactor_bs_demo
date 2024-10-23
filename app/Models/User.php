@@ -69,6 +69,10 @@ class User extends Authenticatable implements JWTSubject
         'deleted_datetime'
     ];
 
+    public function bank_accounts(){
+        return $this->hasMany(UserBank::class,'user_id','id');
+    }
+
     public function user_roles(){
         return $this->hasMany(UserRoles::class,'user_id','id');
     }

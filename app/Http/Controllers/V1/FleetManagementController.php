@@ -53,13 +53,16 @@ class FleetManagementController extends Controller
         if(!$status) return ApiResponse::ValidateFail(__('messages.not_found',['info' => 'Status']));
         $package = Package::where('company_id',$user->company_id)->where('is_deleted',0)->find($package_id);
         if(!$package) return ApiResponse::NotFound(__('messages.not_found',['info' => 'Package','khInfo' => 'កញ្ចប់']));
-        if($package->status_id != 6) return ApiResponse::ValidateFail(__('messages.error',['info' => 'Package must be on delivery before set to delivered or failed.']));
+        if($package->status_id != 6) return ApiResponse::ValidateFail(__('messages.error',['info' => 'Package must be on delivery before set to delivered,failed or failed with fee.']));
+        $status_id = 9; // delivered
+        if($status == 1) $status_id = 10; // failed
+        if($status == 3) $status_id = 19; // failed with fee
         $package->update([
             'update_uid' => $user->id,
             'failure_notes' => $status == 1 ? $failure_notes : null,
             'failed_datetime' => $status == 1 ? now() : null,
             'delivered_datetime' => $status == 2 ? now():null,
-            'status_id' => $status == 2 ? 9 : 10
+            'status_id' => $status_id
         ]);
 
         DeliveryPackage::where('package_id',$package_id)->update([
@@ -67,7 +70,7 @@ class FleetManagementController extends Controller
             'failure_notes' => $status == 1 ? $failure_notes : null,
             'failed_datetime' => $status == 1 ? now() : null,
             'delivered_datetime' => $status == 2 ? now():null,
-            'status_id' => $status == 2 ? 9 : 10
+            'status_id' => $status_id
         ]);
         GeneralSettingService::updateTripStatus($trip_id,$user);
         return ApiResponse::JsonResult(null,__('messages.updated'));
