@@ -99,6 +99,7 @@ class GeneralSettingController extends Controller
     public function getFormOrder(Request $req){
         $user = UserService::getAuthUser();
         $obj = (object)[
+            'delivery_type' => $this->gs::optionsDeliveryType(),
             'merchants' => $this->gs::optionsMerchant($user),
             'statuses' => $this->gs::optionsPickupStatus($user),
             'warehouses' => $this->gs::optionsWarehouse($user),

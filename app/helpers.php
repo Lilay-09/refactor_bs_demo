@@ -479,7 +479,7 @@ class Helper{
         return preg_replace('/[^a-zA-Z0-9\s]/', '', $str);
     }
 
-    static function timeAgo($datetime) {
+    static function timeAgo($datetime,$useSecond=true) {
     // Convert the datetime string into a timestamp
         $timestamp = strtotime($datetime);
 
@@ -496,8 +496,10 @@ class Helper{
             'day' => 24 * 60 * 60,
             'hour' => 60 * 60,
             'minute' => 60,
-            'second' => 1,
         ];
+        if ($useSecond) {
+            $units['second'] = 1;
+        }
 
         $result = [];
 

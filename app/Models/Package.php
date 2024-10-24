@@ -19,6 +19,7 @@ class Package extends Model
         'taxi_fee',
         'dim_y',
         'dim_z',
+        'remarks',
         'status_id',
         'failure_notes',
         'merchant_id',
@@ -51,6 +52,8 @@ class Package extends Model
         'update_uid',
         'extra_charge',
         'is_deleted',
+        'driver_payment_id',
+        'merchant_payment_id',
         'deleted_uid',
         'deleted_datetime',
         'arrive_warehouse_datetime'

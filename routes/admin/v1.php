@@ -121,8 +121,9 @@ Route::middleware(['jwt','localize'])->prefix('admin/v1/{lang}')->group(function
     });
     //** End Fleet Management */
 
-    Route::prefix('finish')->group(function(){
+    Route::prefix('finished')->group(function(){
         Route::get('package',[CompletedPackageController::class,'getFinishedPackages']);
+        Route::put('package/{id}',[CompletedPackageController::class,'updatePackage']);
     });
 
 
