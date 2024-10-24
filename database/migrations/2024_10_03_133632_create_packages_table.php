@@ -44,10 +44,12 @@ return new class extends Migration
             $table->dateTime('failed_datetime')->nullable();
             $table->decimal('extra_charge',10,2)->default(0);
             $table->unsignedBigInteger('driver_id');
+            $table->unsignedBigInteger('merchant_id')->nullable();
 
             $table->foreign('status_id')->references('id')->on('tracking_statuses')->onDelete('cascade');
             $table->foreign('order_id')->references('id')->on('orders')->onDelete('cascade');
             $table->foreign('driver_id')->references('id')->on('users')->onDelete('cascade');
+            $table->foreign('merchant_id')->references('id')->on('users')->onDelete('cascade');
         });
     }
 

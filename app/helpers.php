@@ -157,6 +157,7 @@ class Helper{
     }
 
     static function formatCustomDateTime($datetime, $outputFormat = 'd-M-Y h:i:s', $useMeridiem = true) {
+        if(!$datetime) return null;
         // Default timezone
         $timezone = new DateTimeZone(date_default_timezone_get());
 

@@ -80,6 +80,7 @@ class PickupCenterService
         $inputs = $validate->validated();
         $inputs['company_id'] = $user->company_id;
         $inputs['branch_id'] = $user->branch_id;
+        $inputs['merchant_id'] = $order->merchant_id;
         $inputs['update_uid'] = $user->id;
         $inputs['order_id'] = $orderId;
         $price = $inputs['price'] ?? 0;

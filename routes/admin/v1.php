@@ -61,6 +61,11 @@ Route::middleware(['jwt','localize'])->prefix('admin/v1/{lang}')->group(function
 
         Route::post('/{id}/account',[DriverManagementController::class,'createDriverAccount']);
 
+        //** Driver Transaction Module */
+        Route::prefix('transaction')->group(function(){
+            Route::get('package',[DriverTransactionController::class,'getTransactionPackages']);
+            Route::post('receivePayment',[DriverTransactionController::class,'receivePayment']);
+        });
         //** Driver Commission Module */
         Route::prefix('commission')->group(function(){
             Route::get('package',[DriverTransactionController::class,'getDriverDeliveredPackages']);
