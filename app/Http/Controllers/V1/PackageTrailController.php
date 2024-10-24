@@ -31,7 +31,7 @@ class PackageTrailController extends Controller
         $packages = $query->get();
         foreach($packages as $pkg){
             $pkg->status_code = $pkg->status->name;
-            $pkg->warehouse_timeago = Helper::timeAgo($pkg->arrive_warehouse_datetime);
+            $pkg->warehouse_timeago = Helper::timeAgo($pkg->arrive_warehouse_datetime,false);
             unset($pkg->status);
         }
         return ApiResponse::Pagination($packages,$req,__('messages.get_list',['info'=>'Package']));
@@ -40,7 +40,7 @@ class PackageTrailController extends Controller
     public function updatePackage(Request $req){
         $user = UserService::getAuthUser();
         $id = $req->id;
-        $package = Package::where('company_id',$user->company_id)->where('status_id',5)->where('is_deleted',0)->where('outstanding',0)->find($id);
+        $package = Package::where('company_id',$user->company_id)->where('status_id','<',5)->where('is_deleted',0)->where('outstanding',0)->find($id);
         if(!$package) return ApiResponse::NotFound(__('messages.not_found',['info' => 'Package','khInfo' => 'កញ្ចប់']));
         if($package->status_id == 13) return ApiResponse::Forbidden(__('messages.no_access',['info' => 'This package has already assigned to driver']));
         $pkupService = new PickupCenterService();

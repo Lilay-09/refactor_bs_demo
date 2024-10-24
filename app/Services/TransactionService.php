@@ -29,7 +29,7 @@ class TransactionService
         $payerId = $inputs['driver_id'] ?? $inputs['merchant_id'];
         $packages = $inputs['packages'];
         $validPackages = $this->validPackages($packages,$payerId);
-        // return $validPackages;
+        return $validPackages;
         DB::beginTransaction();
         try{
             $createPayment = Payment::create([
@@ -48,24 +48,31 @@ class TransactionService
 
     public function validPackages($packageIds,$driverId){
         $totalPackages = 0;
+        $totalCod = 0;
+        $totalDeliveryFee = 0;
         $deliveredPackageCount = 0;
+        $driverTotal = 0;
+        $merchantTotal = 0;
         foreach($packageIds as $key=>$id){
-            // $packageReq = new Request($package);
-            // $validate = validator($packageReq->all(),[
-            //     'package_id' => 'required|int'
-            // ]);
-            // $id = $validate->validated()['package_id'];
-            // if($validate->fails()) return DataResponse::ValidateFail($validate->errors()->first());
             $package = Package::where('driver_id',$driverId)->where('is_deleted',0)->whereIn('status_id',[9,19])->find($id);
             if(!$package){
                 return DataResponse::ValidateFail(__('messages.info',['info' => 'Invalid package'.' on row ('.($key+1).')']));
             }
             if($package->status_id == 9) $deliveredPackageCount += 1;
+            $totalDeliveryFee += $package->delivery_fee;
+            // $calPackage = GeneralSettingService::calculatePackageFee($package->zone_code,$package->price,$package->billed_kg,$package->actual_kg,$package->payer,$package->cod);
             $totalPackages += 1;
+            $driverTotal += $package->driver_total;
+            $merchantTotal += $package->merchant_total;
         }
         return DataResponse::JsonRaw([
             'error' => false,
+            'pacakage_ids' => $packageIds,
+            'total_delivery_fee' => number_format($totalDeliveryFee,2),
             'total_package' => $totalPackages,
+            'driver_total' => $driverTotal,
+            'merchant_total' => $merchantTotal,
+            'total_cod' => $totalCod,
             'delivered_package_count' => $deliveredPackageCount
         ]);
     }

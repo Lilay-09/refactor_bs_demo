@@ -20,13 +20,16 @@ class DriverTransactionController extends Controller
 
     public function getTransactionPackages(Request $req){
         $user = UserService::getAuthUser();
-
         $packages = Package::fromRaw('packages as p')->where('p.company_id',$user->company_id)->join('users as d','d.id','p.driver_id')
         ->join('tracking_statuses as ts','ts.id','p.status_id')
+        ->join('users as m','m.id','p.merchant_id')
+        ->leftJoin('payments as dpmt','dpmt.id','p.driver_payment_id') //** if driver paid or unpaid */
+        // ->leftJoin('payments as mpmt','mpmt.id','p.merchant_payment_id') //** if driver paid or unpaid */
         ->whereIn('p.status_id',[9,19]) //* delivered and failed with fee
-        ->selectRaw('d.user_name as driver_name,p.status_id,p.id as package_id,d.id as driver_id,p.qr_code,p.price,ts.name as status_code,p.delivered_datetime,p.failed_datetime,p.taxi_fee,p.payer,p.cod,p.zone_code,p.receiver_phone,p.delivery_type,p.delivery_fee')
+        ->selectRaw('m.user_name as merchant_name,m.phone as merchant_phone,dpmt.approved as approved_driver_pmt,d.user_name as driver_name,p.status_id,p.id as package_id,d.id as driver_id,p.qr_code,p.price,ts.name as status_code,p.delivered_datetime,p.failed_datetime,p.taxi_fee,p.payer,p.cod,p.zone_code,p.receiver_phone,p.delivery_type,p.delivery_fee,p.driver_total')
         ->get();
         foreach($packages as $package){
+            $package->driver_payment_status = !$package->driver_payment_id ? 'Unpaid':($package->approved_driver_pmt ? 'Approved':'Pending');
             $package->datetime = ($package->status_id == 9 && ($package->delivered_datetime || $package->delivered_datetime)) ? Helper::formatCustomDateTime($package->delivered_datetime) : Helper::formatCustomDateTime($package->failed_datetime);
         }
         return ApiResponse::Pagination($packages,$req);
@@ -41,13 +44,6 @@ class DriverTransactionController extends Controller
         return ApiResponse::flex();
 
     }
-
-
-
-    public function getMerchantByPackageId(){
-
-    }
-
 
     // public function getDriverDeliveredPackages(Request $req){
         // $user = UserService::getAuthUser();

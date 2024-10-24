@@ -72,19 +72,33 @@ class PickupCenterService
         ]);
     }
 
-    public function createOrUpdatePackage($orderId,Request $req,$user,$packageId=null){
-        $order = Order::where('is_deleted',0)->find($orderId);
-        if(!$order) return DataResponse::NotFound('Order not found');
+
+    /**
+     * Summary of createOrUpdatePackage
+     * @param \Illuminate\Http\Request $req
+     * @param mixed $user ** This one is auth user *SESSION*
+     * @param mixed $packageId => it depends on action **IF UPDATE packageId must be provided
+     * @param mixed $orderId => optional *-- might use only in pickup center module --*
+     * @param mixed $statusIds => status can be differenct by module | By Default $statusIds=[1,7] = available for pick up or package is pending,
+     * @param mixed $whereClause => for additional queries condition
+     * @return object
+     *
+     *  => ------ for reusable on action update package --------
+     */
+    public function createOrUpdatePackage(Request $req,$user,$packageId=null,$orderId=null,$statusIds=[1,7],$whereClause=null){
+        if($orderId){
+            $order = Order::where('is_deleted',0)->find($orderId);
+            if(!$order) return DataResponse::NotFound('Order not found');
+        }
         $validate = $this->packageValidation($req);
         if($validate->fails()) return DataResponse::ValidateFail($validate->errors()->first());
         $inputs = $validate->validated();
         $inputs['company_id'] = $user->company_id;
         $inputs['branch_id'] = $user->branch_id;
-        $inputs['merchant_id'] = $order->merchant_id;
+        if($orderId) $inputs['merchant_id'] = $order->merchant_id;
         $inputs['update_uid'] = $user->id;
-        $inputs['order_id'] = $orderId;
+        if($orderId) $inputs['order_id'] = $orderId;
         $price = $inputs['price'] ?? 0;
-        $inputs['cod'] = 0;
         $inputs['price'] = $price;
         $actualKg = $inputs['actual_kg'] ?? 0;
         $billedKg = $inputs['billed_kg'] ?? 0;
@@ -92,15 +106,17 @@ class PickupCenterService
         $payer = $inputs['payer'];
         $inputs['billed_kg'] = $actualKg;
         $cod = $inputs['cod'];
-        $inputs['status_id'] = 7;
         $zoneCode = $inputs['zone_code'];
         $calPrice = GeneralSettingService::calculatePackageFee($zoneCode,$price,$billedKg,$actualKg,$payer,$cod);
         if($calPrice->error) return $calPrice;
+        // var_dump($calPrice);
         $inputs['driver_total'] = $calPrice->driver_total;
         $inputs['merchant_total'] = $calPrice->merchant_total;
         $inputs['delivery_fee'] = $calPrice->delivery_fee;
-        $inputs['product_type'] = $inputs['product_type'] ?? $order->product_type;
+        $productType = $inputs['product_type'] ?? ($orderId ? $order->product_type:null);
+        if(!$productType) unset($inputs['product_type']);
         if(!$packageId){
+            $inputs['status_id'] = 7;
             $inputs['create_uid'] = $user->id;
             $createPackage = Package::create($inputs);
             if(!$createPackage) return DataResponse::Error(__('messages.Fail to create package'));
@@ -111,7 +127,12 @@ class PickupCenterService
             $this->updateOrderQty($orderId);
             return DataResponse::JsonResult(null,false,__('messages.created',['info' => 'Package Number ('.$qrCode.').']));
         }else{
-            $package = Package::where('is_deleted',0)->whereIn('status_id',[1,3,7])->find($packageId);
+            $qP = Package::where('is_deleted',0)->whereIn('status_id',$statusIds);
+            if($whereClause){
+                $qP->$whereClause;
+            }
+            $package = $qP->find($packageId);
+            $inputs['status_id'] = $package->status_id;
             if(!$package) return DataResponse::NotFound(trans('messages.not_found',['info' => 'Package','khInfo' => 'កញ្ចប់']));
             // if($package->status_id == 5) return DataResponse::Forbidden(__('messages.no_access',['info' => 'This package has already assigned to driver']));
             $package->update($inputs);

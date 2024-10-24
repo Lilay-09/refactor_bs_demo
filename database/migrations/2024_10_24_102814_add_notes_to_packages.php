@@ -13,10 +13,7 @@ return new class extends Migration
     {
         Schema::table('packages', function (Blueprint $table) {
             //
-            $table->unsignedBigInteger('driver_payment_id')->nullable();
-            $table->foreign('driver_payment_id')->references('id')->on('payments');
-            $table->unsignedBigInteger('merchant_payment_id')->nullable();
-            $table->foreign('merchant_payment_id')->references('id')->on('payments');
+            $table->string('remarks',500)->nullable();
         });
     }
 
@@ -26,8 +23,8 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('packages', function (Blueprint $table) {
-            //'
-            $table->dropColumn(['driver_payment_id','merchant_payment_id']);
+            //
+            $table->dropColumn('remarks');
         });
     }
 };

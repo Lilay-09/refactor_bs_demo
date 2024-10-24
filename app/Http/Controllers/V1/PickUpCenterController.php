@@ -251,7 +251,7 @@ class PickUpCenterController extends Controller
     public function addPackage(Request $req){
         $user = UserService::getAuthUser();
         $orderId = $req->order_id;
-        $create = $this->pkupService->createOrUpdatePackage($orderId,$req,$user);
+        $create = $this->pkupService->createOrUpdatePackage($req,$user,null,$orderId);
         return ApiResponse::flex($create);
     }
 
@@ -280,7 +280,7 @@ class PickUpCenterController extends Controller
         $user = UserService::getAuthUser();
         $orderId = $req->order_id;
         $packageId = $req->id;
-        $update = $this->pkupService->createOrUpdatePackage($orderId,$req,$user,$packageId);
+        $update = $this->pkupService->createOrUpdatePackage($req,$user,$packageId,$orderId);
         return ApiResponse::flex($update);
     }
 
