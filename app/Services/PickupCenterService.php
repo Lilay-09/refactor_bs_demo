@@ -109,7 +109,6 @@ class PickupCenterService
         $zoneCode = $inputs['zone_code'];
         $calPrice = GeneralSettingService::calculatePackageFee($zoneCode,$price,$billedKg,$actualKg,$payer,$cod);
         if($calPrice->error) return $calPrice;
-        // var_dump($calPrice);
         $inputs['driver_total'] = $calPrice->driver_total;
         $inputs['merchant_total'] = $calPrice->merchant_total;
         $inputs['delivery_fee'] = $calPrice->delivery_fee;

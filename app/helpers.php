@@ -516,6 +516,14 @@ class Helper{
         return !empty($result) ? implode(', ', $result) . ' ago' : 'just now';
     }
 
+    static function currencySymbol($code='USD'){
+        $symbols = [
+            'USD' => '$',
+            'KHR' => '៛'
+        ];
+        return $symbols[$code] ?? null;
+    }
+
 }
 
 
@@ -597,7 +605,7 @@ class DataResponse //extends Model
         ];
     }
 
-    static function Pagination($data, $filter = null, $message = "get list")
+    static function Pagination($data, $filter = null, $message = "get list",$addionalKey=[])
     {
         $filter = (object)$filter;
         $perPage = isset($filter->per_page) ? $filter->per_page : 10;
@@ -610,7 +618,7 @@ class DataResponse //extends Model
 
         $count = $data->count();
         $total_page = ceil($count/$perPage);
-        return (object)[
+        $obj = (object)[
             'status' => "OK",
             'status_code' => 200,
             'error' => false,
@@ -623,6 +631,7 @@ class DataResponse //extends Model
             'errors'=>[],
 
         ];
+        return $obj;
     }
 
     static function Forbidden($message='You has no permmision to access or do the action')

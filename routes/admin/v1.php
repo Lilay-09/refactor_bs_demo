@@ -4,6 +4,7 @@
 use App\Http\Controllers\PriceListNameController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\V1\AuthController;
+use App\Http\Controllers\V1\BankController;
 use App\Http\Controllers\V1\CityController;
 use App\Http\Controllers\V1\CommuneController;
 use App\Http\Controllers\V1\CompanyProfileController;
@@ -63,8 +64,11 @@ Route::middleware(['jwt','localize'])->prefix('admin/v1/{lang}')->group(function
 
         //** Driver Transaction Module */
         Route::prefix('transaction')->group(function(){
-            Route::get('package',[DriverTransactionController::class,'getTransactionPackages']);
-            Route::post('receivePayment',[DriverTransactionController::class,'receivePayment']);
+            Route::get('delivery/package',[DriverTransactionController::class,'getDeliveryPackages']);
+            Route::put('delivery/package/{id}',[DriverTransactionController::class,'updateDeliveryPackage']);
+            Route::post('delivery/receivePayment',[DriverTransactionController::class,'receivePackagesPayment']);
+            Route::get('payment',[DriverTransactionController::class,'getPayments']);
+            Route::delete('payment/{id}',[DriverTransactionController::class,'deletePayment']);
         });
         //** Driver Commission Module */
         Route::prefix('commission')->group(function(){
@@ -124,6 +128,14 @@ Route::middleware(['jwt','localize'])->prefix('admin/v1/{lang}')->group(function
     Route::prefix('finished')->group(function(){
         Route::get('package',[CompletedPackageController::class,'getFinishedPackages']);
         Route::put('package/{id}',[CompletedPackageController::class,'updatePackage']);
+    });
+
+    Route::prefix('bank')->group(function(){
+        Route::post('',[BankController::class,'createBank']);
+        Route::get('/',[BankController::class,'getBanks']);
+        Route::get('{id}',[BankController::class,'getOneBank']);
+        Route::put('/{id}',[BankController::class,'updateBank']);
+        Route::delete('',[BankController::class,'deleteBank']);
     });
 
 

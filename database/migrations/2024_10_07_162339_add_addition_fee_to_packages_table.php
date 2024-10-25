@@ -15,8 +15,8 @@ return new class extends Migration
             //
             $table->unsignedBigInteger('driver_id')->nullable()->change();
             $table->decimal('additional_fee',10,2)->nullable()->default(0);
-            $table->decimal('driver_total',10,2)->default(0);
-            $table->decimal('merchant_total',10,2)->default(0);
+            $table->decimal('driver_total',15,2)->default(0);
+            $table->decimal('merchant_total',15,2)->default(0);
         });
     }
 
