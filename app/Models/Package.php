@@ -54,6 +54,9 @@ class Package extends Model
         'is_deleted',
         'driver_payment_id',
         'merchant_payment_id',
+        'is_contact',
+        'contact_reason',
+        'priority_level',
         'deleted_uid',
         'deleted_datetime',
         'arrive_warehouse_datetime'

@@ -164,7 +164,7 @@ class GeneralSettingService
         ->first();
     }
 
-    public static function calculatePackageFee($zone_code,$price,$billedKg,$actualKg,$payer,$cod){
+    public static function calculatePackageFee($zone_code,$price,$billedKg,$actualKg,$payer,$cod,$taxi_fee=0){
         $priceList = GeneralSettingService::getZonePriceByCode($zone_code);
         if(!$priceList) return DataResponse::NotFound('Zone price not found');
         $zPrice = $priceList->price > 0 ? $priceList->price : $priceList->base_fee;
@@ -189,7 +189,7 @@ class GeneralSettingService
         return (object)[
             "error" => false,
             'delivery_fee' => $zPrice,
-            'driver_total' => $driverTotal,
+            'driver_total' => $driverTotal - $taxi_fee,
             'merchant_total' => $merchant_total,
             'total' => $total
         ];

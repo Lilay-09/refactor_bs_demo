@@ -9,6 +9,7 @@ use App\Models\Order;
 use App\Models\Package;
 use App\Models\User;
 use App\Services\DriverService;
+use App\Services\GeneralSettingService;
 use App\Services\TransactionService;
 use App\Services\UserService;
 use Helper;
@@ -18,7 +19,7 @@ class DriverTransactionController extends Controller
 {
     //
 
-    public function getTransactionPackages(Request $req){
+    public function getDeliveryPackages(Request $req){
         $user = UserService::getAuthUser();
         $packages = Package::fromRaw('packages as p')->where('p.company_id',$user->company_id)->join('users as d','d.id','p.driver_id')
         ->join('tracking_statuses as ts','ts.id','p.status_id')
@@ -29,6 +30,7 @@ class DriverTransactionController extends Controller
         ->selectRaw('m.user_name as merchant_name,m.phone as merchant_phone,dpmt.approved as approved_driver_pmt,d.user_name as driver_name,p.status_id,p.id as package_id,d.id as driver_id,p.qr_code,p.price,ts.name as status_code,p.delivered_datetime,p.failed_datetime,p.taxi_fee,p.payer,p.cod,p.zone_code,p.receiver_phone,p.delivery_type,p.delivery_fee,p.driver_total')
         ->get();
         foreach($packages as $package){
+            $package->cod = $package->cod?'Yes':'No';
             $package->driver_payment_status = !$package->driver_payment_id ? 'Unpaid':($package->approved_driver_pmt ? 'Approved':'Pending');
             $package->datetime = ($package->status_id == 9 && ($package->delivered_datetime || $package->delivered_datetime)) ? Helper::formatCustomDateTime($package->delivered_datetime) : Helper::formatCustomDateTime($package->failed_datetime);
         }
@@ -37,11 +39,48 @@ class DriverTransactionController extends Controller
 
 
 
-    public function receivePayment(Request $req){
+    // DELIVERIES part
+    public function receivePackagesPayment(Request $req){
         $user = UserService::getAuthUser();
         $trxService = new TransactionService();
-        return $trxService->receiverPaymentService($req,$user,'driver');
-        return ApiResponse::flex();
+        return ApiResponse::flex($trxService->receiverPaymentService($req,$user,'driver'));
+
+    }
+
+    public function getPayments(Request $req){
+        $user = UserService::getAuthUser();
+        $trxService = new TransactionService();
+        return ApiResponse::flex($trxService->getPayments($req,$user));
+
+    }
+    public function deletePayment(Request $req){
+        $user = UserService::getAuthUser();
+        $id = $req->id;
+        $trxService = new TransactionService();
+        return ApiResponse::flex($trxService->deletePayment($id,'driver',$user));
+    }
+
+    public function updateDeliveryPackage(Request $req){
+        $user = UserService::getAuthUser();
+        $id = $req->id;
+        $validate = validator($req->all(),[
+            'cod' => 'required|in:1,0',
+            'payer' => 'required|in:receiver,merchant',
+            'taxi_fee' => 'nullable|numeric'
+        ]);
+        if($validate->fails()) return ApiResponse::ValidateFail($validate->errors()->first());
+        $inputs = $validate->validated();
+        $package = Package::where('is_deleted',0)->where('company_id',$user->company_id)->find($id);
+        if(!$package) return ApiResponse::NotFound(__('messages.not_found',[
+            'info' => 'Package'
+        ]));
+        $calFee = GeneralSettingService::calculatePackageFee($package->zone_code,$package->price,$package->billed_kg,$package->actual_kg,$package->payer,$package->cod);
+        $inputs['driver_total'] = $calFee->driver_total;
+        $inputs['merchant_total'] = $calFee->merchant_total;
+        $package->update($inputs);
+        return ApiResponse::JsonResult(null,__('messages.updated',[
+            'info' => 'Package'
+        ]));
 
     }
 

@@ -3,7 +3,7 @@ return [
     'get_price_list' => 'Get Price List',
     'get one' => 'Get One :info',
     'not_found' => ':info Not Found',
-    'created' => 'Created :info',
+    'created' => ':info Created',
     'deleted' => ':info Deleted',
     'arrived' => ':info Arrived',
     'updated' => 'Updated',
