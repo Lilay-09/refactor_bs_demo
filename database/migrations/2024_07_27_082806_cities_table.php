@@ -18,7 +18,7 @@ class CitiesTable extends Migration
         //
         Schema::create('cities',function(Blueprint $table){
             $this->AddBaseFields($table);
-            $table->string('name',50)->unique();
+            $table->string('name',50)->nullable();
             $table->string('name_kh',100)->nullable();
             $table->unsignedBigInteger('country_id');
 
