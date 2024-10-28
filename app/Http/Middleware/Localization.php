@@ -20,6 +20,7 @@ class Localization
         $locale = $request->route('lang'); // Get the locale from the route parameter
         // \Log::info($locale);
         // Check if the locale is valid
+        if($locale == 'kh') $locale = 'km';
         if (in_array($locale, config('app.supported_locales'))) {
             App::setLocale($locale);
         } else {

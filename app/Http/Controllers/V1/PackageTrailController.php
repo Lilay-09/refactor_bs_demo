@@ -69,6 +69,20 @@ class PackageTrailController extends Controller
         return ApiResponse::JsonResult(null,__('messages.updated'));
     }
 
+    public function returnPackage(Request $req){
+        $user = UserService::getAuthUser();
+        $id = $req->id;
+        $package = Package::where('company_id',$user->company_id)->where('is_deleted',0)->find($id);
+        if(!$package) return ApiResponse::NotFound(trans('messages.not_found',['info' => 'Package','khInfo' => 'កញ្ចប់​']));
+        if($package->status_id !== 10) return ApiResponse::ValidateFail(__('messages.info',[
+            'info' => 'Only failed package can be returned'
+        ]));
+        $package->update([
+            'status_id' => 11 // returned
+        ]);
+        return ApiResponse::JsonResult(null,__('messages.returned',['info' => 'Package']));
+    }
+
     public function assignDriver(Request $req){
         $user  = UserService::getAuthUser();
         $id = $req->id;

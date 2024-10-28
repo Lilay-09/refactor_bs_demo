@@ -8,7 +8,7 @@ use App\Models\ExchangeRate;
 use App\Services\UserService;
 use Illuminate\Http\Request;
 
-class ExhangeRateController extends Controller
+class ExchangeRateController extends Controller
 {
     //
     function xRateValidation(Request $req){
@@ -37,7 +37,7 @@ class ExhangeRateController extends Controller
         $user = UserService::getAuthUser();
         $id = $req->id;
         $validate = $this->xRateValidation($req);
-        $exchangeRate = ExchangeRate::where('company_id',$user->company_id)->where('void',0)->find($id);
+        $exchangeRate = ExchangeRate::where('company_id',$user->company_id)->where('is_deleted',0)->find($id);
         if(!$exchangeRate) return ApiResponse::NotFound(__('messages.not_found'));
         if($validate->fails()) return ApiResponse::ValidateFail($validate->errors()->first());
         $inputs = $validate->validated();
@@ -51,7 +51,7 @@ class ExhangeRateController extends Controller
 
     public function getXRates(Request $req){
         $user = UserService::getAuthUser();
-        $query = ExchangeRate::where('company_id',$user->company_id)->where('void',0);
+        $query = ExchangeRate::where('company_id',$user->company_id)->where('is_deleted',0);
         $exchangeRates = $query->get();
         return ApiResponse::Pagination($exchangeRates,$req);
     }
@@ -59,19 +59,20 @@ class ExhangeRateController extends Controller
     public function getXRate(Request $req){
         $user = UserService::getAuthUser();
         $id = $req->id;
-        $exchangeRate = ExchangeRate::where('company_id',$user->company_id)->where('void',0)->find($id);
+        $exchangeRate = ExchangeRate::where('company_id',$user->company_id)->where('is_deleted',0)->find($id);
         return ApiResponse::JsonResult($exchangeRate);
     }
 
-    public function void(Request $req){
+    public function delete(Request $req){
         $user = UserService::getAuthUser();
         $id = $req->id;
-        $exchangeRate = ExchangeRate::where('company_id',$user->company_id)->where('void',0)->find($id);
+        $exchangeRate = ExchangeRate::where('company_id',$user->company_id)->where('is_deleted',0)->find($id);
         if(!$exchangeRate) return ApiResponse::NotFound(__('messages.not_found'));
         $exchangeRate->update([
-            'void' => 1,
-            'void_uid' => $user->id
+            'is_deleted' => 1,
+            'deleted_uid' => $user->id,
+            'deleted_datetime' => now()
         ]);
-        return ApiResponse::JsonResult(null,'Voided');
+        return ApiResponse::JsonResult(null,'Deleted');
     }
 }

@@ -32,7 +32,7 @@ class CommuneController extends Controller
         $inputs['branch_id'] = $user->branch_id;
         $inputs['company_id'] = $user->company_id;
         $existCommune = Commune::where('name',$name)->where('company_id',$user->company_id)->where('is_deleted',0)->where('district_id',$district_id)->take(1)->value('id');
-        if($existCommune) return ApiResponse::Duplicated('City ('.$name.') is already exists.');
+        if($existCommune) return ApiResponse::Duplicated('Commune ('.$name.') is already exists.');
         $create = Commune::create($inputs);
 
         if($create) return ApiResponse::JsonResult(null,'Created');
@@ -43,14 +43,14 @@ class CommuneController extends Controller
     public function getCommunes(Request $req){
         $user = UserService::getAuthUser();
         $cities = Commune::where('is_deleted',0)->where('company_id',$user->company_id)->selectRaw('id,name,name_kh')->orderByDesc('id')->get();
-        return ApiResponse::Pagination($cities,$req,'Get cities');
+        return ApiResponse::Pagination($cities,$req,'Get communes');
     }
 
     public function getOneCommune(Request $req){
         $id = $req->id;
         $user = UserService::getAuthUser();
-        $city = Commune::where('company_id',$user->company_id)->where('is_deleted',0)->find($id);
-        return ApiResponse::JsonResult($city,'Get on city');
+        $commune = Commune::where('company_id',$user->company_id)->where('is_deleted',0)->find($id);
+        return ApiResponse::JsonResult($commune,'Get on commune');
     }
 
     public function updateCommune(Request $req,$id=null){

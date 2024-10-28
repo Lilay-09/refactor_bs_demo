@@ -54,9 +54,10 @@ class CountryController extends Controller
         return ApiResponse::JsonResult($country);
     }
 
-    public function getCities(Request $req){
+    public function getCitiesByCountry(Request $req){
         $user = UserService::getAuthUser();
-        $cities = City::where('country_id',$req->country_id)->where('is_deleted',0)
+        $countryId = $req->id;
+        $cities = City::where('country_id',$countryId)->where('is_deleted',0)
         ->orderByDesc('id')
         ->where('company_id',$user->company_id)->get();
         return ApiResponse::JsonResult($cities);

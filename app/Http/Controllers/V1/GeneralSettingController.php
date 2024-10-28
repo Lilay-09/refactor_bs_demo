@@ -29,6 +29,21 @@ class GeneralSettingController extends Controller
         return ApiResponse::JsonResult($this->gs::optionsCountry($user));
     }
 
+    public function getOptionsCity(Request $req){
+        $user = UserService::getAuthUser();
+        return ApiResponse::JsonResult($this->gs::optionsCity($user));
+    }
+
+    public function getOptionsDistrict(Request $req){
+        $user = UserService::getAuthUser();
+        return ApiResponse::JsonResult($this->gs::optionsDistrict($user));
+    }
+
+    public function getOptionsCommune(Request $req){
+        $user = UserService::getAuthUser();
+        return ApiResponse::JsonResult($this->gs::optionsCommune($user));
+    }
+
     public function getOptionsCityByCountry(Request $req){
         $user = UserService::getAuthUser();
         return ApiResponse::JsonResult($this->gs::optionsCityByCountry($req->country_id,$user));
@@ -110,6 +125,31 @@ class GeneralSettingController extends Controller
         return ApiResponse::JsonResult($obj);
     }
 
+
+    public function getFormPackageTrail(Request $req){
+        $user = UserService::getAuthUser();
+        $obj = (object)[
+            'delivery_type' => $this->gs::optionsDeliveryType(),
+            'merchants' => $this->gs::optionsMerchant($user),
+            'statuses' => $this->gs::optionsPickupStatus($user),
+            'warehouses' => $this->gs::optionsWarehouse($user),
+            'drivers' => $this->gs::optionsDriver($user),
+            'zones' => $this->gs::optionsZone($user)
+        ];
+        return ApiResponse::JsonResult($obj);
+    }
+
+
+    public function getFormFleet(){
+        $user = UserService::getAuthUser();
+        $obj = (object)[
+            'statuses' => $this->gs::optionsTrackingStatus($user,[15],'fleet'),
+            'warehouses' => $this->gs::optionsWarehouse($user),
+            'drivers' => $this->gs::optionsDriver($user),
+            'zones' => $this->gs::optionsZone($user)
+        ];
+        return ApiResponse::JsonResult($obj);
+    }
     public function getOptionsDriver(){
         $user = UserService::getAuthUser();
         return ApiResponse::JsonResult($this->gs::optionsDriver($user));

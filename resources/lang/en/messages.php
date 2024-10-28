@@ -16,6 +16,7 @@ return [
     'error' => ':info',
     'info' => ':info',
     'saved' => ':info Saved',
+    'returned' => ':info Returned',
     'has already assigned' => ':info has already assigned'
 ];
 

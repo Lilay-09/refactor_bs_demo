@@ -5,6 +5,7 @@ namespace App\Http\Controllers\V1;
 use ApiResponse;
 use App\Http\Controllers\Controller;
 use App\Models\City;
+use App\Models\District;
 use App\Services\UserService;
 use Illuminate\Http\Request;
 
@@ -43,6 +44,15 @@ class CityController extends Controller
         $user = UserService::getAuthUser();
         $cities = City::where('is_deleted',0)->where('company_id',$user->company_id)->selectRaw('id,name,name_kh')->orderByDesc('id')->get();
         return ApiResponse::Pagination($cities,$req,'Get cities');
+    }
+
+    public function getDistrictsByCity(Request $req){
+        $user = UserService::getAuthUser();
+        $id = $req->id;
+        $cities = District::where('is_deleted',0)->where('company_id',$user->company_id)
+        ->where('city_id',$id)
+        ->selectRaw('id,name,name_kh')->orderByDesc('id')->get();
+        return ApiResponse::Pagination($cities,$req,'Get districts');
     }
 
     public function city(Request $req){

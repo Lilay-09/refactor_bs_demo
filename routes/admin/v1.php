@@ -1,25 +1,30 @@
 <?php
 
 
-use App\Http\Controllers\PriceListNameController;
 use App\Http\Controllers\ReportController;
+use App\Http\Controllers\V1\AppSettingController;
 use App\Http\Controllers\V1\AuthController;
 use App\Http\Controllers\V1\BankController;
+use App\Http\Controllers\V1\BrandImageController;
 use App\Http\Controllers\V1\CityController;
 use App\Http\Controllers\V1\CommuneController;
 use App\Http\Controllers\V1\CompanyProfileController;
 use App\Http\Controllers\V1\CompletedPackageController;
 use App\Http\Controllers\V1\CountryController;
+use App\Http\Controllers\V1\DefaultRemarkController;
 use App\Http\Controllers\V1\DistrictController;
 use App\Http\Controllers\V1\DriverManagementController;
 use App\Http\Controllers\V1\DriverTransactionController;
-use App\Http\Controllers\V1\ExhangeRateController;
+use App\Http\Controllers\V1\ExchangeRateController;
 use App\Http\Controllers\V1\FleetManagementController;
 use App\Http\Controllers\V1\GeneralSettingController;
 use App\Http\Controllers\V1\PackageTrailController;
 use App\Http\Controllers\V1\PickUpCenterController;
 use App\Http\Controllers\V1\PriceListController;
+use App\Http\Controllers\V1\PriceListNameController;
 use App\Http\Controllers\V1\ProductTypeController;
+use App\Http\Controllers\V1\PromotionController;
+use App\Http\Controllers\V1\SocialMediaController;
 use App\Http\Controllers\V1\UserController;
 use App\Http\Controllers\V1\UserManagementController;
 use App\Http\Controllers\V1\VehicleTypeController;
@@ -30,7 +35,6 @@ use Illuminate\Support\Facades\Route;
 Route::prefix('admin/v1/auth')->group(function(){
     Route::post('login',[AuthController::class,'login']);
 });
-
 Route::middleware(['jwt','localize'])->prefix('admin/v1/{lang}')->group(function(){
     Route::prefix('management')->group(function(){
         Route::get('/user', [UserController::class,'getUsers']);
@@ -72,7 +76,7 @@ Route::middleware(['jwt','localize'])->prefix('admin/v1/{lang}')->group(function
         });
         //** Driver Commission Module */
         Route::prefix('commission')->group(function(){
-            Route::get('package',[DriverTransactionController::class,'getDriverDeliveredPackages']);
+            Route::get('package',[DriverTransactionController::class,'getDeliveryPackages']);
         });
     });
     Route::prefix('company')->group(function(){
@@ -81,11 +85,11 @@ Route::middleware(['jwt','localize'])->prefix('admin/v1/{lang}')->group(function
     });
 
     Route::prefix('xrate')->group(function(){
-        Route::post('',[ExhangeRateController::class,'create']);
-        Route::get('',[ExhangeRateController::class,'getXRates']);
-        Route::get('{id?}',[ExhangeRateController::class,'getXRate']);
-        Route::put('{id?}',[ExhangeRateController::class,'update']);
-        Route::delete('{id?}',[ExhangeRateController::class,'delete']);
+        Route::post('',[ExchangeRateController::class,'create']);
+        Route::get('',[ExchangeRateController::class,'getXRates']);
+        Route::get('{id}',[ExchangeRateController::class,'getXRate']);
+        Route::put('{id}',[ExchangeRateController::class,'update']);
+        Route::delete('{id}',[ExchangeRateController::class,'delete']);
         // Route::put('void/{id?}',[ExhangeRateController::class,'void']);
 
     });
@@ -113,6 +117,7 @@ Route::middleware(['jwt','localize'])->prefix('admin/v1/{lang}')->group(function
         Route::put('{id}',[PackageTrailController::class,'updatePackage']);
         Route::put('{id}/driver/{driver_id}',[PackageTrailController::class,'assignDriver']);
         Route::delete('{id}',[PackageTrailController::class,'deletePackage']);
+        Route::put('/{id}/return',[PackageTrailController::class,'returnPackage']);
     });
 
     //** End Pickup Center */
@@ -163,8 +168,6 @@ Route::middleware(['jwt','localize'])->prefix('admin/v1/{lang}')->group(function
         });
     });
 
-
-
     Route::prefix('productType')->group(function(){
         Route::post('',[ProductTypeController::class,'createProductType']);
         Route::get('',[ProductTypeController::class,'getProductTypes']);
@@ -188,36 +191,69 @@ Route::middleware(['jwt','localize'])->prefix('admin/v1/{lang}')->group(function
         Route::prefix('country')->group(function(){
             Route::post('',[CountryController::class,'createCountry']);
             Route::get('',[CountryController::class,'countries']);
-            Route::get('/cities',[CountryController::class,'getCities']);
-            Route::get('/{id?}',[CountryController::class,'country']);
-            Route::put('/{id??}',[CountryController::class,'updateCountry']);
+            Route::get('/{id}/city',[CountryController::class,'getCitiesByCountry']);
+            Route::get('/{id}',[CountryController::class,'country']);
+            Route::put('/{id}',[CountryController::class,'updateCountry']);
             Route::delete('',[CountryController::class,'deleteCountry']);
         });
 
         Route::prefix('city')->group(function(){
             Route::post('',[CityController::class,'createCity']);
             Route::get('',[CityController::class,'cities']);
-            Route::get('/districts',[CityController::class,'getDistricts']);
-            Route::get('/{id?}',[CityController::class,'city']);
-            Route::put('/{id?}',[CityController::class,'updateCity']);
+            Route::get('{id}/district',[CityController::class,'getDistrictsByCity']);
+            Route::get('/{id}',[CityController::class,'city']);
+            Route::put('/{id}',[CityController::class,'updateCity']);
             Route::delete('/{id}',[CityController::class,'deleteCity']);
         });
 
         Route::prefix('district')->group(function(){
             Route::post('',[DistrictController::class,'createDistrict']);
             Route::get('',[DistrictController::class,'getDistricts']);
-            Route::get('/{id?}',[DistrictController::class,'district']);
-            Route::put('/{id?}',[DistrictController::class,'updateDistrict']);
+            Route::get('{id}/commune',[DistrictController::class,'getCommunesByDistrict']);
+            Route::get('/{id}',[DistrictController::class,'district']);
+            Route::put('/{id}',[DistrictController::class,'updateDistrict']);
             Route::delete('/{id}',[DistrictController::class,'voidDistrict']);
         });
 
         Route::prefix('commune')->group(function(){
             Route::post('',[CommuneController::class,'createCommune']);
             Route::get('',[CommuneController::class,'getCommunes']);
-            Route::get('/{id?}',[CommuneController::class,'getOneCommune']);
-            Route::put('/{id?}',[CommuneController::class,'updateCommune']);
+            Route::get('/{id}',[CommuneController::class,'getOneCommune']);
+            Route::put('/{id}',[CommuneController::class,'updateCommune']);
             Route::delete('/{id}',[CommuneController::class,'voidCommune']);
         });
+    });
+
+    Route::prefix('brandImage')->group(function(){
+        Route::post('',[BrandImageController::class,'createBrandImage']);
+        Route::get('',[BrandImageController::class,'getBrandImages']);
+        Route::get('/{id}',[BrandImageController::class,'getOneBrandImage']);
+        Route::put('/{id}',[BrandImageController::class,'updateBrandImage']);
+        Route::delete('/{id}',[BrandImageController::class,'deleteBrandImage']);
+    });
+
+    Route::prefix('remark')->group(function(){
+        Route::post('',[DefaultRemarkController::class,'createDefaultRemark']);
+        Route::get('',[DefaultRemarkController::class,'getDefaultRemarks']);
+        Route::get('/{id}',[DefaultRemarkController::class,'getOneDefaultRemark']);
+        Route::put('/{id}',[DefaultRemarkController::class,'updateDefaultRemark']);
+        Route::delete('/{id}',[DefaultRemarkController::class,'deleteDefaultRemark']);
+    });
+
+    Route::prefix('socialMedia')->group(function(){
+        Route::post('',[SocialMediaController::class,'createSocialMedia']);
+        Route::get('',[SocialMediaController::class,'getSocialMedias']);
+        Route::get('/{id}',[SocialMediaController::class,'getOneSocialMedia']);
+        Route::put('/{id}',[SocialMediaController::class,'updateSocialMedia']);
+        Route::delete('/{id}',[SocialMediaController::class,'deleteSocialMedia']);
+    });
+
+    Route::prefix('promotion')->group(function(){
+        Route::post('',[PromotionController::class,'createPromotion']);
+        Route::get('',[PromotionController::class,'getPromotions']);
+        Route::get('/{id}',[PromotionController::class,'getOnePromotion']);
+        Route::put('/{id}',[PromotionController::class,'updatePromotion']);
+        Route::delete('/{id}',[PromotionController::class,'deletePromotion']);
     });
 
     Route::prefix('report')->group(function (){
@@ -231,6 +267,11 @@ Route::middleware(['jwt','localize'])->prefix('admin/v1/{lang}')->group(function
         });
     });
 
+    Route::put('termCondition',[AppSettingController::class,'saveTermCondition']);
+    Route::put('privacyStatement',[AppSettingController::class,'savePrivacyStatement']);
+    Route::get('privacyStatement',[AppSettingController::class,'getPrivacyStatement']);
+    Route::get('termCondition',[AppSettingController::class,'getTermCondition']);
+
 
     Route::prefix('setting')->group(function(){
         Route::prefix('option')->group(function(){
@@ -239,6 +280,9 @@ Route::middleware(['jwt','localize'])->prefix('admin/v1/{lang}')->group(function
             Route::get('driver',[GeneralSettingController::class,'getOptionsDriver']);
             Route::get('zone/price/{zone_id}',[GeneralSettingController::class,'getPriceByZone']);
             Route::get('country',[GeneralSettingController::class,'getOptionsCountry']);
+            Route::get('city',[GeneralSettingController::class,'getOptionsCity']);
+            Route::get('district',[GeneralSettingController::class,'getOptionsDistrict']);
+            Route::get('commune',[GeneralSettingController::class,'getOptionsCommune']);
             Route::get('country/city/{country_id}',[GeneralSettingController::class,'getOptionsCityByCountry']);
             Route::get('city/district/{city_id}',[GeneralSettingController::class,'getOptionsDistrictByCity']);
             Route::get('district/commune/{district_id}',[GeneralSettingController::class,'getOptionsCommuneByDistrict']);
@@ -250,6 +294,8 @@ Route::middleware(['jwt','localize'])->prefix('admin/v1/{lang}')->group(function
             Route::get('quickOrder',[GeneralSettingController::class,'getFormOrder']);
             Route::get('package',[GeneralSettingController::class,'getFormPackage']);
             Route::get('order/status',[GeneralSettingController::class,'getFormSetOrderStatus']);
+            Route::get('packageTrail',[GeneralSettingController::class,'getFormPackageTrail']);
+            Route::get('fleet',[GeneralSettingController::class,'getFormFleet']);
         });
     });
 });

@@ -25,7 +25,7 @@ class TransactionService
             'bank_id' => 'nullable|int',
             'remarks' => 'nullable|string|max:500',
             'packages' => 'required|array',
-            'exchange_rate' => 'nullable|string'
+            'exchange_rate' => 'required|string'
         ]);
     }
 
@@ -40,35 +40,41 @@ class TransactionService
         $packageIds = $inputs['packages'];
         $validPackages = $this->validPackages($packageIds,$payerId,$type);
         if($validPackages->error) return $validPackages;
-        $exhangeRate = $inputs['exchange_rate'] ?? 4100;
+        return $validPackages;
+        $exchangeRate = $inputs['exchange_rate'];
         $cashKh = $inputs['cash_kh'] ?? 0;
         $cash = $inputs['cash'] ?? 0;
         $bankId = $inputs['bank_id'] ?? null;
         $bankAmount = $inputs['bank_amount'] ?? 0;
         $bankAmountKh = $inputs['bank_amount_kh'] ?? 0;
         $dueAmount = $validPackages->driver_total;
+        $totalTaxiFee = $validPackages->total_taxi_fee;
         // $cashKhToUS = $cashKh / $exhangeRate;
         // $bankAmountKhToUS = $bankAmountKh / $exhangeRate;
         // $totalInputAmount = $cash + $cashKhToUS + $bankAmountKhToUS + $bankAmount;
-        $validPayment = $this->validPayment($cash,$cashKh,$bankAmount,$bankAmountKh,$bankId,$dueAmount,$exhangeRate);
+        $validPayment = $this->validPayment($cash,$cashKh,$bankAmount,$bankAmountKh,$bankId,$dueAmount,$exchangeRate);
         if($validPayment->error) return $validPayment;
-
         $breakDownNotes = null;
         if($cash) $breakDownNotes .= 'Cash: USD '.$cash.'|';
         if($cashKh) $breakDownNotes .= 'Cash: KHR '.$cashKh.'|';
         if($bankAmount) $breakDownNotes .= $validPayment->bank_name.': USD '.$bankAmount.'|';
         if($bankAmountKh) $breakDownNotes .= $validPayment->bank_name.': KHR '.$bankAmountKh.'|';
         $breakDownNotes = trim($breakDownNotes, '| ');
-        // return $breakDownNotes;
         DB::beginTransaction();
         try{
             $createPayment = Payment::create([
                 'payer_id' => $payerId,
                 'payer_type' => $type,
+                'taxi_fee' => $validPayment->total_taxi_fee,
+                'delivery_fee' => $validPayment->total_taxi_fee,
+                'payable_fee' => $validPayment->payable_fee,
                 'create_uid' => $user->id,
                 'receiver_uid' => $user->id,
-                'package_count' => '',
-                'delivered_package_count' => '',
+                'amount' => $validPayment->total_input_amount,
+                'exchange_rate' => $exchangeRate,
+                'remarks' => $inputs['remarks'] ?? null,
+                'package_count' => $validPackages->total_package,
+                'delivered_package_count' => $validPackages->delivered_package_count,
                 'update_uid' => $user->id,
                 'payment_datetime' => now(),
                 'breakdown_notes' => $breakDownNotes,
@@ -121,8 +127,9 @@ class TransactionService
                 ];
                 Package::find($id)->update($fkField);
             }
-            DB::commit();
+            // DB::commit();
             // return Package::whereIn('id',$packageIds)->get();
+            // return Payment::get();
             return DataResponse::JsonResult(null,false,__('messages.created',[
                 'info' => 'Payment'
             ]));
@@ -234,12 +241,15 @@ class TransactionService
     public function validPackages($packageIds,$driverId,$type){
         $validType = $this->validType($type);
         if($validType->error) return $validType;
-        $totalPackages = 0;
-        $totalCod = 0;
-        $totalDeliveryFee = 0;
-        $deliveredPackageCount = 0;
-        $driverTotal = 0;
-        $merchantTotal = 0;
+        $obj = (object)[
+            'total_packages' => 0,
+            'total_cod' => 0 ,
+            'total_delivery_fee' => 0,
+            'delivered_package_count' => 0,
+            'total_taxi_fee' => 0,
+            'driver_total' => 0,
+            'merchant_total' => 0
+        ];
         foreach($packageIds as $key=>$id){
             $package = Package::where('driver_id',$driverId)->where('is_deleted',0)->whereIn('status_id',[9,19])->find($id);
             if(!$package){
@@ -248,28 +258,51 @@ class TransactionService
             if($package->{$type.'_payment_id'} > 0) return DataResponse::ValidateFail(__('messages.error',[
                 'info' => 'Check list might include package that has been paid',
             ]));
-            if($package->status_id == 9) $deliveredPackageCount += 1;
-            $totalDeliveryFee += $package->delivery_fee;
+            if($package->status_id == 9) $obj->delivered_package_count += 1;
+            $obj->total_delivery_fee += $package->delivery_fee;
+
             // $calPackage = GeneralSettingService::calculatePackageFee($package->zone_code,$package->price,$package->billed_kg,$package->actual_kg,$package->payer,$package->cod);
-            $totalPackages += 1;
-            $driverTotal += $package->driver_total;
-            $merchantTotal += $package->merchant_total;
-            $totalCod += $driverTotal;
+            // $totalPackages += 1;
+            $obj->total_packages +=1;
+            $obj->total_taxi_fee += $package->taxi_fee;
+            $obj->driver_total += $package->driver_total;
+            $obj->merchant_total += $package->merchant_total;
+            if($package->cod){
+                $obj->total_cod += $package->price;
+            }
+
         }
+        // $payableAmount = $
         return DataResponse::JsonRaw([
             'error' => false,
             'pacakage_ids' => $packageIds,
-            'total_delivery_fee' => round($totalDeliveryFee,2),
-            'total_package' => $totalPackages,
-            'driver_total' => $driverTotal,
-            'merchant_total' => $merchantTotal,
-            'total_cod' => $totalCod,
-            'delivered_package_count' => $deliveredPackageCount
+            'total_delivery_fee' => round($obj->total_delivery_fee,2),
+            'total_package' => $obj->total_packages,
+            'driver_total' => $obj->driver_total,
+            'total_taxi_fee' => $obj->total_taxi_fee,
+            'merchant_total' => $obj->merchant_total,
+            'total_cod' => $obj->total_cod,
+            'delivered_package_count' => $obj->delivered_package_count
         ]);
     }
 
     public function getPayments(Request $req,$user){
-        $payments = Payment::where('is_deleted',0)->where('company_id',$user->company_id)->orderByDesc('id')->get();
+        $qP = Payment::fromRaw('payments as p')->join('users as d','d.id','p.payer_id')
+        ->where('p.is_deleted',0)
+        ->selectRaw('p.id as payment_id,d.user_name as payer_name,p.exchange_rate,p.amount,p.taxi_fee');
+        $payments = $qP->get();
+        $paymentDetails = PaymentDetail::get();
+        foreach($payments as $pmt){
+            $pmt_details = $this->preparePaymentPackageAmount($paymentDetails,$pmt->payment_id);
+            $totalUSD = $pmt_details->total_usd;
+            $totalKHR = $pmt_details->total_khr;
+            $pmt->total_usd = $totalUSD;
+            $pmt->total_khr = $totalKHR;
+            $totalKHR_to_USD = $totalKHR/$pmt->exchange_rate;
+            $totalKHR_to_USD = floor($totalKHR_to_USD * 100) / 100;
+            $pmt->total = $totalUSD + $totalKHR_to_USD;
+        }
+
         return DataResponse::Pagination($payments,$req);
     }
 
@@ -303,5 +336,20 @@ class TransactionService
         return DataResponse::JsonResult(null);
     }
 
-    private function preparePaymentPackageAmount(){}
+    private function preparePaymentPackageAmount($paymentDetails,$paymentId){
+        $converter = (object)[
+            'total_usd' => 0,
+            'total_khr' => 0
+        ];
+        foreach($paymentDetails as $d){
+            if($d->payment_id == $paymentId){
+                if($d->currency_code == 'USD'){
+                    $converter->total_usd += $d->amount;
+                }else{
+                    $converter->total_khr += $d->amount;
+                }
+            }
+        }
+        return $converter;
+    }
 }
