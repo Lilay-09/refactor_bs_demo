@@ -83,7 +83,7 @@ class CountryController extends Controller
         return ApiResponse::Error('Fail to update');
     }
 
-    public function voidCountry(Request $req){
+    public function deleteCountry(Request $req){
         $user = UserService::getAuthUser();
         $id = $req->id;
         $country = Country::where('company_id',$user->company_id)->where('is_deleted',0)->find($id);
@@ -94,7 +94,7 @@ class CountryController extends Controller
             'deleted_datetime' => now()
         ]);
 
-        return ApiResponse::JsonResult(null,'Voided');
+        return ApiResponse::JsonResult(null,'Deleted');
     }
 
 }

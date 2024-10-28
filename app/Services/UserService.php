@@ -113,6 +113,9 @@ class UserService
         $inputs['branch_id'] = $user->branch_id;
         $inputs['company_id'] = $user->company_id;
         $inputs['account_type'] = $user_class;
+        if($user_class == 'admin') $inputs['has_account'] = 1;
+        $nationalId = $inputs['national_id'] ?? null;
+        $email = $inputs['email'] ?? null;
         unset($inputs['bank_info'],$inputs['photo'],$inputs['role_id']);
         DB::beginTransaction();
         try{
@@ -125,9 +128,9 @@ class UserService
             }else{
                 $inputs['create_uid'] = $user->id;
                 $existsInfo = User::where('account_type',$user_class)->where('is_deleted',0);
-                $existsEmail = $existsInfo->where('email',$inputs['email'])->first();
-                $existsPhone = $existsInfo->where('email',$inputs['email'])->first();
-                $existsNationalId = $existsInfo->where('email',$inputs['email'])->first();
+                $existsEmail = $existsInfo->whereNotNull('email')->where('email',$email)->first();
+                $existsPhone = $existsInfo->whereNotNull('phone')->where('phone',$inputs['phone'])->first();
+                $existsNationalId = $existsInfo->whereNotNull('national_id')->where('national_id',$nationalId)->first();
                 if($existsEmail) return DataResponse::Duplicated(__('messages.error',[
                     'info' => 'Email has already taken.'
                 ]));

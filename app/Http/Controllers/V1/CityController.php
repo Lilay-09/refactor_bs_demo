@@ -62,12 +62,12 @@ class CityController extends Controller
         return ApiResponse::JsonResult($city,'Get on city');
     }
 
-    public function updateCity(Request $req,$id=null){
+    public function updateCity(Request $req){
         $validate = $this->cityValidation($req);
         if($validate->fails()) return ApiResponse::ValidateFail($validate->errors()->first(),'Please input correct data.');
         $inputs = $validate->validated();
         $name = $inputs['name'];
-        $id = $id ? $id :$req->id;
+        $id = $req->id;
         $country_id = $inputs['country_id'];
         $user = UserService::getAuthUser();
         $city = City::find($id)->where('branch_id',$user->branch_id);
@@ -85,8 +85,8 @@ class CityController extends Controller
         return ApiResponse::Error('Fail to update');
     }
 
-    public function voidCity(Request $req,$id=null){
-        $id = $id ? $id : $req->id;
+    public function deleteCity(Request $req){
+        $id = $req->id;
         $user = UserService::getAuthUser();
         $city = City::where('company_id',$user->company_id)->where('is_deleted',0)->find($id);
         if(!$city) return ApiResponse::NotFound(__('messages.not_found'));

@@ -78,8 +78,8 @@ class DistrictController extends Controller
         return ApiResponse::Error('failed to update');
     }
 
-    public function voidDistrict(Request $req,$id=null){
-        $id = $id ? $id : $req->id;
+    public function deleteDistrict(Request $req){
+        $id = $req->id;
         $user = UserService::getAuthUser();
         $district = District::where('company_id',$user->company_id)->where('is_deleted',0)->find($id);
         if(!$district) return ApiResponse::NotFound(__('messages.not_found'));
