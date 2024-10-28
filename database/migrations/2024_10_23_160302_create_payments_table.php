@@ -18,6 +18,9 @@ return new class extends Migration
             $table->unsignedBigInteger('payer_id');
             $table->string('payer_type',50);
             $table->decimal('amount',15,2)->default(0);
+            $table->decimal('payable_amount',15,2)->default(0);
+            $table->decimal('delivery_fee',15,2)->default(0);
+            $table->decimal('taxi_fee',15,2)->default(0);
             $table->string('currency_code',25)->default('USD');
             $table->decimal('cod_amount',15,2)->default(0);
             $table->unsignedInteger('package_count')->default(0);

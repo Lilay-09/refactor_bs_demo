@@ -4,6 +4,7 @@ namespace App\Http\Controllers\V1;
 use ApiResponse;
 use App\Http\Controllers\Controller;
 use App\Models\City;
+use App\Models\Commune;
 use App\Models\District;
 use App\Services\UserService;
 use Illuminate\Http\Request;
@@ -43,6 +44,12 @@ class DistrictController extends Controller
         ->orderByDesc('id')
         ->selectRaw('name,id,name_kh,city_id')->get();
         return ApiResponse::Pagination($districts,$req,'get all districts');
+    }
+
+    public function getCommunesByDistrict(Request $req){
+        $user = UserService::getAuthUser();
+        $district_id = $req->id;
+        $communes = Commune::where('is_deleted',0)->where('district_id',$district_id)->get();
     }
 
     public function district(Request $req){

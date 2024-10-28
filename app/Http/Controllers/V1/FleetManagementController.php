@@ -78,6 +78,17 @@ class FleetManagementController extends Controller
         return ApiResponse::JsonResult(null,__('messages.updated'));
     }
 
+    public function getTripByDriver(Request $req){
+        $driverId = $req->driver_id;
+        $todayDate = date('Y-m-d');
+        $user = UserService::getAuthUser();
+        $trip = Delivery::with(['status'])->where('is_deleted',0)->where('company_id',$user->company_id)
+        ->whereDate('depart_datetime',$todayDate)
+        ->selectRaw('id,fleet_tracking_number,status_id,depart_datetime,remarks,package_count,delivered_count,failed_count,warehouse_id,vehicle_type')
+        ->first();
+        return ApiResponse::ValidateFail($req);
+    }
+
     public function takeOutPackage(Request $req){
         $user = UserService::getAuthUser();
         $trip_id = $req->trip_id;

@@ -3,6 +3,7 @@
 namespace App\Services;
 use App\Models\City;
 use App\Models\Commune;
+use App\Models\Country;
 use App\Models\Delivery;
 use App\Models\DeliveryPackage;
 use App\Models\District;
@@ -21,11 +22,19 @@ use Helper;
 class GeneralSettingService
 {
     // Your service methods go here
-
     protected static $deliveryTypes = [
         ['value' => 'fast','label' => 'Fast'],
         ['value' => 'normal','label' => 'Normal'],
     ];
+
+    public static $channels = [
+        ['value' => 'driver','label' => 'Driver'],
+        ['value' => 'merchant', 'label'=>'Merchant']
+    ];
+
+    public static function optionChannels(){
+        return self::$channels;
+    }
 
     public static function optionsZone($user){
         return Zone::where('status',1)->where('company_id',$user->company_id)->orWhere('is_deleted',0)->selectRaw('id,zone_name,zone_code')->orderByDesc('id')->get();
@@ -86,8 +95,21 @@ class GeneralSettingService
     }
 
     public static function optionsCountry($user){
+        return Country::where('is_deleted',0)->where('company_id',$user->company_id)->selectRaw('name,id')->orderByDesc('id')->get();
+    }
+
+    public static function optionsCity($user){
         return City::where('is_deleted',0)->where('company_id',$user->company_id)->selectRaw('name,id')->orderByDesc('id')->get();
     }
+    public static function optionsDistrict($user){
+        return District::where('is_deleted',0)->where('company_id',$user->company_id)->selectRaw('name,id')->orderByDesc('id')->get();
+    }
+
+    public static function optionsCommune($user){
+        return Commune::where('is_deleted',0)->where('company_id',$user->company_id)->selectRaw('name,id')->orderByDesc('id')->get();
+    }
+
+
 
     public static function optionsDistrictByCity($cityId,$user){
         return District::where('is_deleted',0)->where('company_id',$user->company_id)->where('city_id',$cityId)->selectRaw('name,id')->orderByDesc('id')->get();
@@ -217,9 +239,9 @@ class GeneralSettingService
             if($trip->package_count == $failCount){
                 $status_id = 17;
                 $isCompleted = 1;
-            }else if($trip->package_count == $deliveredCount){
-                $status_id = 15;
-            }else if($trip->package_count > $deliveredCount){
+            // }else if($trip->package_count == $deliveredCount){
+            //     $status_id = 15;
+            }else if($trip->package_count >= $deliveredCount){
                 $status_id = 16;
                 if($stillOnDelivery) $status_id = 14;
             }
