@@ -53,12 +53,12 @@ class CommuneController extends Controller
         return ApiResponse::JsonResult($commune,'Get on commune');
     }
 
-    public function updateCommune(Request $req,$id=null){
+    public function updateCommune(Request $req){
         $validate = $this->communeValidation($req);
         if($validate->fails()) return ApiResponse::ValidateFail($validate->errors()->first(),'Please input correct data.');
         $inputs = $validate->validated();
         $name = $inputs['name'];
-        $id = $id ? $id :$req->id;
+        $id = $req->id;
         $country_id = $inputs['country_id'];
         $user = UserService::getAuthUser();
         $commune = Commune::find($id)->where('branch_id',$user->branch_id);
@@ -76,8 +76,8 @@ class CommuneController extends Controller
         return ApiResponse::Error('Fail to update');
     }
 
-    public function voidCommune(Request $req,$id=null){
-        $id = $id ? $id : $req->id;
+    public function deleteCommune(Request $req){
+        $id = $req->id;
         $user = UserService::getAuthUser();
         $commune = Commune::where('company_id',$user->company_id)->where('is_deleted',0)->find($id);
         if(!$commune) return ApiResponse::NotFound(__('messages.not_found'));

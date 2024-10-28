@@ -194,7 +194,7 @@ Route::middleware(['jwt','localize'])->prefix('admin/v1/{lang}')->group(function
             Route::get('/{id}/city',[CountryController::class,'getCitiesByCountry']);
             Route::get('/{id}',[CountryController::class,'country']);
             Route::put('/{id}',[CountryController::class,'updateCountry']);
-            Route::delete('',[CountryController::class,'deleteCountry']);
+            Route::delete('/{id}',[CountryController::class,'deleteCountry']);
         });
 
         Route::prefix('city')->group(function(){
@@ -212,7 +212,7 @@ Route::middleware(['jwt','localize'])->prefix('admin/v1/{lang}')->group(function
             Route::get('{id}/commune',[DistrictController::class,'getCommunesByDistrict']);
             Route::get('/{id}',[DistrictController::class,'district']);
             Route::put('/{id}',[DistrictController::class,'updateDistrict']);
-            Route::delete('/{id}',[DistrictController::class,'voidDistrict']);
+            Route::delete('/{id}',[DistrictController::class,'deleteDistrict']);
         });
 
         Route::prefix('commune')->group(function(){
@@ -220,7 +220,7 @@ Route::middleware(['jwt','localize'])->prefix('admin/v1/{lang}')->group(function
             Route::get('',[CommuneController::class,'getCommunes']);
             Route::get('/{id}',[CommuneController::class,'getOneCommune']);
             Route::put('/{id}',[CommuneController::class,'updateCommune']);
-            Route::delete('/{id}',[CommuneController::class,'voidCommune']);
+            Route::delete('/{id}',[CommuneController::class,'deleteCommune']);
         });
     });
 

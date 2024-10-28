@@ -20,7 +20,9 @@ class DriverManagementController extends Controller
     }
     public function getDrivers(Request $req){
         $user = UserService::getAuthUser();
-        $query = User::where('is_deleted',0)->where('company_id',$user->company_id)->where('account_type','driver');
+        $query = User::where('is_deleted',0)->where('company_id',$user->company_id)
+        ->where('account_type','driver')
+        ->selectRaw('id,code,user_name,email,gender,shift_type,vehicle_type,plate_number,phone');
         $drivers = $query->orderByDesc('id')->get();
         return ApiResponse::Pagination($drivers,$req);
     }
@@ -28,7 +30,10 @@ class DriverManagementController extends Controller
     public function getOneDriver(Request $req){
         $user = UserService::getAuthUser();
         $id = $req->id;
-        $driver = User::where('is_deleted',0)->where('company_id',$user->company_id)->where('account_type','driver')->find($id);
+        $driver = User::where('is_deleted',0)->where('company_id',$user->company_id)
+        ->where('account_type','driver')
+        ->selectRaw('id,code,user_name,email,gender,shift_type,vehicle_type,plate_number,phone,national_id')
+        ->find($id);
         if(!$driver) return ApiResponse::NotFound(__('messages.not_found',['info' => 'Driver']));
         return ApiResponse::JsonResult($driver,__('messages.get one'));
     }
