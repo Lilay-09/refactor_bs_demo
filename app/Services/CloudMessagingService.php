@@ -9,7 +9,7 @@ use Kreait\Firebase\Exception\Messaging\InvalidMessage;
 use Kreait\Firebase\Factory;
 use Kreait\Firebase\Messaging\CloudMessage;
 
-class CouldMessagingService
+class CloudMessagingService
 {
     // Your service methods go here
     protected $serviceName = [
@@ -36,10 +36,18 @@ class CouldMessagingService
         $this->messaging = $this->firebase->createMessaging();
     }
 
-    private function subsribeValidation(Request $req){
+    private function subsribeValidation(Request $req,$type){
         return validator($req->all(),[
             'token' => 'required',
             'device_id' => 'nullable',
+        ]);
+    }
+
+    private function sendNotifValidation(Request $req,$type){
+        return validator($req->all(),[
+            $type => 'required|string',
+            'title' => 'required|string',
+            'body' => 'nullable|string'
         ]);
     }
     public function subscribeTopic(Request $req,$type){
@@ -72,6 +80,13 @@ class CouldMessagingService
     }
 
     public function sendNotificationByTopic($topic,$title,$body){
+        return $this->sendNotification('topic',$topic,$title,$body);
+    }
 
+    public function sendNotificationByToken(Request $req){
+        $validate = $this->sendNotifValidation($req,'token');
+        if($validate->fails()) return DataResponse::ValidateFail($validate->errors()->first());
+        $notif = $this->sendNotification('token',$req->token,$req->title,$req->body);
+        return $notif;
     }
 }

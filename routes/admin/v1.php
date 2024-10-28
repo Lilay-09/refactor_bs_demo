@@ -7,6 +7,7 @@ use App\Http\Controllers\V1\AuthController;
 use App\Http\Controllers\V1\BankController;
 use App\Http\Controllers\V1\BrandImageController;
 use App\Http\Controllers\V1\CityController;
+use App\Http\Controllers\V1\CloudMessagingController;
 use App\Http\Controllers\V1\CommuneController;
 use App\Http\Controllers\V1\CompanyProfileController;
 use App\Http\Controllers\V1\CompletedPackageController;
@@ -51,6 +52,10 @@ Route::middleware(['jwt','localize'])->prefix('admin/v1/{lang}')->group(function
             Route::put('/{id?}', [UserManagementController::class,'updateRole']);
             Route::delete('/{id?}', [UserManagementController::class,'deleteRole']);
         });
+    });
+
+    Route::prefix('nofication')->group(function(){
+        Route::post('token',[CloudMessagingController::class,'sendNoficationViaToken']);
     });
 
     Route::prefix('driver')->group(function(){
