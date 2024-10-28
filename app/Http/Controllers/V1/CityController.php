@@ -72,7 +72,6 @@ class CityController extends Controller
         $user = UserService::getAuthUser();
         $city = City::where('is_deleted',0)->where('company_id',$user->company_id)->find($id);
         if(!$city) return ApiResponse::NotFound(__('messages.not_found'));
-
         $existCity = City::where('name',$req->name)->where('is_deleted',0)->where('company_id',$user->company_id)->where('country_id',$country_id)->where('id','!=',$id)->take(1)->value('id');
         if($existCity) return ApiResponse::Duplicated('City('.$name.') is already taken.');
         // return $user;
