@@ -22,4 +22,9 @@ class Commune extends Model
         'deleted_datetime',
         'deleted_uid'
     ];
+
+    public function getUpdatedAtAttribute($value)
+    {
+        return \Carbon\Carbon::parse($value)->format('d-M-y H:i:s');
+    }
 }

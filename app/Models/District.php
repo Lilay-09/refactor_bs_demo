@@ -24,6 +24,10 @@ class District extends Model
         'deleted_uid'
     ];
 
+    public function getUpdatedAtAttribute($value)
+    {
+        return \Carbon\Carbon::parse($value)->format('d-M-y H:i:s');
+    }
     public function city(){
         return $this->belongsTo(City::class);
     }

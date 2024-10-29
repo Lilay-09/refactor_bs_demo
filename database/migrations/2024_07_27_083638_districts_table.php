@@ -35,5 +35,7 @@ class DistrictsTable extends Migration
     public function down()
     {
         //
+        Schema::dropIfExists('districts');
+
     }
 }

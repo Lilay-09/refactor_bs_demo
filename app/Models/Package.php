@@ -25,6 +25,8 @@ class Package extends Model
         'merchant_id',
         'failed_datetime',
         'delivered_datetime',
+        'pickup_notes',
+        'pickup_datetime',
         'order_id',
         'payer',
         'cod',

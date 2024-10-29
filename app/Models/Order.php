@@ -45,6 +45,11 @@ class Order extends Model
         'deleted_datetime'
     ];
 
+    public function getOrderDatetimeAttribute($value)
+    {
+        return \Carbon\Carbon::parse($value)->format('M-d-Y H:i:s A');
+    }
+
     public function packages(){
         return $this->hasMany(Package::class,'order_id','id');
     }

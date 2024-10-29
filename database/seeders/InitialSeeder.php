@@ -109,6 +109,7 @@ class InitialSeeder extends Seeder
         $driverId = DB::table('users')->insertGetId([
             'first_name' => 'Driver',
             'has_account' => true,
+            'login_name' => 'driver',
             'last_name' => '',
             'user_name' => 'Driver',
             'phone' => '092233445',
@@ -133,6 +134,7 @@ class InitialSeeder extends Seeder
         $merchantId = DB::table('users')->insertGetId([
             'first_name' => 'Merchant',
             'last_name' => '',
+            'login_name' => 'merchant',
             'has_account' => true,
             'user_name' => 'Merchant',
             'phone' => '012465653',

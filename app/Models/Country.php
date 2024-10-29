@@ -23,4 +23,9 @@ class Country extends Model
     public function cities(){
         return $this->hasMany(City::class,'country_id','id');
     }
+
+    public function getUpdatedAtAttribute($value)
+    {
+        return \Carbon\Carbon::parse($value)->format('d-M-y H:i:s');
+    }
 }
