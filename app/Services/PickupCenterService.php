@@ -107,6 +107,9 @@ class PickupCenterService
         $inputs['billed_kg'] = $actualKg;
         $cod = $inputs['cod'];
         $zoneCode = $inputs['zone_code'];
+        $inputs['booking_channel'] = 'admin';
+        if($user->account_type == 'driver') $inputs['booking_channel'] = 'driver';
+        if($user->account_type == 'merchant') $inputs['booking_channel'] = 'merchant';
         $calPrice = GeneralSettingService::calculatePackageFee($zoneCode,$price,$billedKg,$actualKg,$payer,$cod);
         if($calPrice->error) return $calPrice;
         $inputs['driver_total'] = $calPrice->driver_total;

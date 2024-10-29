@@ -32,7 +32,6 @@ use App\Http\Controllers\V1\VehicleTypeController;
 use App\Http\Controllers\V1\ZoneController;
 use Illuminate\Support\Facades\Route;
 
-
 Route::prefix('admin/v1/auth')->group(function(){
     Route::post('login',[AuthController::class,'login']);
 });
@@ -56,6 +55,8 @@ Route::middleware(['jwt','localize'])->prefix('admin/v1/{lang}')->group(function
 
     Route::prefix('nofication')->group(function(){
         Route::post('token',[CloudMessagingController::class,'sendNoficationViaToken']);
+        Route::post('topic',[CloudMessagingController::class,'sendNoficationViaTopic']);
+        Route::post('topic/subscribe',[CloudMessagingController::class,'subscribeToTopic']);
     });
 
     Route::prefix('driver')->group(function(){
@@ -197,6 +198,8 @@ Route::middleware(['jwt','localize'])->prefix('admin/v1/{lang}')->group(function
             Route::post('',[CountryController::class,'createCountry']);
             Route::get('',[CountryController::class,'countries']);
             Route::get('/{id}/city',[CountryController::class,'getCitiesByCountry']);
+            Route::get('/{id}/district',[CountryController::class,'getDistrictsByCountry']);
+            Route::get('/{id}/commune',[CountryController::class,'getCommunesByCountry']);
             Route::get('/{id}',[CountryController::class,'country']);
             Route::put('/{id}',[CountryController::class,'updateCountry']);
             Route::delete('/{id}',[CountryController::class,'deleteCountry']);
@@ -280,6 +283,7 @@ Route::middleware(['jwt','localize'])->prefix('admin/v1/{lang}')->group(function
 
     Route::prefix('setting')->group(function(){
         Route::prefix('option')->group(function(){
+            Route::get('channel',[GeneralSettingController::class,'getOptionsChannel']);
             Route::get('zone',[GeneralSettingController::class,'getOptionsZone']);
             Route::get('pickup/status',[GeneralSettingController::class,'getOptionsPickupStatus']);
             Route::get('driver',[GeneralSettingController::class,'getOptionsDriver']);

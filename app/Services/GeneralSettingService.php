@@ -40,10 +40,11 @@ class GeneralSettingService
         return Zone::where('status',1)->where('company_id',$user->company_id)->orWhere('is_deleted',0)->selectRaw('id,zone_name,zone_code')->orderByDesc('id')->get();
     }
 
-    public static function optionsTrackingStatus($user,$exludeIds=[],$stage=null){
+    public static function optionsTrackingStatus($user,$exludeIds=[],$stage=null,$selectCols=null){
+        if(!$selectCols) $selectCols = 'id,name';
         $q = TrackingStatus::where('hidden',0)->where('is_deleted',0)
         ->where('company_id',$user->company_id)
-        ->selectRaw('id,name');
+        ->selectRaw($selectCols);
         if($stage){
             $q->where('stage',$stage);
         }
@@ -103,6 +104,15 @@ class GeneralSettingService
     }
     public static function optionsDistrict($user){
         return District::where('is_deleted',0)->where('company_id',$user->company_id)->selectRaw('name,id')->orderByDesc('id')->get();
+    }
+
+    public static function getGeneralTopics($companyId=null,$channel=null,$userId=null){
+        $topic = env('TOPIC_PREFIX');
+        $obj = (object)[
+            'private' => $companyId.$topic.$channel.'private'.$userId,
+            'public' => $companyId.$topic.$channel.'public'
+        ];
+        return $obj;
     }
 
     public static function optionsCommune($user){

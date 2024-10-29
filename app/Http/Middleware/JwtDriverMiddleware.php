@@ -7,14 +7,15 @@ use App\Models\User;
 use App\Services\UserService;
 use Closure;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Log;
+use Log;
+use Symfony\Component\HttpFoundation\Response;
 use Tymon\JWTAuth\Exceptions\JWTException;
 use Tymon\JWTAuth\Exceptions\TokenExpiredException;
 use Tymon\JWTAuth\Exceptions\TokenInvalidException;
 use Tymon\JWTAuth\Facades\JWTAuth;
 use Tymon\JWTAuth\Facades\JWTFactory;
 
-class JwtAuthMiddleware
+class JwtDriverMiddleware
 {
     /**
      * Handle an incoming request.
@@ -25,18 +26,21 @@ class JwtAuthMiddleware
     {
         $cookieHeader = $request->header('cookie');
         $cookies = $cookieHeader ? $this->parseCookies($cookieHeader):null;
-        $accessToken = $cookies['access_token'] ?? null;
+        $accessToken = null;//$cookies['token'] ?? null;
         $refreshToken = $cookies['refresh_token'] ?? null;
         try {
-            if ($request->headers && $accessToken) {
-                // If no valid token in headers, try to get the token from the cookies
-                $token = JWTAuth::setToken($accessToken)->authenticate();
+            if ($request->headers) {
+                $authHeader = $request->header('Authorization');
+                $getToken = $accessToken ?? str_replace('Bearer ', '', $authHeader);
+                $token = JWTAuth::setToken($getToken)->authenticate();
             }
             // else if($refreshToken){
             //     $rfPl = JWTAuth::setToken($refreshToken)->getPayload();
             //     $userId = $rfPl['sub'];
+
             //     $user = User::find($userId);
-            //     if(!$user) return ApiResponse::Unauthorized();
+            //     if(!$user) return ApiResponse::Unauthorized('ddd');
+
             //     $newAccessTokenFactory = JWTFactory::customClaims([
             //         'system_admin' => $user->system_admin,
             //         'roles' => $rfPl['roles'],
@@ -48,27 +52,27 @@ class JwtAuthMiddleware
 
             //     if ($newAccessToken) {
             //         return $next($request)
-            //         ->withCookie(cookie('access_token', $newAccessToken, config('jwt.ttl'), '/', null, true, false)->withSameSite('None'));
+            //         ->withCookie(cookie('token', $newAccessToken, 0.5, '/', null, false, true)->withSameSite('None'));
+            //         // ->withCookie(cookie('token', $newAccessToken, config('jwt.ttl'), '/', null, true, false)->withSameSite('None'));
             //     }
             // }
             else {
                 $token = JWTAuth::parseToken()->authenticate();
             }
-            $hasUser = UserService::getAuthUser();
+            $hasUser = UserService::getAuthUser('driver');
 
             if(!$hasUser->error){
                 $payload = JWTAuth::getPayload($token);
-                // Log::info('JWT token generated successfully.', ['token_payload' => $payload->toArray()]);
                 $payloadArr = $payload->toArray();
                 if($payloadArr['type'] == 'refresh') return ApiResponse::Unauthorized('Invalid Token');
-                if($payloadArr['system_admin'] === 0) return response()->json([
-                    'status_code' => 403,
-                    'status' => 'Invalid Token',
-                    'error_message' => 'Access Denied',
-                    'errors' => []
-                ],403);
+                // if($payloadArr['system_admin'] === 0) return response()->json([
+                //     'status_code' => 403,
+                //     'status' => 'Invalid Token',
+                //     'error_message' => 'Access Denied',
+                //     'errors' => []
+                // ],403);
             }else{
-                return ApiResponse::Unauthorized($hasUser->message.'33');
+                return ApiResponse::Unauthorized($hasUser->message);
             }
             $checkDeleteAndSuperAdmin = new ProtectedRoute($hasUser);
 
@@ -80,12 +84,9 @@ class JwtAuthMiddleware
 
             // If the response is not null, it means CheckDeleteAndSuperAdmin returned a response (like a 403)
             if ($response !== $request) {
-                return $response; // Return the CheckDeleteAndSuperAdmin's response
+                return $response;
             }
-            // return $next($request);
         } catch (TokenInvalidException $e) {
-            // Token is invalid
-            // Log::error('Token is invalid');
             return ApiResponse::Unauthorized('Token is invalid');
         } catch (TokenExpiredException $e) {
             return ApiResponse::Unauthorized('Token has expired');

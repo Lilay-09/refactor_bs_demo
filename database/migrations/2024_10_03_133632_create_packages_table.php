@@ -41,6 +41,8 @@ return new class extends Migration
             $table->dateTime('assign_driver_datetime')->nullable();
             $table->dateTime('arrive_warehouse_datetime')->nullable();
             $table->dateTime('completed_datetime')->nullable();
+            $table->string('pickup_notes',500)->nullable();
+            $table->dateTime('pickup_datetime')->nullable();
             $table->dateTime('failed_datetime')->nullable();
             $table->decimal('extra_charge',10,2)->default(0);
             $table->unsignedBigInteger('driver_id');

@@ -39,6 +39,10 @@ class GeneralSettingController extends Controller
         return ApiResponse::JsonResult($this->gs::optionsDistrict($user));
     }
 
+    public function getOptionsChannel(){
+        return ApiResponse::JsonResult($this->gs::optionChannels());
+    }
+
     public function getOptionsCommune(Request $req){
         $user = UserService::getAuthUser();
         return ApiResponse::JsonResult($this->gs::optionsCommune($user));
