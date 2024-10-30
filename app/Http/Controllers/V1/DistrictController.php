@@ -25,14 +25,16 @@ class DistrictController extends Controller
         if($validate->fails()) return ApiResponse::ValidateFail($validate->errors()->first());
         $inputs = $validate->validated();
         $user = UserService::getAuthUser();
-        $name = $inputs['name'];
-        $name_kh = $inputs['name_kh'];
-        $city_id = $inputs['city_id'];
         $inputs['create_uid'] = $user->id;
         $inputs['update_uid'] = $user->id;
         $inputs['branch_id'] = $user->branch_id;
         $inputs['company_id'] = $user->company_id;
-        $create = City::create($inputs);
+        $existDistrict = District::where('city_id',$inputs['city_id'])->where('is_deleted',0)
+        ->where('name',$inputs['name'])->first();
+        if($existDistrict) return ApiResponse::Duplicated(__('messages.info',[
+            'info' => 'District ('.$inputs['name'].') is already exists'
+        ]));
+        $create = District::create($inputs);
         if($create) return ApiResponse::JsonResult(null,'Created');
         return ApiResponse::Error('failed to create');
     }
@@ -63,13 +65,17 @@ class DistrictController extends Controller
 
     public function updateDistrict(Request $req){
         $validate = $this->districtValidation($req);
-
         if($validate->fails()) return ApiResponse::ValidateFail($validate->errors()->first());
         $inputs = $validate->validated();
         $user = UserService::getAuthUser();
         $id = $req->id;
         $district = District::where('company_id',$user->company_id)->where('is_deleted',0)->find($id);
         if(!$district) return ApiResponse::NotFound(__('messages.not_found'));
+        $existDistrict = District::where('city_id',$inputs['city_id'])->where('id','!=',$id)->where('is_deleted',0)
+        ->where('name',$inputs['name'])->first();
+        if($existDistrict) return ApiResponse::Duplicated(__('messages.info',[
+            'info' => 'District ('.$inputs['name'].') is already exists'
+        ]));
         $inputs['update_uid'] = $user->id;
         $inputs['branch_id'] = $user->branch_id;
         $inputs['company_id'] = $user->company_id;

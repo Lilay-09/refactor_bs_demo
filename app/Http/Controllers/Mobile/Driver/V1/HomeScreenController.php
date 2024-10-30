@@ -5,8 +5,11 @@ namespace App\Http\Controllers\Mobile\Driver\V1;
 use ApiResponse;
 use App\Http\Controllers\Controller;
 use App\Models\Order;
+use App\Models\Package;
 use App\Services\GeneralSettingService;
 use App\Services\UserService;
+use DB;
+use Helper;
 use Illuminate\Http\Request;
 
 class HomeScreenController extends Controller
@@ -51,38 +54,50 @@ class HomeScreenController extends Controller
         return ApiResponse::Pagination($orders,$req);
     }
 
-    public function getDeliveryItem(Request $req){
+    public function getDelivery(Request $req){
         $user = $this->user;
         if($user->error) return ApiResponse::flex($user);
-        $orders = Order::where('is_deleted',0);
+        $driverId = $user->id;
+        $orders = Order::fromRaw('orders as o')->join('packages as p','p.order_id','o.id')->where('o.is_deleted',0)
+        ->selectRaw('o.id,o.code')->groupByRaw('o.id,o.code')->where('p.driver_id',$driverId)->get();
+        return ApiResponse::Pagination($orders,$req);
+    }
+
+    public function getDeliveryItem(Request $req){
+        $user = $this->user;
+        $oderId = $req->order_id;
+        $driverId = $user->id;
+        $packages = Package::where('order_id',$oderId)->where('is_deleted',0)->where('driver_id',$driverId)->get();
+        return ApiResponse::JsonResult($packages);
     }
 
     public function acceptOrder(Request $req){
         $orderId = $req->order_id;
         $user = $this->user;
         $user = UserService::getAuthUser('driver');
+        return $req->images;
+        return Helper::saveImageFile($req->image,$user->company_id,'order_image');
         // if($user->error) return ApiResponse::flex($user);
-        if($user->error) return ApiResponse::flex($user);
-        $order = Order::where('is_deleted',0)->find($orderId);
-        if(!$order) return ApiResponse::NotFound(__('messages.not_found',[
-            'info' => 'Order'
-        ]));
-        if($order->status_id != 1){
-            if($user->id != $order->driver_id) return ApiResponse::Duplicated(__('messages.info',[
-                'info' => 'This order is not available'
-            ]));
-            else return ApiResponse::Duplicated(__('messages.info',[
-                'info' => 'You have already accepted order ('.$order->code.')'
-            ]));
-        }
-        $order->update([
-            'status_id' => 3,
-            'driver_id' => $user->id
-        ]);
+        // $order = Order::where('is_deleted',0)->find($orderId);
+        // if(!$order) return ApiResponse::NotFound(__('messages.not_found',[
+        //     'info' => 'Order'
+        // ]));
+        // if($order->status_id != 1){
+        //     if($user->id != $order->driver_id) return ApiResponse::Duplicated(__('messages.info',[
+        //         'info' => 'This order is not available'
+        //     ]));
+        //     else return ApiResponse::Duplicated(__('messages.info',[
+        //         'info' => 'You have already accepted order ('.$order->code.')'
+        //     ]));
+        // }
+        // $order->update([
+        //     'status_id' => 3,
+        //     'driver_id' => $user->id
+        // ]);
 
-        return ApiResponse::JsonResult(null,__('messages.info',[
-            'info' => 'Order accepted'
-        ]));
+        // return ApiResponse::JsonResult(null,__('messages.info',[
+        //     'info' => 'Order accepted'
+        // ]));
 
     }
 

@@ -1,4 +1,5 @@
 <?php
+use Illuminate\Http\UploadedFile;
 use Milon\Barcode\DNS1D;
 class ApiResponse
 {
@@ -309,6 +310,37 @@ class Helper{
         } else {
             throw new Exception('Invalid base64 string.');
         }
+    }
+
+
+    public static function saveImageFile(UploadedFile $image, $companyId, $dirName = 'images')
+    {
+        // Validate the image type
+        $validMimeTypes = ['image/jpeg', 'image/png', 'image/jpg', 'image/gif'];
+        if (!in_array($image->getClientMimeType(), $validMimeTypes)) {
+            return null; // Invalid image type
+        }
+        $originalFilename = $image->getClientOriginalName();
+        $extension = $image->getClientOriginalExtension();
+        // Generate a unique filename based on the current timestamp
+        $filename = time() . '.' . $originalFilename;//
+
+        // Define the base folder path
+        $baseFolder = public_path('uploads/images/' . $companyId . '/' . $dirName);
+
+        // Create the directory if it does not exist
+        if (!is_dir($baseFolder)) {
+            mkdir($baseFolder, 0755, true); // Create the directory with the appropriate permissions
+        }
+
+        // Move the uploaded file to the specified directory
+        $image->move($baseFolder, $filename);
+
+        // Return the public URL of the stored image
+        return (object)[
+            'file_name' => $filename,
+            'ext' => $extension
+        ];
     }
 
 
