@@ -15,7 +15,8 @@ Route::middleware(['jwtDriver','localize'])->prefix('driver/v1/{lang}')->group(f
     Route::prefix('home')->group(function(){
         Route::get('availableOrders',[HomeScreenController::class,'getAvailableOrders']);
         Route::get('accepted/pickup',[HomeScreenController::class,'getAcceptedPickup']);
-        Route::get('accepted/delivery',[HomeScreenController::class,'getDeliveryItem']);
+        Route::get('accepted/delivery',[HomeScreenController::class,'getDelivery']);
+        Route::get('accepted/delivery/{order_id}/package',[HomeScreenController::class,'getDeliveryItem']);
         Route::put('accepted/pickup/{order_id}',[HomeScreenController::class,'updateAcceptedOrder']);
         Route::post('acceptOrder/{order_id}',[HomeScreenController::class,'acceptOrder']);
         Route::get('option/status',[HomeScreenController::class,'getOptionsStatus']);

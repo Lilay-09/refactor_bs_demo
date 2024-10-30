@@ -142,4 +142,9 @@ class PickupCenterService
         }
     }
 
+
+    public function saveOrderImage($image){
+
+    }
+
 }

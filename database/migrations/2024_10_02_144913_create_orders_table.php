@@ -31,6 +31,7 @@ return new class extends Migration
             $table->string('pickup_notes',500)->nullable();
             $table->dateTime('order_datetime')->nullable();
             $table->boolean('is_completed')->default(0);
+            $table->string('cancel_notes',500)->nullable();
             $table->decimal('loc_lat',9,6)->nullable();
             $table->decimal('loc_lng',9,6)->nullable();
             $table->dateTime('expiry_date')->nullable();

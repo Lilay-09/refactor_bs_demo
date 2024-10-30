@@ -44,9 +44,11 @@ class BrandImageController extends Controller
 
     public function getBrandImages(Request $req){
         $user = UserService::getAuthUser();
-        $brandImages = BrandImage::where('is_deleted',0)->where('company_id',$user->company_id)
-        ->selectRaw('id,channel,photo_file_name')
-        ->get();
+        $channel = $req->channel;
+        $qBI = BrandImage::where('is_deleted',0)->where('company_id',$user->company_id)
+        ->selectRaw('id,channel,photo_file_name');
+        if($channel) $qBI->where('channel',$channel);
+        $brandImages = $qBI->get();
         foreach($brandImages as $brandImage){
             $brandImage->image_url = Helper::getImageUrl($brandImage->photo_file_name,$user->company_id,$this->imgDir);
         }
