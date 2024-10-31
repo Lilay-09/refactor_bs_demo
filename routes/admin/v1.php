@@ -78,7 +78,11 @@ Route::middleware(['jwt','localize'])->prefix('admin/v1/{lang}')->group(function
             Route::put('delivery/package/{id}',[DriverTransactionController::class,'updateDeliveryPackage']);
             Route::post('delivery/receivePayment',[DriverTransactionController::class,'receivePackagesPayment']);
             Route::get('payment',[DriverTransactionController::class,'getPayments']);
+            Route::put('payment',[DriverTransactionController::class,'approvePayments']);
+            Route::get('settle/payment',[DriverTransactionController::class,'getApprovedPayments']);
+            Route::put('settle/payment',[DriverTransactionController::class,'settleApprovedPayments']);
             Route::delete('payment/{id}',[DriverTransactionController::class,'deletePayment']);
+            Route::get('balance',[DriverTransactionController::class,'getDriverBalance']);
         });
         //** Driver Commission Module */
         Route::prefix('commission')->group(function(){
@@ -277,8 +281,8 @@ Route::middleware(['jwt','localize'])->prefix('admin/v1/{lang}')->group(function
 
     Route::put('termCondition',[AppSettingController::class,'saveTermCondition']);
     Route::put('privacyStatement',[AppSettingController::class,'savePrivacyStatement']);
-    Route::get('privacyStatement',[AppSettingController::class,'getPrivacyStatement']);
-    Route::get('termCondition',[AppSettingController::class,'getTermCondition']);
+    Route::get('privacyStatement/{channel}',[AppSettingController::class,'getPrivacyStatement']);
+    Route::get('termCondition/{channel}',[AppSettingController::class,'getTermCondition']);
 
 
     Route::prefix('setting')->group(function(){
@@ -292,6 +296,7 @@ Route::middleware(['jwt','localize'])->prefix('admin/v1/{lang}')->group(function
             Route::get('city',[GeneralSettingController::class,'getOptionsCity']);
             Route::get('district',[GeneralSettingController::class,'getOptionsDistrict']);
             Route::get('commune',[GeneralSettingController::class,'getOptionsCommune']);
+            Route::get('currencyPair',[GeneralSettingController::class,'getOptionsCurrencyPair']);
             Route::get('country/city/{country_id}',[GeneralSettingController::class,'getOptionsCityByCountry']);
             Route::get('city/district/{city_id}',[GeneralSettingController::class,'getOptionsDistrictByCity']);
             Route::get('district/commune/{district_id}',[GeneralSettingController::class,'getOptionsCommuneByDistrict']);
@@ -305,6 +310,8 @@ Route::middleware(['jwt','localize'])->prefix('admin/v1/{lang}')->group(function
             Route::get('order/status',[GeneralSettingController::class,'getFormSetOrderStatus']);
             Route::get('packageTrail',[GeneralSettingController::class,'getFormPackageTrail']);
             Route::get('fleet',[GeneralSettingController::class,'getFormFleet']);
+            Route::get('promotion',[GeneralSettingController::class,'getFormPromotion']);
+            Route::get('remark',[GeneralSettingController::class,'getFormRemark']);
         });
     });
 });

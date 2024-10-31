@@ -134,6 +134,7 @@ class DriverManagementController extends Controller
     }
 
 
+
     public function createDriverAccount(Request $req){
         $user = UserService::getAuthUser();
         $driverId = $req->id;

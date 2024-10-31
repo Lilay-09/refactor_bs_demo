@@ -53,7 +53,7 @@ class UserManagementController extends Controller
         ];
 
         if(Helper::isValidBase64Image($photo)){
-            $photo_file = Helper::base64ToImageFile($photo,$authUser->company_id,'user_profile');
+            $photo_file = Helper::base64ToImageFile($photo,$authUser->company_id,'user_profile')->filename;
             $createArr['photo_file_name'] = $photo_file;
         }
 
@@ -97,7 +97,7 @@ class UserManagementController extends Controller
             // return ApiResponse::ValidateFail('fail now'.$user->created_at);
         }
         if(!$photo || Helper::isValidBase64Image($photo)){
-            $photo_file = Helper::base64ToImageFile($photo,$authUser->company_id,'user_profile');
+            $photo_file = Helper::base64ToImageFile($photo,$authUser->company_id,'user_profile')->filename;
             $updateArr['photo_file_name'] = $photo_file;
                 //** delete exists photo */
             Helper::deleteImageFile($user->photo_file_name,$authUser->company_id,'user_profile');

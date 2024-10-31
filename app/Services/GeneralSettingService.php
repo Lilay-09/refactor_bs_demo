@@ -32,7 +32,10 @@ class GeneralSettingService
         ['value' => 'merchant', 'label'=>'Merchant']
     ];
 
-    public static function optionChannels(){
+    public static function optionChannels($idx=null){
+        if($idx || $idx >= 0){
+            return [self::$channels[$idx]];
+        }
         return self::$channels;
     }
 
@@ -179,6 +182,15 @@ class GeneralSettingService
 
     public static function optionsDeliveryType(){
         return self::$deliveryTypes;
+    }
+
+    public static function optionCurrencyPair(){
+        return [
+            [
+                'label' => 'USD-KHR',
+                'value' => 'USD-KHR'
+            ]
+        ];
     }
 
     public static function optionsPriceListName($user){

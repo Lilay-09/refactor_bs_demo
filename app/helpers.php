@@ -113,6 +113,8 @@ class Helper{
     }
 
     static function dateYMD($date,$format='Y-m-d'){
+        $datetime = str_replace(" PM", "", $date);
+        $datetime = str_replace(" AM", "", $date);
         $date = preg_replace('/\s+\(.*?\)/', '', $date); // Remove "(Indochina Time)"
 
         // Format the GMT string to a compatible format for DateTime
@@ -138,7 +140,9 @@ class Helper{
     }
 
     static function dateDMY($date){
-        return $date ? date('d-M-Y',strtotime($date)):null;
+        $datetime = str_replace(" PM", "", $date);
+        $datetime = str_replace(" AM", "", $datetime);
+        return $date ? date('d-M-Y',strtotime($datetime)):null;
     }
 
     static function formatDateTime($datetime, $format = 'd-M-Y h:i:s', $useMeridiem = true) {
@@ -159,6 +163,8 @@ class Helper{
 
     static function formatCustomDateTime($datetime, $outputFormat = 'd-M-Y h:i:s', $useMeridiem = true) {
         if(!$datetime) return null;
+        $datetime = str_replace(" PM", "", $datetime);
+        $datetime = str_replace(" AM", "", $datetime);
         // Default timezone
         $timezone = new DateTimeZone(date_default_timezone_get());
 
@@ -271,18 +277,23 @@ class Helper{
      * @return string
      * Note* folder structure => public/uploads/images/companyId/dirname
      */
-    static function base64ToImageFile($base64String, $companyId, $dirName,$ext=null)
+    static function base64ToImageFile($base64String, $companyId, $dirName,$ext=null): object
     {
         $base64String = self::ensureBase64Prefix($base64String);
 
-        if(!self::isValidBase64Image($base64String)) return null;
+        if(!self::isValidBase64Image($base64String)) return (object)[
+            'filename' => null
+        ];
         // Construct the base directory path
         $baseFolder = public_path('uploads/images/' . $companyId . '/' . $dirName);
 
         // Check if the directory exists, if not, create it
         if (!file_exists($baseFolder)) {
             if (!mkdir($baseFolder, 0755, true)) {
-                throw new Exception('Failed to create directory: ' . $baseFolder);
+                // throw new Exception('Failed to create directory: ' . $baseFolder);
+                return (object)[
+                    'filename' => null
+                ];
             }
         }
 
@@ -293,7 +304,10 @@ class Helper{
             $imageData = base64_decode($imageData);
 
             if ($imageData === false) {
-                throw new Exception('Base64 decode failed.');
+                // throw new Exception('Base64 decode failed.');
+                return (object)[
+                    'filename' => null
+                ];
             }
             $fileExtension = $ext ? $ext : $fileExtension;
             // Generate a unique file name
@@ -303,12 +317,31 @@ class Helper{
             // Save the image file
             $filePath = $baseFolder . '/' . $fileName;
             if (file_put_contents($filePath, $imageData) === false) {
-                throw new Exception('Failed to save file to path: ' . $filePath);
+                // throw new Exception('Failed to save file to path: ' . $filePath);
+                return (object)[
+                    'filename' => null
+                ];
             }
             // Return the file name
-            return $fileName;
+            return (object)[
+                'filename' => $fileName,
+            ];
         } else {
-            throw new Exception('Invalid base64 string.');
+            // throw new Exception('Invalid base64 string.');
+            return (object)[
+                    'filename' => null
+                ];
+
+        }
+    }
+
+    public function saveImageFileOrBase64($imageOrBase64, $companyId, $dirName = 'images'){
+        if ($this->isValidBase64Image($imageOrBase64)) {
+            return $this->base64ToImageFile($imageOrBase64, $companyId, $dirName);
+        } elseif ($imageOrBase64 instanceof UploadedFile) {
+            return $this->saveImageFile($imageOrBase64, $companyId, $dirName);
+        } else {
+            throw new \Exception("Invalid image format.");
         }
     }
 
@@ -316,14 +349,17 @@ class Helper{
     public static function saveImageFile(UploadedFile $image, $companyId, $dirName = 'images')
     {
         // Validate the image type
-        $validMimeTypes = ['image/jpeg', 'image/png', 'image/jpg', 'image/gif'];
+        $validMimeTypes = ['image/jpeg', 'image/png', 'image/jpg', 'image/gif', 'image/heic', 'image/heif'];
         if (!in_array($image->getClientMimeType(), $validMimeTypes)) {
-            return null; // Invalid image type
+            return (object)[
+                'filename' => null,
+                'ext' => null
+            ];
         }
         $originalFilename = $image->getClientOriginalName();
         $extension = $image->getClientOriginalExtension();
         // Generate a unique filename based on the current timestamp
-        $filename = time() . '.' . $originalFilename;//
+        $filename = $companyId.date('YmdHis').uniqid() . $originalFilename;
 
         // Define the base folder path
         $baseFolder = public_path('uploads/images/' . $companyId . '/' . $dirName);
@@ -338,7 +374,7 @@ class Helper{
 
         // Return the public URL of the stored image
         return (object)[
-            'file_name' => $filename,
+            'filename' => $filename,
             'ext' => $extension
         ];
     }
@@ -448,6 +484,43 @@ class Helper{
         return false;
     }
 
+    static function  getDateDifference($startDate, $endDate, $unit='days,months,years') {
+        $start = new DateTime($startDate);
+        $end = new DateTime($endDate);
+
+        // Calculate the difference
+        $interval = $start->diff($end);
+
+        // Return the difference based on the specified unit
+        switch (strtolower($unit)) {
+            case 'days':
+                return $interval->days; // Total number of days
+            case 'months':
+                return $interval->m + ($interval->y * 12); // Total number of months
+            case 'years':
+                return $interval->y; // Total number of years
+            default:
+                throw new InvalidArgumentException('Invalid unit specified. Use "days", "months", or "years".');
+        }
+    }
+
+    static function newOTP($length=6)
+    {
+        return join('', array_map(function($value) { return $value == 1 ? mt_rand(1, 9) : mt_rand(0, 9); }, range(1, $length)));
+    }
+    static function getEndDate($days=0,$months=0,$years=0) {
+        // Get the current date
+        $currentDate = new DateTime();
+
+        // Add the specified number of days
+        $currentDate->modify("+$days days");
+        $currentDate->modify("+$months months");
+        $currentDate->modify("+$years years");
+
+        // Return the end date in a desired format (e.g., 'Y-m-d')
+        return $currentDate->format('Y-m-d h:i:s');
+    }
+
     static function formatNumber($num,$len)
     {
         if ($len<=0) $len =5;
@@ -512,9 +585,12 @@ class Helper{
     }
 
     static function timeAgo($datetime,$useSecond=true) {
-    // Convert the datetime string into a timestamp
+        // Convert the datetime string into a timestamp
+        $datetime = str_replace(" PM", "", $datetime);
+        $datetime = str_replace(" AM", "", $datetime);
         $timestamp = strtotime($datetime);
 
+        // Check if the conversion was successful
         if ($timestamp === false) {
             return 'Invalid date format';
         }
@@ -529,6 +605,8 @@ class Helper{
             'hour' => 60 * 60,
             'minute' => 60,
         ];
+
+        // Include seconds if the parameter is true
         if ($useSecond) {
             $units['second'] = 1;
         }
@@ -548,12 +626,19 @@ class Helper{
         return !empty($result) ? implode(', ', $result) . ' ago' : 'just now';
     }
 
-    static function currencySymbol($code='USD'){
+    static function displayMoney($amount, $code = 'USD') {
         $symbols = [
             'USD' => '$',
             'KHR' => '៛'
         ];
-        return $symbols[$code] ?? null;
+
+        if ($code === 'USD') {
+            return isset($symbols[$code]) ? ($symbols[$code] . $amount) : null;
+        } else if ($code === 'KHR') {
+            return isset($symbols[$code]) ? ($amount . $symbols[$code]) : null;
+        } else {
+            return null; // Return null if the currency code is not found
+        }
     }
 
 }

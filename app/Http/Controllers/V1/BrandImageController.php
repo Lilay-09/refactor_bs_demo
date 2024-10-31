@@ -35,10 +35,12 @@ class BrandImageController extends Controller
         $inputs['company_id'] = $user->company_id;
         $photo = $inputs['photo'] ?? null;
         unset($inputs['photo']);
-        $inputs['photo_file_name'] = Helper::base64ToImageFile($photo,$user->company_id,$this->imgDir);
+        $img = Helper::base64ToImageFile($photo,$user->company_id,$this->imgDir);
+        $inputs['photo_file_name'] = $img->filename;
         BrandImage::create($inputs);
         return ApiResponse::JsonResult(null,__('messages.created',[
-            'info' => 'Brand Image'
+            'info' => 'Brand Image',
+            'khInfo' => 'សដថសដ'
         ]));
     }
 
@@ -84,9 +86,8 @@ class BrandImageController extends Controller
         $photo = $inputs['photo'] ?? null;
         unset($inputs['photo']);
         if(Helper::isValidBase64Image($photo) || !$photo){
-            $imgFile = Helper::base64ToImageFile($photo,$user->company_id,$this->imgDir);
-            if($imgFile) $inputs['photo_file_name'] = $imgFile;
-            else $inputs['photo_file_name'] = null;
+            $img = Helper::base64ToImageFile($photo,$user->company_id,$this->imgDir);
+            $inputs['photo_file_name'] = $img->filename;
             Helper::deleteImageFile($brandImage->photo_file_name,$user->company_id,$this->imgDir);
         }
         $update = $brandImage->update($inputs);

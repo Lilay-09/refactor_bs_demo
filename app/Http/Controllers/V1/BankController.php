@@ -55,7 +55,8 @@ class BankController extends Controller
         $existsBank = Bank::where('is_deleted',0)->where('name',$inputs['name'])->first();
         if($existsBank) return ApiResponse::JsonResult(null,__('messages.error', ['info' => 'Bank already exists']));
         if($photo){
-            $inputs['photo_file_name'] = Helper::base64ToImageFile($photo,$user->company_id,$this->imgDir);
+            $img = Helper::base64ToImageFile($photo,$user->company_id,$this->imgDir);
+            $inputs['photo_file_name'] = $img->filename;
         }
         $create = Bank::create($inputs);
         if(!$create) {
@@ -83,8 +84,11 @@ class BankController extends Controller
         if(Helper::isValidBase64Image($photo) || !$photo){
             Helper::deleteImageFile($bank->photo_file_name,$user->company_id,$this->imgDir);
             $inputs['photo_file_name'] = null;
-            if(Helper::isValidBase64Image($photo))
-                $inputs['photo_file_name'] = Helper::base64ToImageFile($photo,$user->company_id,$this->imgDir);
+            if(Helper::isValidBase64Image($photo)){
+                $img = Helper::base64ToImageFile($photo,$user->company_id,$this->imgDir);
+                $inputs['photo_file_name'] = $img->filename;
+            }
+
         }
         $update = $bank->update($inputs);
         if(!$update) return ApiResponse::Error('Fail to update');

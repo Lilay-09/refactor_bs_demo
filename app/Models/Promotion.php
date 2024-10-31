@@ -15,6 +15,8 @@ class Promotion extends Model
         'title',
         'description',
         'channel',
+        'start_date',
+        'end_date',
         'photo_file_name',
         'create_uid',
         'update_uid',

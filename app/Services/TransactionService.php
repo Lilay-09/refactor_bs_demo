@@ -6,9 +6,11 @@ use App\Models\Bank;
 use App\Models\Package;
 use App\Models\Payment;
 use App\Models\PaymentDetail;
+use App\Models\User;
 use DataResponse;
 use DB;
 use Exception;
+use Helper;
 use Illuminate\Http\Request;
 use Log;
 
@@ -40,7 +42,6 @@ class TransactionService
         $packageIds = $inputs['packages'];
         $validPackages = $this->validPackages($packageIds,$payerId,$type);
         if($validPackages->error) return $validPackages;
-        return $validPackages;
         $exchangeRate = $inputs['exchange_rate'];
         $cashKh = $inputs['cash_kh'] ?? 0;
         $cash = $inputs['cash'] ?? 0;
@@ -49,6 +50,7 @@ class TransactionService
         $bankAmountKh = $inputs['bank_amount_kh'] ?? 0;
         $dueAmount = $validPackages->driver_total;
         $totalTaxiFee = $validPackages->total_taxi_fee;
+        $dueAmount = $dueAmount - $totalTaxiFee;
         // $cashKhToUS = $cashKh / $exhangeRate;
         // $bankAmountKhToUS = $bankAmountKh / $exhangeRate;
         // $totalInputAmount = $cash + $cashKhToUS + $bankAmountKhToUS + $bankAmount;
@@ -65,9 +67,9 @@ class TransactionService
             $createPayment = Payment::create([
                 'payer_id' => $payerId,
                 'payer_type' => $type,
-                'taxi_fee' => $validPayment->total_taxi_fee,
-                'delivery_fee' => $validPayment->total_taxi_fee,
-                'payable_fee' => $validPayment->payable_fee,
+                'taxi_fee' => $validPackages->total_taxi_fee,
+                'delivery_fee' => $validPackages->total_delivery_fee,
+                'payable_fee' => $validPayment->total_input_amount,
                 'create_uid' => $user->id,
                 'receiver_uid' => $user->id,
                 'amount' => $validPayment->total_input_amount,
@@ -127,7 +129,7 @@ class TransactionService
                 ];
                 Package::find($id)->update($fkField);
             }
-            // DB::commit();
+            DB::commit();
             // return Package::whereIn('id',$packageIds)->get();
             // return Payment::get();
             return DataResponse::JsonResult(null,false,__('messages.created',[
@@ -140,6 +142,7 @@ class TransactionService
             return DataResponse::Error(__('messages.error',['info' => 'Fail to receive']));
         }
     }
+
 
     private function validPayment($cash,$cashKh,$bankAmount,$bankAmountKh,$bankId,$dueAmount,$exhangeRate){
         $bankName = null;
@@ -272,7 +275,6 @@ class TransactionService
             }
 
         }
-        // $payableAmount = $
         return DataResponse::JsonRaw([
             'error' => false,
             'pacakage_ids' => $packageIds,
@@ -289,6 +291,26 @@ class TransactionService
     public function getPayments(Request $req,$user){
         $qP = Payment::fromRaw('payments as p')->join('users as d','d.id','p.payer_id')
         ->where('p.is_deleted',0)
+        ->selectRaw('p.id as payment_id,d.user_name as payer_name,p.exchange_rate,p.amount,p.taxi_fee,p.approved');
+        $payments = $qP->get();
+        $paymentDetails = PaymentDetail::get();
+        foreach($payments as $pmt){
+            $pmt_details = $this->preparePaymentPackageAmount($paymentDetails,$pmt->payment_id);
+            $totalUSD = $pmt_details->total_usd;
+            $totalKHR = $pmt_details->total_khr;
+            $pmt->total_usd = Helper::displayMoney($totalUSD,'USD');
+            $pmt->total_khr = Helper::displayMoney($totalKHR,'KHR');
+            $totalKHR_to_USD = $totalKHR/$pmt->exchange_rate;
+            $totalKHR_to_USD = floor($totalKHR_to_USD * 100) / 100;
+            $pmt->total = $totalUSD + $totalKHR_to_USD;
+        }
+        return DataResponse::Pagination($payments,$req);
+    }
+
+    public function getApprovedPayments(Request $req,$user){
+        $qP = Payment::fromRaw('payments as p')->join('users as d','d.id','p.payer_id')
+        ->where('p.is_deleted',0)
+        ->where('p.approved',1)
         ->selectRaw('p.id as payment_id,d.user_name as payer_name,p.exchange_rate,p.amount,p.taxi_fee');
         $payments = $qP->get();
         $paymentDetails = PaymentDetail::get();
@@ -296,13 +318,12 @@ class TransactionService
             $pmt_details = $this->preparePaymentPackageAmount($paymentDetails,$pmt->payment_id);
             $totalUSD = $pmt_details->total_usd;
             $totalKHR = $pmt_details->total_khr;
-            $pmt->total_usd = $totalUSD;
-            $pmt->total_khr = $totalKHR;
+            $pmt->total_usd = Helper::displayMoney($totalUSD,'USD');
+            $pmt->total_khr = Helper::displayMoney($totalKHR,'KHR');
             $totalKHR_to_USD = $totalKHR/$pmt->exchange_rate;
             $totalKHR_to_USD = floor($totalKHR_to_USD * 100) / 100;
             $pmt->total = $totalUSD + $totalKHR_to_USD;
         }
-
         return DataResponse::Pagination($payments,$req);
     }
 
@@ -351,5 +372,72 @@ class TransactionService
             }
         }
         return $converter;
+    }
+
+
+    public function approvePayments(Request $req,$user){
+        $paymentIds = $req->payments ?? [];
+        if(!isset($paymentIds[0])) return DataResponse::ValidateFail(__('messages.info',[
+            'info' => 'Please check payments you want to approve'
+        ]));
+
+        DB::beginTransaction();
+        try{
+            foreach($paymentIds as $id){
+                $pmt = Payment::where('is_deleted',0)->find($id);
+                if(!$pmt) return DataResponse::ValidateFail(__('messages.info',[
+                    'info' => 'check list includes invalid payment'
+                ]));
+                $pmt->update([
+                    'approved' => 1,
+                    'approved_uid' => $user->id,
+                ]);
+            }
+            DB::commit();
+            return DataResponse::JsonResult(null,__('messages.info',[
+                'info' => 'Approved'
+            ]));
+        }catch(Exception $e){
+            DB::rollBack();
+        }
+    }
+
+    public function settlePayments(Request $req,$user){
+        $paymentIds = $req->payments ?? [];
+        if(!isset($paymentIds[0])) return DataResponse::ValidateFail(__('messages.info',[
+            'info' => 'Please check payments you want to approve'
+        ]));
+
+        DB::beginTransaction();
+        try{
+            foreach($paymentIds as $id){
+                $pmt = Payment::where('is_deleted',0)->find($id);
+                if(!$pmt) return DataResponse::ValidateFail(__('messages.info',[
+                    'info' => 'check list includes invalid payment'
+                ]));
+                $pmt->update([
+                    'approved' => 1,
+                    'approved_uid' => $user->id,
+                ]);
+            }
+            // DB::commit();
+            return DataResponse::JsonResult(null,__('messages.info',[
+                'info' => 'Approved'
+            ]));
+        }catch(Exception $e){
+            DB::rollBack();
+        }
+    }
+
+    public function getDriverBalance(Request $req,$user){
+        $qP = User::from('users as d')
+            ->where('d.is_deleted', 0)
+            ->where('d.company_id', $user->company_id) // Uncomment if needed
+            ->join('packages as p', 'p.driver_id', '=', 'd.id')
+            ->leftJoin('payments as pmt','p.driver_payment_id','pmt.id')
+            ->selectRaw('d.id, count(p.id) as package_count,d.user_name as driver_name,d.code,pmt.payable_amount')
+            ->groupBy('d.id');
+        $drivers = $qP->get();
+        return DataResponse::Pagination($drivers,$req);
     }
 }

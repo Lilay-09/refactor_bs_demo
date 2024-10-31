@@ -154,10 +154,23 @@ class GeneralSettingController extends Controller
         ];
         return ApiResponse::JsonResult($obj);
     }
+
+    public function getFormPromotion(){
+        return ApiResponse::JsonResult($this->gs::optionChannels(1));
+    }
+
+    public function getFormRemark(){
+        return ApiResponse::JsonResult($this->gs::optionChannels(0));
+    }
     public function getOptionsDriver(){
         $user = UserService::getAuthUser();
         return ApiResponse::JsonResult($this->gs::optionsDriver($user));
     }
+
+    public function getOptionsCurrencyPair(){
+        return ApiResponse::JsonResult($this->gs::optionCurrencyPair());
+    }
+
 
     // public function getFormUser(){
     //     $user = UserService::getAuthUser();
