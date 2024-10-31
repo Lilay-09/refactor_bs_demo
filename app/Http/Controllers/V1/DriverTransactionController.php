@@ -38,21 +38,43 @@ class DriverTransactionController extends Controller
         return ApiResponse::Pagination($packages,$req);
     }
 
+    public function getDriverBalance(Request $req){
+        $user = UserService::getAuthUser();
+        $trxService = new TransactionService();
+        $receive = $trxService->getDriverBalance($req,$user);
+        return ApiResponse::flex($receive);
+    }
+
     // DELIVERIES part
     public function receivePackagesPayment(Request $req){
         $user = UserService::getAuthUser();
         $trxService = new TransactionService();
         $receive = $trxService->receiverPaymentService($req,$user,'driver');
-        return $receive;
         return ApiResponse::flex($receive);
-
     }
 
     public function getPayments(Request $req){
         $user = UserService::getAuthUser();
         $trxService = new TransactionService();
         return ApiResponse::flex($trxService->getPayments($req,$user));
+    }
 
+    public function getApprovedPayments(Request $req){
+        $user = UserService::getAuthUser();
+        $trxService = new TransactionService();
+        return ApiResponse::flex($trxService->getApprovedPayments($req,$user));
+    }
+
+    public function settlePayments(Request $req){
+        $user = UserService::getAuthUser();
+        $trxService = new TransactionService();
+        return ApiResponse::flex($trxService->settlePayments($req,$user));
+    }
+
+    public function approvePayments(Request $req){
+        $user = UserService::getAuthUser();
+        $trxService = new TransactionService();
+        return ApiResponse::flex($trxService->approvePayments($req,$user));
     }
     public function deletePayment(Request $req){
         $user = UserService::getAuthUser();

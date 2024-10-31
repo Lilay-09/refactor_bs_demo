@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Mobile\Driver\V1;
 use ApiResponse;
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Services\Mobile\AuthService;
 use App\Services\UserService;
 use Helper;
 use Illuminate\Http\Request;
@@ -33,7 +34,6 @@ class AuthController extends Controller
         $user = User::where('email',$account)->orWhere('phone',$account)->orWhere('login_name',$account)->selectRaw('photo_file_name,email,phone,id,system_admin,lock,company_id,account_type,login_name')->first();
         $systemAdmin = $user->system_admin ?? false;
         $isLock = $user->lock ?? false;
-        Log::error($user->id);
         if($isLock) {
             if(!$systemAdmin) return ApiResponse::Unauthorized('You have no access to this application.');
         }
@@ -86,14 +86,7 @@ class AuthController extends Controller
 
     public function getProfile(Request $req){
         $user = UserService::getAuthUser('driver');
-        if($user->error) return ApiResponse::flex($user);
-        $user = User::where('lock',0)->where('is_deleted',0)
-        ->selectRaw('id,user_name,phone,email,address')
-        ->find($user->id);
-        if(!$user) return ApiResponse::NotFound('User not found');
-        $user->image_url = Helper::getImageUrl($user->photo_file_name,$user->company_id,'user_profile');
-        return ApiResponse::JsonResult($user,__('messages.info',[
-            'info' => 'Get Profile'
-        ]));
+        $authService = new AuthService();
+        return ApiResponse::flex($authService->getProfile($user));
     }
 }

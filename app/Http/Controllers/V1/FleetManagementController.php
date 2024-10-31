@@ -46,22 +46,19 @@ class FleetManagementController extends Controller
         $user = UserService::getAuthUser();
         $trip_id = $req->trip_id;
         $package_id = $req->package_id;
-        $status = $req->status;
+        $status_id = $req->status_id;
         $failure_notes = $req->failure_notes ?? null;
         $delivery = Delivery::where('is_deleted',0)->find($trip_id);
         if(!$delivery) return ApiResponse::NotFound(__('messages.not_found',['info' => 'Trip']));
-        if(!$status) return ApiResponse::ValidateFail(__('messages.not_found',['info' => 'Status']));
+        if(!$status_id || !in_array($status_id,[9,10,19])) return ApiResponse::ValidateFail(__('messages.not_found',['info' => 'Status']));
         $package = Package::where('company_id',$user->company_id)->where('is_deleted',0)->find($package_id);
         if(!$package) return ApiResponse::NotFound(__('messages.not_found',['info' => 'Package','khInfo' => 'កញ្ចប់']));
         if(!in_array($package->status_id,[6,9,10,19])) return ApiResponse::ValidateFail(__('messages.error',['info' => 'Package must be on delivery before set to delivered,failed or failed with fee.']));
-        $status_id = 9; // delivered
-        if($status == 1) $status_id = 10; // failed
-        if($status == 3) $status_id = 19; // failed with fee
-        $failDatetime = ($status == 1 || $status == 3) ? now() : null;
-        $deliveredDatetime = $status == 2 ? now():null;
+        $failDatetime = ($status_id == 10 || $status_id == 19) ? now() : null;
+        $deliveredDatetime = $status_id == 9 ? now():null;
         $package->update([
             'update_uid' => $user->id,
-            'failure_notes' => $status == 1 ? $failure_notes : null,
+            'failure_notes' => $failure_notes,
             'failed_datetime' => $failDatetime,
             'delivered_datetime' => $deliveredDatetime,
             'status_id' => $status_id
@@ -69,7 +66,7 @@ class FleetManagementController extends Controller
 
         DeliveryPackage::where('package_id',$package_id)->update([
             'update_uid' => $user->id,
-            'failure_notes' => $status == 1 ? $failure_notes : null,
+            'failure_notes' => $failure_notes,
             'failed_datetime' => $failDatetime,
             'delivered_datetime' => $deliveredDatetime,
             'status_id' => $status_id

@@ -1,11 +1,14 @@
 <?php
 use App\Http\Controllers\Mobile\Driver\V1\AuthController;
+use App\Http\Controllers\Mobile\Merchant\V1\AuthController as AuthMerchantController;
 use App\Http\Controllers\Mobile\Driver\V1\HomeScreenController;
 use Illuminate\Support\Facades\Route;
 
 
 
-Route::prefix('driver/v1/auth')->group(function(){
+//BEGIN::Driver
+
+Route::prefix('driver/v1/{lang}/auth')->middleware('localize')->group(function(){
     Route::post('login',[AuthController::class,'login']);
     Route::middleware('jwtDriver')->group(function(){
         Route::get('profile',[AuthController::class,'getProfile']);
@@ -23,8 +26,27 @@ Route::middleware(['jwtDriver','localize'])->prefix('driver/v1/{lang}')->group(f
     });
 });
 
+//END::Driver
 
 
+
+//BEGIN::Merchant
+
+Route::prefix('merchant/v1/{lang}/auth')->middleware('localize')->group(function(){
+    Route::post('login',[AuthMerchantController::class,'login']);
+    Route::post('registration',[AuthMerchantController::class,'merchantRegistration']);
+    Route::post('verifyOtp',[AuthMerchantController::class,'verifyOtp']);
+    Route::middleware('jwtMerchant')->group(function(){
+        Route::get('profile',[AuthMerchantController::class,'getProfile']);
+    });
+});
+
+Route::middleware(['jwtMerchant','localize'])->prefix('merchant/v1/{lang}')->group(function(){
+
+});
+
+
+//END::Merchant
 
 
 

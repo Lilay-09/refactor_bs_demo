@@ -2,6 +2,7 @@
 
 use App\Http\Middleware\JwtAuthMiddleware;
 use App\Http\Middleware\JwtDriverMiddleware;
+use App\Http\Middleware\JwtMerchantMiddleware;
 use App\Http\Middleware\Localization;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -19,6 +20,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'jwt' => JwtAuthMiddleware::class,
             'jwtDriver' => JwtDriverMiddleware::class,
+            'jwtMerchant' => JwtMerchantMiddleware::class,
             'localize' => Localization::class
         ]);
     })

@@ -17,6 +17,8 @@ return new class extends Migration
             $this->AddBaseFields($table);
             $table->string('title',250)->nullable();
             $table->string('channel',35)->nullable();
+            $table->datetime('start_date')->nullable();
+            $table->datetime('end_date')->nullable();
             $table->string('description',1000)->nullable();
             $table->string('photo_file_name',200)->nullable();
         });

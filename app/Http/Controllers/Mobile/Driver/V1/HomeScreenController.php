@@ -72,33 +72,32 @@ class HomeScreenController extends Controller
     }
 
     public function acceptOrder(Request $req){
-        $orderId = $req->order_id;
         $user = $this->user;
+        $orderId = $req->order_id;
         $user = UserService::getAuthUser('driver');
-        return $req->images;
-        return Helper::saveImageFile($req->image,$user->company_id,'order_image');
-        // if($user->error) return ApiResponse::flex($user);
-        // $order = Order::where('is_deleted',0)->find($orderId);
-        // if(!$order) return ApiResponse::NotFound(__('messages.not_found',[
-        //     'info' => 'Order'
-        // ]));
-        // if($order->status_id != 1){
-        //     if($user->id != $order->driver_id) return ApiResponse::Duplicated(__('messages.info',[
-        //         'info' => 'This order is not available'
-        //     ]));
-        //     else return ApiResponse::Duplicated(__('messages.info',[
-        //         'info' => 'You have already accepted order ('.$order->code.')'
-        //     ]));
-        // }
-        // $order->update([
-        //     'status_id' => 3,
-        //     'driver_id' => $user->id
-        // ]);
+        if($user->error) return ApiResponse::flex($user);
+        $order = Order::where('is_deleted',0)->find($orderId);
+        if(!$order) return ApiResponse::NotFound(__('messages.not_found',[
+            'info' => 'Order'
+        ]));
 
-        // return ApiResponse::JsonResult(null,__('messages.info',[
-        //     'info' => 'Order accepted'
-        // ]));
+        if($order->status_id != 1){
+            if($user->id != $order->driver_id) return ApiResponse::Duplicated(__('messages.info',[
+                'info' => 'This order is not available'
+            ]));
+            else return ApiResponse::Duplicated(__('messages.info',[
+                'info' => 'You have already accepted order ('.$order->code.')'
+            ]));
+        }
 
+        $order->update([
+            'status_id' => 3,
+            'driver_id' => $user->id
+        ]);
+
+        return ApiResponse::JsonResult(null,__('messages.info',[
+            'info' => 'Order accepted'
+        ]));
     }
 
 

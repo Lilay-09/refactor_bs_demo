@@ -18,6 +18,7 @@ class PromotionController extends Controller
         return validator($req->all(),[
             'title' => 'required|string|max:100',
             'description' => 'required|string|max:1000',
+            'expires_days' => 'required|int',
             'photo' => 'nullable|string',
             'channel' => 'nullable|in:merchant,driver,sale'
         ]);
@@ -33,7 +34,10 @@ class PromotionController extends Controller
         $inputs['branch_id'] = $user->branch_id;
         $photo = $inputs['photo'] ?? null;
         $inputs['channel'] = $inputs['channel'] ?? 'merchant';
-        $inputs['photo_file_name'] = Helper::base64ToImageFile($photo,$user->company_id,$this->imgDir);
+        $days = $inputs['expires_days'];
+        $inputs['start_date'] = now();
+        $inputs['end_date'] = Helper::getEndDate($days);
+        $inputs['photo_file_name'] = Helper::base64ToImageFile($photo,$user->company_id,$this->imgDir)->filename;
         Promotion::create($inputs);
         return ApiResponse::JsonResult(null,__('messages.created',[
             'info' => 'Promotion'
@@ -43,10 +47,11 @@ class PromotionController extends Controller
     public function getPromotions(Request $req){
         $user = UserService::getAuthUser();
         $promotions = Promotion::where('company_id',$user->company_id)->where('is_deleted',0)
-        ->selectRaw('id,title,photo_file_name,updated_at')
+        ->selectRaw('id,title,photo_file_name,start_date,end_date')
         ->get();
         foreach($promotions as $promotion){
             $promotion->image_url = Helper::getImageUrl($promotion->photo_file_name,$user->company_id,$this->imgDir);
+            $promotion->expirs_days = Helper::getDateDifference($promotion->start_date,$promotion->end_date,'days');
         }
 
         return ApiResponse::Pagination($promotions,__('messages.Get List',[
@@ -64,6 +69,7 @@ class PromotionController extends Controller
             'info' => 'Promotion'
         ]));
         $promotion->image_url = Helper::getImageUrl($promotion->photo_file_name,$user->company_id,$this->imgDir);
+        $promotion->expirs_days = Helper::getDateDifference($promotion->start_date,$promotion->end_date,'days');
         return ApiResponse::JsonResult($promotion,__('messages.get one',[
             'info' => 'Promotion'
         ]));
@@ -85,8 +91,11 @@ class PromotionController extends Controller
         $inputs['company_id'] = $user->company_id;
         $inputs['branch_id'] = $user->branch_id;
         $photo = $inputs['photo'] ?? null;
+        $days = $inputs['expires_days'];
+        $inputs['start_date'] = now();
+        $inputs['end_date'] = Helper::getEndDate($days);
         if(Helper::isValidBase64Image($photo) || !$photo){
-            $imgFile = Helper::base64ToImageFile($photo,$user->company_id,$this->imgDir);
+            $imgFile = Helper::base64ToImageFile($photo,$user->company_id,$this->imgDir)->filename;
             if($imgFile) $inputs['photo_file_name'] = $imgFile;
             else $inputs['photo_file_name'] = null;
             Helper::deleteImageFile($promotion->photo_file_name,$user->company_id,$this->imgDir);

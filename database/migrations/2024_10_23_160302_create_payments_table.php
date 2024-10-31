@@ -26,14 +26,17 @@ return new class extends Migration
             $table->unsignedInteger('package_count')->default(0);
             $table->unsignedInteger('delivered_package_count')->default(0);
             $table->boolean('approved')->default(false);
+            $table->boolean('is_settled')->default(false);
             $table->string('remarks',500)->nullable();
             $table->string('breakdown_notes',500)->nullable();
-            $table->unsignedBigInteger('approve_uid')->nullable();
+            $table->unsignedBigInteger('approved_uid')->nullable();
+            $table->unsignedBigInteger('settled_uid')->nullable();
             $table->unsignedBigInteger('receiver_uid');
             $table->decimal('exchange_rate')->default(0);
             $table->datetime('payment_datetime')->nullable();
-            $table->foreign('approve_uid')->references('id')->on('users');
+            $table->foreign('approved_uid')->references('id')->on('users');
             $table->foreign('receiver_uid')->references('id')->on('users');
+            $table->foreign('settled_uid')->references('id')->on('users');
         });
     }
     /**
