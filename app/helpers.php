@@ -62,7 +62,7 @@ class ApiResponse
             'errors' => []
         ],500);
     }
-    static function Pagination($data,$filter=null,$message=null){
+    static function Pagination($data,$filter=null,$message=null,$additionalKey=[]){
         $filter = (object)$filter;
         $perPage = isset($filter->per_page) ? $filter->per_page : 10;
         $currentPage = isset($filter->page_no) ? $filter->page_no : 1;
@@ -74,7 +74,7 @@ class ApiResponse
 
         $count = $data->count();
         $total_page = ceil($count/$perPage);
-        return response()->json([
+        $obj = (object)[
             'status' => "OK",
             'error' => false,
             'message'=> $message,
@@ -84,7 +84,11 @@ class ApiResponse
             'total_page' => $total_page,
             'page_no' => $currentPage,
             'errors'=>[],
-        ],200);
+        ];
+        foreach ((object)$additionalKey as $key => $value) {
+            $obj->$key = $value;
+        }
+        return response()->json($obj,200);
     }
 
     static function Forbidden($message='Has no permmision to access')
@@ -416,7 +420,6 @@ class Helper{
             // File exists, return the public URL
             return asset($relativeFilePath);
         }
-
         // File does not exist, return a default placeholder URL or null
         return null; // Adjust with your placeholder image path
     }
@@ -525,6 +528,25 @@ class Helper{
     {
         if ($len<=0) $len =5;
         return str_pad($num, $len, '0', STR_PAD_LEFT);
+    }
+
+
+    static function getLatLongFromGoogleMapsUrl($url)
+    {
+        // Regular expression to capture latitude and longitude from Google Maps URL
+        $pattern = '/@([-+]?[0-9]*\.?[0-9]+),([-+]?[0-9]*\.?[0-9]+)/';
+
+        if (preg_match($pattern, $url, $matches)) {
+            return (object)[
+                'latitude' => $matches[1],
+                'longitude' => $matches[2],
+            ];
+        }
+
+        return (object)[
+            'latitude' => null,
+            'longitude' => null,
+        ]; // Return null if no coordinates found
     }
 
     static function setRefCode($tbl_code_control,$target_tbl,$target_col,$branch_id,$company_id,$newID,$issue_date = null,$prefix='CODE', $len = 5,$onSuccess = null){
@@ -722,7 +744,7 @@ class DataResponse //extends Model
         ];
     }
 
-    static function Pagination($data, $filter = null, $message = "get list",$addionalKey=[])
+    static function Pagination($data, $filter = null, $message = "get list",$additionalKey=[])
     {
         $filter = (object)$filter;
         $perPage = isset($filter->per_page) ? $filter->per_page : 10;
@@ -746,8 +768,10 @@ class DataResponse //extends Model
             'total_page' => $total_page,
             'page_no' => $currentPage,
             'errors'=>[],
-
         ];
+        foreach ((object)$additionalKey as $key => $value) {
+            $obj->$key = $value;
+        }
         return $obj;
     }
 

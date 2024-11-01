@@ -16,7 +16,7 @@ return new class extends Migration
         Schema::create('order_images', function (Blueprint $table) {
             $this->AddBaseFields($table);
             $table->unsignedBigInteger('order_id');
-            $table->string('photo_file_name')->nullable();
+            $table->string('photo_file_name',200)->nullable();
             $table->string('size',10)->nullable();
             $table->foreign('order_id')->references('id')->on('orders');
         });

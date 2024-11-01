@@ -15,7 +15,7 @@ return new class extends Migration
     {
         Schema::create('privacy_statements', function (Blueprint $table) {
             $this->AddBaseFields($table);
-            $table->string('text')->nullable();
+            $table->text('text')->nullable();
             $table->string('channel',35)->nullable();
         });
     }

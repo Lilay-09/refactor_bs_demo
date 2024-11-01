@@ -2,6 +2,7 @@
 
 namespace App\Services;
 use ApiResponse;
+use App\Models\MerchantPriceList;
 use App\Models\User;
 use App\Models\UserBank;
 use App\Models\UserRoles;
@@ -98,6 +99,13 @@ class UserService
             $baseFields['user_name'] = 'required|max:100';
             return validator($req->all(),$baseFields);
         }else if($userClass == 'merchant'){
+            $baseFields['client_type_id'] = 'nullable|int';
+            $baseFields['business_type'] = 'nullable|string|max:50';
+            $baseFields['cod'] = 'nullable|in:1,0';
+            $baseFields['cod_fee'] = 'nullable|numeric|max:100';
+            $baseFields['price_list_id'] = 'required|exists:price_list,id';
+            $baseFields['referrer_uid'] = 'nullable|int';
+            $baseFields['pin_address'] = 'nullable|string';
             return validator($req->all(),$baseFields);
         }
     }
@@ -117,21 +125,23 @@ class UserService
         if($user_class == 'admin') $inputs['has_account'] = 1;
         $nationalId = $inputs['national_id'] ?? null;
         $email = $inputs['email'] ?? null;
+        $pin_address = $inputs['pin_address'] ?? null;
+        $phone = $inputs['phone'];
+        $priceListId = $inputs['price_list_id'] ?? null;
+        if($pin_address){
+            $getLatLng = Helper::getLatLongFromGoogleMapsUrl($pin_address);
+            $inputs['latitude'] = $getLatLng->latitude ?? 0;
+            $inputs['longitude'] = $getLatLng->longitude ?? 0;
+        }
         unset($inputs['bank_info'],$inputs['photo'],$inputs['role_id']);
         DB::beginTransaction();
         try{
             if($id){
                 $user = User::where('account_type',$user_class)->where('is_deleted',0)->find($id);
                 if(!$user) return DataResponse::NotFound(__('messages.not_found',['info' => 'User']));
-                $update = $user->update($inputs);
-                if(!$update) return DataResponse::Error(__('messages.error',['info' => 'Fail to update']));
-                $userId = $id;
-            }else{
-                $inputs['create_uid'] = $user->id;
-                $existsInfo = User::where('account_type',$user_class)->where('is_deleted',0);
-                $existsEmail = $existsInfo->whereNotNull('email')->where('email',$email)->first();
-                $existsPhone = $existsInfo->whereNotNull('phone')->where('phone',$inputs['phone'])->first();
-                $existsNationalId = $existsInfo->whereNotNull('national_id')->where('national_id',$nationalId)->first();
+                $existsEmail = User::where('account_type',$user_class)->where('is_deleted',0)->where('id','!=',$id)->whereNotNull('email')->where('email',$email)->first();
+                $existsPhone = User::where('account_type',$user_class)->where('is_deleted',0)->where('id','!=',$id)->where('phone',$phone)->first();
+                $existsNationalId = User::where('account_type',$user_class)->where('is_deleted',0)->where('id','!=',$id)->whereNotNull('national_id')->where('national_id',$nationalId)->first();
                 if($existsEmail) return DataResponse::Duplicated(__('messages.error',[
                     'info' => 'Email has already taken.'
                 ]));
@@ -139,25 +149,65 @@ class UserService
                     'info' => 'National ID is already exists.'
                 ]));
                 if($existsPhone) return DataResponse::Duplicated(__('messages.error',[
-                    'info' => 'Phone number('.$inputs['phone'].') has already taken.'
+                    'info' => 'Phone number('.$phone.') has already taken.'
+                ]));
+                $update = $user->update($inputs);
+                if(!$update) return DataResponse::Error(__('messages.error',['info' => 'Fail to update']));
+                $userId = $id;
+            }else{
+                $inputs['create_uid'] = $user->id;
+                $existsEmail = User::where('account_type',$user_class)->where('is_deleted',0)->whereNotNull('email')->where('email',$email)->first();
+                $existsPhone = User::where('account_type',$user_class)->where('is_deleted',0)->where('phone',$phone)->first();
+                $existsNationalId = User::where('account_type',$user_class)->where('is_deleted',0)->whereNotNull('national_id')->where('national_id',$nationalId)->first();
+                if($existsEmail) return DataResponse::Duplicated(__('messages.error',[
+                    'info' => 'Email has already taken.'
+                ]));
+                if($existsNationalId) return DataResponse::Duplicated(__('messages.error',[
+                    'info' => 'National ID is already exists.'
+                ]));
+                if($existsPhone) return DataResponse::Duplicated(__('messages.error',[
+                    'info' => 'Phone number('.$phone.') has already taken.'
                 ]));
 
                 $create = User::create($inputs);
                 if(!$create) return DataResponse::Error(__('messages.error',['info' => 'Fail to create']));
                 Helper::setRefCode('user_code_control','users','code',$user->branch_id,$user->company_id,$create->id,null,self::$user_prefix[$user_class]);
-                // return DataResponse::JsonResult(null,false,__('messages.created'));
                 $userId = $create->id;
             }
             if(isset($bankInfo[0])){
                 $saveUserBank = self::saveUserBanks($bankInfo,$userId,$user);
                 if($saveUserBank->error) return $saveUserBank;
             }
+            if($user_class == 'merchant') self::saveMerchantPriceList($userId,$priceListId,$user);
             DB::commit();
             return DataResponse::JsonResult(null,false,__('messages.saved'));
         }catch(Exception $e){
             DB::rollBack();
             Log::error($e->getMessage());
             return DataResponse::Error(__('messages.error',['info' => 'Fail to create']));
+        }
+    }
+
+    private static function saveMerchantPriceList($merchantId,$priceListId,$user): void{
+        $found = MerchantPriceList::where('merchant_id',$merchantId)->first();
+        if($found) {
+            $found->update([
+            'merchant_id' => $merchantId,
+            'price_list_id' => $priceListId,
+            'update_uid' => $user->id,
+            'company_id' => $user->company_id,
+            'branch_id' => $user->branch_id
+        ]);
+        }
+        else {
+            MerchantPriceList::create([
+            'merchant_id' => $merchantId,
+            'price_list_id' => $priceListId,
+            'create_uid' => $user->id,
+            'update_uid' => $user->id,
+            'company_id' => $user->company_id,
+            'branch_id' => $user->branch_id
+        ]);
         }
     }
 
@@ -199,7 +249,6 @@ class UserService
         ]);
     }
 
-
     public static function createLoginAccount(Request $req,$userId,$userClass,$authUser){
         $user = User::where('company_id',$authUser->company_id)->where('is_deleted',0)->where('account_type',$userClass)->find($userId);
         if(!$user) return DataResponse::NotFound(__('messages.not_found',['info' => 'User']));
@@ -210,6 +259,8 @@ class UserService
         $loginName = $inputs['login_name'];
         $pwd = $inputs['password'];
         $cfPwd = $inputs['confirm_password'];
+        $existLoginName = User::where('company_id',$authUser->company_id)->where('login_name',$loginName)->where('is_deleted',0)->where('account_type',$userClass)->first();
+        if($existLoginName) return DataResponse::Duplicated('Please use another login name!, this one is already taken.');
         if($pwd !== $cfPwd) return DataResponse::ValidateFail(__('messages.error',['info' => 'Password not match !']));
         $hpwd = \Hash::make($pwd);
         $user->update([

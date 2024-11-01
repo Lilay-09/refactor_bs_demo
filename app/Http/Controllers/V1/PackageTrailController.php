@@ -40,9 +40,9 @@ class PackageTrailController extends Controller
     public function updatePackage(Request $req){
         $user = UserService::getAuthUser();
         $id = $req->id;
-        $package = Package::where('company_id',$user->company_id)->where('status_id','<',5)->where('is_deleted',0)->where('outstanding',0)->find($id);
+        $package = Package::where('company_id',$user->company_id)->where('is_deleted',0)->where('outstanding',0)->find($id);
         if(!$package) return ApiResponse::NotFound(__('messages.not_found',['info' => 'Package','khInfo' => 'កញ្ចប់']));
-        if($package->status_id == 13) return ApiResponse::Forbidden(__('messages.no_access',['info' => 'This package has already assigned to driver']));
+        if($package->status_id == 13) return ApiResponse::Forbidden(__('messages.no_access',['info' => 'This package is already assigned to driver']));
         $pkupService = new PickupCenterService();
         $validate = $pkupService->packageValidation($req);
         if($validate->fails()) return ApiResponse::ValidateFail($validate->errors()->first());
@@ -92,7 +92,7 @@ class PackageTrailController extends Controller
         if(!$validDriver) return ApiResponse::NotFound(__('messages.not_found',['info' => 'Driver']));
         $pacakge = Package::where('company_id',$user->company_id)->where('is_deleted',0)->where('outstanding',0)->find($id);
         if(!$pacakge) return ApiResponse::NotFound(__('messages.not_found',['info' => 'Package','khInfo' => 'កញ្ចប់']));
-        if($pacakge->status_id == 9) return ApiResponse::Duplicated(__('messages.error',['info' => 'This package has already delivered']));
+        if($pacakge->status_id == 9) return ApiResponse::Duplicated(__('messages.error',['info' => 'This package is already delivered']));
         if($pacakge->driver_id){
             $deliveryPackage = DeliveryPackage::where('package_id',$id)->where('is_deleted',0)->first();
             if($deliveryPackage){

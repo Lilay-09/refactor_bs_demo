@@ -59,7 +59,15 @@ class HomeScreenController extends Controller
         if($user->error) return ApiResponse::flex($user);
         $driverId = $user->id;
         $orders = Order::fromRaw('orders as o')->join('packages as p','p.order_id','o.id')->where('o.is_deleted',0)
-        ->selectRaw('o.id,o.code')->groupByRaw('o.id,o.code')->where('p.driver_id',$driverId)->get();
+        ->join('users as m','m.id','o.merchant_id')
+        // ->with(['packages:id,cod,price,delivery_fee,payer,zone_code,zone_name,receiver_phone,delivery_type,status_id,order_id,arrive_warehouse_datetime','packages.status'])
+        ->selectRaw('o.id,o.code,m.user_name,m.phone')->groupByRaw('m.phone,o.id,o.code,m.user_name')->where('p.driver_id',$driverId)->get();
+        foreach($orders as $order){
+            // foreach($order->packages as $package){
+            //     $package->status_code = $package->status->name;
+            //     unset($package->status);
+            // }
+        }
         return ApiResponse::Pagination($orders,$req);
     }
 
@@ -67,37 +75,49 @@ class HomeScreenController extends Controller
         $user = $this->user;
         $oderId = $req->order_id;
         $driverId = $user->id;
-        $packages = Package::where('order_id',$oderId)->where('is_deleted',0)->where('driver_id',$driverId)->get();
+        $packages = Package::where('order_id',$oderId)->where('is_deleted',0)
+        ->selectRaw('id,cod,price,delivery_fee,payer,zone_code,zone_name,receiver_phone,delivery_type,status_id,order_id,arrive_warehouse_datetime')
+        ->where('driver_id',$driverId)->get();
         return ApiResponse::JsonResult($packages);
     }
 
     public function acceptOrder(Request $req){
-        $user = $this->user;
-        $orderId = $req->order_id;
-        $user = UserService::getAuthUser('driver');
-        if($user->error) return ApiResponse::flex($user);
-        $order = Order::where('is_deleted',0)->find($orderId);
-        if(!$order) return ApiResponse::NotFound(__('messages.not_found',[
-            'info' => 'Order'
-        ]));
+        // $files = [];
+        // $images = $req->images;
+        // // return gettype($req->images);
+        // foreach($images as $key=>$image){
+        //     Helper::saveImageFile($image,1,'test');
+        //     $files[] = $image->getClientOriginalName();
+        // }
+        // $req->banner;
+        // return $files;
+        // foreach()
+        // $user = $this->user;
+        // $orderId = $req->order_id;
+        // $user = UserService::getAuthUser('driver');
+        // if($user->error) return ApiResponse::flex($user);
+        // $order = Order::where('is_deleted',0)->find($orderId);
+        // if(!$order) return ApiResponse::NotFound(__('messages.not_found',[
+        //     'info' => 'Order'
+        // ]));
 
-        if($order->status_id != 1){
-            if($user->id != $order->driver_id) return ApiResponse::Duplicated(__('messages.info',[
-                'info' => 'This order is not available'
-            ]));
-            else return ApiResponse::Duplicated(__('messages.info',[
-                'info' => 'You have already accepted order ('.$order->code.')'
-            ]));
-        }
+        // if($order->status_id != 1){
+        //     if($user->id != $order->driver_id) return ApiResponse::Duplicated(__('messages.info',[
+        //         'info' => 'This order is not available'
+        //     ]));
+        //     else return ApiResponse::Duplicated(__('messages.info',[
+        //         'info' => 'You have already accepted order ('.$order->code.')'
+        //     ]));
+        // }
 
-        $order->update([
-            'status_id' => 3,
-            'driver_id' => $user->id
-        ]);
+        // $order->update([
+        //     'status_id' => 3,
+        //     'driver_id' => $user->id
+        // ]);
 
-        return ApiResponse::JsonResult(null,__('messages.info',[
-            'info' => 'Order accepted'
-        ]));
+        // return ApiResponse::JsonResult(null,__('messages.info',[
+        //     'info' => 'Order accepted'
+        // ]));
     }
 
 

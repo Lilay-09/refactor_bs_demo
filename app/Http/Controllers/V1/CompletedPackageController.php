@@ -6,6 +6,7 @@ use ApiResponse;
 use App\Http\Controllers\Controller;
 use App\Models\Package;
 use App\Services\PickupCenterService;
+use App\Services\TransactionService;
 use App\Services\UserService;
 use Illuminate\Http\Request;
 
@@ -26,9 +27,6 @@ class CompletedPackageController extends Controller
         ->whereIn('p.status_id',[9,19]) //* delivered and failed with fee
         ->selectRaw('m.user_name as merchant_name,m.phone as merchant_phone,dpmt.approved as approved_driver_pmt,d.user_name as driver_name,p.status_id,p.id as package_id,d.id as driver_id,p.qr_code,p.price,ts.name as status_code,p.delivered_datetime,p.failed_datetime,p.taxi_fee,p.payer,p.cod,p.zone_code,p.receiver_phone,p.delivery_type,p.delivery_fee,p.driver_total,p.merchant_total')
         ->get();
-        foreach($packages as $package){
-
-        }
         return ApiResponse::Pagination($packages,$req);
     }
 
@@ -36,8 +34,7 @@ class CompletedPackageController extends Controller
     public function updatePackage(Request $req){
         $user = UserService::getAuthUser();
         $id = $req->id;
-        // if(!in_array($id,[9,19])) return ApiResponse::NotFound(__('messages.not_found',['info' => 'Package']));
-        $pckupService = new PickupCenterService();
-        return ApiResponse::flex($pckupService->createOrUpdatePackage($req,$user,$id,null,[9,19]));
+        $trxService = new TransactionService();
+        return ApiResponse::flex($trxService->updateDeliveryPackage($req,null,$user));
     }
 }

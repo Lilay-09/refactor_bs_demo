@@ -28,7 +28,7 @@ return new class extends Migration
             $table->string('payer',50);
             $table->boolean( 'cod')->default(0);
             $table->decimal('delivery_fee',10,2)->default(0);
-            $table->string('receiver_address')->nullable();
+            $table->string('receiver_address',500)->nullable();
             $table->boolean('outstanding')->default(1);
             $table->string('zone_code',50)->nullable();
             $table->string('zone_name',50)->nullable();

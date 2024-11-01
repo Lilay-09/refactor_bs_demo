@@ -17,7 +17,7 @@ return new class extends Migration
             $this->AddBaseFields($table);
             $table->string('name',50)->nullable();
             $table->string('photo_file_name',200)->nullable();
-            $table->string('url')->nullable();
+            $table->text('url')->nullable();
         });
     }
 

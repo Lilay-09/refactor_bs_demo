@@ -47,7 +47,7 @@ class PromotionController extends Controller
     public function getPromotions(Request $req){
         $user = UserService::getAuthUser();
         $promotions = Promotion::where('company_id',$user->company_id)->where('is_deleted',0)
-        ->selectRaw('id,title,photo_file_name,start_date,end_date')
+        ->selectRaw('id,title,photo_file_name,description,start_date,end_date')
         ->get();
         foreach($promotions as $promotion){
             $promotion->image_url = Helper::getImageUrl($promotion->photo_file_name,$user->company_id,$this->imgDir);
@@ -63,7 +63,7 @@ class PromotionController extends Controller
         $user = UserService::getAuthUser();
         $id = $req->id;
         $promotion = Promotion::where('company_id',$user->company_id)->where('is_deleted',0)
-        ->selectRaw('id,title,photo_file_name,updated_at')
+        ->selectRaw('id,title,photo_file_name,description,updated_at')
         ->find($id);
         if(!$promotion) return ApiResponse::NotFound(__('messages.not_found',[
             'info' => 'Promotion'
