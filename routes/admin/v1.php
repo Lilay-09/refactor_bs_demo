@@ -19,6 +19,8 @@ use App\Http\Controllers\V1\DriverTransactionController;
 use App\Http\Controllers\V1\ExchangeRateController;
 use App\Http\Controllers\V1\FleetManagementController;
 use App\Http\Controllers\V1\GeneralSettingController;
+use App\Http\Controllers\V1\MerchantManagementController;
+use App\Http\Controllers\V1\MerchantTransactionController;
 use App\Http\Controllers\V1\PackageTrailController;
 use App\Http\Controllers\V1\PickUpCenterController;
 use App\Http\Controllers\V1\PriceListController;
@@ -89,6 +91,20 @@ Route::middleware(['jwt','localize'])->prefix('admin/v1/{lang}')->group(function
             Route::get('package',[DriverTransactionController::class,'getDeliveryPackages']);
         });
     });
+
+    Route::prefix('merchant')->group(function(){
+        Route::post('',[MerchantManagementController::class,'createMerchant']);
+        Route::get('',[MerchantManagementController::class,'getMerchants']);
+        Route::get('/{id}',[MerchantManagementController::class,'getOneMerchant']);
+        Route::put('/{id}',[MerchantManagementController::class,'updateMerchant']);
+
+        Route::prefix('transaction')->group(function(){
+            Route::get('delivery/package',[MerchantTransactionController::class,'getDeliveryPackages']);
+            Route::put('delivery/package/{id}',[MerchantTransactionController::class,'updateDeliveryPackage']);
+            Route::post('delivery/receivePayment',[MerchantTransactionController::class,'receivePackagesPayment']);
+        });
+    });
+
     Route::prefix('company')->group(function(){
         Route::put('',[CompanyProfileController::class,'update']);
         Route::get('',[CompanyProfileController::class,'getCompanyProfile']);

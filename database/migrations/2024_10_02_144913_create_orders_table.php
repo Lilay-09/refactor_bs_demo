@@ -24,7 +24,7 @@ return new class extends Migration
             $table->string('product_type',50)->nullable();
             $table->unsignedInteger('qty')->default(0);
             $table->string('pickup_address',500)->nullable();
-            $table->string('pickup_address_google_map')->nullable();
+            $table->text('pickup_address_google_map')->nullable();
             $table->dateTime('pickup_datetime')->nullable();
             $table->string('code',50)->nullable();
             $table->string('tracking_number',50)->nullable();

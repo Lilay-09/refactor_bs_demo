@@ -33,7 +33,7 @@ class GeneralSettingService
     ];
 
     public static function optionChannels($idx=null){
-        if($idx || $idx >= 0){
+        if($idx){
             return [self::$channels[$idx]];
         }
         return self::$channels;
@@ -234,7 +234,7 @@ class GeneralSettingService
             "error" => false,
             'delivery_fee' => $zPrice,
             'driver_total' => $driverTotal - $taxi_fee,
-            'merchant_total' => $merchant_total,
+            'merchant_total' => $merchant_total + $taxi_fee,
             'total' => $total
         ];
     }

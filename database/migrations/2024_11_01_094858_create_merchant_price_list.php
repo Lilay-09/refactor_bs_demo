@@ -17,9 +17,10 @@ return new class extends Migration
             $this->AddBaseFields($table);
             $table->unsignedBigInteger('merchant_id');
             $table->foreign('merchant_id')->references('id')->on('users')->onDelete('cascade');
+            $table->unsignedBigInteger('price_list_id');
+            $table->foreign('price_list_id')->references('id')->on('price_list')->onDelete('cascade');
         });
     }
-
     /**
      * Reverse the migrations.
      */

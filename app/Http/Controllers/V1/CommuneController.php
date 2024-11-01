@@ -4,7 +4,6 @@ namespace App\Http\Controllers\V1;
 
 use ApiResponse;
 use App\Http\Controllers\Controller;
-use App\Models\City;
 use App\Models\Commune;
 use App\Services\UserService;
 use Illuminate\Http\Request;
@@ -59,12 +58,12 @@ class CommuneController extends Controller
         $inputs = $validate->validated();
         $name = $inputs['name'];
         $id = $req->id;
-        $country_id = $inputs['country_id'];
+        $district_id = $inputs['district_id'];
         $user = UserService::getAuthUser();
         $commune = Commune::find($id)->where('branch_id',$user->branch_id);
         if(!$commune) return ApiResponse::NotFound(__('messages.not_found'));
 
-        $existCity = City::where('name',$req->name)->where('is_deleted',0)->where('company_id',$user->company_id)->where('country_id',$country_id)->where('id','!=',$id)->take(1)->value('id');
+        $existCity = Commune::where('name',$name)->where('is_deleted',0)->where('company_id',$user->company_id)->where('district_id',$district_id)->where('id','!=',$id)->take(1)->value('id');
         if($existCity) return ApiResponse::Duplicated('Commune('.$name.') is already taken.');
         // return $user;
         $inputs['update_uid'] = $user->id;

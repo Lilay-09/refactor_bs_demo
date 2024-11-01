@@ -28,9 +28,10 @@ class UsersTable extends Migration
             $table->string('gender',7)->nullable();
             $table->string('phone',25)->nullable();
             $table->string('bio',500)->nullable();
-            $table->decimal('latitude',9,6)->nullable();
-            $table->decimal('longtitude',9,6)->nullable();
+            $table->decimal('latitude', 12, 9)->nullable();
+            $table->decimal('longitude', 12, 9)->nullable();
             $table->string('address',500)->nullable();
+            $table->text('pin_address')->nullable();
             $table->date('dob')->nullable();
             $table->string('otp',20)->nullable();
             $table->dateTime('otp_expiration')->nullable();

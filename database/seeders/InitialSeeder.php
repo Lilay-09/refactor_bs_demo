@@ -558,5 +558,23 @@ class InitialSeeder extends Seeder
                 'company_id' => $comapanyId,
             ],
         ]);
+
+        DB::table('client_types')->insert([
+            [
+                'name' => 'Vip',
+                'create_uid' => $userId,
+                'update_uid' => $userId,
+                'branch_id' => $branchId,
+                'company_id' => $comapanyId,
+            ],
+            [
+                'name' => 'Normal',
+                'create_uid' => $userId,
+                'update_uid' => $userId,
+                'branch_id' => $branchId,
+                'company_id' => $comapanyId,
+            ]
+        ]);
     }
+
 }
