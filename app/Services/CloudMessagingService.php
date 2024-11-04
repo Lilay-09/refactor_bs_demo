@@ -2,6 +2,9 @@
 
 namespace App\Services;
 
+use ApiResponse;
+use App\Models\NotificationTopic;
+use App\Models\UserNotificationToken;
 use DataResponse;
 use Exception;
 use Illuminate\Http\Request;
@@ -11,6 +14,7 @@ use Kreait\Firebase\Exception\Messaging\NotFound;
 use Kreait\Firebase\Factory;
 use Kreait\Firebase\Messaging\CloudMessage;
 use Log;
+use Notification;
 
 class CloudMessagingService
 {
@@ -53,26 +57,107 @@ class CloudMessagingService
             'body' => 'nullable|string'
         ]);
     }
-    // public function subscribeTopics(Request $req,$user=null){
-    //     $validate = validator($req->all(),[
-    //         'user_id' => 'nullable',
-    //         'token' => 'required|string',
-    //         'topics' => 'required|array'
-    //     ]);
-    //     if($validate->fails()) return DataResponse::ValidateFail($validate->errors()->first());
-    //     $inputs = $validate->validated();
-    //     $topics = $inputs['topic'];
-    // }
 
-    public function subscribeTopic($channel,$token,$user){
+    public function getTopics($companyId,$channel,$userId){
+        $topic = GeneralSettingService::getGeneralTopics($companyId,$channel,$userId);
+        $topics = [
+            'driver' => [
+                (object)[
+                    'type' => 'public',
+                    'name' => $topic->public
+                ],
+                (object)[
+                    'type' => 'private',
+                    'name' => $topic->private
+                ]
+            ],
+            'merchant' => [
+                (object)[
+                    'type' => 'public',
+                    'name' => $topic->public
+                ],
+                (object)[
+                    'type' => 'private',
+                    'name' => $topic->private
+                ]
+            ],
+            'admin' => [
+                (object)[
+                    'type' => 'public',
+                    'name' => $topic->public
+                ],
+                (object)[
+                    'type' => 'private',
+                    'name' => $topic->private
+                ]
+            ]
+        ];
+        return $topics[$channel];
+    }
+
+    public function subscribeTopic($channel,$token,$user,$deviceId=null,$os_name,$platform='web'){
         $companyId = $user->company_id ?? null;
         $userId = $user->id ?? null;
-        $topic = GeneralSettingService::getGeneralTopics($companyId,$channel,$userId);
-        $public = $this->subscribe($token,$topic->public);
-        $private = $this->subscribe($token,$topic->private);
-        if($private->error) return $private;
-        if($public->error) return $public;
+        $topics = $this->getTopics($companyId,$channel,$userId);
+        $notifTokenId = $this->saveUserNotification($channel,$token,$user,$deviceId,$os_name,$platform);
+        foreach($topics as $topic){
+            $sub = $this->subscribe($token,$topic->name);
+            if($sub->error) return $sub;
+
+        }
         return DataResponse::JsonResult($topic,false,'subscribe');
+    }
+
+    private function saveNotifTopic($token_id,$topic,$topicType,$user){
+        $notifTopic = NotificationTopic::where('token_id',$token_id)->where('topic',$topic)->where('type',$topicType)->first();
+        if(!$notifTopic){
+            NotificationTopic::create([
+                'token_id' => $token_id,
+                'topic' => $topic,
+                'type' => $topicType,
+                'create_uid' => $user->id,
+                'update_uid' => $user->id,
+                'company_id' => $user->company_id,
+                'branch_id' => $user->branch_id,
+            ]);
+        }
+    }
+
+    private function saveUserNotification($channel,$token,$user,$deviceId=null,$os_name=null,$platform='web',$serviceName='Firebase'){
+        $id = null;
+        $sub = UserNotificationToken::where('user_id',$user->id)->where('device_id',$deviceId)->first();
+        if(!$sub) {
+            $create = UserNotificationToken::create([
+                'service_name' => $serviceName,
+                'token' => $token,
+                'device_id' => $deviceId,
+                'platform' => $platform,
+                'os_name' => $os_name,
+                'subscribe_datetime' => now(),
+                'user_id' => $user->id,
+                'create_uid' => $user->id,
+                'update_uid' => $user->id,
+                'company_id' => $user->company_id,
+                'branch_id' => $user->branch_id,
+            ]);
+            $id = $create->id;
+        }else{
+            $sub->update([
+                'service_name' => $serviceName,
+                'token' => $token,
+                'device_id' => $deviceId,
+                'platform' => $platform,
+                'os_name' => $os_name,
+                'subscribe_datetime' => now(),
+                'user_id' => $user->id,
+                'update_uid' => $user->id,
+                'company_id' => $user->company_id,
+                'branch_id' => $user->branch_id,
+            ]);
+            $id = $sub->id;
+        }
+
+        return $id;
     }
 
 
@@ -133,4 +218,5 @@ class CloudMessagingService
         $notif = $this->sendNotification('token',$req->token,$req->title,$req->body);
         return $notif;
     }
+
 }

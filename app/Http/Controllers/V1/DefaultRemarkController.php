@@ -30,6 +30,10 @@ class DefaultRemarkController extends Controller
         $inputs['branch_id'] = $user->id;
         $inputs['company_id'] = $user->id;
         $inputs['channel'] = $inputs['channel'] ?? 'driver';
+        $existsName = DefaultRemark::where('remarks', $inputs['remarks'])->where('channel',$inputs['channel'])->first();
+        if($existsName) return ApiResponse::Duplicated(__('messages.info',[
+            'info' => 'remarks is already defined'
+        ]));
         DefaultRemark::create($inputs);
         return ApiResponse::JsonResult(null,__('messages.created',[
             'info' => 'Remarks'
@@ -39,7 +43,7 @@ class DefaultRemarkController extends Controller
     public function getDefaultRemarks(Request $req){
         $user = UserService::getAuthUser();
         $defaultRemarks = DefaultRemark::where('is_deleted',0)->where('company_id',$user->company_id)
-        ->selectRaw('id,remarks,category,updated_at')
+        ->selectRaw('id,remarks,hidden,channel,category,updated_at')
         ->get();
         return ApiResponse::Pagination($defaultRemarks,$req);
     }
@@ -47,13 +51,41 @@ class DefaultRemarkController extends Controller
         $user = UserService::getAuthUser();
         $id = $req->id;
         $defaultRemarks = DefaultRemark::where('is_deleted',0)->where('company_id',$user->company_id)
-        ->selectRaw('id,remarks,category,updated_at')
+        ->selectRaw('id,remarks,hidden,category,channel,updated_at')
         ->find($id);
         if(!$defaultRemarks) return ApiResponse::NotFound(__('messages.not_found',[
             'info' => 'Remarks'
         ]));
         return ApiResponse::JsonResult($defaultRemarks,__('messages.get one'));
     }
+
+    public function toggleHidden(Request $req){
+        $user = UserService::getAuthUser();
+        $id = $req->id;
+        $defaultRemarks = DefaultRemark::where('is_deleted',0)->where('company_id',$user->company_id)
+        ->selectRaw('hidden,id')
+        ->find($id);
+        $hidden = 'Hide';
+        if(!$defaultRemarks) return ApiResponse::NotFound(__('messages.not_found',[
+            'info' => 'Remarks'
+        ]));
+        if($defaultRemarks->hidden) {
+            $hidden = 'Show';
+            $defaultRemarks->update([
+                'hidden' => 0
+            ]);
+        }
+        else {
+            $hidden = 'Hide';
+            $defaultRemarks->update([
+                'hidden' => 1
+            ]);
+        }
+        return ApiResponse::JsonResult(null,__('messages.info',[
+            'info' => 'Remarks '.$hidden
+        ]));
+    }
+
     public function updateDefaultRemark(Request $req){
         $user = UserService::getAuthUser();
         $id = $req->id;
@@ -69,6 +101,12 @@ class DefaultRemarkController extends Controller
         $inputs['branch_id'] = $user->id;
         $inputs['company_id'] = $user->id;
         $inputs['channel'] = $inputs['channel'] ?? 'driver';
+        $existsName = DefaultRemark::where('remarks', $inputs['remarks'])
+        ->where('id','!=',$id)
+        ->where('channel',$inputs['channel'])->first();
+        if($existsName) return ApiResponse::Duplicated(__('messages.info',[
+            'info' => 'remarks is already defined'
+        ]));
         $defaultRemarks->update($inputs);
         return ApiResponse::JsonResult(null,__('messages.updated',[
             'info' => 'Remarks'

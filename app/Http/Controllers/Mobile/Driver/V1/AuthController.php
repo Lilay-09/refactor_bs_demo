@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Mobile\Driver\V1;
 use ApiResponse;
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Services\CloudMessagingService;
 use App\Services\Mobile\AuthService;
 use App\Services\UserService;
 use Helper;
@@ -88,5 +89,13 @@ class AuthController extends Controller
         $user = UserService::getAuthUser('driver');
         $authService = new AuthService();
         return ApiResponse::flex($authService->getProfile($user));
+    }
+
+
+    public function subscribeTopics(Request $req){
+        $user = UserService::getAuthUser('driver');
+        $cldMsgService = new CloudMessagingService();
+        $token = $req->token;
+        return $cldMsgService->subscribeTopic('driver',$token,$user,$req->device_id,$req->os_name,'mobile');
     }
 }

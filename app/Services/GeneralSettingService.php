@@ -4,6 +4,7 @@ namespace App\Services;
 use App\Models\City;
 use App\Models\Commune;
 use App\Models\Country;
+use App\Models\DefaultRemark;
 use App\Models\Delivery;
 use App\Models\DeliveryPackage;
 use App\Models\District;
@@ -37,6 +38,27 @@ class GeneralSettingService
             return [self::$channels[$idx]];
         }
         return self::$channels;
+    }
+
+    static function optionsRemarkCategory(){
+        return [
+            (object)[
+                'label' => 'Failure',
+                'value' => 'failure'
+            ],
+            (object)[
+                'label' => 'Fail With Fee',
+                'value' => 'fail with fee'
+            ]
+        ];
+    }
+
+
+    public static function optionsDriverRemarks($category=null){
+        $qR = DefaultRemark::where('channel','driver');
+        if($category) $qR->where('category',$category);
+        $remarks = $qR->where('hidden',0)->selectRaw('id,remarks')->get();
+        return $remarks;
     }
 
     public static function optionsZone($user){
@@ -96,6 +118,19 @@ class GeneralSettingService
 
     public static function optionsCityByCountry($countryId,$user){
         return City::where('is_deleted',0)->where('company_id',$user->company_id)->where('country_id',$countryId)->selectRaw('name,id')->orderByDesc('id')->get();
+    }
+
+    public static function optionsZoneType(){
+        return [
+            [
+                'label' => 'Local',
+                'value' => 'local',
+            ],
+            [
+                'label' => 'International',
+                'value' => 'international',
+            ]
+        ];
     }
 
     public static function optionsCountry($user){

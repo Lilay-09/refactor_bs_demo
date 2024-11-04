@@ -37,6 +37,22 @@ class PackageTrailController extends Controller
         return ApiResponse::Pagination($packages,$req,__('messages.get_list',['info'=>'Package']));
     }
 
+    public function getOnePackage(Request $req){
+        $user = UserService::getAuthUser();
+        $package = Package::where('is_deleted',0)
+        ->with(['status'])
+        ->where('outstanding',0)
+        // ->whereNotIn('status_id',[]) // at warehouse
+        ->where('company_id',$user->company_id)
+        ->selectRaw('id,qr_code,price,driver_id,product_type,dim_z,dim_x,dim_y,status_id,failure_notes,payer,cod,delivery_fee,receiver_address,zone_code,zone_name,receiver_name,receiver_phone,delivered_datetime,assign_driver_datetime,arrive_warehouse_datetime,driver_total,merchant_total')
+        ->first();
+        if(!$package) return ApiResponse::NotFound();
+        $package->status_code = $package->status->name;
+        $package->warehouse_timeago = Helper::timeAgo($package->arrive_warehouse_datetime,false);
+        unset($package->status);
+        return ApiResponse::JsonResult($package);
+    }
+
     public function updatePackage(Request $req){
         $user = UserService::getAuthUser();
         $id = $req->id;
