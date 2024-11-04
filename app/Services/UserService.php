@@ -23,12 +23,12 @@ class UserService
         'driver' => 'JSD',
         'merchant' => 'JSM'
     ];
-    public static function getAuthUser($class='admin',$action=''){
+    public static function getAuthUser($class='admin',$action='',$useSpecificClass=true){
         $user = JWTAuth::user();
         if($user){
             $hasUser = User::where('id',$user->id)->first();
             if($hasUser){
-                if($class != $hasUser->account_type) return DataResponse::Forbidden();
+                if($class != $hasUser->account_type && $useSpecificClass) return DataResponse::Forbidden();
                 $validActions = ['create','update','modify','void','delete'];
                 $roles = UserRoles::where('user_id',$hasUser->id)->with(['role:id,name'])->selectRaw('role_id')->get();
                 $hasUser->roles = $roles;

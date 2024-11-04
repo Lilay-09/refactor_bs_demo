@@ -19,7 +19,8 @@ return new class extends Migration
             $table->string('service_name',50)->nullable();
             $table->string('token')->nullable();
             $table->string('device_id',100)->nullable();
-            $table->string('device_type',50)->nullable();
+            $table->string('platform', 50)->nullable();
+            $table->string('os_name', 50)->nullable();
             $table->boolean('is_active')->default(1);
             $table->dateTime('last_notified_at')->nullable();
             $table->dateTime('expires_at')->nullable();
@@ -27,13 +28,14 @@ return new class extends Migration
             $table->foreign('user_id')->references('id')->on('users');
         });
 
-        Schema::create('messaging_topics', function (Blueprint $table) {
+        Schema::create('notification_topics', function (Blueprint $table) {
             $this->AddBaseFields($table);
             $table->string('topic',50)->nullable();
             $table->string('type',50)->nullable();
-            $table->string('token_id')->nullable();
+            $table->unsignedBigInteger('token_id')->nullable();
+            $table->foreign('token_id')->references('id')->on('user_notification_tokens');
         });
-        Schema::create('sent_messages', function (Blueprint $table) {
+        Schema::create('notifications', function (Blueprint $table) {
             $this->AddBaseFields($table);
             $table->unsignedBigInteger('topic_id');
             $table->string('service_name',50)->nullable();
@@ -46,7 +48,7 @@ return new class extends Migration
             $table->dateTime('sent_datetime')->nullable();
             $table->boolean('is_read')->nullable();
             $table->dateTime('read_datetime')->nullable();
-            $table->foreign('topic_id')->references('id')->on('messaging_topics');
+            $table->foreign('topic_id')->references('id')->on('notification_topics');
         });
     }
 
@@ -56,6 +58,7 @@ return new class extends Migration
     public function down(): void
     {
         Schema::dropIfExists('user_notification_tokens');
-        Schema::dropIfExists('messaging_topics');
+        Schema::dropIfExists('notification_topics');
+        Schema::dropIfExists('notifications');
     }
 };

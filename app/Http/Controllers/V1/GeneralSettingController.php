@@ -39,6 +39,16 @@ class GeneralSettingController extends Controller
         return ApiResponse::JsonResult($this->gs::optionsDistrict($user));
     }
 
+    public function getFormZone(){
+        $user = UserService::getAuthUser();
+
+        $obj = [
+            'zone_types' => $this->gs::optionsZoneType(),
+            'countries' => $this->gs::optionsCountry($user)
+        ];
+        return ApiResponse::JsonResult($obj);
+    }
+
     public function getOptionsChannel(){
         return ApiResponse::JsonResult($this->gs::optionChannels());
     }
@@ -160,7 +170,11 @@ class GeneralSettingController extends Controller
     }
 
     public function getFormRemark(){
-        return ApiResponse::JsonResult($this->gs::optionChannels(0));
+        $obj = (object)[
+            'channels' => $this->gs::optionChannels(0),
+            'categories' => $this->gs::optionsRemarkCategory()
+        ];
+        return ApiResponse::JsonResult($obj);
     }
     public function getOptionsDriver(){
         $user = UserService::getAuthUser();

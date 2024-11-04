@@ -49,7 +49,7 @@ class ZoneController extends Controller
         if(!$inputZoneCode) Zone::find($create->id)->update([
             'zone_code' => 'C'.$create->id
         ]);
-        return ApiResponse::JsonResult(null,false,'Zone created');
+        return ApiResponse::JsonResult(null,__('messages.created'));
     }
 
     public function getZones(Request $req){
@@ -70,7 +70,7 @@ class ZoneController extends Controller
             $q->where('is_deleted',0)->orWhere('status',1);
         })->where('company_id',$user->company_id)->selectRaw('id,zone_code,zone_type,zone_name,commune,description,city,district,country_id,status')->find($id);
         if(!$zone) return ApiResponse::NotFound(__('messages.not_found'));
-        return ApiResponse::JsonResult($zone,false,'Get one zone');
+        return ApiResponse::JsonResult($zone,__('messages.get one'));
     }
 
     public function updateZone(Request $req){
@@ -94,6 +94,6 @@ class ZoneController extends Controller
         $inputs['company_id'] = $user->company_id;
         $update = $zone->update($inputs);
         if(!$update) return ApiResponse::Error('Fail to create zone');
-        return ApiResponse::JsonResult(null,false,'Zone Updated');
+        return ApiResponse::JsonResult(null,__('messages.updated'));
     }
 }

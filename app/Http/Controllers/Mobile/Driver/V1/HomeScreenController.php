@@ -8,8 +8,6 @@ use App\Models\Order;
 use App\Models\Package;
 use App\Services\GeneralSettingService;
 use App\Services\UserService;
-use DB;
-use Helper;
 use Illuminate\Http\Request;
 
 class HomeScreenController extends Controller
@@ -76,48 +74,44 @@ class HomeScreenController extends Controller
         $oderId = $req->order_id;
         $driverId = $user->id;
         $packages = Package::where('order_id',$oderId)->where('is_deleted',0)
+        ->where('status_id',9)
+        ->with('status')
         ->selectRaw('id,cod,price,delivery_fee,payer,zone_code,zone_name,receiver_phone,delivery_type,status_id,order_id,arrive_warehouse_datetime')
         ->where('driver_id',$driverId)->get();
+        foreach($packages as $package){
+            $package->status_code = $package->status->name;
+            unset($package->status);
+        }
         return ApiResponse::JsonResult($packages);
     }
 
     public function acceptOrder(Request $req){
-        // $files = [];
-        // $images = $req->images;
-        // // return gettype($req->images);
-        // foreach($images as $key=>$image){
-        //     Helper::saveImageFile($image,1,'test');
-        //     $files[] = $image->getClientOriginalName();
-        // }
-        // $req->banner;
-        // return $files;
-        // foreach()
-        // $user = $this->user;
-        // $orderId = $req->order_id;
-        // $user = UserService::getAuthUser('driver');
-        // if($user->error) return ApiResponse::flex($user);
-        // $order = Order::where('is_deleted',0)->find($orderId);
-        // if(!$order) return ApiResponse::NotFound(__('messages.not_found',[
-        //     'info' => 'Order'
-        // ]));
+        $user = $this->user;
+        $orderId = $req->order_id;
+        $user = UserService::getAuthUser('driver');
+        if($user->error) return ApiResponse::flex($user);
+        $order = Order::where('is_deleted',0)->find($orderId);
+        if(!$order) return ApiResponse::NotFound(__('messages.not_found',[
+            'info' => 'Order'
+        ]));
 
-        // if($order->status_id != 1){
-        //     if($user->id != $order->driver_id) return ApiResponse::Duplicated(__('messages.info',[
-        //         'info' => 'This order is not available'
-        //     ]));
-        //     else return ApiResponse::Duplicated(__('messages.info',[
-        //         'info' => 'You have already accepted order ('.$order->code.')'
-        //     ]));
-        // }
+        if($order->status_id != 1){
+            if($user->id != $order->driver_id) return ApiResponse::Duplicated(__('messages.info',[
+                'info' => 'This order is not available'
+            ]));
+            else return ApiResponse::Duplicated(__('messages.info',[
+                'info' => 'You have already accepted order ('.$order->code.')'
+            ]));
+        }
 
-        // $order->update([
-        //     'status_id' => 3,
-        //     'driver_id' => $user->id
-        // ]);
+        $order->update([
+            'status_id' => 3,
+            'driver_id' => $user->id
+        ]);
 
-        // return ApiResponse::JsonResult(null,__('messages.info',[
-        //     'info' => 'Order accepted'
-        // ]));
+        return ApiResponse::JsonResult(null,__('messages.info',[
+            'info' => 'Order accepted'
+        ]));
     }
 
 
@@ -152,7 +146,24 @@ class HomeScreenController extends Controller
         ]));
     }
 
-    // public function
+
+    public function submitDeliveryPackage(Request $req){
+        $user = UserService::getAuthUser('driver');
+        $id = $req->package_id;
+        $validStatusIds = [9,10,19];
+        $status_id = $req->status_id;
+        if(!in_array($status_id,$validStatusIds)) return ApiResponse::ValidateFail(__('messages.info',[
+            'info' => 'Please choose the valid status'
+        ]));
+        $package = Package::where('is_deleted',0)->where('')->find($id);
+        if(!$package) return ApiResponse::NotFound(__('messages.not_found',[
+            'info' => 'Package'
+        ]));
+        if($package->driver_id !== $user->id) return ApiResponse::Duplicated(__('messages.info',[
+            'info' => 'Please submit package that belongs to you'
+        ]));
+        return ApiResponse::JsonResult(null);
+    }
 
     public function getOptionsStatus(Request $req){
         $user = UserService::getAuthUser('driver');

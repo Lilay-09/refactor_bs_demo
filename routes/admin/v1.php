@@ -140,6 +140,7 @@ Route::middleware(['jwt','localize'])->prefix('admin/v1/{lang}')->group(function
 
     Route::prefix('package')->group(function(){
         Route::get('',[PackageTrailController::class,'getPackages']);
+        Route::get('/{id}',[PackageTrailController::class,'getOnePackage']);
         Route::put('{id}',[PackageTrailController::class,'updatePackage']);
         Route::put('{id}/driver/{driver_id}',[PackageTrailController::class,'assignDriver']);
         Route::delete('{id}',[PackageTrailController::class,'deletePackage']);
@@ -266,6 +267,7 @@ Route::middleware(['jwt','localize'])->prefix('admin/v1/{lang}')->group(function
         Route::get('/{id}',[DefaultRemarkController::class,'getOneDefaultRemark']);
         Route::put('/{id}',[DefaultRemarkController::class,'updateDefaultRemark']);
         Route::delete('/{id}',[DefaultRemarkController::class,'deleteDefaultRemark']);
+        Route::put('/toggleHidden/{id}',[DefaultRemarkController::class,'toggleHidden']);
     });
 
     Route::prefix('socialMedia')->group(function(){
@@ -328,6 +330,7 @@ Route::middleware(['jwt','localize'])->prefix('admin/v1/{lang}')->group(function
             Route::get('fleet',[GeneralSettingController::class,'getFormFleet']);
             Route::get('promotion',[GeneralSettingController::class,'getFormPromotion']);
             Route::get('remark',[GeneralSettingController::class,'getFormRemark']);
+            Route::get('zone',[GeneralSettingController::class,'getFormZone']);
         });
     });
 });

@@ -2,6 +2,7 @@
 use App\Http\Controllers\Mobile\Driver\V1\AuthController;
 use App\Http\Controllers\Mobile\Merchant\V1\AuthController as AuthMerchantController;
 use App\Http\Controllers\Mobile\Driver\V1\HomeScreenController;
+use App\Http\Controllers\Mobile\V1\GeneralSettingController;
 use Illuminate\Support\Facades\Route;
 
 
@@ -15,6 +16,7 @@ Route::prefix('driver/v1/{lang}/auth')->middleware('localize')->group(function()
     });
 });
 Route::middleware(['jwtDriver','localize'])->prefix('driver/v1/{lang}')->group(function(){
+    Route::post('subscribe',[AuthController::class,'subscribeTopics']);
     Route::prefix('home')->group(function(){
         Route::get('availableOrders',[HomeScreenController::class,'getAvailableOrders']);
         Route::get('accepted/pickup',[HomeScreenController::class,'getAcceptedPickup']);
@@ -23,6 +25,13 @@ Route::middleware(['jwtDriver','localize'])->prefix('driver/v1/{lang}')->group(f
         Route::put('accepted/pickup/{order_id}',[HomeScreenController::class,'updateAcceptedOrder']);
         Route::post('acceptOrder/{order_id}',[HomeScreenController::class,'acceptOrder']);
         Route::get('option/status',[HomeScreenController::class,'getOptionsStatus']);
+        Route::put('accepted/delivery/package/{package_id}',[HomeScreenController::class,'submitDeliveryPackage']);
+    });
+
+    Route::prefix('setting')->group(function (){
+        Route::prefix('option')->group(function (){
+            Route::get('failRemark',[GeneralSettingController::class,'getOptionsDriverFailRemarks']);
+        });
     });
 });
 
@@ -50,6 +59,9 @@ Route::middleware(['jwtMerchant','localize'])->prefix('merchant/v1/{lang}')->gro
 
 
 
+// Route::middleware(['jwtMerchant','localize'])->prefix('merchant/v1/{lang}')->group(function(){
+
+// });
 
 
 
@@ -57,13 +69,3 @@ Route::middleware(['jwtMerchant','localize'])->prefix('merchant/v1/{lang}')->gro
 
 
 
-
-
-
-// BEGIN => Merchant
-Route::prefix('merchant/v1/auth')->group(function(){
-    // Route::post('login',[AuthController::class,'login']);
-});
-Route::middleware(['jwt','localize'])->prefix('admin/v1/{lang}')->group(function(){
-
-});
