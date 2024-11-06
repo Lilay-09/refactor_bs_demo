@@ -11,6 +11,7 @@ use App\Models\District;
 use App\Models\PriceList;
 use App\Models\PriceListname;
 use App\Models\ProductType;
+use App\Models\TermCondition;
 use App\Models\TrackingStatus;
 use App\Models\User;
 use App\Models\VehicleType;
@@ -65,7 +66,11 @@ class GeneralSettingService
         return Zone::where('status',1)->where('company_id',$user->company_id)->orWhere('is_deleted',0)->selectRaw('id,zone_name,zone_code')->orderByDesc('id')->get();
     }
 
-    public static function optionsTrackingStatus($user,$exludeIds=[],$stage=null,$selectCols=null){
+
+    public static function termAndConditions($user){
+        return TermCondition::where('channel',$user->account_type)->selectRaw('text')->first();
+    }
+    public static function optionsTrackingStatus($user,$exludeIds=[],$selectIds=[],$stage=null,$selectCols=null){
         if(!$selectCols) $selectCols = 'id,name';
         $q = TrackingStatus::where('hidden',0)->where('is_deleted',0)
         ->where('company_id',$user->company_id)
@@ -75,6 +80,9 @@ class GeneralSettingService
         }
         if(isset($exludeIds[0])){
             $q->whereNotIn('id',$exludeIds);
+        }
+        if(isset($selectIds[0])){
+            $q->whereIn('id',$selectIds);
         }
         $statuses = $q->get();
         return $statuses;
@@ -228,6 +236,19 @@ class GeneralSettingService
         ];
     }
 
+
+    public static function paymentStatus(){
+        return [
+            [
+                'label' => 'Paid',
+                'value' => '2'
+            ],
+            [
+                'label' => 'Unpaid',
+                'value' => '1'
+            ],
+        ];
+    }
     public static function optionsPriceListName($user){
         return PriceListname::where('company_id',$user->company_id)->orderByDesc('id')->selectRaw('id,name,kg_marker')->get();
     }

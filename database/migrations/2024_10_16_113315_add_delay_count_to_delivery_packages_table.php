@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::table('delivery_packages', function (Blueprint $table) {
             //
-            $table->unsignedInteger('delay_count')->default(0);
+            $table->boolean('delay_count')->default(0);
             $table->boolean('is_completed')->default(0);
         });
     }

@@ -4,6 +4,8 @@ namespace App\Http\Controllers\V1;
 
 use ApiResponse;
 use App\Http\Controllers\Controller;
+use App\Models\Delivery;
+use App\Models\DeliveryPackage;
 use App\Models\Package;
 use App\Services\PickupCenterService;
 use App\Services\TransactionService;
@@ -24,9 +26,17 @@ class CompletedPackageController extends Controller
         ->leftJoin('payments as dpmt','dpmt.id','p.driver_payment_id') //** if driver paid or unpaid */
         ->leftJoin('payments as mpmt','mpmt.id','p.merchant_payment_id') //** if driver paid or unpaid */
         ->orderByDesc('p.id')
-        ->whereIn('p.status_id',[9,19]) //* delivered and failed with fee
-        ->selectRaw('m.user_name as merchant_name,m.phone as merchant_phone,dpmt.approved as approved_driver_pmt,d.user_name as driver_name,p.status_id,p.id as package_id,d.id as driver_id,p.qr_code,p.price,ts.name as status_code,p.delivered_datetime,p.failed_datetime,p.taxi_fee,p.payer,p.cod,p.zone_code,p.receiver_phone,p.delivery_type,p.delivery_fee,p.driver_total,p.merchant_total')
+        ->whereIn('p.status_id',[9,11,19]) //* delivered and failed with fee
+        ->selectRaw('m.user_name as merchant_name,m.phone as merchant_phone,dpmt.approved as approved_driver_pmt,mpmt.approved as approved_merchant_pmt,d.user_name as driver_name,p.status_id,p.id as package_id,d.id as driver_id,p.qr_code,p.price,ts.name as status_code,p.product_type,p.delivered_datetime,p.failed_datetime,p.taxi_fee,p.payer,p.cod,p.zone_code,p.zone_name,p.receiver_phone,p.delivery_type,p.delivery_fee,p.driver_total,p.merchant_total')
         ->get();
+        foreach($packages as $pkg){
+            if($pkg->status_id == 9 || $pkg->status_id == 19){
+                if($pkg->approved_driver_pmt) $pkg->driver_pmt_status = 'Paid';
+                else $pkg->driver_pmt_status = 'Unpaid';
+                if($pkg->approved_merchant_pmt) $pkg->merhchant_pmt_status = 'Paid';
+                else $pkg->merhchant_pmt_status = 'Unpaid';
+            }
+        }
         return ApiResponse::Pagination($packages,$req);
     }
 
@@ -36,5 +46,51 @@ class CompletedPackageController extends Controller
         $id = $req->id;
         $trxService = new TransactionService();
         return ApiResponse::flex($trxService->updateDeliveryPackage($req,null,$user));
+    }
+
+    public function createOrUpdatePackage(Request $req){
+        $validate = validator($req->all(),[
+            'driver_id' => 'required|int',
+            'barcode' => 'required|string',
+            'vehicle_type' => 'required|exists:vehicle_types,name',
+        ]);
+        if($validate->fails()) return ApiResponse::ValidateFail($validate->errors()->first());
+        $inputs = $validate->validated();
+        $driverid = $inputs['driver_id'];
+        $barcode = $inputs['barcode'];
+        $today = date('Y-m-d');
+        // $todayDelivery = Delivery::whereDate('depart_datetime',$today)->where('company_id',$user->company_id)->where('driver_id',$driverId)->first();
+        // if(!$todayDelivery){
+        //     $QuerylastPackage = DeliveryPackage::where('package_id',$packageId)->where('is_deleted',0);
+        //     $hasFailPackage = $QuerylastPackage->get();
+        //     if(isset($hasFailPackage[0])) $QuerylastPackage->update([
+        //         'delay_count' => 1,
+        //     ]);
+        //     $create = Delivery::create([
+        //         'driver_id' => $driverId,
+        //         'depart_datetime' => now(),
+        //         'package_count' => 1,
+        //         'status_id' => 14, //** On Delivery */
+        //         'warehouse_id' => 1,
+        //         'vehicle_type' => $vehicleType,
+        //         'branch_id' => $user->branch_id,
+        //         'company_id' => $user->company_id,
+        //         'update_uid' => $user->id,
+        //         'create_uid' => $user->id,
+        //     ]);
+        //     if(!$create) return DataResponse::Error(__('messages.error',['info' => 'Fail to add fleet']));
+        //     $deliveryId = $create->id;
+        //     Helper::setFleetNumber($user->branch_id,'fleet_code_controls','deliveries',$deliveryId,'fleet_tracking_number');
+        // }else{
+        //     $deliveryId = $todayDelivery->id;
+        //     $todayDelivery->update([
+        //         'driver_id' => $driverId,
+        //         'delay_count' => $todayDelivery->delay_count + 1,
+        //         'package_count' => $todayDelivery->package_count + 1,
+        //         'update_uid' => $user->id,
+        //         'branch_id' => $user->branch_id,
+        //         'company_id' => $user->company_id,
+        //     ]);
+        // }
     }
 }

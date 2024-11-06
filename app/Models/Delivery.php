@@ -40,6 +40,10 @@ class Delivery extends Model
         return \Carbon\Carbon::parse($value)->format('d-M-y H:i:s');
     }
 
+    public function driver(){
+        return $this->belongsTo(TrackingStatus::class,'driver_id','id');
+    }
+
     public function status(){
         return $this->belongsTo(TrackingStatus::class,'status_id','id');
     }

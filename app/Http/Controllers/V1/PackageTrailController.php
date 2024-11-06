@@ -161,6 +161,7 @@ class PackageTrailController extends Controller
         }else{
             $deliveryId = $todayDelivery->id;
             $todayDelivery->update([
+                'driver_id' => $driverId,
                 'delay_count' => $todayDelivery->delay_count + 1,
                 'package_count' => $todayDelivery->package_count + 1,
                 'update_uid' => $user->id,

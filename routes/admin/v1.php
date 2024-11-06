@@ -331,6 +331,7 @@ Route::middleware(['jwt','localize'])->prefix('admin/v1/{lang}')->group(function
             Route::get('promotion',[GeneralSettingController::class,'getFormPromotion']);
             Route::get('remark',[GeneralSettingController::class,'getFormRemark']);
             Route::get('zone',[GeneralSettingController::class,'getFormZone']);
+            Route::get('finished',[GeneralSettingController::class,'getFormFinished']);
         });
     });
 });

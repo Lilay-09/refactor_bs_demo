@@ -77,6 +77,10 @@ class CloudMessagingService
                     'name' => $topic->public
                 ],
                 (object)[
+                    'type' => 'special',
+                    'name' => 'promotion'
+                ],
+                (object)[
                     'type' => 'private',
                     'name' => $topic->private
                 ]
@@ -95,17 +99,22 @@ class CloudMessagingService
         return $topics[$channel];
     }
 
-    public function subscribeTopic($channel,$token,$user,$deviceId=null,$os_name,$platform='web'){
+    public function subscribeTopic($channel,$req,$user){
         $companyId = $user->company_id ?? null;
         $userId = $user->id ?? null;
+        $token = $req->token ?? null;
+        if(!$token) return DataResponse::ValidateFail(__('messages.info',[
+            'info' => 'FCM token is required'
+        ]));
+        $deviceId = $req->device_id ?? null;
         $topics = $this->getTopics($companyId,$channel,$userId);
-        $notifTokenId = $this->saveUserNotification($channel,$token,$user,$deviceId,$os_name,$platform);
+        $deviceInfo = $this->getUserDevice($req);
+        $notifTokenId = $this->saveUserNotification($channel,$token,$user,$deviceId,$deviceInfo->device,$deviceInfo->platform);
         foreach($topics as $topic){
-            $sub = $this->subscribe($token,$topic->name);
-            if($sub->error) return $sub;
-
+            $this->subscribe($token,$topic->name);
+            $this->saveNotifTopic($notifTokenId,$topic->name,$topic->type,$user);
         }
-        return DataResponse::JsonResult($topic,false,'subscribe');
+        return DataResponse::JsonResult(null,false,'subscribed');
     }
 
     private function saveNotifTopic($token_id,$topic,$topicType,$user){
@@ -123,12 +132,13 @@ class CloudMessagingService
         }
     }
 
-    private function saveUserNotification($channel,$token,$user,$deviceId=null,$os_name=null,$platform='web',$serviceName='Firebase'){
+    private function saveUserNotification($channel,$token,$user,$deviceId=null,$os_name=null,$platform='Web',$serviceName='Firebase'){
         $id = null;
         $sub = UserNotificationToken::where('user_id',$user->id)->where('device_id',$deviceId)->first();
         if(!$sub) {
             $create = UserNotificationToken::create([
                 'service_name' => $serviceName,
+                'channel' => $channel,
                 'token' => $token,
                 'device_id' => $deviceId,
                 'platform' => $platform,
@@ -160,26 +170,11 @@ class CloudMessagingService
         return $id;
     }
 
-
-    private function subscribe($token,$topic)
+    private function subscribe($token, $topic)
     {
-        try{
-            if($topic){
-                $this->messaging->subscribeToTopic($topic, $token);
-            }
-            return DataResponse::JsonResult([
-                'action' => 'subscribed',
-                'topic'=> $topic
-            ]);
-        }catch (InvalidArgument | NotFound $e) {
-            return DataResponse::error($e->getMessage());
-        }
-        catch(Exception $e){
-            Log::error($e->getMessage());
-            Log::error($e->getTraceAsString());
-            return DataResponse::error('Fail to subscribe');
-        }
+        $this->messaging->subscribeToTopic($topic, $token);
     }
+
 
     private function sendNotification($target,$targetValue,$title,$body){
         $message = CloudMessage::withTarget($target, $targetValue)
@@ -195,11 +190,8 @@ class CloudMessagingService
                 'action'=> 'Sent',
             ]);
         } catch (InvalidMessage $e) {
-            // Handle invalid message errors
-             return DataResponse::error('Invalid message');
-            // return DataResponse::result([
-            //     'error' => 'Invalid message: ' . $e->getMessage()
-            // ], 400);
+
+            return DataResponse::error('Invalid message');
         } catch (Exception $e) {
             // Handle other exceptions
             return DataResponse::error('Failed to send notification');
@@ -219,4 +211,79 @@ class CloudMessagingService
         return $notif;
     }
 
+    private function getUserDevice(Request $req)
+    {
+        $userAgent = $req->headers->get('User-Agent');
+        $deviceType = 'Unknown';
+        $deviceModel = 'Unknown';
+        $platform = 'Unknown';
+        $ip = $req->getClientIp();
+
+        // Determine the device type and model
+        switch (true) {
+            case strpos($userAgent, 'Android') !== false:
+                $deviceType = 'Android';
+                preg_match('/Android.*?; (.*?)(;|$)/', $userAgent, $matches);
+                $deviceModel = isset($matches[1]) ? trim($matches[1]) : 'Unknown Model';
+                $platform = 'Mobile App'; // Adjusted for mobile applications
+                break;
+
+            case strpos($userAgent, 'iPhone') !== false:
+                $deviceType = 'iOS';
+                $deviceModel = 'iPhone';
+                $platform = 'Mobile App'; // Adjusted for mobile applications
+                break;
+
+            case strpos($userAgent, 'iPad') !== false:
+                $deviceType = 'iOS';
+                $deviceModel = 'iPad';
+                $platform = 'Mobile App'; // Adjusted for mobile applications
+                break;
+
+            // Checking for web browser requests
+            case strpos($userAgent, 'Mozilla') !== false:
+                if (strpos($userAgent, 'Chrome') !== false || strpos($userAgent, 'Safari') !== false) {
+                    $platform = 'Web';
+                }
+                // Determine desktop type and model
+                if (strpos($userAgent, 'Windows NT') !== false) {
+                    $deviceType = 'Windows';
+                    preg_match('/Windows NT (\d+\.\d+)/', $userAgent, $matches);
+                    $deviceModel = 'Windows NT ' . (isset($matches[1]) ? $matches[1] : 'Unknown Version');
+                } elseif (strpos($userAgent, 'Macintosh') !== false) {
+                    $deviceType = 'Mac';
+                    $deviceModel = 'Macintosh';
+                } elseif (strpos($userAgent, 'Linux') !== false) {
+                    $deviceType = 'Linux';
+                    $deviceModel = 'Linux Device';
+                }
+                break;
+
+            default:
+                $deviceType = 'Unknown';
+                $deviceModel = 'Unknown Model';
+                $platform = 'Unknown';
+                break;
+        }
+
+        return (object)[
+            'device' => $deviceType . '|' . $deviceModel . '|' . $ip,
+            'platform' => $platform
+        ];
+    }
+
+    // private function getLocationFromIp($ip)
+    // {
+    //     // Using ipinfo.io as an example
+
+    //     $ip = Http::get("https://api.ipify.org");
+    //     $response = Http::get("http://ipinfo.io/{$ip}?token=7e2ecd4236ef49");
+
+    //     // Check if the request was successful
+    //     if ($response->successful()) {
+    //         return $response;
+    //     }
+
+    //     return null;  // Return null if the request fails
+    // }
 }
