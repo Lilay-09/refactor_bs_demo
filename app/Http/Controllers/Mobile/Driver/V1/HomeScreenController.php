@@ -117,14 +117,29 @@ class HomeScreenController extends Controller
 
     //** Pick or Pick & Book */
     public function updateAcceptedOrder(Request $req){
+        $user = $this->user;
         $orderId = $req->order_id;
         $statusId = $req->status_id;
+        // return $req;
+        $order = Order::where('is_deleted',0)
+        ->with(['merchant','tracking_status'])
+        ->where('status_id',3)
+        ->where('company_id',$user->company_id)
+        ->where('driver_id',$user->id)
+        ->selectRaw('id')
+        ->find($orderId);
+        if(!$order) return ApiResponse::NotFound(__('messages.info',[
+            'info' => 'No order was found'
+        ]));
         $qty = $req->qty;
+        $images = $req->images ?? [];
         $details = $req->details ?? null;
         if(!in_array($statusId,[2,4])) return ApiResponse::ValidateFail(__('messages.info',[
             'info' =>'Please choose the correct status'
         ]));
-        if($statusId == 4 && !$details) return ApiResponse::ValidateFail();
+        if($statusId == 4 && !$details) return ApiResponse::ValidateFail(__('messages.info',[
+            'info' => 'Please add details when you choose pick & book'
+        ]));
         $qty = $req->qty ?? null;
         $user = UserService::getAuthUser('driver');
         $order = Order::where('is_deleted',0)->where('status_id',3)->find($orderId);
@@ -134,11 +149,17 @@ class HomeScreenController extends Controller
 
         $qty = $qty ?? $order->qty;
         $acceptArr = [
-            'status_id' => 3,
+            'status_id' => $statusId,
             'qty' => $qty,
             'driver_id' => $user->id // the requester is driver
         ];
-        // if($statusId == 4) $acceptArr['booking_channel'] = 'driver';
+        if($statusId == 4) $acceptArr['booking_channel'] = 'driver';
+        if($statusId == 2) {
+            foreach($images as $image){
+                var_dump($image);
+            }
+        }
+
         // $order->update($acceptArr);
 
         return ApiResponse::JsonResult(null,__('messages.info',[
@@ -170,4 +191,11 @@ class HomeScreenController extends Controller
         $statuses = GeneralSettingService::optionsTrackingStatus($user,[1,3,20],'pick');
         return ApiResponse::JsonResult($statuses);
     }
+
+    public function getTermConditions(Request $req){
+        $user = UserService::getAuthUser('driver');
+        return ApiResponse::JsonResult(GeneralSettingService::termAndConditions($user));
+    }
+
+    // public function
 }

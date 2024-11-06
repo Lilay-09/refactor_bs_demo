@@ -10,7 +10,6 @@ use App\Services\Mobile\AuthService;
 use App\Services\UserService;
 use Helper;
 use Illuminate\Http\Request;
-use Log;
 use Tymon\JWTAuth\Exceptions\JWTException;
 use Tymon\JWTAuth\Facades\JWTAuth;
 use Tymon\JWTAuth\Facades\JWTFactory;
@@ -91,11 +90,31 @@ class AuthController extends Controller
         return ApiResponse::flex($authService->getProfile($user));
     }
 
+    public function updateProfile(Request $req){
+        $user = UserService::getAuthUser('driver');
+        $validate = validator($req->all(),[
+            'user_name' => 'required|string',
+            'phone' => 'required|string',
+            'email' => 'nullable|string',
+            'photo' => 'nullable|array'
+        ]);
+        if($validate->fails()) return ApiResponse::ValidateFail($validate->errors()->first());
+        $inputs = $validate->validated();
+        $photo = $inputs['photo'] ?? null;
+        $t=[];
+        foreach($photo as $p){
+            $t[] = $p->getClientMimeType();
+        }
+        return $t;
+        // if($photo) {
+        //     return $photo;
+        //     $inputs['photo_file_name'] = Helper::saveImageFile($photo,$user->company_id,'user_profile')->filename;
+        // }
+    }
 
     public function subscribeTopics(Request $req){
         $user = UserService::getAuthUser('driver');
         $cldMsgService = new CloudMessagingService();
-        $token = $req->token;
-        return $cldMsgService->subscribeTopic('driver',$token,$user,$req->device_id,$req->os_name,'mobile');
+        return $cldMsgService->subscribeTopic('driver',$req,$user);
     }
 }

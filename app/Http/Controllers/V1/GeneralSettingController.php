@@ -157,7 +157,7 @@ class GeneralSettingController extends Controller
     public function getFormFleet(){
         $user = UserService::getAuthUser();
         $obj = (object)[
-            'statuses' => $this->gs::optionsTrackingStatus($user,[15],'fleet'),
+            'statuses' => $this->gs::optionsTrackingStatus($user,[15],[],'fleet'),
             'warehouses' => $this->gs::optionsWarehouse($user),
             'drivers' => $this->gs::optionsDriver($user),
             'zones' => $this->gs::optionsZone($user)
@@ -183,6 +183,20 @@ class GeneralSettingController extends Controller
 
     public function getOptionsCurrencyPair(){
         return ApiResponse::JsonResult($this->gs::optionCurrencyPair());
+    }
+
+
+    public function getFormFinished(){
+        $user = UserService::getAuthUser();
+        $obj = (object)[
+            'warehouses' => $this->gs::optionsWarehouse($user),
+            'merchants' => $this->gs::optionsMerchant($user),
+            'drivers' => $this->gs::optionsDriver($user),
+            'delivery_types' => $this->gs::optionsDeliveryType(),
+            'payment_statuses' => $this->gs::paymentStatus(),
+            'statuses' => $this->gs::optionsTrackingStatus($user,[],[9,11,19],'delivery')
+        ];
+        return ApiResponse::JsonResult($obj);
     }
 
 

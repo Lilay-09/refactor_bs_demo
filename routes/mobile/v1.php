@@ -5,18 +5,18 @@ use App\Http\Controllers\Mobile\Driver\V1\HomeScreenController;
 use App\Http\Controllers\Mobile\V1\GeneralSettingController;
 use Illuminate\Support\Facades\Route;
 
-
-
 //BEGIN::Driver
 
 Route::prefix('driver/v1/{lang}/auth')->middleware('localize')->group(function(){
     Route::post('login',[AuthController::class,'login']);
     Route::middleware('jwtDriver')->group(function(){
         Route::get('profile',[AuthController::class,'getProfile']);
+        Route::post('profile',[AuthController::class,'updateProfile']);
     });
 });
 Route::middleware(['jwtDriver','localize'])->prefix('driver/v1/{lang}')->group(function(){
     Route::post('subscribe',[AuthController::class,'subscribeTopics']);
+    Route::get('termConditions',[HomeScreenController::class,'getTermConditions']);
     Route::prefix('home')->group(function(){
         Route::get('availableOrders',[HomeScreenController::class,'getAvailableOrders']);
         Route::get('accepted/pickup',[HomeScreenController::class,'getAcceptedPickup']);

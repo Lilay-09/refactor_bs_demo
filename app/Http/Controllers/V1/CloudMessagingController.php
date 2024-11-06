@@ -22,7 +22,7 @@ class CloudMessagingController extends Controller
 
     public function subscribeToTopic(Request $req){
         $user = UserService::getAuthUser();
-        return ApiResponse::JsonRaw($this->cloudService->subscribeTopic('web',$req->token,$user));
+        return ApiResponse::JsonRaw($this->cloudService->subscribeTopic('admin',$req,$user));
     }
 
     public function sendNoficationViaTopic(Request $req){

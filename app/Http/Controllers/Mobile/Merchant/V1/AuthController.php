@@ -16,6 +16,11 @@ use Tymon\JWTAuth\Facades\JWTAuth;
 class AuthController extends Controller
 {
     //
+
+    protected $userClass;
+    public function __construct(){
+        $this->userClass = 'merchant';
+    }
     public function login(Request $request){
         $validate = validator([
             'username' => $request->username,
@@ -38,7 +43,7 @@ class AuthController extends Controller
         }
         if(!$user) return  ApiResponse::NotFound('Invalid Username or password');
         if($user){
-            if($user->account_type != 'merchant' && !$systemAdmin) return ApiResponse::Forbidden('You have no access to this application.');
+            if($user->account_type != $this->userClass && !$systemAdmin) return ApiResponse::Forbidden('You have no access to this application.');
             $user->roles = UserService::getRolesByUsers($user->id);
         }
         User::find($user->id)->update([
@@ -127,21 +132,8 @@ class AuthController extends Controller
     }
 
     public function verifyOTP(Request $req){
-        $validate = validator($req->all(),[
-            'phone' => 'required|string',
-            'otp' => 'required|string|min:6|max:6',
-        ]);
-        if($validate->fails()) return ApiResponse::ValidateFail($validate->errors()->first());
-        $inputs = $validate->validated();
-        $otp = $inputs['phone'];
-        $phone = $inputs['phone'];
-        $user = User::where('is_deleted',0)->where('account_type','merchant')->where('phone',$phone)->first();
-        $validOtp = $user->otp;
-        if($otp != $validOtp) return ApiResponse::ValidateFail(__('messages.info',[
-            'info' => 'Incorrect otp',
-            'khInfo' => 'លេខផ្ទៀងផ្ទាត់មិនត្រូវ'
-        ]));
-
+        $user = UserService::getAuthUser($this->userClass);
+        return ApiResponse::flex(UserService::verifyOTP($req,$user));
 
     }
 }

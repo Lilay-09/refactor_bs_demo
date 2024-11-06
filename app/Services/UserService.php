@@ -1,7 +1,6 @@
 <?php
 
 namespace App\Services;
-use ApiResponse;
 use App\Models\MerchantPriceList;
 use App\Models\User;
 use App\Models\UserBank;
@@ -269,5 +268,24 @@ class UserService
             'password' => $hpwd
         ]);
         return DataResponse::JsonResult(null,false,__('messages.created'));
+    }
+
+    public static function verifyOTP(Request $req,$user){
+        $validate = validator($req->all(),[
+            'phone' => 'required|string',
+            'otp' => 'required|string|min:6|max:6',
+        ]);
+        if($validate->fails()) return DataResponse::ValidateFail($validate->errors()->first());
+        $inputs = $validate->validated();
+        $otp = $inputs['phone'];
+        $phone = $inputs['phone'];
+        $user = User::where('is_deleted',0)->where('account_type',$user->account_type)->where('phone',$phone)->first();
+        $validOtp = $user->otp;
+        if($otp != $validOtp) return DataResponse::ValidateFail(__('messages.info',[
+            'info' => 'Incorrect otp',
+            'khInfo' => 'លេខផ្ទៀងផ្ទាត់មិនត្រូវ'
+        ]));
+
+
     }
 }

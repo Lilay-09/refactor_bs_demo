@@ -20,7 +20,7 @@ return new class extends Migration
             $table->string('token')->nullable();
             $table->string('device_id',100)->nullable();
             $table->string('platform', 50)->nullable();
-            $table->string('os_name', 50)->nullable();
+            $table->string('os_name', 300)->nullable();
             $table->boolean('is_active')->default(1);
             $table->dateTime('last_notified_at')->nullable();
             $table->dateTime('expires_at')->nullable();
