@@ -1,7 +1,10 @@
 <?php
 
 namespace App\Services;
+use App\Models\Bank;
+use App\Models\BusinessType;
 use App\Models\City;
+use App\Models\ClientType;
 use App\Models\Commune;
 use App\Models\Country;
 use App\Models\DefaultRemark;
@@ -18,7 +21,6 @@ use App\Models\VehicleType;
 use App\Models\Warehouse;
 use App\Models\Zone;
 use DataResponse;
-use Helper;
 
 
 class GeneralSettingService
@@ -35,7 +37,7 @@ class GeneralSettingService
     ];
 
     public static function optionChannels($idx=null){
-        if($idx){
+        if($idx >= 0){
             return [self::$channels[$idx]];
         }
         return self::$channels;
@@ -52,6 +54,22 @@ class GeneralSettingService
                 'value' => 'fail with fee'
             ]
         ];
+    }
+    static function optionsGender(){
+        return [
+            (object)[
+                'label' => 'Female',
+                'value' => 'F'
+            ],
+            (object)[
+                'label' => 'Male',
+                'value' => 'M'
+            ]
+        ];
+    }
+
+    public static function optionsPriceList($user){
+        return PriceList::where('is_deleted',0)->with('priceListName')->get();
     }
 
 
@@ -70,6 +88,11 @@ class GeneralSettingService
     public static function termAndConditions($user){
         return TermCondition::where('channel',$user->account_type)->selectRaw('text')->first();
     }
+
+    public static function optionsBusinessType($user){
+        return BusinessType::where('company_id',$user->company_id)->where('is_deleted',0)->selectRaw('id,name')->get();
+    }
+
     public static function optionsTrackingStatus($user,$exludeIds=[],$selectIds=[],$stage=null,$selectCols=null){
         if(!$selectCols) $selectCols = 'id,name';
         $q = TrackingStatus::where('hidden',0)->where('is_deleted',0)
@@ -98,16 +121,28 @@ class GeneralSettingService
         })->where('stage','pick')->selectRaw('id,name')->orderByDesc('id')->get();
     }
 
-    public static function optionsDriver($user){
+    public static function optionsDriver($user,$vehicleType=null){
+        $qD = User::where(function($q){
+            $q->where('lock',0)->orWhere('is_deleted',0);
+        })->where('company_id',$user->company_id)->where('account_type','driver')->selectRaw('id,user_name,phone');
+        if($vehicleType) $qD->where('vehicle_type','ilike',$vehicleType);
+        $drivers = $qD->orderByDesc('id')->get();
+        return $drivers;
+    }
+
+    public static function optionsDriverByVehicleType($vehicle_type,$user){
         return User::where(function($q){
             $q->where('lock',0)->orWhere('is_deleted',0);
-        })->where('company_id',$user->company_id)->where('account_type','driver')->selectRaw('id,user_name,phone')->orderByDesc('id')->get();
+        })->where('company_id',$user->company_id)->where('account_type','driver')->selectRaw('id,user_name,phone')->where('vehicle_type',$vehicle_type)->orderByDesc('id')->get();
     }
 
     public static function getDriverById($id){
         return User::where('is_deleted',0)->where('delete_account',0)->where('account_type','driver')->orderByDesc('id')->find($id);
     }
 
+    public static function optionsBank($user){
+        return Bank::where('is_deleted',0)->where('company_id',$user->company_id)->selectRaw('id,name')->get();
+    }
 
     public static function optionsMerchant($user){
         return User::where(function($q){
@@ -179,6 +214,15 @@ class GeneralSettingService
 
     }
 
+    // public static function optionsPackage($user,$barcode=null,$statusIds=[]){
+    //     $qP = Package::where('is_deleted',0)
+    //     ->where('company_id',$user->company_id);
+    //     // ->selectRaw('id,qr_code,cod,fee_payer,');
+    //     // if($barcode) $qP->where('barcode',$barcode);
+    //     $packages = $qP->get();
+    //     return $packages;
+    // }
+
     public static function priceByZone($zone_id,$user){
         $row = PriceList::with(['zones'])
             ->where('status',1)
@@ -208,6 +252,10 @@ class GeneralSettingService
                 'lable' => 'Yes'
             ],
         ];
+    }
+
+    public static function optionsMerchantType($user){
+        return ClientType::where('is_deleted',0)->selectRaw('id,name')->get();
     }
 
     public static function optionsPayer(){

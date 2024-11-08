@@ -73,7 +73,7 @@ class UserService
             'user_name' => 'nullable|max:100',
             'name_km' => 'nullable|max:100',
             'email' => 'nullable|string|max:100',
-            'phone' => 'required|string|max:20',
+            'phone' => 'required|string|regex:/^0[0-9]{8,19}$/',
             'gender' => 'required|in:M,F,O',
             'photo' => 'nullable|string',
             'address' => 'nullable|string|max:500',
@@ -98,6 +98,7 @@ class UserService
             $baseFields['user_name'] = 'required|max:100';
             return validator($req->all(),$baseFields);
         }else if($userClass == 'merchant'){
+            $baseFields['bank_info'] = 'nullable|array';
             $baseFields['client_type_id'] = 'nullable|int';
             $baseFields['business_type'] = 'nullable|string|max:50';
             $baseFields['cod'] = 'nullable|in:1,0';
@@ -115,7 +116,7 @@ class UserService
         if($validate->fails()) return DataResponse::ValidateFail($validate->errors()->first(),$validate->errors());
         $inputs = $validate->validated();
         $bankInfo = $inputs['bank_info'] ?? [];
-        $photo = $inputs['photo'];
+        $photo = $inputs['photo'] ?? null;
         $inputs['account_type'] = $user_class;
         $inputs['update_uid'] = $user->id;
         $inputs['branch_id'] = $user->branch_id;
@@ -217,12 +218,12 @@ class UserService
             $bank['branch_id'] = $user->branch_id;
             $bank['company_id'] = $user->company_id;
             $bank['user_id'] = $userId;
+            $bank['is_primary'] = $bankInfo['is_primary'] ?? false;
             $bankNumber = $bank['bank_number'] ?? null;
             $accountName = $bank['account_name'] ?? null;
             if(!isset($bank['bank_name'])) return DataResponse::ValidateFail(__('messages.error',['info' =>'Please enter bank name']));
             $qUserBank = UserBank::where('user_id',$userId);
             if($id) $qUserBank->where('id','!=',$id);
-            // if($existsBank){
             $existsBankInfo = $qUserBank->where('bank_name',$bank['bank_name'])->where('bank_number',$bankNumber)
             ->where('account_name',$accountName)->first();
             if($existsBankInfo) return DataResponse::ValidateFail(__('messages.error',['info' => 'It seems like you try to add duplicated bank info']));

@@ -165,6 +165,29 @@ class GeneralSettingController extends Controller
         return ApiResponse::JsonResult($obj);
     }
 
+    public function getFormMerchant(){
+        $user = UserService::getAuthUser();
+        $obj = (object)[
+            'merchant_types' => $this->gs::optionsBusinessType($user),
+            'business_types' => $this->gs::optionsBusinessType($user),
+            'cods' => $this->gs::optionsCOD(),
+            'genders' => $this->gs::optionsGender(),
+            'price_list' => $this->gs::optionsPriceList($user),
+            'referrers' => $this->gs::optionsMerchant($user),
+            'banks' => $this->gs::optionsBank($user),
+        ];
+        return ApiResponse::JsonResult($obj);
+    }
+
+    public function getOptionsVehicleType(Request $req){
+        $user = UserService::getAuthUser();
+        return ApiResponse::JsonResult($this->gs::optionsVehicleType($user));
+    }
+    // public function getOptionsDriverByVehicleType(Request $req){
+    //     $user = UserService::getAuthUser();
+    //     return ApiResponse::JsonResult($this->gs::optionsDriverByVehicleType($req->vehicle_type,$user));
+    // }
+
     public function getFormPromotion(){
         return ApiResponse::JsonResult($this->gs::optionChannels(1));
     }
@@ -176,14 +199,16 @@ class GeneralSettingController extends Controller
         ];
         return ApiResponse::JsonResult($obj);
     }
-    public function getOptionsDriver(){
+    public function getOptionsDriver(Request $req){
         $user = UserService::getAuthUser();
-        return ApiResponse::JsonResult($this->gs::optionsDriver($user));
+        return ApiResponse::JsonResult($this->gs::optionsDriver($user,$req->vehicle_type));
     }
 
     public function getOptionsCurrencyPair(){
         return ApiResponse::JsonResult($this->gs::optionCurrencyPair());
     }
+
+
 
 
     public function getFormFinished(){

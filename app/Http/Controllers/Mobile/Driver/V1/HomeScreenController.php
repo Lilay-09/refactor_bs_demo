@@ -5,9 +5,11 @@ namespace App\Http\Controllers\Mobile\Driver\V1;
 use ApiResponse;
 use App\Http\Controllers\Controller;
 use App\Models\Order;
+use App\Models\OrderImage;
 use App\Models\Package;
 use App\Services\GeneralSettingService;
 use App\Services\UserService;
+use Helper;
 use Illuminate\Http\Request;
 
 class HomeScreenController extends Controller
@@ -20,17 +22,18 @@ class HomeScreenController extends Controller
     public function getAvailableOrders(Request $req){
         $user = UserService::getAuthUser('driver');
         $orders = Order::where('is_deleted',0)
-        ->with(['merchant'])
+        ->with(['merchant','warehouse'])
         ->where('status_id',1)
         ->where('company_id',$user->company_id)
         ->orderByDesc('id')
-        ->selectRaw('id,order_datetime,merchant_id,qty,code,pickup_address,pickup_address_google_map,vehicle_type,delivery_type')
+        ->selectRaw('id,order_datetime,merchant_id,warehouse_id,qty,code,pickup_address,pickup_address_google_map,vehicle_type,delivery_type')
         ->get();
         foreach($orders as $order){
             $order->merhant_name = $order->merchant->user_name;
             $order->merchant_code = $order->merchant->code;
             $order->merchant_phone = $order->merchant->phone;
-            unset($order->merchant);
+            $order->warehouse_address = $order->warehouse->address;
+            unset($order->merchant,$order->warehouse);
         }
         return ApiResponse::Pagination($orders,$req);
     }
@@ -39,15 +42,21 @@ class HomeScreenController extends Controller
         $user = $this->user;
         if($user->error) return ApiResponse::flex($user);
         $orders = Order::where('is_deleted',0)
-        ->with(['merchant','tracking_status'])
+        ->with(['merchant','tracking_status','warehouse'])
         ->where('status_id',3)
         ->where('company_id',$user->company_id)
         ->where('driver_id',$user->id)
-        ->selectRaw('id,driver_id,order_datetime,merchant_id,status_id,qty,code,pickup_address,pickup_address_google_map,vehicle_type,delivery_type')
+        ->selectRaw('id,warehouse_id,driver_id,pickup_address_google_map,order_datetime,merchant_id,status_id,qty,code,pickup_address,pickup_address_google_map,vehicle_type,delivery_type')
         ->get();
         foreach($orders as $order){
+            $order->warehouse_address = $order->warehouse->address;
             $order->status_code = $order->tracking_status->name;
-            unset($order->merchant,$order->tracking_status);
+            $order->merchant_name = $order->merchant->user_name;
+            $order->merchant_phone = $order->merchant->phone;
+            $latLng = Helper::getLatLongFromGoogleMapsUrl($order->pickup_address_google_map);
+            $order->latitude = $latLng->latitude;
+            $order->longitude = $latLng->longitude;
+            unset($order->merchant,$order->tracking_status,$order->warehouse);
         }
         return ApiResponse::Pagination($orders,$req);
     }
@@ -132,7 +141,7 @@ class HomeScreenController extends Controller
             'info' => 'No order was found'
         ]));
         $qty = $req->qty;
-        $images = $req->images ?? [];
+        $images = $req->file('images') ?? [];
         $details = $req->details ?? null;
         if(!in_array($statusId,[2,4])) return ApiResponse::ValidateFail(__('messages.info',[
             'info' =>'Please choose the correct status'
@@ -154,19 +163,70 @@ class HomeScreenController extends Controller
             'driver_id' => $user->id // the requester is driver
         ];
         if($statusId == 4) $acceptArr['booking_channel'] = 'driver';
+        if($details){
+            $detailsCount = count($details);
+            if($qty !== $detailsCount) return ApiResponse::ValidateFail(__('messages.info',[
+                'info' => 'Your quantity and details is not matching',
+                'khInfo' => 'ចំនួនកញ្ចប់និងទិន្នន័យកញ្ចប់មិនត្រូវគ្នា, ទិន្នន័យបញ្ចូលរកឃើញតែ('.$detailsCount.')'
+            ]));
+            foreach($details as $d){
+                $rD = new Request($d);
+                $validate = $this->validatePackageDetails($rD);
+                if($validate->fails()) return ApiResponse::ValidateFail($validate->errors()->first());
+                $inputs = $validate->validated();
+                $inputs['create_uid'] = $user->id;
+                $inputs['update_uid'] = $user->id;
+                $inputs['company_id'] = $user->company_id;
+                $inputs['branch_id'] = $user->branch_id;
+                Package::create($inputs);
+            }
+        }
         if($statusId == 2) {
+            $imgCount = count($images);
+            if($imgCount != $qty) return ApiResponse::ValidateFail(__('messages.info',[
+                'info' => 'Your package quantity is not matching the number of photos.',
+                'khInfo' => 'ចំនួនកញ្ចប់និងចំនួនរូបភាពមិនត្រូវគ្នា'
+            ]));
             foreach($images as $image){
-                var_dump($image);
+                $photoFileName = Helper::saveImageFile($image,$user->company_id,'order_image')->filename;
+                OrderImage::create([
+                    'order_id' => $orderId,
+                    'original_name' => $image->getOriginalName(),
+                    'photo_file_name' => $photoFileName,
+                    'create_uid' => $user->id,
+                    'update_uid' => $user->id,
+                    'company_id' => $user->company_id,
+                    'branch_id' => $user->branch_id
+                ]);
             }
         }
 
-        // $order->update($acceptArr);
+        $order->update($acceptArr);
 
         return ApiResponse::JsonResult(null,__('messages.info',[
-            'info' => 'You have accepted for pick & book'
+            'info' => 'You have accepted for pick & book',
+            'khInfo' => 'បានបញ្ចូលទិន្នន័យកញ្ចប់'
         ]));
     }
 
+
+    private function validatePackageDetails(Request $req){
+        return validator($req->all(),[
+            'price' => 'nullable|numeric',
+            'payer' => 'required|in:receiver,sender',
+            'cod' => 'required|in:0,1',
+            'receiver_address' => 'nullable|string|max:250',
+            'receiver_phone' => 'required|string|max:20|min:8',
+            'receiver_name' => 'nullable|string|max:50',
+            'actual_kg' => 'nullable|numeric',
+            'pickup_notes' => 'nullable|string|max:250'
+        ],[
+            'receiver_phone.min' => __('messages.info',[
+                'info' => 'Please enter a valid phone number',
+                'khInfo' => 'សូមបញ្ចូលលេខទូរស័ព្ទដែរត្រឹមត្រូវ'
+            ])
+        ]);
+    }
 
     public function submitDeliveryPackage(Request $req){
         $user = UserService::getAuthUser('driver');

@@ -11,11 +11,12 @@ class AuthService
     // Your service methods go here
     public function getProfile($authUser){
         $user = User::where('lock',0)->where('is_deleted',0)
-        ->selectRaw('id,user_name,phone,email,address')
+        ->selectRaw('id,user_name,phone,email,address,photo_file_name')
         ->where('account_type',$authUser->account_type)
         ->find($authUser->id);
         if(!$user) return DataResponse::NotFound('User not found');
-        $user->image_url = Helper::getImageUrl($user->photo_file_name,$user->company_id,'user_profile');
+        $user->image_url = Helper::getImageUrl($user->photo_file_name,$authUser->company_id,'user_profile');
+        unset($user->photo_file_name);
         return DataResponse::JsonResult($user,__('messages.info',[
             'info' => 'Get Profile'
         ]));
