@@ -10,6 +10,8 @@ use App\Services\Mobile\AuthService;
 use App\Services\UserService;
 use Helper;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
+use Log;
 use Tymon\JWTAuth\Exceptions\JWTException;
 use Tymon\JWTAuth\Facades\JWTAuth;
 use Tymon\JWTAuth\Facades\JWTFactory;
@@ -91,25 +93,28 @@ class AuthController extends Controller
     }
 
     public function updateProfile(Request $req){
-        $user = UserService::getAuthUser('driver');
+        $authUser = UserService::getAuthUser('driver');
         $validate = validator($req->all(),[
             'user_name' => 'required|string',
-            'phone' => 'required|string',
             'email' => 'nullable|string',
-            'photo' => 'nullable|array'
+            'address' => 'nullable|string',
+            'photo' => 'nullable'
         ]);
         if($validate->fails()) return ApiResponse::ValidateFail($validate->errors()->first());
+        $user = User::where('account_type',$authUser->account_type)->selectRaw('id,photo_file_name,user_name,phone,email')->find($authUser->id);
         $inputs = $validate->validated();
         $photo = $inputs['photo'] ?? null;
-        $t=[];
-        foreach($photo as $p){
-            $t[] = $p->getClientMimeType();
-        }
-        return $t;
-        // if($photo) {
-        //     return $photo;
-        //     $inputs['photo_file_name'] = Helper::saveImageFile($photo,$user->company_id,'user_profile')->filename;
-        // }
+        // Log::error($photo?->getClientOriginalName());
+        // Log::error(json_encode($inputs));
+        if($photo instanceof UploadedFile){
+
+            $inputs['photo_file_name'] = Helper::saveImageFile($photo,$authUser->company_id,'user_profile')->filename;
+            Helper::deleteImageFile($user->photo_file_name,$authUser->company_id,'user_profile');
+        }else if(!$photo) Helper::deleteImageFile($user->photo_file_name,$authUser->company_id,'user_profile');
+        $user->update($inputs);
+        return ApiResponse::JsonResult(null,__('messages.info',[
+            'info' => 'Updated'
+        ]));
     }
 
     public function subscribeTopics(Request $req){

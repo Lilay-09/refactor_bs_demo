@@ -152,6 +152,7 @@ Route::middleware(['jwt','localize'])->prefix('admin/v1/{lang}')->group(function
     //** Begin Fleet Management */
     Route::prefix('trip')->group(function(){
         Route::get('',[FleetManagementController::class,'getTrips']);
+        Route::post('',[FleetManagementController::class,'createOrUpdateTrip']);
         Route::get('{trip_id}/package',[FleetManagementController::class,'getTripPackages']);
         Route::put('{trip_id}/package/status',[FleetManagementController::class,'setPackageStatus']);
     });
@@ -167,7 +168,7 @@ Route::middleware(['jwt','localize'])->prefix('admin/v1/{lang}')->group(function
         Route::get('/',[BankController::class,'getBanks']);
         Route::get('{id}',[BankController::class,'getOneBank']);
         Route::put('/{id}',[BankController::class,'updateBank']);
-        Route::delete('',[BankController::class,'deleteBank']);
+        Route::delete('{id}',[BankController::class,'deleteBank']);
     });
 
 
@@ -319,6 +320,8 @@ Route::middleware(['jwt','localize'])->prefix('admin/v1/{lang}')->group(function
             Route::get('city/district/{city_id}',[GeneralSettingController::class,'getOptionsDistrictByCity']);
             Route::get('district/commune/{district_id}',[GeneralSettingController::class,'getOptionsCommuneByDistrict']);
             Route::get('priceList/name',[GeneralSettingController::class,'getOptionsPriceListName']);
+            Route::get('vehicleType',[GeneralSettingController::class,'getOptionsVehicleType']);
+            Route::get('fleet/package/{barcode}',[FleetManagementController::class,'getPackageByBarcode']);
         });
 
         Route::prefix('form')->group(function(){
@@ -332,6 +335,7 @@ Route::middleware(['jwt','localize'])->prefix('admin/v1/{lang}')->group(function
             Route::get('remark',[GeneralSettingController::class,'getFormRemark']);
             Route::get('zone',[GeneralSettingController::class,'getFormZone']);
             Route::get('finished',[GeneralSettingController::class,'getFormFinished']);
+            Route::get('merchant',[GeneralSettingController::class,'getFormMerchant']);
         });
     });
 });

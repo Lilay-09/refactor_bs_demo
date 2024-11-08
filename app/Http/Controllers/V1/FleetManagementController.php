@@ -7,8 +7,10 @@ use App\Http\Controllers\Controller;
 use App\Models\Delivery;
 use App\Models\DeliveryPackage;
 use App\Models\Package;
+use App\Models\User;
 use App\Services\GeneralSettingService;
 use App\Services\UserService;
+use DB;
 use Helper;
 use Illuminate\Http\Request;
 
@@ -66,8 +68,8 @@ class FleetManagementController extends Controller
         ->selectRaw('d.user_name as driver_name,d.phone as driver_phone,m.user_name as merchant_name,m.phone as merchant_phone,p.id as package_id,dp.delivery_id,p.zone_code,p.zone_name,p.delivery_fee,p.driver_total,p.taxi_fee,p.product_type')
         ->get();
         foreach($packages as $package){
-            // $package->status_code = $package->status->name;
-            // unset($package->status);
+            $package->status_code = $package->status->name;
+            unset($package->status);
         }
         return ApiResponse::JsonResult($packages,__('messages.get_list',['info' => 'Package']));
     }
@@ -131,5 +133,81 @@ class FleetManagementController extends Controller
         if(!$package) return ApiResponse::NotFound(__('messages.not_found',['info' => 'Package','khInfo' => 'កញ្ចប់']));
     }
 
+    public function createOrUpdateTrip(Request $req){
+        $user = UserService::getAuthUser();
+        $today = date('Y-m-d');
+        $validate = validator($req->all(),[
+            'barcode' => 'required|string',
+            'vehicle_type' => 'nullable|exists:vehicle_types,name',
+            'driver_id' => 'required|int'
+        ]);
+        if($validate->fails()) return ApiResponse::ValidateFail($validate->errors()->first());
+        $inputs = $validate->validated();
+        $barcode = $inputs['barcode'];
+        $driverId = $inputs['driver_id'];
+        $vehicleType = $inputs['vehicle_type'] ?? null;
+        $driver = User::where('is_deleted',0)->find($driverId);
+        if(!$driver) return ApiResponse::NotFound(__('messages.not_found',[
+            'info' => 'Driver'
+        ]));
+        if(!$vehicleType) $vehicleType = $driver->vehicle_type;
+        $todayDelivery = Delivery::whereDate('depart_datetime',$today)->where('company_id',$user->company_id)->where('driver_id',$driverId)->first();
+        $packageId = Package::where('qr_code',$barcode)->where('is_deleted',0)->value('id');
+        if(!$todayDelivery){
+            $QuerylastPackage = DeliveryPackage::where('package_id',$packageId)->where('is_deleted',0);
+            $hasFailPackage = $QuerylastPackage->get();
+            if(isset($hasFailPackage[0])) $QuerylastPackage->update([
+                'delay_count' => 1,
+            ]);
+            $create = Delivery::create([
+                'driver_id' => $driverId,
+                'depart_datetime' => now(),
+                'package_count' => 1,
+                'status_id' => 14, //** On Delivery */
+                'warehouse_id' => 1,
+                'vehicle_type' => $vehicleType,
+                'branch_id' => $user->branch_id,
+                'company_id' => $user->company_id,
+                'update_uid' => $user->id,
+                'create_uid' => $user->id,
+            ]);
+            if(!$create) return ApiResponse::Error(__('messages.error',['info' => 'Fail to add fleet']));
+            $deliveryId = $create->id;
+            Helper::setFleetNumber($user->branch_id,'fleet_code_controls','deliveries',$deliveryId,'fleet_tracking_number');
+        }else{
+            $deliveryId = $todayDelivery->id;
+            $todayDelivery->update([
+                'driver_id' => $driverId,
+                'delay_count' => $todayDelivery->delay_count + 1,
+                'package_count' => $todayDelivery->package_count + 1,
+                'update_uid' => $user->id,
+                'branch_id' => $user->branch_id,
+                'company_id' => $user->company_id,
+            ]);
+        }
+        DeliveryPackage::create([
+            'driver_id' => $driverId,
+            'delivery_id' => $deliveryId,
+            'package_id' => $packageId,
+            'status_id' => 6, // On Delivery
+            'update_uid' => $user->id,
+            'create_uid' => $user->id,
+            'branch_id' => $user->branch_id,
+            'company_id' => $user->company_id,
+        ]);
+        return ApiResponse::JsonResult(null,__('messages.saved'));
+    }
 
+    public function getPackageByBarcode(Request $req){
+        $user = UserService::getAuthUser();
+        $barCode = $req->barcode;
+        $package = Package::where('qr_code',$barCode)
+        ->where('company_id',$user->company_id)
+        ->selectRaw('id,receiver_name,receiver_phone,zone_name,zone_code,taxi_fee,cod,payer,delivery_fee,remarks')
+        ->first();
+        if(!$package) return ApiResponse::NotFound(__('messages.not_found',[
+            'info' => 'Package'
+        ]));
+        return $package;
+    }
 }

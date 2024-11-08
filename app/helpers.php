@@ -353,13 +353,14 @@ class Helper{
     public static function saveImageFile(UploadedFile $image, $companyId, $dirName = 'images')
     {
         // Validate the image type
-        $validMimeTypes = ['image/jpeg', 'image/png', 'image/jpg', 'image/gif', 'image/heic', 'image/heif'];
+        $validMimeTypes = ['image/jpeg', 'image/png', 'image/jpg', 'image/gif', 'image/heic', 'image/heif', 'image/webp'];
         if (!in_array($image->getClientMimeType(), $validMimeTypes)) {
             return (object)[
                 'filename' => null,
                 'ext' => null
             ];
         }
+
         $originalFilename = $image->getClientOriginalName();
         $extension = $image->getClientOriginalExtension();
         // Generate a unique filename based on the current timestamp

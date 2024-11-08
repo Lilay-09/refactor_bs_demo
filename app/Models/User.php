@@ -78,6 +78,10 @@ class User extends Authenticatable implements JWTSubject
         return $this->hasMany(UserRoles::class,'user_id','id');
     }
 
+    public function merchantType(){
+        return $this->belongsTo(ClientType::class,'client_type_id','id');
+    }
+
     /**
      * The attributes that should be hidden for serialization.
      *

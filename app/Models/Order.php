@@ -56,14 +56,18 @@ class Order extends Model
     }
 
     public function merchant(){
-        return $this->belongsTo(User::class,'merchant_id','id')->where('account_type','merchant')->where('is_deleted',0);
+        return $this->belongsTo(User::class,'merchant_id','id')->where('account_type','merchant');
     }
 
     public function driver(){
-        return $this->belongsTo(User::class,'driver_id','id')->where('is_deleted',0);
+        return $this->belongsTo(User::class,'driver_id','id');
+    }
+
+    public function warehouse(){
+        return $this->belongsTo(Warehouse::class,'warehouse_id','id');
     }
 
     public function tracking_status(){
-        return $this->belongsTo(TrackingStatus::class,'status_id','id')->where('is_deleted',0);
+        return $this->belongsTo(TrackingStatus::class,'status_id','id');
     }
 }
