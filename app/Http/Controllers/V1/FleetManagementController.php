@@ -65,12 +65,13 @@ class FleetManagementController extends Controller
         ->where('dp.delivery_id',$trip_id)
         ->join('users as m','m.id','p.merchant_id')
         ->join('users as d','d.id','p.driver_id')
-        ->selectRaw('d.user_name as driver_name,d.phone as driver_phone,m.user_name as merchant_name,m.phone as merchant_phone,p.id as package_id,dp.delivery_id,p.zone_code,p.zone_name,p.delivery_fee,p.driver_total,p.taxi_fee,p.product_type')
+        ->join('tracking_statuses as ts','ts.id','p.status_id')
+        ->selectRaw('ts.name as status_code,d.user_name as driver_name,d.phone as driver_phone,m.user_name as merchant_name,m.phone as merchant_phone,p.id as package_id,dp.delivery_id,p.zone_code,p.zone_name,p.delivery_fee,p.driver_total,p.taxi_fee,p.product_type')
         ->get();
-        foreach($packages as $package){
-            $package->status_code = $package->status->name;
-            unset($package->status);
-        }
+        // foreach($packages as $package){
+
+        //     unset($package->status);
+        // }
         return ApiResponse::JsonResult($packages,__('messages.get_list',['info' => 'Package']));
     }
 

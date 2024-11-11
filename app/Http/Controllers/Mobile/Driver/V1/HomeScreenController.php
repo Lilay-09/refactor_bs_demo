@@ -29,7 +29,7 @@ class HomeScreenController extends Controller
         ->selectRaw('id,order_datetime,merchant_id,warehouse_id,qty,code,pickup_address,pickup_address_google_map,vehicle_type,delivery_type')
         ->get();
         foreach($orders as $order){
-            $order->merhant_name = $order->merchant->user_name;
+            $order->merchant_name = $order->merchant->user_name;
             $order->merchant_code = $order->merchant->code;
             $order->merchant_phone = $order->merchant->phone;
             $order->warehouse_address = $order->warehouse->address;
@@ -68,7 +68,7 @@ class HomeScreenController extends Controller
         $orders = Order::fromRaw('orders as o')->join('packages as p','p.order_id','o.id')->where('o.is_deleted',0)
         ->join('users as m','m.id','o.merchant_id')
         // ->with(['packages:id,cod,price,delivery_fee,payer,zone_code,zone_name,receiver_phone,delivery_type,status_id,order_id,arrive_warehouse_datetime','packages.status'])
-        ->selectRaw('o.id,o.code,m.user_name,m.phone')->groupByRaw('m.phone,o.id,o.code,m.user_name')->where('p.driver_id',$driverId)->get();
+        ->selectRaw('o.id as order_id,o.id,o.code,m.user_name,m.phone')->groupByRaw('m.phone,o.id,o.code,m.user_name')->where('p.driver_id',$driverId)->get();
         foreach($orders as $order){
             // foreach($order->packages as $package){
             //     $package->status_code = $package->status->name;
@@ -83,7 +83,7 @@ class HomeScreenController extends Controller
         $oderId = $req->order_id;
         $driverId = $user->id;
         $packages = Package::where('order_id',$oderId)->where('is_deleted',0)
-        ->where('status_id',9)
+        // ->where('status_id',6)
         ->with('status')
         ->selectRaw('id,cod,price,delivery_fee,payer,zone_code,zone_name,receiver_phone,delivery_type,status_id,order_id,arrive_warehouse_datetime')
         ->where('driver_id',$driverId)->get();

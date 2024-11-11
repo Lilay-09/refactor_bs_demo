@@ -1,7 +1,9 @@
 <?php
 use App\Http\Controllers\Mobile\Driver\V1\AuthController;
+use App\Http\Controllers\Mobile\Driver\V1\HistoryController;
 use App\Http\Controllers\Mobile\Merchant\V1\AuthController as AuthMerchantController;
 use App\Http\Controllers\Mobile\Driver\V1\HomeScreenController;
+use App\Http\Controllers\Mobile\Merchant\V1\HomeController;
 use App\Http\Controllers\Mobile\V1\GeneralSettingController;
 use Illuminate\Support\Facades\Route;
 
@@ -28,6 +30,8 @@ Route::middleware(['jwtDriver','localize'])->prefix('driver/v1/{lang}')->group(f
         Route::put('accepted/delivery/package/{package_id}',[HomeScreenController::class,'submitDeliveryPackage']);
     });
 
+    Route::get('history',[HistoryController::class,'getHistoryPackages']);
+
     Route::prefix('setting')->group(function (){
         Route::prefix('option')->group(function (){
             Route::get('failRemark',[GeneralSettingController::class,'getOptionsDriverFailRemarks']);
@@ -51,7 +55,19 @@ Route::prefix('merchant/v1/{lang}/auth')->middleware('localize')->group(function
 });
 
 Route::middleware(['jwtMerchant','localize'])->prefix('merchant/v1/{lang}')->group(function(){
+    Route::prefix('home')->group(function(){
+        Route::post('booking',[HomeController::class,'createBooking']);
+    });
 
+
+    Route::prefix('setting')->group(function (){
+        // Route::prefix('option')->group(function (){
+        //     Route::get('failRemark',[GeneralSettingController::class,'getOptionsDriverFailRemarks']);
+        // });
+        Route::prefix('form')->group(function (){
+            Route::get('booking',[GeneralSettingController::class,'getMerchantFormBooking']);
+        });
+    });
 });
 
 
