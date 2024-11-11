@@ -67,8 +67,10 @@ class HomeScreenController extends Controller
         $driverId = $user->id;
         $orders = Order::fromRaw('orders as o')->join('packages as p','p.order_id','o.id')->where('o.is_deleted',0)
         ->join('users as m','m.id','o.merchant_id')
+        // ->where('is_completed',0)
         // ->with(['packages:id,cod,price,delivery_fee,payer,zone_code,zone_name,receiver_phone,delivery_type,status_id,order_id,arrive_warehouse_datetime','packages.status'])
         ->selectRaw('o.id as order_id,o.id,o.code,m.user_name,m.phone')->groupByRaw('m.phone,o.id,o.code,m.user_name')->where('p.driver_id',$driverId)->get();
+        // $compl
         foreach($orders as $order){
             // foreach($order->packages as $package){
             //     $package->status_code = $package->status->name;
