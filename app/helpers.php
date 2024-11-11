@@ -536,17 +536,21 @@ class Helper{
     {
         // Regular expression to capture latitude and longitude from Google Maps URL
         $pattern = '/@([-+]?[0-9]*\.?[0-9]+),([-+]?[0-9]*\.?[0-9]+)/';
-
+        $placePattern = "/place\/([^\/]+)\/@/";
+        $lat = null;
+        $lng = null;
+        $placeName = null;
         if (preg_match($pattern, $url, $matches)) {
-            return (object)[
-                'latitude' => $matches[1],
-                'longitude' => $matches[2],
-            ];
+            $lat = $matches[1];
+            $lng = $matches[2];
         }
-
+        if (preg_match($placePattern, $url, $placeMatches)) {
+            $placeName = str_replace("+", " ", $placeMatches[1]);
+        }
         return (object)[
-            'latitude' => null,
-            'longitude' => null,
+            'latitude' => $lat,
+            'longitude' => $lng,
+            'address' => $placeName
         ]; // Return null if no coordinates found
     }
 
@@ -749,9 +753,9 @@ class DataResponse //extends Model
     {
         $filter = (object)$filter;
         $perPage = isset($filter->per_page) ? $filter->per_page : 10;
-        $currentPage = isset($filter->current_page) ? $filter->current_page : 1;
+        $currentPage = isset($filter->page_no) ? $filter->page_no : 1;
         $skip_row = $perPage * ($currentPage - 1);
-        if(isset($filter->search_value)){
+        if(isset($filter->search_value) || isset($filter->search)){
             $skip_row = 0;
         }
         $limitation = $data->slice($skip_row,$perPage);

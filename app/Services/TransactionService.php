@@ -158,7 +158,6 @@ class TransactionService
         }
     }
 
-
     private function validPayment($cash,$cashKh,$bankAmount,$bankAmountKh,$bankId,$dueAmount,$exhangeRate){
         $bankName = null;
         if($bankAmount && !$bankId) return DataResponse::ValidateFail(__('messages.error',['info' => 'Please enter bank']));
@@ -214,6 +213,7 @@ class TransactionService
                 'info' => 'If USD amount($'.$totalAmountUSD.')'.' additional in KHR must be ('.$roundSuggestionAmtUp.' or '.$totalSuggestionAmt_KH.')'
             ]));
         }
+
         if($totalAmountUSD && !$totalAmountKHR){
             if($cash && $bankAmount){
                 $additionalSuggestion = abs($dueAmount - $cash);

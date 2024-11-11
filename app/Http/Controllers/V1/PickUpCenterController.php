@@ -30,6 +30,7 @@ class PickUpCenterController extends Controller
             'qty' => 'required|int|min:1',
             'vehicle_type' => 'required|in:'.$vehicleTypes,
             'driver_id' => 'nullable',
+            'pickup_address_google_map' => 'nullable|string',
             'pickup_address' => 'nullable|string|max:300'
         ],[
             'merchant_id.required' => 'Please select the sender',
@@ -72,6 +73,12 @@ class PickUpCenterController extends Controller
         $createOrder = Order::create($inputs);
         if(!$createOrder) return ApiResponse::Error('Fail to create order!');
         $code = Helper::generateCode('JS',$createOrder->id,'',8);
+        $pickupAddress = $inputs['pickup_address'] ?? null;
+        $pickup_address_google_map = $inputs['pickup_address_google_map'] ?? null;
+        $latLng = Helper::getLatLongFromGoogleMapsUrl($pickup_address_google_map);
+        $inputs['loc_lat'] = $latLng->latitude;
+        $inputs['loc_lng'] = $latLng->longitude;
+        if(!$pickupAddress) $inputs['pickup_address'] = $latLng->address;
         Order::find($createOrder->id)->update([
             'code' => $code
         ]);
@@ -119,7 +126,9 @@ class PickUpCenterController extends Controller
         $inputs['branch_id'] = $user->branch_id;
         $inputs['company_id'] = $user->company_id;
         $inputs['booking_channel'] = 'admin';
+        $pickupAddress = $inputs['pickup_address'] ?? null;
         $driverId = $inputs['driver_id'] ?? null;
+        $pickup_address_google_map = $inputs['pickup_address_google_map'] ?? null;
         $inputs['status_id'] = 3; //** accepted for pick up*/
         if(!$driverId) $inputs['status_id'] = 1; //** available for pick */
         else{
@@ -129,6 +138,10 @@ class PickUpCenterController extends Controller
         }
         if($user->account_type == 'driver') $inputs['booking_channel'] = 'driver';
         else if($user->account_type == 'merchant') $inputs['booking_channel'] = 'merchant';
+        $latLng = Helper::getLatLongFromGoogleMapsUrl($pickup_address_google_map);
+        $inputs['loc_lat'] = $latLng->latitude;
+        $inputs['loc_lng'] = $latLng->longitude;
+        if(!$pickupAddress) $inputs['pickup_address'] = $latLng->address;
         $update = $order->update($inputs);
         if(!$update) return ApiResponse::Error(__('messages.error',['info' => 'Fail to update order']));
         return ApiResponse::JsonResult(null,__('messages.updated',['info' => 'Order has']));

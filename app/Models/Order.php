@@ -34,6 +34,7 @@ class Order extends Model
         'detail_type',
         'warehouse_id',
         'order_datetime',
+        'pickup_address_google_map',
         'cancel_notes',
         'booking_channel',
         'create_uid',

@@ -4,6 +4,7 @@ namespace App\Services;
 use App\Models\PrivacyStatement;
 use App\Models\TermCondition;
 use DataResponse;
+use Http;
 use Illuminate\Http\Request;
 class AppSetting
 {
@@ -87,4 +88,39 @@ class AppSetting
             'info' => $modelName
         ]));
     }
+
+    public static function sendSms($sender, $to, $content) {
+        $privateKey = env('PLASGATE_PRIVATE_KEY') ?? '';
+        $secret = env('PLASGATE_SECRET') ?? '';
+
+        $url = 'https://cloudapi.plasgate.com/rest/send?private_key=' . urlencode($privateKey);
+
+        $headers = [
+            'X-Secret' => $secret,
+            'Content-Type' => 'application/json'
+        ];
+
+        $data = [
+            'sender' => $sender,
+            'to' => $to,
+            'content' => $content
+        ];
+
+        $response = Http::withHeaders($headers)->post($url, $data);
+
+        if ($response->successful()) {
+            return [
+                'status' => 'OK',
+                'message' => 'success',
+                'data' => $response->json()
+            ];
+        } else {
+            return [
+                'status' => 'error',
+                'message' => 'Failed to send SMS',
+                'error' => $response->body()
+            ];
+        }
+    }
+
 }
