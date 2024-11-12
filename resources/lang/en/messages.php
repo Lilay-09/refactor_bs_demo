@@ -14,6 +14,7 @@ return [
     'no_found' => 'No :info Found',
     'assigned' => ':info assigned',
     'error' => ':info',
+    'submitted' => ':info submitted',
     'info' => ':info',
     'saved' => ':info Saved',
     'returned' => ':info Returned',

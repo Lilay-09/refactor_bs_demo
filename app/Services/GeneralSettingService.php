@@ -68,10 +68,39 @@ class GeneralSettingService
         ];
     }
 
-    public static function optionsPriceList($user){
-        return PriceList::where('is_deleted',0)->with('priceListName')->get();
+    static function optionsEmployeeType(){
+        return [
+            (object)[
+                'label' => 'Full-Time',
+                'value' => 'full-time'
+            ],
+            (object)[
+                'label' => 'Half-Time',
+                'value' => 'half-time'
+            ]
+        ];
+    }
+    static function optionsShiftType(){
+        return [
+            (object)[
+                'label' => 'Day Shift',
+                'value' => 'day shift'
+            ],
+            (object)[
+                'label' => 'Night Shift',
+                'value' => 'night shift'
+            ]
+        ];
     }
 
+    public static function optionsPriceList($user){
+        $pricelist =  PriceList::where('is_deleted',0)->selectRaw('id,price_list_name_id')->with('priceListName')->get();
+        foreach($pricelist as $pl){
+            $pl->name = $pl->priceListName->name;
+            unset($pl->priceListName);
+        }
+        return $pricelist;
+    }
 
     public static function optionsDriverRemarks($category=null){
         $qR = DefaultRemark::where('channel','driver');
@@ -289,11 +318,15 @@ class GeneralSettingService
         return [
             [
                 'label' => 'Paid',
-                'value' => '2'
+                'value' => 2
             ],
             [
                 'label' => 'Unpaid',
-                'value' => '1'
+                'value' => 1
+            ],
+            [
+                'label' => 'Unpaid',
+                'value' => 0
             ],
         ];
     }

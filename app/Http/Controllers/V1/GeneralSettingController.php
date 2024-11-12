@@ -87,7 +87,7 @@ class GeneralSettingController extends Controller
         $user = UserService::getAuthUser();
 
         $obj = [
-            'statuses' => $this->gs::optionsTrackingStatus($user,[20],'pick'),
+            'statuses' => $this->gs::optionsTrackingStatus($user,[20],[],'pick'),
             'drivers' => $this->gs::optionsDriver($user)
         ];
         return ApiResponse::JsonResult($obj,'get form set order status');
@@ -174,6 +174,19 @@ class GeneralSettingController extends Controller
             'genders' => $this->gs::optionsGender(),
             'price_list' => $this->gs::optionsPriceList($user),
             'referrers' => $this->gs::optionsMerchant($user),
+            'banks' => $this->gs::optionsBank($user),
+        ];
+        return ApiResponse::JsonResult($obj);
+    }
+
+    public function getFormDriver(){
+        $user = UserService::getAuthUser();
+        $obj = (object)[
+            'employee_types' => $this->gs::optionsEmployeeType(),
+            'shitf_types' => $this->gs::optionsShiftType(),
+            'genders' => $this->gs::optionsGender(),
+            'vehicle_types' => $this->gs::optionsVehicleType($user),
+            'warehouses' => $this->gs::optionsWarehouse($user),
             'banks' => $this->gs::optionsBank($user),
         ];
         return ApiResponse::JsonResult($obj);

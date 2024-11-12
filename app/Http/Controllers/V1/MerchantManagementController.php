@@ -81,4 +81,9 @@ class MerchantManagementController extends Controller
         return ApiResponse::flex($createDriver);
     }
 
+
+    public function createMerchantAccount(){
+
+    }
+
 }

@@ -97,6 +97,7 @@ Route::middleware(['jwt','localize'])->prefix('admin/v1/{lang}')->group(function
         Route::get('',[MerchantManagementController::class,'getMerchants']);
         Route::get('/{id}',[MerchantManagementController::class,'getOneMerchant']);
         Route::put('/{id}',[MerchantManagementController::class,'updateMerchant']);
+        Route::post('/{id}/account',[MerchantManagementController::class,'createMerchantAccount']);
 
         Route::prefix('transaction')->group(function(){
             Route::get('delivery/package',[MerchantTransactionController::class,'getDeliveryPackages']);
@@ -336,6 +337,7 @@ Route::middleware(['jwt','localize'])->prefix('admin/v1/{lang}')->group(function
             Route::get('zone',[GeneralSettingController::class,'getFormZone']);
             Route::get('finished',[GeneralSettingController::class,'getFormFinished']);
             Route::get('merchant',[GeneralSettingController::class,'getFormMerchant']);
+            Route::get('driver',[GeneralSettingController::class,'getFormDriver']);
         });
     });
 });

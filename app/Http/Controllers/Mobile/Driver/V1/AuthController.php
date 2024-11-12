@@ -104,8 +104,6 @@ class AuthController extends Controller
         $user = User::where('account_type',$authUser->account_type)->selectRaw('id,photo_file_name,user_name,phone,email')->find($authUser->id);
         $inputs = $validate->validated();
         $photo = $inputs['photo'] ?? null;
-        // Log::error($photo?->getClientOriginalName());
-        // Log::error(json_encode($inputs));
         if($photo instanceof UploadedFile){
 
             $inputs['photo_file_name'] = Helper::saveImageFile($photo,$authUser->company_id,'user_profile')->filename;

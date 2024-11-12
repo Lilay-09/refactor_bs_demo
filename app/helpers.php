@@ -532,6 +532,22 @@ class Helper{
     }
 
 
+    static function formatPhoneNumber($phone){
+        $new_num = null;
+        if (empty($phone)) return null;
+        $phone = trim(str_replace(' ','',$phone));
+        if (substr($phone,0,1) =='0')
+        {
+            $new_num = '855'.substr($phone,1,strlen($phone)-1);
+        }else if (substr($phone,0,3) =='855'){
+            $new_num = $phone;
+        }else if(substr($phone,0,4) =='+855'){
+            $new_num = substr($phone,1,strlen($phone)-1);
+        }
+        return $new_num;
+
+    }
+
     static function getLatLongFromGoogleMapsUrl($url)
     {
         // Regular expression to capture latitude and longitude from Google Maps URL

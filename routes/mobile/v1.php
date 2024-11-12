@@ -27,7 +27,7 @@ Route::middleware(['jwtDriver','localize'])->prefix('driver/v1/{lang}')->group(f
         Route::post('accepted/pickup/{order_id}',[HomeScreenController::class,'updateAcceptedOrder']);
         Route::post('acceptOrder/{order_id}',[HomeScreenController::class,'acceptOrder']);
         Route::get('option/status',[HomeScreenController::class,'getOptionsStatus']);
-        Route::put('accepted/delivery/package/{package_id}',[HomeScreenController::class,'submitDeliveryPackage']);
+        Route::post('accepted/delivery/package/{package_id}',[HomeScreenController::class,'submitDeliveryPackage']);
     });
 
     Route::get('history',[HistoryController::class,'getHistoryPackages']);
@@ -35,6 +35,10 @@ Route::middleware(['jwtDriver','localize'])->prefix('driver/v1/{lang}')->group(f
     Route::prefix('setting')->group(function (){
         Route::prefix('option')->group(function (){
             Route::get('failRemark',[GeneralSettingController::class,'getOptionsDriverFailRemarks']);
+        });
+
+        Route::prefix('form')->group(function (){
+            Route::get('history',[GeneralSettingController::class,'getFormOptionsHistory']);
         });
     });
 });

@@ -87,6 +87,7 @@ class UserService
         }else if($userClass == 'driver'){
             $baseFields['employment_date'] = 'nullable|string|max:100';
             $baseFields['shift_type'] = 'nullable|string|max:35';
+            $baseFields['employee_type'] = 'nullable|string|max:35';
             $baseFields['vehicle_type'] = 'required|string|exists:vehicle_types,name';
             $baseFields['plate_number'] = 'nullable|string|max:50';
             $baseFields['relative_name'] = 'nullable|string|max:50';
