@@ -69,7 +69,7 @@ class HomeScreenController extends Controller
         ->join('users as m','m.id','o.merchant_id')
         // ->where('is_completed',0)
         // ->with(['packages:id,cod,price,delivery_fee,payer,zone_code,zone_name,receiver_phone,delivery_type,status_id,order_id,arrive_warehouse_datetime','packages.status'])
-        ->selectRaw('o.id as order_id,o.id,o.code,m.user_name,m.phone')->groupByRaw('m.phone,o.id,o.code,m.user_name')->where('p.driver_id',$driverId)->get();
+        ->selectRaw('o.qty,o.order_datetime,o.id as order_id,o.id,o.code,m.user_name,m.phone')->groupByRaw('m.phone,o.id,o.code,m.user_name')->where('p.driver_id',$driverId)->get();
         // $compl
         foreach($orders as $order){
             // foreach($order->packages as $package){
@@ -87,7 +87,7 @@ class HomeScreenController extends Controller
         $packages = Package::where('order_id',$oderId)->where('is_deleted',0)
         // ->where('status_id',6)
         ->with('status')
-        ->selectRaw('id,cod,price,delivery_fee,payer,zone_code,zone_name,receiver_phone,delivery_type,status_id,order_id,arrive_warehouse_datetime')
+        ->selectRaw('receiver_address,id,cod,price,delivery_fee,payer,zone_code,zone_name,receiver_phone,delivery_type,driver_total as total,status_id,order_id,arrive_warehouse_datetime')
         ->where('driver_id',$driverId)->get();
         foreach($packages as $package){
             $package->status_code = $package->status->name;
@@ -233,19 +233,28 @@ class HomeScreenController extends Controller
     public function submitDeliveryPackage(Request $req){
         $user = UserService::getAuthUser('driver');
         $id = $req->package_id;
-        $validStatusIds = [9,10,19];
-        $status_id = $req->status_id;
-        if(!in_array($status_id,$validStatusIds)) return ApiResponse::ValidateFail(__('messages.info',[
-            'info' => 'Please choose the valid status'
-        ]));
-        $package = Package::where('is_deleted',0)->where('')->find($id);
+        $validate = validator($req->all(),[
+            'status_id' => 'required|in:9,10,19',
+            'remarks' => 'required|string',
+            'photo' => 'nullable',
+            'amount' => 'nullable|numeric'
+        ]);
+        if($validate->fails()) return ApiResponse::ValidateFail($validate->errors()->first());
+        $inputs = $validate->validated();
+        $status_id = $inputs['status_id'];
+        $amount = $inputs['amount'] ?? 0;
+        $inputs['cod'] = $amount > 0 ? true:false;
+        $photo = $inputs['photo'] ?? null;
+        $package = Package::where('is_deleted',0)->find($id);
         if(!$package) return ApiResponse::NotFound(__('messages.not_found',[
             'info' => 'Package'
         ]));
+        if($package->status_id == 9) return ApiResponse::Duplicated('This package has already been delivered!');
         if($package->driver_id !== $user->id) return ApiResponse::Duplicated(__('messages.info',[
             'info' => 'Please submit package that belongs to you'
         ]));
-        return ApiResponse::JsonResult(null);
+
+        return ApiResponse::JsonResult(null,__('messages.submitted'));
     }
 
     public function getOptionsStatus(Request $req){

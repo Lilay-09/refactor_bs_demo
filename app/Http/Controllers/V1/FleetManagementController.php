@@ -82,7 +82,7 @@ class FleetManagementController extends Controller
         $status_id = $req->status_id;
         $failure_notes = $req->failure_notes ?? null;
         $delivery = Delivery::where('is_deleted',0)->find($trip_id);
-        $tripPackage = DeliveryPackage::where('package_id',$package_id)->where('delivery_id',$trip_id)->first();
+        $tripPackage = DeliveryPackage::where('package_id',$package_id)->where('delivery_id',$trip_id)->where('delay_count',0)->first();
         if(!$tripPackage) return ApiResponse::NotFound(__('messages.not_found',[
             'info' => 'Package',
             'khInfo' => 'កញ្ចប់'

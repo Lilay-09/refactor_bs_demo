@@ -4,8 +4,11 @@ namespace App\Services;
 use App\Models\PrivacyStatement;
 use App\Models\TermCondition;
 use DataResponse;
-use Http;
+use Exception;
+use Helper;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Http\Request;
+use Log;
 class AppSetting
 {
     // Your service methods go here
@@ -89,7 +92,7 @@ class AppSetting
         ]));
     }
 
-    public static function sendSms($sender, $to, $content) {
+    public static function sendSms($sender='SMS Info', $to="092335554", $content="test content") {
         $privateKey = env('PLASGATE_PRIVATE_KEY') ?? '';
         $secret = env('PLASGATE_SECRET') ?? '';
 
@@ -100,27 +103,71 @@ class AppSetting
             'Content-Type' => 'application/json'
         ];
 
+        $phone_number = Helper::formatPhoneNumber($to);
         $data = [
             'sender' => $sender,
-            'to' => $to,
-            'content' => $content
+            'to' => $phone_number,
+            'content' => $content,
         ];
 
         $response = Http::withHeaders($headers)->post($url, $data);
-
         if ($response->successful()) {
-            return [
-                'status' => 'OK',
-                'message' => 'success',
-                'data' => $response->json()
-            ];
-        } else {
-            return [
-                'status' => 'error',
-                'message' => 'Failed to send SMS',
-                'error' => $response->body()
-            ];
+            return DataResponse::JsonResult($response);
         }
+        return DataResponse::Error($response->json()['message']);
     }
+    //  static function sendSms($phone_number='092335554', $text = 'testing', $sender_name = 'SMS Info') {
+    // //    return DV::depends(1,['message'=>$text]);
+    //   try{
+    //     if (empty($text) || empty($phone_number)) return DataResponse::ValidateFail("phone_number or text cannot be empty");
+    //     $privateKey = env('PLASGATE_PRIVATE_KEY') ?? '';
+    //     $secret = env('PLASGATE_SECRET') ?? '';
+    //     $phone_number = Helper::formatPhoneNumber($phone_number);
+    //     return $phone_number;
+    //     $payload = ['sender'=>$sender_name,'to'=>  $phone_number,'content'=> $text];
+
+    //     $ch = curl_init();
+    //     curl_setopt_array($ch, array(
+    //         CURLOPT_URL => 'https://cloudapi.plasgate.com/rest/send?private_key=' . $privateKey,
+    //         CURLOPT_RETURNTRANSFER => true,
+    //         CURLOPT_ENCODING => '',
+    //         CURLOPT_MAXREDIRS => 10,
+    //         CURLOPT_TIMEOUT =>0,
+    //         CURLOPT_FOLLOWLOCATION => true,
+    //         CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+    //         CURLOPT_CUSTOMREQUEST => 'POST',
+    //         CURLOPT_SSL_VERIFYPEER => 2,
+    //         CURLOPT_FAILONERROR=>true,
+    //         // CURLOPT_CAINFO => storage_path('plasgate/ed4af1b392f59973.pem'),
+    //         CURLOPT_POSTFIELDS => json_encode($payload),
+    //         CURLOPT_HTTPHEADER => array(
+    //             'X-Secret: ' . $secret,
+    //             'Content-Type: application/json'
+    //         ),
+    //     ));
+
+    //     $json_string = curl_exec($ch);
+    //     $err_message = null;
+
+    //     if (curl_errno($ch)) {
+    //         $err_message = curl_error($ch);
+    //         if (strpos($err_message, 'Could not resolve host') !== false) {
+    //             $err_message = "Failed to connect to the SMS server. You may check your internet connection";
+    //         }
+    //     }
+
+    //     curl_close($ch);
+    //     if ($err_message) {
+    //         return DataResponse::Error('sms provider issue: '.$err_message);
+    //     }
+
+    //     return DataResponse::JsonResult(json_encode($json_string));
+    //    }catch(Exception $e){
+    //      Log::error('Failed to send sms: '.$text. ' to number '.$phone_number);
+    //      Log::error($e->getMessage());
+    //      Log::error($e->getTraceAsString());
+    //      return DataResponse::Error('Failed to send sms: '.$text. ' to number ');
+    //    }
+    // }
 
 }

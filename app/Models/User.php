@@ -58,6 +58,7 @@ class User extends Authenticatable implements JWTSubject
         'relative_relationship',
         'relative_address',
         'salary',
+        'employee_type',
         'is_available',
         'business_type',
         'client_type_id',

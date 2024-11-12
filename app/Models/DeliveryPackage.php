@@ -22,6 +22,8 @@ class DeliveryPackage extends Model
         'failed_datetime',
         'delivered_datetime',
         'assign_driver_datetime',
+        'tracking_notes',
+        'delivery_remarks',
         'package_id',
         'dim_z',
         'dim_x',

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Mobile\Merchant\V1;
 use ApiResponse;
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Services\AppSetting;
 use App\Services\Mobile\AuthService;
 use App\Services\UserService;
 use Helper;
@@ -96,6 +97,8 @@ class AuthController extends Controller
     }
 
     public function merchantRegistration(Request $req){
+        $sendSms = AppSetting::sendSms();
+        return ApiResponse::flex($sendSms);
         $validate = validator($req->all(),[
             'phone' => 'required|string',
             'full_name' => 'required|string',
