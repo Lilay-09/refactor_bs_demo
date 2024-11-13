@@ -37,7 +37,7 @@ class Delivery extends Model
     ];
     public function getDepartDatetimeAttribute($value)
     {
-        return \Carbon\Carbon::parse($value)->format('d-M-y H:i:s');
+        return \Carbon\Carbon::parse($value)->format('d-M-y h:i:s A');
     }
 
     public function driver(){

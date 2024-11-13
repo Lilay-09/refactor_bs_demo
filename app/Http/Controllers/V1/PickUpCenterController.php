@@ -5,14 +5,18 @@ namespace App\Http\Controllers\V1;
 use ApiResponse;
 use App\Http\Controllers\Controller;
 use App\Models\Order;
+use App\Models\OrderImage;
 use App\Models\Package;
 use App\Models\User;
 use App\Models\VehicleType;
 use App\Services\GeneralSettingService;
 use App\Services\PickupCenterService;
 use App\Services\UserService;
+use DB;
+use Exception;
 use Helper;
 use Illuminate\Http\Request;
+use Log;
 
 class PickUpCenterController extends Controller
 {
@@ -170,27 +174,28 @@ class PickUpCenterController extends Controller
             'status_id' => $status_id,
             'branch_id' => $user->branch_id
         ]);
-
         return ApiResponse::JsonResult(null,__('messages.info',['info' => 'Status has changed']));
     }
 
     public function getOrders(Request $req){
         $user = UserService::getAuthUser();
-        $query = Order::with(['merchant','tracking_status','driver'])->where('is_deleted',0)
+        $query = Order::with(['merchant','tracking_status','driver','createdBy'])->where('is_deleted',0)
             ->whereIn('status_id',[1,2,3,4])
             ->where('company_id',$user->company_id)
-            ->selectRaw('id,merchant_id,status_id,order_datetime,driver_id,warehouse_id,vehicle_type,product_type,qty,pickup_address,code,created_at');
+            ->selectRaw('booking_channel,id,merchant_id,status_id,order_datetime,driver_id,warehouse_id,vehicle_type,product_type,qty,pickup_address,code,created_at,create_uid');
         $orders = $query->get();
         foreach($orders as $order){
+            $order->created_user = $order->createdBy?->user_name;
             $order->order_date = Helper::dateDMY($order->order_datetime);
             $order->order_time = Helper::formatCustomDateTime($order->order_datetime,'H:i:s');
             $order->merchant_name = $order->merchant->user_name;
             $order->merchant_code = $order->merchant->code;
             if(!$order->product_type) $order->product_type = 'Others';
-            $order->status = $order->tracking_status->name;
+            $order->status_code = $order->tracking_status->name;
+            $order->status_code_kh = $order->tracking_status->name;
             $order->driver_name = $order->driver?->user_name;
             $order->driver_code = $order->driver?->code;
-            unset($order->merchant,$order->driver,$order->tracking_status);
+            unset($order->merchant,$order->driver,$order->tracking_status,$order->createdBy);
         }
         return ApiResponse::Pagination($orders,$req,__('messages.Get Orders'));
     }
@@ -268,6 +273,47 @@ class PickUpCenterController extends Controller
         return ApiResponse::flex($create);
     }
 
+    public function addOrderImage(Request $req){
+        $user = UserService::getAuthUser();
+        $photos = $req->photos;
+        $orderId = $req->order_id;
+        $companyId = $user->company_id;
+        if(!isset($photos[0])) return ApiResponse::ValidateFail(__('messages.info',[
+            'info' => 'Please add image'
+        ]));
+        $deleteImgs = [];
+        try{
+            DB::beginTransaction();
+            foreach($photos as $photo){
+                $img = Helper::saveImageFile($photo,$companyId,'order_image');
+                $deleteImgs[] = $img->filename;
+                OrderImage::create([
+                    'order_id' => $orderId,
+                    'photo_file_name' => $img->filename,
+                    'create_uid' => $user->id,
+                    'update_uid' => $user->id,
+                    'company_id' => $companyId,
+                    'branch_id' => $user->branch_id,
+                ]);
+            }
+            DB::commit();
+            return ApiResponse::JsonResult(null,__('messages.created'));
+        }catch(Exception $e){
+            Log::error($e->getMessage());
+            DB::rollBack();
+            foreach($deleteImgs as $img){
+                Helper::deleteImageFile($img,$companyId,'order_image');
+            }
+            return ApiResponse::JsonResult(null,__('messages.error',[
+                'info' => 'Fail to add photo'
+            ]));
+        }
+
+
+
+
+    }
+
     public function getOnePackageById(Request $req){
         $user = UserService::getAuthUser();
         $id = $req->id;
@@ -281,12 +327,47 @@ class PickUpCenterController extends Controller
     public function getPackagesByOrderId(Request $req){
         $user = UserService::getAuthUser();
         $orderId = $req->order_id;
-        $packages = Package::where('order_id',$orderId)->whereIn('status_id',[1,3,7])->with(['status'])->where('company_id',$user->company_id)->where('is_deleted',0)->get();
+        $qP = Package::where('order_id',$orderId)->whereIn('status_id',[1,3,7])->with(['status'])->where('company_id',$user->company_id)
+        ->selectRaw('status_id,id')->selectRaw('id as package_id')
+        ->where('is_deleted',0);
+        $qI = OrderImage::where('order_id',$orderId)->selectRaw('id as photo_id,photo_file_name');
+        $pkgCount = $qP->count();
+        $imgCount = $qI->count();
+        $images = $qI->get();
+        $packages = $qP->get();
+        $data = [];
+        $skipIds = [];
+        if($imgCount >= $pkgCount){
+            foreach($images as $index=>$img){
+                $img->image_url = Helper::getImageUrl($img->photo_file_name,$user->company_id,'order_image');
+                if ($index < $pkgCount) {
+                    $img->package_id = $packages[$index]->package_id;
+                } else {
+                    $img->package_id = null;
+                }
+                unset($img->photo_file_name);
+            }
+            $data = $images;
+        }else{
+            foreach($packages as $index=>$pkg){
+                if ($index < $imgCount) {
+                    $pkg->image_url = Helper::getImageUrl($images[$index]->package_id,$user->company_id,'order_image');
+                } else {
+                    $pkg->image_url = null;
+                }
+                // foreach($images as $img){
+                //     $img->image_url = null;
+                //     $img->image_url = Helper::getImageUrl($img->photo_file_name,$user->company_id,'order_image');
+                //     $img->package_id = $pkg->package_id;
+                // }
+            }
+            $data = $packages;
+        }
         foreach($packages as $package){
             $package->status_code = $package->status->name;
             unset($package->status);
         }
-        return ApiResponse::Pagination($packages,$req);
+        return ApiResponse::Pagination($data,$req);
     }
 
     public function updatePackage(Request $req){

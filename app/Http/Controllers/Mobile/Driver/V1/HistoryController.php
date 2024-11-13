@@ -13,6 +13,7 @@ class HistoryController extends Controller
     public function getHistoryPackages(Request $req){
         $paymentStatus = $req->payment_status_id ?? null;
         $statusId = $req->status_id ?? null;
+        $search = $req->search ?? null;
         $qFp = Delivery::fromRaw('deliveries as d')->join('delivery_packages as dp','d.id','dp.delivery_id')
         ->join('packages as p','p.id','dp.package_id')->orderByDesc('d.id')
         ->join('users as m','m.id','p.merchant_id')
@@ -24,6 +25,7 @@ class HistoryController extends Controller
             $qFp->where('pmt.approved',1);
         }else if($paymentStatus == 1) $qFp->where('pmt.approved',0);
         if($statusId) $qFp->where('p.status_id',$statusId);
+        if($search) $qFp->where('p.receiver_phone', 'ilike', '%' . $search . '%');
         $fleetPackages = $qFp->get();
         return ApiResponse::Pagination($fleetPackages,$req);
     }

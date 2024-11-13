@@ -68,7 +68,15 @@ class Order extends Model
         return $this->belongsTo(Warehouse::class,'warehouse_id','id');
     }
 
+    public function createdBy(){
+        return $this->belongsTo(User::class,'create_uid','id');
+    }
+
     public function tracking_status(){
         return $this->belongsTo(TrackingStatus::class,'status_id','id');
+    }
+
+    public function getCreatedAtAttribute($value){
+        return \Carbon\Carbon::parse($value)->format('d-M-y h:i:s A');
     }
 }
