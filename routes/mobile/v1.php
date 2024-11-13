@@ -27,6 +27,7 @@ Route::middleware(['jwtDriver','localize'])->prefix('driver/v1/{lang}')->group(f
         Route::post('accepted/pickup/{order_id}',[HomeScreenController::class,'updateAcceptedOrder']);
         Route::post('acceptOrder/{order_id}',[HomeScreenController::class,'acceptOrder']);
         Route::get('option/status',[HomeScreenController::class,'getOptionsStatus']);
+        Route::post('acceptedOrder/{order_id}/cancel',[HomeScreenController::class,'cancelOrder']);
         Route::post('accepted/delivery/package/{package_id}',[HomeScreenController::class,'submitDeliveryPackage']);
     });
 

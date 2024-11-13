@@ -133,8 +133,6 @@ class DriverManagementController extends Controller
         return ApiResponse::flex($createDriver);
     }
 
-
-
     public function createDriverAccount(Request $req){
         $user = UserService::getAuthUser();
         $driverId = $req->id;

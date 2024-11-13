@@ -97,8 +97,6 @@ class AuthController extends Controller
     }
 
     public function merchantRegistration(Request $req){
-        $sendSms = AppSetting::sendSms();
-        return ApiResponse::flex($sendSms);
         $validate = validator($req->all(),[
             'phone' => 'required|string',
             'full_name' => 'required|string',

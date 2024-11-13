@@ -8,6 +8,7 @@ use App\Models\PriceList;
 use App\Models\User;
 use App\Services\UserService;
 use DB;
+use Helper;
 use Illuminate\Http\Request;
 
 class MerchantManagementController extends Controller
@@ -28,11 +29,12 @@ class MerchantManagementController extends Controller
         $query = User::where('is_deleted',0)->where('company_id',$user->company_id)
         ->where('account_type',$this->userClass)
         ->with(['merchantType:id,name','bank_accounts:id,bank_name,bank_number,account_name,user_id,is_primary'])
-        ->selectRaw('id,cod_fee,code,name_km,user_name,email,gender,business_type,phone,client_type_id,address,cod,pin_address');
+        ->selectRaw('id,cod_fee,code,name_km,user_name,email,gender,business_type,phone,client_type_id,address,cod,pin_address,photo_file_name');
         $merhcants = $query->orderByDesc('id')->get();
         foreach($merhcants as $m){
             $merchantPriceList = $this->getMerchantPriceList($priceList,$m->id);
             $m->referrer = null;
+            $m->image_url = Helper::getImageUrl($m->photo_file_name,$user->company_id,'user_profile');
             $m->price_list_name = $merchantPriceList?->name;
             $m->client_type = $m->merchantType?->name;
             $m->create_by = ($m->create_uid == $m->id) ? 'Self': 'Admin';
@@ -40,7 +42,7 @@ class MerchantManagementController extends Controller
                 if($b->is_primary) $m->bank_account = $b->bank_name.'|'.$b->bank_number.'|'.$b->account_name;
                 if(!$b->bank_account) $m->bank_account = $b->bank_name.'|'.$b->bank_number.'|'.$b->account_name;
             }
-            unset($m->merchantType,$m->bank_accounts);
+            unset($m->merchantType,$m->bank_accounts,$m->photo_file_name);
         }
         return ApiResponse::Pagination($merhcants,$req);
     }
@@ -73,7 +75,6 @@ class MerchantManagementController extends Controller
         return null;
     }
 
-
     public function updateMerchant(Request $req){
         $user = UserService::getAuthUser();
         $id = $req->id;
@@ -82,8 +83,11 @@ class MerchantManagementController extends Controller
     }
 
 
-    public function createMerchantAccount(){
-
+    public function createMerchantAccount(Request $req){
+        $user = UserService::getAuthUser();
+        $merchantId = $req->id;
+        $createDriver = UserService::createLoginAccount($req,$merchantId,'merchant',$user);
+        return ApiResponse::flex($createDriver);
     }
 
 }

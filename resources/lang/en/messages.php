@@ -16,6 +16,7 @@ return [
     'error' => ':info',
     'submitted' => ':info submitted',
     'info' => ':info',
+    'canceled' => 'Canceled',
     'saved' => ':info Saved',
     'returned' => ':info Returned',
     'has already assigned' => ':info has already assigned'

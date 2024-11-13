@@ -245,6 +245,7 @@ class UserService
     private static function createLoginValidation(Request $req){
         return validator($req->all(),[
             'login_name' => 'required|string|max:50',
+            'photo' => 'nullable|string',
             'password' => 'required|string|max:50',
             'confirm_password' => 'required|string|max:50',
         ]);
@@ -264,8 +265,14 @@ class UserService
         if($existLoginName) return DataResponse::Duplicated('Please use another login name!, this one is already taken.');
         if($pwd !== $cfPwd) return DataResponse::ValidateFail(__('messages.error',['info' => 'Password not match !']));
         $hpwd = \Hash::make($pwd);
+        $photoFile = null;
+        $photo = $inputs['photo'] ?? null;
+        if(Helper::isValidBase64Image($photo) || $photo){
+            $photoFile = Helper::base64ToImageFile($photo,$user->company_id,'user_profile')->filename;
+        }
         $user->update([
             'has_account' => true,
+            'photo_file_name' => $photoFile,
             'login_name' => $loginName,
             'password' => $hpwd
         ]);

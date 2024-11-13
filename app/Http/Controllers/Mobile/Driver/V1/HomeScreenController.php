@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Mobile\Driver\V1;
 
 use ApiResponse;
 use App\Http\Controllers\Controller;
+use App\Models\DeliveryPackage;
 use App\Models\Order;
 use App\Models\OrderImage;
 use App\Models\Package;
@@ -70,13 +71,13 @@ class HomeScreenController extends Controller
         // ->where('is_completed',0)
         // ->with(['packages:id,cod,price,delivery_fee,payer,zone_code,zone_name,receiver_phone,delivery_type,status_id,order_id,arrive_warehouse_datetime','packages.status'])
         ->selectRaw('o.qty,o.order_datetime,o.id as order_id,o.id,o.code,m.user_name,m.phone')->groupByRaw('m.phone,o.id,o.code,m.user_name')->where('p.driver_id',$driverId)->get();
-        // $compl
-        foreach($orders as $order){
-            // foreach($order->packages as $package){
-            //     $package->status_code = $package->status->name;
-            //     unset($package->status);
-            // }
-        }
+        // foreach($orders as $order){
+        //     // foreach($order->packages as $package){
+        //     //     $package->status_code = $package->status->name;
+        //     //     unset($package->status);
+        //     // }
+        // }
+
         return ApiResponse::Pagination($orders,$req);
     }
 
@@ -85,9 +86,8 @@ class HomeScreenController extends Controller
         $oderId = $req->order_id;
         $driverId = $user->id;
         $packages = Package::where('order_id',$oderId)->where('is_deleted',0)
-        // ->where('status_id',6)
         ->with('status')
-        ->selectRaw('receiver_address,id,cod,price,delivery_fee,payer,zone_code,zone_name,receiver_phone,delivery_type,driver_total as total,status_id,order_id,arrive_warehouse_datetime')
+        ->selectRaw('receiver_address,id,cod,price,delivery_fee,payer,zone_code,zone_name,receiver_phone,delivery_type,driver_total as total,status_id,order_id,arrive_warehouse_datetime,is_contact,priority_level')
         ->where('driver_id',$driverId)->get();
         foreach($packages as $package){
             $package->status_code = $package->status->name;
@@ -235,7 +235,7 @@ class HomeScreenController extends Controller
         $id = $req->package_id;
         $validate = validator($req->all(),[
             'status_id' => 'required|in:9,10,19',
-            'remarks' => 'required|string',
+            'delivery_remarks' => 'required|string',
             'photo' => 'nullable',
             'amount' => 'nullable|numeric'
         ]);
@@ -243,7 +243,10 @@ class HomeScreenController extends Controller
         $inputs = $validate->validated();
         $status_id = $inputs['status_id'];
         $amount = $inputs['amount'] ?? 0;
+        $inputs['price'] = $amount;
         $inputs['cod'] = $amount > 0 ? true:false;
+        $codChange = $amount > 0 ? true:false;
+        $inputs['cod_changed'] = $codChange;
         $photo = $inputs['photo'] ?? null;
         $package = Package::where('is_deleted',0)->find($id);
         if(!$package) return ApiResponse::NotFound(__('messages.not_found',[
@@ -254,7 +257,38 @@ class HomeScreenController extends Controller
             'info' => 'Please submit package that belongs to you'
         ]));
 
+        $statusCode = $status_id == 9 ? 'Delivered' : ($status_id == 10 ? 'Failed':($status_id == 19 ? 'Failed with fee':''));
+        $inputs['tracking_notes'] = $package->tracking_notes.'|Driver submit '.$statusCode.'('.date('d-M-Y h:i:s A').')';
+        if($codChange && $package->price != $amount){
+            $inputs['tracking_notes'] .= '|Driver change cod '.$package->price .' to '.$amount.'('.date('d-M-Y h:i:s A').')';
+        }
+        $package->update($inputs);
+        DeliveryPackage::where('package_id',$id)->where('delay_count',0)->update([
+            'notes' => $inputs['tracking_notes'],
+        ]);
+
         return ApiResponse::JsonResult(null,__('messages.submitted'));
+    }
+
+    public function cancelOrder(Request $req){
+        $user = UserService::getAuthUser('driver');
+        $orderId = $req->order_id;
+        $reason = $req->reason;
+        if(!$reason) return ApiResponse::ValidateFail(__('messages.info',[
+            'info' => 'Please enter a reason'
+        ]));
+        $order = Order::where('is_deleted',0)->where('driver_id',$user->id)->find($orderId);
+        if(!$order) return ApiResponse::NotFound(__('messages.not_found',[
+            'info' => 'Order'
+        ]));
+        if($order->status_id == 20) return ApiResponse::Duplicated(__('messages.info',[
+            'info' => 'Package has already been canceled'
+        ]));
+        $order->update([
+            'cancel_notes' => $reason,
+            'status_id' => 20 // canceled
+        ]);
+        return ApiResponse::JsonResult(null,__('messages.canceled'));
     }
 
     public function getOptionsStatus(Request $req){
