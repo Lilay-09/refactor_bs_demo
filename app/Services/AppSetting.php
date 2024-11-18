@@ -57,13 +57,13 @@ class AppSetting
         }
         if($isUpdate){
             $model->update($inputs);
-            return DataResponse::JsonResult(null,__('messages.updated',[
+            return DataResponse::JsonResult(null,false,__('messages.updated',[
                 'info' => $modelName
             ]));
         }else{
             $inputs['create_uid'] = $user->id;
             $model->create($inputs);
-            return DataResponse::JsonResult(null,__('messages.created',[
+            return DataResponse::JsonResult(null,false,__('messages.created',[
                 'info' => $modelName
             ]));
         }
@@ -87,7 +87,7 @@ class AppSetting
             'info' => $modelName
         ]));
 
-        return DataResponse::JsonResult($model,__('messages.get one',[
+        return DataResponse::JsonResult($model,false,__('messages.get one',[
             'info' => $modelName
         ]));
     }
@@ -96,7 +96,7 @@ class AppSetting
         $privateKey = env('PLASGATE_PRIVATE_KEY') ?? '';
         $secret = env('PLASGATE_SECRET') ?? '';
 
-        $url = 'https://cloudapi.plasgate.com/rest/send?private_key=' . urlencode($privateKey);
+        $url = 'https://cloudapi.plasgate.com/rest/send?private_key=' . $privateKey;
 
         $headers = [
             'X-Secret' => $secret,
@@ -108,6 +108,10 @@ class AppSetting
             'sender' => $sender,
             'to' => $phone_number,
             'content' => $content,
+            // "dlr" => "yes",
+            // "dlr_method" => "GET",
+            // "dlr_level" => 2,
+            // "dlr_url" => "http://example.com/callback"
         ];
 
         $response = Http::withHeaders($headers)->post($url, $data);

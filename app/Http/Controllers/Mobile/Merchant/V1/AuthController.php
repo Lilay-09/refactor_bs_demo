@@ -98,6 +98,7 @@ class AuthController extends Controller
     }
 
     public function merchantRegistration(Request $req){
+        return AppSetting::sendSms();
         $validate = validator($req->all(),[
             'phone' => 'required|string',
             'full_name' => 'required|string',
@@ -141,7 +142,6 @@ class AuthController extends Controller
 
     public function subscribeTopics(Request $req){
         $user = UserService::getAuthUser($this->userClass);
-        Log::error("Subscription");
         $cldMsgService = new CloudMessagingService();
         return $cldMsgService->subscribeTopic($this->userClass,$req,$user);
     }
