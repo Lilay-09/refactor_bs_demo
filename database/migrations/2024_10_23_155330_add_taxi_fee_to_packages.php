@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::table('packages', function (Blueprint $table) {
             //
-            $table->string('tracking_notes',500)->nullable();
+            $table->text('tracking_notes')->nullable();
             $table->string('return_notes',500)->nullable();
             $table->integer('cod_changed')->default(0);
             $table->decimal('taxi_fee',10,2)->default(0);

@@ -116,6 +116,7 @@ class AppSetting
         }
         return DataResponse::Error($response->json()['message']);
     }
+
     //  static function sendSms($phone_number='092335554', $text = 'testing', $sender_name = 'SMS Info') {
     // //    return DV::depends(1,['message'=>$text]);
     //   try{

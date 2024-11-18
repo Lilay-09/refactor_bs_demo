@@ -80,12 +80,11 @@ class GeneralSettingController extends Controller
 
     public function getOptionsPickupStatus(){
         $user = UserService::getAuthUser();
-        return ApiResponse::JsonResult($this->gs::optionsTrackingStatus($user,[20],'pick'));
+        return ApiResponse::JsonResult($this->gs::optionsTrackingStatus($user,[20,21],[],'pick'));
     }
 
     public function getFormSetOrderStatus(){
         $user = UserService::getAuthUser();
-
         $obj = [
             'statuses' => $this->gs::optionsTrackingStatus($user,[20],[],'pick'),
             'drivers' => $this->gs::optionsDriver($user)

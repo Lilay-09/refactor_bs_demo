@@ -17,17 +17,19 @@ Route::prefix('driver/v1/{lang}/auth')->middleware('localize')->group(function()
     });
 });
 Route::middleware(['jwtDriver','localize'])->prefix('driver/v1/{lang}')->group(function(){
-    Route::post('subscribe',[AuthController::class,'subscribeTopics']);
+    Route::post('notification/subscribe',[AuthController::class,'subscribeTopics']);
     Route::get('termConditions',[HomeScreenController::class,'getTermConditions']);
     Route::prefix('home')->group(function(){
         Route::get('availableOrders',[HomeScreenController::class,'getAvailableOrders']);
         Route::get('accepted/pickup',[HomeScreenController::class,'getAcceptedPickup']);
         Route::get('accepted/delivery',[HomeScreenController::class,'getDelivery']);
-        Route::get('accepted/delivery/{order_id}/package',[HomeScreenController::class,'getDeliveryItem']);
+        Route::get('accepted/delivery/{order_id}/package',[HomeScreenController::class,'getDeliveryItems']);
+        Route::put('accepted/delivery/{order_id}/package/{package_ref}/contact',[HomeScreenController::class,'markPackageContact']);
         Route::post('accepted/pickup/{order_id}',[HomeScreenController::class,'updateAcceptedOrder']);
         Route::post('acceptOrder/{order_id}',[HomeScreenController::class,'acceptOrder']);
         Route::get('option/status',[HomeScreenController::class,'getOptionsStatus']);
         Route::post('acceptedOrder/{order_id}/cancel',[HomeScreenController::class,'cancelOrder']);
+        Route::post('acceptedOrder/{order_id}/drop',[HomeScreenController::class,'dropOrderAtWarehouse']);
         Route::post('accepted/delivery/package/{package_id}',[HomeScreenController::class,'submitDeliveryPackage']);
     });
 
@@ -60,10 +62,10 @@ Route::prefix('merchant/v1/{lang}/auth')->middleware('localize')->group(function
 });
 
 Route::middleware(['jwtMerchant','localize'])->prefix('merchant/v1/{lang}')->group(function(){
+    Route::post('notification/subscribe',[AuthMerchantController::class,'subscribeTopics']);
     Route::prefix('home')->group(function(){
         Route::post('booking',[HomeController::class,'createBooking']);
     });
-
 
     Route::prefix('setting')->group(function (){
         // Route::prefix('option')->group(function (){

@@ -180,8 +180,9 @@ class PickUpCenterController extends Controller
     public function getOrders(Request $req){
         $user = UserService::getAuthUser();
         $query = Order::with(['merchant','tracking_status','driver','createdBy'])->where('is_deleted',0)
-            ->whereIn('status_id',[1,2,3,4])
+            ->whereIn('status_id',[1,2,3,4,21])
             ->where('company_id',$user->company_id)
+            ->orderByDesc('id')
             ->selectRaw('booking_channel,id,merchant_id,status_id,order_datetime,driver_id,warehouse_id,vehicle_type,product_type,qty,pickup_address,code,created_at,create_uid');
         $orders = $query->get();
         foreach($orders as $order){
@@ -246,8 +247,9 @@ class PickUpCenterController extends Controller
 
             if($driver->vehicle_type != $order->vehicle_type) return ApiResponse::ValidateFail(__('messages.error',['info' => 'Your Order vehicle type is ('.$order->vehicle_type.') and driver vehicle is '.$driver->vehicle_type]));
         }
-
+        $trackingNotes = $order->tracking_notes.'|Admin assign ('.$order->code.') '.date('d-M-Y h:i:s A');
         $order->update([
+            'tracking_notes' => $trackingNotes,
             'driver_id' => $driverId,
             'status_id' => ($driverId != 0 && $driverId) ? 3 : 1
         ]);

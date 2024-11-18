@@ -377,7 +377,7 @@ class InitialSeeder extends Seeder
             [
                 'name' => 'Failed With Fee',
                 'stage' => 'delivery',
-                'hidden' => true,
+                'hidden' => false,
                 'create_uid' => $userId,
                 'update_uid' => $userId,
                 'branch_id' => $branchId,
@@ -385,6 +385,15 @@ class InitialSeeder extends Seeder
             ],
             [
                 'name' => 'Canceled',
+                'stage' => 'pick',
+                'hidden' => false,
+                'create_uid' => $userId,
+                'update_uid' => $userId,
+                'branch_id' => $branchId,
+                'company_id' => $comapanyId,
+            ],
+            [
+                'name' => 'Dropped',
                 'stage' => 'pick',
                 'hidden' => false,
                 'create_uid' => $userId,

@@ -6,6 +6,7 @@ use ApiResponse;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Services\AppSetting;
+use App\Services\CloudMessagingService;
 use App\Services\Mobile\AuthService;
 use App\Services\UserService;
 use Helper;
@@ -136,5 +137,12 @@ class AuthController extends Controller
         $user = UserService::getAuthUser($this->userClass);
         return ApiResponse::flex(UserService::verifyOTP($req,$user));
 
+    }
+
+    public function subscribeTopics(Request $req){
+        $user = UserService::getAuthUser($this->userClass);
+        Log::error("Subscription");
+        $cldMsgService = new CloudMessagingService();
+        return $cldMsgService->subscribeTopic($this->userClass,$req,$user);
     }
 }

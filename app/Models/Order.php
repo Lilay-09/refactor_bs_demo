@@ -37,6 +37,7 @@ class Order extends Model
         'pickup_address_google_map',
         'cancel_notes',
         'booking_channel',
+        'tracking_notes',
         'create_uid',
         'update_uid',
         'branch_id',
