@@ -38,7 +38,6 @@ class GeneralSettingService
 
     public static function optionChannels($idx=null){
         if(is_int($idx) && $idx >= 0){
-            \Log::error($idx);
             return isset(self::$channels[$idx]) ? [self::$channels[$idx]] : [];
         }
         return self::$channels;
