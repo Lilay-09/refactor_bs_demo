@@ -98,6 +98,7 @@ Route::middleware(['jwt','localize'])->prefix('admin/v1/{lang}')->group(function
         Route::get('/{id}',[MerchantManagementController::class,'getOneMerchant']);
         Route::put('/{id}',[MerchantManagementController::class,'updateMerchant']);
         Route::post('/{id}/account',[MerchantManagementController::class,'createMerchantAccount']);
+        Route::put('/{id}/priceList',[MerchantManagementController::class,'setMerchantPriceList']);
 
         Route::prefix('transaction')->group(function(){
             Route::get('delivery/package',[MerchantTransactionController::class,'getDeliveryPackages']);

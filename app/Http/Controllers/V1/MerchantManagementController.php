@@ -4,6 +4,7 @@ namespace App\Http\Controllers\V1;
 
 use ApiResponse;
 use App\Http\Controllers\Controller;
+use App\Models\MerchantPriceList;
 use App\Models\PriceList;
 use App\Models\User;
 use App\Services\UserService;
@@ -39,14 +40,20 @@ class MerchantManagementController extends Controller
             $m->client_type = $m->merchantType?->name;
             $m->create_by = ($m->create_uid == $m->id) ? 'Self': 'Admin';
             foreach($m->bank_accounts as $b){
-                if($b->is_primary) $m->bank_account = $b->bank_name.'|'.$b->bank_number.'|'.$b->account_name;
-                if(!$b->bank_account) $m->bank_account = $b->bank_name.'|'.$b->bank_number.'|'.$b->account_name;
+                if($b->is_primary) $m->bank_account = $this->bankInfo($b->bank_name,$b->bank_number,$b->account_name);
+                if(!$b->bank_account) $m->bank_account = $this->bankInfo($b->bank_name,$b->bank_number,$b->account_name);
             }
             unset($m->merchantType,$m->bank_accounts,$m->photo_file_name);
         }
         return ApiResponse::Pagination($merhcants,$req);
     }
 
+    public function bankInfo($bankName,$bankNumber,$accountName){
+        $info = $bankName;
+        if($bankNumber) $info .= '|'.$bankNumber;
+        if($accountName) $info .= '|'.$accountName;
+        return $info;
+    }
     public function getOneMerchant(Request $req){
         $user = UserService::getAuthUser();
         $id = $req->id;
@@ -88,6 +95,20 @@ class MerchantManagementController extends Controller
         $merchantId = $req->id;
         $createDriver = UserService::createLoginAccount($req,$merchantId,'merchant',$user);
         return ApiResponse::flex($createDriver);
+    }
+
+    public function setMerchantPriceList(Request $req){
+        $priceListId = $req->price_list_id;
+        if(!$priceListId) return ApiResponse::ValidateFail(__('messages.info',[
+            'info' => 'Please choose a price list'
+        ]));
+        $update = MerchantPriceList::where('merchant_id',$req->id)->update([
+            'price_list_id' => $req->price_list_id
+        ]);
+        if(!$update) return ApiResponse::Error(__('messages.error',[
+            'info' => 'Failed to update'
+        ]));
+        return ApiResponse::JsonResult(null,__('messages.updated'));
     }
 
 }

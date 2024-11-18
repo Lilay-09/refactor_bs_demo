@@ -20,7 +20,7 @@ return new class extends Migration
             $table->unsignedBigInteger('status_id');
             $table->dateTime('delivered_datetime')->nullable();
             $table->string('driver_notes',500)->nullable();
-            $table->string('notes',500)->nullable();
+            $table->text('notes')->nullable();
 
             $table->foreign('delivery_id')->references('id')->on('deliveries')->onDelete('cascade');
             $table->foreign('status_id')->references('id')->on('tracking_statuses')->onDelete('cascade');

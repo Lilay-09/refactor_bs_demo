@@ -8,6 +8,7 @@ use App\Models\DeliveryPackage;
 use App\Models\Order;
 use App\Models\OrderImage;
 use App\Models\Package;
+use App\Services\CloudMessagingService;
 use App\Services\GeneralSettingService;
 use App\Services\UserService;
 use Helper;
@@ -44,7 +45,7 @@ class HomeScreenController extends Controller
         if($user->error) return ApiResponse::flex($user);
         $orders = Order::where('is_deleted',0)
         ->with(['merchant','tracking_status','warehouse'])
-        ->where('status_id',3)
+        ->whereIn('status_id',[2,3,4])
         ->where('company_id',$user->company_id)
         ->where('driver_id',$user->id)
         ->selectRaw('id,warehouse_id,driver_id,pickup_address_google_map,order_datetime,merchant_id,status_id,qty,code,pickup_address,pickup_address_google_map,vehicle_type,delivery_type')
@@ -81,7 +82,7 @@ class HomeScreenController extends Controller
         return ApiResponse::Pagination($orders,$req);
     }
 
-    public function getDeliveryItem(Request $req){
+    public function getDeliveryItems(Request $req){
         $user = $this->user;
         $oderId = $req->order_id;
         $driverId = $user->id;
@@ -115,7 +116,10 @@ class HomeScreenController extends Controller
             ]));
         }
 
+        $trackingNotes = $order->tracking_notes.'|Driver has accepted order ('.$order->code.') '.date('d-M-Y h:i:s A');
+
         $order->update([
+            'tracking_notes' => $trackingNotes,
             'status_id' => 3,
             'driver_id' => $user->id
         ]);
@@ -184,29 +188,31 @@ class HomeScreenController extends Controller
             }
         }
         if($statusId == 2) {
-            $imgCount = count($images);
-            if($imgCount != $qty) return ApiResponse::ValidateFail(__('messages.info',[
-                'info' => 'Your package quantity is not matching the number of photos.',
-                'khInfo' => 'ចំនួនកញ្ចប់និងចំនួនរូបភាពមិនត្រូវគ្នា'
-            ]));
+            // $imgCount = count($images);
+            // if($imgCount != $qty) return ApiResponse::ValidateFail(__('messages.info',[
+            //     'info' => 'Your package quantity is not matching the number of photos.',
+            //     'khInfo' => 'ចំនួនកញ្ចប់និងចំនួនរូបភាពមិនត្រូវគ្នា'
+            // ]));
             foreach($images as $image){
                 $photoFileName = Helper::saveImageFile($image,$user->company_id,'order_image')->filename;
-                OrderImage::create([
-                    'order_id' => $orderId,
-                    'original_name' => $image->getOriginalName(),
-                    'photo_file_name' => $photoFileName,
-                    'create_uid' => $user->id,
-                    'update_uid' => $user->id,
-                    'company_id' => $user->company_id,
-                    'branch_id' => $user->branch_id
-                ]);
+                if($photoFileName){
+                    OrderImage::create([
+                        'order_id' => $orderId,
+                        'original_name' => $image->getOriginalName(),
+                        'photo_file_name' => $photoFileName,
+                        'create_uid' => $user->id,
+                        'update_uid' => $user->id,
+                        'company_id' => $user->company_id,
+                        'branch_id' => $user->branch_id
+                    ]);
+                }
             }
         }
 
         $order->update($acceptArr);
 
         return ApiResponse::JsonResult(null,__('messages.info',[
-            'info' => 'You have accepted for pick & book',
+            'info' => 'You have accepted for pickup',
             'khInfo' => 'បានបញ្ចូលទិន្នន័យកញ្ចប់'
         ]));
     }
@@ -291,7 +297,76 @@ class HomeScreenController extends Controller
         return ApiResponse::JsonResult(null,__('messages.canceled'));
     }
 
+    public function dropOrderAtWarehouse(Request $req){
+        $user = UserService::getAuthUser('driver');
+        $orderId = $req->order_id;
+        $order = Order::where('is_deleted',0)->where('driver_id',$user->id)->find($orderId);
+        if(!$order) return ApiResponse::NotFound(__('messages.not_found',[
+            'info' => 'Order'
+        ]));
+        if($order->status_id == 21) return ApiResponse::Duplicated(__('messages.info',[
+            'info' => 'Order has already dropped'
+        ]));
+        if(!in_array($order->status_id,[2,4])) return ApiResponse::ValidateFail(__('messages.info',[
+            'info' => 'You can not mark as dropped'
+        ]));
+        $tracking_notes = $order->tracking_notes.'|Driver dropped order ('.date('d-M-Y h:i:s A').')';
+        $order->update([
+            'status_id' => 21,
+            'tracking_notes' => $tracking_notes
+        ]);
+
+        return ApiResponse::JsonResult(null,__('messages.info',[
+            'info' => 'Dropped',
+        ]));
+    }
+
+    public function markPackageContact(Request $req){
+        $user = UserService::getAuthUser('driver');
+        $orderId = $req->order_id;
+        $packageRef = $req->package_ref;
+        $order = Order::where('is_deleted',0)->find($orderId);
+        if(!$order) return ApiResponse::NotFound(__('messages.not_found'));
+        $package = Package::where('is_deleted',0)->where('order_id',$orderId)->where('driver_id',$user->id)->find($packageRef);
+        if(!$package) Package::where('is_deleted',0)->where('order_id',$orderId)->where('driver_id',$user->id)->where('qr_code',$packageRef);
+        if(!$package) return ApiResponse::NotFound(__('messages.not_found',[
+            'info' => 'Package'
+        ]));
+        if($package->is_contact) return ApiResponse::Duplicated(__('messages.info',[
+            'info' => 'This package has already contacted'
+        ]));
+        if(!in_array($package->status_id,[6])) return ApiResponse::ValidateFail(__('messages.info',[
+            'info' => 'You can not mark as dropped'
+        ]));
+        $tracking_notes = $package->tracking_notes.'|Driver Marked contact ('.date('d-M-Y h:i:s A').')';
+        $package->update([
+            'is_contact' => 1,
+            'tracking_notes' => $tracking_notes
+        ]);
+
+        //** Send Notif */
+        $notif = new CloudMessagingService();
+        $topics = GeneralSettingService::getGeneralTopics($user->company_id,'merchant',$order->merchant_id);
+        $notifReq = new Request([
+            'topic' => $topics->private,
+            'title' => 'Contact receiver',
+            'body' => 'Driver contacted receiver '.$package->receiver_phone
+        ]);
+        $notif->sendNotificationByTopic($notifReq);
+        return ApiResponse::JsonResult(null,__('messages.info',[
+            'info' => 'Marked as contact',
+        ]));
+
+    }
+
     public function getOptionsStatus(Request $req){
+        $user = UserService::getAuthUser('driver');
+        $orderId = $req->order_id;
+        $statuses = GeneralSettingService::optionsTrackingStatus($user,[1,3,20],'pick');
+        return ApiResponse::JsonResult($statuses);
+    }
+
+    public function setArriveWarehouse(Request $req){
         $user = UserService::getAuthUser('driver');
         $statuses = GeneralSettingService::optionsTrackingStatus($user,[1,3,20],'pick');
         return ApiResponse::JsonResult($statuses);
@@ -302,5 +377,23 @@ class HomeScreenController extends Controller
         return ApiResponse::JsonResult(GeneralSettingService::termAndConditions($user));
     }
 
-    // public function
+    public function pinPackage(Request $req){
+        $user = UserService::getAuthUser('driver');
+        $sortList = $req->sort_list;
+        if(empty($sortList)) return ApiResponse::ValidateFail(__('messages.info',[
+            'info' => 'Sort list is required'
+        ]));
+        foreach($sortList as $sl){
+            if(!isset($sl['package_id'])) return ApiResponse::ValidateFail(__('messages.info',[
+                'info' => 'Package Identity is required'
+            ]));
+            $id = $sl['package_id'];
+            $package = Package::where('is_deleted',0)->where('driver_id',$user->id)->find($id);
+            if(!$package) return ApiResponse::ValidateFail(__('messages.not_found',[
+                'info' => 'Package'
+            ]));
+        }
+            // $package = PackageService::getPackage($sl['package_id']);
+    }
+
 }
