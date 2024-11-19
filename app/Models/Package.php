@@ -66,6 +66,10 @@ class Package extends Model
         'arrive_warehouse_datetime'
     ];
 
+    // protected $casts = [
+    //     'cod' => 'boolean',  // Automatically casts 0/1 to true/false when accessing the attribute
+    // ];
+
 
     public function getAssignDriverDatetimeAttribute($value){
         return \Carbon\Carbon::parse($value)->format('d-M-y H:i:s A');
@@ -76,5 +80,13 @@ class Package extends Model
     }
     public function status(){
         return $this->belongsTo(TrackingStatus::class,'status_id','id');
+    }
+
+    public function driver(){
+        return $this->belongsTo(User::class,'driver_id','id');
+    }
+
+    public function merchant(){
+        return $this->belongsTo(User::class,'merchant_id','id');
     }
 }

@@ -28,6 +28,10 @@ class AppSettingController extends Controller
         return ApiResponse::flex(AppSetting::getPrivacyTermCondition($channel,'term_condition',$user));
     }
 
+    public function redirectBarcodeScan(Request $req){
+        return AppSetting::redirectBasedOnDevice($req);
+    }
+
     public function getPrivacyStatement(Request $req){
         $user = UserService::getAuthUser();
         $channel = $req->channel;

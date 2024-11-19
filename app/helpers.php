@@ -259,6 +259,9 @@ class Helper{
             if(!$create) $error = true;
         }else{
             $startIdx = $codeControl->last_idx + 1;
+            DB::table($controlTable)->where('branch_id',$branchId)->where('year',$year)->where('month',$month)->update([
+                'last_idx' => $startIdx
+            ]);
         }
 
         $code = $branchId.substr($year,2).$month.str_pad($startIdx, 8, "0", STR_PAD_LEFT);
@@ -512,6 +515,7 @@ class Helper{
     {
         return join('', array_map(function($value) { return $value == 1 ? mt_rand(1, 9) : mt_rand(0, 9); }, range(1, $length)));
     }
+
     static function getEndDate($days=0,$months=0,$years=0) {
         // Get the current date
         $currentDate = new DateTime();
@@ -531,7 +535,6 @@ class Helper{
         return str_pad($num, $len, '0', STR_PAD_LEFT);
     }
 
-
     static function formatPhoneNumber($phone){
         $new_num = null;
         if (empty($phone)) return null;
@@ -546,6 +549,28 @@ class Helper{
         }
         return $new_num;
 
+    }
+
+    static function convertJsonTextToJson($jsonString,$assoc=true) {
+        $correctedJson = str_replace("'", '"', $jsonString);
+
+        // Decode the JSON string
+        $decodedJson = json_decode($correctedJson, $assoc);
+
+        // Check for JSON decoding errors
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            return (object)[
+                'error' => true,
+                'message' => 'Invalid JSON string: ' . json_last_error_msg(),
+                'result' => null
+            ];
+        }
+
+        return (object)[
+            'error' => false,
+            'message' => 'Success',
+            'result' => $decodedJson
+        ];
     }
 
     static function getLatLongFromGoogleMapsUrl($url)

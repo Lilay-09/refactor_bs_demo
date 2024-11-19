@@ -15,11 +15,16 @@ class CompanyProfileService
     }
 
     public function profile(){
-        return CompanyProfile::selectRaw('id,name,name_kh,address,email,phone,description')->first();
+        return CompanyProfile::selectRaw('id,name,address,email,phone,description')->first();
+    }
+
+    public static function profileInfo($user){
+        $info = CompanyProfile::selectRaw('id,name,address,email,phone,description,photo_file_name')->where('id',$user->company_id)->first();
+        return $info;
     }
 
     public function info(){
-        $row = CompanyProfile::selectRaw('id,name,name_kh,address,email,phone,description')->first();
+        $row = CompanyProfile::selectRaw('id,name,address,email,phone,description')->first();
         if($row){
             $branches = self::companyBranches($row->id);
             $row->branches = $branches->list;

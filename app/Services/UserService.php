@@ -75,6 +75,7 @@ class UserService
             'email' => 'nullable|string|max:100',
             'phone' => 'required|string|regex:/^0[0-9]{8,19}$/',
             'gender' => 'required|in:M,F,O',
+            'dob' => 'nullable|date',
             'photo' => 'nullable|string',
             'address' => 'nullable|string|max:500',
             'password' => 'nullable|string|min:6|max:20'

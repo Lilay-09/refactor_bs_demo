@@ -1,6 +1,7 @@
 <?php
 use App\Http\Controllers\Mobile\Driver\V1\AuthController;
 use App\Http\Controllers\Mobile\Driver\V1\HistoryController;
+use App\Http\Controllers\Mobile\Driver\V1\SearchController;
 use App\Http\Controllers\Mobile\Merchant\V1\AuthController as AuthMerchantController;
 use App\Http\Controllers\Mobile\Driver\V1\HomeScreenController;
 use App\Http\Controllers\Mobile\Merchant\V1\HomeController;
@@ -22,6 +23,7 @@ Route::middleware(['jwtDriver','localize'])->prefix('driver/v1/{lang}')->group(f
     Route::prefix('home')->group(function(){
         Route::get('availableOrders',[HomeScreenController::class,'getAvailableOrders']);
         Route::get('accepted/pickup',[HomeScreenController::class,'getAcceptedPickup']);
+        Route::get('accepted/pickup/{order_id}',[HomeScreenController::class,'getOneAcceptedPickup']);
         Route::get('accepted/delivery',[HomeScreenController::class,'getDelivery']);
         Route::get('accepted/delivery/{order_id}/package',[HomeScreenController::class,'getDeliveryItems']);
         Route::put('accepted/delivery/{order_id}/package/{package_ref}/contact',[HomeScreenController::class,'markPackageContact']);
@@ -34,10 +36,14 @@ Route::middleware(['jwtDriver','localize'])->prefix('driver/v1/{lang}')->group(f
     });
 
     Route::get('history',[HistoryController::class,'getHistoryPackages']);
+    Route::get('search/fleet/package',[SearchController::class,'getTripPackages']);
 
     Route::prefix('setting')->group(function (){
         Route::prefix('option')->group(function (){
             Route::get('failRemark',[GeneralSettingController::class,'getOptionsDriverFailRemarks']);
+            Route::get('zone/{zone_id}/price',[GeneralSettingController::class,'getZonePrice']);
+            Route::get('zone',[GeneralSettingController::class,'getOptionsZone']);
+
         });
 
         Route::prefix('form')->group(function (){

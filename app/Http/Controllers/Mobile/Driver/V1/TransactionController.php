@@ -18,8 +18,6 @@ class TransactionController extends Controller
 
         // $payments =
 
-
-
         return ApiResponse::JsonResult($obj);
     }
 }

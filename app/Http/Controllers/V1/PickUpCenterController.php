@@ -179,11 +179,17 @@ class PickUpCenterController extends Controller
 
     public function getOrders(Request $req){
         $user = UserService::getAuthUser();
+        $search = $req->search;
         $query = Order::with(['merchant','tracking_status','driver','createdBy'])->where('is_deleted',0)
             ->whereIn('status_id',[1,2,3,4,21])
             ->where('company_id',$user->company_id)
             ->orderByDesc('id')
             ->selectRaw('booking_channel,id,merchant_id,status_id,order_datetime,driver_id,warehouse_id,vehicle_type,product_type,qty,pickup_address,code,created_at,create_uid');
+        if($search){
+            $query->whereHas('merchant',function ($q) use ($search){
+                $q->where('phone','ilike','%'.$search.'%');
+            });
+        }
         $orders = $query->get();
         foreach($orders as $order){
             $order->created_user = $order->createdBy?->user_name;
