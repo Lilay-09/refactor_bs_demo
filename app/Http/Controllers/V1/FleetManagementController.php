@@ -29,9 +29,9 @@ class FleetManagementController extends Controller
         //     $delivery->depart_date = Helper::formatCustomDateTime($delivery->depart_datetime,'d-M-Y',false);
         // }
         $packages = Package::fromRaw('packages as p')->join('delivery_packages as dp','p.id','dp.package_id')
-        ->selectRaw('p.id as package_id,dp.delivery_id,sum(p.driver_total) as driver_total')
-        ->where('dp.delay_count',0)
-        ->groupBy('p.id','dp.delivery_id','dp.delay_count')
+        ->selectRaw('p.id as package_id,dp.delivery_id,dp.delay_count,dp.status_id')
+        // ->where('dp.delay_count',0)
+        // ->groupBy('p.id','dp.delivery_id','dp.delay_count')
         ->get();
         $query = Delivery::with(['status','driver'])->where('is_deleted',0)->where('company_id',$user->company_id)
         ->selectRaw('id,fleet_tracking_number,status_id,depart_datetime,remarks,package_count,delivered_count,failed_count,warehouse_id,vehicle_type,driver_id');
@@ -40,7 +40,10 @@ class FleetManagementController extends Controller
             $delivery->status_code = $delivery->status->name;
             $delivery->driver_name = $delivery->driver->user_name;
             $delivery->driver_phone = $delivery->driver->phone;
-            $delivery->total = $this->getTripTotal($packages,$delivery->id);
+            $details = $this->getTripDetails($packages,$delivery->id);
+            $delivery->total = $details->total;
+            $delivery->failed_count = $details->failed_count;
+            $delivery->failed_with_fee_count = $details->failed_with_fee_count;
             $delivery->depart_time = Helper::formatCustomDateTime($delivery->depart_datetime,'h:i:s');
             $delivery->depart_date = Helper::formatCustomDateTime($delivery->depart_datetime,'d-M-Y',false);
             unset($delivery->status,$delivery->driver);
@@ -48,14 +51,22 @@ class FleetManagementController extends Controller
         return ApiResponse::Pagination($deliveries,$req);
     }
 
-    public function getTripTotal($packages,$deliveryId){
+    public function getTripDetails($packages,$deliveryId){
         $total = 0;
+        $failedCount = 0;
+        $failedWithFeeCount = 0;
         foreach($packages as $pkg){
             if($pkg->delivery_id == $deliveryId){
-                $total += $pkg->driver_total;
+                if(!$pkg->delay_count) $total += $pkg->driver_total;
+                if($pkg->status_id == 10) $failedCount +=1;
+                if($pkg->status_id == 19) $failedWithFeeCount +=1;
             }
         }
-        return $total;
+        return (object)[
+            'total' => $total,
+            'failed_count' => $failedCount,
+            'failed_with_fee_count' => $failedWithFeeCount
+        ];
     }
 
     public function getTripPackages(Request $req){
@@ -66,7 +77,7 @@ class FleetManagementController extends Controller
         ->join('users as m','m.id','p.merchant_id')
         ->join('users as d','d.id','p.driver_id')
         ->join('tracking_statuses as ts','ts.id','p.status_id')
-        ->selectRaw('ts.name as status_code,d.user_name as driver_name,d.phone as driver_phone,m.user_name as merchant_name,m.phone as merchant_phone,p.id as package_id,dp.delivery_id,p.zone_code,p.zone_name,p.delivery_fee,p.driver_total,p.taxi_fee,p.product_type')
+        ->selectRaw('p.price,p.cod,p.receiver_name,p.receiver_phone,p.zone_code,p.zone_name,ts.name as status_code,d.user_name as driver_name,d.phone as driver_phone,m.user_name as merchant_name,m.phone as merchant_phone,p.id as package_id,dp.delivery_id,p.zone_code,p.zone_name,p.delivery_fee as base_fee,p.driver_total,p.driver_total as delivery_fee,p.taxi_fee,p.product_type,p.status_id')
         ->get();
         // foreach($packages as $package){
 

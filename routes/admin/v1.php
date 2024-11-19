@@ -66,6 +66,7 @@ Route::middleware(['jwt','localize'])->prefix('admin/v1/{lang}')->group(function
         Route::get('',[DriverManagementController::class,'getDrivers']);
         Route::get('/{id}',[DriverManagementController::class,'getOneDriver']);
         Route::put('/{id}',[DriverManagementController::class,'updateDriver']);
+        Route::post('/{id}/setLock',[DriverManagementController::class,'setLockDriver']);
 
         Route::prefix('{id}/commission')->group(function(){
             Route::get('',[DriverManagementController::class,'getDriverCommissions']);
@@ -148,6 +149,7 @@ Route::middleware(['jwt','localize'])->prefix('admin/v1/{lang}')->group(function
         Route::put('{id}/driver/{driver_id}',[PackageTrailController::class,'assignDriver']);
         Route::delete('{id}',[PackageTrailController::class,'deletePackage']);
         Route::put('/{id}/return',[PackageTrailController::class,'returnPackage']);
+        Route::get('/{id}/print',[PackageTrailController::class,'getPrintInfo']);
     });
 
     //** End Pickup Center */
@@ -323,6 +325,7 @@ Route::middleware(['jwt','localize'])->prefix('admin/v1/{lang}')->group(function
             Route::get('city/district/{city_id}',[GeneralSettingController::class,'getOptionsDistrictByCity']);
             Route::get('district/commune/{district_id}',[GeneralSettingController::class,'getOptionsCommuneByDistrict']);
             Route::get('priceList/name',[GeneralSettingController::class,'getOptionsPriceListName']);
+            Route::get('priceList',[GeneralSettingController::class,'getOptionsPriceList']);
             Route::get('vehicleType',[GeneralSettingController::class,'getOptionsVehicleType']);
             Route::get('fleet/package/{barcode}',[FleetManagementController::class,'getPackageByBarcode']);
         });

@@ -63,6 +63,21 @@ class HomeScreenController extends Controller
         return ApiResponse::Pagination($orders,$req);
     }
 
+    public function getOneAcceptedPickup(Request $req){
+        $user = $this->user;
+        $orderId = $req->order_id;
+        if($user->error) return ApiResponse::flex($user);
+        $orders = Order::where('is_deleted',0)
+        // ->with(['merchant','tracking_status','warehouse'])
+        ->whereIn('status_id',[2,3,4])
+        ->where('company_id',$user->company_id)
+        ->where('driver_id',$user->id)
+        ->selectRaw('id,warehouse_id,driver_id,pickup_address_google_map,order_datetime,merchant_id,status_id,qty,code,pickup_address,pickup_address_google_map,vehicle_type,delivery_type')
+        ->find($orderId);
+
+        return ApiResponse::JsonResult($orders);
+    }
+
     public function getDelivery(Request $req){
         $user = $this->user;
         if($user->error) return ApiResponse::flex($user);
@@ -138,13 +153,15 @@ class HomeScreenController extends Controller
         // return $req;
         $order = Order::where('is_deleted',0)
         ->with(['merchant','tracking_status'])
-        ->where('status_id',3)
         ->where('company_id',$user->company_id)
         ->where('driver_id',$user->id)
-        ->selectRaw('id')
+        ->selectRaw('id,status_id')
         ->find($orderId);
         if(!$order) return ApiResponse::NotFound(__('messages.info',[
             'info' => 'No order was found'
+        ]));
+        if($order->status_id == 2) return ApiResponse::Duplicated(__('messages.info',[
+            'info' => 'This order has already been picked'
         ]));
         $qty = $req->qty;
         $images = $req->file('images') ?? [];
@@ -157,18 +174,24 @@ class HomeScreenController extends Controller
         ]));
         $qty = $req->qty ?? null;
         $user = UserService::getAuthUser('driver');
-        $order = Order::where('is_deleted',0)->where('status_id',3)->find($orderId);
-        if(!$order) return ApiResponse::NotFound(__('messages.info',[
-            'info' => 'Couldn\'t find your accepted task',
-        ]));
+        // $order = Order::where('is_deleted',0)->where('status_id',3)->find($orderId);
+        // if(!$order) return ApiResponse::NotFound(__('messages.info',[
+        //     'info' => 'Couldn\'t find your accepted task',
+        // ]));
 
         $qty = $qty ?? $order->qty;
+        if($qty <=0) return ApiResponse::ValidateFail(__('messages.info',[
+            'info' => 'Order quantity must be atleast 1'
+        ]));
         $acceptArr = [
             'status_id' => $statusId,
             'qty' => $qty,
             'driver_id' => $user->id // the requester is driver
         ];
-        if($statusId == 4) $acceptArr['booking_channel'] = 'driver';
+        if($statusId == 4){
+            $acceptArr['booking_channel'] = 'driver';
+            $pickMsg = 'Pick & Book';
+        }
         if($details){
             $detailsCount = count($details);
             if($qty !== $detailsCount) return ApiResponse::ValidateFail(__('messages.info',[
@@ -180,14 +203,20 @@ class HomeScreenController extends Controller
                 $validate = $this->validatePackageDetails($rD);
                 if($validate->fails()) return ApiResponse::ValidateFail($validate->errors()->first());
                 $inputs = $validate->validated();
+                $inputs['order_id'] = $orderId;
+                $inputs['status_id'] = 4;
                 $inputs['create_uid'] = $user->id;
                 $inputs['update_uid'] = $user->id;
                 $inputs['company_id'] = $user->company_id;
                 $inputs['branch_id'] = $user->branch_id;
+                $inputs['actual_kg'] = 0;
+                $inputs['billed_kg'] = 0;
+                // $inputs['actual_kg'] = 0;
                 Package::create($inputs);
             }
         }
         if($statusId == 2) {
+            $pickMsg = 'Pickup';
             // $imgCount = count($images);
             // if($imgCount != $qty) return ApiResponse::ValidateFail(__('messages.info',[
             //     'info' => 'Your package quantity is not matching the number of photos.',
@@ -198,7 +227,7 @@ class HomeScreenController extends Controller
                 if($photoFileName){
                     OrderImage::create([
                         'order_id' => $orderId,
-                        'original_name' => $image->getOriginalName(),
+                        'original_name' => $image->getClientOriginalName(),
                         'photo_file_name' => $photoFileName,
                         'create_uid' => $user->id,
                         'update_uid' => $user->id,
@@ -212,7 +241,7 @@ class HomeScreenController extends Controller
         $order->update($acceptArr);
 
         return ApiResponse::JsonResult(null,__('messages.info',[
-            'info' => 'You have accepted for pickup',
+            'info' => 'You have accepted for '.$pickMsg,
             'khInfo' => 'បានបញ្ចូលទិន្នន័យកញ្ចប់'
         ]));
     }

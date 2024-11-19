@@ -6,6 +6,8 @@ use ApiResponse;
 use App\Http\Controllers\Controller;
 use App\Services\GeneralSettingService;
 use App\Services\UserService;
+use Illuminate\Http\Request;
+
 
 class GeneralSettingController extends Controller
 {
@@ -34,5 +36,16 @@ class GeneralSettingController extends Controller
             'statuses' =>$results
         ];
         return ApiResponse::JsonResult($obj);
+    }
+
+    public function getOptionsZone(Request $req){
+        $user = UserService::getAuthUser('driver');
+        return ApiResponse::JsonResult(GeneralSettingService::optionsZone($user));
+    }
+
+    public function getZonePrice(Request $req){
+        $user = UserService::getAuthUser('driver');
+        $id = $req->zone_id;
+        return ApiResponse::JsonResult(GeneralSettingService::priceByZone($id,$user));
     }
 }

@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Delivery;
 use App\Models\DeliveryPackage;
 use App\Models\Package;
+use App\Services\CompanyProfileService;
 use App\Services\GeneralSettingService;
 use App\Services\PickupCenterService;
 use App\Services\UserService;
@@ -27,9 +28,11 @@ class PackageTrailController extends Controller
         ->where('outstanding',0)
         // ->whereNotIn('status_id',[]) // at warehouse
         ->where('company_id',$user->company_id)
-        ->selectRaw('id,qr_code,price,driver_id,product_type,dim_z,dim_x,dim_y,status_id,failure_notes,payer,cod,delivery_fee,receiver_address,zone_code,zone_name,receiver_name,receiver_phone,delivered_datetime,assign_driver_datetime,arrive_warehouse_datetime,driver_total,merchant_total');
+        ->selectRaw('id,taxi_fee,delivery_type,qr_code,price,driver_id,product_type,dim_z,dim_x,dim_y,status_id,failure_notes,payer,cod,delivery_fee,receiver_address,zone_code,zone_name,receiver_name,receiver_phone,delivered_datetime,assign_driver_datetime,arrive_warehouse_datetime,driver_total,merchant_total');
         $packages = $query->get();
         foreach($packages as $pkg){
+            $cod = $pkg->cod;
+            $pkg->cod = $cod == true ? 1:0;
             $pkg->status_code = $pkg->status->name;
             $pkg->warehouse_timeago = Helper::timeAgo($pkg->arrive_warehouse_datetime,false);
             unset($pkg->status);
@@ -39,17 +42,26 @@ class PackageTrailController extends Controller
 
     public function getOnePackage(Request $req){
         $user = UserService::getAuthUser();
+        $id = $req->id;
         $package = Package::where('is_deleted',0)
-        ->with(['status'])
+        ->with(['status','driver'])
         ->where('outstanding',0)
         // ->whereNotIn('status_id',[]) // at warehouse
         ->where('company_id',$user->company_id)
-        ->selectRaw('id,qr_code,price,driver_id,product_type,dim_z,dim_x,dim_y,status_id,failure_notes,payer,cod,delivery_fee,receiver_address,zone_code,zone_name,receiver_name,receiver_phone,delivered_datetime,assign_driver_datetime,arrive_warehouse_datetime,driver_total,merchant_total')
-        ->first();
+        ->selectRaw('id,taxi_fee,actual_kg,billed_kg,extra_charge,delivery_type,qr_code,price,driver_id,product_type,dim_z,dim_x,dim_y,status_id,failure_notes,payer,cod,delivery_fee,receiver_address,zone_code,zone_name,receiver_name,receiver_phone,delivered_datetime,assign_driver_datetime,arrive_warehouse_datetime,driver_total,merchant_total,driver_id,remarks')
+        ->find($id);
         if(!$package) return ApiResponse::NotFound();
         $package->status_code = $package->status->name;
+        $cod = $package->cod;
+        $package->cod = $cod == false ? 0 : 1;
+        $driver = $package->driver;
+        if($driver){
+            $package->driver_name = $driver->user_name;
+        }
+        $package->base_fee = $package->delivery_fee;
+        $package->delivery_fee = $package->delivery_fee + $package->taxi + ($cod ? $package->price : 0);
         $package->warehouse_timeago = Helper::timeAgo($package->arrive_warehouse_datetime,false);
-        unset($package->status);
+        unset($package->status,$package->driver);
         return ApiResponse::JsonResult($package);
     }
 
@@ -59,6 +71,7 @@ class PackageTrailController extends Controller
         $package = Package::where('company_id',$user->company_id)->where('is_deleted',0)->where('outstanding',0)->find($id);
         if(!$package) return ApiResponse::NotFound(__('messages.not_found',['info' => 'Package','khInfo' => 'កញ្ចប់']));
         if($package->status_id == 13) return ApiResponse::Forbidden(__('messages.no_access',['info' => 'This package is already assigned to driver']));
+        if($package->status_id == 14) return ApiResponse::Forbidden(__('messages.no_access',['info' => 'This package is on delivery']));
         $pkupService = new PickupCenterService();
         $validate = $pkupService->packageValidation($req);
         if($validate->fails()) return ApiResponse::ValidateFail($validate->errors()->first());
@@ -67,7 +80,6 @@ class PackageTrailController extends Controller
         $inputs['branch_id'] = $user->branch_id;
         $inputs['update_uid'] = $user->id;
         $price = $inputs['price'] ?? 0;
-        // $inputs['cod'] = 0;
         $inputs['price'] = $price;
         $actualKg = $inputs['actual_kg'] ?? 0;
         $billedKg = $inputs['billed_kg'] ?? 0;
@@ -99,6 +111,17 @@ class PackageTrailController extends Controller
         return ApiResponse::JsonResult(null,__('messages.returned',['info' => 'Package']));
     }
 
+    public function getPrintInfo(Request $req){
+        $user = UserService::getAuthUser();
+        $id = $req->id;
+        $package = Package::where('company_id',$user->company_id)->with(['merchant'])->where('is_deleted',0)->find($id);
+        if(!$package) return ApiResponse::NotFound(trans('messages.not_found',['info' => 'Package','khInfo' => 'កញ្ចប់​']));
+        $obj = (object)[
+            'company_info' => CompanyProfileService::profileInfo($user),
+        ];
+        return ApiResponse::JsonResult($obj,__('messages.info',['info' => 'Print Information']));
+    }
+
     public function assignDriver(Request $req){
         $user  = UserService::getAuthUser();
         $id = $req->id;
@@ -109,8 +132,10 @@ class PackageTrailController extends Controller
         $pacakge = Package::where('company_id',$user->company_id)->where('is_deleted',0)->where('outstanding',0)->find($id);
         if(!$pacakge) return ApiResponse::NotFound(__('messages.not_found',['info' => 'Package','khInfo' => 'កញ្ចប់']));
         if($pacakge->status_id == 9) return ApiResponse::Duplicated(__('messages.error',['info' => 'This package is already delivered']));
+        if($pacakge->status_id == 19) return ApiResponse::Duplicated(__('messages.error',['info' => 'This package is already marked as failed with fee']));
+        if($pacakge->status_id == 11) return ApiResponse::Duplicated(__('messages.error',['info' => 'This package is already returned']));
         if($pacakge->driver_id){
-            $deliveryPackage = DeliveryPackage::where('package_id',$id)->where('is_deleted',0)->first();
+            $deliveryPackage = DeliveryPackage::where('package_id',$id)->where('is_deleted',0)->where('delay_count')->first();
             if($deliveryPackage){
                 if($deliveryPackage->status_id !== 10) return ApiResponse::Duplicated(__('messages.has already assigned',['info' => 'Package']));
             }

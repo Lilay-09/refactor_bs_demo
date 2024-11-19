@@ -22,7 +22,7 @@ class DriverManagementController extends Controller
         $user = UserService::getAuthUser();
         $query = User::where('is_deleted',0)->where('company_id',$user->company_id)
         ->where('account_type','driver')
-        ->selectRaw('id,code,user_name,email,gender,shift_type,vehicle_type,plate_number,phone');
+        ->selectRaw('id,code,user_name,email,gender,shift_type,vehicle_type,plate_number,phone,has_account,lock');
         $drivers = $query->orderByDesc('id')->get();
         return ApiResponse::Pagination($drivers,$req);
     }
@@ -32,7 +32,7 @@ class DriverManagementController extends Controller
         $id = $req->id;
         $driver = User::where('is_deleted',0)->where('company_id',$user->company_id)
         ->where('account_type','driver')
-        ->selectRaw('id,code,user_name,email,gender,shift_type,vehicle_type,plate_number,phone,national_id')
+        ->selectRaw('id,code,user_name,email,gender,shift_type,vehicle_type,plate_number,phone,national_id,dob')
         ->find($id);
         if(!$driver) return ApiResponse::NotFound(__('messages.not_found',['info' => 'Driver']));
         return ApiResponse::JsonResult($driver,__('messages.get one'));
@@ -138,5 +138,30 @@ class DriverManagementController extends Controller
         $driverId = $req->id;
         $createDriver = UserService::createLoginAccount($req,$driverId,'driver',$user);
         return ApiResponse::flex($createDriver);
+    }
+
+    public function setLockDriver(Request $req){
+        $user = UserService::getAuthUser();
+        $driverId = $req->id;
+        $driver = User::where('is_deleted',0)->where('company_id',$user->company_id)
+        ->where('account_type','driver')
+        ->selectRaw('id,code,user_name,email,gender,shift_type,vehicle_type,plate_number,phone,national_id,lock')
+        ->find($driverId);
+        if(!$driver) return ApiResponse::NotFound(__('messages.not_found',[
+            'info' => 'Driver'
+        ]));
+        $msg = '';
+        if($driver->lock){
+            $driver->update([
+                'lock' => false,
+            ]);
+            $msg = 'Driver has been locked';
+        }else{
+            $driver->update([
+                'lock' => true,
+            ]);
+            $msg = 'Driver has tured on active mode';
+        }
+        return ApiResponse::JsonResult(null,$msg);
     }
 }

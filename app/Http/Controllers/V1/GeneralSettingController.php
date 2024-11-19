@@ -178,6 +178,11 @@ class GeneralSettingController extends Controller
         return ApiResponse::JsonResult($obj);
     }
 
+    public function getOptionsPriceList(){
+        $user = UserService::getAuthUser();
+        return ApiResponse::JsonResult($this->gs::optionsPriceList($user));
+    }
+
     public function getFormDriver(){
         $user = UserService::getAuthUser();
         $obj = (object)[

@@ -169,6 +169,10 @@ class GeneralSettingService
         return User::where('is_deleted',0)->where('delete_account',0)->where('account_type','driver')->orderByDesc('id')->find($id);
     }
 
+    public static function sumDeliveryFee($dlievey){
+
+    }
+
     public static function optionsBank($user){
         return Bank::where('is_deleted',0)->where('company_id',$user->company_id)->selectRaw('id,name')->get();
     }
@@ -274,11 +278,11 @@ class GeneralSettingService
         return [
             [
                 'value' => 0,
-                'lable' => 'No'
+                'label' => 'No'
             ],
             [
                 'value' => 1,
-                'lable' => 'Yes'
+                'label' => 'Yes'
             ],
         ];
     }
@@ -291,11 +295,11 @@ class GeneralSettingService
         return [
             [
                 'value' => 'sender',
-                'lable' => 'Sender'
+                'label' => 'Sender'
             ],
             [
                 'value' => 'receiver',
-                'lable' => 'Receiver'
+                'label' => 'Receiver'
             ],
         ];
     }
@@ -313,7 +317,6 @@ class GeneralSettingService
         ];
     }
 
-
     public static function paymentStatus(){
         return [
             [
@@ -325,7 +328,7 @@ class GeneralSettingService
                 'value' => 1
             ],
             [
-                'label' => 'Unpaid',
+                'label' => 'All',
                 'value' => 0
             ],
         ];
@@ -388,7 +391,7 @@ class GeneralSettingService
             foreach($packages as $pck){
                 if($pck->status_id == 9){
                     $deliveredCount += 1;
-                }else if($pck->status_id == 10){
+                }else if($pck->status_id == 10 || $pck->status_id == 19){
                     $failCount += 1;
                 }
                 if($pck->status_id == 6){
@@ -398,8 +401,8 @@ class GeneralSettingService
             if($trip->package_count == $failCount){
                 $status_id = 17;
                 $isCompleted = 1;
-            // }else if($trip->package_count == $deliveredCount){
-            //     $status_id = 15;
+            }else if($trip->package_count == $deliveredCount){
+                $status_id = 15;
             }else if($trip->package_count >= $deliveredCount){
                 $status_id = 16;
                 if($stillOnDelivery) $status_id = 14;
