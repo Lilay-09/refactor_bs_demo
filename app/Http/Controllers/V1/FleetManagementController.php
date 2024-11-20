@@ -13,6 +13,7 @@ use App\Services\UserService;
 use DB;
 use Helper;
 use Illuminate\Http\Request;
+use Log;
 
 class FleetManagementController extends Controller
 {
@@ -29,7 +30,7 @@ class FleetManagementController extends Controller
         //     $delivery->depart_date = Helper::formatCustomDateTime($delivery->depart_datetime,'d-M-Y',false);
         // }
         $packages = Package::fromRaw('packages as p')->join('delivery_packages as dp','p.id','dp.package_id')
-        ->selectRaw('p.id as package_id,dp.delivery_id,dp.delay_count,dp.status_id')
+        ->selectRaw('p.id as package_id,dp.delivery_id,dp.delay_count,dp.status_id,p.driver_total')
         // ->where('dp.delay_count',0)
         // ->groupBy('p.id','dp.delivery_id','dp.delay_count')
         ->get();
@@ -42,6 +43,7 @@ class FleetManagementController extends Controller
             $delivery->driver_phone = $delivery->driver->phone;
             $details = $this->getTripDetails($packages,$delivery->id);
             $delivery->total = $details->total;
+            $delivery->total_delivered = $details->total_delivered;
             $delivery->failed_count = $details->failed_count;
             $delivery->failed_with_fee_count = $details->failed_with_fee_count;
             $delivery->depart_time = Helper::formatCustomDateTime($delivery->depart_datetime,'h:i:s');
@@ -55,16 +57,20 @@ class FleetManagementController extends Controller
         $total = 0;
         $failedCount = 0;
         $failedWithFeeCount = 0;
+        $total_delivered = 0;
         foreach($packages as $pkg){
             if($pkg->delivery_id == $deliveryId){
                 if(!$pkg->delay_count) $total += $pkg->driver_total;
+                if($pkg->status_id == 9) $total_delivered += $pkg->driver_total;
                 if($pkg->status_id == 10) $failedCount +=1;
                 if($pkg->status_id == 19) $failedWithFeeCount +=1;
+                // Log::info(json_encode($pkg));
             }
         }
         return (object)[
             'total' => $total,
             'failed_count' => $failedCount,
+            'total_delivered' => $total_delivered,
             'failed_with_fee_count' => $failedWithFeeCount
         ];
     }
@@ -83,7 +89,7 @@ class FleetManagementController extends Controller
 
         //     unset($package->status);
         // }
-        return ApiResponse::JsonResult($packages,__('messages.get_list',['info' => 'Package']));
+        return ApiResponse::Pagination($packages,$req,__('messages.get_list',['info' => 'Package']));
     }
 
     public function setPackageStatus(Request $req){

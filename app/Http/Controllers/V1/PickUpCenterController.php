@@ -394,7 +394,7 @@ class PickUpCenterController extends Controller
         if($order->status_id == 5) return ApiResponse::Duplicated(__('messages.already_at_warehouse'));
         $query = Package::where('order_id',$orderId)->where('outstanding',1)->where('company_id',$user->company_id);
         $count = $query->count();
-        if($count < 1) return ApiResponse::NotFound(__('messages.no_found',['info' => 'Package']));
+        if($count < 1) return ApiResponse::NotFound(__('messages.info',['info' => 'No package found, you need to add package']));
         $query->update([
             'arrive_warehouse_datetime' => now(),
             'outstanding' => 0,
