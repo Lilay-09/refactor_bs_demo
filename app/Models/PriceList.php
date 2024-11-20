@@ -32,7 +32,7 @@ class PriceList extends Model
     }
 
     public function priceListName(){
-        return $this->hasOne(PriceListName::class,'id','id');
+        return $this->hasOne(PriceListname::class,'id','id');
     }
 
 }
