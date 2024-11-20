@@ -108,8 +108,10 @@ class PickupCenterService
         $cod = $inputs['cod'];
         $zoneCode = $inputs['zone_code'];
         $inputs['booking_channel'] = 'admin';
+        $inputs['tracking_notes'] = 'Admin add new package ('.date('d-M-Y h:i:s A').')';
         if($user->account_type == 'driver') $inputs['booking_channel'] = 'driver';
         if($user->account_type == 'merchant') $inputs['booking_channel'] = 'merchant';
+
         $zoneName = Zone::where('zone_code',$zoneCode)->value('zone_name');
         $inputs['zone_name'] = $zoneName;
         $calPrice = GeneralSettingService::calculatePackageFee($zoneCode,$price,$billedKg,$actualKg,$payer,$cod);
@@ -136,6 +138,11 @@ class PickupCenterService
                 $qP->$whereClause;
             }
             $package = $qP->find($packageId);
+            if($user->account_type == 'merchant'){
+                $inputs['tracking_notes'] = $package->tracking_notes.'|Merchant add new package ('.date('d-M-Y h:i:s A').')';
+            }else if($user->account_type == 'driver'){
+                $inputs['tracking_notes'] = $package->tracking_notes.'|Driver add new package ('.date('d-M-Y h:i:s A').')';
+            }
             $inputs['status_id'] = $package->status_id;
             if(!$package) return DataResponse::NotFound(trans('messages.not_found',['info' => 'Package','khInfo' => 'កញ្ចប់']));
             // if($package->status_id == 5) return DataResponse::Forbidden(__('messages.no_access',['info' => 'This package has already assigned to driver']));

@@ -16,6 +16,7 @@ use DB;
 use Exception;
 use Helper;
 use Illuminate\Http\Request;
+use Illuminate\Log\Logger;
 use Log;
 
 class PackageTrailController extends Controller
@@ -28,7 +29,9 @@ class PackageTrailController extends Controller
         ->where('outstanding',0)
         // ->whereNotIn('status_id',[]) // at warehouse
         ->where('company_id',$user->company_id)
-        ->selectRaw('id,taxi_fee,delivery_type,qr_code,price,driver_id,product_type,dim_z,dim_x,dim_y,status_id,failure_notes,payer,cod,delivery_fee,receiver_address,zone_code,zone_name,receiver_name,receiver_phone,delivered_datetime,assign_driver_datetime,arrive_warehouse_datetime,driver_total,merchant_total');
+        ->whereNotIn('status_id',[9,19])
+        ->selectRaw('id,taxi_fee,delivery_type,qr_code,price,driver_id,product_type,dim_z,dim_x,dim_y,status_id,failure_notes,payer,cod,delivery_fee,receiver_address,zone_code,zone_name,receiver_name,receiver_phone,delivered_datetime,assign_driver_datetime,arrive_warehouse_datetime,driver_total,merchant_total')
+        ->orderByRaw('(status_id = ?) DESC', [5]);
         $packages = $query->get();
         foreach($packages as $pkg){
             $cod = $pkg->cod;
@@ -161,6 +164,7 @@ class PackageTrailController extends Controller
 
     public function createOrUpdateTrip($driverId,$packageId,$vehicleType,$user,$notes){
         $today = date('Y-m-d');
+        $isNewPkg = true;
         $todayDelivery = Delivery::whereDate('depart_datetime',$today)->where('company_id',$user->company_id)->where('driver_id',$driverId)->first();
         if(!$todayDelivery){
             $QuerylastPackage = DeliveryPackage::where('package_id',$packageId)->where('is_deleted',0);
@@ -182,35 +186,47 @@ class PackageTrailController extends Controller
             ]);
             if(!$create) return DataResponse::Error(__('messages.error',['info' => 'Fail to add fleet']));
             $deliveryId = $create->id;
+            // Log::info("adding fleet");
             Helper::setFleetNumber($user->branch_id,'fleet_code_controls','deliveries',$deliveryId,'fleet_tracking_number');
         }else{
             $deliveryId = $todayDelivery->id;
+            $newPackageCount = $todayDelivery->package_count;
+            $existsPkg = DeliveryPackage::where('package_id',$packageId)->where('is_deleted',0)
+            ->where('delay_count',0)
+            ->first();
+
+            if($existsPkg) {
+                $isNewPkg = false;
+            }else $newPackageCount +=1;
             $todayDelivery->update([
                 'driver_id' => $driverId,
                 'delay_count' => $todayDelivery->delay_count + 1,
-                'package_count' => $todayDelivery->package_count + 1,
+                'package_count' => $newPackageCount,
                 'update_uid' => $user->id,
                 'branch_id' => $user->branch_id,
                 'company_id' => $user->company_id,
             ]);
         }
-
         //** add delivery tracking */
-        $dPackage = DeliveryPackage::create([
-            'notes' => $notes,
-            'driver_id' => $driverId,
-            'delivery_id' => $deliveryId,
-            'package_id' => $packageId,
-            'status_id' => 6, // On Delivery
-            'update_uid' => $user->id,
-            'create_uid' => $user->id,
-            'branch_id' => $user->branch_id,
-            'company_id' => $user->company_id,
-        ]);
+        if($isNewPkg) {
+            $dPackage = DeliveryPackage::create([
+                'notes' => $notes,
+                'driver_id' => $driverId,
+                'delivery_id' => $deliveryId,
+                'package_id' => $packageId,
+                'status_id' => 6, // On Delivery
+                'update_uid' => $user->id,
+                'create_uid' => $user->id,
+                'branch_id' => $user->branch_id,
+                'company_id' => $user->company_id,
+            ]);
+            if(!$dPackage) return DataResponse::Error(__('messages.error',['info' => 'Fail to assign package']));
+        }
+
 
         GeneralSettingService::updateTripStatus($deliveryId,$user);
 
-        if(!$dPackage) return DataResponse::Error(__('messages.error',['info' => 'Fail to assign package']));
+
         return DataResponse::JsonResult(null);
     }
 

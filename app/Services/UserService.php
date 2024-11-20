@@ -214,13 +214,14 @@ class UserService
     }
 
     private static function saveUserBanks($bankInfo,$userId,$user){
+        $keepIds = [];
         foreach($bankInfo as $bank){
             $id = $bank['id'] ?? null;
             $bank['update_uid'] = $user->id;
             $bank['branch_id'] = $user->branch_id;
             $bank['company_id'] = $user->company_id;
             $bank['user_id'] = $userId;
-            $bank['is_primary'] = $bankInfo['is_primary'] ?? false;
+            $bank['is_primary'] = $bank['is_primary'] ?? false;
             $bankNumber = $bank['bank_number'] ?? null;
             $accountName = $bank['account_name'] ?? null;
             if(!isset($bank['bank_name'])) return DataResponse::ValidateFail(__('messages.error',['info' =>'Please enter bank name']));
@@ -230,6 +231,7 @@ class UserService
             ->where('account_name',$accountName)->first();
             if($existsBankInfo) return DataResponse::ValidateFail(__('messages.error',['info' => 'It seems like you try to add duplicated bank info']));
             // }
+            $keepIds[] = $id;
             if($id){
                 $userBank = UserBank::where('user_id',$userId)->where('id',$id)->first();
                 if(!$userBank) return DataResponse::ValidateFail(__('messages.error',['info' => 'Wrong bank identity']));
@@ -238,6 +240,8 @@ class UserService
                 $bank['create_uid'] = $user->id;
                 UserBank::create($bank);
             }
+
+            UserBank::where('user_id',$userId)->whereNotIn('id',$keepIds)->delete();
         }
         return DataResponse::JsonResult(null,false,__('messages.saved'));
     }
