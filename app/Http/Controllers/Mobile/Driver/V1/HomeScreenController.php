@@ -10,7 +10,9 @@ use App\Models\OrderImage;
 use App\Models\Package;
 use App\Services\CloudMessagingService;
 use App\Services\GeneralSettingService;
+use App\Services\PickupCenterService;
 use App\Services\UserService;
+use Google\Rpc\Help;
 use Helper;
 use Illuminate\Http\Request;
 
@@ -84,9 +86,13 @@ class HomeScreenController extends Controller
         $driverId = $user->id;
         $orders = Order::fromRaw('orders as o')->join('packages as p','p.order_id','o.id')->where('o.is_deleted',0)
         ->join('users as m','m.id','o.merchant_id')
+        // ->join('tracking_statuses as ts','ts.id','o.status_id')
         // ->where('is_completed',0)
         // ->with(['packages:id,cod,price,delivery_fee,payer,zone_code,zone_name,receiver_phone,delivery_type,status_id,order_id,arrive_warehouse_datetime','packages.status'])
-        ->selectRaw('o.qty,o.order_datetime,o.id as order_id,o.id,o.code,m.user_name,m.phone')->groupByRaw('m.phone,o.id,o.code,m.user_name')->where('p.driver_id',$driverId)->get();
+        ->selectRaw('o.qty,o.order_datetime,o.id as order_id,o.id,o.code,m.user_name,m.phone')
+        ->groupByRaw('m.phone,o.id,o.code,m.user_name')
+        ->orderByDesc('o.id')
+        ->where('p.driver_id',$driverId)->get();
         // foreach($orders as $order){
         //     // foreach($order->packages as $package){
         //     //     $package->status_code = $package->status->name;
@@ -185,6 +191,7 @@ class HomeScreenController extends Controller
         ]));
         $acceptArr = [
             'status_id' => $statusId,
+            'pickup_datetime' => now(),
             'qty' => $qty,
             'driver_id' => $user->id // the requester is driver
         ];
@@ -283,6 +290,9 @@ class HomeScreenController extends Controller
         $codChange = $amount > 0 ? true:false;
         $inputs['cod_changed'] = $codChange;
         $photo = $inputs['photo'] ?? null;
+        if($photo) {
+            $inputs['photo'] = Helper::saveImageFileOrBase64($photo,$user->company_id,'submit_package')->filename;
+        }
         $package = Package::where('is_deleted',0)->find($id);
         if(!$package) return ApiResponse::NotFound(__('messages.not_found',[
             'info' => 'Package'
@@ -291,17 +301,23 @@ class HomeScreenController extends Controller
         if($package->driver_id !== $user->id) return ApiResponse::Duplicated(__('messages.info',[
             'info' => 'Please submit package that belongs to you'
         ]));
-
+        $todayDt = Helper::getDateTime();
+        $driverName = $user->user_name;
         $statusCode = $status_id == 9 ? 'Delivered' : ($status_id == 10 ? 'Failed':($status_id == 19 ? 'Failed with fee':''));
-        $inputs['tracking_notes'] = $package->tracking_notes.'|Driver submit '.$statusCode.'('.date('d-M-Y h:i:s A').')';
+        $inputs['tracking_notes'] = $package->tracking_notes."|[$user->id]Driver ($driverName) submit $statusCode ($todayDt)";
         if($codChange && $package->price != $amount){
-            $inputs['tracking_notes'] .= '|Driver change cod '.$package->price .' to '.$amount.'('.date('d-M-Y h:i:s A').')';
+            $inputs['tracking_notes'] .= "|[$user->id]Driver ($driverName) change cod $package->price to $amount ($todayDt)";
         }
+        if($status_id == 9) $inputs['delivered_datetime'] = now();
+        if($status_id == 10) $inputs['failed_datetime'] = now();
+        if($status_id == 19) $inputs['failed_datetime'] = now();
         $package->update($inputs);
-        DeliveryPackage::where('package_id',$id)->where('delay_count',0)->update([
+        $dp = DeliveryPackage::where('package_id',$id)->where('delay_count',0)->first();
+        $dp->update([
             'notes' => $inputs['tracking_notes'],
+            'status_id' => $status_id
         ]);
-
+        GeneralSettingService::updateTripStatus($dp->delivery_id,$user);
         return ApiResponse::JsonResult(null,__('messages.submitted'));
     }
 
@@ -339,7 +355,9 @@ class HomeScreenController extends Controller
         if(!in_array($order->status_id,[2,4])) return ApiResponse::ValidateFail(__('messages.info',[
             'info' => 'You can not mark as dropped'
         ]));
-        $tracking_notes = $order->tracking_notes.'|Driver dropped order ('.date('d-M-Y h:i:s A').')';
+        $driverName = $user->name;
+        $todayDt = Helper::getDateTime();
+        $tracking_notes = $order->tracking_notes."|[$user->id]Driver ($driverName) dropped order ($todayDt)";
         $order->update([
             'status_id' => 21,
             'tracking_notes' => $tracking_notes
@@ -367,9 +385,12 @@ class HomeScreenController extends Controller
         if(!in_array($package->status_id,[6])) return ApiResponse::ValidateFail(__('messages.info',[
             'info' => 'You can not mark as dropped'
         ]));
-        $tracking_notes = $package->tracking_notes.'|Driver Marked contact ('.date('d-M-Y h:i:s A').')';
+        $driverName = $user->user_name;
+        $todayDt = Helper::getDateTime();
+        $tracking_notes = $package->tracking_notes."|[$user->id]Driver Marked contact $todayDt";
         $package->update([
             'is_contact' => 1,
+            'contact_datetime' => now(),
             'tracking_notes' => $tracking_notes
         ]);
 
@@ -423,6 +444,13 @@ class HomeScreenController extends Controller
             ]));
         }
             // $package = PackageService::getPackage($sl['package_id']);
+    }
+
+    public function booking(Request $req){
+        $user = UserService::getAuthUser('driver');
+        $pckService = new PickupCenterService();
+        $createOrder = $pckService->createOrder($req,$user);
+        return ApiResponse::flex($createOrder);
     }
 
 }

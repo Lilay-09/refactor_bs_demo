@@ -48,11 +48,12 @@ class UserService
                     'status_code' => 200,
                     'status' => 'OK',
                     'id' => $hasUser->id,
+                    'user_name' => $hasUser->user_name,
                     'account_type' => $hasUser->account_type,
                     'company_id' => $hasUser->company_id,
                     'branch_id' => $hasUser->branch_id,
                     'system_admin' => $hasUser->system_admin,
-                    'user'=>$hasUser
+                    // 'user'=>$hasUser
                 ]);
             }
         }

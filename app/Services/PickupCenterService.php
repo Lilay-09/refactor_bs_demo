@@ -4,10 +4,15 @@ namespace App\Services;
 use App\Models\Order;
 use App\Models\Package;
 use App\Models\PriceList;
+use App\Models\User;
+use App\Models\VehicleType;
 use App\Models\Zone;
 use DataResponse;
+use DB;
+use Exception;
 use Helper;
 use Illuminate\Http\Request;
+use Log;
 
 class PickupCenterService
 {
@@ -35,6 +40,89 @@ class PickupCenterService
             'billed_kg' => 'nullable|numeric',
             'delivery_type' => 'required|in:fast,normal',
         ]);
+    }
+    public function orderValidation(Request $req){
+        $vehicleTypes = implode(',',VehicleType::where('is_deleted',0)->pluck('name')->toArray());
+        return validator($req->all(),[
+            'merchant_id' => 'required|int',
+            'warehouse_id' => 'nullable|int|exists:warehouses,id',
+            'product_type' => 'nullable|string|exists:product_types,name',
+            'qty' => 'required|int|min:1',
+            'vehicle_type' => 'required|in:'.$vehicleTypes,
+            'driver_id' => 'nullable',
+            'pickup_address_google_map' => 'nullable|string',
+            'pickup_address' => 'nullable|string|max:300',
+            'details' => 'nullable|array'
+        ],[
+            'merchant_id.required' => 'Please select the sender',
+            'vehicle_type.in' => 'Please select one of ('.$vehicleTypes.')',
+            'warehouse_id.required' => 'Please select the warehouse',
+            'qty.required' => 'Please enter number of package'
+        ]);
+    }
+
+    public function createOrder(Request $req,$user){
+        $validate = $this->orderValidation($req);
+        if($validate->fails()) return DataResponse::ValidateFail($validate->errors()->first(),$validate->errors());
+        $inputs = $validate->validated();
+        $merchantId = $inputs['merchant_id'];
+        $validMerchant = User::where('is_deleted',0)->where('delete_account',0)->where('account_type','merchant')->find($merchantId);
+        if(!$validMerchant) return DataResponse::ValidateFail('Invalid sender identity!');
+        $inputs['create_uid'] = $user->id;
+        $inputs['update_uid'] = $user->id;
+        $inputs['branch_id'] = $user->branch_id;
+        $inputs['company_id'] = $user->company_id;
+        $inputs['booking_channel'] = $user->account_type;
+        $details = $inputs['details'] ?? [];
+        $inputs['order_datetime'] = now();
+        $inputs['warehouse_id'] = GeneralSettingService::getWarehouse($user)->id;
+        $driverId = $inputs['driver_id'] ?? null;
+        if($driverId == 0){
+            $driverId = null;
+            unset($inputs['driver_id']);
+        }
+        $inputs['status_id'] = 3; //** accepted for pick up*/
+        if(!$driverId) $inputs['status_id'] = 1; //** available for pick */
+        else{
+            $validDriver = User::where('is_deleted',0)->where('delete_account',0)->where('account_type','driver')->find($driverId);
+            if(!$validDriver) return DataResponse::ValidateFail('Invalid driver identity!');
+            if($validDriver->vehicle_type != $inputs['vehicle_type']) return DataResponse::ValidateFail(__('messages.error',['info' => 'Driver vehicle type and chosen vehicle type is different!']));
+        }
+        $dateTime = Helper::getDateTime();
+        if($user->account_type == 'driver') $inputs['tracking_notes'] = 'Driver create order ('.$dateTime.')';
+        else if($user->account_type == 'merchant') $inputs['tracking_notes'] = 'Merchant create order ('.$dateTime.')';
+        else if($user->account_type == 'admin') $inputs['tracking_notes'] = 'Admin create order ('.$dateTime.')';
+
+        DB::beginTransaction();
+        try{
+            $createOrder = Order::create($inputs);
+            if(!$createOrder) return DataResponse::Error('Fail to create order!');
+            $code = Helper::generateCode('JS',$createOrder->id,'',8);
+            $pickupAddress = $inputs['pickup_address'] ?? null;
+            $pickup_address_google_map = $inputs['pickup_address_google_map'] ?? null;
+            $latLng = Helper::getLatLongFromGoogleMapsUrl($pickup_address_google_map);
+            $inputs['loc_lat'] = $latLng->latitude;
+            $inputs['loc_lng'] = $latLng->longitude;
+            if(!$pickupAddress) $inputs['pickup_address'] = $latLng->address;
+            Order::find($createOrder->id)->update([
+                'code' => $code
+            ]);
+            if(isset($details[0])){
+                if($inputs['qty'] != count($details)) return DataResponse::ValidateFail('Your quantity is not matching the details');
+                foreach($details as $d){
+                    $dReq = new Request($d);
+                    $savePkg = $this->createOrUpdatePackage($dReq,$user,null,$createOrder->id);
+                    if($savePkg->error) return $savePkg;
+                }
+            }
+            DB::commit();
+            return DataResponse::JsonResult(null,false,'Order created ('.$code.')');
+        }catch(Exception $e){
+            Log::error($e->getTraceAsString());
+            Log::error($e->getMessage());
+            DB::rollBack();
+            return DataResponse::Error('Faile to create a new order');
+        }
     }
 
     // public function calculatePackageFee($zone_code,$price,$billedKg,$actualKg,$payer){
@@ -114,7 +202,8 @@ class PickupCenterService
 
         $zoneName = Zone::where('zone_code',$zoneCode)->value('zone_name');
         $inputs['zone_name'] = $zoneName;
-        $calPrice = GeneralSettingService::calculatePackageFee($zoneCode,$price,$billedKg,$actualKg,$payer,$cod);
+
+        $calPrice = GeneralSettingService::calculatePackageFee($zoneCode,$price,$billedKg,$actualKg,$payer,$cod,$user);
         if($calPrice->error) return $calPrice;
         $inputs['driver_total'] = $calPrice->driver_total;
         $inputs['merchant_total'] = $calPrice->merchant_total;

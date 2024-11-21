@@ -21,6 +21,7 @@ Route::middleware(['jwtDriver','localize'])->prefix('driver/v1/{lang}')->group(f
     Route::post('notification/subscribe',[AuthController::class,'subscribeTopics']);
     Route::get('termConditions',[HomeScreenController::class,'getTermConditions']);
     Route::prefix('home')->group(function(){
+        Route::post('booking',[HomeScreenController::class,'booking']);
         Route::get('availableOrders',[HomeScreenController::class,'getAvailableOrders']);
         Route::get('accepted/pickup',[HomeScreenController::class,'getAcceptedPickup']);
         Route::get('accepted/pickup/{order_id}',[HomeScreenController::class,'getOneAcceptedPickup']);
@@ -35,19 +36,21 @@ Route::middleware(['jwtDriver','localize'])->prefix('driver/v1/{lang}')->group(f
         Route::post('accepted/delivery/package/{package_id}',[HomeScreenController::class,'submitDeliveryPackage']);
     });
 
+
     Route::get('history',[HistoryController::class,'getHistoryPackages']);
     Route::get('search/fleet/package',[SearchController::class,'getTripPackages']);
+    Route::post('scan/package/{item_ref}',[GeneralSettingController::class,'scanPackage']);
 
     Route::prefix('setting')->group(function (){
         Route::prefix('option')->group(function (){
             Route::get('failRemark',[GeneralSettingController::class,'getOptionsDriverFailRemarks']);
             Route::get('zone/{zone_id}/price',[GeneralSettingController::class,'getZonePrice']);
             Route::get('zone',[GeneralSettingController::class,'getOptionsZone']);
-
         });
 
         Route::prefix('form')->group(function (){
             Route::get('history',[GeneralSettingController::class,'getFormOptionsHistory']);
+            Route::get('booking',[GeneralSettingController::class,'getFormBooking']);
         });
     });
 });

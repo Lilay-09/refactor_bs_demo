@@ -143,6 +143,10 @@ class Helper{
         return $gmtDateTime->format($format);
     }
 
+    static function getDateTime($format = 'd-M-Y h:i:s A'){
+        return date($format);
+    }
+
     static function dateDMY($date){
         $datetime = str_replace(" PM", "", $date);
         $datetime = str_replace(" AM", "", $datetime);
@@ -342,11 +346,11 @@ class Helper{
         }
     }
 
-    public function saveImageFileOrBase64($imageOrBase64, $companyId, $dirName = 'images'){
-        if ($this->isValidBase64Image($imageOrBase64)) {
-            return $this->base64ToImageFile($imageOrBase64, $companyId, $dirName);
+    public static function saveImageFileOrBase64($imageOrBase64, $companyId, $dirName = 'images'){
+        if (self::isValidBase64Image($imageOrBase64)) {
+            return self::base64ToImageFile($imageOrBase64, $companyId, $dirName);
         } elseif ($imageOrBase64 instanceof UploadedFile) {
-            return $this->saveImageFile($imageOrBase64, $companyId, $dirName);
+            return self::saveImageFile($imageOrBase64, $companyId, $dirName);
         } else {
             throw new \Exception("Invalid image format.");
         }

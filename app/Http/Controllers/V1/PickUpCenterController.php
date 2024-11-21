@@ -25,68 +25,29 @@ class PickUpCenterController extends Controller
     public function __construct(PickupCenterService $pickupCenterService){
         $this->pkupService = $pickupCenterService;
     }
-    private function orderValidation(Request $req){
-        $vehicleTypes = implode(',',VehicleType::where('is_deleted',0)->pluck('name')->toArray());
-        return validator($req->all(),[
-            'merchant_id' => 'required|int',
-            'warehouse_id' => 'required|int|exists:warehouses,id',
-            'product_type' => 'nullable|string|exists:product_types,name',
-            'qty' => 'required|int|min:1',
-            'vehicle_type' => 'required|in:'.$vehicleTypes,
-            'driver_id' => 'nullable',
-            'pickup_address_google_map' => 'nullable|string',
-            'pickup_address' => 'nullable|string|max:300'
-        ],[
-            'merchant_id.required' => 'Please select the sender',
-            'vehicle_type.in' => 'Please select one of ('.$vehicleTypes.')',
-            'warehouse_id.required' => 'Please select the warehouse',
-            'qty.required' => 'Please enter number of package'
-        ]);
-    }
+    // public function orderValidation(Request $req){
+    //     $vehicleTypes = implode(',',VehicleType::where('is_deleted',0)->pluck('name')->toArray());
+    //     return validator($req->all(),[
+    //         'merchant_id' => 'required|int',
+    //         'warehouse_id' => 'required|int|exists:warehouses,id',
+    //         'product_type' => 'nullable|string|exists:product_types,name',
+    //         'qty' => 'required|int|min:1',
+    //         'vehicle_type' => 'required|in:'.$vehicleTypes,
+    //         'driver_id' => 'nullable',
+    //         'pickup_address_google_map' => 'nullable|string',
+    //         'pickup_address' => 'nullable|string|max:300'
+    //     ],[
+    //         'merchant_id.required' => 'Please select the sender',
+    //         'vehicle_type.in' => 'Please select one of ('.$vehicleTypes.')',
+    //         'warehouse_id.required' => 'Please select the warehouse',
+    //         'qty.required' => 'Please enter number of package'
+    //     ]);
+    // }
 
     public function createQuickOrder(Request $req){
         $user = UserService::getAuthUser();
-        $validate = $this->orderValidation($req);
-        if($validate->fails()) return ApiResponse::ValidateFail($validate->errors()->first(),$validate->errors());
-        $inputs = $validate->validated();
-        $merchantId = $inputs['merchant_id'];
-        $validMerchant = User::where('is_deleted',0)->where('delete_account',0)->where('account_type','merchant')->find($merchantId);
-        if(!$validMerchant) return ApiResponse::ValidateFail('Invalid sender identity!');
-        $inputs['create_uid'] = $user->id;
-        $inputs['update_uid'] = $user->id;
-        $inputs['branch_id'] = $user->branch_id;
-        $inputs['company_id'] = $user->company_id;
-        $inputs['booking_channel'] = 'admin';
-        $inputs['order_datetime'] = now();
-        $driverId = $inputs['driver_id'] ?? null;
-        if($driverId == 0){
-            $driverId = null;
-            unset($inputs['driver_id']);
-        }
-        $inputs['status_id'] = 3; //** accepted for pick up*/
-        if(!$driverId) $inputs['status_id'] = 1; //** available for pick */
-        else{
-            $validDriver = User::where('is_deleted',0)->where('delete_account',0)->where('account_type','driver')->find($driverId);
-            if(!$validDriver) return ApiResponse::ValidateFail('Invalid driver identity!');
-            if($validDriver->vehicle_type != $inputs['vehicle_type']) return ApiResponse::ValidateFail(__('messages.error',['info' => 'Driver vehicle type and chosen vehicle type is different!']));
-        }
-
-        if($user->account_type == 'driver') $inputs['booking_channel'] = 'driver';
-        else if($user->account_type == 'merchant') $inputs['booking_channel'] = 'merchant';
-
-        $createOrder = Order::create($inputs);
-        if(!$createOrder) return ApiResponse::Error('Fail to create order!');
-        $code = Helper::generateCode('JS',$createOrder->id,'',8);
-        $pickupAddress = $inputs['pickup_address'] ?? null;
-        $pickup_address_google_map = $inputs['pickup_address_google_map'] ?? null;
-        $latLng = Helper::getLatLongFromGoogleMapsUrl($pickup_address_google_map);
-        $inputs['loc_lat'] = $latLng->latitude;
-        $inputs['loc_lng'] = $latLng->longitude;
-        if(!$pickupAddress) $inputs['pickup_address'] = $latLng->address;
-        Order::find($createOrder->id)->update([
-            'code' => $code
-        ]);
-        return ApiResponse::JsonResult(null,'Order created ('.$code.')');
+        $createOrder = $this->pkupService->createOrder($req,$user);
+        return ApiResponse::flex($createOrder);
     }
 
     public function deleteOrder(Request $req){
@@ -316,10 +277,6 @@ class PickUpCenterController extends Controller
                 'info' => 'Fail to add photo'
             ]));
         }
-
-
-
-
     }
 
     public function getOnePackageById(Request $req){
@@ -327,7 +284,7 @@ class PickUpCenterController extends Controller
         $id = $req->id;
         $package = Package::where('company_id',$user->company_id)->where('is_deleted',0)->find($id);
         if(!$package) return ApiResponse::NotFound(trans('messages.not_found',['info' => 'Package','khInfo' => 'កញ្ចប់​']));
-        $calFee = GeneralSettingService::calculatePackageFee($package->zone_code,$package->price,$package->billed_kg,$package->actual_kg,$package->payer,$package->cod);
+        $calFee = GeneralSettingService::calculatePackageFee($package->zone_code,$package->price,$package->billed_kg,$package->actual_kg,$package->payer,$package->cod,$user);
         $package->total = $calFee->total;
         return ApiResponse::JsonResult($package,__('messages.get one'));
     }
