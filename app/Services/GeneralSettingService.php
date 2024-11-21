@@ -43,6 +43,10 @@ class GeneralSettingService
         return self::$channels;
     }
 
+    public static function getWarehouse($user){
+        return Warehouse::where('company_id',$user->company_id)->first();
+    }
+
     static function optionsRemarkCategory(){
         return [
             (object)[
@@ -337,8 +341,8 @@ class GeneralSettingService
         return PriceListname::where('company_id',$user->company_id)->orderByDesc('id')->selectRaw('id,name,kg_marker')->get();
     }
 
-    public static function getZonePriceByCode($zone_code){
-        $user = UserService::getAuthUser();
+    public static function getZonePriceByCode($zone_code,$user){
+        // $user = UserService::getAuthUser();
         return PriceList::with('zones')->where('is_deleted',0)
         ->where('status',1)
         ->where('company_id',$user->company_id)
@@ -348,8 +352,15 @@ class GeneralSettingService
         ->first();
     }
 
-    public static function calculatePackageFee($zone_code,$price,$billedKg,$actualKg,$payer,$cod,$taxi_fee=0){
-        $priceList = GeneralSettingService::getZonePriceByCode($zone_code);
+    public static function concatBankInfo($bankName,$bankNumber,$accountName){
+        $info = $bankName;
+        if($bankNumber) $info .= '|'.$bankNumber;
+        if($accountName) $info .= '|'.$accountName;
+        return $info;
+    }
+
+    public static function calculatePackageFee($zone_code,$price,$billedKg,$actualKg,$payer,$cod,$user,$taxi_fee=0){
+        $priceList = GeneralSettingService::getZonePriceByCode($zone_code,$user);
         if(!$priceList) return DataResponse::NotFound('Zone price not found');
         $zPrice = $priceList->price > 0 ? $priceList->price : $priceList->base_fee;
         $selectKg = $billedKg ?? $actualKg;
@@ -372,6 +383,7 @@ class GeneralSettingService
 
         return (object)[
             "error" => false,
+            'message' => 'Success',
             'delivery_fee' => $zPrice,
             'driver_total' => $driverTotal - $taxi_fee,
             'merchant_total' => $merchant_total + $taxi_fee,

@@ -160,6 +160,7 @@ Route::middleware(['jwt','localize'])->prefix('admin/v1/{lang}')->group(function
         Route::post('',[FleetManagementController::class,'createOrUpdateTrip']);
         Route::get('{trip_id}/package',[FleetManagementController::class,'getTripPackages']);
         Route::put('{trip_id}/package/status',[FleetManagementController::class,'setPackageStatus']);
+        Route::put('{trip_id}/package/taekOut',[FleetManagementController::class,'takeOutPackage']);
     });
     //** End Fleet Management */
 

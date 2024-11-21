@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Models\MerchantPriceList;
 use App\Models\PriceList;
 use App\Models\User;
+use App\Services\GeneralSettingService;
 use App\Services\UserService;
 use DB;
 use Helper;
@@ -40,20 +41,20 @@ class MerchantManagementController extends Controller
             $m->client_type = $m->merchantType?->name;
             $m->create_by = ($m->create_uid == $m->id) ? 'Self': 'Admin';
             foreach($m->bank_accounts as $b){
-                if($b->is_primary) $m->bank_account = $this->bankInfo($b->bank_name,$b->bank_number,$b->account_name);
-                if(!$b->bank_account) $m->bank_account = $this->bankInfo($b->bank_name,$b->bank_number,$b->account_name);
+                if($b->is_primary) $m->bank_account = GeneralSettingService::concatBankInfo($b->bank_name,$b->bank_number,$b->account_name);
+                if(!$b->bank_account) $m->bank_account = GeneralSettingService::concatBankInfo($b->bank_name,$b->bank_number,$b->account_name);
             }
             unset($m->merchantType,$m->bank_accounts,$m->photo_file_name);
         }
         return ApiResponse::Pagination($merhcants,$req);
     }
 
-    public function bankInfo($bankName,$bankNumber,$accountName){
-        $info = $bankName;
-        if($bankNumber) $info .= '|'.$bankNumber;
-        if($accountName) $info .= '|'.$accountName;
-        return $info;
-    }
+    // public static function concatBankInfo($bankName,$bankNumber,$accountName){
+    //     $info = $bankName;
+    //     if($bankNumber) $info .= '|'.$bankNumber;
+    //     if($accountName) $info .= '|'.$accountName;
+    //     return $info;
+    // }
     public function getOneMerchant(Request $req){
         $user = UserService::getAuthUser();
         $id = $req->id;

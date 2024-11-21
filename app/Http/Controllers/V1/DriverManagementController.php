@@ -6,13 +6,12 @@ use ApiResponse;
 use App\Http\Controllers\Controller;
 use App\Models\DriverCommission;
 use App\Models\User;
+use App\Services\GeneralSettingService;
 use App\Services\UserService;
 use Illuminate\Http\Request;
 
 class DriverManagementController extends Controller
 {
-
-
     public function createDriver(Request $req){
         $user = UserService::getAuthUser();
         $createDriver = UserService::createOrUpdateUser($req,'driver',$user);
@@ -24,6 +23,13 @@ class DriverManagementController extends Controller
         ->where('account_type','driver')
         ->selectRaw('id,code,user_name,email,gender,shift_type,vehicle_type,plate_number,phone,has_account,lock');
         $drivers = $query->orderByDesc('id')->get();
+        foreach ($drivers as $driver){
+            foreach($driver->bank_accounts as $b){
+                if($b->is_primary) $driver->bank_account = GeneralSettingService::concatBankInfo($b->bank_name,$b->bank_number,$b->account_name);
+                if(!$b->bank_account) $driver->bank_account = GeneralSettingService::concatBankInfo($b->bank_name,$b->bank_number,$b->account_name);
+            }
+            unset($driver->bank_accounts);
+        }
         return ApiResponse::Pagination($drivers,$req);
     }
 
@@ -38,7 +44,6 @@ class DriverManagementController extends Controller
         if(!$driver) return ApiResponse::NotFound(__('messages.not_found',['info' => 'Driver']));
         return ApiResponse::JsonResult($driver,__('messages.get one'));
     }
-
 
     private function driverCommissionValidation(Request $req){
         return validator($req->all(),[

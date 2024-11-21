@@ -146,8 +146,9 @@ class TransactionService
                 Package::find($id)->update($fkField);
             }
             // DB::commit();
+
             // return Package::whereIn('id',$packageIds)->get();
-            return DataResponse::JsonResult(Payment::find($paymentId),false,__('messages.created',[
+            return DataResponse::JsonResult($dueAmount,false,__('messages.created',[
                 'info' => 'Payment'
             ]));
         }catch(Exception $e){
@@ -313,7 +314,6 @@ class TransactionService
                 else if($type == 'driver') $payableAmt = $payableAmt - $taxiFee; //** sub taxi for driver */
                 $obj->total_due_amount = $payableAmt;
             }
-            var_dump($obj->total_due_amount);
             $obj->total_amount += $package->price + $package->delivery_fee;
             $obj->total_package_price += $package->price;
         }
@@ -539,7 +539,7 @@ class TransactionService
         $cod = $inputs['cod'];
         $payer = $inputs['payer'];
         $taxi_fee = $inputs['taxi_fee'] ?? $package->taxi_fee;
-        $calFee = GeneralSettingService::calculatePackageFee($package->zone_code,$package->price,$package->billed_kg,$package->actual_kg,$payer,$cod,$taxi_fee);
+        $calFee = GeneralSettingService::calculatePackageFee($package->zone_code,$package->price,$package->billed_kg,$package->actual_kg,$payer,$cod,$user,$taxi_fee);
         $inputs['driver_total'] = $calFee->driver_total;
         $inputs['merchant_total'] = $calFee->merchant_total;
         $package->update($inputs);
