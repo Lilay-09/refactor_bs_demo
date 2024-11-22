@@ -19,6 +19,7 @@ Route::prefix('driver/v1/{lang}/auth')->middleware('localize')->group(function()
 });
 Route::middleware(['jwtDriver','localize'])->prefix('driver/v1/{lang}')->group(function(){
     Route::post('notification/subscribe',[AuthController::class,'subscribeTopics']);
+    Route::post('notification/unsubscribe',[AuthController::class,'unsubscribeTopics']);
     Route::get('termConditions',[HomeScreenController::class,'getTermConditions']);
     Route::prefix('home')->group(function(){
         Route::post('booking',[HomeScreenController::class,'booking']);
@@ -39,7 +40,9 @@ Route::middleware(['jwtDriver','localize'])->prefix('driver/v1/{lang}')->group(f
 
     Route::get('history',[HistoryController::class,'getHistoryPackages']);
     Route::get('search/fleet/package',[SearchController::class,'getTripPackages']);
-    Route::post('scan/package/{item_ref}',[GeneralSettingController::class,'scanPackage']);
+    Route::get('scan/package/{item_ref}',[GeneralSettingController::class,'scanPackage']);
+    Route::post('scan/package/{item_ref}',[GeneralSettingController::class,'scanPackageChooseAction']);
+    Route::post('scan/package/{item_ref}/swap',[GeneralSettingController::class,'confirmOrCancelSwapPackage']);
 
     Route::prefix('setting')->group(function (){
         Route::prefix('option')->group(function (){

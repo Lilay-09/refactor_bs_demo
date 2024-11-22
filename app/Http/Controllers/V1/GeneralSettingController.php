@@ -240,8 +240,15 @@ class GeneralSettingController extends Controller
         ];
         return ApiResponse::JsonResult($obj);
     }
-
-
+    public function getFormUpdateFinishedPackage(){
+        $user = UserService::getAuthUser();
+        $obj = (object)[
+            'delivery_types' => $this->gs::optionsDeliveryType(),
+            'cod' => $this->gs::optionsCOD(),
+            'payers' => $this->gs::optionsPayer(),
+        ];
+        return ApiResponse::JsonResult($obj);
+    }
     // public function getFormUser(){
     //     $user = UserService::getAuthUser();
     //     $obj = (object)[
@@ -250,6 +257,4 @@ class GeneralSettingController extends Controller
     //     ];
     //     return ApiResponse::JsonResult($obj);
     // }
-
-
 }

@@ -120,4 +120,10 @@ class AuthController extends Controller
         $cldMsgService = new CloudMessagingService();
         return $cldMsgService->subscribeTopic('driver',$req,$user);
     }
+
+    public function unsubscribeTopics(Request $req){
+        $user = UserService::getAuthUser('driver');
+        $cldMsgService = new CloudMessagingService();
+        return $cldMsgService->unsubscribeAllTopics($user);
+    }
 }

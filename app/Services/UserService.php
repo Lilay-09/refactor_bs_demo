@@ -53,7 +53,9 @@ class UserService
                     'company_id' => $hasUser->company_id,
                     'branch_id' => $hasUser->branch_id,
                     'system_admin' => $hasUser->system_admin,
-                    // 'user'=>$hasUser
+                    'info'=> (object)[
+                        'phone' => $hasUser->phone
+                    ]
                 ]);
             }
         }

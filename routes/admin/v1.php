@@ -1,7 +1,6 @@
 <?php
 
-
-use App\Http\Controllers\ReportController;
+use App\Http\Controllers\V1\ReportController;
 use App\Http\Controllers\V1\AppSettingController;
 use App\Http\Controllers\V1\AuthController;
 use App\Http\Controllers\V1\BankController;
@@ -166,7 +165,9 @@ Route::middleware(['jwt','localize'])->prefix('admin/v1/{lang}')->group(function
 
     Route::prefix('finished')->group(function(){
         Route::get('package',[CompletedPackageController::class,'getFinishedPackages']);
+        Route::get('package/{id}',[CompletedPackageController::class,'getOneFinishedPackage']);
         Route::put('package/{id}',[CompletedPackageController::class,'updatePackage']);
+
     });
 
     Route::prefix('bank')->group(function(){
@@ -344,6 +345,17 @@ Route::middleware(['jwt','localize'])->prefix('admin/v1/{lang}')->group(function
             Route::get('finished',[GeneralSettingController::class,'getFormFinished']);
             Route::get('merchant',[GeneralSettingController::class,'getFormMerchant']);
             Route::get('driver',[GeneralSettingController::class,'getFormDriver']);
+            Route::get('finished/package',[GeneralSettingController::class,'getFormUpdateFinishedPackage']);
+        });
+    });
+
+
+    Route::prefix('report')->group(function(){
+        Route::prefix('driver')->group(function(){
+            Route::get('/list/option',[ReportController::class,'formOptionDriver']);
+            Route::get('list',[ReportController::class,'driverList']);
+            Route::get('delivery/summary/option',[ReportController::class,'formOptionDriver']);
+            Route::get('delivery/summary',[ReportController::class,'driverDeliverySummary']);
         });
     });
 });

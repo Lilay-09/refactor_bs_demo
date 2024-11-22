@@ -173,8 +173,11 @@ class GeneralSettingService
         return User::where('is_deleted',0)->where('delete_account',0)->where('account_type','driver')->orderByDesc('id')->find($id);
     }
 
-    public static function sumDeliveryFee($dlievey){
-
+    public static function sumDeliveryFee($baseFee,$price,$cod,$payer){
+        $total = 0;
+        if($payer == 'receiver') $total += $baseFee;
+        if($cod) $total += $price;
+        return $total;
     }
 
     public static function optionsBank($user){

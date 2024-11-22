@@ -16,7 +16,6 @@ use DB;
 use Exception;
 use Helper;
 use Illuminate\Http\Request;
-use Illuminate\Log\Logger;
 use Log;
 
 class PackageTrailController extends Controller
@@ -24,6 +23,7 @@ class PackageTrailController extends Controller
     //
     public function getPackages(Request $req){
         $user = UserService::getAuthUser();
+        $search = $req->search;
         $query = Package::where('is_deleted',0)
         ->with(['status'])
         ->where('outstanding',0)
@@ -32,6 +32,9 @@ class PackageTrailController extends Controller
         ->whereNotIn('status_id',[9,19])
         ->selectRaw('id,taxi_fee,delivery_type,qr_code,price,driver_id,product_type,dim_z,dim_x,dim_y,status_id,failure_notes,payer,cod,delivery_fee,receiver_address,zone_code,zone_name,receiver_name,receiver_phone,delivered_datetime,assign_driver_datetime,arrive_warehouse_datetime,driver_total,merchant_total')
         ->orderByRaw('(status_id = ?) DESC', [5]);
+        if($search){
+            $query->where('qr_code',$search);
+        }
         $packages = $query->get();
         foreach($packages as $pkg){
             $cod = $pkg->cod;
