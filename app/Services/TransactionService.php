@@ -543,7 +543,7 @@ class TransactionService
         $inputs['driver_total'] = $calFee->driver_total;
         $inputs['merchant_total'] = $calFee->merchant_total;
         $package->update($inputs);
-        return DataResponse::JsonResult(null,__('messages.updated',[
+        return DataResponse::JsonResult(null,false ,__('messages.updated',[
             'info' => 'Package'
         ]));
     }

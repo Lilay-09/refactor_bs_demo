@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Delivery;
 use App\Models\DeliveryPackage;
 use App\Models\Package;
+use App\Services\GeneralSettingService;
 use App\Services\PickupCenterService;
 use App\Services\TransactionService;
 use App\Services\UserService;
@@ -40,10 +41,26 @@ class CompletedPackageController extends Controller
         return ApiResponse::Pagination($packages,$req);
     }
 
+    public function getOneFinishedPackage(Request $req){
+        $user = UserService::getAuthUser();
+        $packageId = $req->id;
+        $package = Package::fromRaw('packages as p')->where('p.company_id',$user->company_id)->join('users as d','d.id','p.driver_id')
+        ->join('tracking_statuses as ts','ts.id','p.status_id')
+        ->join('users as m','m.id','p.merchant_id')
+        ->leftJoin('payments as dpmt','dpmt.id','p.driver_payment_id') //** if driver paid or unpaid */
+        ->leftJoin('payments as mpmt','mpmt.id','p.merchant_payment_id') //** if driver paid or unpaid */
+        ->orderByDesc('p.id')
+        ->whereIn('p.status_id',[9,11,19]) //* delivered and failed with fee
+        ->selectRaw('p.delivered_datetime,m.user_name as merchant_name,m.phone as merchant_phone,dpmt.approved as approved_driver_pmt,mpmt.approved as approved_merchant_pmt,d.user_name as driver_name,p.status_id,p.id as package_id,d.id as driver_id,p.qr_code,p.price,ts.name as status_code,p.product_type,p.delivered_datetime,p.failed_datetime,p.taxi_fee,p.payer,p.cod,p.zone_code,p.zone_name,p.receiver_phone,p.delivery_type,p.delivery_fee as base_fee,p.driver_total,p.merchant_total,p.extra_charge,p.actual_kg,p.billed_kg,p.receiver_address,p.dim_z,p.dim_x,p.dim_y,p.remarks,p.receiver_name')
+        ->where('p.id',$packageId)->first();
+        if(!$package) return ApiResponse::NotFound();
+        $package->cod = $package->cod ? 1 : 0;
+        $package->delivery_fee = GeneralSettingService::sumDeliveryFee($package->base_fee,$package->price,$package->cod,$package->payer);
+        return ApiResponse::JsonResult($package);
+    }
 
     public function updatePackage(Request $req){
         $user = UserService::getAuthUser();
-        $id = $req->id;
         $trxService = new TransactionService();
         return ApiResponse::flex($trxService->updateDeliveryPackage($req,null,$user));
     }

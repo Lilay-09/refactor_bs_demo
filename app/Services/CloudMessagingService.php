@@ -175,9 +175,20 @@ class CloudMessagingService
         $this->messaging->subscribeToTopic($topic, $token);
     }
 
+    public function unsubscribeAllTopics($user)
+    {
+        $token = UserNotificationToken::where('user_id', $user->id)->value('token');
+        $this->messaging->unsubscribeFromAllTopics($token);
+        return DataResponse::JsonResult(null,false,'unsubscribed');
+    }
 
-    private function sendNotification($target,$targetValue,$title,$body){
-        $message = CloudMessage::withTarget($target, $targetValue)
+
+    private function sendNotification($target,$targetValue,$title,$body,$data=[]){
+        $message = isset($data) ? CloudMessage::withTarget($target, $targetValue)
+            ->withNotification([
+                'title' => $title,
+                'body' => $body,
+            ])->withData($data) : CloudMessage::withTarget($target, $targetValue)
             ->withNotification([
                 'title' => $title,
                 'body' => $body,
@@ -201,14 +212,13 @@ class CloudMessagingService
     public function sendNotificationByTopic(Request $req){
         $validate = $this->sendNotifValidation($req,'topic');
         if($validate->fails()) return DataResponse::ValidateFail($validate->errors()->first());
-        return $this->sendNotification('topic',$req->topic,$req->title,$req->body);
+        return $this->sendNotification('topic',$req->topic,$req->title,$req->body,$req->data);
     }
 
     public function sendNotificationByToken(Request $req){
         $validate = $this->sendNotifValidation($req,'token');
         if($validate->fails()) return DataResponse::ValidateFail($validate->errors()->first());
-        $notif = $this->sendNotification('token',$req->token,$req->title,$req->body);
-        return $notif;
+        return $this->sendNotification('token',$req->token,$req->title,$req->body);
     }
 
     private function getUserDevice(Request $req)
