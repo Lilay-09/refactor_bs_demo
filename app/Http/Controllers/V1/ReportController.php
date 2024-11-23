@@ -4,11 +4,7 @@ namespace App\Http\Controllers\V1;
 
 use ApiResponse;
 use App\Http\Controllers\Controller;
-use App\Models\Expense;
-use App\Models\ExpenseCategory;
-use App\Models\InvoiceItem;
 use App\Models\Package;
-use App\Models\ProductVariant;
 use App\Models\User;
 use App\Services\GeneralSettingService;
 use App\Services\UserService;
@@ -61,7 +57,6 @@ class ReportController extends Controller
             if(!isset($rows[$i])) break;
             $c = $rows[$i];
             if($c->driver_id == $driverId){
-                var_dump($c->status_id);
                 if($c->status_id == 9) $delivered_count +=1;
                 if($c->status_id == 19) $failed_with_fee_count +=1;
                 if($c->status_id == 11) $returned_count +=1;
