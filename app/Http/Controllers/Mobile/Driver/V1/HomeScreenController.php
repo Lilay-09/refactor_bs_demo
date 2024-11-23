@@ -51,16 +51,18 @@ class HomeScreenController extends Controller
         ->whereIn('status_id',[2,3,4])
         ->where('company_id',$user->company_id)
         ->where('driver_id',$user->id)
-        ->selectRaw('id,warehouse_id,driver_id,pickup_address_google_map,order_datetime,merchant_id,status_id,qty,code,pickup_address,pickup_address_google_map,vehicle_type,delivery_type')
+        ->orderByDesc('id')
+        ->selectRaw('id,warehouse_id,driver_id,pickup_address_google_map,order_datetime,merchant_id,status_id,qty,code,pickup_address,pickup_address_google_map,vehicle_type,delivery_type,loc_lat,loc_lng')
         ->get();
         foreach($orders as $order){
             $order->warehouse_address = $order->warehouse->address;
             $order->status_code = $order->tracking_status->name;
             $order->merchant_name = $order->merchant->user_name;
             $order->merchant_phone = $order->merchant->phone;
-            $latLng = Helper::getLatLongFromGoogleMapsUrl($order->pickup_address_google_map);
-            $order->latitude = $latLng->latitude;
-            $order->longitude = $latLng->longitude;
+            // $latLng = Helper::getLatLongFromGoogleMapsUrl($order->pickup_address_google_map);
+            $order->latitude = $order->loc_lat ?? 11.552692;//;
+            $order->longitude = $order->loc_lng ?? 104.901413;//$order->loc_lng;
+
             unset($order->merchant,$order->tracking_status,$order->warehouse);
         }
         return ApiResponse::Pagination($orders,$req);

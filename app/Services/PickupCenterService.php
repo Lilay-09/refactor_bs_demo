@@ -80,6 +80,7 @@ class PickupCenterService
         $images = $inputs['images'] ?? [];
         $inputs['order_datetime'] = now();
         $inputs['warehouse_id'] = GeneralSettingService::getWarehouse($user)->id;
+        if($user->account_type == 'driver') $inputs['driver_id'] = $user->id;
         $driverId = $inputs['driver_id'] ?? null;
         if($driverId == 0){
             $driverId = null;
