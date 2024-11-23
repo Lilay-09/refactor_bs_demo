@@ -51,6 +51,8 @@ class PickupCenterService
             'qty' => 'required|int|min:1',
             'vehicle_type' => 'required|in:'.$vehicleTypes,
             'driver_id' => 'nullable',
+            'loc_lat' => 'nullable',
+            'loc_lng' => 'nullable',
             'pickup_address_google_map' => 'nullable|string',
             'pickup_address' => 'nullable|string|max:300',
             'details' => 'nullable|array',
