@@ -2,6 +2,7 @@
 
 namespace App\Services;
 use App\Models\Order;
+use App\Models\OrderImage;
 use App\Models\Package;
 use App\Models\PriceList;
 use App\Models\User;
@@ -38,13 +39,13 @@ class PickupCenterService
             'receiver_name' => 'nullable|string',
             'actual_kg' => 'nullable|numeric',
             'billed_kg' => 'nullable|numeric',
-            'delivery_type' => 'required|in:fast,normal',
+            'delivery_type' => 'nullable|in:fast,normal',
         ]);
     }
     public function orderValidation(Request $req){
         $vehicleTypes = implode(',',VehicleType::where('is_deleted',0)->pluck('name')->toArray());
         return validator($req->all(),[
-            'merchant_id' => 'required|int',
+            'merchant_id' => 'required',
             'warehouse_id' => 'nullable|int|exists:warehouses,id',
             'product_type' => 'nullable|string|exists:product_types,name',
             'qty' => 'required|int|min:1',
@@ -52,7 +53,8 @@ class PickupCenterService
             'driver_id' => 'nullable',
             'pickup_address_google_map' => 'nullable|string',
             'pickup_address' => 'nullable|string|max:300',
-            'details' => 'nullable|array'
+            'details' => 'nullable|array',
+            'images' => 'nullable'
         ],[
             'merchant_id.required' => 'Please select the sender',
             'vehicle_type.in' => 'Please select one of ('.$vehicleTypes.')',
@@ -63,6 +65,7 @@ class PickupCenterService
 
     public function createOrder(Request $req,$user){
         $validate = $this->orderValidation($req);
+        $companyId = $user->company_id;
         if($validate->fails()) return DataResponse::ValidateFail($validate->errors()->first(),$validate->errors());
         $inputs = $validate->validated();
         $merchantId = $inputs['merchant_id'];
@@ -74,6 +77,7 @@ class PickupCenterService
         $inputs['company_id'] = $user->company_id;
         $inputs['booking_channel'] = $user->account_type;
         $details = $inputs['details'] ?? [];
+        $images = $inputs['images'] ?? [];
         $inputs['order_datetime'] = now();
         $inputs['warehouse_id'] = GeneralSettingService::getWarehouse($user)->id;
         $driverId = $inputs['driver_id'] ?? null;
@@ -97,22 +101,38 @@ class PickupCenterService
         try{
             $createOrder = Order::create($inputs);
             if(!$createOrder) return DataResponse::Error('Fail to create order!');
-            $code = Helper::generateCode('JS',$createOrder->id,'',8);
+            $orderId = $createOrder->id;
+            $code = Helper::generateCode('JS',$orderId,'',8);
             $pickupAddress = $inputs['pickup_address'] ?? null;
             $pickup_address_google_map = $inputs['pickup_address_google_map'] ?? null;
             $latLng = Helper::getLatLongFromGoogleMapsUrl($pickup_address_google_map);
             $inputs['loc_lat'] = $latLng->latitude;
             $inputs['loc_lng'] = $latLng->longitude;
             if(!$pickupAddress) $inputs['pickup_address'] = $latLng->address;
-            Order::find($createOrder->id)->update([
+            Order::find($orderId)->update([
                 'code' => $code
             ]);
             if(isset($details[0])){
                 if($inputs['qty'] != count($details)) return DataResponse::ValidateFail('Your quantity is not matching the details');
                 foreach($details as $d){
                     $dReq = new Request($d);
-                    $savePkg = $this->createOrUpdatePackage($dReq,$user,null,$createOrder->id);
+                    $savePkg = $this->createOrUpdatePackage($dReq,$user,null,$orderId);
                     if($savePkg->error) return $savePkg;
+                }
+            }
+            $deleteImgs = [];
+            if(isset($images[0])){
+                foreach($images as $photo){
+                    $img = Helper::saveImageFile($photo,$companyId,'order_image');
+                    $deleteImgs[] = $img->filename;
+                    OrderImage::create([
+                        'order_id' => $orderId,
+                        'photo_file_name' => $img->filename,
+                        'create_uid' => $user->id,
+                        'update_uid' => $user->id,
+                        'company_id' => $companyId,
+                        'branch_id' => $user->branch_id,
+                    ]);
                 }
             }
             DB::commit();
@@ -120,6 +140,9 @@ class PickupCenterService
         }catch(Exception $e){
             Log::error($e->getTraceAsString());
             Log::error($e->getMessage());
+            foreach($deleteImgs as $img){
+                Helper::deleteImageFile($img,$companyId,'order_image');
+            }
             DB::rollBack();
             return DataResponse::Error('Faile to create a new order');
         }
@@ -195,6 +218,7 @@ class PickupCenterService
         $inputs['billed_kg'] = $actualKg;
         $cod = $inputs['cod'];
         $zoneCode = $inputs['zone_code'];
+        $inputs['delivery_type'] = $inputs['delivery_type'] ?? 'normal';
         $inputs['booking_channel'] = 'admin';
         $inputs['tracking_notes'] = 'Admin add new package ('.date('d-M-Y h:i:s A').')';
         if($user->account_type == 'driver') $inputs['booking_channel'] = 'driver';
@@ -241,8 +265,5 @@ class PickupCenterService
     }
 
 
-    public function saveOrderImage($image){
-
-    }
 
 }

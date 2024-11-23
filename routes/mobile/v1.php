@@ -6,6 +6,7 @@ use App\Http\Controllers\Mobile\Merchant\V1\AuthController as AuthMerchantContro
 use App\Http\Controllers\Mobile\Driver\V1\HomeScreenController;
 use App\Http\Controllers\Mobile\Merchant\V1\HomeController;
 use App\Http\Controllers\Mobile\V1\GeneralSettingController;
+use App\Models\TrackingStatus;
 use Illuminate\Support\Facades\Route;
 
 //BEGIN::Driver
@@ -22,6 +23,7 @@ Route::middleware(['jwtDriver','localize'])->prefix('driver/v1/{lang}')->group(f
     Route::post('notification/unsubscribe',[AuthController::class,'unsubscribeTopics']);
     Route::get('termConditions',[HomeScreenController::class,'getTermConditions']);
     Route::prefix('home')->group(function(){
+        Route::get('balance',[HomeScreenController::class,'getDriverBalance']);
         Route::post('booking',[HomeScreenController::class,'booking']);
         Route::get('availableOrders',[HomeScreenController::class,'getAvailableOrders']);
         Route::get('accepted/pickup',[HomeScreenController::class,'getAcceptedPickup']);
@@ -77,6 +79,16 @@ Route::middleware(['jwtMerchant','localize'])->prefix('merchant/v1/{lang}')->gro
     Route::post('notification/subscribe',[AuthMerchantController::class,'subscribeTopics']);
     Route::prefix('home')->group(function(){
         Route::post('booking',[HomeController::class,'createBooking']);
+        Route::get('promotion',[HomeController::class,'getPromotions']);
+        Route::prefix('tracking')->group(function(){
+            Route::get('pending',[HomeController::class,'getPendingOrders']);
+            Route::get('pick',[HomeController::class,'getPickOrders']);
+            Route::get('delivery',[HomeController::class,'getOnDeliveryPackages']);
+            Route::get('success',[HomeController::class,'getSuccessPackages']);
+            Route::get('fail',[HomeController::class,'getFailPackages']);
+            Route::get('return',[HomeController::class,'getReturnPackages']);
+            Route::get('activity',[HomeController::class,'trackingActivitySummary']);
+        });
     });
 
     Route::prefix('setting')->group(function (){

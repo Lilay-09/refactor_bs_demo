@@ -13,7 +13,7 @@ class PriceListname extends Model
     protected $fillable = [
         'id',
         'name',
-        'kg_mark',
+        'kg_marker',
         'is_deleted',
         'deleted_uid',
         'deleted_datetime',

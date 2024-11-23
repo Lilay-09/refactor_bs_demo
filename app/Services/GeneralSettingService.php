@@ -196,7 +196,8 @@ class GeneralSettingService
     }
 
     public static function optionsProductType($user){
-        return ProductType::where('company_id',$user->company_id)->where('is_deleted',0)->orderByDesc('id')->get();
+        return ProductType::where('company_id',$user->company_id)->where('is_deleted',0)
+        ->selectRaw('name,id')->orderByDesc('id')->get();
     }
 
     public static function optionsCityByCountry($countryId,$user){

@@ -3,6 +3,8 @@
 namespace App\Services;
 
 use App\Models\Bank;
+use App\Models\DriverCommission;
+use App\Models\Order;
 use App\Models\Package;
 use App\Models\Payment;
 use App\Models\PaymentDetail;
@@ -157,6 +159,35 @@ class TransactionService
             DB::rollBack();
             return DataResponse::Error(__('messages.error',['info' => 'Fail to receive']));
         }
+    }
+
+    public function getDriverCommissions($user,$driverId){
+        $driver = User::where('is_deleted',0)->where('company_id',$user->company_id)
+        ->selectRaw('code,user_name,employment_date,shift_type,salary')
+        ->where('account_type','driver')->find($driverId);
+        if(!$driver) return DataResponse::NotFound(__('messages.not_found',['info' => 'Driver']));
+        $dc = (object)[
+            'normal_pickup_commission' => 0,
+            'normal_delivery_commission' => 0,
+            'fast_pickup_commission' => 0,
+            'fast_delivery_commission' => 0
+        ];
+        $driverCommissions = DriverCommission::where('driver_id',$driverId)->where('is_deleted',0)->orderByDesc('id')->get();
+        foreach($driverCommissions as $driverComm){
+            if($driverComm->delivery_type == 'fast'){
+                $dc->fast_pickup_commission = $driverComm->pickup_commission;
+                $dc->fast_delivery_commission = $driverComm->delivery_commission;
+            }
+            if($driverComm->delivery_type == 'normal'){
+                $dc->normal_pickup_commission = $driverComm->pickup_commission;
+                $dc->normal_delivery_commission = $driverComm->delivery_commission;
+            }
+        }
+        foreach($dc as $key=>$d){
+            $driver->{$key} = $dc->{$key};
+        }
+
+        return DataResponse::JsonResult($driver);
     }
 
     private function validPayment($cash,$cashKh,$bankAmount,$bankAmountKh,$bankId,$dueAmount,$exhangeRate){
@@ -497,6 +528,48 @@ class TransactionService
             'total_packages' => $totalPackages,
             'total_amount' => $totalAmount
         ]);
+    }
+
+    public function getDriverCommissionBalance($user,$driver_id,$type='pick_up',$filter=null){
+        $commissions = $this->getDriverCommissions($user,$driver_id);
+        $totalPickUpCommission = 0;
+        $totalFastDeliveryCommission = 0;
+        $totalNormalDeliveryCommission = 0;
+        $normalPickUpCommission = $commissions->data->normal_pickup_commission;
+        $normalDeliveryCommission = $commissions->data->normal_delivery_commission;
+        $fastPickUpCommission = $commissions->data->fast_pickup_commission;
+        $fastDeliveryCommission = $commissions->data->fast_delivery_commission;
+        if($type == 'pick_up' || $type == 'all'){
+            $orders = Order::where('driver_id',$driver_id)->whereIn('status_id',[2,4,5,21])->selectRaw('SUM(qty) as total_qty')->get();
+            foreach($orders as $order){
+                $totalPickUpCommission += $order->total_qty * $normalPickUpCommission;
+            }
+            if($type != 'all') return (object)['total' => number_format($totalPickUpCommission,2)];
+        }else if($type == 'delivery' || $type == 'all'){
+            $packages = Package::where('driver_id',$driver_id)
+            ->where('is_deleted',0)
+            ->whereIn('status_id',[9,19])
+            ->selectRaw('delivery_type')
+            ->get();
+            foreach($packages as $pkg){
+                if($pkg->delivery_type == 'fast'){
+                    $totalFastDeliveryCommission += $fastDeliveryCommission;
+                }else if($pkg->delivery_type == 'normal'){
+                    $totalNormalDeliveryCommission += $normalDeliveryCommission;
+                }
+            }
+            if($type != 'all') return (object)[
+                'total' => number_format($totalFastDeliveryCommission + $totalNormalDeliveryCommission,2),
+                'total_fast_delivery' => number_format($totalFastDeliveryCommission,2),
+                'total_normal_delivery' => number_format($totalNormalDeliveryCommission,2),
+            ];
+        }
+        //
+        return (object)[
+            'total_pickup' => number_format($totalPickUpCommission,2),
+            'total_fast_delivery' => number_format($totalFastDeliveryCommission,2),
+            'total_normal_delivery' => number_format($totalNormalDeliveryCommission,2)
+        ];
     }
 
     public function updateDeliveryPackage(Request $req,$type,$user){

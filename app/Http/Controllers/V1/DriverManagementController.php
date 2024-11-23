@@ -148,26 +148,6 @@ class DriverManagementController extends Controller
 
     public function setLockDriver(Request $req){
         $user = UserService::getAuthUser();
-        $driverId = $req->id;
-        $driver = User::where('is_deleted',0)->where('company_id',$user->company_id)
-        ->where('account_type','driver')
-        ->selectRaw('id,code,user_name,email,gender,shift_type,vehicle_type,plate_number,phone,national_id,lock')
-        ->find($driverId);
-        if(!$driver) return ApiResponse::NotFound(__('messages.not_found',[
-            'info' => 'Driver'
-        ]));
-        $msg = '';
-        if($driver->lock){
-            $driver->update([
-                'lock' => false,
-            ]);
-            $msg = 'Driver has been locked';
-        }else{
-            $driver->update([
-                'lock' => true,
-            ]);
-            $msg = 'Driver has tured on active mode';
-        }
-        return ApiResponse::JsonResult(null,$msg);
+        return ApiResponse::flex(UserService::setLockUser($user,$req->id,'driver'));
     }
 }
