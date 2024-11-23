@@ -97,6 +97,7 @@ Route::middleware(['jwt','localize'])->prefix('admin/v1/{lang}')->group(function
         Route::get('',[MerchantManagementController::class,'getMerchants']);
         Route::get('/{id}',[MerchantManagementController::class,'getOneMerchant']);
         Route::put('/{id}',[MerchantManagementController::class,'updateMerchant']);
+        Route::post('/{id}/setLock',[MerchantManagementController::class,'setLockMerchant']);
         Route::post('/{id}/account',[MerchantManagementController::class,'createMerchantAccount']);
         Route::put('/{id}/priceList',[MerchantManagementController::class,'setMerchantPriceList']);
 
@@ -188,7 +189,7 @@ Route::middleware(['jwt','localize'])->prefix('admin/v1/{lang}')->group(function
     });
 
     Route::prefix('priceList')->group(function(){
-        Route::get('zone',[PriceListController::class,'getPriceZones']);
+        Route::get('{price_list_name_id}/zone',[PriceListController::class,'getPriceZones']);
         Route::post('',[PriceListController::class,'createPriceList']);
         // Route::get('',[PriceListController::class,'getPriceList']);
         Route::put('assign',[PriceListController::class,'assignZoneToPriceList']);

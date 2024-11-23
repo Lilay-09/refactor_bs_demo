@@ -192,22 +192,24 @@ class PriceListController extends Controller
      *
      */
     public function getPriceZones(Request $req){
-        // $priceListNameId = $req->price_list_name_id ?? null;
+        $priceListNameId = $req->price_list_name_id ?? null;
+        $priceListName = PriceListname::where('is_deleted',0)->selectRaw('id,name,kg_marker')->find($priceListNameId);
+        if(!$priceListName) return ApiResponse::NotFound();
         $arrObj = [
             [
-                'title' => '1 Kg and Below',
-                'kg_mark' => 1,
+                'title' => $priceListName->kg_marker.' Kg and Below',
+                'kg_mark' => $priceListName->kg_marker,
                 'key' => 'below',
                 'list' => []
             ],
             [
-                'title' => 'Above 1 Kg',
-                'kg_mark' => 1,
+                'title' => 'Above '.$priceListName->kg_marker.' Kg',
+                'kg_mark' => $priceListName->kg_marker,
                 'key' => 'above',
                 'list' => []
             ]
         ];
-        $priceList = PriceList::with(['zones'])->get();
+        $priceList = PriceList::with(['zones'])->where('price_list_name_id',$priceListNameId)->get();
         foreach ($priceList as $pl) {
             // $key = $pl->price_list_name_id;
             foreach ($arrObj as &$arr) {

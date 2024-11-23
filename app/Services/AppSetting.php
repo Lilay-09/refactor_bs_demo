@@ -84,6 +84,10 @@ class AppSetting
         }
     }
 
+    public static function redirectCompanyWebsite(){
+        return Redirect::to('https://www.gtechcambodia.com');
+    }
+
     public static function getPrivacyTermCondition($channel,$type,$user){
         $modelName = null;
         $model = null;

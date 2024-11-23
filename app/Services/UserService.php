@@ -91,6 +91,7 @@ class UserService
         }else if($userClass == 'driver'){
             $baseFields['employment_date'] = 'nullable|string|max:100';
             $baseFields['shift_type'] = 'nullable|string|max:35';
+            $baseFields['national_id'] = 'nullable|string|max:35';
             $baseFields['employee_type'] = 'nullable|string|max:35';
             $baseFields['vehicle_type'] = 'required|string|exists:vehicle_types,name';
             $baseFields['plate_number'] = 'nullable|string|max:50';
@@ -132,6 +133,7 @@ class UserService
         $email = $inputs['email'] ?? null;
         $pin_address = $inputs['pin_address'] ?? null;
         $phone = $inputs['phone'];
+
         $priceListId = $inputs['price_list_id'] ?? null;
         if($pin_address){
             $getLatLng = Helper::getLatLongFromGoogleMapsUrl($pin_address);
@@ -142,8 +144,9 @@ class UserService
         DB::beginTransaction();
         try{
             if($id){
-                $user = User::where('account_type',$user_class)->where('is_deleted',0)->find($id);
-                if(!$user) return DataResponse::NotFound(__('messages.not_found',['info' => 'User']));
+                $updateUser = User::where('account_type',$user_class)->where('is_deleted',0)->find($id);
+                if(!$updateUser) return DataResponse::NotFound(__('messages.not_found',['info' => 'User']));
+                if($updateUser->phone) unset($inputs['phone']);
                 $existsEmail = User::where('account_type',$user_class)->where('is_deleted',0)->where('id','!=',$id)->whereNotNull('email')->where('email',$email)->first();
                 $existsPhone = User::where('account_type',$user_class)->where('is_deleted',0)->where('id','!=',$id)->where('phone',$phone)->first();
                 $existsNationalId = User::where('account_type',$user_class)->where('is_deleted',0)->where('id','!=',$id)->whereNotNull('national_id')->where('national_id',$nationalId)->first();
@@ -156,7 +159,7 @@ class UserService
                 if($existsPhone) return DataResponse::Duplicated(__('messages.error',[
                     'info' => 'Phone number('.$phone.') has already taken.'
                 ]));
-                $update = $user->update($inputs);
+                $update = $updateUser->update($inputs);
                 if(!$update) return DataResponse::Error(__('messages.error',['info' => 'Fail to update']));
                 $userId = $id;
             }else{
@@ -235,6 +238,10 @@ class UserService
             if($existsBankInfo) return DataResponse::ValidateFail(__('messages.error',['info' => 'It seems like you try to add duplicated bank info']));
             // }
             $keepIds[] = $id;
+            $accountCount = UserBank::where('user_id',$userId)->count();
+            if($accountCount == 2) return DataResponse::ValidateFail(__('messages.info',[
+                'info' => 'User can only have two accounts'
+            ]));
             if($id){
                 $userBank = UserBank::where('user_id',$userId)->where('id',$id)->first();
                 if(!$userBank) return DataResponse::ValidateFail(__('messages.error',['info' => 'Wrong bank identity']));
@@ -305,4 +312,29 @@ class UserService
 
 
     }
+
+    public static function setLockUser($authUser,$userId,$type='admin'){
+        $user = User::where('is_deleted',0)->where('company_id',$authUser->company_id)
+        ->where('account_type',$type)
+        ->selectRaw('id,code,user_name,email,gender,shift_type,vehicle_type,plate_number,phone,national_id,lock')
+        ->find($userId);
+        if(!$user) return DataResponse::NotFound(__('messages.not_found',[
+            'info' => $type
+        ]));
+        $msg = '';
+        if($user->lock){
+            $user->update([
+                'lock' => false,
+            ]);
+            $msg = $type.' has tured on active mode';
+
+        }else{
+            $user->update([
+                'lock' => true,
+            ]);
+            $msg = $type.' has been locked';
+        }
+        return DataResponse::JsonResult(null,false,$msg);
+    }
+
 }

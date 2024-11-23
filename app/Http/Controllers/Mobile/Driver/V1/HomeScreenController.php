@@ -11,6 +11,7 @@ use App\Models\Package;
 use App\Services\CloudMessagingService;
 use App\Services\GeneralSettingService;
 use App\Services\PickupCenterService;
+use App\Services\TransactionService;
 use App\Services\UserService;
 use Google\Rpc\Help;
 use Helper;
@@ -63,6 +64,19 @@ class HomeScreenController extends Controller
             unset($order->merchant,$order->tracking_status,$order->warehouse);
         }
         return ApiResponse::Pagination($orders,$req);
+    }
+
+    public function getDriverBalance(Request $req){
+        $user = UserService::getAuthUser('driver');
+        $trx = new TransactionService();
+        $deliveryCommission = $trx->getDriverCommissionBalance($user,$user->id,'delivery');
+        $pickUpComission = $trx->getDriverCommissionBalance($user,$user->id,'pick_up');
+        $obj = [
+            'earning' => $deliveryCommission->total + $pickUpComission->total,
+            'settlement' => 250
+        ];
+
+        return ApiResponse::JsonResult($obj);
     }
 
     public function getOneAcceptedPickup(Request $req){

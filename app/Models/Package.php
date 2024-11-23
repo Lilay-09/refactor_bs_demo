@@ -78,6 +78,10 @@ class Package extends Model
     public function getArriveWarehouseDatetimeAttribute($value){
         return \Carbon\Carbon::parse($value)->format('d-M-y H:i:s A');
     }
+
+    public function getDeliveredDatetimeAttribute($value){
+        return \Carbon\Carbon::parse($value)->format('d-M-y H:i:s A');
+    }
     public function status(){
         return $this->belongsTo(TrackingStatus::class,'status_id','id');
     }

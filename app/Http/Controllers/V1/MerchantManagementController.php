@@ -31,7 +31,7 @@ class MerchantManagementController extends Controller
         $query = User::where('is_deleted',0)->where('company_id',$user->company_id)
         ->where('account_type',$this->userClass)
         ->with(['merchantType:id,name','bank_accounts:id,bank_name,bank_number,account_name,user_id,is_primary'])
-        ->selectRaw('id,cod_fee,code,name_km,user_name,email,gender,business_type,phone,client_type_id,address,cod,pin_address,photo_file_name');
+        ->selectRaw('id,cod_fee,code,name_km,user_name,email,gender,business_type,phone,client_type_id,address,cod,pin_address,photo_file_name,lock,has_account');
         $merhcants = $query->orderByDesc('id')->get();
         foreach($merhcants as $m){
             $merchantPriceList = $this->getMerchantPriceList($priceList,$m->id);
@@ -110,6 +110,11 @@ class MerchantManagementController extends Controller
             'info' => 'Failed to update'
         ]));
         return ApiResponse::JsonResult(null,__('messages.updated'));
+    }
+
+     public function setLockMerchant(Request $req){
+        $user = UserService::getAuthUser();
+        return ApiResponse::flex(UserService::setLockUser($user,$req->id,'merchant'));
     }
 
 }

@@ -54,8 +54,7 @@ class PriceListNameController extends Controller
         $inputs['branch_id'] = $user->branch_id;
         $existsName = PriceListname::where('id','!=',$id)->where('company_id',$user->company_id)->where('is_deleted',0)->where('name',$inputs['name'])->first();
         if($existsName) return ApiResponse::Duplicated(__('messages.error',['info' => 'Price List Name ('.$inputs['name'].') has already taken']));
-        $create = PriceListname::create($inputs);
-        if(!$create) return ApiResponse::Error(__('messages.error',['info' => 'Fail to create price list']));
+        $priceListName->update($inputs);
         return ApiResponse::JsonResult(null,__('messages.created',['info' => 'Price list']));
     }
 }
