@@ -51,8 +51,8 @@ class PickupCenterService
             'qty' => 'required|int|min:1',
             'vehicle_type' => 'required|in:'.$vehicleTypes,
             'driver_id' => 'nullable',
-            'loc_lat' => 'nullable',
-            'loc_lng' => 'nullable',
+            'loc_lat' => 'nullable|numeric',
+            'loc_lng' => 'nullable|numeric',
             'pickup_address_google_map' => 'nullable|string',
             'pickup_address' => 'nullable|string|max:300',
             'details' => 'nullable|array',
@@ -109,8 +109,8 @@ class PickupCenterService
             $pickupAddress = $inputs['pickup_address'] ?? null;
             $pickup_address_google_map = $inputs['pickup_address_google_map'] ?? null;
             $latLng = Helper::getLatLongFromGoogleMapsUrl($pickup_address_google_map);
-            $inputs['loc_lat'] = $latLng->latitude;
-            $inputs['loc_lng'] = $latLng->longitude;
+            $inputs['loc_lat'] = $inputs['loc_lat'] ?? $latLng->latitude;
+            $inputs['loc_lng'] = $inputs['loc_lng'] ?? $latLng->longitude;
             if(!$pickupAddress) $inputs['pickup_address'] = $latLng->address;
             Order::find($orderId)->update([
                 'code' => $code
