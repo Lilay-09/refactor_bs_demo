@@ -36,6 +36,7 @@ class Package extends Model
         'receiver_address',
         'zone_code',
         'zone_name',
+        'photo_file_name',
         'receiver_phone',
         'receiver_name',
         'delivery_type',
