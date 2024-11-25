@@ -159,11 +159,12 @@ class PriceListController extends Controller
         if(!empty($zones)){
             foreach($zones as $zone){
                 $exists = PriceListZone::where('price_list_id',$id)->where('zone_id',$zone['id'])->first();
-                if($exists) continue;
-                PriceListZone::create([
-                    'zone_id' => $zone['id'],
-                    'price_list_id' => $id,
-                ]);
+                if(!$exists) {
+                    PriceListZone::create([
+                        'zone_id' => $zone['id'],
+                        'price_list_id' => $id,
+                    ]);
+                }
             }
         }
         return ApiResponse::JsonResult(null,'Updated');

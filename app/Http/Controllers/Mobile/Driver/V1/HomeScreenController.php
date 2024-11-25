@@ -294,7 +294,7 @@ class HomeScreenController extends Controller
         $validate = validator($req->all(),[
             'status_id' => 'required|in:9,10,19',
             'delivery_remarks' => 'required|string',
-            'photo' => 'nullable',
+            'image' => 'nullable',
             'amount' => 'nullable|numeric'
         ]);
         if($validate->fails()) return ApiResponse::ValidateFail($validate->errors()->first());
@@ -305,14 +305,18 @@ class HomeScreenController extends Controller
         $inputs['cod'] = $amount > 0 ? true:false;
         $codChange = $amount > 0 ? true:false;
         $inputs['cod_changed'] = $codChange;
-        $photo = $inputs['photo'] ?? null;
-        if($photo) {
-            $inputs['photo'] = Helper::saveImageFileOrBase64($photo,$user->company_id,'submit_package')->filename;
-        }
+        $photo = $inputs['image'] ?? null;
+        $deliveryRemarks = $inputs['delivery_remarks'] ?? null;
+
+
         $package = Package::where('is_deleted',0)->find($id);
         if(!$package) return ApiResponse::NotFound(__('messages.not_found',[
             'info' => 'Package'
         ]));
+        if($photo) {
+            $inputs['photo_file_name'] = Helper::saveImageFileOrBase64($photo,$user->company_id,'submit_package')->filename;
+            Helper::deleteImageFile($package->photo_file_name,$user->company_id,'submit_package');
+        }
         if($package->status_id == 9) return ApiResponse::Duplicated('This package has already been delivered!');
         if($package->driver_id !== $user->id) return ApiResponse::Duplicated(__('messages.info',[
             'info' => 'Please submit package that belongs to you'
@@ -320,13 +324,22 @@ class HomeScreenController extends Controller
         $todayDt = Helper::getDateTime();
         $driverName = $user->user_name;
         $statusCode = $status_id == 9 ? 'Delivered' : ($status_id == 10 ? 'Failed':($status_id == 19 ? 'Failed with fee':''));
-        $inputs['tracking_notes'] = $package->tracking_notes."|[$user->id]Driver ($driverName) submit $statusCode ($todayDt)";
+        $inputs['tracking_notes'] = $package->tracking_notes."|[$user->id]Driver ($driverName) submit $statusCode ($todayDt)[Remark: $deliveryRemarks]";
         if($codChange && $package->price != $amount){
             $inputs['tracking_notes'] .= "|[$user->id]Driver ($driverName) change cod $package->price to $amount ($todayDt)";
         }
-        if($status_id == 9) $inputs['delivered_datetime'] = now();
-        if($status_id == 10) $inputs['failed_datetime'] = now();
-        if($status_id == 19) $inputs['failed_datetime'] = now();
+        if($status_id == 9) {
+            $inputs['delivered_datetime'] = now();
+            $inputs['delivery_remarks'] = $deliveryRemarks;
+        }
+        if($status_id == 10) {
+            $inputs['failed_datetime'] = now();
+            $inputs['failure_notes'] = $deliveryRemarks;
+        }
+        if($status_id == 19) {
+            $inputs['failed_datetime'] = now();
+            $inputs['failure_notes'] = $deliveryRemarks;
+        }
         $package->update($inputs);
         $dp = DeliveryPackage::where('package_id',$id)->where('delay_count',0)->first();
         $dp->update([
