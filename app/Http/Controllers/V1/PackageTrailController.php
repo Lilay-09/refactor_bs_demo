@@ -123,10 +123,26 @@ class PackageTrailController extends Controller
     public function getPrintInfo(Request $req){
         $user = UserService::getAuthUser();
         $id = $req->id;
-        $package = Package::where('company_id',$user->company_id)->with(['merchant'])->where('is_deleted',0)->find($id);
+        $package = $package = Package::where('is_deleted',0)
+        ->with(['driver','merchant'])
+        ->where('outstanding',0)
+        // ->whereNotIn('status_id',[]) // at warehouse
+        ->where('company_id',$user->company_id)
+        ->selectRaw('merchant_id,id,taxi_fee,actual_kg,billed_kg,extra_charge,delivery_type,qr_code,price,driver_id,product_type,payer,cod,delivery_fee,receiver_address,zone_code,zone_name,receiver_name,receiver_phone,driver_total,merchant_total,driver_id,remarks')
+        ->find($id);
         if(!$package) return ApiResponse::NotFound(trans('messages.not_found',['info' => 'Package','khInfo' => 'កញ្ចប់​']));
+        $driver = $package->driver;
+        if($driver){
+            $package->driver_name = $driver->user_name;
+        }
+        $package->merchant_name = $package->merchant->user_name;
+        $package->merchant_phone = $package->merchant->phone;
+        $package->base_fee = $package->delivery_fee;
+        $package->delivery_fee = $package->delivery_fee + $package->taxi + ($package->cod ? $package->price : 0);
+        unset($package->status,$package->driver,$package->merchant);
         $obj = (object)[
             'company_info' => CompanyProfileService::profileInfo($user),
+            'package' => $package,
         ];
         return ApiResponse::JsonResult($obj,__('messages.info',['info' => 'Print Information']));
     }

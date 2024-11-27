@@ -4,6 +4,7 @@ namespace App\Services;
 use App\Models\Branch;
 use App\Models\CompanyProfile;
 use DataResponse;
+use Helper;
 use Tymon\JWTAuth\Facades\JWTAuth;
 
 class CompanyProfileService
@@ -20,6 +21,9 @@ class CompanyProfileService
 
     public static function profileInfo($user){
         $info = CompanyProfile::selectRaw('id,name,address,email,phone,description,photo_file_name')->where('id',$user->company_id)->first();
+        if($info){
+            $info->image_url = Helper::getImageUrl($info->photo_file_name,$user->company_id,'company');
+        }
         return $info;
     }
 
