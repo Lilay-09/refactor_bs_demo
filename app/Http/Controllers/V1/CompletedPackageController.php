@@ -37,6 +37,7 @@ class CompletedPackageController extends Controller
                 if($pkg->approved_merchant_pmt) $pkg->merhchant_pmt_status = 'Paid';
                 else $pkg->merhchant_pmt_status = 'Unpaid';
             }
+            $pkg->total = $pkg->driver_total + $pkg->merchant_total;
         }
         return ApiResponse::Pagination($packages,$req);
     }

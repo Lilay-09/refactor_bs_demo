@@ -25,12 +25,12 @@ class PackageTrailController extends Controller
         $user = UserService::getAuthUser();
         $search = $req->search;
         $query = Package::where('is_deleted',0)
-        ->with(['status'])
+        ->with(['status','merchant'])
         ->where('outstanding',0)
         // ->whereNotIn('status_id',[]) // at warehouse
         ->where('company_id',$user->company_id)
         ->whereNotIn('status_id',[9,19])
-        ->selectRaw('order_id,id,taxi_fee,delivery_type,qr_code,price,driver_id,product_type,dim_z,dim_x,dim_y,status_id,failure_notes,payer,cod,delivery_fee,receiver_address,zone_code,zone_name,receiver_name,receiver_phone,delivered_datetime,assign_driver_datetime,arrive_warehouse_datetime,driver_total,merchant_total')
+        ->selectRaw('merchant_id,order_id,id,taxi_fee,delivery_type,qr_code,price,driver_id,product_type,dim_z,dim_x,dim_y,status_id,failure_notes,payer,cod,delivery_fee,receiver_address,zone_code,zone_name,receiver_name,receiver_phone,delivered_datetime,assign_driver_datetime,arrive_warehouse_datetime,driver_total,merchant_total')
         ->orderByRaw('(status_id = ?) DESC', [5]);
         if($search){
             $query->where('qr_code',$search);
@@ -38,10 +38,13 @@ class PackageTrailController extends Controller
         $packages = $query->get();
         foreach($packages as $pkg){
             $cod = $pkg->cod;
+            $pkg->merhcant_name = $pkg->merchant->user_name;
+            $pkg->merchant_phone = $pkg->merchant->phone;
             $pkg->cod = $cod == true ? 1:0;
             $pkg->status_code = $pkg->status->name;
+            $pkg->total = $pkg->driver_total + $pkg->merchant_total;
             $pkg->warehouse_timeago = Helper::timeAgo($pkg->arrive_warehouse_datetime,false);
-            unset($pkg->status);
+            unset($pkg->status,$pkg->merchant);
         }
         return ApiResponse::Pagination($packages,$req,__('messages.get_list',['info'=>'Package']));
     }

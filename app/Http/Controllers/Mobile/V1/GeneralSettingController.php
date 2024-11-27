@@ -59,9 +59,8 @@ class GeneralSettingController extends Controller
     public function scanPackage(Request $req){
         $user = UserService::getAuthUser('driver');
         $item_ref = $req->item_ref;
-        // $notes = $req->notes;
         $package = Package::where('qr_code',$item_ref)->where('is_deleted',0)->first();
-        if(!$package) $package = Package::where('is_deleted',0)->find($item_ref);
+        if(!$package && is_numeric($item_ref)) $package = Package::where('is_deleted',0)->find($item_ref);
         if(!$package) return ApiResponse::NotFound();
         if($package->status_id == 9) return ApiResponse::Duplicated(__('messages.arrived',[
             'info' => 'Package'
