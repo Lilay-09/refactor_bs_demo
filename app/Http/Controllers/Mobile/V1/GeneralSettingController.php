@@ -9,10 +9,12 @@ use App\Models\DeliveryPackage;
 use App\Models\Package;
 use App\Services\CloudMessagingService;
 use App\Services\GeneralSettingService;
+use App\Services\PickupCenterService;
 use App\Services\UserService;
 use Cache;
 use DB;
 use Exception;
+use Helper;
 use Illuminate\Http\Request;
 use Log;
 
@@ -90,9 +92,9 @@ class GeneralSettingController extends Controller
         //         'tracking_notes' => $package->tracking_notes.'|Driver scan delivery '.date('d-M-Y h:i:s A'),
         //         'assign_driver_datetime' => now(),
         //     ]);
-        //     $pckTl = new PackageTrailController();
-        //     $validDriver = GeneralSettingService::getDriverById($driver_id);
-        //     $trip = $pckTl->createOrUpdateTrip($driver_id,$id,$validDriver->vehicle_type,$user,$notes);
+            // $pckTl = new PackageTrailController();
+            // $validDriver = GeneralSettingService::getDriverById($driver_id);
+            // $trip = $pckTl->createOrUpdateTrip($driver_id,$id,$validDriver->vehicle_type,$user,$notes);
         //     if($trip->error) return ApiResponse::flex($trip);
         //     // DB::commit();
         //     return ApiResponse::JsonResult(null,__('messages.assigned',['info' => '']));
@@ -116,7 +118,7 @@ class GeneralSettingController extends Controller
         $user = UserService::getAuthUser('driver');
         $item_ref = $req->item_ref;
         $changeDriver = $req->change_driver;
-        $markContact = $req->mark_contact ?? null;
+        $markContact = $req->mark_contact ?? 0;
         $confirmDelivery = $req->confirm_delivery ?? 0;
         $package = Package::where('qr_code',$item_ref)->where('is_deleted',0)->with('driver')->first();
         if(!$package) $package = Package::where('is_deleted',0)->find($item_ref);
@@ -124,16 +126,33 @@ class GeneralSettingController extends Controller
         if($package->status_id == 9) return ApiResponse::Duplicated(__('messages.arrived',[
             'info' => 'Package'
         ]));
-
+        $statusId = $package->status_id;
+        $driver = $package->driver;
+        $updateArr = [];
         if($confirmDelivery){
-             if($changeDriver) return ApiResponse::ValidateFail(__('messages.info',[
+            if($package->status_id == 6) return ApiResponse::Duplicated(__('messages.info',[
+                'info' => 'Package is already on delivery'
+            ]));
+            if($changeDriver) return ApiResponse::ValidateFail(__('messages.info',[
                 'info' => 'You cannot change the driver and confirm delivery the same time!',
-             ]));
-        }
+            ]));
+            $updateArr['status_id'] = 6;
+            $updateArr['driver_id'] = $user->id;
+            $updateArr['assign_driver_datetime'] = now();
+            $notes = $package->tracking_notes."|[$user->id]Driver ($user->user_name) scan on delivery (".Helper::getDateTime()."";
+            $notifRequpdateArr['tracking_notes'] = $notes;
+            $pckTl = new PackageTrailController();
+            $trip = $pckTl->createOrUpdateTrip($user->id,$package->id,$package->drivervehicle_type,$user,$notes);
+            if($trip->error) return ApiResponse::flex($trip);
+        }else $confirmDelivery = ($package->status_id == 6);
+        if($markContact && !$confirmDelivery) return ApiResponse::ValidateFail(__('messages.info',[
+            'info' => 'You cannot mark contact on package which is not on delivery'
+        ])); else $updateArr['is_contact'] = true;
 
         if($changeDriver){
             if($user->id == $package->driver_id) return ApiResponse::Duplicated(__('messages.info',[
-                'info' => 'This package was already confirmed as delivered'
+                'info' => 'It seems like you tried to confirm delivery package again'
+                // 'info' => 'This package is already marked as out for delivery. Please check the delivery status before proceeding.'
             ]));
             $requester = $user->info->phone."($user->user_name)";
             $cms = new CloudMessagingService();
@@ -152,11 +171,12 @@ class GeneralSettingController extends Controller
                 ]
             ]);
             $cms->sendNotificationByTopic($notifReq);
+            $driverName = $driver->user_name;
+            $updateArr['tracking_notes'] .= $package->tracking_notes."|[$user->id]Driver ($user->user_name) ask [$package->driver_id]Driver $driverName to change driver";
         }
-
-
-
-
+        // if(empty($updateArr)) return ApiResponse::JsonResult(null,__('messages.updated'));
+        $package->update($updateArr);
+        return ApiResponse::JsonResult(null,__('messages.updated'));
     }
 
     public function confirmOrCancelSwapPackage(Request $req){
