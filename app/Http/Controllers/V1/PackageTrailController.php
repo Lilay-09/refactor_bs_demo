@@ -38,8 +38,8 @@ class PackageTrailController extends Controller
         $packages = $query->get();
         foreach($packages as $pkg){
             $cod = $pkg->cod;
-            $pkg->merhcant_name = $pkg->merchant->user_name;
-            $pkg->merchant_phone = $pkg->merchant->phone;
+            $pkg->merhcant_name = $pkg->merchant?->user_name;
+            $pkg->merchant_phone = $pkg->merchant?->phone;
             $pkg->cod = $cod == true ? 1:0;
             $pkg->status_code = $pkg->status->name;
             $pkg->total = $pkg->driver_total + $pkg->merchant_total;
