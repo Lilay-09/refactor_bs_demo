@@ -31,7 +31,8 @@ class PackageTrailController extends Controller
         ->where('company_id',$user->company_id)
         ->whereNotIn('status_id',[9,19])
         ->selectRaw('merchant_id,order_id,id,taxi_fee,delivery_type,qr_code,price,driver_id,product_type,dim_z,dim_x,dim_y,status_id,failure_notes,payer,cod,delivery_fee,receiver_address,zone_code,zone_name,receiver_name,receiver_phone,delivered_datetime,assign_driver_datetime,arrive_warehouse_datetime,driver_total,merchant_total')
-        ->orderByRaw('(status_id = ?) DESC', [5]);
+        ->orderByRaw('(status_id = ?) DESC', [5])
+        ->orderBy('arrive_warehouse_datetime');
         if($search){
             $query->where('qr_code',$search);
         }
