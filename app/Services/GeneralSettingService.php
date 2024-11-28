@@ -157,7 +157,7 @@ class GeneralSettingService
     public static function optionsDriver($user,$vehicleType=null){
         $qD = User::where(function($q){
             $q->where('lock',0)->orWhere('is_deleted',0);
-        })->where('company_id',$user->company_id)->where('account_type','driver')->selectRaw('id,user_name,phone');
+        })->where('has_account',true)->where('company_id',$user->company_id)->where('account_type','driver')->selectRaw('id,user_name,phone');
         if($vehicleType) $qD->where('vehicle_type','ilike',$vehicleType);
         $drivers = $qD->orderByDesc('id')->get();
         return $drivers;

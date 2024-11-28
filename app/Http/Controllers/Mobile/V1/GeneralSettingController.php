@@ -62,8 +62,8 @@ class GeneralSettingController extends Controller
         $package = Package::where('qr_code',$item_ref)->where('is_deleted',0)->first();
         if(!$package && is_numeric($item_ref)) $package = Package::where('is_deleted',0)->find($item_ref);
         if(!$package) return ApiResponse::NotFound();
-        if($package->status_id == 9) return ApiResponse::Duplicated(__('messages.arrived',[
-            'info' => 'Package'
+        if($package->status_id == 9) return ApiResponse::Duplicated(__('messages.info',[
+            'info' => 'Package is completed'
         ]));
         return ApiResponse::JsonResult([
             'is_contact' => $package->is_contact,
@@ -116,20 +116,32 @@ class GeneralSettingController extends Controller
         $user = UserService::getAuthUser('driver');
         $item_ref = $req->item_ref;
         $changeDriver = $req->change_driver;
+        $markContact = $req->mark_contact ?? null;
+        $confirmDelivery = $req->confirm_delivery ?? 0;
         $package = Package::where('qr_code',$item_ref)->where('is_deleted',0)->with('driver')->first();
         if(!$package) $package = Package::where('is_deleted',0)->find($item_ref);
         if(!$package) return ApiResponse::NotFound();
         if($package->status_id == 9) return ApiResponse::Duplicated(__('messages.arrived',[
             'info' => 'Package'
         ]));
+
+        if($confirmDelivery){
+             if($changeDriver) return ApiResponse::ValidateFail(__('messages.info',[
+                'info' => 'You cannot change the driver and confirm delivery the same time!',
+             ]));
+        }
+
         if($changeDriver){
+            if($user->id == $package->driver_id) return ApiResponse::Duplicated(__('messages.info',[
+                'info' => 'This package was already confirmed as delivered'
+            ]));
             $requester = $user->info->phone."($user->user_name)";
             $cms = new CloudMessagingService();
             $topics = GeneralSettingService::getGeneralTopics($user->company_id,'driver',$package->driver_id);
             Cache::set($topics->private,(object)[
                 'requester' => $requester,
                 'requester_id' => $user->id,
-            ]);
+            ],250);
             $notifReq = new Request([
                 'topic' => $topics->private,
                 'title' => 'Change Driver',
@@ -141,6 +153,10 @@ class GeneralSettingController extends Controller
             ]);
             $cms->sendNotificationByTopic($notifReq);
         }
+
+
+
+
     }
 
     public function confirmOrCancelSwapPackage(Request $req){
