@@ -90,7 +90,7 @@ class InitialSeeder extends Seeder
             'phone' => '092335554',
             'description' => 'This is Root, Root represent to all branches',
             'create_uid' => $userId,
-            'company_type' => 'automotive',
+            'company_type' => 'express',
             'update_uid' => $userId
         ]);
         $branchId =  DB::table('branches')->insertGetId([

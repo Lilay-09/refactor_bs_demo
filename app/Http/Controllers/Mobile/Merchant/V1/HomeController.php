@@ -15,7 +15,6 @@ use Illuminate\Http\Request;
 class HomeController extends Controller
 {
     //
-
     public function createBooking(Request $req){
         $user = UserService::getAuthUser('merchant');
         $pck = new PickupCenterService();
@@ -49,7 +48,8 @@ class HomeController extends Controller
             'success' => $successCount,
             'fail' => $failCount,
             'return' => $returnCount,
-            'total' => $totalCount
+            'total' => $totalCount,
+            'date' => Helper::getDateTime('d-M-Y')
         ];
         return ApiResponse::JsonResult($obj);
     }
@@ -58,7 +58,7 @@ class HomeController extends Controller
         $user = UserService::getAuthUser('merchant');
         $orders = Order::where('merchant_id',$user->id)
         ->where('is_deleted',0)
-        ->selectRaw('id,code,product_type,vehicle_type,order_datetime,status_id')->where('status_id',1)->get();
+        ->selectRaw('id,code,qty,product_type,vehicle_type,order_datetime,status_id')->where('status_id',1)->get();
         foreach($orders as $order){
             $order->status_code = 'Pending';
         }
@@ -70,7 +70,7 @@ class HomeController extends Controller
         $orders = Order::where('merchant_id',$user->id)
         ->with(['tracking_status','driver'])
         ->where('is_deleted',0)
-        ->selectRaw('id,code,product_type,vehicle_type,order_datetime,status_id,driver_id')->whereIn('status_id',[2,3,4])->get();
+        ->selectRaw('id,code,qty,product_type,vehicle_type,order_datetime,status_id,driver_id')->whereIn('status_id',[2,3,4])->get();
         foreach($orders as $order){
             $order->status_code = $order->tracking_status->name;
             $order->driver_phone = $order->driver->phone;
@@ -87,7 +87,7 @@ class HomeController extends Controller
         ->with('driver')
         ->where('status_id',6)
         ->where('is_deleted',0)
-        ->selectRaw('id,merchant_id,receiver_address,receiver_name,cod,price,delivery_fee,remarks,driver_id,arrive_warehouse_datetime')
+        ->selectRaw('id,merchant_id,receiver_phone,receiver_address,receiver_name,cod,price,delivery_fee,remarks,driver_id,arrive_warehouse_datetime')
         ->get();
         foreach($packages as $package){
             $package->cod_fee = $package->cod ? $package->price : 0;
@@ -106,7 +106,7 @@ class HomeController extends Controller
         ->with('driver')
         ->where('status_id',9)
         ->where('is_deleted',0)
-        ->selectRaw('id,merchant_id,receiver_address,receiver_name,cod,price,delivery_fee,remarks,driver_id,delivered_datetime')
+        ->selectRaw('id,merchant_id,receiver_phone,receiver_address,receiver_name,cod,price,delivery_fee,remarks,driver_id,delivered_datetime')
         ->get();
         foreach($packages as $package){
             $package->cod_fee = $package->cod ? $package->price : 0;
@@ -125,7 +125,7 @@ class HomeController extends Controller
         ->with(['driver','status'])
         ->whereIn('status_id',[10,19])
         ->where('is_deleted',0)
-        ->selectRaw('id,merchant_id,receiver_address,receiver_name,cod,price,delivery_fee,status_id,remarks,driver_id,failed_datetime')
+        ->selectRaw('id,merchant_id,arrive_warehouse_datetime,receiver_phone,receiver_address,receiver_name,cod,price,delivery_fee,status_id,remarks,driver_id,failed_datetime')
         ->get();
         foreach($packages as $package){
             $package->cod_fee = $package->cod ? $package->price : 0;
@@ -143,7 +143,7 @@ class HomeController extends Controller
         $packages = Package::where('merchant_id',$user->id)
         ->with(['driver','status'])
         ->whereIn('status_id',[11])
-        ->selectRaw('id,merchant_id,receiver_address,receiver_name,cod,price,delivery_fee,status_id,remarks,driver_id,failed_datetime')
+        ->selectRaw('id,merchant_id,arrive_warehouse_datetime,receiver_phone,receiver_address,receiver_name,cod,price,delivery_fee,status_id,remarks,driver_id,failed_datetime,updated_at as returned_date')
         ->get();
         foreach($packages as $package){
             $package->cod_fee = $package->cod ? $package->price : 0;
@@ -151,6 +151,7 @@ class HomeController extends Controller
             $package->driver_phone = $package->driver->phone;
             $package->driver_name = $package->driver->user_name;
             $package->total = $package->cod_fee + $package->delivery_fee;
+            $package->returned_date = Helper::formatCustomDateTime($package->returned_date, 'Y-m-d H:i:s');
             unset($package->driver,$package->status);
         }
         return ApiResponse::Pagination($packages);

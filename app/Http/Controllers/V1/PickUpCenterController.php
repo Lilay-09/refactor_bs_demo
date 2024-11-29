@@ -358,7 +358,8 @@ class PickUpCenterController extends Controller
             'status_id' => 5 //** at warehouse */
         ]);
         $order->update([
-            'status_id' => 5 //* at warehouse
+            'status_id' => 5, //* at warehouse
+            'qty' => $count
         ]);
         return ApiResponse::JsonResult(null,__('messages.arrived',['info' => 'Packages have']));
     }
