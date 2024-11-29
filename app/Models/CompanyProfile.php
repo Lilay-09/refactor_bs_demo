@@ -20,7 +20,7 @@ class CompanyProfile extends Model
         'description',
         'photo_file_name',
         'address_kh',
-        'remarks',
+        'cp_name',
         'cp_phone',
         'cp_email',
         'cp_name',

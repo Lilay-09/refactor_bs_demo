@@ -80,6 +80,10 @@ class Package extends Model
         return \Carbon\Carbon::parse($value)->format('d-M-y H:i:s A');
     }
 
+    public function getFailedDatetimeAttribute($value){
+        return \Carbon\Carbon::parse($value)->format('d-M-y H:i:s A');
+    }
+
     public function getDeliveredDatetimeAttribute($value){
         return \Carbon\Carbon::parse($value)->format('d-M-y H:i:s A');
     }

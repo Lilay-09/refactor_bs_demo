@@ -246,7 +246,11 @@ class PickupCenterService
             Package::find($createPackage->id)->update([
                 'qr_code' => $qrCode
             ]);
-            $this->updateOrderQty($orderId);
+            $count = Package::where('order_id',$orderId)->where('is_deleted',0)->count();
+            if($count > $order->qty){
+                $this->updateOrderQty($orderId);
+            }
+
             return DataResponse::JsonResult(null,false,__('messages.created',['info' => 'Package Number ('.$qrCode.').']));
         }else{
             $qP = Package::where('is_deleted',0)->whereIn('status_id',$statusIds);
