@@ -159,6 +159,10 @@ class UserService
                 if($existsPhone) return DataResponse::Duplicated(__('messages.error',[
                     'info' => 'Phone number('.$phone.') has already taken.'
                 ]));
+                if(!$photo || Helper::isValidBase64Image($photo)) {
+                    $inputs['photo_file_name'] = Helper::base64ToImageFile($photo,$user->company_id,'user_profile')->filename;
+                    Helper::deleteImageFile($updateUser->photo_file_name,$user->company_id,'user_profile');
+                }
                 $update = $updateUser->update($inputs);
                 if(!$update) return DataResponse::Error(__('messages.error',['info' => 'Fail to update']));
                 $userId = $id;
@@ -176,7 +180,7 @@ class UserService
                 if($existsPhone) return DataResponse::Duplicated(__('messages.error',[
                     'info' => 'Phone number('.$phone.') has already taken.'
                 ]));
-
+                $inputs['photo_file_name'] = Helper::base64ToImageFile($photo,$user->company_id,'user_profile')->filename;
                 $create = User::create($inputs);
                 if(!$create) return DataResponse::Error(__('messages.error',['info' => 'Fail to create']));
                 Helper::setRefCode('user_code_control','users','code',$user->branch_id,$user->company_id,$create->id,null,self::$user_prefix[$user_class]);

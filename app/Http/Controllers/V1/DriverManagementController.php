@@ -8,6 +8,7 @@ use App\Models\DriverCommission;
 use App\Models\User;
 use App\Services\GeneralSettingService;
 use App\Services\UserService;
+use Helper;
 use Illuminate\Http\Request;
 
 class DriverManagementController extends Controller
@@ -21,13 +22,14 @@ class DriverManagementController extends Controller
         $user = UserService::getAuthUser();
         $query = User::where('is_deleted',0)->where('company_id',$user->company_id)
         ->where('account_type','driver')
-        ->selectRaw('id,code,user_name,email,gender,shift_type,vehicle_type,plate_number,phone,has_account,lock');
+        ->selectRaw('id,code,user_name,email,gender,shift_type,vehicle_type,plate_number,phone,has_account,lock,photo_file_name');
         $drivers = $query->orderByDesc('id')->get();
         foreach ($drivers as $driver){
             foreach($driver->bank_accounts as $b){
                 if($b->is_primary) $driver->bank_account = GeneralSettingService::concatBankInfo($b->bank_name,$b->bank_number,$b->account_name);
                 if(!$b->bank_account) $driver->bank_account = GeneralSettingService::concatBankInfo($b->bank_name,$b->bank_number,$b->account_name);
             }
+            $driver->image_url = Helper::getImageUrl($driver->photo_file_name,$user->company_id,'user_profile');
             unset($driver->bank_accounts);
         }
         return ApiResponse::Pagination($drivers,$req);
@@ -39,9 +41,10 @@ class DriverManagementController extends Controller
         $driver = User::where('is_deleted',0)->where('company_id',$user->company_id)
         ->where('account_type','driver')
         ->with(['bank_accounts:id,user_id,bank_name,bank_number,account_name,is_primary'])
-        ->selectRaw('id,code,user_name,email,gender,shift_type,vehicle_type,plate_number,phone,national_id,dob')
+        ->selectRaw('id,code,user_name,email,gender,shift_type,vehicle_type,plate_number,phone,national_id,dob,photo_file_name')
         ->find($id);
         if(!$driver) return ApiResponse::NotFound(__('messages.not_found',['info' => 'Driver']));
+        $driver->image_url = Helper::getImageUrl($driver->photo_file_name,$user->company_id,'user_profile');
         return ApiResponse::JsonResult($driver,__('messages.get one'));
     }
 

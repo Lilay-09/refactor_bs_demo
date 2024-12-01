@@ -360,7 +360,7 @@ class Helper{
     public static function saveImageFile(UploadedFile $image, $companyId, $dirName = 'images')
     {
         // Validate the image type
-        $validMimeTypes = ['image/jpeg', 'image/png', 'image/jpg', 'image/gif', 'image/heic', 'image/heif', 'image/webp'];
+        $validMimeTypes = ['image/jpeg', 'image/png', 'image/jpg', 'image/gif', 'image/heic', 'image/heif', 'image/webp','application/octet-stream'];
         if (!in_array($image->getClientMimeType(), $validMimeTypes)) {
             return (object)[
                 'filename' => null,

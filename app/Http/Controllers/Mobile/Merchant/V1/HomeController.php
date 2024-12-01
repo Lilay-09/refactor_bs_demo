@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Order;
 use App\Models\Package;
 use App\Models\Promotion;
+use App\Services\GeneralSettingService;
 use App\Services\PickupCenterService;
 use App\Services\UserService;
 use Helper;
@@ -79,7 +80,6 @@ class HomeController extends Controller
         }
         return ApiResponse::Pagination($orders);
     }
-
 
     public function getOnDeliveryPackages(Request $req){
         $user = UserService::getAuthUser('merchant');
@@ -157,7 +157,6 @@ class HomeController extends Controller
         return ApiResponse::Pagination($packages);
     }
 
-
     public function getPromotions(Request $req){
         $user = UserService::getAuthUser('merchant');
         $today = date('Y-m-d');
@@ -174,5 +173,16 @@ class HomeController extends Controller
         }
 
         return ApiResponse::Pagination($promotions);
+    }
+
+    public function getOptionsZone(Request $req){
+        $user = UserService::getAuthUser('merchant');
+        return ApiResponse::JsonResult(GeneralSettingService::optionsZone($user));
+    }
+
+    public function getZonePrice(Request $req){
+        $user = UserService::getAuthUser('merchant');
+        $id = $req->zone_id;
+        return ApiResponse::JsonResult(GeneralSettingService::priceByZone($id,$user));
     }
 }
