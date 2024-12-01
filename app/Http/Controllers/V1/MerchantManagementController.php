@@ -31,7 +31,7 @@ class MerchantManagementController extends Controller
         $query = User::where('is_deleted',0)->where('company_id',$user->company_id)
         ->where('account_type',$this->userClass)
         ->with(['merchantType:id,name','bank_accounts:id,bank_name,bank_number,account_name,user_id,is_primary'])
-        ->selectRaw('id,cod_fee,code,name_km,user_name,email,gender,business_type,phone,client_type_id,address,cod,pin_address,photo_file_name,lock,has_account');
+        ->selectRaw('id,cod_fee,code,name_km,user_name,email,gender,business_type,phone,client_type_id,address,cod,pin_address,photo_file_name,lock,has_account,photo_file_name');
         $merhcants = $query->orderByDesc('id')->get();
         foreach($merhcants as $m){
             $merchantPriceList = $this->getMerchantPriceList($priceList,$m->id);
@@ -44,6 +44,7 @@ class MerchantManagementController extends Controller
                 if($b->is_primary) $m->bank_account = GeneralSettingService::concatBankInfo($b->bank_name,$b->bank_number,$b->account_name);
                 if(!$b->bank_account) $m->bank_account = GeneralSettingService::concatBankInfo($b->bank_name,$b->bank_number,$b->account_name);
             }
+            $m->image_url = Helper::getImageUrl($m->photo_file_name,$user->company_id,'user_profile');
             unset($m->merchantType,$m->bank_accounts,$m->photo_file_name);
         }
         return ApiResponse::Pagination($merhcants,$req);
@@ -61,12 +62,13 @@ class MerchantManagementController extends Controller
         $merchant = User::where('is_deleted',0)->where('company_id',$user->company_id)
         ->where('account_type',$this->userClass)
         ->with(['bank_accounts:id,bank_name,bank_number,account_name,user_id,is_primary'])
-        ->selectRaw('id,cod_fee,code,name_km,user_name,email,gender,business_type,phone,client_type_id,address,referrer_uid,cod')
+        ->selectRaw('id,cod_fee,code,name_km,user_name,email,gender,photo_file_name,business_type,phone,client_type_id,address,referrer_uid,cod')
         ->find($id);
         $priceList = DB::table('price_list as pl')->join('price_list_names as n','n.id','pl.price_list_name_id')
         ->selectRaw('pl.id,n.name,mpl.merchant_id')->join('merchant_price_list as mpl','mpl.price_list_id','pl.id')
         ->where('mpl.merchant_id',$id)->first();
         if(!$merchant) return ApiResponse::NotFound(__('messages.not_found',['info' => 'Merchant']));
+        $merchant->image_url = Helper::getImageUrl($merchant->photo_file_name,$user->company_id,'user_profile');
         if($priceList){
             $merchant->price_list_id = $priceList->id;
         }

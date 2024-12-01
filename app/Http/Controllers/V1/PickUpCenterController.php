@@ -279,6 +279,17 @@ class PickUpCenterController extends Controller
         }
     }
 
+    public function getOrderImages(Request $req){
+        $orderId = $req->order_id;
+        $user = UserService::getAuthUser();
+        $orderImages = OrderImage::where('order_id',$orderId)->selectRaw('photo_file_name')->get();
+        foreach($orderImages as $img){
+            $img->image_url = Helper::getImageUrl($img->photo_file_name,$user->company_id,'order_image');
+        }
+        return ApiResponse::JsonResult($orderImages);
+
+    }
+
     public function getOnePackageById(Request $req){
         $user = UserService::getAuthUser();
         $id = $req->id;
@@ -293,46 +304,51 @@ class PickUpCenterController extends Controller
         $user = UserService::getAuthUser();
         $orderId = $req->order_id;
         $qP = Package::where('order_id',$orderId)->whereIn('status_id',[1,3,7])->with(['status'])->where('company_id',$user->company_id)
-        ->selectRaw('status_id,id')->selectRaw('id as package_id')
+                ->selectRaw('merchant_id,order_id,id,taxi_fee,delivery_type,qr_code,price,driver_id,product_type,dim_z,dim_x,dim_y,status_id,failure_notes,payer,cod,delivery_fee,receiver_address,zone_code,zone_name,receiver_name,receiver_phone,delivered_datetime,assign_driver_datetime,arrive_warehouse_datetime,driver_total,merchant_total')
         ->where('is_deleted',0);
-        $qI = OrderImage::where('order_id',$orderId)->selectRaw('id as photo_id,photo_file_name');
-        $pkgCount = $qP->count();
-        $imgCount = $qI->count();
-        $images = $qI->get();
         $packages = $qP->get();
-        $data = [];
-        $skipIds = [];
-        if($imgCount >= $pkgCount){
-            foreach($images as $index=>$img){
-                $img->image_url = Helper::getImageUrl($img->photo_file_name,$user->company_id,'order_image');
-                if ($index < $pkgCount) {
-                    $img->package_id = $packages[$index]->package_id;
-                } else {
-                    $img->package_id = null;
-                }
-                unset($img->photo_file_name);
-            }
-            $data = $images;
-        }else{
-            foreach($packages as $index=>$pkg){
-                if ($index < $imgCount) {
-                    $pkg->image_url = Helper::getImageUrl($images[$index]->package_id,$user->company_id,'order_image');
-                } else {
-                    $pkg->image_url = null;
-                }
-                // foreach($images as $img){
-                //     $img->image_url = null;
-                //     $img->image_url = Helper::getImageUrl($img->photo_file_name,$user->company_id,'order_image');
-                //     $img->package_id = $pkg->package_id;
-                // }
-            }
-            $data = $packages;
-        }
-        foreach($packages as $package){
-            $package->status_code = $package->status->name;
-            unset($package->status);
-        }
-        return ApiResponse::Pagination($data,$req);
+        return ApiResponse::Pagination($packages,$req);
+        // $qI = OrderImage::where('order_id',$orderId)->selectRaw('id as photo_id,photo_file_name');
+        // $pkgCount = $qP->count();
+        // $imgCount = $qI->count();
+        // $images = $qI->get();
+        // foreach($packages as $pkg){
+        //     $pkg->status_code = $pkg->status->name;
+        //     unset($pkg->status);
+        // }
+        // $data = [];
+        // $skipIds = [];
+        // if($imgCount >= $pkgCount){
+        //     foreach($images as $index=>$img){
+        //         $img->image_url = Helper::getImageUrl($img->photo_file_name,$user->company_id,'order_image');
+        //         if ($index < $pkgCount) {
+        //             $img->package_id = $packages[$index]->package_id;
+        //         } else {
+        //             $img->package_id = null;
+        //         }
+        //         unset($img->photo_file_name);
+        //     }
+        //     $data = $images;
+        // }else{
+        //     foreach($packages as $index=>$pkg){
+        //         if ($index < $imgCount) {
+        //             $pkg->image_url = Helper::getImageUrl($images[$index]->package_id,$user->company_id,'order_image');
+        //         } else {
+        //             $pkg->image_url = null;
+        //         }
+        //         // foreach($images as $img){
+        //         //     $img->image_url = null;
+        //         //     $img->image_url = Helper::getImageUrl($img->photo_file_name,$user->company_id,'order_image');
+        //         //     $img->package_id = $pkg->package_id;
+        //         // }
+        //     }
+        //     $data = $packages;
+        // }
+        // foreach($packages as $package){
+        //     $package->status_code = $package->status->name;
+        //     unset($package->status);
+        // }
+
     }
 
     public function updatePackage(Request $req){

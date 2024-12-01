@@ -136,6 +136,7 @@ Route::middleware(['jwt','localize'])->prefix('admin/v1/{lang}')->group(function
         Route::get('{order_id}/packages',[PickUpCenterController::class,'getPackagesByOrderId']);
         Route::post('{order_id}/package',[PickUpCenterController::class,'addPackage']);
         Route::post('{order_id}/image',[PickUpCenterController::class,'addOrderImage']);
+        Route::get('{order_id}/image',[PickUpCenterController::class,'getOrderImages']);
         Route::get('package/{id}',[PickUpCenterController::class,'getOnePackageById']);
         Route::put('{id}/arrive',[PickUpCenterController::class,'arriveWarehouse']);
         Route::put('{order_id}/package/{id}',[PickUpCenterController::class,'updatePackage']);

@@ -92,9 +92,10 @@ Route::middleware(['jwtMerchant','localize'])->prefix('merchant/v1/{lang}')->gro
     });
 
     Route::prefix('setting')->group(function (){
-        // Route::prefix('option')->group(function (){
-        //     Route::get('failRemark',[GeneralSettingController::class,'getOptionsDriverFailRemarks']);
-        // });
+        Route::prefix('option')->group(function (){
+            Route::get('zone/{zone_id}/price',[HomeController::class,'getZonePrice']);
+            Route::get('zone',[HomeController::class,'getOptionsZone']);
+        });
         Route::prefix('form')->group(function (){
             Route::get('booking',[GeneralSettingController::class,'getMerchantFormBooking']);
         });

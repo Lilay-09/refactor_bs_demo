@@ -37,6 +37,7 @@ class PickupCenterService
             // 'zone_id' => 'required|string',
             'receiver_phone' => 'required|string',
             'receiver_name' => 'nullable|string',
+            'pickup_notes' => 'nullable|string',
             'actual_kg' => 'nullable|numeric',
             'billed_kg' => 'nullable|numeric',
             'delivery_type' => 'nullable|in:fast,normal',
@@ -80,6 +81,7 @@ class PickupCenterService
         $inputs['booking_channel'] = $user->account_type;
         $details = $inputs['details'] ?? [];
         $images = $inputs['images'] ?? [];
+        // Log::info(json_encode($images));
         $inputs['order_datetime'] = now();
         $inputs['warehouse_id'] = GeneralSettingService::getWarehouse($user)->id;
         if($user->account_type == 'driver') $inputs['driver_id'] = $user->id;
@@ -126,6 +128,8 @@ class PickupCenterService
             $deleteImgs = [];
             if(isset($images[0])){
                 foreach($images as $photo){
+                    // Log::info($photo->getClientOriginalName());
+                    // Log::info($photo->getClientMimeType());
                     $img = Helper::saveImageFile($photo,$companyId,'order_image');
                     $deleteImgs[] = $img->filename;
                     OrderImage::create([
@@ -243,7 +247,7 @@ class PickupCenterService
             $createPackage = Package::create($inputs);
             if(!$createPackage) return DataResponse::Error(__('messages.Fail to create package'));
             $qrCode = Helper::generateBarcodeString($createPackage->id,$user->company_id);
-            Package::find($createPackage->id)->update([
+            Package::find(id: $createPackage->id)->update([
                 'qr_code' => $qrCode
             ]);
             $count = Package::where('order_id',$orderId)->where('is_deleted',0)->count();

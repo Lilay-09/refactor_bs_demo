@@ -183,7 +183,6 @@ class PriceListController extends Controller
             'deleted_uid' => $user->id,
             'deleted_datetime' => now()
         ]);
-
         return ApiResponse::JsonResult(null,'Deleted');
     }
     /**
