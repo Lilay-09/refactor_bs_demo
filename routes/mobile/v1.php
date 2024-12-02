@@ -72,11 +72,13 @@ Route::prefix('merchant/v1/{lang}/auth')->middleware('localize')->group(function
     Route::post('verifyOtp',[AuthMerchantController::class,'verifyOtp']);
     Route::middleware('jwtMerchant')->group(function(){
         Route::get('profile',[AuthMerchantController::class,'getProfile']);
+        Route::post('profile',[AuthMerchantController::class,'updateProfile']);
     });
 });
 
 Route::middleware(['jwtMerchant','localize'])->prefix('merchant/v1/{lang}')->group(function(){
     Route::post('notification/subscribe',[AuthMerchantController::class,'subscribeTopics']);
+    Route::get('termConditions',[HomeController::class,'getTermConditions']);
     Route::prefix('home')->group(function(){
         Route::post('booking',[HomeController::class,'createBooking']);
         Route::get('promotion',[HomeController::class,'getPromotions']);
