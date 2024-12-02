@@ -105,7 +105,6 @@ class AuthController extends Controller
         $inputs = $validate->validated();
         $photo = $inputs['photo'] ?? null;
         if($photo instanceof UploadedFile){
-
             $inputs['photo_file_name'] = Helper::saveImageFile($photo,$authUser->company_id,'user_profile')->filename;
             Helper::deleteImageFile($user->photo_file_name,$authUser->company_id,'user_profile');
         }else if(!$photo) Helper::deleteImageFile($user->photo_file_name,$authUser->company_id,'user_profile');

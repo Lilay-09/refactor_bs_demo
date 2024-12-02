@@ -63,7 +63,7 @@ class HomeController extends Controller
         foreach($orders as $order){
             $order->status_code = 'Pending';
         }
-        return ApiResponse::Pagination($orders);
+        return ApiResponse::Pagination($orders,$req);
     }
 
     public function getPickOrders(Request $req){
@@ -78,7 +78,7 @@ class HomeController extends Controller
             $order->driver_name = $order->driver->user_name;
             unset($order->tracking_status,$order->driver);
         }
-        return ApiResponse::Pagination($orders);
+        return ApiResponse::Pagination($orders,$req);
     }
 
     public function getOnDeliveryPackages(Request $req){
@@ -97,7 +97,12 @@ class HomeController extends Controller
             $package->total = $package->cod_fee + $package->delivery_fee;
             unset($package->driver);
         }
-        return ApiResponse::Pagination($packages);
+        return ApiResponse::Pagination($packages,$req);
+    }
+
+    public function getTermConditions(Request $req){
+        $user = UserService::getAuthUser('merchant');
+        return ApiResponse::JsonResult(GeneralSettingService::termAndConditions($user));
     }
 
     public function getSuccessPackages(Request $req){
@@ -106,7 +111,7 @@ class HomeController extends Controller
         ->with('driver')
         ->where('status_id',9)
         ->where('is_deleted',0)
-        ->selectRaw('id,merchant_id,receiver_phone,receiver_address,receiver_name,cod,price,delivery_fee,remarks,driver_id,delivered_datetime')
+        ->selectRaw('id,merchant_id,receiver_phone,receiver_address,receiver_name,cod,price,delivery_fee,remarks,driver_id,delivered_datetime,arrive_warehouse_datetime')
         ->get();
         foreach($packages as $package){
             $package->cod_fee = $package->cod ? $package->price : 0;
@@ -116,7 +121,7 @@ class HomeController extends Controller
             $package->total = $package->cod_fee + $package->delivery_fee;
             unset($package->driver);
         }
-        return ApiResponse::Pagination($packages);
+        return ApiResponse::Pagination($packages,$req);
     }
 
     public function getFailPackages(Request $req){
@@ -135,7 +140,7 @@ class HomeController extends Controller
             $package->total = $package->cod_fee + $package->delivery_fee;
             unset($package->driver,$package->status);
         }
-        return ApiResponse::Pagination($packages);
+        return ApiResponse::Pagination($packages,$req);
     }
 
     public function getReturnPackages(Request $req){
@@ -154,7 +159,7 @@ class HomeController extends Controller
             $package->returned_date = Helper::formatCustomDateTime($package->returned_date, 'Y-m-d H:i:s');
             unset($package->driver,$package->status);
         }
-        return ApiResponse::Pagination($packages);
+        return ApiResponse::Pagination($packages,$req);
     }
 
     public function getPromotions(Request $req){
@@ -172,7 +177,7 @@ class HomeController extends Controller
             $promotion->image_url = Helper::getImageUrl($promotion->photo_file_name,$user->company_id,'promotion');
         }
 
-        return ApiResponse::Pagination($promotions);
+        return ApiResponse::Pagination($promotions,$req);
     }
 
     public function getOptionsZone(Request $req){

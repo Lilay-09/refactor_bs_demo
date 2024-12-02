@@ -11,6 +11,7 @@ use App\Services\Mobile\AuthService;
 use App\Services\UserService;
 use Helper;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 use Log;
 use Tymon\JWTAuth\Exceptions\JWTException;
 use Tymon\JWTAuth\Facades\JWTAuth;
@@ -89,14 +90,6 @@ class AuthController extends Controller
         // ->withCookie(cookie('token', $token, 0.5, '/', null, false, true)->withSameSite('None'))
         // ->withCookie(cookie('refresh_token', $refreshToken, config('jwt.refresh_ttl'), '/', null, false, true)->withSameSite('None'));
     }
-
-
-    public function getProfile(Request $req){
-        $user = UserService::getAuthUser('merchant');
-        $authService = new AuthService();
-        return ApiResponse::flex($authService->getProfile($user));
-    }
-
     public function merchantRegistration(Request $req){
         return AppSetting::sendSms();
         $validate = validator($req->all(),[
@@ -144,5 +137,33 @@ class AuthController extends Controller
         $user = UserService::getAuthUser($this->userClass);
         $cldMsgService = new CloudMessagingService();
         return $cldMsgService->subscribeTopic($this->userClass,$req,$user);
+    }
+
+    public function getProfile(Request $req){
+        $user = UserService::getAuthUser('merchant');
+        $authService = new AuthService();
+        return ApiResponse::flex($authService->getProfile($user));
+    }
+
+    public function updateProfile(Request $req){
+        $authUser = UserService::getAuthUser('merchant');
+        $validate = validator($req->all(),[
+            'user_name' => 'required|string',
+            'email' => 'nullable|string',
+            'address' => 'nullable|string',
+            'photo' => 'nullable'
+        ]);
+        if($validate->fails()) return ApiResponse::ValidateFail($validate->errors()->first());
+        $user = User::where('account_type',$authUser->account_type)->selectRaw('id,photo_file_name,user_name,phone,email')->find($authUser->id);
+        $inputs = $validate->validated();
+        $photo = $inputs['photo'] ?? null;
+        if($photo instanceof UploadedFile){
+            $inputs['photo_file_name'] = Helper::saveImageFile($photo,$authUser->company_id,'user_profile')->filename;
+            Helper::deleteImageFile($user->photo_file_name,$authUser->company_id,'user_profile');
+        }else if(!$photo) Helper::deleteImageFile($user->photo_file_name,$authUser->company_id,'user_profile');
+        $user->update($inputs);
+        return ApiResponse::JsonResult(null,__('messages.info',[
+            'info' => 'Updated'
+        ]));
     }
 }

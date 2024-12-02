@@ -314,10 +314,12 @@ class HomeScreenController extends Controller
             'info' => 'Package'
         ]));
         if($photo) {
+            \Log::error($photo->getClientMimeType());
             $inputs['photo_file_name'] = Helper::saveImageFileOrBase64($photo,$user->company_id,'submit_package')->filename;
             Helper::deleteImageFile($package->photo_file_name,$user->company_id,'submit_package');
         }
         if($package->status_id == 9) return ApiResponse::Duplicated('This package has already been delivered!');
+        if($package->status_id == 11) return ApiResponse::Duplicated('This package has already been returned!');
         if($package->driver_id !== $user->id) return ApiResponse::Duplicated(__('messages.info',[
             'info' => 'Please submit package that belongs to you'
         ]));
