@@ -430,10 +430,12 @@ class HomeScreenController extends Controller
         $topics = GeneralSettingService::getGeneralTopics($user->company_id,'merchant',$order->merchant_id);
         $notifReq = new Request([
             'topic' => $topics->private,
+            'type' => 'private',
+            'target_uid' => $package->merchant_id,
             'title' => 'Contact receiver',
             'body' => 'Driver contacted receiver '.$package->receiver_phone
         ]);
-        $notif->sendNotificationByTopic($notifReq);
+        $notif->sendNotificationByTopic($notifReq,$user);
         return ApiResponse::JsonResult(null,__('messages.info',[
             'info' => 'Marked as contact',
         ]));

@@ -13,6 +13,7 @@ class PriceList extends Model
     protected $fillable = [
         'id',
         'price',
+        'base_fee',
         'below_kg',
         'below_kg_price',
         'price_list_name_id',

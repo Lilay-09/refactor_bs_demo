@@ -13,8 +13,6 @@ use Kreait\Firebase\Exception\Messaging\InvalidMessage;
 use Kreait\Firebase\Exception\Messaging\NotFound;
 use Kreait\Firebase\Factory;
 use Kreait\Firebase\Messaging\CloudMessage;
-use Log;
-use Notification;
 
 class CloudMessagingService
 {
@@ -209,9 +207,38 @@ class CloudMessagingService
         }
     }
 
-    public function sendNotificationByTopic(Request $req){
+    private function saveNotification($targetUid,$type,$title,$body,$user,$status='sent'): void{
+        $token = UserNotificationToken::where('user_id',$targetUid)->first();
+        if($token){
+            $userTopic = NotificationTopic::where('token_id',$token->id)->where('type',$type)->first();
+            if($userTopic){
+                \App\Models\Notification::create([
+                    'topic_id' => $userTopic->id,
+                    'title' => $title,
+                    'body' => $body,
+                    'user_id' => $targetUid,
+                    'is_read' => 0,
+                    'status' => $status,
+                    'sent_datetime' => now(),
+                    'create_uid' => $user->id,
+                    'update_uid' => $user->id,
+                    'company_id' => $user->company_id,
+                    'branch_id' => $user->branch_id
+                ]);
+            }
+        }
+    }
+
+    public function sendNotificationByTopic(Request $req,$authUser){
         $validate = $this->sendNotifValidation($req,'topic');
         if($validate->fails()) return DataResponse::ValidateFail($validate->errors()->first());
+        $body = $req->body;
+        $type = $req->type;
+        $title = $req->title;
+        $targetUid = $req->target_uid;
+        if($targetUid){
+            $this->saveNotification($targetUid,$type,$title,$body,$authUser);
+        }
         return $this->sendNotification('topic',$req->topic,$req->title,$req->body,$req->data);
     }
 

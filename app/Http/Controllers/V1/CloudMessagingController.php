@@ -26,7 +26,8 @@ class CloudMessagingController extends Controller
     }
 
     public function sendNoficationViaTopic(Request $req){
-        return ApiResponse::JsonRaw($this->cloudService->sendNotificationByTopic($req));
+        $user = UserService::getAuthUser();
+        return ApiResponse::JsonRaw($this->cloudService->sendNotificationByTopic($req,$user));
     }
 
 }

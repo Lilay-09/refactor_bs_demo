@@ -22,9 +22,9 @@ class CompanyProfileController extends Controller
             'description' => 'nullable|string|max:250',
             'photo' => 'nullable|string',
             'address_kh' => 'nullable|string|max:250',
-            // 'cp_phone' => 'nullable|string|max:20',
-            // 'cp_name' => 'nullable|string|max:35',
-            // 'cp_email' => 'nullable|email|max:100',
+            'cp_phone' => 'nullable|string|max:20',
+            'cp_name' => 'nullable|string|max:35',
+            'cp_email' => 'nullable|email|max:100',
         ]);
     }
     public function update(Request $req){

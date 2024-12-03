@@ -3,6 +3,7 @@ use App\Http\Controllers\Mobile\Driver\V1\AuthController;
 use App\Http\Controllers\Mobile\Driver\V1\HistoryController;
 use App\Http\Controllers\Mobile\Driver\V1\SearchController;
 use App\Http\Controllers\Mobile\Merchant\V1\AuthController as AuthMerchantController;
+use App\Http\Controllers\Mobile\Merchant\V1\HistoryController as MerchantHistoryController;
 use App\Http\Controllers\Mobile\Driver\V1\HomeScreenController;
 use App\Http\Controllers\Mobile\Merchant\V1\HomeController;
 use App\Http\Controllers\Mobile\V1\GeneralSettingController;
@@ -79,9 +80,16 @@ Route::prefix('merchant/v1/{lang}/auth')->middleware('localize')->group(function
 Route::middleware(['jwtMerchant','localize'])->prefix('merchant/v1/{lang}')->group(function(){
     Route::post('notification/subscribe',[AuthMerchantController::class,'subscribeTopics']);
     Route::get('termConditions',[HomeController::class,'getTermConditions']);
+    Route::get('connectWithUs',[HomeController::class,'getConnectWithUs']);
+    Route::post('feedback',[HomeController::class,'feedBack']);
+    Route::get('notification',[HomeController::class,'getNotifications']);
+    Route::put('notification/read/{id?}',[HomeController::class,'readNotification']);
+    Route::get('history/packages',[MerchantHistoryController::class,'getAllHistories']);
     Route::prefix('home')->group(function(){
+        Route::get('',[HomeController::class,'getHomeScreen']);
         Route::post('booking',[HomeController::class,'createBooking']);
         Route::get('promotion',[HomeController::class,'getPromotions']);
+        Route::get('find/package/{phone?}',[HomeController::class,'findPackage']);
         Route::prefix('tracking')->group(function(){
             Route::get('pending',[HomeController::class,'getPendingOrders']);
             Route::get('pick',[HomeController::class,'getPickOrders']);

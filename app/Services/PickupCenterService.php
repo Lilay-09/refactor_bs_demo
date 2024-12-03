@@ -35,9 +35,11 @@ class PickupCenterService
             'receiver_address' => 'nullable|string',
             'zone_code' => 'required|string|exists:zones,zone_code',
             // 'zone_id' => 'required|string',
+            'remarks' => 'nullable|string|max:250',
             'receiver_phone' => 'required|string',
             'receiver_name' => 'nullable|string',
             'pickup_notes' => 'nullable|string',
+            'extra_charge' => 'nullable|numeric',
             'actual_kg' => 'nullable|numeric',
             'billed_kg' => 'nullable|numeric',
             'delivery_type' => 'nullable|in:fast,normal',
@@ -142,6 +144,16 @@ class PickupCenterService
                     ]);
                 }
             }
+            $clmsg = new CloudMessagingService();
+            $topics = GeneralSettingService::getGeneralTopics($user->company_id,'merchant',$merchantId);
+            $clmsgReq = new Request([
+                'topic' => $topics->private,
+                'title' => 'Create Order',
+                'body' => ucfirst($user->account_type).' has created an order for you.',
+                'type' => 'private',
+                'target_uid' => $merchantId
+            ]);
+            $clmsg->sendNotificationByTopic($clmsgReq,$user);
             DB::commit();
             return DataResponse::JsonResult(null,false,'Order created ('.$code.')');
         }catch(Exception $e){
@@ -233,8 +245,8 @@ class PickupCenterService
 
         $zoneName = Zone::where('zone_code',$zoneCode)->value('zone_name');
         $inputs['zone_name'] = $zoneName;
-
-        $calPrice = GeneralSettingService::calculatePackageFee($zoneCode,$price,$billedKg,$actualKg,$payer,$cod,$user);
+        $extraCharge = $inputs['extra_charge'] ?? 0;
+        $calPrice = GeneralSettingService::calculatePackageFee($zoneCode,$price,$billedKg,$actualKg,$payer,$cod,$extraCharge,$user);
         if($calPrice->error) return $calPrice;
         $inputs['driver_total'] = $calPrice->driver_total;
         $inputs['merchant_total'] = $calPrice->merchant_total;

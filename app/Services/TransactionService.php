@@ -598,7 +598,7 @@ class TransactionService
         // $package = Package::where('is_deleted',0)->where('company_id',$user->company_id)->find($id);
         $package = Package::fromRaw('packages as p')->where('p.company_id',$user->company_id)
         ->leftJoin('payments as dpmt',$joinCallback)
-        ->selectRaw('p.id,p.taxi_fee,p.cod,p.payer,p.zone_code,p.price,p.billed_kg,p.actual_kg,p.driver_payment_id,p.merchant_payment_id')
+        ->selectRaw('p.extra_charge,p.id,p.taxi_fee,p.cod,p.payer,p.zone_code,p.price,p.billed_kg,p.actual_kg,p.driver_payment_id,p.merchant_payment_id')
         ->where('p.id',$id)->first();
         if(!$package) return DataResponse::NotFound(__('messages.not_found',[
             'info' => 'Package'
@@ -612,7 +612,7 @@ class TransactionService
         $cod = $inputs['cod'];
         $payer = $inputs['payer'];
         $taxi_fee = $inputs['taxi_fee'] ?? $package->taxi_fee;
-        $calFee = GeneralSettingService::calculatePackageFee($package->zone_code,$package->price,$package->billed_kg,$package->actual_kg,$payer,$cod,$user,$taxi_fee);
+        $calFee = GeneralSettingService::calculatePackageFee($package->zone_code,$package->price,$package->billed_kg,$package->actual_kg,$payer,$cod,$package->extra_charge,$user,$taxi_fee);
         $inputs['driver_total'] = $calFee->driver_total;
         $inputs['merchant_total'] = $calFee->merchant_total;
         $package->update($inputs);

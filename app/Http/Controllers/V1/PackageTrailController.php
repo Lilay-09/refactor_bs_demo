@@ -29,8 +29,8 @@ class PackageTrailController extends Controller
         ->where('outstanding',0)
         // ->whereNotIn('status_id',[]) // at warehouse
         ->where('company_id',$user->company_id)
-        ->whereNotIn('status_id',[9,10,19])
-        ->selectRaw('merchant_id,order_id,id,taxi_fee,delivery_type,qr_code,price,driver_id,product_type,dim_z,dim_x,dim_y,status_id,failure_notes,payer,cod,delivery_fee,receiver_address,zone_code,zone_name,receiver_name,receiver_phone,delivered_datetime,assign_driver_datetime,arrive_warehouse_datetime,driver_total,merchant_total')
+        ->whereNotIn('status_id',[9])
+        ->selectRaw('merchant_id,order_id,id,taxi_fee,delivery_type,qr_code,price,driver_id,product_type,dim_z,dim_x,dim_y,status_id,failure_notes,payer,cod,delivery_fee,receiver_address,zone_code,zone_name,receiver_name,receiver_phone,delivered_datetime,assign_driver_datetime,arrive_warehouse_datetime,driver_total,merchant_total,billed_kg,actual_kg')
         ->orderByRaw('(status_id = ?) DESC', [5])
         ->orderBy('arrive_warehouse_datetime','desc');
         if($search){
@@ -59,7 +59,7 @@ class PackageTrailController extends Controller
         ->where('outstanding',0)
         // ->whereNotIn('status_id',[]) // at warehouse
         ->where('company_id',$user->company_id)
-        ->selectRaw('id,taxi_fee,actual_kg,billed_kg,extra_charge,delivery_type,qr_code,price,driver_id,product_type,dim_z,dim_x,dim_y,status_id,failure_notes,payer,cod,delivery_fee,receiver_address,zone_code,zone_name,receiver_name,receiver_phone,delivered_datetime,assign_driver_datetime,arrive_warehouse_datetime,driver_total,merchant_total,driver_id,remarks')
+        ->selectRaw('id,taxi_fee,actual_kg,billed_kg,extra_charge,delivery_type,qr_code,price,driver_id,product_type,dim_z,dim_x,dim_y,status_id,failure_notes,payer,cod,delivery_fee,receiver_address,zone_code,zone_name,receiver_name,receiver_phone,delivered_datetime,assign_driver_datetime,arrive_warehouse_datetime,driver_total,merchant_total,driver_id,remarks,billed_kg,actual_kg')
         ->find($id);
         if(!$package) return ApiResponse::NotFound();
         $package->status_code = $package->status->name;
@@ -99,7 +99,8 @@ class PackageTrailController extends Controller
         $inputs['billed_kg'] = $actualKg;
         $inputs['status_id'] = 5; //** add warehouse */
         $zoneCode = $inputs['zone_code'];
-        $calPrice = GeneralSettingService::calculatePackageFee($zoneCode,$price,$billedKg,$actualKg,$payer,$inputs['cod'],$user);
+        $extra_charge = $inputs['extra_charge'] ?? 0;
+        $calPrice = GeneralSettingService::calculatePackageFee($zoneCode,$price,$billedKg,$actualKg,$payer,$inputs['cod'],$extra_charge,$user);
         if($calPrice->error) return $calPrice;
         $inputs['driver_total'] = $calPrice->driver_total;
         $inputs['merchant_total'] = $calPrice->merchant_total;
@@ -111,15 +112,16 @@ class PackageTrailController extends Controller
     public function returnPackage(Request $req){
         $user = UserService::getAuthUser();
         $id = $req->id;
-        $package = Package::where('company_id',$user->company_id)->where('is_deleted',0)->find($id);
+        $package = Package::where('company_id',$user->company_id)->where('is_deleted',0)->where('outstanding',0)->find($id);
         if(!$package) return ApiResponse::NotFound(trans('messages.not_found',['info' => 'Package','khInfo' => 'កញ្ចប់​']));
-        if($package->status_id !== 10) return ApiResponse::ValidateFail(__('messages.info',[
+        if(!in_array($package->status_id,[5,10,19])) return ApiResponse::ValidateFail(__('messages.info',[
             'info' => 'Only failed package can be returned'
         ]));
         $package->update([
-            'status_id' => 11 // returned
+            'status_id' => 11, // returned
+            'returned_datetime' => now()
         ]);
-        return ApiResponse::JsonResult(null,__('messages.returned',['info' => 'Package']));
+        return ApiResponse::JsonResult(null,__('messages.info',['info' => 'Returned']));
     }
 
     public function getPrintInfo(Request $req){
@@ -162,7 +164,7 @@ class PackageTrailController extends Controller
         if($pacakge->status_id == 19) return ApiResponse::Duplicated(__('messages.error',['info' => 'This package is already marked as failed with fee']));
         if($pacakge->status_id == 11) return ApiResponse::Duplicated(__('messages.error',['info' => 'This package is already returned']));
         if($pacakge->driver_id){
-            $deliveryPackage = DeliveryPackage::where('package_id',$id)->where('is_deleted',0)->where('delay_count')->first();
+            $deliveryPackage = DeliveryPackage::where('package_id',$id)->where('is_deleted',0)->where('delay_count',0)->first();
             if($deliveryPackage){
                 if($deliveryPackage->status_id !== 10) return ApiResponse::Duplicated(__('messages.has already assigned',['info' => 'Package']));
             }

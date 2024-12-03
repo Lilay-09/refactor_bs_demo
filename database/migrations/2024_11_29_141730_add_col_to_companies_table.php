@@ -29,12 +29,15 @@ return new class extends Migration
     {
         Schema::table('companies', function (Blueprint $table) {
             //
-            $table->dropColumn([
-                'cp_name','cp_phone','cp_email'
-            ]);
-            $table->string('address',250)->change();
-            $table->string('name',100)->change();
-            $table->string('name_km',150)->change();
+            DB::table('companies')->whereNull('address')->update(['address' => '']);
+
+            // Revert the nullable changes
+            $table->string('address', 250)->notNullable()->change();
+            $table->string('name', 100)->notNullable()->change();
+            $table->string('name_km', 150)->notNullable()->change();
+
+            // Drop the additional columns
+            $table->dropColumn(['cp_name', 'cp_phone', 'cp_email']);
         });
     }
 };

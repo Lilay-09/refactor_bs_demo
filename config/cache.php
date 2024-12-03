@@ -90,6 +90,10 @@ return [
             'driver' => 'octane',
         ],
 
+
+        'driver' => env('CACHE_DRIVER', 'file'),
+
+
     ],
 
     /*

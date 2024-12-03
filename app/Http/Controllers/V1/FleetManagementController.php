@@ -8,6 +8,7 @@ use App\Models\Delivery;
 use App\Models\DeliveryPackage;
 use App\Models\Package;
 use App\Models\User;
+use App\Services\CompanyProfileService;
 use App\Services\GeneralSettingService;
 use App\Services\UserService;
 use DB;
@@ -35,7 +36,8 @@ class FleetManagementController extends Controller
         // ->groupBy('p.id','dp.delivery_id','dp.delay_count')
         ->get();
         $query = Delivery::with(['status','driver'])->where('is_deleted',0)->where('company_id',$user->company_id)
-        ->selectRaw('id,fleet_tracking_number,status_id,depart_datetime,remarks,package_count,delivered_count,failed_count,warehouse_id,vehicle_type,driver_id');
+        ->orderByDesc('id')
+        ->selectRaw('id,fleet_tracking_number,status_id,driver_id,depart_datetime,remarks,package_count,delivered_count,failed_count,warehouse_id,vehicle_type,driver_id');
         $deliveries = $query->get();
         foreach($deliveries as $delivery){
             $delivery->status_code = $delivery->status->name;
@@ -252,5 +254,30 @@ class FleetManagementController extends Controller
             'info' => 'Package'
         ]));
         return $package;
+    }
+
+
+    public function printTripPackages(Request $req){
+        $user = UserService::getAuthUser();
+        $tripId = $req->trip_id;
+        $startDate = $req->start_date;
+        $endDate = $req->end_date;
+        $companyInfo = CompanyProfileService::profileInfo($user);
+        $qP = Package::fromRaw('packages as p')->join('delivery_packages as dp','p.id','dp.package_id')
+        ->where('dp.delivery_id',$tripId)
+        ->where('dp.delay_count',0)
+        ->selectRaw('p.id as package_id,dp.delivery_id,dp.delay_count,dp.status_id,p.driver_total');
+        if($startDate && $endDate){
+            $startDate = date('Y-m-d H:i:s',strtotime($startDate));
+            $endDate = date('Y-m-d H:i:s',strtotime($endDate));
+            $qP->whereBetween('p.arrive_warehouse_datetime', [$startDate, $endDate]);
+        }
+        $packages = $qP->get();
+        $obj = [
+            'company_info' => $companyInfo,
+            'packages' => $packages
+        ];
+
+        return ApiResponse::JsonResult($obj);
     }
 }

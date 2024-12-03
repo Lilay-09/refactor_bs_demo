@@ -116,6 +116,13 @@ class Helper{
         return true;
     }
 
+    static function getDateDaysAgo($days): string
+    {
+        $date = new DateTime();
+        $date->modify("-$days days");
+        return $date->format('Y-m-d'); // Format the date as 'YYYY-MM-DD'
+    }
+
     static function dateYMD($date,$format='Y-m-d'){
         $datetime = str_replace(" PM", "", $date);
         $datetime = str_replace(" AM", "", $date);
@@ -169,7 +176,7 @@ class Helper{
         }
     }
 
-    static function formatCustomDateTime($datetime, $outputFormat = 'd-M-Y h:i:s', $useMeridiem = true) {
+    static function formatCustomDateTime($datetime, $outputFormat = 'd-M-Y h:i:s A', $useMeridiem = true) {
         if(!$datetime) return null;
         $datetime = str_replace(" PM", "", $datetime);
         $datetime = str_replace(" AM", "", $datetime);
