@@ -4,12 +4,18 @@ namespace App\Http\Controllers\Mobile\Merchant\V1;
 
 use ApiResponse;
 use App\Http\Controllers\Controller;
+use App\Models\Banner;
+use App\Models\FeedBack;
+use App\Models\Notification;
 use App\Models\Order;
 use App\Models\Package;
 use App\Models\Promotion;
+use App\Models\SocialMedia;
+use App\Services\CompanyProfileService;
 use App\Services\GeneralSettingService;
 use App\Services\PickupCenterService;
 use App\Services\UserService;
+use Cache;
 use Helper;
 use Illuminate\Http\Request;
 
@@ -39,7 +45,7 @@ class HomeController extends Controller
         $pickCount = Order::where('merchant_id',$user->id)->where('is_deleted',0)->whereIn('status_id',[2,3,4])->count();
         $onDeliveryCount = Package::where('merchant_id',$user->id)->where('is_deleted',0)->where('status_id',6)->count();
         $successCount = Package::where('merchant_id',$user->id)->where('is_deleted',0)->where('status_id',9)->count();
-        $failCount = Package::where('merchant_id',$user->id)->where('is_deleted',0)->whereIn('status_id',[10,19])->count();
+        $failCount = Package::where('merchant_id',$user->id)->where('is_deleted',0)->whereIn('status_id',[10])->count();
         $returnCount = Package::where('merchant_id',$user->id)->where('is_deleted',0)->whereIn('status_id',[11])->count();
         $totalCount = $pendingCount + $pickCount + $onDeliveryCount + $successCount + $failCount + $returnCount;
         $obj = [
@@ -148,7 +154,7 @@ class HomeController extends Controller
         $packages = Package::where('merchant_id',$user->id)
         ->with(['driver','status'])
         ->whereIn('status_id',[11])
-        ->selectRaw('id,merchant_id,arrive_warehouse_datetime,receiver_phone,receiver_address,receiver_name,cod,price,delivery_fee,status_id,remarks,driver_id,failed_datetime,updated_at as returned_date')
+        ->selectRaw('id,merchant_id,arrive_warehouse_datetime,receiver_phone,receiver_address,receiver_name,cod,price,delivery_fee,status_id,remarks,driver_id,failed_datetime,returned_datetime,updated_at')
         ->get();
         foreach($packages as $package){
             $package->cod_fee = $package->cod ? $package->price : 0;
@@ -156,7 +162,9 @@ class HomeController extends Controller
             $package->driver_phone = $package->driver->phone;
             $package->driver_name = $package->driver->user_name;
             $package->total = $package->cod_fee + $package->delivery_fee;
-            $package->returned_date = Helper::formatCustomDateTime($package->returned_date, 'Y-m-d H:i:s');
+            $returnDate = $package->return_datetime ? $package->return_datetime : $package->updated_at;
+            $package->returned_date = Helper::dateDMY($returnDate);
+            $package->return_time = Helper::formatCustomDateTime($returnDate, 'h:i:s');
             unset($package->driver,$package->status);
         }
         return ApiResponse::Pagination($packages,$req);
@@ -189,5 +197,143 @@ class HomeController extends Controller
         $user = UserService::getAuthUser('merchant');
         $id = $req->zone_id;
         return ApiResponse::JsonResult(GeneralSettingService::priceByZone($id,$user));
+    }
+
+
+    public function getHomeScreen($user){
+        $user = UserService::getAuthUser('merchant');
+        $bannerImages = Banner::where('is_deleted',0)
+        ->where('channel',$user->account_type)->pluck('photo_file_name')
+        ->map(fn($img) => Helper::getImageUrl($img, $user->company_id, 'banner'))
+        ->toArray();
+        $obj = [
+            'banners' => $bannerImages,
+            'daily_summaries' => $this->daily_summaries($user),
+        ];
+        return ApiResponse::JsonResult($obj);
+    }
+
+    private function daily_summaries($user){
+        $today = now();
+        $dateaAgo = Helper::getDateDaysAgo(10);
+        $successCount = Package::where('merchant_id',$user->id)->where('is_deleted',0)
+        ->where('status_id',9)
+        ->whereBetween('delivered_datetime',[$dateaAgo,$today])->count();
+        $failCount = Package::where('merchant_id',$user->id)
+        ->where('is_deleted',0)->whereIn('status_id',[10])
+        ->whereBetween('failed_datetime',[$dateaAgo,$today])->count();
+        $returnCount = Package::where('merchant_id',$user->id)->where('is_deleted',0)
+        ->whereIn('status_id',[11])
+        ->whereBetween('returned_datetime',[$dateaAgo,$today])->orWhereBetween('updated_at',[$dateaAgo,$today])->count();
+        return [
+            'balance' => 0,
+            'delivered' => $successCount,
+            'failed' => $failCount,
+            'returned' => $returnCount,
+            'total' => $successCount + $failCount + $returnCount
+        ];
+    }
+
+    public function getConnectWithUs(){
+        $user = UserService::getAuthUser('merchant');
+        $socialMedias = SocialMedia::where('is_deleted',0)->selectRaw('id,name,photo_file_name,url')->get();
+        $companyInfo = CompanyProfileService::profileInfo($user);
+        foreach($socialMedias as $sm){
+            $sm->image_url = Helper::getImageUrl($sm->photo_file_name,$user->company_id,'social_media');
+        }
+        $bannerImages = Banner::where('is_deleted',0)
+        ->where('channel',$user->account_type)->pluck('photo_file_name')
+        ->map(fn($img) => Helper::getImageUrl($img, $user->company_id, 'banner'))
+        ->toArray()[0] ?? null;
+        $obj = [
+            'banner' => $bannerImages,
+            'contact' => [
+                'phone_1' => $companyInfo->phone,
+                'phone_2' => $companyInfo->cp_phone,
+                'email' => $companyInfo->email
+            ],
+            'social_medias' => $socialMedias
+        ];
+        return ApiResponse::JsonResult($obj);
+    }
+
+    public function findPackage(Request $req){
+        $user = UserService::getAuthUser('merchant');
+        $phone = $req->phone;
+        if(!$phone) return ApiResponse::ValidateFail(__('messages.info',[
+            'info' => 'Enter your customer phone number to continue'
+        ]));
+        $packages = Package::where('merchant_id',$user->id)
+        ->with(['driver','status'])
+        ->whereIn('status_id',[10,19,9,6])
+        ->where('is_deleted',0)
+        ->where('receiver_phone',$phone)
+        ->selectRaw('id,merchant_id,arrive_warehouse_datetime,receiver_phone,receiver_address,receiver_name,cod,price,delivery_fee,status_id,remarks,driver_id,failed_datetime')
+        ->get();
+        foreach($packages as $package){
+            $package->cod_fee = $package->cod ? $package->price : 0;
+            $package->status_code = $package->status->name;
+            $package->driver_phone = $package->driver->phone;
+            $package->driver_name = $package->driver->user_name;
+            $package->total = $package->cod_fee + $package->delivery_fee;
+            unset($package->driver,$package->status);
+        }
+        return ApiResponse::Pagination($packages,$req);
+    }
+
+    public function feedBack(Request $req){
+        $user = UserService::getAuthUser('merchant');
+        $validate = validator($req->all(),[
+            'rate' => 'required|int|min:1|max:5',
+            'comments' => 'nullable|string|max:350'
+        ]);
+        if($validate->fails()) return ApiResponse::ValidateFail($validate->errors()->first());
+        $inputs = $validate->validated();
+        $comments = $inputs['comments'] ?? null;
+        $rate = $inputs['rate'];
+        $cache = Cache::get('feedback');
+        if($cache) return ApiResponse::Duplicated('You have already feedback');
+        FeedBack::create([
+            'channel' => 'merchant',
+            'comments' => $comments,
+            'rate' => $rate,
+            'create_uid' => $user->id,
+            'update_uid' => $user->id,
+            'branch_id' => $user->branch_id,
+            'company_id' => $user->company_id,
+        ]);
+        Cache::set('feedback',$user->id,60);
+
+        return ApiResponse::JsonResult(null,__('messages.info',[
+            'info' => 'Thanks for your feedback!',
+            'khInfo' => 'អរគុណសម្រាប់ការបញ្ចេញមតិ'
+        ]));
+    }
+
+
+    public function getNotifications(){
+        $user = UserService::getAuthUser('merchant');
+        $notifications = Notification::where('user_id',$user->id)->where('is_read',0)->selectRaw('id,is_read,title,body')->get();
+        return ApiResponse::JsonResult($notifications);
+    }
+
+    public function readNotification(Request $req){
+        $user = UserService::getAuthUser('merchant');
+        $id = $req->id;
+        $msg = 'Mark read all';
+        $notification = Notification::where('user_id',$user->id)->where('is_read',0)->selectRaw('id,is_read,title,body');
+        if($id) {
+            $msg = 'Read';
+            $notification->where('id',$id)->update([
+                'is_read' => true,
+                'read_datetime' => now()
+            ]);
+        }else{
+            $notification->update([
+                'is_read' => true,
+                'read_datetime' => now()
+            ]);
+        }
+        return ApiResponse::JsonResult(null,$msg);
     }
 }

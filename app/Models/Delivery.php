@@ -41,7 +41,7 @@ class Delivery extends Model
     }
 
     public function driver(){
-        return $this->belongsTo(TrackingStatus::class,'driver_id','id');
+        return $this->belongsTo(User::class,'driver_id','id');
     }
 
     public function status(){
