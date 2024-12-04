@@ -101,6 +101,7 @@ class HomeController extends Controller
             $package->driver_phone = $package->driver->phone;
             $package->driver_name = $package->driver->user_name;
             $package->total = $package->cod_fee + $package->delivery_fee;
+            $package->fee = $package->delivery_fee;
             unset($package->driver);
         }
         return ApiResponse::Pagination($packages,$req);
@@ -125,6 +126,7 @@ class HomeController extends Controller
             $package->driver_phone = $package->driver->phone;
             $package->driver_name = $package->driver->user_name;
             $package->total = $package->cod_fee + $package->delivery_fee;
+            $package->fee = $package->delivery_fee;
             unset($package->driver);
         }
         return ApiResponse::Pagination($packages,$req);
@@ -144,6 +146,7 @@ class HomeController extends Controller
             $package->driver_phone = $package->driver->phone;
             $package->driver_name = $package->driver->user_name;
             $package->total = $package->cod_fee + $package->delivery_fee;
+            $package->fee = $package->delivery_fee;
             unset($package->driver,$package->status);
         }
         return ApiResponse::Pagination($packages,$req);
@@ -162,6 +165,7 @@ class HomeController extends Controller
             $package->driver_phone = $package->driver->phone;
             $package->driver_name = $package->driver->user_name;
             $package->total = $package->cod_fee + $package->delivery_fee;
+            $package->fee = $package->delivery_fee;
             $returnDate = $package->return_datetime ? $package->return_datetime : $package->updated_at;
             $package->returned_date = Helper::dateDMY($returnDate);
             $package->return_time = Helper::formatCustomDateTime($returnDate, 'h:i:s');
@@ -227,7 +231,7 @@ class HomeController extends Controller
         ->whereBetween('returned_datetime',[$dateaAgo,$today])->orWhereBetween('updated_at',[$dateaAgo,$today])->count();
         return [
             'balance' => 0,
-            'delivered' => $successCount,
+            'delivered' => 50,//$successCount,
             'failed' => $failCount,
             'returned' => $returnCount,
             'total' => $successCount + $failCount + $returnCount

@@ -2,6 +2,7 @@
 use App\Http\Controllers\Mobile\Driver\V1\AuthController;
 use App\Http\Controllers\Mobile\Driver\V1\HistoryController;
 use App\Http\Controllers\Mobile\Driver\V1\SearchController;
+use App\Http\Controllers\Mobile\Driver\V1\TransactionController;
 use App\Http\Controllers\Mobile\Merchant\V1\AuthController as AuthMerchantController;
 use App\Http\Controllers\Mobile\Merchant\V1\HistoryController as MerchantHistoryController;
 use App\Http\Controllers\Mobile\Driver\V1\HomeScreenController;
@@ -23,6 +24,11 @@ Route::middleware(['jwtDriver','localize'])->prefix('driver/v1/{lang}')->group(f
     Route::post('notification/subscribe',[AuthController::class,'subscribeTopics']);
     Route::post('notification/unsubscribe',[AuthController::class,'unsubscribeTopics']);
     Route::get('termConditions',[HomeScreenController::class,'getTermConditions']);
+    Route::prefix('transaction')->group(function(){
+        Route::get('',[TransactionController::class,'getTransactionSummary']);
+        Route::get('commission',[TransactionController::class,'getComissonTranxAndReport']);
+    });
+
     Route::prefix('home')->group(function(){
         Route::get('balance',[HomeScreenController::class,'getDriverBalance']);
         Route::post('booking',[HomeScreenController::class,'booking']);

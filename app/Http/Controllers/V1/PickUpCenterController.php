@@ -309,7 +309,7 @@ class PickUpCenterController extends Controller
         $packages = $qP->get();
         foreach ($packages as $pkg){
             $pkg->cod = $pkg->cod? 1:0;
-            $pkg->total = 0;
+            $pkg->total = $pkg->delivery_fee + ($pkg->cod ? $pkg->price:0) + $pkg->extra_charge;
             $pkg->fee = $pkg->delivery_fee + $pkg->price + $pkg->extra_charge;
             unset($pkg->status);
         }

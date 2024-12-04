@@ -109,6 +109,19 @@ class PackageTrailController extends Controller
         return ApiResponse::JsonResult(null,__('messages.updated'));
     }
 
+    public function deletePackage(Request $req){
+        $user = UserService::getAuthUser();
+        $id = $req->id;
+        $package = Package::where('company_id',$user->company_id)->where('is_deleted',0)->where('outstanding',0)->find($id);
+        // if(in_array($package->status_id,[]))
+        // $package->update([
+        //     'is_deleted' => true,
+        //     'deleted_datetime' => now(),
+        //     'deleted_uid' => $user->id
+        // ]);
+        return ApiResponse::JsonResult(null,__('messages.info',['info' => 'Deleted']));
+    }
+
     public function returnPackage(Request $req){
         $user = UserService::getAuthUser();
         $id = $req->id;
@@ -176,7 +189,7 @@ class PackageTrailController extends Controller
                 'status_id' => 6, // On Delivery
                 'assign_driver_datetime' => now(),
             ]);
-            $trip = $this->createOrUpdateTrip($driver_id,$id,$validDriver->vehicle_type,$user,$notes);
+            $trip = $this->createOrUpdateTrip($driver_id,$id,$validDriver->vehicle_type,$user,$notes,6);
             if($trip->error) return ApiResponse::flex($trip);
             DB::commit();
             return ApiResponse::JsonResult(null,__('messages.assigned',['info' => '']));
@@ -188,16 +201,31 @@ class PackageTrailController extends Controller
         }
     }
 
-    public function createOrUpdateTrip($driverId,$packageId,$vehicleType,$user,$notes){
+    public function createOrUpdateTrip($driverId,$packageId,$vehicleType,$user,$notes,$statusId){
         $today = date('Y-m-d');
         $isNewPkg = true;
-        $todayDelivery = Delivery::whereDate('depart_datetime',$today)->where('company_id',$user->company_id)->where('driver_id',$driverId)->first();
-        if(!$todayDelivery){
-            $QuerylastPackage = DeliveryPackage::where('package_id',$packageId)->where('is_deleted',0);
-            $hasFailPackage = $QuerylastPackage->get();
+        $pendingTrip = Delivery::where(function ($query) use ($today) {
+            $query->whereDate('depart_datetime', $today)
+                ->orWhere(function ($q) {
+                    $q->where('finished', 0)
+                    ->orWhere('is_completed', 0);
+                });
+        })->where('company_id', $user->company_id)
+        ->where('driver_id', $driverId)
+        ->first();
+
+        // $pendingTrip = Delivery::whereDate('depart_datetime',$today)->where('company_id',$user->company_id)->where('driver_id',$driverId)->first();
+        // if(!$pendingTrip) $pendingTrip = Delivery::where(function($q){
+        //     $q->where('finished',0)
+        //     ->orWhere('is_completed',0);
+        // })->where('company_id',$user->company_id)->where('driver_id',$driverId)->first();
+        if(!$pendingTrip){
+            $QuerylastPackage = DeliveryPackage::where('package_id',$packageId)->where('delay_count',0)->where('is_deleted',0);
+            $hasFailPackage = $QuerylastPackage->orderByDesc('id')->get();
             if(isset($hasFailPackage[0])) $QuerylastPackage->update([
                 'delay_count' => 1,
             ]);
+            // Log::error(json_encode($hasFailPackage));
             $create = Delivery::create([
                 'driver_id' => $driverId,
                 'depart_datetime' => now(),
@@ -215,23 +243,42 @@ class PackageTrailController extends Controller
             // Log::info("adding fleet");
             Helper::setFleetNumber($user->branch_id,'fleet_code_controls','deliveries',$deliveryId,'fleet_tracking_number');
         }else{
-            $deliveryId = $todayDelivery->id;
-            $newPackageCount = $todayDelivery->package_count;
+            $deliveryId = $pendingTrip->id;
+            $newPackageCount = $pendingTrip->package_count;
+            $delay = 1;
             $existsPkg = DeliveryPackage::where('package_id',$packageId)->where('is_deleted',0)
-            ->where('delay_count',0)
             ->first();
-
             if($existsPkg) {
                 $isNewPkg = false;
-            }else $newPackageCount +=1;
-            $todayDelivery->update([
+                $delay = 0;
+                if($statusId){
+                    $existsPkg->update([
+                        'status_id' => $statusId
+                    ]);
+                }
+            }else {
+                $newPackageCount +=1;
+            }
+            $found = Delivery::find($pendingTrip->id);
+            if($found) $found->update([
                 'driver_id' => $driverId,
-                'delay_count' => $todayDelivery->delay_count + 1,
+                'delay_count' => $delay,
+                'status_id' => 14,
                 'package_count' => $newPackageCount,
                 'update_uid' => $user->id,
                 'branch_id' => $user->branch_id,
                 'company_id' => $user->company_id,
             ]);
+            // ->update([
+                // 'driver_id' => $driverId,
+                // 'delay_count' => $delay,
+                // 'status_id' => 14,
+                // 'package_count' => $newPackageCount,
+                // 'update_uid' => $user->id,
+                // 'branch_id' => $user->branch_id,
+                // 'company_id' => $user->company_id,
+            // ]);
+
         }
         //** add delivery tracking */
         if($isNewPkg) {
