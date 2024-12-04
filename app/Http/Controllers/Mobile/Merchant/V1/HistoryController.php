@@ -22,9 +22,11 @@ class HistoryController extends Controller
             $orders = Order::where('merchant_id',$user->id)
             ->with(['tracking_status','driver'])
             ->where('is_deleted',0)
-            ->selectRaw('id,code,qty,product_type,vehicle_type,order_datetime,status_id,driver_id')->whereIn('status_id',[2,3,4])->get();
+            ->selectRaw('id,code,qty,product_type,vehicle_type,order_datetime,status_id,driver_id')
+            ->whereIn('status_id',[2,3,4])->get();
             foreach($orders as $order){
                 $order->status_code = $order->tracking_status->name;
+                $order->render_status = 'Pick Up';
                 $order->driver_phone = $order->driver->phone;
                 $order->driver_name = $order->driver->user_name;
                 unset($order->tracking_status,$order->driver);
@@ -42,9 +44,11 @@ class HistoryController extends Controller
             foreach($packages as $package){
                 $package->cod_fee = $package->cod ? $package->price : 0;
                 $package->status_code = 'On Delivery';
+                $package->render_status = 'On Delivery';
                 $package->driver_phone = $package->driver->phone;
                 $package->driver_name = $package->driver->user_name;
                 $package->total = $package->cod_fee + $package->delivery_fee;
+                $package->fee = $package->delivery_fee;
                 unset($package->driver);
                 $items[] = $package;
             }
@@ -61,10 +65,12 @@ class HistoryController extends Controller
             ->get();
             foreach($successPackages as $package){
                 $package->cod_fee = $package->cod ? $package->price : 0;
-                $package->status_code = 'Delivered';
+                $package->status_code = 'Success';// 'Delivered';
+                $package->render_status = 'Success';
                 $package->driver_phone = $package->driver->phone;
                 $package->driver_name = $package->driver->user_name;
                 $package->total = $package->cod_fee + $package->delivery_fee;
+                $package->fee = $package->delivery_fee;
                 unset($package->driver);
                 $items[] = $package;
             }
@@ -81,9 +87,11 @@ class HistoryController extends Controller
             foreach($packages as $package){
                 $package->cod_fee = $package->cod ? $package->price : 0;
                 $package->status_code = $package->status->name;
+                $package->render_status = $package->status_code;
                 $package->driver_phone = $package->driver->phone;
                 $package->driver_name = $package->driver->user_name;
                 $package->total = $package->cod_fee + $package->delivery_fee;
+                $package->fee = $package->delivery_fee;
                 unset($package->driver,$package->status);
                 $items[] = $package;
             }
@@ -99,9 +107,11 @@ class HistoryController extends Controller
             foreach($packages as $package){
                 $package->cod_fee = $package->cod ? $package->price : 0;
                 $package->status_code = $package->status->name;
+                $package->render_status = $package->status_code;
                 $package->driver_phone = $package->driver?->phone;
                 $package->driver_name = $package->driver?->user_name;
                 $package->total = $package->cod_fee + $package->delivery_fee;
+                $package->fee = $package->delivery_fee;
                 $returnDate = $package->return_datetime ? $package->return_datetime : $package->updated_at;
                 $package->returned_date = Helper::dateDMY($returnDate);
                 $package->return_time = Helper::formatCustomDateTime($returnDate, 'h:i:s');

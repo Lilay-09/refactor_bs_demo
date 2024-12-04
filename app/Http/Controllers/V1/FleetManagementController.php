@@ -92,6 +92,7 @@ class FleetManagementController extends Controller
         ->join('users as d','d.id','p.driver_id')
         ->join('tracking_statuses as ts','ts.id','dp.status_id')
         ->selectRaw('p.price,p.cod,p.receiver_name,p.receiver_phone,p.zone_code,p.zone_name,ts.name as status_code,d.user_name as driver_name,d.phone as driver_phone,m.user_name as merchant_name,m.phone as merchant_phone,p.id as package_id,dp.delivery_id,p.zone_code,p.zone_name,p.delivery_fee as base_fee,p.driver_total,p.driver_total as delivery_fee,p.taxi_fee,p.product_type,dp.status_id')
+        ->orderByRaw('(dp.status_id = ?) DESC', [6])
         ->get();
         // foreach($packages as $package){
 
@@ -173,8 +174,107 @@ class FleetManagementController extends Controller
             'is_deleted' => true,
             'notes' => $deliveryPackage->notes."|[$user->id]-Admin('.$user->user_name) remove package from Driver($driverName) at ($todayDT) on fleet number $fleetNumber"
         ]);
+
         return ApiResponse::JsonResult(null,__('messages.info',[
             'info' => 'Package '.$package->qr_code.' has been removed from Driver'
+        ]));
+    }
+
+    public function deleteTrip(Request $req){
+        $user = UserService::getAuthUser();
+        $tripId = $req->trip_id;
+        $trip = Delivery::where('is_deleted',0)->where('company_id',$user->company_id)
+        ->find($tripId);
+        if(!$trip) return ApiResponse::NotFound(__('messages.not_found',['info' => 'Trip']));
+        $qP = Package::fromRaw('packages as p')->join('delivery_packages as dp','p.id','dp.package_id')
+        ->where('dp.delay_count',0)
+        ->where('dp.delivery_id',$tripId)
+        ->join('users as m','m.id','p.merchant_id')
+        ->join('users as d','d.id','p.driver_id')
+        ->join('tracking_statuses as ts','ts.id','dp.status_id')
+        ->selectRaw('dp.id as dp_id,p.price,p.cod,p.receiver_name,p.receiver_phone,p.zone_code,p.zone_name,ts.name as status_code,d.user_name as driver_name,d.phone as driver_phone,m.user_name as merchant_name,m.phone as merchant_phone,p.id as package_id,dp.delivery_id,p.zone_code,p.zone_name,p.delivery_fee as base_fee,p.driver_total,p.driver_total as delivery_fee,p.taxi_fee,p.product_type,dp.status_id');
+        $packages = $qP->get();
+        // return $packages;
+        $count = $qP->count();
+        $deleteCount = 0;
+        $message = 'Removed on delivery packages from trip list';
+        foreach($packages as $pkg){
+            $deletable = DeliveryPackage::where('status_id',6)->where('is_deleted',0)->find($pkg->dp_id); //** on delivery to package trail
+            if($deletable){
+                $deleteCount += 1;
+                $deletable->update([
+                    'is_deleted' => true,
+                    'deleted_datetime' => now(),
+                    'deleted_uid' => $user->id
+                ]);
+            }
+        }
+        if($deleteCount == $count){
+            $trip->update([
+                'is_deleted' => 1,
+                'deleted_datetime' => now(),
+                'deleted_uid' => $user->id,
+            ]);
+            $message = 'Trip deleted successfully';
+        }
+
+        return ApiResponse::JsonResult(null,__('messages.info',[
+            'info' => $message
+        ]));
+
+    }
+
+    public function finishTrip(Request $req){
+        $user = UserService::getAuthUser();
+        $tripId = $req->trip_id;
+        $reason = $req->reason;
+        if(!$reason) return ApiResponse::ValidateFail(__('messages.info',[
+            'info' => 'Enter your reason'
+        ]));
+        $trip = Delivery::where('is_deleted',0)->where('company_id',$user->company_id)
+        ->find($tripId);
+        if(!$trip) return ApiResponse::NotFound(__('messages.not_found',['info' => 'Trip']));
+        if($trip->finished || $trip->is_completed) {
+            return ApiResponse::Duplicated(__('messages.info',[
+                'info' => 'This trip has already been finisded'
+            ]));
+        }
+
+        $qP = Package::fromRaw('packages as p')->join('delivery_packages as dp','p.id','dp.package_id')
+        ->where('dp.delay_count',0)
+        ->where('dp.delivery_id',$tripId)
+        ->join('users as m','m.id','p.merchant_id')
+        ->join('users as d','d.id','p.driver_id')
+        ->join('tracking_statuses as ts','ts.id','dp.status_id')
+        ->selectRaw('dp.id as dp_id,p.price,p.cod,p.receiver_name,p.receiver_phone,p.zone_code,p.zone_name,ts.name as status_code,d.user_name as driver_name,d.phone as driver_phone,m.user_name as merchant_name,m.phone as merchant_phone,p.id as package_id,dp.delivery_id,p.zone_code,p.zone_name,p.delivery_fee as base_fee,p.driver_total,p.driver_total as delivery_fee,p.taxi_fee,p.product_type,dp.status_id');
+        $packages = $qP->get();
+        foreach($packages as $pkg){
+            $updatable = DeliveryPackage::where('status_id',6)->find($pkg->dp_id); //** on delivery to package trail
+            if($updatable){
+                $updatable->update([
+                    'status_id' => 9,
+                    'update_uid' => $user->id
+                ]);
+            }
+            $updatablePkg = Package::where('status_id',6)->find($pkg->package_id);
+            if($updatablePkg){
+                $updatablePkg->update([
+                    'status_id' => 9,
+                    'update_uid' => $user->id
+                ]);
+            }
+        }
+
+        $trip->update([
+            'finished' => 1,
+            'is_completed' =>1,
+            'status_id' => 16,
+            'finished_reason' => $reason,
+            'finished_datetime' => now()
+        ]);
+
+        return ApiResponse::JsonResult(null,__('messages.info',[
+            'info' => 'Trip finished',
         ]));
     }
 

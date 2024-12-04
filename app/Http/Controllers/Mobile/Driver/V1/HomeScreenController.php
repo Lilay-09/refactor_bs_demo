@@ -314,7 +314,7 @@ class HomeScreenController extends Controller
             'info' => 'Package'
         ]));
         if($photo) {
-            \Log::error($photo->getClientMimeType());
+            // \Log::error($photo->getClientMimeType());
             $inputs['photo_file_name'] = Helper::saveImageFileOrBase64($photo,$user->company_id,'submit_package')->filename;
             Helper::deleteImageFile($package->photo_file_name,$user->company_id,'submit_package');
         }

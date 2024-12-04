@@ -273,6 +273,7 @@ class GeneralSettingService
                 $q->where('zone_id',$zone_id);
             })
             ->orderByDesc('id')
+            ->where('base_fee','>',0)
             ->selectRaw('base_fee,id,price')
             ->first();
         if($row) {
@@ -403,6 +404,7 @@ class GeneralSettingService
             $isCompleted = 0;
             $failCount = 0;
             $stillOnDelivery = 0;
+            $status_id = 16;
             $packages = $queryDeliveryPackage->get();
             foreach($packages as $pck){
                 if($pck->status_id == 9){
@@ -415,16 +417,21 @@ class GeneralSettingService
                 }
             }
             if($trip->package_count == $failCount){
-                $status_id = 17;
+                $status_id = 16;
                 $isCompleted = 1;
             }else if($trip->package_count == $deliveredCount){
-                $status_id = 15;
-            }else if($trip->package_count >= $deliveredCount){
                 $status_id = 16;
-                if($stillOnDelivery) $status_id = 14;
+                $isCompleted = 1;
+            }else
+            if($trip->package_count >= $deliveredCount){
+                $status_id = 16;
+                if($stillOnDelivery) {
+                    $status_id = 14;
+                }
             }
             $trip->update([
                 'is_completed' => $isCompleted,
+                'finished' => $isCompleted,
                 'update_uid' => $user->id,
                 'failed_count' => $failCount,
                 'status_id' => $status_id,

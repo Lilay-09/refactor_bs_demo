@@ -10,14 +10,43 @@ class TransactionController extends Controller
 {
     //
 
-    public function summary(){
+    public function getTransactionSummary(Request $req){
         $obj = (object)[
             'balance_due' => 0,
-            'payment_transaction' => []
+            'count' => 0,
+            'total' => 0,
+            'payment_transaction' => [
+                [
+                    'payment_date' => now(),
+                    'amount' => '',
+                    'method' => '',
+                    'Payer Name' => ''
+                ]
+            ]
         ];
 
         // $payments =
 
         return ApiResponse::JsonResult($obj);
+    }
+
+
+    public function getComissonTranxAndReport(){
+        $obj = (object)[
+            'report' => [
+                [
+                    'category' => '',
+                    'count' => 250,
+                    'unit' => '',
+                    'total' => 0,
+                    'remarks' =>  ''
+                ]
+            ],
+            'transaction' => [
+                [
+
+                ]
+            ],
+        ];
     }
 }
