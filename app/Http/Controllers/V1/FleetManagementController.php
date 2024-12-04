@@ -278,17 +278,30 @@ class FleetManagementController extends Controller
         ]));
     }
 
+    // public function saveDriverTrip(Request $req){
+    //     $user = UserService::getAuthUser();
+    //     $today = date('Y-m-d');
+    //     $validate = validator($req->all(),[
+    //         'barcode' => 'required|string',
+    //         'vehicle_type' => 'nullable|exists:vehicle_types,name',
+    //         'driver_id' => 'required|int'
+    //     ]);
+    //     if($validate->fails()) return ApiResponse::ValidateFail($validate->errors()->first());
+    //     $inputs = $validate->validated();
+    // }
+
     public function createOrUpdateTrip(Request $req){
         $user = UserService::getAuthUser();
         $today = date('Y-m-d');
         $validate = validator($req->all(),[
-            'barcode' => 'required|string',
+            'packages' => 'required|array',
+            'depart_datetime' => 'required',
             'vehicle_type' => 'nullable|exists:vehicle_types,name',
             'driver_id' => 'required|int'
         ]);
         if($validate->fails()) return ApiResponse::ValidateFail($validate->errors()->first());
         $inputs = $validate->validated();
-        $barcode = $inputs['barcode'];
+        $packageIds = $inputs['packages'];
         $driverId = $inputs['driver_id'];
         $vehicleType = $inputs['vehicle_type'] ?? null;
         $driver = User::where('is_deleted',0)->find($driverId);
@@ -296,50 +309,95 @@ class FleetManagementController extends Controller
             'info' => 'Driver'
         ]));
         if(!$vehicleType) $vehicleType = $driver->vehicle_type;
-        $todayDelivery = Delivery::whereDate('depart_datetime',$today)->where('company_id',$user->company_id)->where('driver_id',$driverId)->first();
-        $packageId = Package::where('qr_code',$barcode)->where('is_deleted',0)->value('id');
-        if(!$todayDelivery){
-            $QuerylastPackage = DeliveryPackage::where('package_id',$packageId)->where('is_deleted',0);
-            $hasFailPackage = $QuerylastPackage->get();
-            if(isset($hasFailPackage[0])) $QuerylastPackage->update([
-                'delay_count' => 1,
-            ]);
-            $create = Delivery::create([
-                'driver_id' => $driverId,
-                'depart_datetime' => now(),
-                'package_count' => 1,
-                'status_id' => 14, //** On Delivery */
-                'warehouse_id' => 1,
-                'vehicle_type' => $vehicleType,
-                'branch_id' => $user->branch_id,
-                'company_id' => $user->company_id,
-                'update_uid' => $user->id,
-                'create_uid' => $user->id,
-            ]);
-            if(!$create) return ApiResponse::Error(__('messages.error',['info' => 'Fail to add fleet']));
-            $deliveryId = $create->id;
-            Helper::setFleetNumber($user->branch_id,'fleet_code_controls','deliveries',$deliveryId,'fleet_tracking_number');
-        }else{
-            $deliveryId = $todayDelivery->id;
-            $todayDelivery->update([
-                'driver_id' => $driverId,
-                'delay_count' => $todayDelivery->delay_count + 1,
-                'package_count' => $todayDelivery->package_count + 1,
-                'update_uid' => $user->id,
-                'branch_id' => $user->branch_id,
-                'company_id' => $user->company_id,
-            ]);
+        $pendingTrip = Delivery::where(function ($query) use ($today) {
+            $query->whereDate('depart_datetime', $today)
+                ->orWhere(function ($q) {
+                    $q->where('finished', 0)
+                    ->orWhere('is_completed', 0);
+                });
+        })->where('company_id', $user->company_id)
+        ->where('driver_id', $driverId)
+        ->first();
+        foreach($packageIds as $packageId){
+            if(!$pendingTrip){
+                $QuerylastPackage = DeliveryPackage::where('package_id',$packageId)->where('delay_count',0)->where('is_deleted',0);
+                $hasFailPackage = $QuerylastPackage->orderByDesc('id')->get();
+                if(isset($hasFailPackage[0])) $QuerylastPackage->update([
+                    'delay_count' => 1,
+                ]);
+                // Log::error(json_encode($hasFailPackage));
+                $create = Delivery::create([
+                    'driver_id' => $driverId,
+                    'depart_datetime' => now(),
+                    'package_count' => 1,
+                    'status_id' => 14, //** On Delivery */
+                    'warehouse_id' => 1,
+                    'vehicle_type' => $vehicleType,
+                    'branch_id' => $user->branch_id,
+                    'company_id' => $user->company_id,
+                    'update_uid' => $user->id,
+                    'create_uid' => $user->id,
+                ]);
+                if(!$create) return ApiResponse::Error(__('messages.error',['info' => 'Fail to add fleet']));
+                $deliveryId = $create->id;
+                Helper::setFleetNumber($user->branch_id,'fleet_code_controls','deliveries',$deliveryId,'fleet_tracking_number');
+            }else{
+                $deliveryId = $pendingTrip->id;
+                $newPackageCount = $pendingTrip->package_count;
+                $delay = 1;
+                $existsPkg = DeliveryPackage::where('package_id',$packageId)->where('is_deleted',0)
+                ->first();
+                if($existsPkg) {
+                    $isNewPkg = false;
+                    $delay = 0;
+                    // if($statusId){
+                    //     $existsPkg->update([
+                    //         'status_id' => $statusId
+                    //     ]);
+                    // }
+                }else {
+                    $newPackageCount +=1;
+                }
+                $found = Delivery::find($pendingTrip->id);
+                if($found) $found->update([
+                    'driver_id' => $driverId,
+                    'delay_count' => $delay,
+                    'status_id' => 14,
+                    'package_count' => $newPackageCount,
+                    'update_uid' => $user->id,
+                    'branch_id' => $user->branch_id,
+                    'company_id' => $user->company_id,
+                ]);
+                // ->update([
+                    // 'driver_id' => $driverId,
+                    // 'delay_count' => $delay,
+                    // 'status_id' => 14,
+                    // 'package_count' => $newPackageCount,
+                    // 'update_uid' => $user->id,
+                    // 'branch_id' => $user->branch_id,
+                    // 'company_id' => $user->company_id,
+                // ]);
+
+            }
+            //** add delivery tracking */
+            if($isNewPkg) {
+                $dPackage = DeliveryPackage::create([
+                    'notes' => 'Admin add package to trip ',
+                    'driver_id' => $driverId,
+                    'delivery_id' => $deliveryId,
+                    'package_id' => $packageId,
+                    'status_id' => 6, // On Delivery
+                    'update_uid' => $user->id,
+                    'create_uid' => $user->id,
+                    'branch_id' => $user->branch_id,
+                    'company_id' => $user->company_id,
+                ]);
+                if(!$dPackage) return ApiResponse::Error(__('messages.error',['info' => 'Fail to assign package']));
+            }
+
+
+            GeneralSettingService::updateTripStatus($deliveryId,$user);
         }
-        DeliveryPackage::create([
-            'driver_id' => $driverId,
-            'delivery_id' => $deliveryId,
-            'package_id' => $packageId,
-            'status_id' => 6, // On Delivery
-            'update_uid' => $user->id,
-            'create_uid' => $user->id,
-            'branch_id' => $user->branch_id,
-            'company_id' => $user->company_id,
-        ]);
         return ApiResponse::JsonResult(null,__('messages.saved'));
     }
 

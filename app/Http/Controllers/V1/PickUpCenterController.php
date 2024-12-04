@@ -151,6 +151,7 @@ class PickUpCenterController extends Controller
                 $q->where('phone','ilike','%'.$search.'%');
             });
         }
+        $packages = Package::where('outstanding',1)->where('is_deleted',0)->get();
         $orders = $query->get();
         foreach($orders as $order){
             $order->created_user = $order->createdBy?->user_name;
@@ -163,9 +164,20 @@ class PickUpCenterController extends Controller
             $order->status_code_kh = $order->tracking_status->name;
             $order->driver_name = $order->driver?->user_name;
             $order->driver_code = $order->driver?->code;
+            $order->package_count = $this->getPackageCountByOrder($packages,$order->id);
             unset($order->merchant,$order->driver,$order->tracking_status,$order->createdBy);
         }
         return ApiResponse::Pagination($orders,$req,__('messages.Get Orders'));
+    }
+
+    private function getPackageCountByOrder($packages,$oderId){
+        $count = 0;
+        foreach($packages as $pkg){
+            if($pkg->order_id == $oderId){
+                $count +=1;
+            }
+        }
+        return $count;
     }
 
     public function getOneOrder(Request $req){
@@ -393,9 +405,11 @@ class PickUpCenterController extends Controller
         $order = Order::where('company_id',$user->company_id)->where('is_deleted',0)->find($order_id);
         if(!$order) return ApiResponse::NotFound(__('messages.not_found',['info' => 'Order']));
         if($order->status_id == 5) return ApiResponse::Duplicated(__('messages.already_at_warehouse'));
-        if($order->status_id == 2) return ApiResponse::Forbidden(__('messages.no_access'));
-        if($order->status_id == 3) return ApiResponse::Forbidden(__('messages.no_access'));
-        if($order->status_id == 4) return ApiResponse::Forbidden(__('messages.no_access'));
+        if(!$user->system_admin){
+            if($order->status_id == 2) return ApiResponse::Forbidden(__('messages.no_access'));
+            if($order->status_id == 3) return ApiResponse::Forbidden(__('messages.no_access'));
+            if($order->status_id == 4) return ApiResponse::Forbidden(__('messages.no_access'));
+        }
         $package = Package::where('company_id',$user->company_id)->where('order_id',$order_id)->where('is_deleted',0)->where('outstanding',1)->find($id);
         if(!$package) return ApiResponse::NotFound(trans('messages.not_found',['info' => 'Package','khInfo' => 'កញ្ចប់​']));
         $package->update([

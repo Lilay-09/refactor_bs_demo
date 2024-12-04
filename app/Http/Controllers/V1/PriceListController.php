@@ -67,10 +67,11 @@ class PriceListController extends Controller
         if($validate->fails()) return ApiResponse::ValidateFail($validate->errors()->first());
         $inputs = $validate->validated();
         $zoneIds = $inputs[ 'zones'];
-        $priceListId = $inputs['price_list_id'] ?? null;
-        $isUpdate = $priceListId ? true:false;
-        $priceListName = PriceListname::where('is_deleted',0)->find($inputs['price_list_name_id']);
+        $priceListNameId = $inputs['price_list_name_id'];
+        $priceListName = PriceListname::where('is_deleted',0)->find($priceListNameId);
         if(!$priceListName) return ApiResponse::NotFound(__('messages.not_found',['info' => 'Price List']));
+        $priceListId = $inputs['price_list_id'] ?? PriceList::where('price_list_name_id',$priceListNameId)->take(1)->value('id');
+        $isUpdate = $priceListId ? true:false;
         DB::beginTransaction();
         try{
             if(!$priceListId){
@@ -88,19 +89,24 @@ class PriceListController extends Controller
                 $priceListId = $create->id;
             }
             $useIds = [];
+            $uniqueKeys = uniqid('PZ');
             foreach($zoneIds as $idx=>$id){
                 $existZone = Zone::where('is_deleted',0)->find($id);
                 if(!$existZone) return ApiResponse::NotFound(__('messages.not_found',['info' => 'Zone']).' at row '.($idx+1));
                 $priceListZone = PriceListZone::where('price_list_id',$priceListId)->where('zone_id',$id)->first();
-                $useIds[] = $id;
-                if($priceListZone && $isUpdate) continue;
+                if($priceListId) $useIds[] = $id;
+                if($priceListZone) return ApiResponse::Duplicated(__('messages.info',[
+                    'info' => 'Zone '.$existZone->zone_name."($existZone->zone_code) has already assigned you cannot reassign"
+                ]));
                 PriceListZone::create([
                     'zone_id' => $id,
                     'price_list_id' => $priceListId,
+                    'identifier' => $uniqueKeys
                 ]);
             }
-            PriceListZone::where('price_list_id',$priceListId)->whereNotIn('zone_id',$zoneIds)->delete();
+            // PriceListZone::where('price_list_id',$priceListId)->whereNotIn('zone_id',$zoneIds)->delete();
             // return $useIds;
+            // return PriceListZone::get();
             DB::commit();
             return ApiResponse::JsonResult(null,__('messages.assigned'));
 
@@ -211,81 +217,177 @@ class PriceListController extends Controller
         ];
         $priceList = PriceList::with(['zones'])->where('price_list_name_id',$priceListNameId)->get();
         foreach ($priceList as $pl) {
-            // $key = $pl->price_list_name_id;
-            foreach ($arrObj as &$arr) {
-                // Check if the key is either 'below' or 'above'
-                if ($arr['key'] == 'below' || $arr['key'] == 'above') {
-                    $zoneInfo = [];  // Reset zone names for each priceList
-                    $zoneCodes = [];
-                    foreach ($pl->zones as $z) {
-                        $zoneInfo[] = (object)[
-                            'code' => $z->zone_code,
-                            'zone_id' => $z->id,
-                            'name' => $z->zone_name
-                        ];  // Collect zone names into an array
-                        $zoneCodes[] = $z->zone_code;
-                    }
-                    // Join all zone names into a single string, separated by commas
-                    $zonesString = implode(', ', $zoneCodes);
-                    // Determine the additional_fee based on the key ('below' or 'above')
-                    $additionalFee = ($arr['key'] == 'below') ? ($pl->below_kg_price ?? 0) : ($pl->above_kg_price ?? 0);
-                    // Flag to track whether 'fast' and 'normal' delivery types are found
-                    $fastFound = false;
-                    $normalFound = false;
+    foreach ($arrObj as &$arr) {
+        if ($arr['key'] == 'below' || $arr['key'] == 'above') {
+            $zoneGroups = []; // Group zones by identifier
+            $zoneCodes = [];
 
-                    // Initialize the zone entry with a string of zone names and an empty delivery_types array
-                    $zoneEntry = [
-                        'zone_info' => $zoneInfo,  // Use the concatenated zone names string
-                        'zone_codes' => $zonesString,
-                        'delivery_types' => []  // Array for 'fast' and 'normal'
+            // Fetch all zones for the price list
+            $priceListZones = PriceListZone::where('price_list_id', $pl->id)->get();
+
+            foreach ($pl->zones as $z) {
+                // Find the identifier for this zone from PriceListZone
+                $zoneData = $priceListZones->firstWhere('zone_id', $z->id);
+
+                // Use the identifier if it exists, otherwise group under a separate 'null' group
+                $identifier = $zoneData->identifier ?? 'null';
+
+                // Add this zone to the appropriate group
+                if (!isset($zoneGroups[$identifier])) {
+                    $zoneGroups[$identifier] = [
+                        'identifier' => $identifier,
+                        'zones' => [],
+                        'zone_codes' => []
                     ];
-
-                    // Set delivery types based on $pl data
-                    if ($pl->delivery_type == 'fast') {
-                        $fastFound = true;
-                        $zoneEntry['delivery_types'][] = [
-                            'id' => $pl->id,
-                            'delivery_type' => 'fast',
-                            'base_fee' => $pl->base_fee ?? 0,
-                            'additional_fee' => $additionalFee  // Use the calculated additional fee
-                        ];
-                    }
-
-                    if ($pl->delivery_type == 'normal') {
-                        $normalFound = true;
-                        $zoneEntry['delivery_types'][] = [
-                            'id' => $pl->id,
-                            'delivery_type' => 'normal',
-                            'base_fee' => $pl->base_fee ?? 0,
-                            'additional_fee' => $additionalFee  // Use the calculated additional fee
-                        ];
-                    }
-
-                    // If 'fast' delivery type was not found, add a default entry for it
-                    if (!$fastFound) {
-                        $zoneEntry['delivery_types'][] = [
-                            'id' => $pl->id,
-                            'delivery_type' => 'fast',
-                            'base_fee' => 0,
-                            'additional_fee' => $additionalFee  // Use the calculated additional fee
-                        ];
-                    }
-
-                    // If 'normal' delivery type was not found, add a default entry for it
-                    if (!$normalFound) {
-                        $zoneEntry['delivery_types'][] = [
-                            'id' => $pl->id,
-                            'delivery_type' => 'normal',
-                            'base_fee' => 0,
-                            'additional_fee' => $additionalFee  // Use the calculated additional fee
-                        ];
-                    }
-
-                    // Add the zone entry with the concatenated zone names and delivery types to the list
-                    $arr['list'][] = $zoneEntry;
                 }
+
+                $zoneGroups[$identifier]['zones'][] = (object)[
+                    'code' => $z->zone_code,
+                    'zone_id' => $z->id,
+                    'name' => $z->zone_name
+                ];
+                $zoneGroups[$identifier]['zone_codes'][] = $z->zone_code;
+            }
+
+            // Process grouped zones
+            foreach ($zoneGroups as $group) {
+                $zonesString = implode(', ', $group['zone_codes']);
+                $additionalFee = ($arr['key'] == 'below') ? ($pl->below_kg_price ?? 0) : ($pl->above_kg_price ?? 0);
+
+                $fastFound = false;
+                $normalFound = false;
+
+                // Create a zone entry for this group
+                $zoneEntry = [
+                    'identifier' => $group['identifier'],
+                    'zone_info' => $group['zones'], // Grouped zones for this identifier
+                    'zone_codes' => $zonesString,
+                    'delivery_types' => [] // Initialize delivery types
+                ];
+
+                // Set delivery types based on $pl data
+                if ($pl->delivery_type == 'fast') {
+                    $fastFound = true;
+                    $zoneEntry['delivery_types'][] = [
+                        'id' => $pl->id,
+                        'delivery_type' => 'fast',
+                        'base_fee' => $pl->base_fee ?? 0,
+                        'additional_fee' => $additionalFee
+                    ];
+                }
+
+                if ($pl->delivery_type == 'normal') {
+                    $normalFound = true;
+                    $zoneEntry['delivery_types'][] = [
+                        'id' => $pl->id,
+                        'delivery_type' => 'normal',
+                        'base_fee' => $pl->base_fee ?? 0,
+                        'additional_fee' => $additionalFee
+                    ];
+                }
+
+                // Add default entries if necessary
+                if (!$fastFound) {
+                    $zoneEntry['delivery_types'][] = [
+                        'id' => $pl->id,
+                        'delivery_type' => 'fast',
+                        'base_fee' => 0,
+                        'additional_fee' => $additionalFee
+                    ];
+                }
+
+                if (!$normalFound) {
+                    $zoneEntry['delivery_types'][] = [
+                        'id' => $pl->id,
+                        'delivery_type' => 'normal',
+                        'base_fee' => 0,
+                        'additional_fee' => $additionalFee
+                    ];
+                }
+
+                // Add the zone entry to the list
+                $arr['list'][] = $zoneEntry;
             }
         }
+    }
+}
+
+        // foreach ($priceList as $pl) {
+        //     // $key = $pl->price_list_name_id;
+        //     foreach ($arrObj as &$arr) {
+        //         // Check if the key is either 'below' or 'above'
+        //         if ($arr['key'] == 'below' || $arr['key'] == 'above') {
+        //             $zoneInfo = [];  // Reset zone names for each priceList
+        //             $zoneCodes = [];
+        //             foreach ($pl->zones as $z) {
+        //                 $zoneInfo[] = (object)[
+        //                     'code' => $z->zone_code,
+        //                     'zone_id' => $z->id,
+        //                     'name' => $z->zone_name
+        //                 ];  // Collect zone names into an array
+        //                 $zoneCodes[] = $z->zone_code;
+        //             }
+        //             // Join all zone names into a single string, separated by commas
+        //             $zonesString = implode(', ', $zoneCodes);
+        //             // Determine the additional_fee based on the key ('below' or 'above')
+        //             $additionalFee = ($arr['key'] == 'below') ? ($pl->below_kg_price ?? 0) : ($pl->above_kg_price ?? 0);
+        //             // Flag to track whether 'fast' and 'normal' delivery types are found
+        //             $fastFound = false;
+        //             $normalFound = false;
+
+        //             // Initialize the zone entry with a string of zone names and an empty delivery_types array
+        //             $zoneEntry = [
+        //                 'zone_info' => $zoneInfo,  // Use the concatenated zone names string
+        //                 'zone_codes' => $zonesString,
+        //                 'delivery_types' => []  // Array for 'fast' and 'normal'
+        //             ];
+
+        //             // Set delivery types based on $pl data
+        //             if ($pl->delivery_type == 'fast') {
+        //                 $fastFound = true;
+        //                 $zoneEntry['delivery_types'][] = [
+        //                     'id' => $pl->id,
+        //                     'delivery_type' => 'fast',
+        //                     'base_fee' => $pl->base_fee ?? 0,
+        //                     'additional_fee' => $additionalFee  // Use the calculated additional fee
+        //                 ];
+        //             }
+
+        //             if ($pl->delivery_type == 'normal') {
+        //                 $normalFound = true;
+        //                 $zoneEntry['delivery_types'][] = [
+        //                     'id' => $pl->id,
+        //                     'delivery_type' => 'normal',
+        //                     'base_fee' => $pl->base_fee ?? 0,
+        //                     'additional_fee' => $additionalFee  // Use the calculated additional fee
+        //                 ];
+        //             }
+
+        //             // If 'fast' delivery type was not found, add a default entry for it
+        //             if (!$fastFound) {
+        //                 $zoneEntry['delivery_types'][] = [
+        //                     'id' => $pl->id,
+        //                     'delivery_type' => 'fast',
+        //                     'base_fee' => 0,
+        //                     'additional_fee' => $additionalFee  // Use the calculated additional fee
+        //                 ];
+        //             }
+
+        //             // If 'normal' delivery type was not found, add a default entry for it
+        //             if (!$normalFound) {
+        //                 $zoneEntry['delivery_types'][] = [
+        //                     'id' => $pl->id,
+        //                     'delivery_type' => 'normal',
+        //                     'base_fee' => 0,
+        //                     'additional_fee' => $additionalFee  // Use the calculated additional fee
+        //                 ];
+        //             }
+
+        //             // Add the zone entry with the concatenated zone names and delivery types to the list
+        //             $arr['list'][] = $zoneEntry;
+        //         }
+        //     }
+        // }
         return ApiResponse::JsonResult($arrObj,__('messages.Get List'));
     }
 }
