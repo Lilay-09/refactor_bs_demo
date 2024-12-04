@@ -11,8 +11,10 @@ use App\Models\DefaultRemark;
 use App\Models\Delivery;
 use App\Models\DeliveryPackage;
 use App\Models\District;
+use App\Models\MerchantPriceList;
 use App\Models\PriceList;
 use App\Models\PriceListname;
+use App\Models\PriceListZone;
 use App\Models\ProductType;
 use App\Models\TermCondition;
 use App\Models\TrackingStatus;
@@ -264,22 +266,26 @@ class GeneralSettingService
     //     return $packages;
     // }
 
-    public static function priceByZone($zone_id,$user){
-        $row = PriceList::with(['zones'])
+    public static function priceByZone($zone_id,$user,$merchant_id=null){
+        $priceListId = PriceList::with(['zones'])
             ->where('status',1)
             ->where('company_id',$user->company_id)
             ->where('is_deleted',0)
             ->whereHas('zones',function($q) use($zone_id){
                 $q->where('zone_id',$zone_id);
             })
-            ->orderByDesc('id')
+            // ->orderByDesc('id')
             ->where('base_fee','>',0)
             ->selectRaw('base_fee,id,price')
-            ->first();
-        if($row) {
-            $row->base_fee = $row->price > 0 ? $row->price : $row->base_fee;
-            unset($row->zones,$row->price);
-        }
+            ->take(1)->value('id');
+            if($merchant_id){
+                $priceListId = MerchantPriceList::where('merchant_id',$merchant_id)->take(1)->value('price_list_id');
+            }
+            $row = PriceListZone::where('zone_id',$zone_id)->where('price_list_id',$priceListId)->first();
+            // if($row) {
+            //     $row->base_fee = $row->base_fee;
+            //     unset($row->zones,$row->price);
+            // }
         return $row;
     }
 

@@ -506,7 +506,8 @@ class InitialSeeder extends Seeder
 
         DB::table('price_list_zones')->insert([
             'price_list_id' => $priceListId,
-            'zone_id' => $zoneId
+            'zone_id' => $zoneId,
+            'base_fee'=> 1.25
         ]);
 
          DB::table('business_types')->insert([

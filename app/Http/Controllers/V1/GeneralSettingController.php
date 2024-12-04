@@ -123,7 +123,8 @@ class GeneralSettingController extends Controller
 
     public function getPriceByZone(Request $req){
         $user = UserService::getAuthUser();
-        $price = $this->gs::priceByZone($req->zone_id,$user);
+        $merchantId = $req->merchant_id ?? null;
+        $price = $this->gs::priceByZone($req->zone_id,$user,$merchantId);
         if(!$price) return ApiResponse::NotFound('Price not found');
         return ApiResponse::JsonResult($price,__('get zone price'));
     }
