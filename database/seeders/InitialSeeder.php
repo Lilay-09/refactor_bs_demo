@@ -408,28 +408,7 @@ class InitialSeeder extends Seeder
 
         DB::table('vehicle_types')->insert([
             [
-                'name' => 'Van',
-                'create_uid' => $userId,
-                'update_uid' => $userId,
-                'branch_id' => $branchId,
-                'company_id' => $comapanyId,
-            ],
-            [
-                'name' => 'Tuk Tuk',
-                'create_uid' => $userId,
-                'update_uid' => $userId,
-                'branch_id' => $branchId,
-                'company_id' => $comapanyId,
-            ],
-            [
                 'name' => 'Motor',
-                'create_uid' => $userId,
-                'update_uid' => $userId,
-                'branch_id' => $branchId,
-                'company_id' => $comapanyId,
-            ],
-            [
-                'name' => 'Bike cycle',
                 'create_uid' => $userId,
                 'update_uid' => $userId,
                 'branch_id' => $branchId,
@@ -506,7 +485,8 @@ class InitialSeeder extends Seeder
 
         DB::table('price_list_zones')->insert([
             'price_list_id' => $priceListId,
-            'zone_id' => $zoneId
+            'zone_id' => $zoneId,
+            'base_fee'=> 1.25
         ]);
 
          DB::table('business_types')->insert([

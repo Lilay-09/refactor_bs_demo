@@ -19,7 +19,9 @@ class PriceListZone extends Model
     protected $fillable = [
         'zone_id',
         'price_list_id',
-        'identifier'
+        'identifier',
+        'base_fee',
+        'additional_fee',
     ];
 
     public function zone(){
