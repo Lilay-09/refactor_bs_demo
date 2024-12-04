@@ -236,6 +236,7 @@ class PickupCenterService
         $payer = $inputs['payer'];
         $inputs['billed_kg'] = $actualKg;
         $cod = $inputs['cod'];
+        $inputs['extra_charge'] = $inputs['extra_charge'] ?? 0;
         $zoneCode = $inputs['zone_code'];
         $inputs['delivery_type'] = $inputs['delivery_type'] ?? 'normal';
         $inputs['booking_channel'] = 'admin';
