@@ -53,9 +53,12 @@ class Package extends Model
         'company_id',
         'branch_id',
         'create_uid',
+        'kick_notes',
         'update_uid',
         'delivery_remarks',
         'extra_charge',
+        'kick_reason',
+        'kick_uid',
         'is_deleted',
         'driver_payment_id',
         'merchant_payment_id',
@@ -70,26 +73,57 @@ class Package extends Model
     // protected $casts = [
     //     'cod' => 'boolean',  // Automatically casts 0/1 to true/false when accessing the attribute
     // ];
-    public function getCodAttribute($value)
+    // public function getCodAttribute($value)
+    // {
+    //     return $value ? 1:0; // Converts 1/0 to true/false
+    // }
+
+
+    // public function getAssignDriverDatetimeAttribute($value){
+    //     return \Carbon\Carbon::parse($value)->format('d-M-y H:i:s A');
+    // }
+
+    // public function getArriveWarehouseDatetimeAttribute($value){
+    //     return \Carbon\Carbon::parse($value)->format('d-M-y H:i:s A');
+    // }
+
+    // public function getFailedDatetimeAttribute($value){
+    //     return \Carbon\Carbon::parse($value)->format('d-M-y H:i:s A');
+    // }
+
+    // public function getDeliveredDatetimeAttribute($value){
+    //     return \Carbon\Carbon::parse($value)->format('d-M-y H:i:s A');
+    // }
+    public function getAssignDriverDatetimeAttribute($value)
     {
-        return $value ? 1:0; // Converts 1/0 to true/false
+        return $this->formatDatetime($value);
     }
 
-
-    public function getAssignDriverDatetimeAttribute($value){
-        return \Carbon\Carbon::parse($value)->format('d-M-y H:i:s A');
-}
-
-    public function getArriveWarehouseDatetimeAttribute($value){
-        return \Carbon\Carbon::parse($value)->format('d-M-y H:i:s A');
+    public function getArriveWarehouseDatetimeAttribute($value)
+    {
+        return $this->formatDatetime($value);
     }
 
-    public function getFailedDatetimeAttribute($value){
-        return \Carbon\Carbon::parse($value)->format('d-M-y H:i:s A');
+    public function getFailedDatetimeAttribute($value)
+    {
+        return $this->formatDatetime($value);
     }
 
-    public function getDeliveredDatetimeAttribute($value){
-        return \Carbon\Carbon::parse($value)->format('d-M-y H:i:s A');
+    public function getDeliveredDatetimeAttribute($value)
+    {
+        return $this->formatDatetime($value);
+    }
+
+    protected function formatDatetime($value)
+    {
+        if (!$value) {
+            return null; // Handle null or empty values
+        }
+
+        // Parse and format the datetime, specifying the desired time zone
+        return \Carbon\Carbon::parse($value)
+            ->timezone(config('app.timezone')) // Convert to app time zone
+            ->format('d-M-y H:i:s A');
     }
     public function status(){
         return $this->belongsTo(TrackingStatus::class,'status_id','id');
@@ -101,5 +135,9 @@ class Package extends Model
 
     public function merchant(){
         return $this->belongsTo(User::class,'merchant_id','id');
+    }
+
+    public function order(){
+        return $this->belongsTo(Order::class,'order_id','id');
     }
 }

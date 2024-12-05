@@ -64,7 +64,7 @@ class ApiResponse
     }
     static function Pagination($data,$filter=null,$message=null,$additionalKey=[]){
         $filter = (object)$filter;
-        $perPage = isset($filter->per_page) ? $filter->per_page : 10;
+        $perPage = isset($filter->per_page) ? ($filter->per_page == 0 ? 1:$filter->per_page) : 10;
         $currentPage = isset($filter->page_no) ? $filter->page_no : 1;
         $skip_row = $perPage * ($currentPage - 1);
         if(isset($filter->search_value)){
@@ -176,7 +176,7 @@ class Helper{
         }
     }
 
-    static function formatCustomDateTime($datetime, $outputFormat = 'd-M-Y h:i:s A', $useMeridiem = true) {
+    static function formatCustomDateTime($datetime, $outputFormat = 'd-M-Y h:i:s A', $useMeridiem = false) {
         if(!$datetime) return null;
         $datetime = str_replace(" PM", "", $datetime);
         $datetime = str_replace(" AM", "", $datetime);
@@ -804,7 +804,7 @@ class DataResponse //extends Model
     static function Pagination($data, $filter = null, $message = "get list",$additionalKey=[])
     {
         $filter = (object)$filter;
-        $perPage = isset($filter->per_page) ? $filter->per_page : 10;
+        $perPage = isset($filter->per_page) ? ($filter->per_page == 0 ? 1:$filter->per_page) : 10;
         $currentPage = isset($filter->page_no) ? $filter->page_no : 1;
         $skip_row = $perPage * ($currentPage - 1);
         if(isset($filter->search_value) || isset($filter->search)){
