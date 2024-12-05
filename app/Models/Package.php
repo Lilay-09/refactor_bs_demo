@@ -70,11 +70,15 @@ class Package extends Model
     // protected $casts = [
     //     'cod' => 'boolean',  // Automatically casts 0/1 to true/false when accessing the attribute
     // ];
+    public function getCodAttribute($value)
+    {
+        return $value ? 1:0; // Converts 1/0 to true/false
+    }
 
 
     public function getAssignDriverDatetimeAttribute($value){
         return \Carbon\Carbon::parse($value)->format('d-M-y H:i:s A');
-    }
+}
 
     public function getArriveWarehouseDatetimeAttribute($value){
         return \Carbon\Carbon::parse($value)->format('d-M-y H:i:s A');

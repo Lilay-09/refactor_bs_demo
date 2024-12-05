@@ -12,6 +12,7 @@ use App\Services\CompanyProfileService;
 use App\Services\GeneralSettingService;
 use App\Services\UserService;
 use DB;
+use Exception;
 use Helper;
 use Illuminate\Http\Request;
 use Log;
@@ -248,9 +249,11 @@ class FleetManagementController extends Controller
         ->join('tracking_statuses as ts','ts.id','dp.status_id')
         ->selectRaw('dp.id as dp_id,p.price,p.cod,p.receiver_name,p.receiver_phone,p.zone_code,p.zone_name,ts.name as status_code,d.user_name as driver_name,d.phone as driver_phone,m.user_name as merchant_name,m.phone as merchant_phone,p.id as package_id,dp.delivery_id,p.zone_code,p.zone_name,p.delivery_fee as base_fee,p.driver_total,p.driver_total as delivery_fee,p.taxi_fee,p.product_type,dp.status_id');
         $packages = $qP->get();
+        $deliveredCount = 0;
         foreach($packages as $pkg){
             $updatable = DeliveryPackage::where('status_id',6)->find($pkg->dp_id); //** on delivery to package trail
             if($updatable){
+                $deliveredCount +=1;
                 $updatable->update([
                     'status_id' => 9,
                     'update_uid' => $user->id
@@ -269,9 +272,11 @@ class FleetManagementController extends Controller
             'finished' => 1,
             'is_completed' =>1,
             'status_id' => 16,
+            'delivered_count' => $deliveredCount + $trip->delivered_count,
             'finished_reason' => $reason,
             'finished_datetime' => now()
         ]);
+
 
         return ApiResponse::JsonResult(null,__('messages.info',[
             'info' => 'Trip finished',
@@ -318,9 +323,10 @@ class FleetManagementController extends Controller
         })->where('company_id', $user->company_id)
         ->where('driver_id', $driverId)
         ->first();
-        foreach($packageIds as $packageId){
+        DB::beginTransaction();
+        try{
             if(!$pendingTrip){
-                $QuerylastPackage = DeliveryPackage::where('package_id',$packageId)->where('delay_count',0)->where('is_deleted',0);
+                $QuerylastPackage = DeliveryPackage::whereIn('package_id',$packageIds)->where('delay_count',0)->where('is_deleted',0);
                 $hasFailPackage = $QuerylastPackage->orderByDesc('id')->get();
                 if(isset($hasFailPackage[0])) $QuerylastPackage->update([
                     'delay_count' => 1,
@@ -340,77 +346,78 @@ class FleetManagementController extends Controller
                 ]);
                 if(!$create) return ApiResponse::Error(__('messages.error',['info' => 'Fail to add fleet']));
                 $deliveryId = $create->id;
+                $pendingTrip = Delivery::find($deliveryId);
                 Helper::setFleetNumber($user->branch_id,'fleet_code_controls','deliveries',$deliveryId,'fleet_tracking_number');
             }else{
                 $deliveryId = $pendingTrip->id;
-                $newPackageCount = $pendingTrip->package_count;
-                $delay = 1;
-                $existsPkg = DeliveryPackage::where('package_id',$packageId)->where('is_deleted',0)
-                ->first();
-                if($existsPkg) {
-                    $isNewPkg = false;
-                    $delay = 0;
-                    // if($statusId){
-                    //     $existsPkg->update([
-                    //         'status_id' => $statusId
-                    //     ]);
-                    // }
-                }else {
-                    $newPackageCount +=1;
-                }
-                $found = Delivery::find($pendingTrip->id);
-                if($found) $found->update([
-                    'driver_id' => $driverId,
-                    'delay_count' => $delay,
-                    'status_id' => 14,
-                    'package_count' => $newPackageCount,
-                    'update_uid' => $user->id,
-                    'branch_id' => $user->branch_id,
-                    'company_id' => $user->company_id,
-                ]);
-                // ->update([
-                    // 'driver_id' => $driverId,
-                    // 'delay_count' => $delay,
-                    // 'status_id' => 14,
-                    // 'package_count' => $newPackageCount,
-                    // 'update_uid' => $user->id,
-                    // 'branch_id' => $user->branch_id,
-                    // 'company_id' => $user->company_id,
-                // ]);
-
             }
-            //** add delivery tracking */
-            if($isNewPkg) {
-                $dPackage = DeliveryPackage::create([
-                    'notes' => 'Admin add package to trip ',
-                    'driver_id' => $driverId,
-                    'delivery_id' => $deliveryId,
-                    'package_id' => $packageId,
-                    'status_id' => 6, // On Delivery
-                    'update_uid' => $user->id,
-                    'create_uid' => $user->id,
-                    'branch_id' => $user->branch_id,
-                    'company_id' => $user->company_id,
-                ]);
-                if(!$dPackage) return ApiResponse::Error(__('messages.error',['info' => 'Fail to assign package']));
+            $duplicatedPkgs = [];
+            foreach($packageIds as $packageId){
+                // $newPackageCount = $pendingTrip->package_count;
+                // $delay = 1;
+                // $isNewPkg = true;
+                $allowablePkg = Package::where('outstanding',0)->find($packageId);
+                if(!$allowablePkg) return ApiResponse::ValidateFail(__('messages.not_found',[
+                    'info' => 'Package'
+                ]));
+                if($allowablePkg->status_id != 6) return ApiResponse::ValidateFail(__('messages.info',[
+                    'info' => 'Package must be at warehouse'
+                ]));
+                //** add delivery tracking */
+                // if($isNewPkg) {
+                    $dPackage = DeliveryPackage::create([
+                        'notes' => 'Admin add package to trip',
+                        'driver_id' => $driverId,
+                        'delivery_id' => $deliveryId,
+                        'package_id' => $packageId,
+                        'status_id' => 6, // On Delivery
+                        'update_uid' => $user->id,
+                        'create_uid' => $user->id,
+                        'branch_id' => $user->branch_id,
+                        'company_id' => $user->company_id,
+                    ]);
+                    if(!$dPackage) return ApiResponse::Error(__('messages.error',['info' => 'Fail to assign package']));
+                // }
             }
-
-
+            if(isset($duplicatedPkgs[0])){
+                $pkgQrString = implode(',',$duplicatedPkgs);
+                return ApiResponse::Duplicated(__('messages.info',[
+                    'info' =>  "These packages are delivered.[$pkgQrString]"
+                ]));
+            }
             GeneralSettingService::updateTripStatus($deliveryId,$user);
+            return Delivery::orderByDesc('id')->get();
+            // DB::commit();
+        }catch(Exception $e){
+            DB::rollBack();
+            Log::error($e->getTraceAsString());
+            Log::error($e->getMessage());
+            return ApiResponse::Error(__('messages.error',['info' => 'Failed to save trip']));
         }
-        return ApiResponse::JsonResult(null,__('messages.saved'));
+        // return ApiResponse::JsonResult(null,__('messages.saved'));
     }
 
     public function getPackageByBarcode(Request $req){
         $user = UserService::getAuthUser();
         $barCode = $req->barcode;
         $package = Package::where('qr_code',$barCode)
+        ->with('merchant')
         ->where('company_id',$user->company_id)
-        ->selectRaw('id,receiver_name,receiver_phone,zone_name,zone_code,taxi_fee,cod,payer,delivery_fee,remarks')
+        ->selectRaw('id,receiver_name,receiver_phone,zone_name,zone_code,taxi_fee,cod,payer,delivery_fee,remarks,status_id,merchant_id')
         ->first();
+
         if(!$package) return ApiResponse::NotFound(__('messages.not_found',[
             'info' => 'Package'
         ]));
+        if($package->status_id != 5) return ApiResponse::ValidateFail(__('messages.info',[
+            'info' => 'Only package at warehouse allows'
+        ]));
+        $xRate = GeneralSettingService::getLatestXRate();
+        $package->total_khr = 0;
+        $package->total = 0;
+        $package->merchant_name = $package->merchant?->user_name;
+        $package->merchant_phone = $package->merchant?->phone;
+        unset($package->merchant);
         return $package;
     }
 

@@ -220,6 +220,6 @@ class GeneralSettingController extends Controller
     public function getZonePrice(Request $req){
         $user = UserService::getAuthUser('driver');
         $id = $req->zone_id;
-        return ApiResponse::JsonResult(GeneralSettingService::priceByZone($id,$user));
+        return ApiResponse::JsonResult(GeneralSettingService::priceByZone($id,$user,$req->merchant_id));
     }
 }

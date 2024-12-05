@@ -215,6 +215,7 @@ class PriceListController extends Controller
                 'list' => []
             ]
         ];
+
         $priceList = PriceList::with(['zones'])->where('price_list_name_id',$priceListNameId)->get();
         foreach ($priceList as $pl) {
             foreach ($arrObj as &$arr) {

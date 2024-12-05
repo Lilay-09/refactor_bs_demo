@@ -200,7 +200,7 @@ class HomeController extends Controller
     public function getZonePrice(Request $req){
         $user = UserService::getAuthUser('merchant');
         $id = $req->zone_id;
-        return ApiResponse::JsonResult(GeneralSettingService::priceByZone($id,$user));
+        return ApiResponse::JsonResult(GeneralSettingService::priceByZone($id,$user,$user->id));
     }
 
 
@@ -231,7 +231,7 @@ class HomeController extends Controller
         ->whereBetween('returned_datetime',[$dateaAgo,$today])->orWhereBetween('updated_at',[$dateaAgo,$today])->count();
         return [
             'balance' => 0,
-            'delivered' => 50,//$successCount,
+            'delivered' => $successCount,
             'failed' => $failCount,
             'returned' => $returnCount,
             'total' => $successCount + $failCount + $returnCount

@@ -11,6 +11,7 @@ use App\Models\DefaultRemark;
 use App\Models\Delivery;
 use App\Models\DeliveryPackage;
 use App\Models\District;
+use App\Models\ExchangeRate;
 use App\Models\MerchantPriceList;
 use App\Models\PriceList;
 use App\Models\PriceListname;
@@ -23,6 +24,7 @@ use App\Models\VehicleType;
 use App\Models\Warehouse;
 use App\Models\Zone;
 use DataResponse;
+use Log;
 
 
 class GeneralSettingService
@@ -373,7 +375,8 @@ class GeneralSettingService
     public static function calculatePackageFee($zone_code,$price,$billedKg,$actualKg,$payer,$cod,$extraCharge,$user,$taxi_fee=0){
         $priceList = GeneralSettingService::getZonePriceByCode($zone_code,$user);
         if(!$priceList) return DataResponse::NotFound('Zone price not found');
-        $zPrice = ($priceList->price > 0 ? $priceList->price : $priceList->base_fee) + $extraCharge;
+        $baseFee = $priceList->price > 0 ? $priceList->price : $priceList->base_fee;
+        $zPrice = $baseFee + $extraCharge;
         $selectKg = $billedKg ?? $actualKg;
         $additionalPrice = 0;
         $merchant_total = $zPrice;
@@ -395,11 +398,20 @@ class GeneralSettingService
         return (object)[
             "error" => false,
             'message' => 'Success',
-            'delivery_fee' => $zPrice,
+            'delivery_fee' => $baseFee,
             'driver_total' => $driverTotal - $taxi_fee,
             'merchant_total' => $merchant_total + $taxi_fee,
             'total' => $total
         ];
+    }
+
+    public static function getLatestXRate(){
+        $xRate = ExchangeRate::where('is_deleted',0)->orderByDesc('x_date')->selectRaw('buy_rate,sell_rate')->first();
+        if(!$xRate) $xRate = (object)[
+            'buy_rate' => 4000,
+            'sell_rate' => 4000
+        ];
+        return $xRate;
     }
 
     public static function updateTripStatus($id,$user): void{
@@ -413,6 +425,7 @@ class GeneralSettingService
             $status_id = 16;
             $packages = $queryDeliveryPackage->get();
             foreach($packages as $pck){
+                // Log::info($pck->status_id);
                 if($pck->status_id == 9){
                     $deliveredCount += 1;
                 }else if($pck->status_id == 10 || $pck->status_id == 19){
@@ -435,6 +448,7 @@ class GeneralSettingService
                     $status_id = 14;
                 }
             }
+            // Log::error($status_id);
             $trip->update([
                 'is_completed' => $isCompleted,
                 'finished' => $isCompleted,
