@@ -320,9 +320,9 @@ class PickUpCenterController extends Controller
         ->where('is_deleted',0);
         $packages = $qP->get();
         foreach ($packages as $pkg){
-            $pkg->cod = $pkg->cod? 1:0;
-            $pkg->total = $pkg->delivery_fee + ($pkg->cod ? $pkg->price:0) + $pkg->extra_charge;
-            $pkg->fee = $pkg->delivery_fee + $pkg->price + $pkg->extra_charge;
+            // $pkg->cod = $pkg->cod? 1:0;
+            $pkg->total = $pkg->delivery_fee + ($pkg->cod ? $pkg->price : 0) + $pkg->extra_charge + $pkg->additional_fee;
+            $pkg->fee = ($pkg->payer == 'receiver' ? $pkg->delivery_fee : 0) + $pkg->extra_charge + $pkg->additional_fee;
             unset($pkg->status);
         }
         return ApiResponse::Pagination($packages,$req);
