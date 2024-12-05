@@ -351,43 +351,53 @@ class FleetManagementController extends Controller
             }else{
                 $deliveryId = $pendingTrip->id;
             }
-            $duplicatedPkgs = [];
-            foreach($packageIds as $packageId){
+            // $duplicatedPkgs = [];
+            foreach($packageIds as $pkg){
                 // $newPackageCount = $pendingTrip->package_count;
                 // $delay = 1;
                 // $isNewPkg = true;
+
+                $packageId = $pkg['package_id'] ?? null;
+                if(!$packageId) return ApiResponse::ValidateFail('Please provide package identity');
                 $allowablePkg = Package::where('outstanding',0)->find($packageId);
                 if(!$allowablePkg) return ApiResponse::ValidateFail(__('messages.not_found',[
                     'info' => 'Package'
                 ]));
-                if($allowablePkg->status_id != 6) return ApiResponse::ValidateFail(__('messages.info',[
+                if($allowablePkg->status_id != 5) return ApiResponse::ValidateFail(__('messages.info',[
                     'info' => 'Package must be at warehouse'
                 ]));
                 //** add delivery tracking */
                 // if($isNewPkg) {
-                    $dPackage = DeliveryPackage::create([
-                        'notes' => 'Admin add package to trip',
-                        'driver_id' => $driverId,
-                        'delivery_id' => $deliveryId,
-                        'package_id' => $packageId,
-                        'status_id' => 6, // On Delivery
-                        'update_uid' => $user->id,
-                        'create_uid' => $user->id,
-                        'branch_id' => $user->branch_id,
-                        'company_id' => $user->company_id,
+                    $dPackage = DeliveryPackage::where('delay_count',0)->where('is_deleted',0)->where('package_id',$packageId)->first();
+                    if(!$dPackage){
+                        $dPackage = DeliveryPackage::create([
+                            'notes' => 'Admin add package to trip',
+                            'driver_id' => $driverId,
+                            'delivery_id' => $deliveryId,
+                            'package_id' => $packageId,
+                            'status_id' => 6, // On Delivery
+                            'update_uid' => $user->id,
+                            'create_uid' => $user->id,
+                            'branch_id' => $user->branch_id,
+                            'company_id' => $user->company_id,
+                        ]);
+                        if(!$dPackage) return ApiResponse::Error(__('messages.error',['info' => 'Fail to assign package']));
+                    }
+                    $allowablePkg->update([
+                        'status_id' => 6
                     ]);
-                    if(!$dPackage) return ApiResponse::Error(__('messages.error',['info' => 'Fail to assign package']));
                 // }
             }
-            if(isset($duplicatedPkgs[0])){
-                $pkgQrString = implode(',',$duplicatedPkgs);
-                return ApiResponse::Duplicated(__('messages.info',[
-                    'info' =>  "These packages are delivered.[$pkgQrString]"
-                ]));
-            }
+            // if(isset($duplicatedPkgs[0])){
+            //     $pkgQrString = implode(',',$duplicatedPkgs);
+            //     return ApiResponse::Duplicated(__('messages.info',[
+            //         'info' =>  "These packages are delivered.[$pkgQrString]"
+            //     ]));
+            // }
             GeneralSettingService::updateTripStatus($deliveryId,$user);
-            return Delivery::orderByDesc('id')->get();
-            // DB::commit();
+            // return Delivery::orderByDesc('id')->get();
+            DB::commit();
+            return ApiResponse::JsonResult(null,__('messages.saved'));
         }catch(Exception $e){
             DB::rollBack();
             Log::error($e->getTraceAsString());
