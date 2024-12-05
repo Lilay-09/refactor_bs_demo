@@ -164,7 +164,7 @@ Route::middleware(['jwt','localize'])->prefix('admin/v1/{lang}')->group(function
         Route::put('{trip_id}/finish',[FleetManagementController::class,'finishTrip']);
         Route::delete('{trip_id}',[FleetManagementController::class,'deleteTrip']);
         Route::put('{trip_id}/package/status',[FleetManagementController::class,'setPackageStatus']);
-        Route::put('{trip_id}/package/taekOut',[FleetManagementController::class,'takeOutPackage']);
+        Route::post('{trip_id}/takeOut/{package_id}',[FleetManagementController::class,'takeOutPackage']);
         Route::get('{trip_id}/print/package',[FleetManagementController::class,'printTripPackages']);
     });
     //** End Fleet Management */
@@ -354,6 +354,7 @@ Route::middleware(['jwt','localize'])->prefix('admin/v1/{lang}')->group(function
             Route::get('order/status',[GeneralSettingController::class,'getFormSetOrderStatus']);
             Route::get('packageTrail',[GeneralSettingController::class,'getFormPackageTrail']);
             Route::get('fleet',[GeneralSettingController::class,'getFormFleet']);
+            Route::get('fleet/status',[GeneralSettingController::class,'getFormFleetStatus']);
             Route::get('promotion',[GeneralSettingController::class,'getFormPromotion']);
             Route::get('remark',[GeneralSettingController::class,'getFormRemark']);
             Route::get('zone',[GeneralSettingController::class,'getFormZone']);
@@ -366,6 +367,12 @@ Route::middleware(['jwt','localize'])->prefix('admin/v1/{lang}')->group(function
 
 
     Route::prefix('report')->group(function(){
+        Route::prefix('company')->group(function(){
+            Route::get('/pickup',[ReportController::class,'getPickupReport']);
+            Route::get('/pickup/option',[ReportController::class,'getPickupReportOption']);
+            Route::get('/dailyPackage',[ReportController::class,'getDailyPackageReport']);
+            Route::get('/dailyPackage/option',[ReportController::class,'getDailyPackageReportOption']);
+        });
         Route::prefix('driver')->group(function(){
             Route::get('/list/option',[ReportController::class,'formOptionDriver']);
             Route::get('list',[ReportController::class,'driverList']);

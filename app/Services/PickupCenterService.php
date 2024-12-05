@@ -253,7 +253,7 @@ class PickupCenterService
         $zoneCode = $inputs['zone_code'];
         $inputs['delivery_type'] = $inputs['delivery_type'] ?? 'normal';
         $inputs['booking_channel'] = 'admin';
-        $inputs['tracking_notes'] = 'Admin add new package ('.date('d-M-Y h:i:s A').')';
+        $inputs['tracking_notes'] = '['.$user->id.']Admin ('.$user->user_name.') add new package ('.date('d-M-Y h:i:s A').')';
         if($user->account_type == 'driver') $inputs['booking_channel'] = 'driver';
         if($user->account_type == 'merchant') $inputs['booking_channel'] = 'merchant';
 

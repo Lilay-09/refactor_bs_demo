@@ -23,7 +23,9 @@ class PackageTrailController extends Controller
     //
     public function getPackages(Request $req){
         $user = UserService::getAuthUser();
-        $search = $req->search;
+        $search = $req->search??null;
+        $warehouse_id = $req->warehouse_id ?? null;
+        $statusId = $req->status_id??null;
         $query = Package::where('is_deleted',0)
         ->with(['status','merchant','driver'])
         ->where('outstanding',0)
@@ -33,6 +35,14 @@ class PackageTrailController extends Controller
         ->selectRaw('merchant_id,order_id,id,taxi_fee,delivery_type,qr_code,price,driver_id,product_type,dim_z,dim_x,dim_y,status_id,failure_notes,payer,cod,delivery_fee,receiver_address,zone_code,zone_name,receiver_name,receiver_phone,delivered_datetime,assign_driver_datetime,arrive_warehouse_datetime,driver_total,merchant_total,billed_kg,actual_kg')
         ->orderByRaw('(status_id = ?) DESC', [5])
         ->orderBy('arrive_warehouse_datetime','desc');
+        if((int)$warehouse_id){
+            $query->whereHas('order',function($q) use($warehouse_id){
+                $q->where('warehouse_id',$warehouse_id);
+            });
+        }
+        if((int)$statusId){
+            $query->where('status_id',$statusId);
+        }
         if($search){
             $query->where('qr_code',$search);
         }

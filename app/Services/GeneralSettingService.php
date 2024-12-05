@@ -31,7 +31,7 @@ class GeneralSettingService
 {
     // Your service methods go here
     protected static $deliveryTypes = [
-        ['value' => 'fast','label' => 'Fast'],
+        // ['value' => 'fast','label' => 'Fast'],
         ['value' => 'normal','label' => 'Normal'],
     ];
 
@@ -195,8 +195,14 @@ class GeneralSettingService
     }
 
     public static function optionsVehicleType($user){
-        return VehicleType::where('company_id',$user->company_id)->where('is_deleted',0)
-        ->selectRaw('name,name as value,id')->orderByDesc('id')->get();
+
+        $vT = VehicleType::where('company_id',$user->company_id)->where('is_deleted',0)
+        ->selectRaw('name,name as value,id')->orderByDesc('id');
+        if($user->account_type == 'driver'){
+            $vT->where('name',$user->info->vehicle_type);
+        }
+        $vehicleTypes = $vT->get();
+        return $vehicleTypes;
     }
 
     public static function optionsProductType($user){

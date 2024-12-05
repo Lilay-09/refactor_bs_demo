@@ -133,8 +133,8 @@ class GeneralSettingController extends Controller
         $user = UserService::getAuthUser();
         $obj = (object)[
             'delivery_type' => $this->gs::optionsDeliveryType(),
-            'merchants' => $this->gs::optionsMerchant($user),
-            'statuses' => $this->gs::optionsPickupStatus($user),
+            'merchants' => $this->gs::optionsMerchant(user: $user),
+            'statuses' => $this->gs::optionsTrackingStatus($user),
             'warehouses' => $this->gs::optionsWarehouse($user),
             'vehicle_types' => $this->gs::optionsVehicleType($user),
             'drivers' => $this->gs::optionsDriver($user),
@@ -149,7 +149,7 @@ class GeneralSettingController extends Controller
         $obj = (object)[
             'delivery_type' => $this->gs::optionsDeliveryType(),
             'merchants' => $this->gs::optionsMerchant($user),
-            'statuses' => $this->gs::optionsPickupStatus($user),
+            'statuses' => $this->gs::optionsTrackingStatus($user,[],[5,6,11,10,19]),
             'warehouses' => $this->gs::optionsWarehouse($user),
             'drivers' => $this->gs::optionsDriver($user),
             'zones' => $this->gs::optionsZone($user)
@@ -167,6 +167,12 @@ class GeneralSettingController extends Controller
             'zones' => $this->gs::optionsZone($user)
         ];
         return ApiResponse::JsonResult($obj);
+    }
+
+    public function getFormFleetStatus(){
+        $user = UserService::getAuthUser();
+        $statuses = $this->gs::optionsTrackingStatus($user,[],[9,10,19]);
+        return ApiResponse::JsonResult($statuses);
     }
 
     public function getFormMerchant(){
