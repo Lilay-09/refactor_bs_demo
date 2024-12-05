@@ -80,7 +80,7 @@ class PickUpCenterController extends Controller
         $order = Order::where('is_deleted',0)->find($id);
         if(!$order) return ApiResponse::NotFound(__('messages.not_found',['info' => 'Order']));
         if($order->status_id == 5) return ApiResponse::Duplicated(__('messages.error',['info' => 'Order has already inputed details!']));
-        $validate = $this->orderValidation($req);
+        $validate = $this->pkupService->orderValidation($req);
         if($validate->fails()) return ApiResponse::ValidateFail($validate->errors()->first());
         $inputs = $validate->validated();
         $merchantId = $inputs['merchant_id'];
@@ -320,8 +320,8 @@ class PickUpCenterController extends Controller
         ->where('is_deleted',0);
         $packages = $qP->get();
         foreach ($packages as $pkg){
-            // $pkg->cod = $pkg->cod? 1:0;
-            $pkg->total = $pkg->delivery_fee + ($pkg->cod ? $pkg->price : 0) + $pkg->extra_charge + $pkg->additional_fee;
+            $pkg->cod = $pkg->cod? 1:0;
+            $pkg->total = PickupCenterService::getTotal($pkg->cod,$pkg->payer,$pkg->price,$pkg->delivery_fee,$pkg->additional_fee,$pkg->extra_charge);
             $pkg->fee = ($pkg->payer == 'receiver' ? $pkg->delivery_fee : 0) + $pkg->extra_charge + $pkg->additional_fee;
             unset($pkg->status);
         }

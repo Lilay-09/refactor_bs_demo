@@ -202,6 +202,19 @@ class PickupCenterService
         ]);
     }
 
+    public static function getTotal($cod,$payer,$price,$deliveryFee,$additional_fee,$extra_charge,$taxi=0){
+        $total = $extra_charge + $additional_fee;
+        if($cod) $total += $price;
+        if($payer == 'receiver') $total += $deliveryFee;
+        return $total;
+    }
+
+    public static function getFees($cod,$payer,$price,$deliveryFee,$additional_fee,$extra_charge,$taxi=0){
+        $total = $extra_charge + $additional_fee;
+        if($payer == 'receiver') $total += $deliveryFee;
+        return $total;
+    }
+
 
     /**
      * Summary of createOrUpdatePackage
