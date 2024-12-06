@@ -38,4 +38,8 @@ class Payment extends Model
         'branch_id',
         'company_id'
     ];
+
+    public function cashier(){
+        return $this->belongsTo(User::class,'settled_uid','id');
+    }
 }

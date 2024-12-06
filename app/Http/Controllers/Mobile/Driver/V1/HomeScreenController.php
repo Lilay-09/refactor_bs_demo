@@ -490,14 +490,29 @@ class HomeScreenController extends Controller
 
     public function getNotifications(){
         $user = UserService::getAuthUser('driver');
-        $notifications = Notification::where('user_id',$user->id)->where('is_read',0)->selectRaw('id,is_read,title,body')->get();
-        return ApiResponse::JsonResult($notifications);
+        $notifications = Notification::where('user_id',$user->id)->where('is_read',0)->orderByDesc('sent_datetime')->selectRaw('id,is_read,title,body,sent_datetime')->get();
+        $groupedPackages = collect($notifications)->map(function ($item) {
+            $item->groupKey = date('d-M-Y',strtotime($item->sent_datetime));
+            $item->time = Helper::formatCustomDateTime($item->sent_datetime,'h:i A');
+            return $item;
+        })
+        ->groupBy('groupKey')
+        ->map(function ($group, $date) {
+            $group->each(function ($item) use ($group) {
+                unset($item->groupKey,$item->sent_datetime);
+            });
+            return [
+                'date' => $date,
+                'details' => $group->values(),
+            ];
+        })->values();
+        return ApiResponse::JsonResult($groupedPackages);
     }
 
     public function readNotification(Request $req){
         $user = UserService::getAuthUser('driver');
         $mr = GeneralSettingController::markReadNotification($req,$user);
-        return ApiResponse::flex(null,$mr);
+        return ApiResponse::flex($mr);
     }
 
 }

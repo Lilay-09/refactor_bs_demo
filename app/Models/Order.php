@@ -52,7 +52,7 @@ class Order extends Model
 
     public function getOrderDatetimeAttribute($value)
     {
-        return \Carbon\Carbon::parse($value)->format('M-d-Y H:i:s A');
+        return \Carbon\Carbon::parse($value)->timezone(config('app.timezone'))->format('d-M-Y h:i:s A');
     }
 
     public function packages(){
@@ -80,6 +80,6 @@ class Order extends Model
     }
 
     public function getCreatedAtAttribute($value){
-        return \Carbon\Carbon::parse($value)->format('d-M-y h:i:s A');
+        return \Carbon\Carbon::parse($value)->timezone(config('app.timezone'))->format('d-M-Y h:i:s A');
     }
 }

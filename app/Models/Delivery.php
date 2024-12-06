@@ -51,4 +51,8 @@ class Delivery extends Model
     public function status(){
         return $this->belongsTo(TrackingStatus::class,'status_id','id');
     }
+
+    public function packages(){
+        return $this->hasMany(DeliveryPackage::class,'delivery_id','id')->where('is_deleted',0);
+    }
 }

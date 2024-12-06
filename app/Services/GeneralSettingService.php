@@ -429,7 +429,7 @@ class GeneralSettingService
             $failCount = 0;
             $stillOnDelivery = 0;
             $status_id = 16;
-            $packages = $queryDeliveryPackage->get();
+            $packages = $queryDeliveryPackage->where('is_deleted',0)->get();
             foreach($packages as $pck){
                 // Log::info($pck->status_id);
                 if($pck->status_id == 9){

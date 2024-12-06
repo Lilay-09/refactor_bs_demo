@@ -23,15 +23,7 @@ class FleetManagementController extends Controller
     //
     public function getTrips(Request $req){
         $user = UserService::getAuthUser();
-        // $deliveries = Delivery::fromRaw('deliveries as d')->join('users as ud','d.driver_id','ud.id')
-        // ->where('d.is_deleted',0)->where('d.company_id',$user->company_id)
-        // ->join('tracking_statuses as ts','ts.id','d.status_id')
-        // ->selectRaw('d.id,d.fleet_tracking_number,d.status_id,d.depart_datetime,d.remarks,d.package_count,d.delivered_count,d.failed_count,d.warehouse_id,d.vehicle_type,d.driver_id,ts.name as status_code,ud.user_name as driver_name,ud.phone as driver_phone')
-        // ->get();
-        // foreach($deliveries as $delivery){
-        //     $delivery->depart_time = Helper::formatCustomDateTime($delivery->depart_datetime,'h:i:s');
-        //     $delivery->depart_date = Helper::formatCustomDateTime($delivery->depart_datetime,'d-M-Y',false);
-        // }
+        $search = $req->search ?? null;
         $packages = Package::fromRaw('packages as p')->join('delivery_packages as dp','p.id','dp.package_id')
         ->selectRaw('p.id as package_id,dp.delivery_id,dp.delay_count,dp.status_id,p.driver_total')
         ->where('dp.is_deleted',0)
@@ -41,6 +33,11 @@ class FleetManagementController extends Controller
         $query = Delivery::with(['status','driver'])->where('is_deleted',0)->where('company_id',$user->company_id)
         ->orderByDesc('id')
         ->selectRaw('id,fleet_tracking_number,status_id,driver_id,depart_datetime,remarks,package_count,delivered_count,failed_count,warehouse_id,vehicle_type,driver_id');
+        if($search){
+            $query->whereHas('packages.package',function($q) use ($search){
+                $q->where('qr_code',$search);
+            })->orWhere('fleet_tracking_number',$search);
+        }
         $deliveries = $query->get();
         foreach($deliveries as $delivery){
             $delivery->status_code = $delivery->status->name;
@@ -95,7 +92,7 @@ class FleetManagementController extends Controller
         ->leftJoin('users as d','d.id','p.driver_id')
         ->where('dp.is_deleted',0)
         ->join('tracking_statuses as ts','ts.id','dp.status_id')
-        ->selectRaw('p.price,p.cod,p.receiver_name,p.receiver_phone,p.zone_code,p.zone_name,ts.name as status_code,d.user_name as driver_name,d.phone as driver_phone,m.user_name as merchant_name,m.phone as merchant_phone,p.id as package_id,dp.delivery_id,p.zone_code,p.zone_name,p.delivery_fee as base_fee,p.driver_total,p.driver_total as delivery_fee,p.taxi_fee,p.product_type,dp.status_id')
+        ->selectRaw('p.qr_code,p.price,p.cod,p.receiver_name,p.receiver_phone,p.zone_code,p.zone_name,ts.name as status_code,d.user_name as driver_name,d.phone as driver_phone,m.user_name as merchant_name,m.phone as merchant_phone,p.id as package_id,dp.delivery_id,p.zone_code,p.zone_name,p.delivery_fee as base_fee,p.driver_total,p.driver_total as delivery_fee,p.taxi_fee,p.product_type,dp.status_id')
         ->orderByRaw('(dp.status_id = ?) DESC', [6])
         ->get();
         // foreach($packages as $package){
