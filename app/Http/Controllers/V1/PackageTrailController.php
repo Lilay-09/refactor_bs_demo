@@ -95,6 +95,7 @@ class PackageTrailController extends Controller
         if($package->status_id == 13) return ApiResponse::Forbidden(__('messages.no_access',['info' => 'This package is already assigned to driver']));
         if($package->status_id == 14) return ApiResponse::Forbidden(__('messages.no_access',['info' => 'This package is on delivery']));
         $pkupService = new PickupCenterService();
+        $req->merge(['merchant_id' => $package->merchant_id]);
         $validate = $pkupService->packageValidation($req);
         if($validate->fails()) return ApiResponse::ValidateFail($validate->errors()->first());
         $inputs = $validate->validated();
