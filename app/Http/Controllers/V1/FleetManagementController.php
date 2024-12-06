@@ -93,6 +93,7 @@ class FleetManagementController extends Controller
         ->where('dp.delivery_id',$trip_id)
         ->leftJoin('users as m','m.id','p.merchant_id')
         ->leftJoin('users as d','d.id','p.driver_id')
+        ->where('dp.is_deleted',0)
         ->join('tracking_statuses as ts','ts.id','dp.status_id')
         ->selectRaw('p.price,p.cod,p.receiver_name,p.receiver_phone,p.zone_code,p.zone_name,ts.name as status_code,d.user_name as driver_name,d.phone as driver_phone,m.user_name as merchant_name,m.phone as merchant_phone,p.id as package_id,dp.delivery_id,p.zone_code,p.zone_name,p.delivery_fee as base_fee,p.driver_total,p.driver_total as delivery_fee,p.taxi_fee,p.product_type,dp.status_id')
         ->orderByRaw('(dp.status_id = ?) DESC', [6])
@@ -188,6 +189,9 @@ class FleetManagementController extends Controller
             'deleted_datetime' => now(),
             'deleted_uid' => $user->id,
             'is_deleted' => true,
+            'kick_uid' => $user->id,
+            'kick_reason' => $kickReason,
+            'kick_notes' => $package->kick_notes."|[$user->id]$user->user_name remove package from Driver($driverName) at ($todayDT) on fleet number $fleetNumber",
             'notes' => $deliveryPackage->notes."|[$user->id]-Admin('.$user->user_name) remove package from Driver($driverName) at ($todayDT) on fleet number $fleetNumber"
         ]);
 

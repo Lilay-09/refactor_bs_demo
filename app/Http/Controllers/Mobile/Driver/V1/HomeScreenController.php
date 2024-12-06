@@ -4,7 +4,9 @@ namespace App\Http\Controllers\Mobile\Driver\V1;
 
 use ApiResponse;
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Mobile\V1\GeneralSettingController;
 use App\Models\DeliveryPackage;
+use App\Models\Notification;
 use App\Models\Order;
 use App\Models\OrderImage;
 use App\Models\Package;
@@ -13,9 +15,12 @@ use App\Services\GeneralSettingService;
 use App\Services\PickupCenterService;
 use App\Services\TransactionService;
 use App\Services\UserService;
+use DB;
+use Exception;
 use Google\Rpc\Help;
 use Helper;
 use Illuminate\Http\Request;
+use Log;
 
 class HomeScreenController extends Controller
 {
@@ -177,29 +182,30 @@ class HomeScreenController extends Controller
         ->with(['merchant','tracking_status'])
         ->where('company_id',$user->company_id)
         ->where('driver_id',$user->id)
-        ->selectRaw('id,status_id')
+        ->selectRaw('id,status_id,merchant_id')
         ->find($orderId);
         if(!$order) return ApiResponse::NotFound(__('messages.info',[
             'info' => 'No order was found'
         ]));
+
         if($order->status_id == 2) return ApiResponse::Duplicated(__('messages.info',[
             'info' => 'This order has already been picked'
         ]));
+        if($order->status_id !== 3) return ApiResponse::Duplicated(__('messages.info',[
+            'info' => 'Only accepted orders can be updated',
+            'khInfo' => 'ទាល់តែកញ្ចប់ដែលបានទទួលទើបអាចបន្ថែមព័ត៌មាន'
+        ]));
         $qty = $req->qty;
         $images = $req->file('images') ?? [];
-        $details = $req->details ?? null;
+        $details = $req->details ?? [];
         if(!in_array($statusId,[2,4])) return ApiResponse::ValidateFail(__('messages.info',[
             'info' =>'Please choose the correct status'
         ]));
-        if($statusId == 4 && !$details) return ApiResponse::ValidateFail(__('messages.info',[
+        if($statusId == 4 && empty($details)) return ApiResponse::ValidateFail(__('messages.info',[
             'info' => 'Please add details when you choose pick & book'
         ]));
         $qty = $req->qty ?? null;
         $user = UserService::getAuthUser('driver');
-        // $order = Order::where('is_deleted',0)->where('status_id',3)->find($orderId);
-        // if(!$order) return ApiResponse::NotFound(__('messages.info',[
-        //     'info' => 'Couldn\'t find your accepted task',
-        // ]));
 
         $qty = $qty ?? $order->qty;
         if($qty <=0) return ApiResponse::ValidateFail(__('messages.info',[
@@ -215,27 +221,19 @@ class HomeScreenController extends Controller
             $acceptArr['booking_channel'] = 'driver';
             $pickMsg = 'Pick & Book';
         }
-        if($details){
+
+        if(isset($details[0])){
             $detailsCount = count($details);
-            if($qty !== $detailsCount) return ApiResponse::ValidateFail(__('messages.info',[
-                'info' => 'Your quantity and details is not matching',
-                'khInfo' => 'ចំនួនកញ្ចប់និងទិន្នន័យកញ្ចប់មិនត្រូវគ្នា, ទិន្នន័យបញ្ចូលរកឃើញតែ('.$detailsCount.')'
+            if($qty < $detailsCount) return ApiResponse::ValidateFail(__('messages.info',[
+                'info' => 'Your details is greater than quantity',
+                'khInfo' => 'ចំនួនកញ្ចប់និងទិន្នន័យកញ្ចប់មិនត្រូវគ្នា, ទិន្នន័យបញ្ចូលលើសចំនួនសរុប'
             ]));
             foreach($details as $d){
+                $d['merchant_id'] = $order->merchant_id;
                 $rD = new Request($d);
-                $validate = $this->validatePackageDetails($rD);
-                if($validate->fails()) return ApiResponse::ValidateFail($validate->errors()->first());
-                $inputs = $validate->validated();
-                $inputs['order_id'] = $orderId;
-                $inputs['status_id'] = 4;
-                $inputs['create_uid'] = $user->id;
-                $inputs['update_uid'] = $user->id;
-                $inputs['company_id'] = $user->company_id;
-                $inputs['branch_id'] = $user->branch_id;
-                $inputs['actual_kg'] = 0;
-                $inputs['billed_kg'] = 0;
-                // $inputs['actual_kg'] = 0;
-                Package::create($inputs);
+                $pkgSvc = new PickupCenterService();
+                $savePkg = $pkgSvc->createOrUpdatePackage($rD,$user,null,$orderId);
+                if($savePkg->error) return ApiResponse::flex($savePkg);
             }
         }
         if($statusId == 2) {
@@ -260,13 +258,14 @@ class HomeScreenController extends Controller
                 }
             }
         }
-
         $order->update($acceptArr);
-
         return ApiResponse::JsonResult(null,__('messages.info',[
             'info' => 'You have accepted for '.$pickMsg,
             'khInfo' => 'បានបញ្ចូលទិន្នន័យកញ្ចប់'
         ]));
+
+
+
     }
 
 
@@ -279,6 +278,8 @@ class HomeScreenController extends Controller
             'receiver_phone' => 'required|string|max:20|min:8',
             'receiver_name' => 'nullable|string|max:50',
             'actual_kg' => 'nullable|numeric',
+            'zone_code' => 'required',
+            'merchant_id' => 'nullable',
             'pickup_notes' => 'nullable|string|max:250'
         ],[
             'receiver_phone.min' => __('messages.info',[
@@ -484,6 +485,19 @@ class HomeScreenController extends Controller
         $pckService = new PickupCenterService();
         $createOrder = $pckService->createOrder($req,$user);
         return ApiResponse::flex($createOrder);
+    }
+
+
+    public function getNotifications(){
+        $user = UserService::getAuthUser('driver');
+        $notifications = Notification::where('user_id',$user->id)->where('is_read',0)->selectRaw('id,is_read,title,body')->get();
+        return ApiResponse::JsonResult($notifications);
+    }
+
+    public function readNotification(Request $req){
+        $user = UserService::getAuthUser('driver');
+        $mr = GeneralSettingController::markReadNotification($req,$user);
+        return ApiResponse::flex(null,$mr);
     }
 
 }

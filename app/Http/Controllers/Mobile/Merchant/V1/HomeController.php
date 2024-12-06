@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Mobile\Merchant\V1;
 
 use ApiResponse;
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Mobile\V1\GeneralSettingController;
 use App\Models\Banner;
 use App\Models\FeedBack;
 use App\Models\Notification;
@@ -323,21 +324,7 @@ class HomeController extends Controller
 
     public function readNotification(Request $req){
         $user = UserService::getAuthUser('merchant');
-        $id = $req->id;
-        $msg = 'Mark read all';
-        $notification = Notification::where('user_id',$user->id)->where('is_read',0)->selectRaw('id,is_read,title,body');
-        if($id) {
-            $msg = 'Read';
-            $notification->where('id',$id)->update([
-                'is_read' => true,
-                'read_datetime' => now()
-            ]);
-        }else{
-            $notification->update([
-                'is_read' => true,
-                'read_datetime' => now()
-            ]);
-        }
-        return ApiResponse::JsonResult(null,$msg);
+        $mr = GeneralSettingController::markReadNotification($req,$user);
+        return ApiResponse::flex(null,$mr);
     }
 }

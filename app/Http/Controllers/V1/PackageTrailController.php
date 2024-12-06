@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Delivery;
 use App\Models\DeliveryPackage;
 use App\Models\Package;
+use App\Services\CloudMessagingService;
 use App\Services\CompanyProfileService;
 use App\Services\GeneralSettingService;
 use App\Services\PickupCenterService;
@@ -201,6 +202,16 @@ class PackageTrailController extends Controller
             ]);
             $trip = $this->createOrUpdateTrip($driver_id,$id,$validDriver->vehicle_type,$user,$notes,6);
             if($trip->error) return ApiResponse::flex($trip);
+            $notif = new CloudMessagingService();
+            $topics = GeneralSettingService::getGeneralTopics($user->company_id,'driver',$driver_id);
+            $notifReq = new Request([
+                'topic' => $topics->private,
+                'type' => 'private',
+                'target_uid' => $driver_id,
+                'title' => 'Assigned Package',
+                'body' => 'You have assgined to delivery package('.$pacakge->qr_code.').'
+            ]);
+            $notif->sendNotificationByTopic($notifReq,$user);
             DB::commit();
             return ApiResponse::JsonResult(null,__('messages.assigned',['info' => '']));
         }catch(Exception $e){
