@@ -123,7 +123,7 @@ class Package extends Model
         // Parse and format the datetime, specifying the desired time zone
         return \Carbon\Carbon::parse($value)
             ->timezone(config('app.timezone')) // Convert to app time zone
-            ->format('d-M-y H:i:s A');
+            ->format('d-M-y h:i:s A');
     }
     public function status(){
         return $this->belongsTo(TrackingStatus::class,'status_id','id');

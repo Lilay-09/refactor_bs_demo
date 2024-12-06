@@ -6,12 +6,14 @@ use ApiResponse;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\V1\PackageTrailController;
 use App\Models\DeliveryPackage;
+use App\Models\Notification;
 use App\Models\Package;
 use App\Services\CloudMessagingService;
 use App\Services\GeneralSettingService;
 use App\Services\PickupCenterService;
 use App\Services\UserService;
 use Cache;
+use DataResponse;
 use DB;
 use Exception;
 use Helper;
@@ -112,6 +114,26 @@ class GeneralSettingController extends Controller
         // $package->update([
         //     ''
         // ]);
+    }
+
+    public static function markReadNotification(Request $req,$user){
+        $id = $req->id;
+        $msg = 'Mark read all';
+        $notification = Notification::where('user_id',$user->id)->where('is_read',0)->selectRaw('id,is_read,title,body');
+        if($id) {
+            $msg = 'Read';
+            $notification->where('id',$id)->update([
+                'is_read' => true,
+                'read_datetime' => now()
+            ]);
+        }else{
+            $notification->update([
+                'is_read' => true,
+                'read_datetime' => now()
+            ]);
+        }
+
+        return DataResponse::JsonResult(null,$msg);
     }
 
     public function scanPackageChooseAction(Request $req){

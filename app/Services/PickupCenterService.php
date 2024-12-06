@@ -23,6 +23,7 @@ class PickupCenterService
         return validator($req->all(),[
             'photo_id' => 'nullable|int',
             'package_name' => 'nullable|string|max:100',
+            'merchant_id' => 'required',
             'product_type' => 'nullable|string',
             'price' => 'nullable|numeric',
             'dim_z' => 'nullable|numeric',
@@ -36,7 +37,7 @@ class PickupCenterService
             'zone_code' => 'required|string|exists:zones,zone_code',
             // 'zone_id' => 'required|string',
             'remarks' => 'nullable|string|max:250',
-            'receiver_phone' => 'required|string',
+            'receiver_phone' => 'required|string|min:9',
             'receiver_name' => 'nullable|string',
             'pickup_notes' => 'nullable|string',
             'extra_charge' => 'nullable|numeric',
@@ -84,6 +85,7 @@ class PickupCenterService
         $details = $inputs['details'] ?? [];
         $images = $inputs['images'] ?? [];
         // Log::info(json_encode($images));
+        $inputs['original_qty'] = $inputs['qty'];
         $inputs['order_datetime'] = now();
         $inputs['warehouse_id'] = GeneralSettingService::getWarehouse($user)->id;
         if($user->account_type == 'driver') $inputs['driver_id'] = $user->id;
@@ -120,8 +122,9 @@ class PickupCenterService
                 'code' => $code
             ]);
             if(isset($details[0])){
-                if($inputs['qty'] != count($details)) return DataResponse::ValidateFail('Your quantity is not matching the details');
+                // if($inputs['qty'] != count($details)) return DataResponse::ValidateFail('Your quantity is not matching the details');
                 foreach($details as $d){
+                    $d['merchant_id'] = $merchantId;
                     $dReq = new Request($d);
                     $savePkg = $this->createOrUpdatePackage($dReq,$user,null,$orderId);
                     if($savePkg->error) return $savePkg;
@@ -231,6 +234,7 @@ class PickupCenterService
     public function createOrUpdatePackage(Request $req,$user,$packageId=null,$orderId=null,$statusIds=[1,7],$whereClause=null){
         if($orderId){
             $order = Order::where('is_deleted',0)->find($orderId);
+            $req->merge(['merchant_id' => $order->merchant_id]);
             if(!$order) return DataResponse::NotFound('Order not found');
         }
         $validate = $this->packageValidation($req);
@@ -273,7 +277,7 @@ class PickupCenterService
             $createPackage = Package::create($inputs);
             if(!$createPackage) return DataResponse::Error(__('messages.Fail to create package'));
             $qrCode = Helper::generateBarcodeString($createPackage->id,$user->company_id);
-            Package::find(id: $createPackage->id)->update([
+            Package::find( $createPackage->id)->update([
                 'qr_code' => $qrCode
             ]);
             $count = Package::where('order_id',$orderId)->where('is_deleted',0)->count();

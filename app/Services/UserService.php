@@ -55,6 +55,7 @@ class UserService
                     'system_admin' => $hasUser->system_admin,
                     'info'=> (object)[
                         'phone' => $hasUser->phone,
+                        'address' => $hasUser->address,
                         'vehicle_type' => $hasUser->vehicle_type
                     ]
                 ]);

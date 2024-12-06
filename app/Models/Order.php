@@ -19,6 +19,7 @@ class Order extends Model
         'vehicle_type',
         'delivery_type',
         'qty',
+        'original_qty',
         'pickup_address',
         'pickup_location',
         'code',

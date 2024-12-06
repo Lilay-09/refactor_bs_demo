@@ -308,16 +308,16 @@ Route::middleware(['jwt','localize'])->prefix('admin/v1/{lang}')->group(function
         Route::delete('/{id}',[PromotionController::class,'deletePromotion']);
     });
 
-    Route::prefix('report')->group(function (){
-        Route::prefix('expense')->group(function(){
-            Route::get('category',[ReportController::class,'getExpenseByCategory']);
-            Route::get('monthly',[ReportController::class,'getMonthlyExpense']);
-        });
+    // Route::prefix('report')->group(function (){
+    //     Route::prefix('expense')->group(function(){
+    //         Route::get('category',[ReportController::class,'getExpenseByCategory']);
+    //         Route::get('monthly',[ReportController::class,'getMonthlyExpense']);
+    //     });
 
-        Route::prefix('sale')->group(function(){
-            Route::get('product',[ReportController::class,'SaleProduct']);
-        });
-    });
+    //     Route::prefix('sale')->group(function(){
+    //         Route::get('product',[ReportController::class,'SaleProduct']);
+    //     });
+    // });
 
     Route::put('termCondition',[AppSettingController::class,'saveTermCondition']);
     Route::put('privacyStatement',[AppSettingController::class,'savePrivacyStatement']);
@@ -372,6 +372,9 @@ Route::middleware(['jwt','localize'])->prefix('admin/v1/{lang}')->group(function
             Route::get('/pickup/option',[ReportController::class,'getPickupReportOption']);
             Route::get('/dailyPackage',[ReportController::class,'getDailyPackageReport']);
             Route::get('/dailyPackage/option',[ReportController::class,'getDailyPackageReportOption']);
+            Route::get('/dailyPackageSummary',[ReportController::class,'getDailyPackageSummaryReport']);
+            Route::get('/dailyPackageSummary/option',[ReportController::class,'getDailyPackageSummaryReportOption']);
+            Route::get('/reviewAndFeedBack',[ReportController::class,'getReviewAndFeedBackReport']);
         });
         Route::prefix('driver')->group(function(){
             Route::get('/list/option',[ReportController::class,'formOptionDriver']);

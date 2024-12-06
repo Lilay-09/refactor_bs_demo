@@ -71,6 +71,7 @@ class TransactionService
         $bankAmountKh = $inputs['bank_amount_kh'] ?? 0;
         $dueAmount = $validPackages->total_due_amount;
         $validPayment = $this->validPayment($cash,$cashKh,$bankAmount,$bankAmountKh,$bankId,$dueAmount,$exchangeRate);
+        return $validPayment;
         if($validPayment->error) return $validPayment;
         $breakDownNotes = null;
         if($dueAmount > 0){

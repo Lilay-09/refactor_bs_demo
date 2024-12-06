@@ -22,4 +22,8 @@ class FeedBack extends Model
         'company_id',
         'branch_id'
     ];
+
+    public function merchant(){
+        return $this->belongsTo(User::class,'create_uid','id');
+    }
 }
