@@ -71,8 +71,11 @@ class TransactionService
         $bankAmountKh = $inputs['bank_amount_kh'] ?? 0;
         $dueAmount = $validPackages->total_due_amount;
         $validPayment = $this->validPayment($cash,$cashKh,$bankAmount,$bankAmountKh,$bankId,$dueAmount,$exchangeRate);
-        return $validPayment;
         if($validPayment->error) return $validPayment;
+        // return $validPayment;
+        // if($validPayment->total_input_amount !== $dueAmount) return DataResponse::ValidateFail(__('messages.info',[
+        //     'info' => 'Total input amount must be $'.$dueAmount
+        // ]));
         $breakDownNotes = null;
         if($dueAmount > 0){
             if($cash) $breakDownNotes .= 'Cash: USD '.$cash.'|';
@@ -148,7 +151,7 @@ class TransactionService
                 ];
                 Package::find($id)->update($fkField);
             }
-            // DB::commit();
+            DB::commit();
 
             // return Package::whereIn('id',$packageIds)->get();
             return DataResponse::JsonResult($dueAmount,false,__('messages.created',[
@@ -230,6 +233,8 @@ class TransactionService
         $originalBankAmtKh = 0;
         if($totalAmountUSD && $totalAmountKHR){
             $totalAmountKHR_to_USD = $totalAmountKHR/$exchangeRate;
+            $totalAllAmt = $totalAmountUSD + $totalAmountKHR_to_USD;
+            if($totalAllAmt > $dueAmount) return DataResponse::ValidateFail('You amount is exceeding the expected, amount is only $'.$dueAmount.' in total');
             $remainingAmt = abs($totalAmountUSD - $dueAmount);
             $totalSuggestionAmt_KH = $remainingAmt * $exchangeRate;
             $suggestionAmtBankKh = abs($totalSuggestionAmt_KH  - $cashKh);
@@ -257,6 +262,8 @@ class TransactionService
             if($totalAmountUSD < $dueAmount) return DataResponse::ValidateFail(__('messages.info',[
                 'info' => 'Payment amount must be $'.$dueAmount.' remaining amount ($'.$dueAmount - $totalAmountUSD.')'
             ]));
+
+            if($totalAmountUSD > $dueAmount) return DataResponse::ValidateFail('You amount is exceeding the expected, amount is only $'.$dueAmount.' in total');
         }
 
         if($totalAmountKHR && !$totalAmountUSD){
@@ -313,6 +320,7 @@ class TransactionService
         ];
         foreach($packageIds as $key=>$id){
             $package = Package::where($type.'_id',$driverOrMerchantId)->where('is_deleted',0)->whereIn('status_id',[9,19])->find($id);
+
             if(!$package){
                 return DataResponse::ValidateFail(__('messages.info',['info' => 'Invalid package'.' on row ('.($key+1).')']));
             }
@@ -328,6 +336,7 @@ class TransactionService
             $obj->total_taxi_fee += $package->taxi_fee;
             $obj->driver_total += $package->driver_total;
             $obj->merchant_total += $package->merchant_total;
+            $payableAmt = 0;
             if($package->cod){
                 $obj->total_cod += $package->price;
                 $payableAmt = $package->price;
@@ -336,15 +345,15 @@ class TransactionService
                 if($package->payer == 'sender' && $type == 'merchant') $payableAmt += $package->delivery_fee;
                 if($type =='merchant') $payableAmt += $taxiFee; //** add taxi for merchant */
                 else if($type == 'driver') $payableAmt = $payableAmt - $taxiFee; //** sub taxi for driver */
-                $obj->total_due_amount = $payableAmt;
+                $obj->total_due_amount += $payableAmt;
             }else{
                 $taxiFee = $package->taxi_fee ?? 0;
-                $payableAmt = 0;
+                // $payableAmt = 0;
                 if($package->payer == 'receiver' && $type == 'driver') $payableAmt += $package->delivery_fee;
                 if($package->payer == 'sender' && $type == 'merchant') $payableAmt += $package->delivery_fee;
                 if($type =='merchant') $payableAmt += $taxiFee; //** add taxi for merchant */
                 else if($type == 'driver') $payableAmt = $payableAmt - $taxiFee; //** sub taxi for driver */
-                $obj->total_due_amount = $payableAmt;
+                $obj->total_due_amount += $payableAmt;
             }
             $obj->total_amount += $package->price + $package->delivery_fee;
             $obj->total_package_price += $package->price;
@@ -368,7 +377,7 @@ class TransactionService
     public function getPayments(Request $req,$user){
         $qP = Payment::fromRaw('payments as p')->join('users as d','d.id','p.payer_id')
         ->where('p.is_deleted',0)
-        ->selectRaw('p.id as payment_id,d.user_name as payer_name,p.exchange_rate,p.amount,p.taxi_fee,p.approved');
+        ->selectRaw('p.payable_amount,p.id as payment_id,d.user_name as payer_name,p.exchange_rate,p.taxi_fee,p.approved');
         $payments = $qP->get();
         $paymentDetails = PaymentDetail::get();
         foreach($payments as $pmt){
@@ -437,7 +446,7 @@ class TransactionService
         return DataResponse::JsonResult(null);
     }
 
-    private function preparePaymentPackageAmount($paymentDetails,$paymentId){
+    public static function preparePaymentPackageAmount($paymentDetails,$paymentId){
         $converter = (object)[
             'total_usd' => 0,
             'total_khr' => 0
@@ -467,6 +476,9 @@ class TransactionService
                 $pmt = Payment::where('is_deleted',0)->find($id);
                 if(!$pmt) return DataResponse::ValidateFail(__('messages.info',[
                     'info' => 'check list includes invalid payment'
+                ]));
+                if($pmt->approved) return DataResponse::ValidateFail(__('messages.info',[
+                    'info' => 'check list includes approved payment'
                 ]));
                 $pmt->update([
                     'approved' => 1,

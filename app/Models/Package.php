@@ -140,4 +140,8 @@ class Package extends Model
     public function order(){
         return $this->belongsTo(Order::class,'order_id','id');
     }
+
+    public function driver_payment(){
+        return $this->belongsTo(Payment::class,'driver_payment_id','id');
+    }
 }

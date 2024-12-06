@@ -209,7 +209,7 @@ class PackageTrailController extends Controller
                 'type' => 'private',
                 'target_uid' => $driver_id,
                 'title' => 'Assigned Package',
-                'body' => 'You have assgined to delivery package('.$pacakge->qr_code.').'
+                'body' => 'You have been assigned to deliver the package('.$pacakge->qr_code.').'
             ]);
             $notif->sendNotificationByTopic($notifReq,$user);
             DB::commit();

@@ -7,10 +7,13 @@ use App\Http\Controllers\Controller;
 use App\Models\FeedBack;
 use App\Models\Order;
 use App\Models\Package;
+use App\Models\Payment;
+use App\Models\PaymentDetail;
 use App\Models\User;
 use App\Services\CompanyProfileService;
 use App\Services\GeneralSettingService;
 use App\Services\PickupCenterService;
+use App\Services\TransactionService;
 use App\Services\UserService;
 use Helper;
 use Illuminate\Http\Request;
@@ -22,23 +25,40 @@ class ReportController extends Controller
 
     public function getPickupReport(Request $req){
         $user = UserService::getAuthUser();
-        $qORder = Order::whereNotNull('driver_id')->with(['driver','merchant'])
+        $qORder = Order::whereNotNull('driver_id')->with(['merchant','driver'])
         ->where('status_id',5)
         ->where('company_id',$user->company_id)
-        ->selectRaw('driver_id,merchant_id,code,product_type,pickup_address,qty,vehicle_type');
+        ->selectRaw('merchant_id,code,product_type,pickup_address,qty,vehicle_type,driver_id');
         $orders = $qORder->get();
         foreach($orders as $order){
+            $order->product_type = $order->product_type ? $order->product_type : 'Others';
             $order->merchant_name = $order->merchant->user_name;
             $order->merchant_phone = $order->merchant->phone;
-            $order->driver_name = $order->driver->user_name;
-            $order->driver_phone = $order->driver->phone;
+            $order->driver_name = $order->driver?->user_name;
             unset($order->driver,$order->merchant);
         }
+        $groupedPackages = collect($orders)->map(function ($item) {
+            $item->groupDate = date('d-M-Y',strtotime($item->created_at));
+            // $item->actionDate = $actionDate;
+            return $item;
+        })->groupBy('groupDate')
+        ->map(function ($group, $date) {
+            $group->each(function ($item) {
+                unset($item->groupDate);
+            });
+            return [
+                'date' => $date,
+                'details' => $group->toArray(),
+                'total' => [
+                    'package' => $group->sum('qty'),
+                ],
+            ];
+        })->values();
         $obj =(object)[
             'title' => 'Daily Packages',
-            'sub_title' => 'Arrivate Date:',
+            'date' => '10 jan 2024 to 14 feb 2024',
             'company_profile' => CompanyProfileService::profileInfo($user),
-            'list' => $orders
+            'list' => $groupedPackages
         ];
         return ApiResponse::JsonResult($obj,'Get Pickup List');
     }
@@ -173,6 +193,32 @@ class ReportController extends Controller
         return ApiResponse::JsonResult($obj,'Get Daily Packages Summary');
     }
 
+    public function getSettleStatementReport(Request $req,$user){
+        $qP = Payment::fromRaw('payments as p')->join('users as d','d.id','p.payer_id')
+        ->where('p.is_deleted',0)
+        ->selectRaw('p.payable_amount,p.id as payment_id,d.user_name as payer_name,p.exchange_rate,p.taxi_fee,p.approved');
+        $payments = $qP->get();
+        $paymentDetails = PaymentDetail::get();
+        foreach($payments as $pmt){
+            $pmt_details = TransactionService::preparePaymentPackageAmount($paymentDetails,$pmt->payment_id);
+            $totalUSD = $pmt_details->total_usd;
+            $totalKHR = $pmt_details->total_khr;
+            $pmt->total_usd = Helper::displayMoney($totalUSD,'USD');
+            $pmt->total_khr = Helper::displayMoney($totalKHR,'KHR');
+            $totalKHR_to_USD = $totalKHR/$pmt->exchange_rate;
+            $totalKHR_to_USD = floor($totalKHR_to_USD * 100) / 100;
+            $pmt->total = $totalUSD + $totalKHR_to_USD;
+        }
+        $obj =(object)[
+            'title' => 'Daily Packages Summary',
+            'sub_title' => 'Arrivate Date:',
+            'company_profile' => CompanyProfileService::profileInfo($user),
+            'list' => $payments
+        ];
+        return ApiResponse::JsonResult($obj,'Get Settle Statement');
+    }
+
+    //** option */
     public function getDailyPackageReportOption(Request $req){
         $user = UserService::getAuthUser();
         $obj =(object)[

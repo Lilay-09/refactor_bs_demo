@@ -4,6 +4,9 @@ namespace App\Http\Controllers\Mobile\Driver\V1;
 
 use ApiResponse;
 use App\Http\Controllers\Controller;
+use App\Models\Package;
+use App\Models\Payment;
+use App\Services\UserService;
 use Illuminate\Http\Request;
 
 class TransactionController extends Controller
@@ -11,18 +14,23 @@ class TransactionController extends Controller
     //
 
     public function getTransactionSummary(Request $req){
+        $user = UserService::getAuthUser('driver');
+        $balanceInfo = Package::where('driver_id',$user->id)
+        ->with(['driver_payment'])
+        ->get();
+
+        foreach($balanceInfo as $balance){
+            $hasPayment = $balance->driver_payment;
+            if($hasPayment){
+
+            }
+        }
+
         $obj = (object)[
             'balance_due' => 0,
             'count' => 0,
             'total' => 0,
-            'payment_transaction' => [
-                [
-                    'payment_date' => now(),
-                    'amount' => '',
-                    'method' => '',
-                    'Payer Name' => ''
-                ]
-            ]
+            // 'payment_transaction' => $paymentTrx
         ];
 
         // $payments =
@@ -32,6 +40,7 @@ class TransactionController extends Controller
 
 
     public function getComissonTranxAndReport(){
+
         $obj = (object)[
             'report' => [
                 [

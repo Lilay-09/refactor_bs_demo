@@ -117,12 +117,14 @@ class GeneralSettingController extends Controller
     }
 
     public static function markReadNotification(Request $req,$user){
-        $id = $req->id;
+        $id = $req->id ?? null;
         $msg = 'Mark read all';
         $notification = Notification::where('user_id',$user->id)->where('is_read',0)->selectRaw('id,is_read,title,body');
         if($id) {
             $msg = 'Read';
-            $notification->where('id',$id)->update([
+            $notification->find($id);
+            if(!$notification) return DataResponse::Duplicated('Already marked');
+            $notification->update([
                 'is_read' => true,
                 'read_datetime' => now()
             ]);

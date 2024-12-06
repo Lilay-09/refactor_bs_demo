@@ -58,6 +58,7 @@ class ApiResponse
         return response()->json([
             'error' => true,
             'status' => 'Error',
+            'data' => null,
             'message' => $message,
             'errors' => []
         ],500);
@@ -102,7 +103,7 @@ class ApiResponse
     }
 
     static function flex($object=null,$status_code=null){
-        $status_code = $status_code ?? $object?->status_code ?? $object?->data->status_code;
+        $status_code = $status_code ?? $object?->status_code ?? $object?->data?->status_code;
         unset($object->data->status_code,$object->status_code);
         return response()->json($object,$status_code);
     }
@@ -177,9 +178,8 @@ class Helper{
     }
 
     static function formatCustomDateTime($datetime, $outputFormat = 'd-M-Y h:i:s A', $useMeridiem = false) {
-        if(!$datetime) return null;
-        $datetime = str_replace(" PM", "", $datetime);
-        $datetime = str_replace(" AM", "", $datetime);
+        if (!$datetime) return null;
+
         // Default timezone
         $timezone = new DateTimeZone(date_default_timezone_get());
 
@@ -196,13 +196,14 @@ class Helper{
             return "Invalid datetime format";  // Return error if parsing fails
         }
 
-        // Adjust the output format (replace 'H' with 'h' for 12-hour format if needed)
+        // If using meridiem (AM/PM), adjust the output format
         if ($useMeridiem) {
-            $outputFormat = str_replace('H', 'h', $outputFormat);
+            // If it's 24-hour format, we need to convert it to 12-hour format
+            $outputFormat = str_replace('H', 'h', $outputFormat);  // Change 24-hour format to 12-hour format
         }
-        $meridiem = $useMeridiem ? 'A' : '';
+
         // Return the formatted datetime string
-        return $date->format($outputFormat.' '.$meridiem);
+        return $date->format($outputFormat);
     }
 
 
@@ -797,6 +798,7 @@ class DataResponse //extends Model
             'error' => true,
             'status' => 'Error',
             'message' => $message,
+            'data' => null,
             'errors' => $errors
         ];
     }
