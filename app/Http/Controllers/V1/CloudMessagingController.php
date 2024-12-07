@@ -30,4 +30,9 @@ class CloudMessagingController extends Controller
         return ApiResponse::JsonRaw($this->cloudService->sendNotificationByTopic($req,$user));
     }
 
+    public function unsubscribeFromTopic(Request $req){
+        $user = UserService::getAuthUser();
+        return ApiResponse::JsonRaw($this->cloudService->unsubscribeTopic($user,$req->topic,$req->token));
+    }
+
 }
