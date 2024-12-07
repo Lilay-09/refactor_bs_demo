@@ -13,6 +13,7 @@ use Kreait\Firebase\Exception\Messaging\InvalidMessage;
 use Kreait\Firebase\Exception\Messaging\NotFound;
 use Kreait\Firebase\Factory;
 use Kreait\Firebase\Messaging\CloudMessage;
+use Log;
 
 class CloudMessagingService
 {
@@ -180,31 +181,63 @@ class CloudMessagingService
         return DataResponse::JsonResult(null,false,'unsubscribed');
     }
 
+    public function unsubscribeTopic($user,$topic,$setToken=null)
+    {
+        $token = $setToken ? $setToken : UserNotificationToken::where('user_id', $user->id)->value('token');
+        $this->messaging->unsubscribeFromTopic($topic,$token);
+        return DataResponse::JsonResult(null,false,'unsubscribed');
+    }
 
     private function sendNotification($target,$targetValue,$title,$body,$data=[]){
-        $message = isset($data) ? CloudMessage::withTarget($target, $targetValue)
-            ->withNotification([
-                'title' => $title,
-                'body' => $body,
-            ])->withData($data) : CloudMessage::withTarget($target, $targetValue)
+        $message = CloudMessage::withTarget($target, $targetValue)
             ->withNotification([
                 'title' => $title,
                 'body' => $body,
             ]);
+            if(isset($data)) $message->withData($data);
         try {
-            // Send the message
-            $this->messaging->send($message);
+            // Log the message data for debugging purposes (optional)
+            // Log::debug("Sending notification to target: {$targetValue}");
+
+            // Ensure the message is sent only once
+            $response = $this->messaging->send($message);
+
             // Handle success
             return DataResponse::JsonResult([
-                'action'=> 'Sent',
+                'action' => 'Sent',
+                'response' => $response,  // You can log or return the response for debugging purposes
             ]);
         } catch (InvalidMessage $e) {
-
+            // Handle specific invalid message errors
             return DataResponse::error('Invalid message');
         } catch (Exception $e) {
-            // Handle other exceptions
+            // Catch all other exceptions
             return DataResponse::error('Failed to send notification');
         }
+        // isset($data) ? CloudMessage::withTarget($target, $targetValue)
+        //     ->withNotification([
+        //         'title' => $title,
+        //         'body' => $body,
+        //     ])->withData($data) :
+        // $message =  CloudMessage::withTarget($target, $targetValue)
+        //     ->withNotification([
+        //         'title' => $title,
+        //         'body' => $body,
+        //     ]);
+        // try {
+        //     // Send the message
+        //     $this->messaging->send($message);
+        //     // Handle success
+        //     return DataResponse::JsonResult([
+        //         'action'=> 'Sent',
+        //     ]);
+        // } catch (InvalidMessage $e) {
+
+        //     return DataResponse::error('Invalid message');
+        // } catch (Exception $e) {
+        //     // Handle other exceptions
+        //     return DataResponse::error('Failed to send notification');
+        // }
     }
 
     private function saveNotification($targetUid,$type,$title,$body,$user,$status='sent'): void{

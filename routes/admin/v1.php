@@ -55,10 +55,11 @@ Route::middleware(['jwt','localize'])->prefix('admin/v1/{lang}')->group(function
         });
     });
 
-    Route::prefix('nofication')->group(function(){
+    Route::prefix('notification')->group(function(){
         Route::post('token',[CloudMessagingController::class,'sendNoficationViaToken']);
         Route::post('topic',[CloudMessagingController::class,'sendNoficationViaTopic']);
         Route::post('topic/subscribe',[CloudMessagingController::class,'subscribeToTopic']);
+        Route::post('topic/unsubscribe',[CloudMessagingController::class,'unsubscribeFromTopic']);
     });
 
     Route::prefix('driver')->group(function(){
