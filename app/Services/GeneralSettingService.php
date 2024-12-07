@@ -167,6 +167,14 @@ class GeneralSettingService
         return $drivers;
     }
 
+    public static function optionsOperator($user){
+        $qD = User::where(function($q){
+            $q->where('lock',0)->orWhere('is_deleted',0);
+        })->where('has_account',true)->where('company_id',$user->company_id)->where('account_type','admin')->selectRaw('id,user_name,phone');
+        $drivers = $qD->orderByDesc('id')->get();
+        return $drivers;
+    }
+
     public static function optionsDriverByVehicleType($vehicle_type,$user){
         return User::where(function($q){
             $q->where('lock',0)->orWhere('is_deleted',0);

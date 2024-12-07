@@ -25,6 +25,8 @@ class ReportController extends Controller
 
     public function getPickupReport(Request $req){
         $user = UserService::getAuthUser();
+        $startDate = $req->startDate;
+        $endDate = $req->endDate;
         $qORder = Order::whereNotNull('driver_id')->with(['merchant','driver'])
         ->where('status_id',5)
         ->where('company_id',$user->company_id)
@@ -56,7 +58,7 @@ class ReportController extends Controller
         })->values();
         $obj =(object)[
             'title' => 'Daily Packages',
-            'date' => '10 jan 2024 to 14 feb 2024',
+            'date' => Helper::dateDMY($startDate).' to '.Helper::dateDMY($endDate),
             'company_profile' => CompanyProfileService::profileInfo($user),
             'list' => $groupedPackages
         ];
@@ -65,6 +67,8 @@ class ReportController extends Controller
 
     public function getDailyPackageReport(Request $req){
         $user = UserService::getAuthUser();
+        $startDate = $req->startDate;
+        $endDate = $req->endDate;
         $qP = Package::where('is_deleted',0)
         ->with(['status','driver','merchant'])
         ->where('outstanding',0)
@@ -112,6 +116,7 @@ class ReportController extends Controller
         $obj =(object)[
             'title' => 'Daily Packages',
             'sub_title' => 'Arrivate Date:',
+            'date' => Helper::dateDMY($startDate).' to '.Helper::dateDMY($endDate),
             'company_profile' => CompanyProfileService::profileInfo($user),
             'list' => $groupedPackages
         ];
@@ -119,8 +124,10 @@ class ReportController extends Controller
         return ApiResponse::JsonResult($obj,'Get Pickup List');
     }
 
-    public function getDailyPackageSummaryReport(){
+    public function getDailyPackageSummaryReport(Request $req){
         $user = UserService::getAuthUser();
+        $startDate = $req->startDate;
+        $endDate = $req->endDate;
         $qP = Package::where('is_deleted',0)
         ->with(['merchant']);
         $packages = $qP->selectRaw('DATE(created_at) as created_date,merchant_id,status_id,delivery_fee,cod')
@@ -136,6 +143,8 @@ class ReportController extends Controller
                 $uniqueMerchants->each(function ($item) use ($group) {
                 $item->merchant_name = $item->merchant->user_name;
                 $item->merchant_phone = $item->merchant->phone;
+                $item->merchant_address = $item->merchant->address;
+                $item->merchant_code = $item->merchant->code;
                 $item->driver_name = $item->driver?->user_name;
                 $item->driver_phone = $item->driver?->phone;
                 $item->package_count = $group->where('merchant_id', $item->merchant_id)->count();
@@ -159,6 +168,7 @@ class ReportController extends Controller
         $obj =(object)[
             'title' => 'Daily Packages Summary',
             'sub_title' => 'Arrivate Date:',
+            'date' => Helper::dateDMY($startDate).' to '.Helper::dateDMY($endDate),
             'company_profile' => CompanyProfileService::profileInfo($user),
             'list' => $groupedPackages
         ];
@@ -167,9 +177,94 @@ class ReportController extends Controller
 
     }
 
-
-    public function getReviewAndFeedBackReport(){
+    public function getSettleStatementReport(Request $req){
         $user = UserService::getAuthUser();
+        $startDate = $req->startDate;
+        $endDate = $req->endDate;
+        $qP = Payment::fromRaw('payments as p')->join('users as d','d.id','p.payer_id')
+        ->where('p.is_deleted',0)
+        ->where('p.approved',1)
+        ->join('users as ap','ap.id','p.approved_uid')
+        ->leftJoin('users as st','st.id','p.settled_uid')
+        ->selectRaw('p.payable_amount,p.id as payment_id,d.user_name as payer_name,p.approved_uid,p.exchange_rate,p.taxi_fee,p.approved,p.payment_datetime,ap.user_name as approved_user,st.user_name as settlement_user,p.payer_id');
+        $payments = $qP->get();
+        $paymentDetails = PaymentDetail::get();
+        foreach($payments as $pmt){
+            $pmt_details = TransactionService::preparePaymentPackageAmount($paymentDetails,$pmt->payment_id);
+            $totalUSD = $pmt_details->total_usd;
+            $totalKHR = $pmt_details->total_khr;
+            $pmt->total_usd = Helper::displayMoney($totalUSD,'USD');
+            $pmt->total_khr = Helper::displayMoney($totalKHR,'KHR');
+            $pmt->payment_date = Helper::formatCustomDateTime($pmt->payment_datetime,'d-M-Y');
+            $pmt->payment_time = Helper::formatCustomDateTime($pmt->payment_datetime,'h:i:s A');
+            $totalKHR_to_USD = $totalKHR/$pmt->exchange_rate;
+            $totalKHR_to_USD = floor($totalKHR_to_USD * 100) / 100;
+            $pmt->total = $totalUSD + $totalKHR_to_USD;
+            $pmt->confirmed_user = $pmt->settlement_user ?? $pmt->approved_user;
+            $pmt->status_code = $pmt->is_settled ? 'Completed':'Pending';
+            unset($pmt->payment_datetime);
+        }
+        // $groupedPackages = collect($payments)->map(function ($pkg) {
+        //     $pkg->groupKey = date('d-M-Y',strtotime($pkg->created_date));
+        //     return $pkg;
+        // })
+        // ->groupBy('groupKey')
+        // ->map(function ($group, $date) {
+        //     $uniqueMerchants = $group->unique('merchant_id');
+        //         $uniqueMerchants->each(function ($item) use ($group) {
+        //         $item->merchant_name = $item->merchant->user_name;
+        //         $item->merchant_phone = $item->merchant->phone;
+        //         $item->merchant_address = $item->merchant->address;
+        //         $item->merchant_code = $item->merchant->code;
+        //         $item->driver_name = $item->driver?->user_name;
+        //         $item->driver_phone = $item->driver?->phone;
+        //         $item->package_count = $group->where('merchant_id', $item->merchant_id)->count();
+        //         $item->delivered_count = $group->where('status_id', 9)->count(); // Count packages for this merchant
+        //         $item->returned_count = $group->where('status_id', 11)->count();
+        //         $item->outstanding_count = $group->whereIn('status_id', [10,19])->count();
+        //         unset($status_id, $item->merchant, $item->driver,$item->cod,$item->cod);
+        //     });
+        //     return [
+        //         'date' => $date,
+        //         'details' => $uniqueMerchants->values()->toArray(),
+        //         'total' => [
+        //             'pacakge' => $group->sum('package_count'),
+        //             'delivered' => $group->sum('delivered_count'),
+        //             'returned' => $group->sum('returned_count'),
+        //             'outstanding' => $group->sum('outstanding_count'),
+        //         ],
+        //     ];
+        // })->values();
+        $obj =(object)[
+            'title' => 'Daily Packages Summary',
+            'sub_title' => 'Arrivate Date:',
+            'status' => 'All Drivers',
+            'date' => Helper::dateDMY($startDate).' to '.Helper::dateDMY($endDate),
+            'company_profile' => CompanyProfileService::profileInfo($user),
+            'list' => $payments
+        ];
+        return ApiResponse::JsonResult($obj,'Get Settle Statement');
+    }
+
+    public function getOperationSummaryReport(Request $req){
+        $user = UserService::getAuthUser();
+        $startDate = $req->startDate;
+        $endDate = $req->endDate;
+        $obj =(object)[
+            'title' => 'Summary Report',
+            'sub_title' => 'Arrivate Date:',
+            'date' => Helper::dateDMY($startDate).' to '.Helper::dateDMY($endDate),
+            'company_profile' => CompanyProfileService::profileInfo($user),
+            // 'list' => $payments
+        ];
+        return ApiResponse::JsonResult($obj,'Get Settle Statement');
+    }
+
+
+    public function getReviewAndFeedBackReport(Request $req){
+        $user = UserService::getAuthUser();
+        $startDate = $req->startDate;
+        $endDate = $req->endDate;
         $qP = FeedBack::where('is_deleted',0)
         ->selectRaw('id,create_uid,rate,created_at,comments')
         ->with('merchant');
@@ -185,6 +280,7 @@ class ReportController extends Controller
         $obj =(object)[
             'title' => 'Daily Packages Summary',
             'sub_title' => 'Arrivate Date:',
+            'date' => Helper::dateDMY($startDate).' to '.Helper::dateDMY($endDate),
             'total' => $total,
             'company_profile' => CompanyProfileService::profileInfo($user),
             'list' => $feedBack
@@ -193,32 +289,15 @@ class ReportController extends Controller
         return ApiResponse::JsonResult($obj,'Get Daily Packages Summary');
     }
 
-    public function getSettleStatementReport(Request $req,$user){
-        $qP = Payment::fromRaw('payments as p')->join('users as d','d.id','p.payer_id')
-        ->where('p.is_deleted',0)
-        ->selectRaw('p.payable_amount,p.id as payment_id,d.user_name as payer_name,p.exchange_rate,p.taxi_fee,p.approved');
-        $payments = $qP->get();
-        $paymentDetails = PaymentDetail::get();
-        foreach($payments as $pmt){
-            $pmt_details = TransactionService::preparePaymentPackageAmount($paymentDetails,$pmt->payment_id);
-            $totalUSD = $pmt_details->total_usd;
-            $totalKHR = $pmt_details->total_khr;
-            $pmt->total_usd = Helper::displayMoney($totalUSD,'USD');
-            $pmt->total_khr = Helper::displayMoney($totalKHR,'KHR');
-            $totalKHR_to_USD = $totalKHR/$pmt->exchange_rate;
-            $totalKHR_to_USD = floor($totalKHR_to_USD * 100) / 100;
-            $pmt->total = $totalUSD + $totalKHR_to_USD;
-        }
-        $obj =(object)[
-            'title' => 'Daily Packages Summary',
-            'sub_title' => 'Arrivate Date:',
-            'company_profile' => CompanyProfileService::profileInfo($user),
-            'list' => $payments
-        ];
-        return ApiResponse::JsonResult($obj,'Get Settle Statement');
-    }
-
     //** option */
+
+    public function getSettleStatementReportOption(){
+        $user = UserService::getAuthUser();
+        $obj =(object)[
+            'operators' => GeneralSettingService::optionsOperator($user),
+        ];
+        return ApiResponse::JsonResult($obj);
+    }
     public function getDailyPackageReportOption(Request $req){
         $user = UserService::getAuthUser();
         $obj =(object)[
@@ -239,7 +318,7 @@ class ReportController extends Controller
     public function getDailyPackageSummaryReportOption(){
         $user = UserService::getAuthUser();
         $obj =(object)[
-            'warehouses' => GeneralSettingService::optionsWarehouse($user),
+            'merchants' => GeneralSettingService::optionsMerchant($user),
         ];
         return ApiResponse::JsonResult($obj);
     }

@@ -374,6 +374,9 @@ Route::middleware(['jwt','localize'])->prefix('admin/v1/{lang}')->group(function
             Route::get('/dailyPackage/option',[ReportController::class,'getDailyPackageReportOption']);
             Route::get('/dailyPackageSummary',[ReportController::class,'getDailyPackageSummaryReport']);
             Route::get('/dailyPackageSummary/option',[ReportController::class,'getDailyPackageSummaryReportOption']);
+            Route::get('/settleStatement',[ReportController::class,'getSettleStatementReport']);
+            Route::get('/settleStatement/option',[ReportController::class,'getSettleStatementReportOption']);
+            Route::get('/operationSummary',[ReportController::class,'getOperationSummaryReport']);
             Route::get('/reviewAndFeedBack',[ReportController::class,'getReviewAndFeedBackReport']);
         });
         Route::prefix('driver')->group(function(){

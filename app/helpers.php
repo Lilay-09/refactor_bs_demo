@@ -41,9 +41,9 @@ class ApiResponse
         ],$statusCode);
     }
 
-    static function JsonRaw($json,$statusCode=null){
-        $status_code = is_array($json) ? (isset($data['status_code']) ? $json['status_code']:200): (isset($data->status_code)?$json->status_code:200); //($data['status_code'] ?? 200) : ($data->status_code ?? 200);
-        return response()->json($json,$status_code ?? $statusCode ?? 200);
+    static function JsonRaw($json,$statusCode=200){
+        // $status_code = $statusCode ?? is_array($json) ? (isset($data['status_code']) ? $json['status_code']:200): (isset($data->status_code)?$json->status_code:200); //($data['status_code'] ?? 200) : ($data->status_code ?? 200);
+        return response()->json($json,$statusCode);
     }
     static function NotFound($message='Not found',$errors=[]){
         return response()->json([

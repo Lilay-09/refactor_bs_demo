@@ -8,6 +8,6 @@ Artisan::command('inspire', function () {
 })->purpose('Display an inspiring quote')->hourly();
 
 
-Schedule::call(function () {
-    DB::table('recent_users')->delete();
-})->daily();
+// Schedule::call(function () {
+//     DB::table('recent_users')->delete();
+// })->daily();

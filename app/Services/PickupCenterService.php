@@ -157,6 +157,18 @@ class PickupCenterService
                 'target_uid' => $merchantId
             ]);
             $clmsg->sendNotificationByTopic($clmsgReq,$user);
+            if($driverId){
+                $notif = new CloudMessagingService();
+                $topics = GeneralSettingService::getGeneralTopics($user->company_id,'driver',$driverId);
+                $notifReq = new Request([
+                    'topic' => $topics->private,
+                    'type' => 'private',
+                    'target_uid' => $driverId,
+                    'title' => 'Assigned Order',
+                    'body' => 'You have been assigned to deliver the order('.$code.') has '.$inputs['qty'].' package(s).'
+                ]);
+                $notif->sendNotificationByTopic($notifReq,$user);
+            }
             DB::commit();
             return DataResponse::JsonResult(null,false,'Order created ('.$code.')');
         }catch(Exception $e){

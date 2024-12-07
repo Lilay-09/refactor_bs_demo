@@ -5,7 +5,7 @@ namespace App\Exceptions;
 use ApiResponse;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Foundation\Exceptions\Handler as ExceptionHandler;
-use Illuminate\Http\JsonResponse;
+// use Illuminate\Http\JsonResponse;
 use Throwable;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 
@@ -20,7 +20,7 @@ class Handler extends ExceptionHandler
     public function report(Throwable $exception)
     {
         // Log the exception details for debugging purposes
-        \Log::error('Caught exception:', ['exception' => $exception]);
+        // \Log::error('Caught exception:', ['exception' => $exception]);
 
         parent::report($exception);
     }
@@ -42,6 +42,15 @@ class Handler extends ExceptionHandler
         }
 
         // If the request is for API, return a generic 500 response for other errors
+        if ($exception instanceof HttpException && $exception->getStatusCode() === 405){
+            return ApiResponse::JsonRaw([
+                'error' => true,
+                'status' => 'Method Not Allowed',
+                'message' => 'Not Allowed',
+                'errors' => []
+            ],$exception->getStatusCode());
+        }
+
         if ($request->is('api/*')) {
             return ApiResponse::Error('Internal Server Error');
         }

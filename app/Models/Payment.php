@@ -42,4 +42,9 @@ class Payment extends Model
     public function cashier(){
         return $this->belongsTo(User::class,'settled_uid','id');
     }
+
+    public function approvedUser($fkId='settled_uid'){
+        return $this->belongsTo(User::class,$fkId,'id');
+    }
+
 }

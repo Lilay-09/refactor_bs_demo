@@ -22,6 +22,7 @@ class CompanyProfileController extends Controller
             'description' => 'nullable|string|max:250',
             'photo' => 'nullable|string',
             'address_kh' => 'nullable|string|max:250',
+            'website' => 'nullable|string|max:300',
             'cp_phone' => 'nullable|string|max:20',
             'cp_name' => 'nullable|string|max:35',
             'cp_email' => 'nullable|email|max:100',
@@ -38,9 +39,6 @@ class CompanyProfileController extends Controller
         $photo = $inputs['photo'] ?? null;
         if(Helper::isValidBase64Image($photo) || !$photo){
             Helper::deleteImageFile($company->photo_file_name,$company->id,'company');
-            $inputs['photo_file_name'] = null;
-        }
-        if($photo){
             $inputs['photo_file_name'] = Helper::base64ToImageFile($photo,$user->company_id,'company')->filename;
         }
         $update = $company->update($inputs);

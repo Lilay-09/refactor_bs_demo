@@ -19,6 +19,7 @@ class CompanyProfile extends Model
         'phone',
         'description',
         'photo_file_name',
+        'website',
         'address_kh',
         'cp_name',
         'cp_phone',
