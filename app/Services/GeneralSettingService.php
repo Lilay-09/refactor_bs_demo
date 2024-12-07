@@ -425,11 +425,11 @@ class GeneralSettingService
         if($trip){
             $queryDeliveryPackage = DeliveryPackage::where('delivery_id',$id);
             $deliveredCount = 0;
-            $isCompleted = 0;
+            $isCompleted = 1;
             $failCount = 0;
             $stillOnDelivery = 0;
             $status_id = 16;
-            $packages = $queryDeliveryPackage->where('is_deleted',0)->get();
+            $packages = $queryDeliveryPackage->where('is_deleted',0)->where('delay_count',0)->get();
             foreach($packages as $pck){
                 // Log::info($pck->status_id);
                 if($pck->status_id == 9){
@@ -454,15 +454,16 @@ class GeneralSettingService
                     $status_id = 14;
                 }
             }
-            // Log::error($status_id);
-            $trip->update([
+            // else if($trip->package_count == ($failCount + $deliveredCount)) $isCompleted = 1;
+            $updateArr = [
                 'is_completed' => $isCompleted,
                 'finished' => $isCompleted,
                 'update_uid' => $user->id,
                 'failed_count' => $failCount,
                 'status_id' => $status_id,
                 'delivered_count' => $deliveredCount
-            ]);
+            ];
+            Delivery::where('id',$id)->update($updateArr);
         }
     }
 

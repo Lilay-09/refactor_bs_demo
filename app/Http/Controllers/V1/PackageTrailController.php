@@ -191,7 +191,7 @@ class PackageTrailController extends Controller
         if($pacakge->driver_id){
             $deliveryPackage = DeliveryPackage::where('package_id',$id)->where('is_deleted',0)->where('delay_count',0)->first();
             if($deliveryPackage){
-                if($deliveryPackage->status_id !== 10) return ApiResponse::Duplicated(__('messages.has already assigned',['info' => 'Package']));
+                if($deliveryPackage->status_id !== 10 && !in_array($pacakge->status_id,[5,10,19]) ) return ApiResponse::Duplicated(__('messages.has already assigned',['info' => 'Package']));
             }
         }
         DB::beginTransaction();
@@ -235,6 +235,7 @@ class PackageTrailController extends Controller
         })->where('company_id', $user->company_id)
         ->where('driver_id', $driverId)
         ->first();
+        if($pendingTrip) Log::error('found');
 
         // $pendingTrip = Delivery::whereDate('depart_datetime',$today)->where('company_id',$user->company_id)->where('driver_id',$driverId)->first();
         // if(!$pendingTrip) $pendingTrip = Delivery::where(function($q){
@@ -262,13 +263,12 @@ class PackageTrailController extends Controller
             ]);
             if(!$create) return DataResponse::Error(__('messages.error',['info' => 'Fail to add fleet']));
             $deliveryId = $create->id;
-            // Log::info("adding fleet");
             Helper::setFleetNumber($user->branch_id,'fleet_code_controls','deliveries',$deliveryId,'fleet_tracking_number');
         }else{
             $deliveryId = $pendingTrip->id;
             $newPackageCount = $pendingTrip->package_count;
             $delay = 1;
-            $existsPkg = DeliveryPackage::where('package_id',$packageId)->where('is_deleted',0)
+            $existsPkg = DeliveryPackage::where('package_id',$packageId)->where('delivery_id',$deliveryId)->where('delay_count',0)->where('is_deleted',0)
             ->first();
             if($existsPkg) {
                 $isNewPkg = false;
@@ -281,8 +281,7 @@ class PackageTrailController extends Controller
             }else {
                 $newPackageCount +=1;
             }
-            $found = Delivery::find($pendingTrip->id);
-            if($found) $found->update([
+            $pendingTrip->update([
                 'driver_id' => $driverId,
                 'delay_count' => $delay,
                 'status_id' => 14,

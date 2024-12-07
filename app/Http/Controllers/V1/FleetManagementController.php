@@ -124,22 +124,28 @@ class FleetManagementController extends Controller
         if(!in_array($package->status_id,[6,9,10,19])) return ApiResponse::ValidateFail(__('messages.error',['info' => 'Package must be on delivery before set to delivered,failed or failed with fee.']));
         $failDatetime = ($status_id == 10 || $status_id == 19) ? now() : null;
         $deliveredDatetime = $status_id == 9 ? now():null;
-        $package->update([
-            'update_uid' => $user->id,
-            'failure_notes' => $failure_notes,
-            'failed_datetime' => $failDatetime,
-            'delivered_datetime' => $deliveredDatetime,
-            'status_id' => $status_id
-        ]);
+        DB::beginTransaction();
+        try{
+            $package->update([
+                'update_uid' => $user->id,
+                'failure_notes' => $failure_notes,
+                'failed_datetime' => $failDatetime,
+                'delivered_datetime' => $deliveredDatetime,
+                'status_id' => $status_id
+            ]);
 
-        DeliveryPackage::where('package_id',$package_id)->update([
-            'update_uid' => $user->id,
-            'failure_notes' => $failure_notes,
-            'failed_datetime' => $failDatetime,
-            'delivered_datetime' => $deliveredDatetime,
-            'status_id' => $status_id
-        ]);
-        GeneralSettingService::updateTripStatus($trip_id,$user);
+            DeliveryPackage::where('package_id',$package_id)->update([
+                'update_uid' => $user->id,
+                'failure_notes' => $failure_notes,
+                'failed_datetime' => $failDatetime,
+                'delivered_datetime' => $deliveredDatetime,
+                'status_id' => $status_id
+            ]);
+            GeneralSettingService::updateTripStatus($trip_id,$user);
+            DB::commit();
+        }catch(Exception $e){
+            DB::rollBack();
+        }
         return ApiResponse::JsonResult(null,__('messages.updated'));
     }
 
