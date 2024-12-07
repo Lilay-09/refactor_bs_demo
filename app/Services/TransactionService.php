@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use ApiResponse;
 use App\Models\Bank;
 use App\Models\DriverCommission;
 use App\Models\Order;
@@ -328,7 +329,7 @@ class TransactionService
                 'info' => 'Check list might include package that has been paid',
             ]));
             if($package->status_id == 9) $obj->delivered_package_count += 1;
-            $obj->total_delivery_fee += $package->delivery_fee;
+            $obj->total_delivery_fee += ($package->cod ? $package->delivery_fee : 0);
 
             // $calPackage = GeneralSettingService::calculatePackageFee($package->zone_code,$package->price,$package->billed_kg,$package->actual_kg,$package->payer,$package->cod);
             // $totalPackages += 1;
@@ -417,6 +418,7 @@ class TransactionService
         $validType = $this->validType($type);
         if($validType->error) return $validType;
         $payment = Payment::where('is_deleted',0)->where('company_id',$user->company_id)->orderByDesc('id')->find($id);
+        if(!$payment) return DataResponse::NotFound('Payment not found');
         if($payment->is_settled) return DataResponse::Duplicated(__('messages.info',[
             'info' => 'Payment has already been settled'
         ]));

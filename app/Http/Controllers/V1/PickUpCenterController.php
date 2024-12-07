@@ -9,6 +9,7 @@ use App\Models\OrderImage;
 use App\Models\Package;
 use App\Models\User;
 use App\Models\VehicleType;
+use App\Services\CloudMessagingService;
 use App\Services\GeneralSettingService;
 use App\Services\PickupCenterService;
 use App\Services\UserService;
@@ -149,7 +150,7 @@ class PickUpCenterController extends Controller
         if($search){
             $query->whereHas('merchant',function ($q) use ($search){
                 $q->where('phone','ilike','%'.$search.'%');
-            });
+            })->orWhere('code',$search);
         }
         $packages = Package::where('outstanding',1)->where('is_deleted',0)->get();
         $orders = $query->get();
@@ -208,6 +209,7 @@ class PickUpCenterController extends Controller
     }
 
     public function assignDriver(Request $req){
+        $user = UserService::getAuthUser();
         $driverId = $req->driver_id ?? null;
         $orderId = $req->order_id;
         $order = Order::where('is_deleted',0)->whereIn('status_id',[1,3])->find($orderId);
@@ -232,6 +234,16 @@ class PickUpCenterController extends Controller
             'driver_id' => $driverId,
             'status_id' => ($driverId != 0 && $driverId) ? 3 : 1
         ]);
+        $notif = new CloudMessagingService();
+            $topics = GeneralSettingService::getGeneralTopics($user->company_id,'driver',$driverId);
+            $notifReq = new Request([
+                'topic' => $topics->private,
+                'type' => 'private',
+                'target_uid' => $driverId,
+                'title' => 'Assigned Order',
+                'body' => 'You have been assigned to deliver the order('.$order->code.').'
+            ]);
+            $notif->sendNotificationByTopic($notifReq,$user);
         if(!$driverId) return ApiResponse::JsonResult(null,__('Order '.$order->code.' is available now'));
         return ApiResponse::JsonResult(null,__('Order '.$order->code.' has assigned to '.$driver->user_name));
     }

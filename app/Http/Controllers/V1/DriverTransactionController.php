@@ -51,7 +51,7 @@ class DriverTransactionController extends Controller
         return ApiResponse::flex($trxService->getApprovedPayments($req,$user));
     }
 
-    public function settlePayments(Request $req){
+    public function settleApprovedPayments(Request $req){
         $user = UserService::getAuthUser();
         $trxService = new TransactionService();
         return ApiResponse::flex($trxService->settlePayments($req,$user));
