@@ -10,7 +10,7 @@ use Illuminate\Http\Request;
 class ReusableService
 {
     // Your service methods go here
-    public static function getPackageHistory(Request $req,$user=null,$reqSearch=false){
+    public static function getHistoryPackages(Request $req,$user=null,$reqSearch=false){
         $paymentStatus = $req->payment_status_id ?? null;
         $statusId = $req->status_id ?? null;
         $search = $req->search ?? null;
