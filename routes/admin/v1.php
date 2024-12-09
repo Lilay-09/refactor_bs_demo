@@ -350,6 +350,7 @@ Route::middleware(['jwt','localize'])->prefix('admin/v1/{lang}')->group(function
 
         Route::prefix('form')->group(function(){
             Route::get('banner',[GeneralSettingController::class,'getFormBanner']);
+            Route::get('receivePayment',[GeneralSettingController::class,'getFormReceivePayment']);
             Route::get('pricelist',[GeneralSettingController::class,'getFormPriceList']);
             Route::get('quickOrder',[GeneralSettingController::class,'getFormOrder']);
             Route::get('package',[GeneralSettingController::class,'getFormPackage']);

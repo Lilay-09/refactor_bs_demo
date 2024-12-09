@@ -469,6 +469,7 @@ class GeneralSettingService
                 $status_id = 16;
                 if($stillOnDelivery) {
                     $status_id = 14;
+                    $isCompleted = 0;
                 }
             }
             // else if($trip->package_count == ($failCount + $deliveredCount)) $isCompleted = 1;
@@ -480,6 +481,7 @@ class GeneralSettingService
                 'status_id' => $status_id,
                 'delivered_count' => $deliveredCount
             ];
+            Log::info('test2 =>'.json_encode($updateArr));
             Delivery::where('id',$id)->update($updateArr);
         }
     }

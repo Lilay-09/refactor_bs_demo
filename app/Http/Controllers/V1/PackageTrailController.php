@@ -209,7 +209,10 @@ class PackageTrailController extends Controller
                 'topic' => $topics->private,
                 'type' => 'private',
                 'target_uid' => $driver_id,
-                'title' => 'Assigned Package',
+                'title' => __('messages.info',[
+                    'info'=>'Assigned Package',
+                    'khInfo' => ''
+                ]),
                 'body' => 'You have been assigned to deliver the package('.$pacakge->qr_code.').'
             ]);
             $notif->sendNotificationByTopic($notifReq,$user);
@@ -235,13 +238,22 @@ class PackageTrailController extends Controller
         })->where('company_id', $user->company_id)
         ->where('driver_id', $driverId)
         ->first();
-        if($pendingTrip) Log::error('found');
+        // if($pendingTrip) Log::error('found');
 
         // $pendingTrip = Delivery::whereDate('depart_datetime',$today)->where('company_id',$user->company_id)->where('driver_id',$driverId)->first();
         // if(!$pendingTrip) $pendingTrip = Delivery::where(function($q){
         //     $q->where('finished',0)
         //     ->orWhere('is_completed',0);
         // })->where('company_id',$user->company_id)->where('driver_id',$driverId)->first();
+        if(!$pendingTrip) {
+            $oneTrip = Delivery::orderByDesc('id')->where('driver_id',$driverId)->where('is_deleted',0)->first();
+            if($oneTrip){
+                $stillHasPackage = DeliveryPackage::where('delivery_id',$oneTrip->id)->where('delay_count',0)->where('status_id',6)->first();
+                if($stillHasPackage) $pendingTrip = $oneTrip;
+            }
+        }
+
+
         if(!$pendingTrip){
             $QuerylastPackage = DeliveryPackage::where('package_id',$packageId)->where('delay_count',0)->where('is_deleted',0);
             $hasFailPackage = $QuerylastPackage->orderByDesc('id')->get();
@@ -281,15 +293,19 @@ class PackageTrailController extends Controller
             }else {
                 $newPackageCount +=1;
             }
-            $pendingTrip->update([
+            $updateArr = [
                 'driver_id' => $driverId,
                 'delay_count' => $delay,
                 'status_id' => 14,
+                'is_completed' => false,
+                'finished' => false,
                 'package_count' => $newPackageCount,
                 'update_uid' => $user->id,
                 'branch_id' => $user->branch_id,
                 'company_id' => $user->company_id,
-            ]);
+            ];
+            Log::info(json_encode($updateArr));
+            $pendingTrip->update($updateArr);
             // ->update([
                 // 'driver_id' => $driverId,
                 // 'delay_count' => $delay,
