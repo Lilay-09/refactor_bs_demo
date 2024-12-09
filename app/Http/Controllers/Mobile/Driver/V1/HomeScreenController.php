@@ -130,6 +130,7 @@ class HomeScreenController extends Controller
         $driverId = $user->id;
         $packages = Package::where('order_id',$oderId)->where('is_deleted',0)
         ->with('status')
+        ->where('status_id',6)
         ->selectRaw('qr_code,receiver_address,id,cod,price,delivery_fee,payer,zone_code,zone_name,receiver_phone,delivery_type,driver_total as total,status_id,order_id,arrive_warehouse_datetime,is_contact,priority_level')
         ->where('driver_id',$driverId)->get();
         foreach($packages as $package){

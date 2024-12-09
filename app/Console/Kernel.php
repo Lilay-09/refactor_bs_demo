@@ -7,6 +7,11 @@ use Illuminate\Foundation\Console\Kernel as ConsoleKernel;
 
 class Kernel extends ConsoleKernel
 {
+
+    protected $commands = [
+        \App\Console\Commands\CleanupGeneratedPdf::class,
+    ];
+
     /**
      * Define the application's command schedule.
      *
@@ -15,8 +20,10 @@ class Kernel extends ConsoleKernel
      */
     protected function schedule(Schedule $schedule)
     {
-        // $schedule->command('inspire')->hourly();
+        // Run the delete:pdf-files command every minute
+        $schedule->command('delete:pdf-files')->everyMinute();
     }
+
 
     /**
      * Register the commands for the application.

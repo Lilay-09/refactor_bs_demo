@@ -85,7 +85,8 @@ class FleetManagementController extends Controller
 
     public function getTripPackages(Request $req){
         $trip_id = $req->trip_id;
-        $packages = Package::fromRaw('packages as p')->join('delivery_packages as dp','p.id','dp.package_id')
+        $search = $req->search;
+        $qP = Package::fromRaw('packages as p')->join('delivery_packages as dp','p.id','dp.package_id')
         // ->where('dp.delay_count',0)
         ->where('dp.delivery_id',$trip_id)
         ->leftJoin('users as m','m.id','p.merchant_id')
@@ -93,8 +94,13 @@ class FleetManagementController extends Controller
         ->where('dp.is_deleted',0)
         ->join('tracking_statuses as ts','ts.id','dp.status_id')
         ->selectRaw('p.qr_code,p.price,p.cod,p.receiver_name,p.receiver_phone,p.zone_code,p.zone_name,ts.name as status_code,d.user_name as driver_name,d.phone as driver_phone,m.user_name as merchant_name,m.phone as merchant_phone,p.id as package_id,dp.delivery_id,p.zone_code,p.zone_name,p.delivery_fee as base_fee,p.driver_total,p.driver_total as delivery_fee,p.taxi_fee,p.product_type,dp.status_id')
-        ->orderByRaw('(dp.status_id = ?) DESC', [6])
-        ->get();
+        ->orderByRaw('(dp.status_id = ?) DESC', [6]);
+        if ($search && str_starts_with($search, 'JPK')) {
+            $qP->where('p.qr_code',$search);
+        }
+
+
+        $packages = $qP->get();
         // foreach($packages as $package){
 
         //     unset($package->status);

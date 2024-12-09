@@ -4,8 +4,11 @@ namespace App\Http\Controllers\Mobile\Driver\V1;
 
 use ApiResponse;
 use App\Http\Controllers\Controller;
+use App\Jobs\DeleteFileJob;
 use App\Services\Mobile\ReusableService;
+use App\Services\UserService;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 
@@ -13,18 +16,22 @@ class HistoryController extends Controller
 {
     //
     public function getHistoryPackages(Request $req){
-        return ApiResponse::flex(ReusableService::getPackageHistory($req));
+        $user = UserService::getAuthUser();
+        return ApiResponse::flex(ReusableService::getPackageHistory($req,$user));
     }
 
     // public function getHistoryPdf(Request $req){
     //     return AppSetting::generatePDF($req);
     // }
 
-    public function getHistoryPdf(Request $request)
+    public function getHistoryPdf(Request $req)
     {
+        $startDate = $req->startDate;
+        $endDate = $req->endDate;
+
         // Example data for the PDF
         $data = [
-            'title' => 'Dynamic PDF Example',
+            'title' => 'History',
             'date' => now()->toDateTimeString(),
             'content' => 'This PDF was generated dynamically when requested.',
         ];
@@ -38,14 +45,12 @@ class HistoryController extends Controller
         $fileName = 'dynamic-pdf-' . time() . '.pdf';
         $filePath = 'pdfs/' . $fileName;
 
-        Storage::disk('public')->put($filePath, $pdf->output());
 
+        Storage::disk('public')->put($filePath, $pdf->output());
         // Generate the URL to the PDF
-        $fileUrl = Storage::url($filePath);
+        $fileUrl = asset('storage/'.$filePath);
 
         // Return the URL in JSON format
-        return response()->json([
-            'pdf_url' => asset($fileUrl)
-        ]);
+        return ApiResponse::JsonResult($fileUrl);
     }
 }

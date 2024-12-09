@@ -419,8 +419,17 @@ class GeneralSettingService
         ];
     }
 
-    public static function getLatestXRate(){
-        $xRate = ExchangeRate::where('is_deleted',0)->orderByDesc('x_date')->selectRaw('buy_rate,sell_rate')->first();
+    public static function getLatestXRate($user=null){
+        $today = now();
+        $xRate = ExchangeRate::where('is_deleted', 0)
+        ->where(function ($query) use ($today) {
+            $query->whereDate('x_date', $today)
+                ->orWhereNull('x_date'); // or fallback for empty/null x_date
+        })
+        ->orderByDesc('x_date')
+        ->selectRaw('buy_rate, sell_rate')
+        ->first();
+
         if(!$xRate) $xRate = (object)[
             'buy_rate' => 4000,
             'sell_rate' => 4000

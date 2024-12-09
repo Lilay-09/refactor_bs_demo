@@ -24,6 +24,10 @@ class DriverTransactionController extends Controller
         return ApiResponse::flex($trxService->getDeliveryPackages($req,'driver',$user));
     }
 
+    public function getDriverCommissionPackage(){
+
+    }
+
     public function getDriverBalance(Request $req){
         $user = UserService::getAuthUser();
         $trxService = new TransactionService();
@@ -74,6 +78,7 @@ class DriverTransactionController extends Controller
         $trxService = new TransactionService();
         return ApiResponse::flex($trxService->updateDeliveryPackage($req,'driver',$user));
     }
+
 
     // public function getDriverDeliveredPackages(Request $req){
         // $user = UserService::getAuthUser();
