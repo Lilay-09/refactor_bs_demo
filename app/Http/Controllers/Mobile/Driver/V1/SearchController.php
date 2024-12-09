@@ -12,6 +12,6 @@ class SearchController extends Controller
 {
     //
     public function getTripPackages(Request $req){
-        return ApiResponse::flex(ReusableService::getPackageHistory($req,null,true));
+        return ApiResponse::flex(ReusableService::getHistoryPackages($req,null,true));
     }
 }

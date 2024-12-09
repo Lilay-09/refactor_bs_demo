@@ -16,8 +16,8 @@ class HistoryController extends Controller
 {
     //
     public function getHistoryPackages(Request $req){
-        $user = UserService::getAuthUser();
-        return ApiResponse::flex(ReusableService::getPackageHistory($req,$user));
+        $user = UserService::getAuthUser('driver');
+        return ApiResponse::flex(ReusableService::getHistoryPackages($req,$user));
     }
 
     // public function getHistoryPdf(Request $req){
