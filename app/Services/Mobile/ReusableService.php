@@ -14,6 +14,7 @@ class ReusableService
         $paymentStatus = $req->payment_status_id ?? null;
         $statusId = $req->status_id ?? null;
         $search = $req->search ?? null;
+
         if($reqSearch && !$search) return DataResponse::Pagination(new Collection(),$req);
         $qFp = Delivery::fromRaw('deliveries as d')->join('delivery_packages as dp','d.id','dp.delivery_id')
         ->join('packages as p','p.id','dp.package_id')->orderByDesc('d.id')
@@ -24,6 +25,9 @@ class ReusableService
         ->whereIn('p.status_id',[9,10,11]);
         if($paymentStatus == 2){
             $qFp->where('pmt.approved',1);
+        }
+        if($user){
+            $qFp->where('d.driver_id',$user->id);
         }
         // else if($paymentStatus == 1) $qFp->where('pmt.approved',0);
         if($statusId) $qFp->where('p.status_id',$statusId);

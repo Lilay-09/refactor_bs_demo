@@ -90,7 +90,7 @@ Route::middleware(['jwt','localize'])->prefix('admin/v1/{lang}')->group(function
         });
         //** Driver Commission Module */
         Route::prefix('commission')->group(function(){
-            Route::get('package',[DriverTransactionController::class,'getDeliveryPackages']);
+            Route::get('package',[DriverTransactionController::class,'getDriverCommissionPackage']);
         });
     });
 
@@ -345,6 +345,7 @@ Route::middleware(['jwt','localize'])->prefix('admin/v1/{lang}')->group(function
             Route::get('priceList',[GeneralSettingController::class,'getOptionsPriceList']);
             Route::get('vehicleType',[GeneralSettingController::class,'getOptionsVehicleType']);
             Route::get('fleet/package/{barcode}',[FleetManagementController::class,'getPackageByBarcode']);
+            Route::get('xrate',[GeneralSettingController::class,'getOptionsLatestXRate']);
         });
 
         Route::prefix('form')->group(function(){

@@ -142,6 +142,9 @@ class PickUpCenterController extends Controller
     public function getOrders(Request $req){
         $user = UserService::getAuthUser();
         $search = $req->search;
+        $startDate = $req->startDate;
+        $endDate = $req->endDate;
+        $statusId = $req->status_id;
         $query = Order::with(['merchant','tracking_status','driver','createdBy'])->where('is_deleted',0)
             ->whereIn('status_id',[1,2,3,4,21])
             ->where('company_id',$user->company_id)
@@ -151,6 +154,14 @@ class PickUpCenterController extends Controller
             $query->whereHas('merchant',function ($q) use ($search){
                 $q->where('phone','ilike','%'.$search.'%');
             })->orWhere('code',$search);
+        }
+        if($statusId){
+            $query->where('status_id',$statusId);
+        }
+        if($startDate && $endDate){
+            $startDate = date('Y-m-d',strtotime($startDate));
+            $endDate = date('Y-m-d',strtotime($endDate));
+            $query->whereBetween('order_datetime',[$startDate,$endDate])->orWhereDate('order_datetime',$endDate);
         }
         $packages = Package::where('outstanding',1)->where('is_deleted',0)->get();
         $orders = $query->get();

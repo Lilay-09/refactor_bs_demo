@@ -6,6 +6,7 @@ use ApiResponse;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Foundation\Exceptions\Handler as ExceptionHandler;
 // use Illuminate\Http\JsonResponse;
+use Log;
 use Throwable;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 
@@ -47,6 +48,15 @@ class Handler extends ExceptionHandler
                 'error' => true,
                 'status' => 'Method Not Allowed',
                 'message' => 'Not Allowed',
+                'errors' => []
+            ],$exception->getStatusCode());
+        }
+
+        if ($exception instanceof HttpException && $exception->getStatusCode() === 404){
+            return ApiResponse::JsonRaw([
+                'error' => true,
+                'status' => 'Not Found',
+                'message' => 'Not Found',
                 'errors' => []
             ],$exception->getStatusCode());
         }

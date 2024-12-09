@@ -71,7 +71,7 @@ class GeneralSettingController extends Controller
         ]));
         return ApiResponse::JsonResult([
             'is_contact' => $package->is_contact,
-            'diff_driver' => $user->id != $package->driver_id,
+            'diff_driver' => $package->driver_id ? ($user->id != $package->driver_id) : false,
             'is_delivery' => $package->status_id == 6
         ]);
         // if(!$package) return ApiResponse::NotFound(__('messages.not_found',['info' => 'Package','khInfo' => 'កញ្ចប់']));
@@ -166,7 +166,7 @@ class GeneralSettingController extends Controller
             $notes = $package->tracking_notes."|[$user->id]Driver ($user->user_name) scan on delivery (".Helper::getDateTime()."";
             $notifRequpdateArr['tracking_notes'] = $notes;
             $pckTl = new PackageTrailController();
-            $trip = $pckTl->createOrUpdateTrip($user->id,$package->id,$package->drivervehicle_type,$user,$notes);
+            $trip = $pckTl->createOrUpdateTrip($user->id,$package->id,$package->drivervehicle_type,$user,$notes,6);
             if($trip->error) return ApiResponse::flex($trip);
         }else $confirmDelivery = ($package->status_id == 6);
         if($markContact && !$confirmDelivery) return ApiResponse::ValidateFail(__('messages.info',[

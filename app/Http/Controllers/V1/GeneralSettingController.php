@@ -67,6 +67,12 @@ class GeneralSettingController extends Controller
         return ApiResponse::JsonResult($this->gs::optionsCityByCountry($req->country_id,$user));
     }
 
+
+    public function getOptionsLatestXRate(){
+        $user = UserService::getAuthUser();
+        return ApiResponse::JsonResult($this->gs::getLatestXRate($user));
+
+    }
     public function getOptionsDistrictByCity(Request $req){
         $user = UserService::getAuthUser();
         return ApiResponse::JsonResult($this->gs::optionsDistrictByCity($req->city_id,$user));
