@@ -140,7 +140,7 @@ class FleetManagementController extends Controller
                 'status_id' => $status_id
             ]);
 
-            DeliveryPackage::where('package_id',$package_id)->update([
+            DeliveryPackage::where('package_id',$package_id)->where('delivery_id',$trip_id)->where('delay_count',0)->update([
                 'update_uid' => $user->id,
                 'failure_notes' => $failure_notes,
                 'failed_datetime' => $failDatetime,
