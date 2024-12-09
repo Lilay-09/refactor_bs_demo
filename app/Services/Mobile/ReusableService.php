@@ -22,7 +22,7 @@ class ReusableService
         ->leftJoin('payments as pmt','pmt.id','p.driver_payment_id')
         ->join('tracking_statuses as trs','trs.id','p.status_id')
         ->selectRaw('trs.name as status_code,d.id as delivery_id,d.fleet_tracking_number,m.user_name as merchant_name,m.phone as merchant_phone,p.receiver_name,p.receiver_phone,p.delivery_fee,p.taxi_fee,p.remarks as notes,p.delivery_remarks as remarks,p.id as package_id,p.product_type,p.driver_total as total,p.billed_kg')
-        ->whereIn('p.status_id',[9,10,11]);
+        ->whereIn('p.status_id',[9,10,11,19]);
         if($paymentStatus == 2){
             $qFp->where('pmt.approved',1);
         }
