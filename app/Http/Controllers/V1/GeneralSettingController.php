@@ -57,6 +57,16 @@ class GeneralSettingController extends Controller
         return ApiResponse::JsonResult($this->gs::optionChannels(1));
     }
 
+    public function getFormReceivePayment(){
+        $user = UserService::getAuthUser();
+
+        $obj = [
+            'banks' => $this->gs::optionsBank($user),
+            'xrate' => $this->gs::getLatestXRate($user)
+        ];
+        return ApiResponse::JsonResult($obj);
+    }
+
     public function getOptionsCommune(Request $req){
         $user = UserService::getAuthUser();
         return ApiResponse::JsonResult($this->gs::optionsCommune($user));
