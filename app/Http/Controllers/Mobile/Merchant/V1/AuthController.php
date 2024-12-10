@@ -91,7 +91,7 @@ class AuthController extends Controller
         // ->withCookie(cookie('refresh_token', $refreshToken, config('jwt.refresh_ttl'), '/', null, false, true)->withSameSite('None'));
     }
     public function merchantRegistration(Request $req){
-        return AppSetting::sendSms();
+
         $validate = validator($req->all(),[
             'phone' => 'required|string',
             'full_name' => 'required|string',
@@ -107,29 +107,57 @@ class AuthController extends Controller
             'info' => 'This phone number is already taken',
             'khInfo' => 'លេខទូរស័ព្ទនេះបានប្រើរួច'
         ]));
-        // User::create([
-        //     'user_name' => $inputs['full_name'],
-        //     'phone' => $phone,
-        //     'address' => $inputs['address'] ?? null,
-        //     'business_type' => $inputs['business_type'] ?? null,
-        // ]);
         $otp = Helper::newOTP();
+
+        $newReq = new Request([
+            'user_name' => $inputs['full_name'],
+            'phone' => $phone,
+            'address' => $inputs['address'] ?? null,
+            'account_type' => 'merchant',
+            'business_type' => $inputs['business_type'] ?? null,
+            'otp' => $otp
+        ]);
+        $authUser = User::where('system_admin',1)->selectRaw('id,company_id,branch_id')->first();
+        $createUser = UserService::createOrUpdateUser($newReq,'merchant',$authUser);
+        if($createUser->error) return ApiResponse::flex($createUser);
         $message = __('messages.info',[
                 'info' => 'Your otp '.$otp,
                 'khInfo' => 'លេខសំងាត់ '.$otp
         ]);
+        AppSetting::sendSms("SMS Test",$phone,$message);
         return ApiResponse::JsonResult([
             'phone' => $phone,
-        ],$message);
+        ],'Registered');
     }
 
-    public function registrationPassword(){
+    public function registrationPassword(Request $req){
+        $validate = validator($req->all(),[
+            'phone' => 'required|string',
+            'password' => 'required|string',
+            'confirm_password' => 'required|string|max:250',
+        ]);
+        if($validate->fails()) return ApiResponse::ValidateFail($validate->errors()->first());
+        $inputs = $validate->validated();
+        $phone = $inputs['phone'];
+        $pwd = $inputs['password'];
+        $cfPwd = $inputs['confirm_password'];
+        $found = User::where('phone',$phone)->where('account_type','merchant')->first();
+        if(!$found) return ApiResponse::NotFound();
+        if($pwd !== $cfPwd) return ApiResponse::ValidateFail(__('messages.error',['info' => 'Password not match !','khInfo' => 'លេខសំងាត់មិនត្រូវគ្នា']));
+        $hpwd = \Hash::make($pwd);
+        $found->update([
+            'login_name' => $phone,
+            'password' => $hpwd,
+            'has_account' => true
+        ]);
+    }
+
+    public function forgetPassword(){
 
     }
 
     public function verifyOTP(Request $req){
-        $user = UserService::getAuthUser($this->userClass);
-        return ApiResponse::flex(UserService::verifyOTP($req,$user));
+        return ApiResponse::flex(UserService::verifyOTP($req,'merchant'));
 
     }
 

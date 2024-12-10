@@ -28,7 +28,7 @@ Route::middleware(['jwtDriver','localize'])->prefix('driver/v1/{lang}')->group(f
     Route::put('notification/read/{id?}',[HomeScreenController::class,'readNotification']);
     Route::prefix('transaction')->group(function(){
         Route::get('',[TransactionController::class,'getTransactionSummary']);
-        Route::get('commission',[TransactionController::class,'getComissonTranxAndReport']);
+        Route::get('commission',[TransactionController::class,'getCommissonTranxAndReport']);
     });
 
     Route::prefix('home')->group(function(){
@@ -80,9 +80,11 @@ Route::prefix('merchant/v1/{lang}/auth')->middleware('localize')->group(function
     Route::post('login',[AuthMerchantController::class,'login']);
     Route::post('registration',[AuthMerchantController::class,'merchantRegistration']);
     Route::post('verifyOtp',[AuthMerchantController::class,'verifyOtp']);
+    Route::post('registration/password',[AuthMerchantController::class,'registrationPassword']);
     Route::middleware('jwtMerchant')->group(function(){
         Route::get('profile',[AuthMerchantController::class,'getProfile']);
         Route::post('profile',[AuthMerchantController::class,'updateProfile']);
+        Route::post('registration/forgetPassword',[AuthMerchantController::class,'forgetPassword']);
     });
 });
 

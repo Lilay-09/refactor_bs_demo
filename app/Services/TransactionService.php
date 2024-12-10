@@ -52,7 +52,7 @@ class TransactionService
             'bank_id' => 'nullable|int',
             'remarks' => 'nullable|string|max:500',
             'packages' => 'required|array',
-            'exchange_rate' => 'required|string'
+            'exchange_rate' => 'required|numeric'
         ]);
     }
 
@@ -380,11 +380,14 @@ class TransactionService
     }
 
     public function getPayments(Request $req,$user){
+        $driverId = $req->driver_id;
         $qP = Payment::fromRaw('payments as p')->join('users as d','d.id','p.payer_id')
         ->where('p.is_deleted',0)
         ->where('p.is_settled',0)
         ->join('users as ap','ap.id','p.receiver_uid')
-        ->selectRaw('p.payment_datetime,p.package_count,p.receiver_uid as booked_user,p.payable_amount,p.id as payment_id,d.user_name as payer_name,p.exchange_rate,p.taxi_fee,p.approved,p.breakdown_notes');
+        ->selectRaw('p.payment_datetime,p.package_count,ap.user_name as booked_user,p.payable_amount,p.id as payment_id,d.user_name as payer_name,p.exchange_rate,p.taxi_fee,p.approved,p.breakdown_notes')
+        ->where('p.payer_id',$driverId);
+
         $payments = $qP->get();
         $paymentDetails = PaymentDetail::get();
         foreach($payments as $pmt){
@@ -402,6 +405,17 @@ class TransactionService
         return DataResponse::Pagination($payments,$req);
     }
 
+
+    static function strReplaceCurrencySymbols(string $input): string {
+        // Define the replacements
+        $replacements = [
+            'USD' => '$',
+            'KHR' => '៛'
+        ];
+
+        // Replace occurrences using str_replace
+        return str_replace(array_keys($replacements), array_values($replacements), $input);
+    }
     public function getApprovedPayments(Request $req,$user){
         $qP = Payment::fromRaw('payments as p')->join('users as d','d.id','p.payer_id')
         ->where('p.is_deleted',0)

@@ -347,11 +347,13 @@ class FleetManagementController extends Controller
         ]));
         if(!$vehicleType) $vehicleType = $driver->vehicle_type;
         $pendingTrip = Delivery::where(function ($query) use ($today) {
-            $query->whereDate('depart_datetime', $today)
-                ->orWhere(function ($q) {
-                    $q->where('finished', 0)
+            $query->where('finished', 0)
                     ->orWhere('is_completed', 0);
-                });
+            // $query->whereDate('depart_datetime', $today)
+            //     ->orWhere(function ($q) {
+            //         $q->where('finished', 0)
+            //         ->orWhere('is_completed', 0);
+            //     });
         })->where('company_id', $user->company_id)
         ->where('driver_id', $driverId)
         ->first();

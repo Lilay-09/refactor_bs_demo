@@ -46,6 +46,7 @@ Route::middleware(['jwt','localize'])->prefix('admin/v1/{lang}')->group(function
         Route::put('/user/{id?}', [UserManagementController::class,'updateUser']);
         Route::put('/user/set-lock/{id?}', [UserManagementController::class,'setLockUser']);
         Route::put('/user/change-password/{id?}', [UserManagementController::class,'userChangePassword']);
+        Route::get('user/notification/token',[CloudMessagingController::class,'getUserToken']);
         Route::prefix('role')->group(function(){
             Route::post('/', [UserManagementController::class,'createRole']);
             Route::get('/', [UserManagementController::class,'getRoles']);
@@ -328,6 +329,7 @@ Route::middleware(['jwt','localize'])->prefix('admin/v1/{lang}')->group(function
 
     Route::prefix('setting')->group(function(){
         Route::prefix('option')->group(function(){
+            Route::get('operator',[GeneralSettingController::class,'getOptionsOperator']);
             Route::get('channel',[GeneralSettingController::class,'getOptionsChannel']);
             Route::get('zone',[GeneralSettingController::class,'getOptionsZone']);
             Route::get('pickup/status',[GeneralSettingController::class,'getOptionsPickupStatus']);

@@ -79,7 +79,7 @@ class UserService
             'name_km' => 'nullable|max:100',
             'email' => 'nullable|string|max:100',
             'phone' => 'required|string|regex:/^0[0-9]{8,19}$/',
-            'gender' => 'required|in:M,F,O',
+            'gender' => 'nullable|in:M,F,O',
             'dob' => 'nullable|date',
             'photo' => 'nullable|string',
             'address' => 'nullable|string|max:500',
@@ -111,9 +111,10 @@ class UserService
             $baseFields['business_type'] = 'nullable|string|max:50';
             $baseFields['cod'] = 'nullable|in:1,0';
             $baseFields['cod_fee'] = 'nullable|numeric|max:100';
-            $baseFields['price_list_id'] = 'required|exists:price_list,id';
+            $baseFields['price_list_id'] = 'nullable|exists:price_list,id';
             $baseFields['referrer_uid'] = 'nullable|int';
             $baseFields['pin_address'] = 'nullable|string';
+            $baseFields['otp'] = 'nullable|string';
             return validator($req->all(),$baseFields);
         }
     }
@@ -192,8 +193,8 @@ class UserService
                 $saveUserBank = self::saveUserBanks($bankInfo,$userId,$user);
                 if($saveUserBank->error) return $saveUserBank;
             }
-            if($user_class == 'merchant') self::saveMerchantPriceList($userId,$priceListId,$user);
-            DB::commit();
+            if($user_class == 'merchant' && isset($inputs['price_list_id'])) self::saveMerchantPriceList($userId,$priceListId,$user);
+            // DB::commit();
             return DataResponse::JsonResult(null,false,__('messages.saved'));
         }catch(Exception $e){
             DB::rollBack();
@@ -300,23 +301,25 @@ class UserService
         return DataResponse::JsonResult(null,false,__('messages.created'));
     }
 
-    public static function verifyOTP(Request $req,$user){
+    public static function verifyOTP(Request $req,$type){
         $validate = validator($req->all(),[
-            'phone' => 'required|string',
             'otp' => 'required|string|min:6|max:6',
         ]);
         if($validate->fails()) return DataResponse::ValidateFail($validate->errors()->first());
         $inputs = $validate->validated();
-        $otp = $inputs['phone'];
-        $phone = $inputs['phone'];
-        $user = User::where('is_deleted',0)->where('account_type',$user->account_type)->where('phone',$phone)->first();
-        $validOtp = $user->otp;
-        if($otp != $validOtp) return DataResponse::ValidateFail(__('messages.info',[
+        $otp = $inputs['otp'];
+        $found = User::where('is_deleted',0)->where('account_type',$type)->where('otp',$otp)->first('id');
+        if(!$found) return DataResponse::ValidateFail(__('messages.info',[
             'info' => 'Incorrect otp',
             'khInfo' => 'លេខផ្ទៀងផ្ទាត់មិនត្រូវ'
         ]));
-
-
+        $found->update([
+            'otp' => $otp,
+        ]);
+        return DataResponse::JsonResult(null,false,__('messages.info',[
+            'info' => 'Success',
+            'khInfo' => 'ផ្ទៀងផ្ទាត់រួច'
+        ]));
     }
 
     public static function setLockUser($authUser,$userId,$type='admin'){

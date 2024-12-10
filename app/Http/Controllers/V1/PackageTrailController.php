@@ -230,11 +230,12 @@ class PackageTrailController extends Controller
         $today = date('Y-m-d');
         $isNewPkg = true;
         $pendingTrip = Delivery::where(function ($query) use ($today) {
-            $query->whereDate('depart_datetime', $today)
-                ->orWhere(function ($q) {
-                    $q->where('finished', 0)
+            $query->where('finished', 0)
                     ->orWhere('is_completed', 0);
-                });
+            // $query->whereDate('depart_datetime', $today)
+            //     ->orWhere(function ($q) {
+            //         ;
+                // });
         })->where('company_id', $user->company_id)
         ->where('driver_id', $driverId)
         ->first();

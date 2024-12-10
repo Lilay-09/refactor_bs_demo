@@ -39,6 +39,11 @@ class GeneralSettingController extends Controller
         return ApiResponse::JsonResult($this->gs::optionsDistrict($user));
     }
 
+    public function getOptionsOperator(){
+        $user = UserService::getAuthUser();
+        return ApiResponse::JsonResult($this->gs::optionsOperator($user));
+    }
+
     public function getFormZone(){
         $user = UserService::getAuthUser();
 
