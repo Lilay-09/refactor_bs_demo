@@ -29,9 +29,10 @@ class HistoryController extends Controller
 
     public function getHistoryPdf(Request $req)
     {
+        $user = UserService::getAuthUser('driver');
         $startDate = $req->startDate;
         $endDate = $req->endDate;
-        $userId = $req->user_id ?? null;
+        $userId = $user->id;
 
         $paymentStatus = $req->payment_status_id ?? null;
         $statusId = $req->status_id ?? null;

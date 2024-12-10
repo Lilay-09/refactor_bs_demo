@@ -422,11 +422,8 @@ class GeneralSettingService
     public static function getLatestXRate($user=null){
         $today = now();
         $xRate = ExchangeRate::where('is_deleted', 0)
-        ->where(function ($query) use ($today) {
-            $query->whereDate('x_date', $today)
-                ->orWhereNull('x_date'); // or fallback for empty/null x_date
-        })
-        ->orderByDesc('x_date')
+        ->orderByRaw('ABS(DATE_PART(\'day\', x_date::timestamp - ?::timestamp)) ASC', [$today]) // Closest date
+        ->orderByDesc('x_date') // Resolve ties by picking the latest
         ->selectRaw('buy_rate, sell_rate')
         ->first();
 

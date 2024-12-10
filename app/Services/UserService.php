@@ -194,7 +194,7 @@ class UserService
                 if($saveUserBank->error) return $saveUserBank;
             }
             if($user_class == 'merchant' && isset($inputs['price_list_id'])) self::saveMerchantPriceList($userId,$priceListId,$user);
-            // DB::commit();
+            DB::commit();
             return DataResponse::JsonResult(null,false,__('messages.saved'));
         }catch(Exception $e){
             DB::rollBack();
@@ -314,7 +314,7 @@ class UserService
             'khInfo' => 'លេខផ្ទៀងផ្ទាត់មិនត្រូវ'
         ]));
         $found->update([
-            'otp' => $otp,
+            'otp' => null,
         ]);
         return DataResponse::JsonResult(null,false,__('messages.info',[
             'info' => 'Success',

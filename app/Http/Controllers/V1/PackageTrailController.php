@@ -205,6 +205,7 @@ class PackageTrailController extends Controller
             if($trip->error) return ApiResponse::flex($trip);
             $notif = new CloudMessagingService();
             $topics = GeneralSettingService::getGeneralTopics($user->company_id,'driver',$driver_id);
+            // return $topics;
             $notifReq = new Request([
                 'topic' => $topics->private,
                 'type' => 'private',

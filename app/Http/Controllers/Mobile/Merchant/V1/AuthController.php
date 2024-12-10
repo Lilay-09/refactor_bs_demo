@@ -145,11 +145,14 @@ class AuthController extends Controller
         if(!$found) return ApiResponse::NotFound();
         if($pwd !== $cfPwd) return ApiResponse::ValidateFail(__('messages.error',['info' => 'Password not match !','khInfo' => 'លេខសំងាត់មិនត្រូវគ្នា']));
         $hpwd = \Hash::make($pwd);
+        if($found->otp) return ApiResponse::ValidateFail(__('messages.info',['info' => 'Failed']));
+        if($found->has_account) return ApiResponse::Duplicated();
         $found->update([
             'login_name' => $phone,
             'password' => $hpwd,
             'has_account' => true
         ]);
+        return ApiResponse::JsonResult(null,'Success');
     }
 
     public function forgetPassword(){

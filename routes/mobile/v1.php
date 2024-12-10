@@ -12,7 +12,6 @@ use App\Models\TrackingStatus;
 use Illuminate\Support\Facades\Route;
 
 //BEGIN::Driver
-Route::get('driver/v1/{land}/history/pdf',[HistoryController::class,'getHistoryPdf']);
 Route::prefix('driver/v1/{lang}/auth')->middleware('localize')->group(function(){
     Route::post('login',[AuthController::class,'login']);
     Route::middleware('jwtDriver')->group(function(){
@@ -28,7 +27,8 @@ Route::middleware(['jwtDriver','localize'])->prefix('driver/v1/{lang}')->group(f
     Route::put('notification/read/{id?}',[HomeScreenController::class,'readNotification']);
     Route::prefix('transaction')->group(function(){
         Route::get('',[TransactionController::class,'getTransactionSummary']);
-        Route::get('commission',[TransactionController::class,'getCommissonTranxAndReport']);
+        Route::get('commission/report',[TransactionController::class,'getCommissionReport']);
+        Route::get('commission/trx',[TransactionController::class,'getCommissionTrx']);
     });
 
     Route::prefix('home')->group(function(){
@@ -50,6 +50,7 @@ Route::middleware(['jwtDriver','localize'])->prefix('driver/v1/{lang}')->group(f
 
 
     Route::get('history',[HistoryController::class,'getHistoryPackages']);
+    Route::get('history/pdf',[HistoryController::class,'getHistoryPdf']);
 
     Route::get('search/fleet/package',[SearchController::class,'getTripPackages']);
     Route::get('scan/package/{item_ref}',[GeneralSettingController::class,'scanPackage']);

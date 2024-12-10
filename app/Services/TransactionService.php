@@ -4,6 +4,8 @@ namespace App\Services;
 
 use ApiResponse;
 use App\Models\Bank;
+use App\Models\Disbursement;
+use App\Models\DisbursementDetails;
 use App\Models\DriverCommission;
 use App\Models\Order;
 use App\Models\Package;
@@ -15,6 +17,7 @@ use DB;
 use Exception;
 use Helper;
 use Illuminate\Http\Request;
+use Illuminate\Log\Logger;
 use Log;
 
 class TransactionService
@@ -217,6 +220,7 @@ class TransactionService
         $originalCashKh = 0;
         $originalBankAmtKh = 0;
         if($dueAmount > 0){
+            if($totalInputAmount <=0) return DataResponse::ValidateFail('Invalid payment amount');
             $paymentSuggestion = $this->paymentSuggestion($cash,$cashKh,$bankAmount,$bankAmountKh,$dueAmount,$exhangeRate);
             if($paymentSuggestion->error) return $paymentSuggestion;
             $originalCashKh = $paymentSuggestion->original_cash_amount_kh;
@@ -260,6 +264,7 @@ class TransactionService
         if($totalAmountUSD && !$totalAmountKHR){
             if($cash && $bankAmount){
                 $additionalSuggestion = abs($dueAmount - $cash);
+                if($additionalSuggestion != $bankAmount)
                 return DataResponse::ValidateFail(__('messages.info',[
                         'info' => 'If Cash Amount USD '.$cash.',so bank amount must be USD '.$additionalSuggestion
                     ]));
@@ -442,6 +447,29 @@ class TransactionService
         return DataResponse::Pagination($payments,$req);
     }
 
+    public static function getDriverCommissionInfo($driverCommissions,$driverId){
+        $dc = (object)[
+            'normal_pickup_commission' => 0,
+            'normal_delivery_commission' => 0,
+            'fast_pickup_commission' => 0,
+            'fast_delivery_commission' => 0
+        ];
+        foreach($driverCommissions as $driverComm){
+            if($driverComm->driver_id == $driverId){
+                    if($driverComm->delivery_type == 'fast'){
+                    $dc->fast_pickup_commission = $driverComm->pickup_commission;
+                    $dc->fast_delivery_commission = $driverComm->delivery_commission;
+                }
+                if($driverComm->delivery_type == 'normal'){
+                    $dc->normal_pickup_commission = $driverComm->pickup_commission;
+                    $dc->normal_delivery_commission = $driverComm->delivery_commission;
+                }
+            }
+        }
+
+        return $dc;
+    }
+
     public function deletePayment($id,$type,$user){
         $validType = $this->validType($type);
         if($validType->error) return $validType;
@@ -545,7 +573,7 @@ class TransactionService
                 ]);
             }
             DB::commit();
-            return DataResponse::JsonResult(null,__('messages.info',[
+            return DataResponse::JsonResult(null,false,__('messages.info',[
                 'info' => 'Settled'
             ]));
         }catch(Exception $e){
@@ -560,7 +588,7 @@ class TransactionService
             ->join('packages as p', 'p.driver_id', '=', 'd.id')
             ->join('payments as pmt','p.driver_payment_id','pmt.id')
             // ->where('pmt.is_settled',0)
-            ->selectRaw('DATE(p.delivered_datetime) as delivered_date,DATE(p.failed_datetime) as failed_date,d.id, count(p.id) as package_count,SUM(p.price) as amount,d.user_name as driver_name,d.code,pmt.payable_amount')
+            ->selectRaw('DATE(p.delivered_datetime) as finished_date,DATE(p.failed_datetime) as failed_date,d.id, count(p.id) as package_count,SUM(p.price) as amount,d.user_name as driver_name,d.code,pmt.payable_amount')
             ->groupBy(['d.id','pmt.payable_amount',DB::raw('DATE(p.delivered_datetime)'),DB::raw('DATE(p.failed_datetime)')]);
         $drivers = $qP->get();
         $totalPackages = 0;
@@ -665,4 +693,314 @@ class TransactionService
             'info' => 'Package'
         ]));
     }
+
+    public function disbursementPaymentValidation(Request $req,$type='driver'){
+        return validator($req->all(),[
+            $type.'_id' => 'required|int',
+            'cash' => 'nullable|numeric',
+            'cash_kh' => 'nullable|numeric',
+            'bank_amount' => 'nullable|numeric',
+            'bank_amount_kh' => 'nullable|numeric',
+            // 'bank_id' => 'nullable|int',
+            'remarks' => 'nullable|string|max:500',
+            'start_date' => 'nullable',
+            'end_date' => 'nullable',
+            'exchange_rate' => 'nullable|numeric'
+        ]);
+    }
+    public function disbursementPayment(Request $req,$user,$type){
+        $validType = $this->validType($type);
+        if($validType->error) return $validType;
+        $validate = self::disbursementPaymentValidation($req,$type);
+        if($validate->fails()) return DataResponse::ValidateFail($validate->errors()->first());
+        $inputs = $validate->validated();
+        $payeeId = $inputs[$type.'_id'];
+        $payeeInfo = User::where('is_deleted',0)->whereIn('account_type',['driver','merchant'])->find($payeeId);
+        if(!$payeeInfo) return DataResponse::NotFound('Could not find payee information');
+        $validPackages = $this->validCommissionPackage($payeeId,$type);
+        $packageIds = $validPackages->package_ids;
+        $orderIds = $validPackages->order_ids;
+        $exchangeRate = $inputs['exchange_rate'] ?? GeneralSettingService::getLatestXRate()->buy_rate;
+        $cashKh = $inputs['cash_kh'] ?? 0;
+        $cash = $inputs['cash'] ?? 0;
+        $bankId = $inputs['bank_id'] ?? null;
+        $bankAmount = $inputs['bank_amount'] ?? 0;
+        $bankAmountKh = $inputs['bank_amount_kh'] ?? 0;
+        $dueAmount = $validPackages->grand_total;
+        // return $validPackages;
+        $validPayment = $this->validPayment($cash,$cashKh,$bankAmount,$bankAmountKh,$bankId,$dueAmount,$exchangeRate);
+        if($validPayment->error) return $validPayment;
+        $breakDownNotes = null;
+        if($dueAmount > 0){
+            if($cash) $breakDownNotes .= 'Cash: USD '.$cash.'|';
+            if($cashKh) $breakDownNotes .= 'Cash: KHR '.$cashKh.'|';
+            if($bankAmount) $breakDownNotes .= $validPayment->bank_name.': USD '.$bankAmount.'|';
+            if($bankAmountKh) $breakDownNotes .= $validPayment->bank_name.': KHR '.$bankAmountKh.'|';
+        }
+        $breakDownNotes = trim($breakDownNotes, '| ');
+        DB::beginTransaction();
+        try{
+            $createPayment = Disbursement::create([
+                'payee_id' => $payeeId,
+                'payee_type' => $type,
+                'taxi_fee' => $validPackages->total_taxi_fee,
+                'delivery_fee' => $validPackages->total_delivery_fee,
+                'payable_amount' => $dueAmount,
+                'create_uid' => $user->id,
+                'receiver_uid' => $user->id,
+                'amount' => $dueAmount,
+                'exchange_rate' => $exchangeRate,
+                'approved' => true,
+                'is_settled' => true,
+                'settled_uid' => $user->id,
+                'approved_uid' => $user->id,
+                'remarks' => $inputs['remarks'] ?? null,
+                'package_count' => $validPackages->total_package,
+                'delivered_package_count' => $validPackages->total_delivered_package,
+                'pickup_package_count' => $validPackages->total_pickup_package,
+                'update_uid' => $user->id,
+                'approved_datetime' => now(),
+                'settled_datetime' => now(),
+                'payment_datetime' => now(),
+                'breakdown_notes' => $breakDownNotes,
+                'company_id' => $user->company_id,
+                'branch_id' => $user->branch_id
+            ]);
+            $paymentId = $createPayment->id;
+            if($cash && $dueAmount > 0){
+                DisbursementDetails::create([
+                    'disbursement_id' => $paymentId,
+                    'method' => 'cash',
+                    'amount' => $cash,
+                    'original_amount' => $cash,
+                    'currency_code' => 'USD'
+                ]);
+            }
+            if($cashKh && $dueAmount > 0){
+                DisbursementDetails::create([
+                    'disbursement_id' => $paymentId,
+                    'method' => 'cash',
+                    'amount' => $cashKh,
+                    'original_amount' => $validPayment->original_cash_amount_kh,
+                    'currency_code' => 'KHR'
+                ]);
+            }
+            if($bankId){
+                if($bankAmount && $dueAmount > 0){
+                    DisbursementDetails::create([
+                        'disbursement_id' => $paymentId,
+                        'method' => $validPayment->bank_name,
+                        'amount' => $bankAmount,
+                        'original_amount' => $bankAmount,
+                        'currency_code' => 'USD'
+                    ]);
+                }
+
+                if($bankAmountKh && $dueAmount > 0){
+                    DisbursementDetails::create([
+                        'disbursement_id' => $paymentId,
+                        'method' => $validPayment->bank_name,
+                        'amount' => $bankAmountKh,
+                        'original_amount' => $validPayment->original_bank_amount_kh,
+                        'currency_code' => 'KHR'
+                    ]);
+                }
+            }
+            Package::whereIn('id',$packageIds)->update([
+                $type.'_disbursement_id' => $paymentId
+            ]);
+            Order::whereIn('id',$orderIds)->update([
+                $type.'_disbursement_id' => $paymentId
+            ]);
+            // foreach($packageIds as $id){
+            //     $fkField = [
+            //         $type.'_payment_id' => $paymentId
+            //     ];
+            //     Package::whereIn('id',$packageIds)->update($fkField);
+            // }
+            return Disbursement::get();
+            // DB::commit();
+
+            // return Package::whereIn('id',$packageIds)->get();
+            return DataResponse::JsonResult($dueAmount,false,__('messages.created',[
+                'info' => 'Payment'
+            ]));
+        }catch(Exception $e){
+            Log::error($e->getMessage());
+            Log::error($e->getTraceAsString());
+            DB::rollBack();
+            return DataResponse::Error(__('messages.error',['info' => 'Fail to receive']));
+        }
+        // $packageIds = $inputs['packages'];
+        // $validPackages = $this->validPackages($packageIds,$payerId,$type);
+        // if($validPackages->error) return $validPackages;
+        // $exchangeRate = $inputs['exchange_rate'];
+        // $cashKh = $inputs['cash_kh'] ?? 0;
+        // $cash = $inputs['cash'] ?? 0;
+        // $bankId = $inputs['bank_id'] ?? null;
+        // $bankAmount = $inputs['bank_amount'] ?? 0;
+        // $bankAmountKh = $inputs['bank_amount_kh'] ?? 0;
+        // $dueAmount = $validPackages->{$type.'_total'};
+        // $validPayment = $this->validPayment($cash,$cashKh,$bankAmount,$bankAmountKh,$bankId,$dueAmount,$exchangeRate);
+        // if($validPayment->error) return $validPayment;
+        // // return $validPayment;
+        // // if($validPayment->total_input_amount !== $dueAmount) return DataResponse::ValidateFail(__('messages.info',[
+        // //     'info' => 'Total input amount must be $'.$dueAmount
+        // // ]));
+        // $breakDownNotes = null;
+        // if($dueAmount > 0){
+        //     if($cash) $breakDownNotes .= 'Cash: USD '.$cash.'|';
+        //     if($cashKh) $breakDownNotes .= 'Cash: KHR '.$cashKh.'|';
+        //     if($bankAmount) $breakDownNotes .= $validPayment->bank_name.': USD '.$bankAmount.'|';
+        //     if($bankAmountKh) $breakDownNotes .= $validPayment->bank_name.': KHR '.$bankAmountKh.'|';
+        // }
+        // $breakDownNotes = trim($breakDownNotes, '| ');
+        // DB::beginTransaction();
+        // try{
+        //     $createPayment = Payment::create([
+        //         'payer_id' => $payerId,
+        //         'payer_type' => $type,
+        //         'taxi_fee' => $validPackages->total_taxi_fee,
+        //         'delivery_fee' => $validPackages->total_delivery_fee,
+        //         'payable_amount' => $dueAmount,
+        //         'create_uid' => $user->id,
+        //         'receiver_uid' => $user->id,
+        //         'amount' => $validPackages->total_amount,
+        //         'exchange_rate' => $exchangeRate,
+        //         'remarks' => $inputs['remarks'] ?? null,
+        //         'package_count' => $validPackages->total_package,
+        //         'delivered_package_count' => $validPackages->delivered_package_count,
+        //         'update_uid' => $user->id,
+        //         'payment_datetime' => now(),
+        //         'breakdown_notes' => $breakDownNotes,
+        //         'company_id' => $user->company_id,
+        //         'received_datetime' => now(),
+        //         'branch_id' => $user->branch_id
+        //     ]);
+        //     $paymentId = $createPayment->id;
+        //     if($cash && $dueAmount > 0){
+        //         PaymentDetail::create([
+        //             'payment_id' => $paymentId,
+        //             'method' => 'cash',
+        //             'amount' => $cash,
+        //             'original_amount' => $cash,
+        //             'currency_code' => 'USD'
+        //         ]);
+        //     }
+        //     if($cashKh && $dueAmount > 0){
+        //         PaymentDetail::create([
+        //             'payment_id' => $paymentId,
+        //             'method' => 'cash',
+        //             'amount' => $cashKh,
+        //             'original_amount' => $validPayment->original_cash_amount_kh,
+        //             'currency_code' => 'KHR'
+        //         ]);
+        //     }
+        //     if($bankId){
+        //         if($bankAmount && $dueAmount > 0){
+        //             PaymentDetail::create([
+        //                 'payment_id' => $paymentId,
+        //                 'method' => $validPayment->bank_name,
+        //                 'amount' => $bankAmount,
+        //                 'original_amount' => $bankAmount,
+        //                 'currency_code' => 'USD'
+        //             ]);
+        //         }
+
+        //         if($bankAmountKh && $dueAmount > 0){
+        //             PaymentDetail::create([
+        //                 'payment_id' => $paymentId,
+        //                 'method' => $validPayment->bank_name,
+        //                 'amount' => $bankAmountKh,
+        //                 'original_amount' => $validPayment->original_bank_amount_kh,
+        //                 'currency_code' => 'KHR'
+        //             ]);
+        //         }
+        //     }
+        //     foreach($packageIds as $id){
+        //         $fkField = [
+        //             $type.'_payment_id' => $paymentId
+        //         ];
+        //         Package::find($id)->update($fkField);
+        //     }
+        //     // DB::commit();
+
+        //     // return Package::whereIn('id',$packageIds)->get();
+        //     return DataResponse::JsonResult($dueAmount,false,__('messages.created',[
+        //         'info' => 'Payment'
+        //     ]));
+        // }catch(Exception $e){
+        //     Log::error($e->getMessage());
+        //     Log::error($e->getTraceAsString());
+        //     DB::rollBack();
+        //     return DataResponse::Error(__('messages.error',['info' => 'Fail to receive']));
+        // }
+    }
+
+    private function validCommissionPackage($payeeId,$type){
+        $validType = $this->validType($type);
+        if($validType->error) return $validType;
+        $deliveredCount = 0;
+        $pickUpCount = 0;
+        $obj = (object)[
+            'error' => false,
+            'total_pickup' => 0,
+            'total_delivered' => 0 ,
+            'total_delivery_fee' => 0,
+            'total_taxi_fee' => 0,
+            'grand_total' => 0,
+            'total_package' => 0,
+            'total_delivered_package' => 0,
+            'total_pickup_count' => 0,
+            'package_ids' => [],
+            'order_ids' => []
+        ];
+        $dc = (object)[
+            'normal_pickup_commission' => 0,
+            'normal_delivery_commission' => 0,
+            'fast_pickup_commission' => 0,
+            'fast_delivery_commission' => 0
+        ];
+
+        $qP = Package::selectRaw('status_id,driver_id')
+        ->where('status_id',9)
+        ->whereNull($type.'_disbursement_id')
+        ->whereNotNull('driver_id');
+        $packages = $qP->get();
+        $qO = Order::where('is_deleted',0)->where('status_id',5)
+        ->whereNull($type.'_disbursement_id');
+        if($payeeId) $qO->where($type.'_id',$payeeId);
+        $orders = $qO->get();
+        $qDc = DriverCommission::where('is_deleted',0)->selectRaw('delivery_type,pickup_commission,delivery_commission,use_percentage');
+        if($payeeId) $qDc->where($type.'_id',$payeeId);
+        $driverCommissions = $qDc->get();
+        foreach($driverCommissions as $driverComm){
+            if($driverComm->delivery_type == 'fast'){
+                $dc->fast_pickup_commission = $driverComm->pickup_commission;
+                $dc->fast_delivery_commission = $driverComm->delivery_commission;
+            }
+            if($driverComm->delivery_type == 'normal'){
+                $dc->normal_pickup_commission = $driverComm->pickup_commission;
+                $dc->normal_delivery_commission = $driverComm->delivery_commission;
+            }
+        }
+        foreach($orders as $order){
+            $pickUpCount += $order->qty;
+            $obj->order_ids[] = $order->id;
+        }
+        foreach($packages as $package){
+            $deliveredCount += 1;
+            if($package->cod) $obj->total_taxi_fee += $package->delivery_fee;
+            if($package->taxi_fee) $obj->total_taxi_fee += $package->taxi_fee;
+            $obj->pacakage_ids[] = $package->id;
+        }
+        $obj->total_pickup = $pickUpCount * $dc->normal_pickup_commission;
+        $obj->total_delivered = $deliveredCount * $dc->normal_delivery_commission;
+        $obj->grand_total = $obj->total_pickup + $obj->total_delivered;
+        $obj->total_package = $pickUpCount + $deliveredCount;
+        $obj->total_delivered_package = $deliveredCount;
+        $obj->total_pickup_package = $pickUpCount;
+        return $obj;
+    }
+
 }

@@ -24,8 +24,101 @@ class DriverTransactionController extends Controller
         return ApiResponse::flex($trxService->getDeliveryPackages($req,'driver',$user));
     }
 
-    public function getDriverCommissionPackage(){
+    public function getDriverCommissionPackage(Request $req){
+        $driverId = $req->driver_id;
+        $startDate = $req->startDate;
+        $endDate = $req->endDate;
+        $qD = User::selectRaw('code,id,user_name as driver_name,phone as driver_phone')->where('account_type','driver');
+        $driverInfo = $qD->get();
+        $qP = Package::selectRaw('status_id,driver_id')
+        ->where('status_id',9)
+        ->whereNotNull('driver_id');
+        if($startDate && $endDate){
+            $startDate = date('Y-m-d',strtotime($startDate));
+            $endDate = date('Y-m-d',strtotime($endDate));
+            $qP->whereBetween('delivered_datetime',[$startDate,$endDate])->orWhereDate('delivered_datetime',$endDate);
+        }
+        if($driverId) $qP->where('driver_id',$driverId);
+        $packages = $qP->get();
+        $qO = Order::where('is_deleted',0)->where('status_id',5);
+        if($driverId) $qO->where('driver_id',$driverId);
+        if($startDate && $endDate){
+            $startDate = date('Y-m-d',strtotime($startDate));
+            $endDate = date('Y-m-d',strtotime($endDate));
+            $qO->whereBetween('order_datetime',[$startDate,$endDate])->orWhereDate('order_datetime',$endDate);
+        }
+        $orders = $qO->get();
+        $qDc = DriverCommission::where('is_deleted',0)->selectRaw('delivery_type,pickup_commission,delivery_commission,use_percentage');
+        if($driverId) $qDc->where('driver_id',$driverId);
+        $driverCommissions = $qDc->get();
+        foreach($driverInfo as $driver){
+            $commissionInfo = $this->getDriverCommissionInfo($driverCommissions,$driver->id);
+            $driver->pickup_rate = $commissionInfo->normal_pickup_commission;
+            $driver->delivery_rate = $commissionInfo->normal_delivery_commission;
+            $pickUpInfo = $this->getPickUpDetails($orders,$driver->id);
+            $totalPickUp = $pickUpInfo->total_package;
+            $driver->total_pickup = $totalPickUp;
+            $deliverdInfo = $this->getDeliveredDetails($packages,$driver->id);
+            $totalDelivered = $deliverdInfo->total_package;
+            $driver->total_delivered = $totalDelivered;
+            $driver->total = $driver->pickup_rate * $totalPickUp + $driver->delivery_rate * $totalDelivered;
+            $driver->bank_account = null;
+            $driver->status_code = 'Pending';
+            foreach($driver->bank_accounts as $b){
+                if($b->is_primary) $driver->bank_account = GeneralSettingService::concatBankInfo($b->bank_name,$b->bank_number,$b->account_name);
+                if(!$b->bank_account) $driver->bank_account = GeneralSettingService::concatBankInfo($b->bank_name,$b->bank_number,$b->account_name);
+            }
+            unset($driver->bank_accounts);
+        }
+        return ApiResponse::Pagination($driverInfo,$req);
+    }
 
+    private function getPickUpDetails($orders,$driverId){
+        $totalPkg = 0;
+        foreach($orders as $order){
+            if($order->driver_id == $driverId){
+                $totalPkg += $order->qty;
+            }
+        }
+        return (object)[
+            'total_package' => $totalPkg,
+        ];
+    }
+
+    private function getDeliveredDetails($packages,$driverId){
+        $totalPkg = 0;
+        foreach($packages as $pkg){
+            if($pkg->driver_id == $driverId){
+                $totalPkg += 1;
+            }
+        }
+
+        return (object)[
+            'total_package' => $totalPkg,
+        ];
+    }
+
+    public static function getDriverCommissionInfo($driverCommissions,$driverId){
+        $dc = (object)[
+            'normal_pickup_commission' => 0,
+            'normal_delivery_commission' => 0,
+            'fast_pickup_commission' => 0,
+            'fast_delivery_commission' => 0
+        ];
+        foreach($driverCommissions as $driverComm){
+            if($driverComm->driver_id == $driverId){
+                    if($driverComm->delivery_type == 'fast'){
+                    $dc->fast_pickup_commission = $driverComm->pickup_commission;
+                    $dc->fast_delivery_commission = $driverComm->delivery_commission;
+                }
+                if($driverComm->delivery_type == 'normal'){
+                    $dc->normal_pickup_commission = $driverComm->pickup_commission;
+                    $dc->normal_delivery_commission = $driverComm->delivery_commission;
+                }
+            }
+        }
+
+        return $dc;
     }
 
     public function getDriverBalance(Request $req){
@@ -77,6 +170,13 @@ class DriverTransactionController extends Controller
         $user = UserService::getAuthUser();
         $trxService = new TransactionService();
         return ApiResponse::flex($trxService->updateDeliveryPackage($req,'driver',$user));
+    }
+
+    public function disbursementDriver(Request $req){
+        $user = UserService::getAuthUser();
+        $trxService = new TransactionService();
+        return $trxService->disbursementPayment($req,$user,'driver');
+        return ApiResponse::flex($trxService->disbursementPayment($req,$user,'driver'));
     }
 
 
