@@ -230,14 +230,7 @@ class PackageTrailController extends Controller
     public function createOrUpdateTrip($driverId,$packageId,$vehicleType,$user,$notes,$statusId){
         $today = date('Y-m-d');
         $isNewPkg = true;
-        $pendingTrip = Delivery::where(function ($query) use ($today) {
-            $query->where('finished', 0)
-                    ->orWhere('is_completed', 0);
-            // $query->whereDate('depart_datetime', $today)
-            //     ->orWhere(function ($q) {
-            //         ;
-                // });
-        })->where('company_id', $user->company_id)
+        $pendingTrip = Delivery::where('finished', 0)->where('company_id', $user->company_id)
         ->where('driver_id', $driverId)
         ->first();
         // if($pendingTrip) Log::error('found');
@@ -250,13 +243,16 @@ class PackageTrailController extends Controller
         if(!$pendingTrip) {
             $oneTrip = Delivery::orderByDesc('id')->where('driver_id',$driverId)->where('is_deleted',0)->first();
             if($oneTrip){
+                // Log::info("found 1");
                 $stillHasPackage = DeliveryPackage::where('delivery_id',$oneTrip->id)->where('delay_count',0)->where('status_id',6)->first();
-                if($stillHasPackage) $pendingTrip = $oneTrip;
+                if($stillHasPackage) $pendingTrip = $oneTrip ?? null;
+                // Log::info(json_encode($pendingTrip));
             }
         }
 
 
         if(!$pendingTrip){
+            // Log::info("new trip");
             $QuerylastPackage = DeliveryPackage::where('package_id',$packageId)->where('delay_count',0)->where('is_deleted',0);
             $hasFailPackage = $QuerylastPackage->orderByDesc('id')->get();
             if(isset($hasFailPackage[0])) $QuerylastPackage->update([
@@ -306,7 +302,7 @@ class PackageTrailController extends Controller
                 'branch_id' => $user->branch_id,
                 'company_id' => $user->company_id,
             ];
-            Log::info(json_encode($updateArr));
+            // Log::info(json_encode($updateArr));
             $pendingTrip->update($updateArr);
             // ->update([
                 // 'driver_id' => $driverId,
@@ -335,7 +331,7 @@ class PackageTrailController extends Controller
             if(!$dPackage) return DataResponse::Error(__('messages.error',['info' => 'Fail to assign package']));
         }
 
-
+        Log::info(json_encode(Delivery::selectRaw('id')->get()));
         GeneralSettingService::updateTripStatus($deliveryId,$user);
 
 

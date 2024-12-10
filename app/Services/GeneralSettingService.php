@@ -24,7 +24,7 @@ use App\Models\VehicleType;
 use App\Models\Warehouse;
 use App\Models\Zone;
 use DataResponse;
-use Log;
+// use Log;
 
 
 class GeneralSettingService
@@ -478,7 +478,7 @@ class GeneralSettingService
                 'status_id' => $status_id,
                 'delivered_count' => $deliveredCount
             ];
-            Log::info('test2 =>'.json_encode($updateArr));
+            // Log::info('test2 =>'.json_encode($updateArr));
             Delivery::where('id',$id)->update($updateArr);
         }
     }
