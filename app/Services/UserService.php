@@ -1,6 +1,7 @@
 <?php
 
 namespace App\Services;
+use ApiResponse;
 use App\Models\MerchantPriceList;
 use App\Models\User;
 use App\Models\UserBank;
@@ -133,6 +134,7 @@ class UserService
         $inputs['account_type'] = $user_class;
         if($isRegistered){
             $inputs['lock'] = true;
+            $inputs['register_status'] = 'in-progress';
         }
         if($user_class == 'admin') $inputs['has_account'] = 1;
         $nationalId = $inputs['national_id'] ?? null;
@@ -228,6 +230,7 @@ class UserService
         ]);
         }
     }
+
 
     private static function saveUserBanks($bankInfo,$userId,$user){
         $keepIds = [];
@@ -347,6 +350,25 @@ class UserService
             $msg = $type.' has been locked';
         }
         return DataResponse::JsonResult(null,false,$msg);
+    }
+
+
+    public function resetPassword(Request $req){
+        $validate = validator($req->all(),[
+            'current_password' => 'required|string|min:6',
+            'password' => 'required|string',
+            'confirm_password' => 'required|string'
+        ]);
+
+        if($validate->fails()) return ApiResponse::ValidateFail($validate->errors()->first());
+        $inputs = $validate->validated();
+        $curPwd = $inputs['current_password'];
+        $pwd = $inputs['password'];
+        $cfPwd = $inputs['confirm_password'];
+        if($pwd != $cfPwd) return ApiResponse::JsonResult(null,false,__('messages.info',[
+            'info' => 'Passwords not match!'
+        ]));
+
     }
 
 }

@@ -12,6 +12,7 @@ use App\Services\UserService;
 use Helper;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Cache;
 use Log;
 use Tymon\JWTAuth\Exceptions\JWTException;
 use Tymon\JWTAuth\Facades\JWTAuth;
@@ -108,10 +109,37 @@ class AuthController extends Controller
         $phone = $inputs['phone'];
         //* Cache User information
         $existPhone = User::where('is_deleted',0)->where('account_type','merchant')->where('phone',$phone)->first();
-        if($existPhone) return ApiResponse::Duplicated(__('messages.info',[
-            'info' => 'This phone number is already taken',
-            'khInfo' => 'លេខទូរស័ព្ទនេះបានប្រើរួច'
-        ]));
+        // if($existPhone && $existPhone->register_status != 'in-progress') return ApiResponse::Duplicated(__('messages.info',[
+        //     'info' => 'This phone number is already taken',
+        //     'khInfo' => 'លេខទូរស័ព្ទនេះបានប្រើរួច'
+        // ]));
+        $maxAttempts = 3; // Maximum allowed attempts
+        $lockoutTime = 3600; // Lockout duration in seconds (1 minute)
+
+        // Check if the user is locked out
+        if (Cache::has("login_attempts:locked:{$phone}")) {
+            // return response()->json(['error' => 'Too many login attempts. Please try again later.'], 429);
+            return ApiResponse::ValidateFail(__('messages.info',[
+                'info' => 'too many login attempts. Please try again later'
+            ]));
+        }
+
+        // return Cache::get('login_attempts:locked:{$phone}');
+        // Increment the login attempt count
+        $attempts = Cache::increment("login_attempts:{$phone}");
+        if ($attempts === 1) {
+            // Set an expiration for the attempts count
+            Cache::put("login_attempts:{$phone}", $attempts, $lockoutTime);
+        }
+
+        // If the user exceeds max attempts, lock them out
+        if ($attempts > $maxAttempts) {
+            Cache::put("login_attempts:locked:{$phone}", true, $lockoutTime);
+             return ApiResponse::ValidateFail(__('messages.info',[
+                'info' => 'too many login attempts. Please try again later'
+            ]));
+        }
+
         $otp = Helper::newOTP();
 
         $newReq = new Request([
@@ -123,7 +151,7 @@ class AuthController extends Controller
             'otp' => $otp
         ]);
         $authUser = User::where('system_admin',1)->selectRaw('id,company_id,branch_id')->first();
-        $createUser = UserService::createOrUpdateUser($newReq,'merchant',$authUser,null,true);
+        $createUser = UserService::createOrUpdateUser($newReq,'merchant',$authUser,$existPhone?->id,true);
         if($createUser->error) return ApiResponse::flex($createUser);
         $message = __('messages.info',[
                 'info' => 'Your otp '.$otp,
@@ -138,8 +166,8 @@ class AuthController extends Controller
     public function registrationPassword(Request $req){
         $validate = validator($req->all(),[
             'phone' => 'required|string',
-            'password' => 'required|string',
-            'confirm_password' => 'required|string|max:250',
+            'password' => 'required|string|min:6',
+            'confirm_password' => 'required|string|min:6',
         ]);
         if($validate->fails()) return ApiResponse::ValidateFail($validate->errors()->first());
         $inputs = $validate->validated();
@@ -156,6 +184,7 @@ class AuthController extends Controller
             'login_name' => $phone,
             'password' => $hpwd,
             'has_account' => true,
+            'registered_status' => 'registered',
             'lock' => false,
         ]);
         return ApiResponse::JsonResult(null,'Success');
