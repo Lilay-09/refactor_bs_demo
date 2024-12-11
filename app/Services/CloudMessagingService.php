@@ -194,7 +194,10 @@ class CloudMessagingService
                 'title' => $title,
                 'body' => $body,
             ]);
-            if(isset($data)) $message->withData($data);
+            // if(isset($data)) $message->withData($data);
+            if (isset($data)) {
+                $message = $message->withData($data);
+            }
         try {
             // Log the message data for debugging purposes (optional)
             // Log::debug("Sending notification to target: {$targetValue}");
