@@ -38,7 +38,11 @@ class AuthController extends Controller
         $password = $input['password'];
         date_default_timezone_set('Asia/Phnom_Penh');
         $today = date('Y-m-d H:i:s');
-        $user = User::where('email',$account)->orWhere('phone',$account)->orWhere('login_name',$account)->selectRaw('photo_file_name,email,phone,id,system_admin,lock,company_id,account_type,login_name')->first();
+        $user = User::where('account_type','merchant')->where(function ($q) use ($account) {
+            $q->where('email', $account)
+            ->orWhere('phone', $account)
+            ->orWhere('login_name', $account);
+        })->selectRaw('photo_file_name,email,phone,id,system_admin,lock,company_id,account_type,login_name')->first();
         $systemAdmin = $user->system_admin ?? false;
         $isLock = $user->lock ?? false;
         if($isLock) {
@@ -53,7 +57,8 @@ class AuthController extends Controller
             'last_login' => $today
         ]);
         $credentials = [
-            'password' => $password
+            'password' => $password,
+            'account_type' => $user->account_type,
         ];
         if($user->email == $account) $credentials['email'] = $account;
         else if($user->phone == $account) $credentials['phone'] = $account;
@@ -64,7 +69,7 @@ class AuthController extends Controller
             if(!$token = JWTAuth::attempt($credentials)) {
                 return ApiResponse::Unauthorized('invalid_credentials');
             }
-            $token = JWTAuth::customClaims(['system_admin' => $user->system_admin,'roles'=>$user->roles,'type'=>'access'])->fromUser($user);
+            $token = JWTAuth::customClaims(['system_admin' => $user->system_admin,'roles'=>$user->roles,'type'=>'access','account_type' => $user->account_type])->fromUser($user);
         } catch (JWTException $e) {
             return ApiResponse::Unauthorized();
         }
@@ -118,7 +123,7 @@ class AuthController extends Controller
             'otp' => $otp
         ]);
         $authUser = User::where('system_admin',1)->selectRaw('id,company_id,branch_id')->first();
-        $createUser = UserService::createOrUpdateUser($newReq,'merchant',$authUser);
+        $createUser = UserService::createOrUpdateUser($newReq,'merchant',$authUser,null,true);
         if($createUser->error) return ApiResponse::flex($createUser);
         $message = __('messages.info',[
                 'info' => 'Your otp '.$otp,
@@ -150,7 +155,8 @@ class AuthController extends Controller
         $found->update([
             'login_name' => $phone,
             'password' => $hpwd,
-            'has_account' => true
+            'has_account' => true,
+            'lock' => false,
         ]);
         return ApiResponse::JsonResult(null,'Success');
     }

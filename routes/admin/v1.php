@@ -351,6 +351,10 @@ Route::middleware(['jwt','localize'])->prefix('admin/v1/{lang}')->group(function
             Route::get('xrate',[GeneralSettingController::class,'getOptionsLatestXRate']);
         });
 
+
+        Route::prefix('filter')->group(function(){
+            Route::get('driver',[GeneralSettingController::class,'getDriverFilterOptions']);
+        });
         Route::prefix('form')->group(function(){
             Route::get('banner',[GeneralSettingController::class,'getFormBanner']);
             Route::get('receivePayment',[GeneralSettingController::class,'getFormReceivePayment']);

@@ -54,6 +54,15 @@ class GeneralSettingController extends Controller
         return ApiResponse::JsonResult($obj);
     }
 
+    public function getDriverFilterOptions(){
+        $user = UserService::getAuthUser();
+        $obj = [
+            'statuses' => $this->gs::optionsUserStatus(),
+            'employee_types' => $this->gs::optionsEmployeeType()
+        ];
+        return ApiResponse::JsonResult($obj);
+    }
+
     public function getOptionsChannel(){
         return ApiResponse::JsonResult($this->gs::optionChannels());
     }
@@ -64,7 +73,6 @@ class GeneralSettingController extends Controller
 
     public function getFormReceivePayment(){
         $user = UserService::getAuthUser();
-
         $obj = [
             'banks' => $this->gs::optionsBank($user),
             'xrate' => $this->gs::getLatestXRate($user)

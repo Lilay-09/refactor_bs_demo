@@ -121,11 +121,17 @@ class TransactionController extends Controller
             "details" => [
                 [
                     'category' => 'Pickup',
-                    'count' => $pickUpCount
+                    'count' => $pickUpCount,
+                    'unit' => 0.2,
+                    'total' => 20,
+                    'remarks' => null,
                 ],
                 [
                     'category' => 'Delivered',
-                    'count' => $deliveredCount
+                    'count' => $deliveredCount,
+                    'unit' => 0.2,
+                    'total' => 20,
+                    'remarks' => null,
                 ]
             ]
         ];
@@ -135,33 +141,41 @@ class TransactionController extends Controller
 
     public function getCommissionTrx(){
         $user = UserService::getAuthUser('driver');
-        $disbursement = Disbursement::where('payee_type','driver')->where('payee_id',$user->id)->get();
-        return $disbursement;
-    }
-
-    public function getCommissonTranxAndReport(Request $req){
-        $startDate = $req->startDate;
-        $endDate = $req->endDate;
-        $obj = (object)[
-            'report' => [
-                [
-                    'category' => '',
-                    'count' => 250,
-                    'unit' => 0.5,
-                    'total' => 0,
-                    'remarks' =>  ''
-                ]
-            ],
-            'transaction' => [
-                    [
-                        'payment_date' => '',
-                        'payable_amount' => 0,
-                        'method' => '',
-                        'payer_name' => '',
-                    ]
-            ],
+        // $disbursement = Disbursement::where('payee_type','driver')->where('payee_id',$user->id)->get();
+        $data = [
+            [
+                'payment_date' => '',
+                'payable_amount' => 0,
+                'method' => '',
+                'payer_name' => '',
+            ]
         ];
-
-        return ApiResponse::JsonResult($obj);
+        return ApiResponse::JsonResult($data);
     }
+
+    // public function getCommissonTranxAndReport(Request $req){
+    //     $startDate = $req->startDate;
+    //     $endDate = $req->endDate;
+    //     $obj = (object)[
+    //         'report' => [
+    //             [
+    //                 'category' => '',
+    //                 'count' => 250,
+    //                 'unit' => 0.5,
+    //                 'total' => 0,
+    //                 'remarks' =>  ''
+    //             ]
+    //         ],
+    //         'transaction' => [
+                    // [
+                    //     'payment_date' => '',
+                    //     'payable_amount' => 0,
+                    //     'method' => '',
+                    //     'payer_name' => '',
+                    // ]
+    //         ],
+    //     ];
+
+    //     return ApiResponse::JsonResult($obj);
+    // }
 }

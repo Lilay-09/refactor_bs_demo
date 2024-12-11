@@ -159,7 +159,10 @@ class GeneralSettingController extends Controller
                 'body' => 'Request package',
                 'data' => [
                     'action' => 'change-driver',
-                    'requester' => $requester
+                    'requester' => $requester,
+                    'barcode' => $item_ref,
+                    "en_message" => $requester." request swap the package",
+                    "km_message" => $requester." ស្នើរសុំកញ្ចប់"
                 ]
             ]);
             // var_dump($requester,$topics->private);
@@ -188,7 +191,7 @@ class GeneralSettingController extends Controller
         $requester = $cache?->requester;
         // return $cache;
         $requester_id = $cache?->requester_id;
-        // Cache::forget($selfTopic);
+        Cache::forget($selfTopic);
         if(!$cache) return ApiResponse::NotFound();
         if($requester_id == $package->driver_id) return ApiResponse::Duplicated(__('messages.info',[
             'info' => 'It seems like you try to confirm self request'
@@ -214,14 +217,14 @@ class GeneralSettingController extends Controller
                 'driver_id' => $requester_id
             ]);
             // return $requester_id;
-            DB::beginTransaction();
-            try{
+            // DB::beginTransaction();
+            // try{
                 $createOrUpdate = $fleet->createOrUpdateTripService($fleetArr,$user,[6]);
                 if($createOrUpdate->error) return ApiResponse::flex($createOrUpdate);
-                DB::commit();
-            }catch(Exception $e){
-                DB::rollBack();
-            }
+            //     DB::commit();
+            // }catch(Exception $e){
+            //     DB::rollBack();
+            // }
             $selfTrip = Delivery::where('driver_id',$package->driver_id)->where('finished',0)->orderByDesc('id')->first();
             //** remove self pacakge */
             $selfTrip->update([
@@ -243,17 +246,18 @@ class GeneralSettingController extends Controller
                 'tracking_notes' => $package->tracking_notes.'|Package tranferred from ['.$package->driver_id.']'.$package->driver->user_name.' to ['.$requester_id.']'.$requester
             ]);
         }
+        // return DeliveryPackage::where('package_id',29)->where('is_deleted',0)->get();
         $notifReq = new Request([
             'topic' => $requesterTopic->private,
             'title' => $notifTitle,
             'body' => $notifBody,
             'data' => [
                 'action' => 'change-driver',
-                'sender' => $user->user_name
+                'sender' => $user->user_name,
             ]
         ]);
         $cms->sendNotificationByTopic($notifReq,$user);
-        return $cache;
+        return ApiResponse::JsonResult(null,$confirm ? 'Declined change driver':'Success');
     }
 
     public function getOptionsZone(Request $req){

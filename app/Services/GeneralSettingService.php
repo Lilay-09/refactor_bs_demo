@@ -76,6 +76,16 @@ class GeneralSettingService
         ];
     }
 
+    static function optionsUserStatus(){
+        return [
+            ['name' => 'All', 'value' => null],
+            ['name' => 'Active', 'value' => 1],
+            ['name' => 'Inactive', 'value' => 0]
+        ];
+    }
+
+
+
     static function optionsEmployeeType(){
         return [
             (object)[

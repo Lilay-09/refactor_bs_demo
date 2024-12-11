@@ -423,7 +423,7 @@ class FleetManagementController extends Controller
                         if(!$dPackage) return DataResponse::Error(__('messages.error',['info' => 'Fail to assign package']));
                     }
                     if(in_array(6,$allowedPkgStatuses)){
-                        Log::error('sdfsdf');
+                        // Log::error('sdfsdf');
                         $dPackage = DeliveryPackage::create([
                             'notes' => 'Admin add package to trip',
                             'driver_id' => $driverId,
@@ -452,7 +452,7 @@ class FleetManagementController extends Controller
             GeneralSettingService::updateTripStatus($deliveryId,$user);
             // return Delivery::orderByDesc('id')->get();
             DB::commit();
-            return DataResponse::JsonResult(null,__('messages.saved'));
+            return DataResponse::JsonResult(null,false,__('messages.saved'));
         }catch(Exception $e){
             DB::rollBack();
             Log::error($e->getTraceAsString());

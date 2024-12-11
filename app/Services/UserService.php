@@ -120,7 +120,7 @@ class UserService
     }
 
 
-    public static function createOrUpdateUser(Request $req,$user_class='admin',$user,$id=null){
+    public static function createOrUpdateUser(Request $req,$user_class='admin',$user,$id=null,$isRegistered=false){
         $validate = self::userValidation($req,$user_class);
         if($validate->fails()) return DataResponse::ValidateFail($validate->errors()->first(),$validate->errors());
         $inputs = $validate->validated();
@@ -131,6 +131,9 @@ class UserService
         $inputs['branch_id'] = $user->branch_id;
         $inputs['company_id'] = $user->company_id;
         $inputs['account_type'] = $user_class;
+        if($isRegistered){
+            $inputs['lock'] = true;
+        }
         if($user_class == 'admin') $inputs['has_account'] = 1;
         $nationalId = $inputs['national_id'] ?? null;
         $email = $inputs['email'] ?? null;

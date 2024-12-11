@@ -22,15 +22,17 @@ class DriverManagementController extends Controller
         $user = UserService::getAuthUser();
         $query = User::where('is_deleted',0)->where('company_id',$user->company_id)
         ->where('account_type','driver')
-        ->selectRaw('id,code,user_name,email,gender,shift_type,vehicle_type,plate_number,phone,has_account,lock,photo_file_name');
+        ->with('createUser:id,user_name')
+        ->selectRaw('id,code,address,name_km,name_km as name_kh,user_name,email,gender,shift_type,vehicle_type,plate_number,phone,has_account,lock,photo_file_name,shift_type,employment_date,employee_type,dob,relative_name,national_id,create_uid');
         $drivers = $query->orderByDesc('id')->get();
         foreach ($drivers as $driver){
+            $driver->create_by = $driver->createUser->user_name;
             foreach($driver->bank_accounts as $b){
                 if($b->is_primary) $driver->bank_account = GeneralSettingService::concatBankInfo($b->bank_name,$b->bank_number,$b->account_name);
                 if(!$b->bank_account) $driver->bank_account = GeneralSettingService::concatBankInfo($b->bank_name,$b->bank_number,$b->account_name);
             }
             $driver->image_url = Helper::getImageUrl($driver->photo_file_name,$user->company_id,'user_profile');
-            unset($driver->bank_accounts);
+            unset($driver->bank_accounts,$driver->createUser);
         }
         return ApiResponse::Pagination($drivers,$req);
     }
