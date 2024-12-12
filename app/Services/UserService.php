@@ -9,6 +9,7 @@ use App\Models\UserRoles;
 use DataResponse;
 use DB;
 use Exception;
+use Hash;
 use Helper;
 use Log;
 use Illuminate\Http\Request;
@@ -317,7 +318,7 @@ class UserService
         $existLoginName = User::where('company_id',$authUser->company_id)->where('login_name',$loginName)->where('is_deleted',0)->where('account_type',$userClass)->first();
         if($existLoginName) return DataResponse::Duplicated('Please use another login name!, this one is already taken.');
         if($pwd !== $cfPwd) return DataResponse::ValidateFail(__('messages.error',['info' => 'Password not match !']));
-        $hpwd = \Hash::make($pwd);
+        $hpwd = Hash::make($pwd);
         $photoFile = null;
         $photo = $inputs['photo'] ?? null;
         if(Helper::isValidBase64Image($photo) || $photo){
@@ -378,21 +379,36 @@ class UserService
     }
 
 
-    public function resetPassword(Request $req){
+    public static function resetPassword(Request $req,$userId,$type){
         $validate = validator($req->all(),[
             'current_password' => 'required|string|min:6',
             'password' => 'required|string',
             'confirm_password' => 'required|string'
         ]);
 
-        if($validate->fails()) return ApiResponse::ValidateFail($validate->errors()->first());
+        if($validate->fails()) return DataResponse::ValidateFail($validate->errors()->first());
         $inputs = $validate->validated();
-        $curPwd = $inputs['current_password'];
-        $pwd = $inputs['password'];
-        $cfPwd = $inputs['confirm_password'];
-        if($pwd != $cfPwd) return ApiResponse::JsonResult(null,false,__('messages.info',[
-            'info' => 'Passwords not match!'
-        ]));
+        $user = User::where('is_deleted',0)->find($userId);
+        if($user){
+            $curPwd = $inputs['current_password'];
+            if (!Hash::check($curPwd, $user->password)) return DataResponse::ValidateFail('Invalid password');
+            $pwd = $inputs['password'];
+            $cfPwd = $inputs['confirm_password'];
+            if($pwd != $cfPwd) return DataResponse::ValidateFail(__('messages.info',[
+                'info' => 'Passwords not match!'
+            ]));
+            $hPwd = Hash::make($pwd);
+            if($curPwd == $pwd) return DataResponse::Duplicated(__('messages.info',[
+                'info' => 'Use different password',
+                'khInfo' => ''
+            ]));
+            $user->update([
+                'password' => $hPwd
+            ]);
+            return DataResponse::JsonResult(null,false,'Password reset');
+        }
+        return DataResponse::NotFound('User not found');
+
 
     }
 

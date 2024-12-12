@@ -78,7 +78,7 @@ class GeneralSettingService
 
     static function optionsUserStatus(){
         return [
-            ['name' => 'All', 'value' => null],
+            // ['name' => 'All', 'value' => null],
             ['name' => 'Active', 'value' => 1],
             ['name' => 'Inactive', 'value' => 0]
         ];
@@ -114,7 +114,7 @@ class GeneralSettingService
     public static function optionsPriceList($user){
         $pricelist =  PriceList::where('is_deleted',0)->selectRaw('id,price_list_name_id')->with('priceListName')->get();
         foreach($pricelist as $pl){
-            $pl->name = $pl->priceListName->name;
+            $pl->name = $pl->priceListName?->name;
             unset($pl->priceListName);
         }
         return $pricelist;

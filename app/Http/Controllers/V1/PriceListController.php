@@ -51,6 +51,8 @@ class PriceListController extends Controller
                 PriceListZone::create([
                     'zone_id' => $zone->id,
                     'price_list_id' => $create->id,
+                    'base_fee' => $inputs['base_fee'] ?? 0,
+                    'additional_fee' => $inputs['additional_fee'] ?? 0
                 ]);
             }
         }
@@ -70,7 +72,8 @@ class PriceListController extends Controller
         $priceListNameId = $inputs['price_list_name_id'];
         $priceListName = PriceListname::where('is_deleted',0)->find($priceListNameId);
         if(!$priceListName) return ApiResponse::NotFound(__('messages.not_found',['info' => 'Price List']));
-        $priceListId = $inputs['price_list_id'] ?? PriceList::where('price_list_name_id',$priceListNameId)->take(1)->value('id');
+        $priceList = PriceList::where('price_list_name_id',$priceListNameId)->first();
+        $priceListId = $inputs['price_list_id'] ?? $priceList?->id ;
         $isUpdate = $priceListId ? true:false;
         DB::beginTransaction();
         try{
@@ -101,7 +104,9 @@ class PriceListController extends Controller
                 PriceListZone::create([
                     'zone_id' => $id,
                     'price_list_id' => $priceListId,
-                    'identifier' => $uniqueKeys
+                    'identifier' => $uniqueKeys,
+                    'base_fee' => $priceList?->base_fee ?? 0,
+                    'additional_fee' => $priceList?->additional_fee ?? 0
                 ]);
             }
             // PriceListZone::where('price_list_id',$priceListId)->whereNotIn('zone_id',$zoneIds)->delete();
@@ -140,6 +145,8 @@ class PriceListController extends Controller
             $priceList = PriceList::where('delivery_type',$deliveryType)->find($id);
             if(!$priceList) return ApiResponse::NotFound(__('messages.not_found',['info' => 'Price List']));
             $priceList->update($insertOrUpdateArr);
+        }else{
+            PriceList::create($inputs);
         }
     }
 
@@ -169,6 +176,15 @@ class PriceListController extends Controller
                     PriceListZone::create([
                         'zone_id' => $zone['id'],
                         'price_list_id' => $id,
+                        'base_fee' => $inputs['base_fee'] ?? 0,
+                        'additional_fee' => $inputs['additional_fee'] ?? 0
+                    ]);
+                }else{
+                    $exists->update([
+                        'zone_id' => $zone['id'],
+                        'price_list_id' => $id,
+                        'base_fee' => $inputs['base_fee'] ?? 0,
+                        'additional_fee' => $inputs['additional_fee'] ?? 0
                     ]);
                 }
             }

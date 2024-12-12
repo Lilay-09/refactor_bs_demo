@@ -22,7 +22,17 @@ class TransactionController extends Controller
         $balanceDue = Package::where('merchant_id',$user->id)->where('is_deleted',1)->whereIn('status_id',[9,19])->sum('merchant_total');
         $count = 0;
         $total = 0;
-        $paidTrx = [];
+        $paidTrx = [
+            [
+                'payment_date' => '',
+                'item_count' => 10,
+                'cashier_name' => 'Sam',
+                'remarks' => '',
+                'method' => '',
+                'total' => 20,
+                'amount' => 20
+            ]
+        ];
         $paymentTrx = Payment::where('payer_id',operator: $user->id)
         ->where('payments.is_deleted',0)
         ->where('payments.is_settled',1)
@@ -35,7 +45,7 @@ class TransactionController extends Controller
             if($payment->is_settled) {
                 $paymentDetails = $this->getPaymentMethods($paymentDetails,$payment->id);
                 $payment->breakdown_notes = $paymentDetails->method;
-                $paidTrx[] = $payment;
+                // $paidTrx[] = $payment;
             }
             else {
                 $count += 1;

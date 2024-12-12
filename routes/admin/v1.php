@@ -354,8 +354,8 @@ Route::middleware(['jwt','localize'])->prefix('admin/v1/{lang}')->group(function
             Route::get('vehicleType',[GeneralSettingController::class,'getOptionsVehicleType']);
             Route::get('fleet/package/{barcode}',[FleetManagementController::class,'getPackageByBarcode']);
             Route::get('xrate',[GeneralSettingController::class,'getOptionsLatestXRate']);
+            Route::get('userStatus',[GeneralSettingController::class,'getOptionsUserStatus']);
         });
-
 
         Route::prefix('filter')->group(function(){
             Route::get('driver',[GeneralSettingController::class,'getDriverFilterOptions']);
@@ -399,6 +399,8 @@ Route::middleware(['jwt','localize'])->prefix('admin/v1/{lang}')->group(function
             Route::get('list',[ReportController::class,'getDriverListReport']);
             Route::get('delivery/summary/option',[ReportController::class,'formOptionDriver']);
             Route::get('delivery/summary',[ReportController::class,'driverDeliverySummaryReport']);
+            Route::get('delivery/summary/option',[ReportController::class,'driverDeliverySummaryReportOption']);
+            Route::get('delivery/summary',[ReportController::class,'get']);
         });
     });
 });

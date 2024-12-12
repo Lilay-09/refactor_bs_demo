@@ -234,4 +234,10 @@ class AuthController extends Controller
             'info' => 'Updated'
         ]));
     }
+
+    public function resetPassword(Request $req){
+        $user = UserService::getAuthUser('merchant');
+        $resetPass = UserService::resetPassword($req,$user->id,$this->userClass);
+        return ApiResponse::flex($resetPass);
+    }
 }

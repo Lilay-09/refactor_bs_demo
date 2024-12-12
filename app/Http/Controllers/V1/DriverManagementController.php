@@ -20,11 +20,31 @@ class DriverManagementController extends Controller
     }
     public function getDrivers(Request $req){
         $user = UserService::getAuthUser();
+        $search = $req->search;
+        $statusId = $req->status_id;
+        $employeeType = $req->employee_type;
         $query = User::where('is_deleted',0)->where('company_id',$user->company_id)
         ->where('account_type','driver')
         ->with('createUser:id,user_name')
         ->selectRaw('id,code,address,name_km,name_km as name_kh,user_name,email,gender,shift_type,vehicle_type,plate_number,phone,has_account,lock,photo_file_name,shift_type,employment_date,employee_type,dob,relative_name,national_id,create_uid');
+        if($employeeType){
+            $query->where('employee_type',$employeeType);
+        }
+
+        if($statusId !== null && $statusId>=0) {
+            $query->where('lock',$statusId ? 0 : 1);
+        }
+
+        if($search){
+            $query->where(function($q) use ($search){
+                $q->where('code','ilike','%'.$search.'%')
+                ->orWhere('user_name','ilike','%'.$search.'%')
+                ->orWhere('phone','ilike','%'.$search.'%');
+            });
+        }
+
         $drivers = $query->orderByDesc('id')->get();
+
         foreach ($drivers as $driver){
             $driver->create_by = $driver->createUser->user_name;
             foreach($driver->bank_accounts as $b){
