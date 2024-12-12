@@ -150,6 +150,7 @@ class AuthController extends Controller
             'business_type' => $inputs['business_type'] ?? null,
             'otp' => $otp
         ]);
+
         $authUser = User::where('system_admin',1)->selectRaw('id,company_id,branch_id')->first();
         $createUser = UserService::createOrUpdateUser($newReq,'merchant',$authUser,$existPhone?->id,true);
         if($createUser->error) return ApiResponse::flex($createUser);
@@ -157,6 +158,7 @@ class AuthController extends Controller
                 'info' => 'Your otp '.$otp,
                 'khInfo' => 'លេខសំងាត់ '.$otp
         ]);
+
         AppSetting::sendSms("SMS Test",$phone,$message);
         return ApiResponse::JsonResult([
             'phone' => $phone,

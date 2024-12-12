@@ -71,7 +71,6 @@ class UserService
         return UserRoles::from('user_roles as ur')->where('ur.user_id',$userId)->join('roles as r','r.id','=','ur.role_id')->selectRaw('r.name as role,ur.role_id,r.description')->get();
     }
 
-
     private static function userValidation(Request $req,$userClass){
         $baseFields = [
             'first_name' => 'nullable|string|max:50',
@@ -81,14 +80,16 @@ class UserService
             'email' => 'nullable|string|max:100',
             'phone' => 'required|string|regex:/^0[0-9]{8,19}$/',
             'gender' => 'nullable|in:M,F,O',
-            'dob' => 'nullable|date',
+            'dob' => 'nullable',
             'photo' => 'nullable|string',
             'address' => 'nullable|string|max:500',
             'password' => 'nullable|string|min:6|max:20'
         ];
+
         $baseMsgs = [
             'gender.in' => 'Gender must be one of M,F,O'
         ];
+
         if($userClass == 'admin'){
             return validator($req->all(),$baseFields);
         }else if($userClass == 'driver'){
@@ -98,6 +99,7 @@ class UserService
             $baseFields['employee_type'] = 'nullable|string|max:35';
             $baseFields['vehicle_type'] = 'required|string|exists:vehicle_types,name';
             $baseFields['plate_number'] = 'nullable|string|max:50';
+            $baseFields['warehouse_id'] = 'nullable';
             $baseFields['relative_name'] = 'nullable|string|max:50';
             $baseFields['relative_phone'] = 'nullable|string|max:50';
             $baseFields['relative_relationship'] = 'nullable|string|max:50';
@@ -132,6 +134,8 @@ class UserService
         $inputs['branch_id'] = $user->branch_id;
         $inputs['company_id'] = $user->company_id;
         $inputs['account_type'] = $user_class;
+        $inputs['dob'] = isset($inputs['dob']) ? date('Y-m-d',strtotime($inputs['dob'])) : null;
+        $inputs['driver_warehouse_id'] = $inputs['warehouse_id'] ?? null;
         if($isRegistered){
             $inputs['lock'] = true;
             $inputs['register_status'] = 'in-progress';
@@ -232,7 +236,7 @@ class UserService
     }
 
 
-    private static function saveUserBanks($bankInfo,$userId,$user){
+    public static function saveUserBanks($bankInfo,$userId,$user){
         $keepIds = [];
         foreach($bankInfo as $bank){
             $id = $bank['id'] ?? null;
@@ -241,34 +245,53 @@ class UserService
             $bank['company_id'] = $user->company_id;
             $bank['user_id'] = $userId;
             $bank['is_primary'] = $bank['is_primary'] ?? false;
+            // $skip = $bank['skip'] ?? false;
+            if(!$id) unset($bank['id']);
+            // if($skip) continue;
             $bankNumber = $bank['bank_number'] ?? null;
             $accountName = $bank['account_name'] ?? null;
-            if(!isset($bank['bank_name'])) return DataResponse::ValidateFail(__('messages.error',['info' =>'Please enter bank name']));
+            $bankName = $bank['bank_name'] ?? null;
+            $fields = compact('bankNumber', 'accountName', 'bankName');
+            $nonEmptyFields = array_filter($fields);
+
+            if (!empty($nonEmptyFields) && count($nonEmptyFields) < count($fields)) {
+                return DataResponse::ValidateFail(__('messages.info', [
+                    'info' => 'All fields (bank_number, account_name, bank_name) must be provided together.'
+                ]));
+            }
+            // if(!isset($bank['bank_name'])) return DataResponse::ValidateFail(__('messages.error',['info' =>'Please enter bank name']));
             $qUserBank = UserBank::where('user_id',$userId);
             if($id) $qUserBank->where('id','!=',$id);
-            $existsBankInfo = $qUserBank->where('bank_name',$bank['bank_name'])->where('bank_number',$bankNumber)
+            $existsBankInfo = $qUserBank->where('bank_name',$bankName)->where('bank_number',$bankNumber)
             ->where('account_name',$accountName)->first();
             if($existsBankInfo) return DataResponse::ValidateFail(__('messages.error',['info' => 'It seems like you try to add duplicated bank info']));
             // }
-            $keepIds[] = $id;
-            $accountCount = UserBank::where('user_id',$userId)->count();
-            if($accountCount == 2) return DataResponse::ValidateFail(__('messages.info',[
-                'info' => 'User can only have two accounts'
-            ]));
+
+            if(!empty($nonEmptyFields)) $keepIds[] = $id;
             if($id){
                 $userBank = UserBank::where('user_id',$userId)->where('id',$id)->first();
                 if(!$userBank) return DataResponse::ValidateFail(__('messages.error',['info' => 'Wrong bank identity']));
                 $userBank->update($bank);
             }else{
+                $accountCount = UserBank::where('user_id',$userId)->count();
+                if($accountCount == 2) return DataResponse::ValidateFail(__('messages.info',[
+                    'info' => 'Only two accounts are allowed'
+                ]));
                 $bank['create_uid'] = $user->id;
                 UserBank::create($bank);
             }
-
-            UserBank::where('user_id',$userId)->whereNotIn('id',$keepIds)->delete();
         }
+        UserBank::where('user_id',$userId)->whereNotIn('id',$keepIds)->delete();
         return DataResponse::JsonResult(null,false,__('messages.saved'));
     }
 
+
+    public static function deleteBank($id,$user){
+        $userBank = UserBank::where('user_id',$user->id)->find($id);
+        if(!$userBank) return DataResponse::NotFound('Bank not found');
+        $userBank->delete();
+        return DataResponse::JsonResult(null,'Deleted');
+    }
 
     private static function createLoginValidation(Request $req){
         return validator($req->all(),[

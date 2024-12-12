@@ -250,14 +250,115 @@ class ReportController extends Controller
         $user = UserService::getAuthUser();
         $startDate = $req->startDate;
         $endDate = $req->endDate;
+        $operationSummary = $this->getOperationSummary($startDate, $endDate);
+        $financialSummary = [
+            [
+                'title' => 'Total collective money \'All Merchants\'',
+                'amount' => 0,
+                'amount_kh' => 0
+            ],
+            [
+                'title' => 'Total Fees',
+                'amount' => 0,
+                'amount_kh' => 0
+            ],
+            [
+                'title' => 'Total Fees owned by \'Merchants\'' ,
+                'amount' => 0,
+                'amount_kh' => 0
+            ],
+            [
+                'title' => 'Total money to pay back merchants',
+                'amount' => 0,
+                'amount_kh' => 0
+            ],
+            [
+                'title' => 'Total received fees',
+                'amount' => 0,
+                'amount_kh' => 0
+            ],
+
+        ];
+        $closedFinancialSummary = [
+            [
+                'title' => 'Total collective payment by Bank(USD)',
+                'amount' => 0
+            ],
+            [
+                'title' => 'Total collective payment by Bank(KHR)',
+                'amount' => 0
+            ],
+            [
+                'title' => 'Total collective payment by Cash(USD)',
+                'amount' => 0
+            ],
+            [
+                'title' => 'Total collective payment by Cash(KHR)',
+                'amount' => 0
+            ],
+        ];
         $obj =(object)[
             'title' => 'Summary Report',
             'sub_title' => 'Arrivate Date:',
+            'exchange_rate' => 4100,
             'date' => Helper::dateDMY($startDate).' to '.Helper::dateDMY($endDate),
             'company_profile' => CompanyProfileService::profileInfo($user),
-            // 'list' => $payments
+            'operation_summary' => $operationSummary,
+            'financial_summary' => $financialSummary,
+            'closed_financial_summary' => $closedFinancialSummary
         ];
         return ApiResponse::JsonResult($obj,'Get Settle Statement');
+    }
+
+    private function getOperationSummary($startDate,$endDate){
+        $qP =Package::where('is_deleted',0)
+        ->where('outstanding',0)
+        ->selectRaw('id,merchant_id,driver_id,status_id');
+        $packages = $qP->get();
+        $merchantCount = 0;
+        $deliveredCount = 0;
+        $pickupCount = 0;
+        $seenMerchants = [];
+        foreach($packages as $p){
+            if (!isset($seenMerchants[$p->merchant_id])) {
+                $seenMerchants[$p->merchant_id] = true;
+                $merchantCount++;
+            }
+            if($p->status_id == 9) $deliveredCount += 1;
+            if($p->status_id == 6) $pickupCount += 1;
+        }
+
+        return [
+            [
+                'title' => 'Count merchants',
+                'count' => $merchantCount
+            ],
+            [
+                'title' => 'Total pacakge \'Pickup\'',
+                'count' => 6
+            ],
+            [
+                'title' => 'Total package \'At Warehouse\'',
+                'count' => 6
+            ],
+            [
+                'title' => 'Total package \'On Delivery\'',
+                'count' => 6
+            ],
+            [
+                'title' => 'Total Package \'Delivered\'',
+                'count' => $deliveredCount
+            ],
+            [
+                'title' => 'Total Package \'Failed\'',
+                'count' => 6
+            ],
+            [
+                'title' => 'Total Package \'Returned\'',
+                'count' => 6
+            ]
+        ];
+
     }
 
 

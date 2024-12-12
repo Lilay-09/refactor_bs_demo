@@ -297,7 +297,8 @@ class HomeScreenController extends Controller
             'status_id' => 'required|in:9,10,19',
             'delivery_remarks' => 'required|string',
             'image' => 'nullable',
-            'amount' => 'nullable|numeric'
+            'amount' => 'nullable|numeric',
+            'payer' => 'nullable|in:sender,receiver'
         ]);
         if($validate->fails()) return ApiResponse::ValidateFail($validate->errors()->first());
         $inputs = $validate->validated();
@@ -309,7 +310,7 @@ class HomeScreenController extends Controller
         $inputs['cod_changed'] = $codChange;
         $photo = $inputs['image'] ?? null;
         $deliveryRemarks = $inputs['delivery_remarks'] ?? null;
-
+        $payer = $inputs['payer'] ?? null;
 
         $package = Package::where('is_deleted',0)->find($id);
         if(!$package) return ApiResponse::NotFound(__('messages.not_found',[
@@ -344,6 +345,13 @@ class HomeScreenController extends Controller
             $inputs['failed_datetime'] = now();
             $inputs['failure_notes'] = $deliveryRemarks;
         }
+
+        if($payer){
+            $calucalteFee = GeneralSettingService::calculatePackageFee($package->zone_code,$package->price,$package->billed_kg,$package->actual_kg,$payer,$package->cod,$package->extra_charge,$user,$package->taxi_fee);
+            $inputs['merchant_total'] = $calucalteFee->merchant_total;
+            $inputs['driver_total'] = $calucalteFee->driver_total;
+        }
+
         $package->update($inputs);
         $dp = DeliveryPackage::where('package_id',$id)->where('delay_count',0)->first();
         $dp->update([

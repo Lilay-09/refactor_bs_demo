@@ -176,7 +176,10 @@ class PickupCenterService
                 $notif->sendNotificationByTopic($notifReq,$user);
             // }
             DB::commit();
-            return DataResponse::JsonResult(null,false,'Order created ('.$code.')');
+            return DataResponse::JsonResult(null,false,__('messages.info',[
+                'info' => 'Order created ('.$code.')',
+                'khInfo' => 'បានបង្កើត ('.$code.')'
+            ]));
         }catch(Exception $e){
             Log::error($e->getTraceAsString());
             Log::error($e->getMessage());

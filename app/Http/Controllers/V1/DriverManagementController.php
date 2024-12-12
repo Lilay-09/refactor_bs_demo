@@ -43,7 +43,7 @@ class DriverManagementController extends Controller
         $driver = User::where('is_deleted',0)->where('company_id',$user->company_id)
         ->where('account_type','driver')
         ->with(['bank_accounts:id,user_id,bank_name,bank_number,account_name,is_primary'])
-        ->selectRaw('id,code,user_name,email,gender,shift_type,vehicle_type,plate_number,phone,national_id,dob,photo_file_name')
+        ->selectRaw('*,driver_warehouse_id as warehouse_id')
         ->find($id);
         if(!$driver) return ApiResponse::NotFound(__('messages.not_found',['info' => 'Driver']));
         $driver->image_url = Helper::getImageUrl($driver->photo_file_name,$user->company_id,'user_profile');
@@ -111,7 +111,7 @@ class DriverManagementController extends Controller
         $user = UserService::getAuthUser();
         $id = $req->id;
         $driver = User::where('is_deleted',0)->where('company_id',$user->company_id)
-        ->selectRaw('code,user_name,employment_date,shift_type,salary')
+        ->selectRaw('code,user_name,employment_date,shift_type,salary,employee_type')
         ->where('account_type','driver')->find($id);
         if(!$driver) return ApiResponse::NotFound(__('messages.not_found',['info' => 'Driver']));
         $dc = (object)[

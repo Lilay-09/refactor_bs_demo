@@ -16,7 +16,7 @@ class DefaultRemarkController extends Controller
         return validator($req->all(),[
             'remarks' => 'required|string|max:100',
             'channel' => 'nullable|in:merchant,driver',
-            'category' => 'required|in:failure,delivered,faile_with_fee',
+            'category' => 'required|in:failure,delivered,fail with fee',
         ]);
     }
 
@@ -42,9 +42,14 @@ class DefaultRemarkController extends Controller
 
     public function getDefaultRemarks(Request $req){
         $user = UserService::getAuthUser();
-        $defaultRemarks = DefaultRemark::where('is_deleted',0)->where('company_id',$user->company_id)
-        ->selectRaw('id,remarks,hidden,channel,category,updated_at')
-        ->get();
+        $category = $req->category;
+        $dR = DefaultRemark::where('is_deleted',0)->where('company_id',$user->company_id)
+        ->selectRaw('id,remarks,hidden,channel,category,updated_at');
+        if($category){
+            $dR->where('category',$category);
+        }
+
+        $defaultRemarks = $dR->get();
         return ApiResponse::Pagination($defaultRemarks,$req);
     }
     public function getOneDefaultRemark(Request $req){

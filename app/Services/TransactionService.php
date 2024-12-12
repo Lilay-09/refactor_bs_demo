@@ -25,17 +25,19 @@ class TransactionService
     public function getDeliveryPackages(Request $req,$type,$user){
         $fkKey = $type.'_payment_id';
         $driverId = $req->driver_id;
-        $packages = Package::fromRaw('packages as p')->where('p.company_id',$user->company_id)
+        $merchantId = $req->merchant_id;
+        $qP = Package::fromRaw('packages as p')->where('p.company_id',$user->company_id)
         ->join('users as d','d.id','p.driver_id')
-        ->where('p.driver_id',$driverId)
         ->join('tracking_statuses as ts','ts.id','p.status_id')
         ->join('users as m','m.id','p.merchant_id')
-        ->whereNull($type.'_payment_id')
+        // ->whereNull($type.'_payment_id')
         // ->leftJoin('payments as dpmt','dpmt.id','p.'.$fkKey) //** if driver paid or unpaid */
         // ->leftJoin('payments as mpmt','mpmt.id','p.merchant_payment_id') //** if driver paid or unpaid */
         ->whereIn('p.status_id',[9,19]) //* delivered and failed with fee
-        ->selectRaw('p.remarks,p.cod,p.price,d.phone as driver_phone,p.taxi_fee,p.payer,p.delivery_fee,p.merchant_total,p.driver_total,m.user_name as merchant_name,m.phone as merchant_phone,d.user_name as driver_name,p.status_id,p.id as package_id,d.id as driver_id,p.qr_code,ts.name as status_code,p.delivered_datetime,p.failed_datetime,p.zone_code,p.receiver_phone,p.delivery_type,'.$fkKey)
-        ->get();
+        ->selectRaw('p.remarks,p.cod,p.price,d.phone as driver_phone,p.taxi_fee,p.payer,p.delivery_fee,p.merchant_total,p.driver_total,m.user_name as merchant_name,m.phone as merchant_phone,d.user_name as driver_name,p.status_id,p.id as package_id,d.id as driver_id,p.qr_code,ts.name as status_code,p.delivered_datetime,p.failed_datetime,p.zone_code,p.receiver_phone,p.delivery_type,'.$fkKey);
+        if($type == 'driver') $qP->where('p.driver_id',$driverId);
+        else $qP->where('p.merchant_id',$merchantId);
+        $packages = $qP->get();
         $statusKey = $type.'_payment_status';
         foreach($packages as $package){
             $package->cod = $package->cod ? 'Yes' : 'No';
@@ -581,8 +583,12 @@ class TransactionService
         }
     }
 
-    public function getDriverBalance(Request $req,$user){
+    public function getBalance(Request $req,$user,$type='driver'){
+        $driverId = $req->driver_id ?? null;
+        $merchantId = $req->merchant_id ?? null;
+        $userId = $driverId ?? $merchantId;
         $qP = User::from('users as d')
+            ->where('d.account_type',$type)
             ->where('d.is_deleted', 0)
             ->where('d.company_id', $user->company_id) // Uncomment if needed
             ->join('packages as p', 'p.driver_id', '=', 'd.id')
@@ -590,6 +596,10 @@ class TransactionService
             // ->where('pmt.is_settled',0)
             ->selectRaw('DATE(p.delivered_datetime) as finished_date,DATE(p.failed_datetime) as failed_date,d.id, count(p.id) as package_count,SUM(p.price) as amount,d.user_name as driver_name,d.code,pmt.payable_amount')
             ->groupBy(['d.id','pmt.payable_amount',DB::raw('DATE(p.delivered_datetime)'),DB::raw('DATE(p.failed_datetime)')]);
+
+        if($userId){
+            $qP->where('d.id',$userId);
+        }
         $drivers = $qP->get();
         $totalPackages = 0;
         $totalAmount = 0;

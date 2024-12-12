@@ -27,6 +27,11 @@ class PackageTrailController extends Controller
         $search = $req->search??null;
         $warehouse_id = $req->warehouse_id ?? null;
         $statusId = $req->status_id??null;
+        $merchantId = $req->merchant_id ?? null;
+        $driverId = $req->driver_id ?? null;
+        $zoneCode = $req->zone_code ?? null;
+        $startDate = $req->startDate ?? null;
+        $endDate = $req->endDate ?? null;
         $query = Package::where('is_deleted',0)
         ->with(['status','merchant','driver'])
         ->where('outstanding',0)
@@ -36,16 +41,34 @@ class PackageTrailController extends Controller
         ->selectRaw('merchant_id,order_id,id,taxi_fee,delivery_type,qr_code,price,driver_id,product_type,dim_z,dim_x,dim_y,status_id,failure_notes,payer,cod,delivery_fee,receiver_address,zone_code,zone_name,receiver_name,receiver_phone,delivered_datetime,assign_driver_datetime,arrive_warehouse_datetime,driver_total,merchant_total,billed_kg,actual_kg')
         ->orderByRaw('(status_id = ?) DESC', [5])
         ->orderBy('arrive_warehouse_datetime','desc');
-        if((int)$warehouse_id){
+        if($warehouse_id){
             $query->whereHas('order',function($q) use($warehouse_id){
                 $q->where('warehouse_id',$warehouse_id);
             });
         }
-        if((int)$statusId){
+        if($zoneCode) {
+            $query->where('zone_code',$zoneCode);
+        }
+        if($statusId){
             $query->where('status_id',$statusId);
+        }
+        if($merchantId){
+            $query->where('merchant_id',$merchantId);
+        }
+        if($driverId){
+            Log::error($driverId);
+            $query->where('driver_id',$driverId);
         }
         if($search){
             $query->where('qr_code',$search);
+        }
+        if($startDate && $endDate){
+            $startDate = date('Y-m-d',strtotime($startDate));
+            $endDate = date('Y-m-d',strtotime($endDate));
+            $query->where(function ($q) use($startDate,$endDate){
+                $q->whereBetween('failed_datetime',[$startDate,$endDate])->orWhereDate('failed_datetime',$endDate)
+                ->orWhereBetween('delivered_datetime',[$startDate,$endDate])->orWhereDate('delivered_datetime',$endDate);
+            });
         }
         $packages = $query->get();
         foreach($packages as $pkg){

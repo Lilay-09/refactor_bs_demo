@@ -29,6 +29,7 @@ class DriverTransactionController extends Controller
         $startDate = $req->startDate;
         $endDate = $req->endDate;
         $qD = User::selectRaw('code,id,user_name as driver_name,phone as driver_phone')->where('account_type','driver');
+        $qD->where('id',$driverId);
         $driverInfo = $qD->get();
         $qP = Package::selectRaw('status_id,driver_id')
         ->where('status_id',9)
@@ -124,7 +125,7 @@ class DriverTransactionController extends Controller
     public function getDriverBalance(Request $req){
         $user = UserService::getAuthUser();
         $trxService = new TransactionService();
-        $receive = $trxService->getDriverBalance($req,$user);
+        $receive = $trxService->getBalance($req,$user);
         return ApiResponse::flex($receive);
     }
 

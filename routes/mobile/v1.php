@@ -3,6 +3,7 @@ use App\Http\Controllers\Mobile\Driver\V1\AuthController;
 use App\Http\Controllers\Mobile\Driver\V1\HistoryController;
 use App\Http\Controllers\Mobile\Driver\V1\SearchController;
 use App\Http\Controllers\Mobile\Driver\V1\TransactionController;
+use App\Http\Controllers\Mobile\Merchant\V1\TransactionController as MerchantTransactionController;
 use App\Http\Controllers\Mobile\Merchant\V1\AuthController as AuthMerchantController;
 use App\Http\Controllers\Mobile\Merchant\V1\HistoryController as MerchantHistoryController;
 use App\Http\Controllers\Mobile\Driver\V1\HomeScreenController;
@@ -94,9 +95,13 @@ Route::middleware(['jwtMerchant','localize'])->prefix('merchant/v1/{lang}')->gro
     Route::get('termConditions',[HomeController::class,'getTermConditions']);
     Route::get('connectWithUs',[HomeController::class,'getConnectWithUs']);
     Route::post('feedback',[HomeController::class,'feedBack']);
+    Route::get('bankAccount',[HomeController::class,'getBankAccount']);
+    Route::post('bankAccount',[HomeController::class,'saveBankAccount']);
+    Route::delete('bankAccount/{id}',[HomeController::class,'deleteBankAccount']);
     Route::get('notification',[HomeController::class,'getNotifications']);
     Route::put('notification/read/{id?}',[HomeController::class,'readNotification']);
     Route::get('history/packages',[MerchantHistoryController::class,'getAllHistories']);
+    Route::get('transaction',[MerchantTransactionController::class,'getTransaction']);
     Route::prefix('home')->group(function(){
         Route::get('',[HomeController::class,'getHomeScreen']);
         Route::post('booking',[HomeController::class,'createBooking']);
