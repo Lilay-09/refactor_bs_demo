@@ -386,14 +386,15 @@ class TransactionService
         ]);
     }
 
-    public function getPayments(Request $req,$user){
-        $driverId = $req->driver_id;
+    public function getPayments(Request $req,$user,$type='driver'){
+        $payerId = $req->{$type.'_id'};
         $qP = Payment::fromRaw('payments as p')->join('users as d','d.id','p.payer_id')
         ->where('p.is_deleted',0)
         ->where('p.is_settled',0)
         ->join('users as ap','ap.id','p.receiver_uid')
+        ->where('payer_type',$type)
         ->selectRaw('p.payment_datetime,p.package_count,ap.user_name as booked_user,p.payable_amount,p.id as payment_id,d.user_name as payer_name,p.exchange_rate,p.taxi_fee,p.approved,p.breakdown_notes')
-        ->where('p.payer_id',$driverId);
+        ->where('p.payer_id',$payerId);
 
         $payments = $qP->get();
         $paymentDetails = PaymentDetail::get();

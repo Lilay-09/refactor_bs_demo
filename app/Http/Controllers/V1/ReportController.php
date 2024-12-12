@@ -21,7 +21,7 @@ use Illuminate\Http\Request;
 class ReportController extends Controller
 {
 
-    //** Company Report */
+    //** BEGIN::COMPANY REPORT */
 
     public function getPickupReport(Request $req){
         $user = UserService::getAuthUser();
@@ -424,31 +424,37 @@ class ReportController extends Controller
         return ApiResponse::JsonResult($obj);
     }
 
+    //** END::COMPANY REPORT */
 
 
 
-    // **Driver Report
-    public function formOptionDriver (){
-        $user = UserService::getAuthUser();
-        $obj =(object)[
-            'warehouses' => GeneralSettingService::optionsWarehouse($user),
-        ];
-        return ApiResponse::JsonResult($obj);
-    }
+
+    // **BEGIN::DRIVER REPORT
     public function driverList(Request $req){
+        $user = UserService::getAuthUser();
+        $startDate = $req->startDate;
+        $endDate = $req->endDate;
         $qD = User::where('account_type','driver')
         ->selectRaw('code,user_name,gender,shift_type,phone,address,vehicle_type,plate_number,lock');
         $drivers = $qD->get();
-        return ApiResponse::JsonResult($drivers,'Driver List');
-    }
-
-    public function optionsWarehouse(){
-        $user = UserService::getAuthUser();
-        return ApiResponse::JsonResult(GeneralSettingService::optionsWarehouse($user));
+        foreach($drivers as $driver){
+            $driver->status_code = $driver->lock ? 'Inactive' : 'Active';
+        }
+        $obj =(object)[
+            'title' => 'Daily Packages Summary',
+            'status' => 'All Driver',
+            'date' => Helper::dateDMY($startDate).' to '.Helper::dateDMY($endDate),
+            'total' => 1,
+            'company_profile' => CompanyProfileService::profileInfo($user),
+            'list' => $drivers
+        ];
+        return ApiResponse::JsonResult($obj,'Driver List');
     }
 
     public function driverDeliverySummary(Request $req){
         $user = UserService::getAuthUser();
+        $startDate = $req->startDate;
+        $endDate = $req->endDate;
         $packages = Package::where('is_deleted',0)->whereIn('status_id',[9,10,19])->get();
         $qD = User::where('account_type','driver')
         ->selectRaw('id,code,user_name,gender,shift_type,phone,address,vehicle_type,plate_number,lock');
@@ -456,11 +462,41 @@ class ReportController extends Controller
         foreach($drivers as $d){
             $details = $this->getDriverSummaryDetails($packages,$d->id);
             $d->delivered_count = $details->delivered_count;
+            $d->status_code = $d->lock ? 'Inactive' : 'Active';
             $d->failed_with_fee_count = $details->failed_with_fee_count;
             $d->returned_count = $details->returned_count;
         }
-        return ApiResponse::JsonResult($drivers);
+
+        $obj =(object)[
+            'title' => 'Daily Packages Summary',
+            'status' => 'All Driver',
+            'date' => Helper::dateDMY($startDate).' to '.Helper::dateDMY($endDate),
+            'total' => 1,
+            'company_profile' => CompanyProfileService::profileInfo($user),
+            'list' => $drivers
+        ];
+        return ApiResponse::JsonResult($obj);
     }
+
+
+    public function getDriverPaymentReport(Request $req){
+        $user = UserService::getAuthUser();
+        $startDate = $req->startDate;
+        $endDate = $req->endDate;
+        // $payment = paym,
+        $obj =(object)[
+            'title' => 'Daily Packages Summary',
+            'status' => 'All Driver',
+            'date' => Helper::dateDMY($startDate).' to '.Helper::dateDMY($endDate),
+            'total' => 1,
+            'company_profile' => CompanyProfileService::profileInfo($user),
+            // 'list' => $drivers
+        ];
+        return ApiResponse::JsonResult($obj);
+    }
+
+
+    //** GET DETAILS */
 
     private function getDriverSummaryDetails($rows,$driverId){
         $c = null;
@@ -487,4 +523,22 @@ class ReportController extends Controller
     }
 
 
+
+
+    //** OPTION */
+
+    public function formOptionDriver (){
+        $user = UserService::getAuthUser();
+        $obj =(object)[
+            'warehouses' => GeneralSettingService::optionsWarehouse($user),
+        ];
+        return ApiResponse::JsonResult($obj);
+    }
+
+    public function optionsWarehouse(){
+        $user = UserService::getAuthUser();
+        return ApiResponse::JsonResult(GeneralSettingService::optionsWarehouse($user));
+    }
+
+    //** END::DRIVER REPORT */
 }

@@ -24,6 +24,7 @@ class CompletedPackageController extends Controller
         $driverId = $req->driver_id;
         $warehouseId = $req->warehouse_id;
         $paymentStatusId = $req->payment_status_id;
+        \Log::error(json_encode($req->all()));
         // $query = Package::where('is_deleted',0)->whereIn('status_id',[9,19])
         // ->orderByDesc('id')
         // ->selectRaw('qr_code,id,status_id,dim_x,dim_y,dim_z,order_id,failure_notes,payer,cod,price,delivery_fee,receiver_address,zone_code,zone_name,receiver_phone,delivery_type,actual_kg,billed_kg,delivered_datetime,failed_datetime,driver_total,merchant_total');
@@ -35,7 +36,16 @@ class CompletedPackageController extends Controller
         ->orderByDesc('p.id')
         ->whereIn('p.status_id',[9,11,19]) //* delivered and failed with fee
         ->selectRaw('p.delivered_datetime,m.user_name as merchant_name,m.phone as merchant_phone,dpmt.approved as approved_driver_pmt,mpmt.approved as approved_merchant_pmt,d.user_name as driver_name,p.status_id,p.id as package_id,d.id as driver_id,p.qr_code,p.price,ts.name as status_code,p.product_type,p.delivered_datetime,p.failed_datetime,p.taxi_fee,p.payer,p.cod,p.zone_code,p.zone_name,p.receiver_phone,p.delivery_type,p.delivery_fee,p.driver_total,p.merchant_total');
-        // if($)
+
+        //** Filter */
+        if($driverId) $qP->where('driver_id',$driverId);
+        if($warehouseId) $qP->where('driver_id',$driverId);
+        if($paymentStatusId == 1){
+            $qP->whereNotNull('driver_payment_id')->whereNotNull('driver_payment_id')->where('approved_driver_pmt',0)->where('merhchant_pmt_status',0);
+        }else if($paymentStatusId == 2){
+            $qP->where('dpmt.approved_driver_pmt',1)->where('mpmt.merhchant_pmt_status',1);
+        }
+        //** --------- */
         $packages = $qP->get();
         foreach($packages as $pkg){
             if($pkg->status_id == 9 || $pkg->status_id == 19){

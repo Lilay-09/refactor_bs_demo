@@ -109,6 +109,11 @@ Route::middleware(['jwt','localize'])->prefix('admin/v1/{lang}')->group(function
             Route::get('delivery/package',[MerchantTransactionController::class,'getDeliveryPackages']);
             Route::put('delivery/package/{id}',[MerchantTransactionController::class,'updateDeliveryPackage']);
             Route::post('delivery/receivePayment',[MerchantTransactionController::class,'receivePackagesPayment']);
+            Route::get('payment',[MerchantTransactionController::class,'getPayments']);
+            Route::put('payment',[MerchantTransactionController::class,'approvePayments']);
+            Route::get('settle/payment',[MerchantTransactionController::class,'getApprovedPayments']);
+            Route::put('settle/payment',[MerchantTransactionController::class,'settleApprovedPayments']);
+            Route::delete('payment/{id}',[MerchantTransactionController::class,'deletePayment']);
         });
     });
 

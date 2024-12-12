@@ -32,4 +32,17 @@ class MerchantTransactionController extends Controller
         $receive = $trxService->receivePaymentService($req,$user,$this->userClass);
         return ApiResponse::flex($receive);
     }
+
+    public function getPayments(Request $req){
+        $user = UserService::getAuthUser();
+        $trxService = new TransactionService();
+        return ApiResponse::flex($trxService->getPayments($req,$user,'merchant'));
+    }
+
+    public function approvePayments(Request $req){
+        $user = UserService::getAuthUser();
+        $trxService = new TransactionService();
+        return ApiResponse::flex($trxService->approvePayments($req,$user));
+    }
+
 }

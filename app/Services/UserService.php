@@ -260,25 +260,27 @@ class UserService
                 ]));
             }
             // if(!isset($bank['bank_name'])) return DataResponse::ValidateFail(__('messages.error',['info' =>'Please enter bank name']));
-            $qUserBank = UserBank::where('user_id',$userId);
-            if($id) $qUserBank->where('id','!=',$id);
-            $existsBankInfo = $qUserBank->where('bank_name',$bankName)->where('bank_number',$bankNumber)
-            ->where('account_name',$accountName)->first();
-            if($existsBankInfo) return DataResponse::ValidateFail(__('messages.error',['info' => 'It seems like you try to add duplicated bank info']));
-            // }
+            if($bankName){
+                $qUserBank = UserBank::where('user_id',$userId);
+                if($id) $qUserBank->where('id','!=',$id);
+                $existsBankInfo = $qUserBank->where('bank_name',$bankName)->where('bank_number',$bankNumber)
+                ->where('account_name',$accountName)->first();
+                if($existsBankInfo) return DataResponse::ValidateFail(__('messages.error',['info' => 'It seems like you try to add duplicated bank info']));
+                // }
 
-            if(!empty($nonEmptyFields)) $keepIds[] = $id;
-            if($id){
-                $userBank = UserBank::where('user_id',$userId)->where('id',$id)->first();
-                if(!$userBank) return DataResponse::ValidateFail(__('messages.error',['info' => 'Wrong bank identity']));
-                $userBank->update($bank);
-            }else{
-                $accountCount = UserBank::where('user_id',$userId)->count();
-                if($accountCount == 2) return DataResponse::ValidateFail(__('messages.info',[
-                    'info' => 'Only two accounts are allowed'
-                ]));
-                $bank['create_uid'] = $user->id;
-                UserBank::create($bank);
+                if(!empty($nonEmptyFields)) $keepIds[] = $id;
+                if($id){
+                    $userBank = UserBank::where('user_id',$userId)->where('id',$id)->first();
+                    if(!$userBank) return DataResponse::ValidateFail(__('messages.error',['info' => 'Wrong bank identity']));
+                    $userBank->update($bank);
+                }else{
+                    $accountCount = UserBank::where('user_id',$userId)->count();
+                    if($accountCount == 2) return DataResponse::ValidateFail(__('messages.info',[
+                        'info' => 'Only two accounts are allowed'
+                    ]));
+                    $bank['create_uid'] = $user->id;
+                    UserBank::create($bank);
+                }
             }
         }
         UserBank::where('user_id',$userId)->whereNotIn('id',$keepIds)->delete();

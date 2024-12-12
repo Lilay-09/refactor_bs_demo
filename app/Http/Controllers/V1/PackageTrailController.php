@@ -56,7 +56,6 @@ class PackageTrailController extends Controller
             $query->where('merchant_id',$merchantId);
         }
         if($driverId){
-            Log::error($driverId);
             $query->where('driver_id',$driverId);
         }
         if($search){
