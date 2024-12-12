@@ -25,7 +25,7 @@ class PickupCenterService
             'package_name' => 'nullable|string|max:100',
             'merchant_id' => 'required',
             'product_type' => 'nullable|string',
-            'price' => 'nullable|numeric',
+            'price' => 'nullable|numeric|min:0.1',
             'dim_z' => 'nullable|numeric',
             'dim_y' => 'nullable|numeric',
             'dim_x' => 'nullable|numeric',

@@ -430,7 +430,7 @@ class ReportController extends Controller
 
 
     // **BEGIN::DRIVER REPORT
-    public function driverList(Request $req){
+    public function getDriverListReport(Request $req){
         $user = UserService::getAuthUser();
         $startDate = $req->startDate;
         $endDate = $req->endDate;
@@ -451,7 +451,7 @@ class ReportController extends Controller
         return ApiResponse::JsonResult($obj,'Driver List');
     }
 
-    public function driverDeliverySummary(Request $req){
+    public function driverDeliverySummaryReport(Request $req){
         $user = UserService::getAuthUser();
         $startDate = $req->startDate;
         $endDate = $req->endDate;

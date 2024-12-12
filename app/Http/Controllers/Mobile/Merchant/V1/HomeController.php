@@ -65,7 +65,7 @@ class HomeController extends Controller
 
     public function getBankAccount(){
         $user = UserService::getAuthUser('merchant');
-        $userBanks = UserBank::where('user_id',$user->id)->selectRaw('id,bank_name,bank_number,account_name,is_primary')->get();
+        $userBanks = UserBank::where('user_id',$user->id)->selectRaw('id,bank_name,bank_number,account_name,is_primary')->orderByDesc('is_primary')->get();
         $displayBanks = $userBanks->toArray();
 
         // Check the number of existing records

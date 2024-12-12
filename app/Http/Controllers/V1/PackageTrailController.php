@@ -131,7 +131,7 @@ class PackageTrailController extends Controller
         $inputs['actual_kg'] = $actualKg;
         $payer = $inputs['payer'];
         $inputs['billed_kg'] = $actualKg;
-        $inputs['status_id'] = 5; //** add warehouse */
+        $inputs['status_id'] = $package->status_id; //** add warehouse */
         $zoneCode = $inputs['zone_code'];
         $extra_charge = $inputs['extra_charge'] ?? 0;
         $calPrice = GeneralSettingService::calculatePackageFee($zoneCode,$price,$billedKg,$actualKg,$payer,$inputs['cod'],$extra_charge,$user);
@@ -205,20 +205,51 @@ class PackageTrailController extends Controller
         $notes = $req->notes;
         $validDriver = GeneralSettingService::getDriverById($driver_id);
         if(!$validDriver) return ApiResponse::NotFound(__('messages.not_found',['info' => 'Driver']));
-        $pacakge = Package::where('company_id',$user->company_id)->where('is_deleted',0)->where('outstanding',0)->find($id);
-        if(!$pacakge) return ApiResponse::NotFound(__('messages.not_found',['info' => 'Package','khInfo' => 'កញ្ចប់']));
-        if($pacakge->status_id == 9) return ApiResponse::Duplicated(__('messages.error',['info' => 'This package is already delivered']));
-        if($pacakge->status_id == 19) return ApiResponse::Duplicated(__('messages.error',['info' => 'This package is already marked as failed with fee']));
-        if($pacakge->status_id == 11) return ApiResponse::Duplicated(__('messages.error',['info' => 'This package is already returned']));
-        if($pacakge->driver_id){
-            $deliveryPackage = DeliveryPackage::where('package_id',$id)->where('is_deleted',0)->where('delay_count',0)->first();
-            if($deliveryPackage){
-                if($deliveryPackage->status_id !== 10 && !in_array($pacakge->status_id,[5,10,19]) ) return ApiResponse::Duplicated(__('messages.has already assigned',['info' => 'Package']));
-            }
-        }
+        $package = Package::where('company_id',$user->company_id)->where('is_deleted',0)->where('outstanding',0)->find($id);
+        if(!$package) return ApiResponse::NotFound(__('messages.not_found',['info' => 'Package','khInfo' => 'កញ្ចប់']));
+        if($package->status_id == 9) return ApiResponse::Duplicated(__('messages.error',['info' => 'This package is already delivered']));
+        if($package->status_id == 19) return ApiResponse::Duplicated(__('messages.error',['info' => 'This package is already marked as failed with fee']));
+        if($package->status_id == 11) return ApiResponse::Duplicated(__('messages.error',['info' => 'This package is already returned']));
+        if($package->driver_id == $driver_id) return ApiResponse::Duplicated(__('messages.error',[
+            'info' => 'It seems like you are trying to assign this package to the same driver'
+        ]));
+
         DB::beginTransaction();
         try{
-            $pacakge->update([
+            if($package->driver_id){
+                $deliveryPackage = DeliveryPackage::where('package_id',$id)->where('is_deleted',0)->where('delay_count',0)->first();
+                if($deliveryPackage){
+                    if(!$user->system_admin && $deliveryPackage->status_id !== 10 && !in_array($package->status_id,[5,10,19]) ) return ApiResponse::Duplicated(__('messages.has already assigned',['info' => 'Package']));
+                    // $fleet = new FleetManagementController();
+                    // $fleetArr = new Request([
+                    // 'packages' => [
+                    //     [
+                    //         'package_id' => $package->id
+                    //     ]
+                    // ],
+                    // 'depart_datetime' => now(),
+                    //     'driver_id' => $driver_id
+                    // ]);
+                    // $createOrUpdate = $fleet->createOrUpdateTripService($fleetArr,$user,[6]);
+                    // if($createOrUpdate->error) return ApiResponse::flex($createOrUpdate);
+                }
+                $selfTrip = Delivery::where('driver_id',$package->driver_id)->where('finished',0)->orderByDesc('id')->first();
+                //** remove self pacakge */
+                $selfTrip->update([
+                    'package_count' => $selfTrip->package_count - 1
+                ]);
+                DeliveryPackage::where('delivery_id',$selfTrip->id)
+                ->where('package_id',$package->id)
+                ->update([
+                    'is_deleted' => true,
+                    'deleted_uid' => $user->id,
+                    'has_swap' => true,
+                    'delay_count' => 0,
+                    'deleted_datetime' => now(),
+                    'notes' => DB::raw('notes || \'| admin change driver\'')
+                ]);
+            }
+            $package->update([
                 'driver_id' => $driver_id,
                 'status_id' => 6, // On Delivery
                 'assign_driver_datetime' => now(),
@@ -236,9 +267,10 @@ class PackageTrailController extends Controller
                     'info'=>'Assigned Package',
                     'khInfo' => ''
                 ]),
-                'body' => 'You have been assigned to deliver the package('.$pacakge->qr_code.').'
+                'body' => 'You have been assigned to deliver the package('.$package->qr_code.').'
             ]);
             $notif->sendNotificationByTopic($notifReq,$user);
+            Log::info(json_encode(Delivery::selectRaw('id,package_count')->orderByDesc('id')->get()));
             DB::commit();
             return ApiResponse::JsonResult(null,__('messages.assigned',['info' => '']));
         }catch(Exception $e){
@@ -353,7 +385,7 @@ class PackageTrailController extends Controller
             if(!$dPackage) return DataResponse::Error(__('messages.error',['info' => 'Fail to assign package']));
         }
 
-        Log::info(json_encode(Delivery::selectRaw('id')->get()));
+        // Log::info(json_encode(Delivery::selectRaw('id')->orderByDesc('id')->get()));
         GeneralSettingService::updateTripStatus($deliveryId,$user);
 
 

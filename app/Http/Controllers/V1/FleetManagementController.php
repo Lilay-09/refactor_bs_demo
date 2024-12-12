@@ -182,7 +182,8 @@ class FleetManagementController extends Controller
         $package = Package::where('company_id',$user->company_id)->where('is_deleted',0)->with('driver')->find($package_id);
         if(!$package) return ApiResponse::NotFound(__('messages.not_found',['info' => 'Package','khInfo' => 'កញ្ចប់']));
         $todayDT = Helper::getDateTime();
-        $driverName = $package->driver->user_name;
+        $driverName = $package->driver?->user_name;
+        // Log::error($package->id);
         if($package->status_id != 6) return ApiResponse::ValidateFail(__('messages.info',[
             'info' => 'Only delivery package can be kicked from trip'
         ]));
@@ -408,7 +409,7 @@ class FleetManagementController extends Controller
 
                     $dPackage = DeliveryPackage::where('delay_count',0)->where('is_deleted',0)->where('package_id',$packageId)->first();
                     if(!$dPackage){
-                        Log::info('here');
+                        // Log::info('here');
                         $dPackage = DeliveryPackage::create([
                             'notes' => 'Admin add package to trip',
                             'driver_id' => $driverId,
