@@ -153,7 +153,7 @@ class UserService
             $inputs['latitude'] = $getLatLng->latitude ?? 0;
             $inputs['longitude'] = $getLatLng->longitude ?? 0;
         }
-        unset($inputs['bank_info'],$inputs['photo'],$inputs['role_id']);
+        unset($inputs['bank_info'],$inputs['photo'],$inputs['role_id'],$inputs['client_type_id']);
         DB::beginTransaction();
         try{
             if($id){
