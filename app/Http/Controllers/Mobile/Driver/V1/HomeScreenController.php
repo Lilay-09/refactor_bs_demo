@@ -56,8 +56,9 @@ class HomeScreenController extends Controller
         ->whereIn('status_id',[2,3,4])
         ->where('company_id',$user->company_id)
         ->where('driver_id',$user->id)
+        // ->orderByRaw('order')
         ->orderByDesc('id')
-        ->selectRaw('id,warehouse_id,driver_id,pickup_address_google_map,order_datetime,merchant_id,status_id,qty,code,pickup_address,pickup_address_google_map,vehicle_type,delivery_type,loc_lat,loc_lng')
+        ->selectRaw('id,warehouse_id,driver_id,pickup_address_google_map,order_datetime,merchant_id,status_id,qty,code,pickup_address,pickup_address_google_map,vehicle_type,delivery_type,loc_lat,loc_lng,product_type')
         ->get();
         foreach($orders as $order){
             $order->warehouse_address = $order->warehouse->address;

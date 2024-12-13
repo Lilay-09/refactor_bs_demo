@@ -132,4 +132,10 @@ class AuthController extends Controller
         $cldMsgService = new CloudMessagingService();
         return $cldMsgService->unsubscribeAllTopics($user);
     }
+
+    public function resetPassword(Request $req){
+        $user = UserService::getAuthUser('driver');
+        $resetPass = UserService::resetPassword($req,$user->id,'driver');
+        return ApiResponse::flex($resetPass);
+    }
 }

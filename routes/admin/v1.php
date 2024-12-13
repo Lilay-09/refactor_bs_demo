@@ -203,11 +203,11 @@ Route::middleware(['jwt','localize'])->prefix('admin/v1/{lang}')->group(function
 
     Route::prefix('priceList')->group(function(){
         Route::get('{price_list_name_id}/zone',[PriceListController::class,'getPriceZones']);
-        Route::post('',[PriceListController::class,'createPriceList']);
+        // Route::post('',[PriceListController::class,'createPriceList']);
         // Route::get('',[PriceListController::class,'getPriceList']);
         Route::put('assign',[PriceListController::class,'assignZoneToPriceList']);
         Route::get('/{id}',[PriceListController::class,'getOnePriceList']);
-        Route::put('/{id}',[PriceListController::class,'updatePriceList']);
+        Route::post('/{id?}',[PriceListController::class,'updatePriceList']);
         Route::delete('/{id}',[PriceListController::class,'deletePriceList']);
 
         Route::prefix('name')->group(function(){

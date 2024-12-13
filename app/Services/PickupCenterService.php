@@ -25,7 +25,7 @@ class PickupCenterService
             'package_name' => 'nullable|string|max:100',
             'merchant_id' => 'required',
             'product_type' => 'nullable|string',
-            'price' => 'nullable|numeric|min:0.1',
+            'price' => 'nullable|numeric|min:0',
             'dim_z' => 'nullable|numeric',
             'dim_y' => 'nullable|numeric',
             'dim_x' => 'nullable|numeric',
@@ -105,19 +105,21 @@ class PickupCenterService
         if($user->account_type == 'driver') $inputs['tracking_notes'] = 'Driver create order ('.$dateTime.')';
         else if($user->account_type == 'merchant') $inputs['tracking_notes'] = 'Merchant create order ('.$dateTime.')';
         else if($user->account_type == 'admin') $inputs['tracking_notes'] = 'Admin create order ('.$dateTime.')';
-
+        $deleteImgs = [];
+        $pickupAddress = $inputs['pickup_address'] ?? null;
+        $pickup_address_google_map = $inputs['pickup_address_google_map'] ?? null;
+        $latLng = Helper::getLatLongFromGoogleMapsUrl($pickup_address_google_map);
+        $inputs['loc_lat'] = $inputs['loc_lat'] ?? $latLng->latitude;
+        $inputs['loc_lng'] = $inputs['loc_lng'] ?? $latLng->longitude;
+        if(!$pickupAddress) $inputs['pickup_address'] = $latLng->address;
         DB::beginTransaction();
         try{
             $createOrder = Order::create($inputs);
             if(!$createOrder) return DataResponse::Error('Fail to create order!');
             $orderId = $createOrder->id;
             $code = Helper::generateCode('JS',$orderId,'',8);
-            $pickupAddress = $inputs['pickup_address'] ?? null;
-            $pickup_address_google_map = $inputs['pickup_address_google_map'] ?? null;
-            $latLng = Helper::getLatLongFromGoogleMapsUrl($pickup_address_google_map);
-            $inputs['loc_lat'] = $inputs['loc_lat'] ?? $latLng->latitude;
-            $inputs['loc_lng'] = $inputs['loc_lng'] ?? $latLng->longitude;
-            if(!$pickupAddress) $inputs['pickup_address'] = $latLng->address;
+
+
             Order::find($orderId)->update([
                 'code' => $code
             ]);
@@ -130,7 +132,7 @@ class PickupCenterService
                     if($savePkg->error) return $savePkg;
                 }
             }
-            $deleteImgs = [];
+
             if(isset($images[0])){
                 foreach($images as $photo){
                     // Log::info($photo->getClientOriginalName());
@@ -175,6 +177,7 @@ class PickupCenterService
                 ]);
                 $notif->sendNotificationByTopic($notifReq,$user);
             // }
+            // Log::error(Order::selectRaw('loc_lat,loc_lng')->find($orderId));
             DB::commit();
             return DataResponse::JsonResult(null,false,__('messages.info',[
                 'info' => 'Order created ('.$code.')',

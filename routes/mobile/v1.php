@@ -16,6 +16,7 @@ use Illuminate\Support\Facades\Route;
 Route::prefix('driver/v1/{lang}/auth')->middleware('localize')->group(function(){
     Route::post('login',[AuthController::class,'login']);
     Route::middleware('jwtDriver')->group(function(){
+        Route::post('resetPassword',[AuthController::class,'resetPassword']);
         Route::get('profile',[AuthController::class,'getProfile']);
         Route::post('profile',[AuthController::class,'updateProfile']);
     });
