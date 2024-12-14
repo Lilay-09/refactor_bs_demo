@@ -25,13 +25,27 @@ class MerchantManagementController extends Controller
 
     public function getMerchants(Request $req){
         $user = UserService::getAuthUser();
+        $statusId = $req->status_id ?? null;
+        $search = $req->search;
         $priceList = DB::table('price_list as pl')->join('price_list_names as n','n.id','pl.price_list_name_id')
         ->selectRaw('pl.id,n.name,mpl.merchant_id')->join('merchant_price_list as mpl','mpl.price_list_id','pl.id')
         ->get();
         $query = User::where('is_deleted',0)->where('company_id',$user->company_id)
         ->where('account_type',$this->userClass)
-        ->with(['merchantType:id,name','bank_accounts:id,bank_name,bank_number,account_name,user_id,is_primary'])
-        ->selectRaw('id,cod_fee,code,name_km,user_name,email,gender,business_type,phone,client_type_id,address,cod,pin_address,photo_file_name,lock,has_account,photo_file_name');
+        ->with(['merchantType:id,name','bank_accounts:id,bank_name,bank_number,account_name,user_id,is_primary']);
+        // ->selectRaw('id,cod_fee,code,name_km,user_name,email,gender,business_type,phone,client_type_id,address,cod,pin_address,photo_file_name,lock,has_account,photo_file_name');
+        if($statusId !== null && $statusId>=0) {
+            $query->where('lock',$statusId ? 0 : 1);
+        }
+
+        if($search){
+            $query->where(function($q) use ($search){
+                $q->where('code','ilike','%'.$search.'%')
+                ->orWhere('user_name','ilike','%'.$search.'%')
+                ->orWhere('name_km','ilike','%'.$search.'%')
+                ->orWhere('phone','ilike','%'.$search.'%');
+            });
+        }
         $merhcants = $query->orderByDesc('id')->get();
         foreach($merhcants as $m){
             $merchantPriceList = $this->getMerchantPriceList($priceList,$m->id);
@@ -62,7 +76,7 @@ class MerchantManagementController extends Controller
         $merchant = User::where('is_deleted',0)->where('company_id',$user->company_id)
         ->where('account_type',$this->userClass)
         ->with(['bank_accounts:id,bank_name,bank_number,account_name,user_id,is_primary'])
-        ->selectRaw('id,cod_fee,code,name_km,user_name,email,gender,photo_file_name,business_type,phone,client_type_id,address,referrer_uid,cod')
+        // ->selectRaw('id,cod_fee,code,name_km,user_name,email,gender,photo_file_name,business_type,phone,client_type_id,address,referrer_uid,cod')
         ->find($id);
         $priceList = DB::table('price_list as pl')->join('price_list_names as n','n.id','pl.price_list_name_id')
         ->selectRaw('pl.id,n.name,mpl.merchant_id')->join('merchant_price_list as mpl','mpl.price_list_id','pl.id')
@@ -71,6 +85,8 @@ class MerchantManagementController extends Controller
         $merchant->image_url = Helper::getImageUrl($merchant->photo_file_name,$user->company_id,'user_profile');
         if($priceList){
             $merchant->price_list_id = $priceList->id;
+            $cod = $merchant->cod;
+            $merchant->cod = $cod ? 1:0;
         }
         unset($m->merchantType,$m->bank_accounts);
         return ApiResponse::JsonResult($merchant,__('messages.get one'));
@@ -88,29 +104,43 @@ class MerchantManagementController extends Controller
     public function updateMerchant(Request $req){
         $user = UserService::getAuthUser();
         $id = $req->id;
-        $createDriver = UserService::createOrUpdateUser($req,$this->userClass,$user,$id);
-        return ApiResponse::flex($createDriver);
+        $updateMerchant = UserService::createOrUpdateUser($req,$this->userClass,$user,$id);
+        return ApiResponse::flex($updateMerchant);
     }
 
 
     public function createMerchantAccount(Request $req){
         $user = UserService::getAuthUser();
         $merchantId = $req->id;
-        $createDriver = UserService::createLoginAccount($req,$merchantId,'merchant',$user);
-        return ApiResponse::flex($createDriver);
+        $createMerchant = UserService::createLoginAccount($req,$merchantId,'merchant',$user);
+        return ApiResponse::flex($createMerchant);
     }
 
     public function setMerchantPriceList(Request $req){
+        $user = UserService::getAuthUser();
+        $id = $req->id;
         $priceListId = $req->price_list_id;
         if(!$priceListId) return ApiResponse::ValidateFail(__('messages.info',[
             'info' => 'Please choose a price list'
         ]));
-        $update = MerchantPriceList::where('merchant_id',$req->id)->update([
-            'price_list_id' => $req->price_list_id
-        ]);
-        if(!$update) return ApiResponse::Error(__('messages.error',[
-            'info' => 'Failed to update'
-        ]));
+        $merchantPriceList = MerchantPriceList::where('merchant_id',$req->id)->first();
+        if($merchantPriceList){
+            $merchantPriceList->update([
+                'price_list_id' => $priceListId,
+                'update_uid' => $user->id,
+                'branch_id' => $user->id,
+                'company_id' => $user->id
+            ]);
+        }else{
+            MerchantPriceList::create([
+                'merchant_id' => $id,
+                'price_list_id' => $priceListId,
+                'create_uid' => $user->id,
+                'update_uid' => $user->id,
+                'branch_id' => $user->id,
+                'company_id' => $user->id
+            ]);
+        }
         return ApiResponse::JsonResult(null,__('messages.updated'));
     }
 

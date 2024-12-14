@@ -39,12 +39,26 @@ class GeneralSettingController extends Controller
         return ApiResponse::JsonResult($this->gs::optionsDistrict($user));
     }
 
+    public function getOptionsOperator(){
+        $user = UserService::getAuthUser();
+        return ApiResponse::JsonResult($this->gs::optionsOperator($user));
+    }
+
     public function getFormZone(){
         $user = UserService::getAuthUser();
 
         $obj = [
             'zone_types' => $this->gs::optionsZoneType(),
             'countries' => $this->gs::optionsCountry($user)
+        ];
+        return ApiResponse::JsonResult($obj);
+    }
+
+    public function getDriverFilterOptions(){
+        $user = UserService::getAuthUser();
+        $obj = [
+            'statuses' => $this->gs::optionsUserStatus(),
+            'employee_types' => $this->gs::optionsEmployeeType()
         ];
         return ApiResponse::JsonResult($obj);
     }
@@ -59,7 +73,6 @@ class GeneralSettingController extends Controller
 
     public function getFormReceivePayment(){
         $user = UserService::getAuthUser();
-
         $obj = [
             'banks' => $this->gs::optionsBank($user),
             'xrate' => $this->gs::getLatestXRate($user)
@@ -82,6 +95,11 @@ class GeneralSettingController extends Controller
         $user = UserService::getAuthUser();
         return ApiResponse::JsonResult($this->gs::getLatestXRate($user));
 
+    }
+
+    public function getOptionsUserStatus(){
+        // $user = UserService::getAuthUser();
+        return ApiResponse::JsonResult($this->gs::optionsUserStatus());
     }
     public function getOptionsDistrictByCity(Request $req){
         $user = UserService::getAuthUser();

@@ -145,6 +145,9 @@ class PickUpCenterController extends Controller
         $startDate = $req->startDate;
         $endDate = $req->endDate;
         $statusId = $req->status_id;
+        $driverId = $req->driver_id;
+        $merchantId = $req->merchant_id;
+        $warehouseId = $req->warehouse_id;
         $query = Order::with(['merchant','tracking_status','driver','createdBy'])->where('is_deleted',0)
             ->whereIn('status_id',[1,2,3,4,21])
             ->where('company_id',$user->company_id)
@@ -154,6 +157,15 @@ class PickUpCenterController extends Controller
             $query->whereHas('merchant',function ($q) use ($search){
                 $q->where('phone','ilike','%'.$search.'%');
             })->orWhere('code',$search);
+        }
+        if($driverId){
+            $query->where('driver_id',$driverId);
+        }
+        if($merchantId){
+            $query->where('merchant_id',$merchantId);
+        }
+        if($warehouseId){
+            $query->where('warehouse_id',$warehouseId);
         }
         if($statusId){
             $query->where('status_id',$statusId);

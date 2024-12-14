@@ -12,10 +12,12 @@ use App\Services\CompanyProfileService;
 use App\Services\GeneralSettingService;
 use App\Services\PickupCenterService;
 use App\Services\UserService;
+use DataResponse;
 use DB;
 use Exception;
 use Helper;
 use Illuminate\Http\Request;
+use Illuminate\Log\Logger;
 use Log;
 
 class FleetManagementController extends Controller
@@ -180,7 +182,8 @@ class FleetManagementController extends Controller
         $package = Package::where('company_id',$user->company_id)->where('is_deleted',0)->with('driver')->find($package_id);
         if(!$package) return ApiResponse::NotFound(__('messages.not_found',['info' => 'Package','khInfo' => 'កញ្ចប់']));
         $todayDT = Helper::getDateTime();
-        $driverName = $package->driver->user_name;
+        $driverName = $package->driver?->user_name;
+        // Log::error($package->id);
         if($package->status_id != 6) return ApiResponse::ValidateFail(__('messages.info',[
             'info' => 'Only delivery package can be kicked from trip'
         ]));
@@ -329,6 +332,11 @@ class FleetManagementController extends Controller
 
     public function createOrUpdateTrip(Request $req){
         $user = UserService::getAuthUser();
+        $createOrUpdate = $this->createOrUpdateTripService($req,$user);
+        return ApiResponse::flex($createOrUpdate);
+    }
+
+    public function createOrUpdateTripService(Request $req,$user,$allowedPkgStatuses=[5]){
         $today = date('Y-m-d');
         $validate = validator($req->all(),[
             'packages' => 'required|array',
@@ -336,23 +344,18 @@ class FleetManagementController extends Controller
             'vehicle_type' => 'nullable|exists:vehicle_types,name',
             'driver_id' => 'required|int'
         ]);
-        if($validate->fails()) return ApiResponse::ValidateFail($validate->errors()->first());
+        if($validate->fails()) return DataResponse::ValidateFail($validate->errors()->first());
         $inputs = $validate->validated();
         $packageIds = $inputs['packages'];
         $driverId = $inputs['driver_id'];
         $vehicleType = $inputs['vehicle_type'] ?? null;
         $driver = User::where('is_deleted',0)->find($driverId);
-        if(!$driver) return ApiResponse::NotFound(__('messages.not_found',[
+        if(!$driver) return DataResponse::NotFound(__('messages.not_found',[
             'info' => 'Driver'
         ]));
         if(!$vehicleType) $vehicleType = $driver->vehicle_type;
-        $pendingTrip = Delivery::where(function ($query) use ($today) {
-            $query->whereDate('depart_datetime', $today)
-                ->orWhere(function ($q) {
-                    $q->where('finished', 0)
-                    ->orWhere('is_completed', 0);
-                });
-        })->where('company_id', $user->company_id)
+        $pendingTrip = Delivery::where('finished', 0)
+        ->where('company_id', $user->company_id)
         ->where('driver_id', $driverId)
         ->first();
         DB::beginTransaction();
@@ -376,7 +379,7 @@ class FleetManagementController extends Controller
                     'update_uid' => $user->id,
                     'create_uid' => $user->id,
                 ]);
-                if(!$create) return ApiResponse::Error(__('messages.error',['info' => 'Fail to add fleet']));
+                if(!$create) return DataResponse::Error(__('messages.error',['info' => 'Fail to add fleet']));
                 $deliveryId = $create->id;
                 $pendingTrip = Delivery::find($deliveryId);
                 Helper::setFleetNumber($user->branch_id,'fleet_code_controls','deliveries',$deliveryId,'fleet_tracking_number');
@@ -393,18 +396,20 @@ class FleetManagementController extends Controller
                 // $isNewPkg = true;
 
                 $packageId = $pkg['package_id'] ?? null;
-                if(!$packageId) return ApiResponse::ValidateFail('Please provide package identity');
+                if(!$packageId) return DataResponse::ValidateFail('Please provide package identity');
                 $allowablePkg = Package::where('outstanding',0)->find($packageId);
-                if(!$allowablePkg) return ApiResponse::ValidateFail(__('messages.not_found',[
+                if(!$allowablePkg) return DataResponse::ValidateFail(__('messages.not_found',[
                     'info' => 'Package'
                 ]));
-                if($allowablePkg->status_id != 5) return ApiResponse::ValidateFail(__('messages.info',[
-                    'info' => 'Package must be at warehouse'
+                if(!in_array($allowablePkg->status_id,$allowedPkgStatuses)) return DataResponse::ValidateFail(__('messages.info',[
+                    'info' => $allowedPkgStatuses[0] == 5 ?'Package must be at warehouse':'Package must be on delivery'
                 ]));
                 //** add delivery tracking */
                 // if($isNewPkg) {
+
                     $dPackage = DeliveryPackage::where('delay_count',0)->where('is_deleted',0)->where('package_id',$packageId)->first();
                     if(!$dPackage){
+                        // Log::info('here');
                         $dPackage = DeliveryPackage::create([
                             'notes' => 'Admin add package to trip',
                             'driver_id' => $driverId,
@@ -416,7 +421,21 @@ class FleetManagementController extends Controller
                             'branch_id' => $user->branch_id,
                             'company_id' => $user->company_id,
                         ]);
-                        if(!$dPackage) return ApiResponse::Error(__('messages.error',['info' => 'Fail to assign package']));
+                        if(!$dPackage) return DataResponse::Error(__('messages.error',['info' => 'Fail to assign package']));
+                    }
+                    if(in_array(6,$allowedPkgStatuses)){
+                        // Log::error('sdfsdf');
+                        $dPackage = DeliveryPackage::create([
+                            'notes' => 'Admin add package to trip',
+                            'driver_id' => $driverId,
+                            'delivery_id' => $deliveryId,
+                            'package_id' => $packageId,
+                            'status_id' => 6, // On Delivery
+                            'update_uid' => $user->id,
+                            'create_uid' => $user->id,
+                            'branch_id' => $user->branch_id,
+                            'company_id' => $user->company_id,
+                        ]);
                     }
                     $allowablePkg->update([
                         'driver_id' => $driverId,
@@ -434,14 +453,13 @@ class FleetManagementController extends Controller
             GeneralSettingService::updateTripStatus($deliveryId,$user);
             // return Delivery::orderByDesc('id')->get();
             DB::commit();
-            return ApiResponse::JsonResult(null,__('messages.saved'));
+            return DataResponse::JsonResult(null,false,__('messages.saved'));
         }catch(Exception $e){
             DB::rollBack();
             Log::error($e->getTraceAsString());
             Log::error($e->getMessage());
-            return ApiResponse::Error(__('messages.error',['info' => 'Failed to save trip']));
+            return DataResponse::Error(__('messages.error',['info' => 'Failed to save trip']));
         }
-        // return ApiResponse::JsonResult(null,__('messages.saved'));
     }
 
     public function getPackageByBarcode(Request $req){

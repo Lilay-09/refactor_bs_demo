@@ -20,17 +20,40 @@ class DriverManagementController extends Controller
     }
     public function getDrivers(Request $req){
         $user = UserService::getAuthUser();
+        $search = $req->search;
+        $statusId = $req->status_id;
+        $employeeType = $req->employee_type;
         $query = User::where('is_deleted',0)->where('company_id',$user->company_id)
         ->where('account_type','driver')
-        ->selectRaw('id,code,user_name,email,gender,shift_type,vehicle_type,plate_number,phone,has_account,lock,photo_file_name');
+        ->with('createUser:id,user_name')
+        ->selectRaw('id,code,address,name_km,name_km as name_kh,user_name,email,gender,shift_type,vehicle_type,plate_number,phone,has_account,lock,photo_file_name,shift_type,employment_date,employee_type,dob,relative_name,national_id,create_uid');
+        if($employeeType){
+            $query->where('employee_type',$employeeType);
+        }
+
+        if($statusId !== null && $statusId>=0) {
+            $query->where('lock',$statusId ? 0 : 1);
+        }
+
+        if($search){
+            $query->where(function($q) use ($search){
+                $q->where('code','ilike','%'.$search.'%')
+                ->orWhere('user_name','ilike','%'.$search.'%')
+                ->orWhere('name_km','ilike','%'.$search.'%')
+                ->orWhere('phone','ilike','%'.$search.'%');
+            });
+        }
+
         $drivers = $query->orderByDesc('id')->get();
+
         foreach ($drivers as $driver){
+            $driver->create_by = $driver->createUser->user_name;
             foreach($driver->bank_accounts as $b){
                 if($b->is_primary) $driver->bank_account = GeneralSettingService::concatBankInfo($b->bank_name,$b->bank_number,$b->account_name);
                 if(!$b->bank_account) $driver->bank_account = GeneralSettingService::concatBankInfo($b->bank_name,$b->bank_number,$b->account_name);
             }
             $driver->image_url = Helper::getImageUrl($driver->photo_file_name,$user->company_id,'user_profile');
-            unset($driver->bank_accounts);
+            unset($driver->bank_accounts,$driver->createUser);
         }
         return ApiResponse::Pagination($drivers,$req);
     }
@@ -41,7 +64,7 @@ class DriverManagementController extends Controller
         $driver = User::where('is_deleted',0)->where('company_id',$user->company_id)
         ->where('account_type','driver')
         ->with(['bank_accounts:id,user_id,bank_name,bank_number,account_name,is_primary'])
-        ->selectRaw('id,code,user_name,email,gender,shift_type,vehicle_type,plate_number,phone,national_id,dob,photo_file_name')
+        ->selectRaw('*,driver_warehouse_id as warehouse_id')
         ->find($id);
         if(!$driver) return ApiResponse::NotFound(__('messages.not_found',['info' => 'Driver']));
         $driver->image_url = Helper::getImageUrl($driver->photo_file_name,$user->company_id,'user_profile');
@@ -109,7 +132,7 @@ class DriverManagementController extends Controller
         $user = UserService::getAuthUser();
         $id = $req->id;
         $driver = User::where('is_deleted',0)->where('company_id',$user->company_id)
-        ->selectRaw('code,user_name,employment_date,shift_type,salary')
+        ->selectRaw('code,user_name,employment_date,shift_type,salary,employee_type')
         ->where('account_type','driver')->find($id);
         if(!$driver) return ApiResponse::NotFound(__('messages.not_found',['info' => 'Driver']));
         $dc = (object)[

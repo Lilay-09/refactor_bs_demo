@@ -33,22 +33,30 @@ class AuthController extends Controller
         $password = $input['password'];
         date_default_timezone_set('Asia/Phnom_Penh');
         $today = date('Y-m-d H:i:s');
-        $user = User::where('email',$account)->orWhere('phone',$account)->orWhere('login_name',$account)->selectRaw('photo_file_name,email,phone,id,system_admin,lock,company_id,account_type,login_name')->first();
+        $user = User::where('account_type','driver')->where(function ($q) use ($account) {
+            $q->where('email', $account)
+            ->orWhere('phone', $account)
+            ->orWhere('login_name', $account);
+        })->selectRaw('photo_file_name,email,phone,id,system_admin,lock,company_id,account_type,login_name,delete_account')->first();
         $systemAdmin = $user->system_admin ?? false;
         $isLock = $user->lock ?? false;
-        if($isLock) {
+        if(!$user) return  ApiResponse::NotFound('Invalid Username or password');
+        // return $user;
+        if($isLock || $user->delete_account) {
             if(!$systemAdmin) return ApiResponse::Unauthorized('You have no access to this application.');
         }
-        if(!$user) return  ApiResponse::NotFound('Invalid Username or password');
+
         if($user){
-            if($user->account_type != 'driver' && !$systemAdmin) return ApiResponse::Forbidden('You have no access to this application.');
+            if($user->account_type != 'driver') return ApiResponse::Forbidden('You have no access to this application.');
             $user->roles = UserService::getRolesByUsers($user->id);
         }
         User::find($user->id)->update([
             'last_login' => $today
         ]);
         $credentials = [
-            'password' => $password
+            'password' => $password,
+            'account_type' => $user->account_type,
+
         ];
         if($user->email == $account) $credentials['email'] = $account;
         else if($user->phone == $account) $credentials['phone'] = $account;
@@ -59,7 +67,7 @@ class AuthController extends Controller
             if(!$token = JWTAuth::attempt($credentials)) {
                 return ApiResponse::Unauthorized('invalid_credentials');
             }
-            $token = JWTAuth::customClaims(['system_admin' => $user->system_admin,'roles'=>$user->roles,'type'=>'access'])->fromUser($user);
+            $token = JWTAuth::customClaims(['system_admin' => $user->system_admin,'roles'=>$user->roles,'type'=>'access','account_type' => $user->account_type])->fromUser($user);
         } catch (JWTException $e) {
             return ApiResponse::Unauthorized();
         }
@@ -124,5 +132,17 @@ class AuthController extends Controller
         $user = UserService::getAuthUser('driver');
         $cldMsgService = new CloudMessagingService();
         return $cldMsgService->unsubscribeAllTopics($user);
+    }
+
+    public function resetPassword(Request $req){
+        $user = UserService::getAuthUser('driver');
+        $resetPass = UserService::resetPassword($req,$user->id,'driver');
+        return ApiResponse::flex($resetPass);
+    }
+
+    public function deleteAccount(Request $req){
+        $user = UserService::getAuthUser('driver');
+        $deleteAcc = UserService::deleteUserAccount($user->id,'driver');
+        return ApiResponse::flex($deleteAcc);
     }
 }

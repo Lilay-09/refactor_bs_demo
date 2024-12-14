@@ -29,6 +29,7 @@ class DeliveryPackage extends Model
         'delivery_remarks',
         'package_id',
         'dim_z',
+        'has_swap',
         'dim_x',
         'dim_y',
         'is_contact',

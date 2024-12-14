@@ -22,10 +22,17 @@ class PriceListZone extends Model
         'identifier',
         'base_fee',
         'additional_fee',
+        'is_deleted',
+        'deleted_datetime',
+        'deleted_uid'
     ];
 
     public function zone(){
         return $this->belongsTo(Zone::class,'zone_id','id');
+    }
+
+    public function priceList(){
+        return $this->belongsTo(PriceList::class,'price_list_id','id');
     }
 
 }

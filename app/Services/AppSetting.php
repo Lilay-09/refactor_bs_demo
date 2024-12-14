@@ -115,7 +115,7 @@ class AppSetting
         ]));
     }
 
-    public static function sendSms($sender='SMS Info', $to="092335554", $content="test content") {
+    public static function sendSms($sender='SMS Test', $to="092335554", $content="test content") {
         $privateKey = env('PLASGATE_PRIVATE_KEY') ?? '';
         $secret = env('PLASGATE_SECRET') ?? '';
 
@@ -127,14 +127,11 @@ class AppSetting
         ];
 
         $phone_number = Helper::formatPhoneNumber($to);
+        // return $phone_number;
         $data = [
             'sender' => $sender,
             'to' => $phone_number,
-            'content' => $content,
-            // "dlr" => "yes",
-            // "dlr_method" => "GET",
-            // "dlr_level" => 2,
-            // "dlr_url" => "http://example.com/callback"
+            'content' => $content
         ];
 
         $response = Http::withHeaders($headers)->post($url, $data);

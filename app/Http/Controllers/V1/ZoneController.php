@@ -4,6 +4,7 @@ namespace App\Http\Controllers\V1;
 
 use ApiResponse;
 use App\Http\Controllers\Controller;
+use App\Models\PriceListZone;
 use App\Models\Zone;
 use App\Services\UserService;
 use Illuminate\Http\Request;
@@ -95,5 +96,20 @@ class ZoneController extends Controller
         $update = $zone->update($inputs);
         if(!$update) return ApiResponse::Error('Fail to create zone');
         return ApiResponse::JsonResult(null,__('messages.updated'));
+    }
+
+    public function deleteZone(Request $req){
+        $user = UserService::getAuthUser();
+        $id = $req->id;
+        $zone = Zone::where('company_id',$user->company_id)->where('is_deleted',0)->find($id);
+        if(!$zone) return ApiResponse::NotFound(__('messages.not_found'));
+        $deletedArr = [
+            'is_deleted' => 1,
+            'deleted_uid' => $user->id,
+            'deleted_datetime' => now(),
+        ];
+        $zone->update($deletedArr);
+        PriceListZone::where('zone_id',$id)->update($deletedArr);
+        return ApiResponse::JsonResult(null,__('messages.deleted'));
     }
 }

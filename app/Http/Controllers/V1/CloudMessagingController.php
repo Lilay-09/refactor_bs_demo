@@ -4,6 +4,7 @@ namespace App\Http\Controllers\V1;
 
 use ApiResponse;
 use App\Http\Controllers\Controller;
+use App\Models\UserNotificationToken;
 use App\Services\CloudMessagingService;
 use App\Services\UserService;
 use Illuminate\Http\Request;
@@ -34,5 +35,9 @@ class CloudMessagingController extends Controller
         $user = UserService::getAuthUser();
         return ApiResponse::JsonRaw($this->cloudService->unsubscribeTopic($user,$req->topic,$req->token));
     }
-
+    public function getUserToken(Request $req){
+        $user = UserService::getAuthUser();
+        $userToken = UserNotificationToken::orderByDesc('user_notification_tokens.id')->join('users as u','u.id','user_notification_tokens.user_id')->selectRaw('user_notification_tokens.id,user_notification_tokens.token,u.account_type,u.user_name,user_notification_tokens.os_name,user_notification_tokens.device_id')->get();
+        return ApiResponse::JsonResult($userToken);
+    }
 }

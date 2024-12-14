@@ -24,7 +24,7 @@ use App\Models\VehicleType;
 use App\Models\Warehouse;
 use App\Models\Zone;
 use DataResponse;
-use Log;
+// use Log;
 
 
 class GeneralSettingService
@@ -76,6 +76,16 @@ class GeneralSettingService
         ];
     }
 
+    static function optionsUserStatus(){
+        return [
+            // ['name' => 'All', 'value' => null],
+            ['name' => 'Active', 'value' => 1],
+            ['name' => 'Inactive', 'value' => 0]
+        ];
+    }
+
+
+
     static function optionsEmployeeType(){
         return [
             (object)[
@@ -104,13 +114,14 @@ class GeneralSettingService
     public static function optionsPriceList($user){
         $pricelist =  PriceList::where('is_deleted',0)->selectRaw('id,price_list_name_id')->with('priceListName')->get();
         foreach($pricelist as $pl){
-            $pl->name = $pl->priceListName->name;
+            $pl->name = $pl->priceListName?->name;
             unset($pl->priceListName);
         }
         return $pricelist;
     }
 
-    public static function optionsDriverRemarks($category=null){
+    public static function optionsDriverRemarks($category=null,$isFailedWithFee=false){
+        if($isFailedWithFee) $category = 'fail with fee';
         $qR = DefaultRemark::where('channel','driver');
         if($category) $qR->where('category',$category);
         $remarks = $qR->where('hidden',0)->selectRaw('id,remarks')->get();
@@ -297,11 +308,11 @@ class GeneralSettingService
             if($merchant_id){
                 $priceListId = MerchantPriceList::where('merchant_id',$merchant_id)->take(1)->value('price_list_id');
             }
-            $row = PriceListZone::where('zone_id',$zone_id)->where('price_list_id',$priceListId)->first();
-            // if($row) {
-            //     $row->base_fee = $row->base_fee;
-            //     unset($row->zones,$row->price);
-            // }
+            $row = PriceListZone::with('priceList:id,base_fee')->where('zone_id',$zone_id)->where('price_list_id',$priceListId)->first();
+            if($row) {
+                $row->base_fee = $row->priceList->base_fee;
+                unset($row->zones,$row->price,$row->priceList);
+            }
         return $row;
     }
 
@@ -422,11 +433,8 @@ class GeneralSettingService
     public static function getLatestXRate($user=null){
         $today = now();
         $xRate = ExchangeRate::where('is_deleted', 0)
-        ->where(function ($query) use ($today) {
-            $query->whereDate('x_date', $today)
-                ->orWhereNull('x_date'); // or fallback for empty/null x_date
-        })
-        ->orderByDesc('x_date')
+        ->orderByRaw('ABS(DATE_PART(\'day\', x_date::timestamp - ?::timestamp)) ASC', [$today]) // Closest date
+        ->orderByDesc('x_date') // Resolve ties by picking the latest
         ->selectRaw('buy_rate, sell_rate')
         ->first();
 
@@ -481,7 +489,7 @@ class GeneralSettingService
                 'status_id' => $status_id,
                 'delivered_count' => $deliveredCount
             ];
-            Log::info('test2 =>'.json_encode($updateArr));
+            // Log::info('test2 =>'.json_encode($updateArr));
             Delivery::where('id',$id)->update($updateArr);
         }
     }

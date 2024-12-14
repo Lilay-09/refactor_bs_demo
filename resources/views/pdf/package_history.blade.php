@@ -51,19 +51,23 @@
                         </tr>
                     </thead>
                     <tbody>
-                        @foreach($tracking['details'] ?? [] as $idx => $item)
-                            <tr>
-                                <td>{{ $idx + 1 }}</td>
-                                <td>
-                                    <span>{{ $item->merchant_phone }}</span>
-                                    <small>({{ $item->merchant_name }})</small>
-                                </td>
-                                <td>{{ $item->receiver_phone }}</td>
-                                <td>{{ $item->receiver_address }}</td>
-                                <td>{{ $item->status_code }}</td>
-                                <td>${{ $item->total }}</td>
-                            </tr>
-                        @endforeach
+                        @if(isset($tracking['details'][0]))
+                            @foreach($tracking['details'] as $idx => $item)
+                                <tr>
+                                    <td>{{ $idx + 1 }}</td>
+                                    <td>
+                                        <span>{{ $item->merchant_phone }}</span>
+                                        <small>({{ $item->merchant_name }})</small>
+                                    </td>
+                                    <td>{{ $item->receiver_phone }}</td>
+                                    <td>{{ $item->receiver_address }}</td>
+                                    <td>{{ $item->status_code }}</td>
+                                    <td>${{ $item->total }}</td>
+                                </tr>
+                            @endforeach
+                        @else
+                            <p>No data available</p>
+                        @endif
                     </tbody>
                 </table>
                 <div style="display: flex; flex-direction: column; min-height: 100vh; justify-content: flex-end; width: 100%;">

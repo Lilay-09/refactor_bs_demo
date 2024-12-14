@@ -31,6 +31,7 @@ use App\Http\Controllers\V1\SocialMediaController;
 use App\Http\Controllers\V1\UserController;
 use App\Http\Controllers\V1\UserManagementController;
 use App\Http\Controllers\V1\VehicleTypeController;
+use App\Http\Controllers\V1\WarehouseController;
 use App\Http\Controllers\V1\ZoneController;
 use Illuminate\Support\Facades\Route;
 
@@ -46,12 +47,17 @@ Route::middleware(['jwt','localize'])->prefix('admin/v1/{lang}')->group(function
         Route::put('/user/{id?}', [UserManagementController::class,'updateUser']);
         Route::put('/user/set-lock/{id?}', [UserManagementController::class,'setLockUser']);
         Route::put('/user/change-password/{id?}', [UserManagementController::class,'userChangePassword']);
+        Route::get('user/notification/token',[CloudMessagingController::class,'getUserToken']);
         Route::prefix('role')->group(function(){
             Route::post('/', [UserManagementController::class,'createRole']);
             Route::get('/', [UserManagementController::class,'getRoles']);
             Route::get('/{id?}', [UserManagementController::class,'getRole']);
             Route::put('/{id?}', [UserManagementController::class,'updateRole']);
             Route::delete('/{id?}', [UserManagementController::class,'deleteRole']);
+        });
+
+        Route::prefix('warehouse')->group(function (){
+            Route::put('/{id}',[WarehouseController::class,'updateWarehouse']);
         });
     });
 
@@ -86,11 +92,13 @@ Route::middleware(['jwt','localize'])->prefix('admin/v1/{lang}')->group(function
             Route::get('settle/payment',[DriverTransactionController::class,'getApprovedPayments']);
             Route::put('settle/payment',[DriverTransactionController::class,'settleApprovedPayments']);
             Route::delete('payment/{id}',[DriverTransactionController::class,'deletePayment']);
+            Route::delete('settle/payment/{id}',[DriverTransactionController::class,'deleteSettlePayment']);
             Route::get('balance',[DriverTransactionController::class,'getDriverBalance']);
         });
         //** Driver Commission Module */
         Route::prefix('commission')->group(function(){
             Route::get('package',[DriverTransactionController::class,'getDriverCommissionPackage']);
+            Route::post('disbursement',[DriverTransactionController::class,'disbursementDriver']);
         });
     });
 
@@ -107,6 +115,11 @@ Route::middleware(['jwt','localize'])->prefix('admin/v1/{lang}')->group(function
             Route::get('delivery/package',[MerchantTransactionController::class,'getDeliveryPackages']);
             Route::put('delivery/package/{id}',[MerchantTransactionController::class,'updateDeliveryPackage']);
             Route::post('delivery/receivePayment',[MerchantTransactionController::class,'receivePackagesPayment']);
+            Route::get('payment',[MerchantTransactionController::class,'getPayments']);
+            Route::put('payment',[MerchantTransactionController::class,'approvePayments']);
+            Route::get('settle/payment',[MerchantTransactionController::class,'getApprovedPayments']);
+            Route::put('settle/payment',[MerchantTransactionController::class,'settleApprovedPayments']);
+            Route::delete('payment/{id}',[MerchantTransactionController::class,'deletePayment']);
         });
     });
 
@@ -196,11 +209,11 @@ Route::middleware(['jwt','localize'])->prefix('admin/v1/{lang}')->group(function
 
     Route::prefix('priceList')->group(function(){
         Route::get('{price_list_name_id}/zone',[PriceListController::class,'getPriceZones']);
-        Route::post('',[PriceListController::class,'createPriceList']);
+        // Route::post('',[PriceListController::class,'createPriceList']);
         // Route::get('',[PriceListController::class,'getPriceList']);
         Route::put('assign',[PriceListController::class,'assignZoneToPriceList']);
         Route::get('/{id}',[PriceListController::class,'getOnePriceList']);
-        Route::put('/{id}',[PriceListController::class,'updatePriceList']);
+        Route::post('/{id?}',[PriceListController::class,'updatePriceList']);
         Route::delete('/{id}',[PriceListController::class,'deletePriceList']);
 
         Route::prefix('name')->group(function(){
@@ -328,6 +341,7 @@ Route::middleware(['jwt','localize'])->prefix('admin/v1/{lang}')->group(function
 
     Route::prefix('setting')->group(function(){
         Route::prefix('option')->group(function(){
+            Route::get('operator',[GeneralSettingController::class,'getOptionsOperator']);
             Route::get('channel',[GeneralSettingController::class,'getOptionsChannel']);
             Route::get('zone',[GeneralSettingController::class,'getOptionsZone']);
             Route::get('pickup/status',[GeneralSettingController::class,'getOptionsPickupStatus']);
@@ -346,8 +360,12 @@ Route::middleware(['jwt','localize'])->prefix('admin/v1/{lang}')->group(function
             Route::get('vehicleType',[GeneralSettingController::class,'getOptionsVehicleType']);
             Route::get('fleet/package/{barcode}',[FleetManagementController::class,'getPackageByBarcode']);
             Route::get('xrate',[GeneralSettingController::class,'getOptionsLatestXRate']);
+            Route::get('userStatus',[GeneralSettingController::class,'getOptionsUserStatus']);
         });
 
+        Route::prefix('filter')->group(function(){
+            Route::get('driver',[GeneralSettingController::class,'getDriverFilterOptions']);
+        });
         Route::prefix('form')->group(function(){
             Route::get('banner',[GeneralSettingController::class,'getFormBanner']);
             Route::get('receivePayment',[GeneralSettingController::class,'getFormReceivePayment']);
@@ -384,9 +402,15 @@ Route::middleware(['jwt','localize'])->prefix('admin/v1/{lang}')->group(function
         });
         Route::prefix('driver')->group(function(){
             Route::get('/list/option',[ReportController::class,'formOptionDriver']);
-            Route::get('list',[ReportController::class,'driverList']);
+            Route::get('list',[ReportController::class,'getDriverListReport']);
             Route::get('delivery/summary/option',[ReportController::class,'formOptionDriver']);
-            Route::get('delivery/summary',[ReportController::class,'driverDeliverySummary']);
+            Route::get('delivery/summary',[ReportController::class,'driverDeliverySummaryReport']);
+            Route::get('delivery/summary/option',[ReportController::class,'driverDeliverySummaryReportOption']);
+            Route::get('payment',[ReportController::class,'getDriverPaymentReport']);
+            Route::get('payment/option',[ReportController::class,'driverDeliverySummaryReportOption']);
+            Route::get('packageDetail',[ReportController::class,'getPackageDetailReport']);
+            Route::get('packageDetail/option',[ReportController::class,'driverDeliverySummaryReportOption']);
+            Route::get('payment/commission',[ReportController::class,'getDriverCommissionPayment']);
         });
     });
 });

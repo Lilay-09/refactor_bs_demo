@@ -6,12 +6,14 @@ use ApiResponse;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Mobile\V1\GeneralSettingController;
 use App\Models\Banner;
+use App\Models\BrandImage;
 use App\Models\FeedBack;
 use App\Models\Notification;
 use App\Models\Order;
 use App\Models\Package;
 use App\Models\Promotion;
 use App\Models\SocialMedia;
+use App\Models\UserBank;
 use App\Services\CompanyProfileService;
 use App\Services\GeneralSettingService;
 use App\Services\PickupCenterService;
@@ -60,6 +62,69 @@ class HomeController extends Controller
             'date' => Helper::getDateTime('d-M-Y')
         ];
         return ApiResponse::JsonResult($obj);
+    }
+
+    public function getBankAccount(){
+        $user = UserService::getAuthUser('merchant');
+        $userBanks = UserBank::where('user_id',$user->id)->selectRaw('id,bank_name,bank_number,account_name,is_primary')->orderByDesc('is_primary')->get();
+        $displayBanks = $userBanks->toArray();
+
+        // Check the number of existing records
+        if ($userBanks->isEmpty()) {
+            // No records, add two: one primary and one secondary
+            $displayBanks[] = [
+                'bank_name' => '',
+                'bank_number' => '',
+                'account_name' => '',
+                'is_primary' => true, // First record is primary
+                'skip' => 1
+            ];
+            $displayBanks[] = [
+                'bank_name' => '',
+                'bank_number' => '',
+                'account_name' => '',
+                'is_primary' => false, // Second record is not primary
+                'skip' => 1
+            ];
+        } elseif ($userBanks->count() === 1) {
+            // One record exists, check its `is_primary` value
+            $existing = $userBanks->first();
+            if ($existing->is_primary) {
+                // If the existing record is primary, add a secondary row
+                $displayBanks[] = [
+                    'bank_name' => '',
+                    'bank_number' => '',
+                    'account_name' => '',
+                    'is_primary' => false,
+                    'skip' => 1
+                ];
+            } else {
+                // If the existing record is not primary, add a primary row first
+                $displayBanks = array_merge([
+                    [
+                        'bank_name' => '',
+                        'bank_number' => '',
+                        'account_name' => '',
+                        'is_primary' => true,
+                        'skip' => 1
+                    ]
+                ], $displayBanks);
+            }
+        }
+        return ApiResponse::JsonResult($displayBanks);
+    }
+
+    public function saveBankAccount(Request $req){
+        $user = UserService::getAuthUser('merchant');
+        if(!$req->bank_info) return ApiResponse::ValidateFail('You must provide a bank_info');
+        $saveBank = UserService::saveUserBanks($req->bank_info,$user->id,$user);
+        return ApiResponse::flex($saveBank);
+    }
+
+    public function deleteBankAccount(Request $req){
+        $user = UserService::getAuthUser('merchant');
+        $saveBank = UserService::deleteBank($req->id,$user);
+        return ApiResponse::flex($saveBank);
     }
 
     public function getPendingOrders(Request $req){
@@ -207,9 +272,9 @@ class HomeController extends Controller
 
     public function getHomeScreen($user){
         $user = UserService::getAuthUser('merchant');
-        $bannerImages = Banner::where('is_deleted',0)
+        $bannerImages = BrandImage::where('is_deleted',0)
         ->where('channel',$user->account_type)->pluck('photo_file_name')
-        ->map(fn($img) => Helper::getImageUrl($img, $user->company_id, 'banner'))
+        ->map(fn($img) => Helper::getImageUrl($img, $user->company_id, 'brand_image'))
         ->toArray();
         $obj = [
             'banners' => $bannerImages,
@@ -316,10 +381,25 @@ class HomeController extends Controller
     }
 
 
-    public function getNotifications(){
+public function getNotifications(){
         $user = UserService::getAuthUser('merchant');
-        $notifications = Notification::where('user_id',$user->id)->where('is_read',0)->selectRaw('id,is_read,title,body')->get();
-        return ApiResponse::JsonResult($notifications);
+        $notifications = Notification::where('user_id',$user->id)->where('is_read',0)->orderByDesc('sent_datetime')->selectRaw('id,is_read,title,body,sent_datetime')->get();
+        $groupedPackages = collect($notifications)->map(function ($item) {
+            $item->groupKey = date('d-M-Y',strtotime($item->sent_datetime));
+            $item->time = Helper::formatCustomDateTime($item->sent_datetime,'h:i A');
+            return $item;
+        })
+        ->groupBy('groupKey')
+        ->map(function ($group, $date) {
+            $group->each(function ($item) use ($group) {
+                unset($item->groupKey,$item->sent_datetime);
+            });
+            return [
+                'date' => $date,
+                'details' => $group->values(),
+            ];
+        })->values();
+        return ApiResponse::JsonResult($groupedPackages);
     }
 
     public function readNotification(Request $req){

@@ -27,6 +27,7 @@ class User extends Authenticatable implements JWTSubject
         'user_name',
         'pin_address',
         'name_km',
+        'cod',
         'photo_file_name',
         'email',
         'gender',
@@ -58,6 +59,8 @@ class User extends Authenticatable implements JWTSubject
         'relative_relationship',
         'relative_address',
         'salary',
+        'referrer_uid',
+        'register_status',
         'employee_type',
         'is_available',
         'business_type',
@@ -81,6 +84,27 @@ class User extends Authenticatable implements JWTSubject
 
     public function merchantType(){
         return $this->belongsTo(ClientType::class,'client_type_id','id');
+    }
+
+    public function createUser(){
+        return $this->belongsTo(User::class,'create_uid','id');
+    }
+
+    public function getDobAttribute($value)
+    {
+        return $this->formatDatetime($value,'d-M-Y');
+    }
+
+    protected function formatDatetime($value,$format='d-M-y h:i:s A')
+    {
+        if (!$value) {
+            return null; // Handle null or empty values
+        }
+
+        // Parse and format the datetime, specifying the desired time zone
+        return \Carbon\Carbon::parse($value)
+            ->timezone(config('app.timezone')) // Convert to app time zone
+            ->format($format);
     }
 
     /**

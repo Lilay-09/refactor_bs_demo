@@ -1,6 +1,7 @@
 <?php
 
 namespace App\Services;
+use ApiResponse;
 use App\Models\MerchantPriceList;
 use App\Models\User;
 use App\Models\UserBank;
@@ -8,6 +9,7 @@ use App\Models\UserRoles;
 use DataResponse;
 use DB;
 use Exception;
+use Hash;
 use Helper;
 use Log;
 use Illuminate\Http\Request;
@@ -28,6 +30,7 @@ class UserService
             $hasUser = User::where('id',$user->id)->first();
             if($hasUser){
                 if($class != $hasUser->account_type && $useSpecificClass) return DataResponse::Forbidden();
+                if($user->delete_account || $user->lock) return DataResponse::Forbidden();
                 $validActions = ['create','update','modify','void','delete'];
                 $roles = UserRoles::where('user_id',$hasUser->id)->with(['role:id,name'])->selectRaw('role_id')->get();
                 $hasUser->roles = $roles;
@@ -70,7 +73,6 @@ class UserService
         return UserRoles::from('user_roles as ur')->where('ur.user_id',$userId)->join('roles as r','r.id','=','ur.role_id')->selectRaw('r.name as role,ur.role_id,r.description')->get();
     }
 
-
     private static function userValidation(Request $req,$userClass){
         $baseFields = [
             'first_name' => 'nullable|string|max:50',
@@ -79,15 +81,17 @@ class UserService
             'name_km' => 'nullable|max:100',
             'email' => 'nullable|string|max:100',
             'phone' => 'required|string|regex:/^0[0-9]{8,19}$/',
-            'gender' => 'required|in:M,F,O',
-            'dob' => 'nullable|date',
+            'gender' => 'nullable|in:M,F,O',
+            'dob' => 'nullable',
             'photo' => 'nullable|string',
             'address' => 'nullable|string|max:500',
             'password' => 'nullable|string|min:6|max:20'
         ];
+
         $baseMsgs = [
             'gender.in' => 'Gender must be one of M,F,O'
         ];
+
         if($userClass == 'admin'){
             return validator($req->all(),$baseFields);
         }else if($userClass == 'driver'){
@@ -97,6 +101,7 @@ class UserService
             $baseFields['employee_type'] = 'nullable|string|max:35';
             $baseFields['vehicle_type'] = 'required|string|exists:vehicle_types,name';
             $baseFields['plate_number'] = 'nullable|string|max:50';
+            $baseFields['warehouse_id'] = 'nullable';
             $baseFields['relative_name'] = 'nullable|string|max:50';
             $baseFields['relative_phone'] = 'nullable|string|max:50';
             $baseFields['relative_relationship'] = 'nullable|string|max:50';
@@ -111,15 +116,16 @@ class UserService
             $baseFields['business_type'] = 'nullable|string|max:50';
             $baseFields['cod'] = 'nullable|in:1,0';
             $baseFields['cod_fee'] = 'nullable|numeric|max:100';
-            $baseFields['price_list_id'] = 'required|exists:price_list,id';
+            $baseFields['price_list_id'] = 'nullable|exists:price_list,id';
             $baseFields['referrer_uid'] = 'nullable|int';
             $baseFields['pin_address'] = 'nullable|string';
+            $baseFields['otp'] = 'nullable|string';
             return validator($req->all(),$baseFields);
         }
     }
 
 
-    public static function createOrUpdateUser(Request $req,$user_class='admin',$user,$id=null){
+    public static function createOrUpdateUser(Request $req,$user_class='admin',$user,$id=null,$isRegistered=false){
         $validate = self::userValidation($req,$user_class);
         if($validate->fails()) return DataResponse::ValidateFail($validate->errors()->first(),$validate->errors());
         $inputs = $validate->validated();
@@ -130,6 +136,12 @@ class UserService
         $inputs['branch_id'] = $user->branch_id;
         $inputs['company_id'] = $user->company_id;
         $inputs['account_type'] = $user_class;
+        $inputs['dob'] = isset($inputs['dob']) ? date('Y-m-d',strtotime($inputs['dob'])) : null;
+        $inputs['driver_warehouse_id'] = $inputs['warehouse_id'] ?? null;
+        if($isRegistered){
+            $inputs['lock'] = true;
+            $inputs['register_status'] = 'in-progress';
+        }
         if($user_class == 'admin') $inputs['has_account'] = 1;
         $nationalId = $inputs['national_id'] ?? null;
         $email = $inputs['email'] ?? null;
@@ -142,7 +154,7 @@ class UserService
             $inputs['latitude'] = $getLatLng->latitude ?? 0;
             $inputs['longitude'] = $getLatLng->longitude ?? 0;
         }
-        unset($inputs['bank_info'],$inputs['photo'],$inputs['role_id']);
+        unset($inputs['bank_info'],$inputs['photo'],$inputs['role_id'],$inputs['client_type_id']);
         DB::beginTransaction();
         try{
             if($id){
@@ -192,7 +204,7 @@ class UserService
                 $saveUserBank = self::saveUserBanks($bankInfo,$userId,$user);
                 if($saveUserBank->error) return $saveUserBank;
             }
-            if($user_class == 'merchant') self::saveMerchantPriceList($userId,$priceListId,$user);
+            if($user_class == 'merchant' && isset($inputs['price_list_id'])) self::saveMerchantPriceList($userId,$priceListId,$user);
             DB::commit();
             return DataResponse::JsonResult(null,false,__('messages.saved'));
         }catch(Exception $e){
@@ -225,7 +237,8 @@ class UserService
         }
     }
 
-    private static function saveUserBanks($bankInfo,$userId,$user){
+
+    public static function saveUserBanks($bankInfo,$userId,$user){
         $keepIds = [];
         foreach($bankInfo as $bank){
             $id = $bank['id'] ?? null;
@@ -234,34 +247,55 @@ class UserService
             $bank['company_id'] = $user->company_id;
             $bank['user_id'] = $userId;
             $bank['is_primary'] = $bank['is_primary'] ?? false;
+            // $skip = $bank['skip'] ?? false;
+            if(!$id) unset($bank['id']);
+            // if($skip) continue;
             $bankNumber = $bank['bank_number'] ?? null;
             $accountName = $bank['account_name'] ?? null;
-            if(!isset($bank['bank_name'])) return DataResponse::ValidateFail(__('messages.error',['info' =>'Please enter bank name']));
-            $qUserBank = UserBank::where('user_id',$userId);
-            if($id) $qUserBank->where('id','!=',$id);
-            $existsBankInfo = $qUserBank->where('bank_name',$bank['bank_name'])->where('bank_number',$bankNumber)
-            ->where('account_name',$accountName)->first();
-            if($existsBankInfo) return DataResponse::ValidateFail(__('messages.error',['info' => 'It seems like you try to add duplicated bank info']));
-            // }
-            $keepIds[] = $id;
-            $accountCount = UserBank::where('user_id',$userId)->count();
-            if($accountCount == 2) return DataResponse::ValidateFail(__('messages.info',[
-                'info' => 'User can only have two accounts'
-            ]));
-            if($id){
-                $userBank = UserBank::where('user_id',$userId)->where('id',$id)->first();
-                if(!$userBank) return DataResponse::ValidateFail(__('messages.error',['info' => 'Wrong bank identity']));
-                $userBank->update($bank);
-            }else{
-                $bank['create_uid'] = $user->id;
-                UserBank::create($bank);
-            }
+            $bankName = $bank['bank_name'] ?? null;
+            $fields = compact('bankNumber', 'accountName', 'bankName');
+            $nonEmptyFields = array_filter($fields);
 
-            UserBank::where('user_id',$userId)->whereNotIn('id',$keepIds)->delete();
+            if (!empty($nonEmptyFields) && count($nonEmptyFields) < count($fields)) {
+                return DataResponse::ValidateFail(__('messages.info', [
+                    'info' => 'All fields (bank_number, account_name, bank_name) must be provided together.'
+                ]));
+            }
+            // if(!isset($bank['bank_name'])) return DataResponse::ValidateFail(__('messages.error',['info' =>'Please enter bank name']));
+            if($bankName){
+                $qUserBank = UserBank::where('user_id',$userId);
+                if($id) $qUserBank->where('id','!=',$id);
+                $existsBankInfo = $qUserBank->where('bank_name',$bankName)->where('bank_number',$bankNumber)
+                ->where('account_name',$accountName)->first();
+                if($existsBankInfo) return DataResponse::ValidateFail(__('messages.error',['info' => 'It seems like you try to add duplicated bank info']));
+                // }
+
+                if(!empty($nonEmptyFields)) $keepIds[] = $id;
+                if($id){
+                    $userBank = UserBank::where('user_id',$userId)->where('id',$id)->first();
+                    if(!$userBank) return DataResponse::ValidateFail(__('messages.error',['info' => 'Wrong bank identity']));
+                    $userBank->update($bank);
+                }else{
+                    $accountCount = UserBank::where('user_id',$userId)->count();
+                    if($accountCount == 2) return DataResponse::ValidateFail(__('messages.info',[
+                        'info' => 'Only two accounts are allowed'
+                    ]));
+                    $bank['create_uid'] = $user->id;
+                    UserBank::create($bank);
+                }
+            }
         }
+        UserBank::where('user_id',$userId)->whereNotIn('id',$keepIds)->delete();
         return DataResponse::JsonResult(null,false,__('messages.saved'));
     }
 
+
+    public static function deleteBank($id,$user){
+        $userBank = UserBank::where('user_id',$user->id)->find($id);
+        if(!$userBank) return DataResponse::NotFound('Bank not found');
+        $userBank->delete();
+        return DataResponse::JsonResult(null,'Deleted');
+    }
 
     private static function createLoginValidation(Request $req){
         return validator($req->all(),[
@@ -285,7 +319,7 @@ class UserService
         $existLoginName = User::where('company_id',$authUser->company_id)->where('login_name',$loginName)->where('is_deleted',0)->where('account_type',$userClass)->first();
         if($existLoginName) return DataResponse::Duplicated('Please use another login name!, this one is already taken.');
         if($pwd !== $cfPwd) return DataResponse::ValidateFail(__('messages.error',['info' => 'Password not match !']));
-        $hpwd = \Hash::make($pwd);
+        $hpwd = Hash::make($pwd);
         $photoFile = null;
         $photo = $inputs['photo'] ?? null;
         if(Helper::isValidBase64Image($photo) || $photo){
@@ -295,28 +329,32 @@ class UserService
             'has_account' => true,
             'photo_file_name' => $photoFile,
             'login_name' => $loginName,
+            'delete_account' => false,
+            'lock' => false,
             'password' => $hpwd
         ]);
         return DataResponse::JsonResult(null,false,__('messages.created'));
     }
 
-    public static function verifyOTP(Request $req,$user){
+    public static function verifyOTP(Request $req,$type){
         $validate = validator($req->all(),[
-            'phone' => 'required|string',
             'otp' => 'required|string|min:6|max:6',
         ]);
         if($validate->fails()) return DataResponse::ValidateFail($validate->errors()->first());
         $inputs = $validate->validated();
-        $otp = $inputs['phone'];
-        $phone = $inputs['phone'];
-        $user = User::where('is_deleted',0)->where('account_type',$user->account_type)->where('phone',$phone)->first();
-        $validOtp = $user->otp;
-        if($otp != $validOtp) return DataResponse::ValidateFail(__('messages.info',[
+        $otp = $inputs['otp'];
+        $found = User::where('is_deleted',0)->where('account_type',$type)->where('otp',$otp)->first('id');
+        if(!$found) return DataResponse::ValidateFail(__('messages.info',[
             'info' => 'Incorrect otp',
             'khInfo' => 'លេខផ្ទៀងផ្ទាត់មិនត្រូវ'
         ]));
-
-
+        $found->update([
+            'otp' => null,
+        ]);
+        return DataResponse::JsonResult(null,false,__('messages.info',[
+            'info' => 'Success',
+            'khInfo' => 'ផ្ទៀងផ្ទាត់រួច'
+        ]));
     }
 
     public static function setLockUser($authUser,$userId,$type='admin'){
@@ -341,6 +379,58 @@ class UserService
             $msg = $type.' has been locked';
         }
         return DataResponse::JsonResult(null,false,$msg);
+    }
+
+
+    public static function resetPassword(Request $req,$userId,$type){
+        $validate = validator($req->all(),[
+            'current_password' => 'required|string|min:6',
+            'password' => 'required|string',
+            'confirm_password' => 'required|string'
+        ]);
+
+        if($validate->fails()) return DataResponse::ValidateFail($validate->errors()->first());
+        $inputs = $validate->validated();
+        $user = User::where('is_deleted',0)->find($userId);
+        if($user){
+            $curPwd = $inputs['current_password'];
+            if (!Hash::check($curPwd, $user->password)) return DataResponse::ValidateFail('Invalid password');
+            $pwd = $inputs['password'];
+            $cfPwd = $inputs['confirm_password'];
+            if($pwd != $cfPwd) return DataResponse::ValidateFail(__('messages.info',[
+                'info' => 'Passwords not match!'
+            ]));
+            $hPwd = Hash::make($pwd);
+            if($curPwd == $pwd) return DataResponse::Duplicated(__('messages.info',[
+                'info' => 'Use different password',
+                'khInfo' => ''
+            ]));
+            $user->update([
+                'password' => $hPwd
+            ]);
+            return DataResponse::JsonResult(null,false,'Password reset');
+        }
+        return DataResponse::NotFound('User not found');
+    }
+
+    public static function deleteUserAccount($id,$type){
+        $user = User::where('is_deleted',0)->where('account_type',$type)->find($id);
+        if($user){
+            $user->update([
+                'has_account' => false,
+                'lock' => true,
+                'delete_account' => 1
+                // 'is_deleted' => 1,
+                // 'deleted_uid' => $user->id,
+                // 'deleted_datetime' => now()
+            ]);
+            auth()->logout();
+        }
+
+        return DataResponse::JsonResult(null,false,__('messages.deleted',[
+            'info' => 'Account'
+        ]));
+
     }
 
 }

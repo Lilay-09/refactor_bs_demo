@@ -14,6 +14,7 @@ use Exception;
 use Helper;
 use Illuminate\Http\Request;
 use Log;
+use Str;
 
 class PickupCenterService
 {
@@ -25,7 +26,7 @@ class PickupCenterService
             'package_name' => 'nullable|string|max:100',
             'merchant_id' => 'required',
             'product_type' => 'nullable|string',
-            'price' => 'nullable|numeric',
+            'price' => 'nullable|numeric|min:0',
             'dim_z' => 'nullable|numeric',
             'dim_y' => 'nullable|numeric',
             'dim_x' => 'nullable|numeric',
@@ -105,19 +106,21 @@ class PickupCenterService
         if($user->account_type == 'driver') $inputs['tracking_notes'] = 'Driver create order ('.$dateTime.')';
         else if($user->account_type == 'merchant') $inputs['tracking_notes'] = 'Merchant create order ('.$dateTime.')';
         else if($user->account_type == 'admin') $inputs['tracking_notes'] = 'Admin create order ('.$dateTime.')';
-
+        $deleteImgs = [];
+        $pickupAddress = $inputs['pickup_address'] ?? null;
+        $pickup_address_google_map = $inputs['pickup_address_google_map'] ?? null;
+        $latLng = Helper::getLatLongFromGoogleMapsUrl($pickup_address_google_map);
+        $inputs['loc_lat'] = $inputs['loc_lat'] ?? $latLng->latitude;
+        $inputs['loc_lng'] = $inputs['loc_lng'] ?? $latLng->longitude;
+        if(!$pickupAddress) $inputs['pickup_address'] = $latLng->address;
         DB::beginTransaction();
         try{
             $createOrder = Order::create($inputs);
             if(!$createOrder) return DataResponse::Error('Fail to create order!');
             $orderId = $createOrder->id;
             $code = Helper::generateCode('JS',$orderId,'',8);
-            $pickupAddress = $inputs['pickup_address'] ?? null;
-            $pickup_address_google_map = $inputs['pickup_address_google_map'] ?? null;
-            $latLng = Helper::getLatLongFromGoogleMapsUrl($pickup_address_google_map);
-            $inputs['loc_lat'] = $inputs['loc_lat'] ?? $latLng->latitude;
-            $inputs['loc_lng'] = $inputs['loc_lng'] ?? $latLng->longitude;
-            if(!$pickupAddress) $inputs['pickup_address'] = $latLng->address;
+
+
             Order::find($orderId)->update([
                 'code' => $code
             ]);
@@ -130,7 +133,7 @@ class PickupCenterService
                     if($savePkg->error) return $savePkg;
                 }
             }
-            $deleteImgs = [];
+
             if(isset($images[0])){
                 foreach($images as $photo){
                     // Log::info($photo->getClientOriginalName());
@@ -157,20 +160,30 @@ class PickupCenterService
                 'target_uid' => $merchantId
             ]);
             $clmsg->sendNotificationByTopic($clmsgReq,$user);
-            if($driverId){
+            // if($driverId){
                 $notif = new CloudMessagingService();
                 $topics = GeneralSettingService::getGeneralTopics($user->company_id,'driver',$driverId);
+                $notifBody = "$validMerchant->user_name: ".$inputs['qty']."PCS, \nPickup Address:".Str::limit($pickupAddress, 25, '...');
+                $notifTitle = 'New Order Available';
+                if($driverId) {
+                    $notifBody = 'You have been assigned to deliver the order('.$code.') has '.$inputs['qty'].' package(s).';
+                    $notifTitle = 'Assigned Order';
+                }
                 $notifReq = new Request([
-                    'topic' => $topics->private,
-                    'type' => 'private',
+                    'topic' => $driverId ? $topics->private:$topics->public,
+                    'type' => $driverId ? 'private':'public',
                     'target_uid' => $driverId,
-                    'title' => 'Assigned Order',
-                    'body' => 'You have been assigned to deliver the order('.$code.') has '.$inputs['qty'].' package(s).'
+                    'title' => $notifTitle,
+                    'body' => $notifBody
                 ]);
                 $notif->sendNotificationByTopic($notifReq,$user);
-            }
+            // }
+            // Log::error(Order::selectRaw('loc_lat,loc_lng')->find($orderId));
             DB::commit();
-            return DataResponse::JsonResult(null,false,'Order created ('.$code.')');
+            return DataResponse::JsonResult(null,false,__('messages.info',[
+                'info' => 'Order created ('.$code.')',
+                'khInfo' => 'បានបង្កើត ('.$code.')'
+            ]));
         }catch(Exception $e){
             Log::error($e->getTraceAsString());
             Log::error($e->getMessage());
