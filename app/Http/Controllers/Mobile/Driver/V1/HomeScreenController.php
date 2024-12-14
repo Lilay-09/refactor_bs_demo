@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Mobile\Driver\V1;
 use ApiResponse;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Mobile\V1\GeneralSettingController;
+use App\Models\Delivery;
 use App\Models\DeliveryPackage;
 use App\Models\Notification;
 use App\Models\Order;
@@ -20,6 +21,7 @@ use Exception;
 use Google\Rpc\Help;
 use Helper;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Log;
 
 class HomeScreenController extends Controller
@@ -106,34 +108,57 @@ class HomeScreenController extends Controller
         $user = $this->user;
         if($user->error) return ApiResponse::flex($user);
         $driverId = $user->id;
-        $orders = Order::fromRaw('orders as o')->join('packages as p','p.order_id','o.id')->where('o.is_deleted',0)
-        ->join('users as m','m.id','o.merchant_id')
-        // ->join('tracking_statuses as ts','ts.id','o.status_id')
-        // ->where('is_completed',0)
-        // ->with(['packages:id,cod,price,delivery_fee,payer,zone_code,zone_name,receiver_phone,delivery_type,status_id,order_id,arrive_warehouse_datetime','packages.status'])
-        ->selectRaw('o.qty,o.order_datetime,o.id as order_id,o.id,o.code,m.user_name,m.phone')
-        ->groupByRaw('m.phone,o.id,o.code,m.user_name')
-        ->orderByDesc('o.id')
-        ->where('p.driver_id',$driverId)->get();
-        // foreach($orders as $order){
-        //     // foreach($order->packages as $package){
-        //     //     $package->status_code = $package->status->name;
-        //     //     unset($package->status);
-        //     // }
-        // }
+        $packages = $this->tripPackageInfo();
+        $fleets = Delivery::where('driver_id', $driverId)->where('is_deleted',0)
+        ->with(['status'])
+        ->where('finished',0)->orWhereDate('depart_datetime',Carbon::today())
+        ->selectRaw('id,status_id,package_count,delivered_count,fleet_tracking_number,depart_datetime')->get();
+        foreach($fleets as $fleet){
+            $fleet->status_code = $fleet->status->name;
+            $fleet->total = $this->getTripTotal($packages,$fleet->id);
+            unset($fleet->status);
+        }
+        // $orders = Order::fromRaw('orders as o')->join('packages as p','p.order_id','o.id')->where('o.is_deleted',0)
+        // ->join('users as m','m.id','o.merchant_id')
+        // // ->join('tracking_statuses as ts','ts.id','o.status_id')
+        // // ->where('is_completed',0)
+        // // ->with(['packages:id,cod,price,delivery_fee,payer,zone_code,zone_name,receiver_phone,delivery_type,status_id,order_id,arrive_warehouse_datetime','packages.status'])
+        // ->selectRaw('o.qty,o.order_datetime,o.id as order_id,o.id,o.code,m.user_name,m.phone')
+        // ->groupByRaw('m.phone,o.id,o.code,m.user_name')
+        // ->orderByDesc('o.id')
+        // ->where('p.driver_id',$driverId)->get();
+        return ApiResponse::Pagination($fleets,$req);
+    }
 
-        return ApiResponse::Pagination($orders,$req);
+    private function getTripTotal($packages,$tripId){
+        $total = 0;
+        foreach ($packages as $key => $p) {
+            if($p->delivery_id == $tripId) $total += $p->driver_total;
+        }
+        return '$'.$total;
+    }
+
+    private function tripPackageInfo($tripId=null){
+        $qP = Package::fromRaw('packages as p')->join('delivery_packages as dp','p.id','dp.package_id')
+        ->join('users as d','d.id','p.driver_id')
+        ->leftJoin('users as m','m.id','p.merchant_id')
+        ->where('dp.is_deleted',0)
+        ->where('p.created_at', '>=', Carbon::now()->subDays(10))
+        ->join('tracking_statuses as ts','ts.id','dp.status_id')
+        ->selectRaw('p.merchant_id,p.qr_code,p.price,p.cod,p.receiver_name,p.receiver_phone,p.zone_code,p.zone_name,ts.name as status_code,d.user_name as driver_name,d.phone as driver_phone,m.user_name as merchant_name,m.phone as merchant_phone,p.id as package_id,dp.delivery_id,p.zone_code,p.zone_name,p.delivery_fee as base_fee,p.driver_total,p.driver_total as delivery_fee,p.taxi_fee,p.product_type,dp.status_id')
+        ->orderByRaw('(dp.status_id = ?) DESC', [6]);
+        if($tripId){
+            $qP->where('dp.delivery_id',$tripId);
+        }
+        $packages = $qP->get();
+        return $packages;
     }
 
     public function getDeliveryItems(Request $req){
         $user = $this->user;
-        $oderId = $req->order_id;
+        $tripId = $req->trip_id;
         $driverId = $user->id;
-        $packages = Package::where('order_id',$oderId)->where('is_deleted',0)
-        ->with('status')
-        ->where('status_id',6)
-        ->selectRaw('qr_code,receiver_address,id,cod,price,delivery_fee,payer,zone_code,zone_name,receiver_phone,delivery_type,driver_total as total,status_id,order_id,arrive_warehouse_datetime,is_contact,priority_level')
-        ->where('driver_id',$driverId)->get();
+        $packages = $this->tripPackageInfo($tripId);
         foreach($packages as $package){
             $package->status_code = $package->status->name;
             unset($package->status);

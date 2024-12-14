@@ -163,7 +163,7 @@ class PickupCenterService
             // if($driverId){
                 $notif = new CloudMessagingService();
                 $topics = GeneralSettingService::getGeneralTopics($user->company_id,'driver',$driverId);
-                $notifBody = "$validMerchant->user_name :".$inputs['qty']."\nPickup Address:".Str::limit($pickupAddress, 25, '...');;
+                $notifBody = "$validMerchant->user_name: ".$inputs['qty']."PCS, \nPickup Address:".Str::limit($pickupAddress, 25, '...');
                 $notifTitle = 'New Order Available';
                 if($driverId) {
                     $notifBody = 'You have been assigned to deliver the order('.$code.') has '.$inputs['qty'].' package(s).';
