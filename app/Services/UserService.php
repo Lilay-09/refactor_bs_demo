@@ -30,6 +30,7 @@ class UserService
             $hasUser = User::where('id',$user->id)->first();
             if($hasUser){
                 if($class != $hasUser->account_type && $useSpecificClass) return DataResponse::Forbidden();
+                if($user->delete_account || $user->lock) return DataResponse::Forbidden();
                 $validActions = ['create','update','modify','void','delete'];
                 $roles = UserRoles::where('user_id',$hasUser->id)->with(['role:id,name'])->selectRaw('role_id')->get();
                 $hasUser->roles = $roles;
@@ -328,6 +329,8 @@ class UserService
             'has_account' => true,
             'photo_file_name' => $photoFile,
             'login_name' => $loginName,
+            'delete_account' => false,
+            'lock' => false,
             'password' => $hpwd
         ]);
         return DataResponse::JsonResult(null,false,__('messages.created'));
@@ -408,7 +411,25 @@ class UserService
             return DataResponse::JsonResult(null,false,'Password reset');
         }
         return DataResponse::NotFound('User not found');
+    }
 
+    public static function deleteUserAccount($id,$type){
+        $user = User::where('is_deleted',0)->where('account_type',$type)->find($id);
+        if($user){
+            $user->update([
+                'has_account' => false,
+                'lock' => true,
+                'delete_account' => 1
+                // 'is_deleted' => 1,
+                // 'deleted_uid' => $user->id,
+                // 'deleted_datetime' => now()
+            ]);
+            auth()->logout();
+        }
+
+        return DataResponse::JsonResult(null,false,__('messages.deleted',[
+            'info' => 'Account'
+        ]));
 
     }
 

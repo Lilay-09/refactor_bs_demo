@@ -37,14 +37,15 @@ class AuthController extends Controller
             $q->where('email', $account)
             ->orWhere('phone', $account)
             ->orWhere('login_name', $account);
-        })->selectRaw('photo_file_name,email,phone,id,system_admin,lock,company_id,account_type,login_name')->first();
+        })->selectRaw('photo_file_name,email,phone,id,system_admin,lock,company_id,account_type,login_name,delete_account')->first();
         $systemAdmin = $user->system_admin ?? false;
         $isLock = $user->lock ?? false;
+        if(!$user) return  ApiResponse::NotFound('Invalid Username or password');
         // return $user;
-        if($isLock) {
+        if($isLock || $user->delete_account) {
             if(!$systemAdmin) return ApiResponse::Unauthorized('You have no access to this application.');
         }
-        if(!$user) return  ApiResponse::NotFound('Invalid Username or password');
+
         if($user){
             if($user->account_type != 'driver') return ApiResponse::Forbidden('You have no access to this application.');
             $user->roles = UserService::getRolesByUsers($user->id);
@@ -137,5 +138,11 @@ class AuthController extends Controller
         $user = UserService::getAuthUser('driver');
         $resetPass = UserService::resetPassword($req,$user->id,'driver');
         return ApiResponse::flex($resetPass);
+    }
+
+    public function deleteAccount(Request $req){
+        $user = UserService::getAuthUser('driver');
+        $deleteAcc = UserService::deleteUserAccount($user->id,'driver');
+        return ApiResponse::flex($deleteAcc);
     }
 }

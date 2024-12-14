@@ -459,12 +459,25 @@ class ReportController extends Controller
         $qD = User::where('account_type','driver')
         ->selectRaw('id,code,user_name,gender,shift_type,phone,address,vehicle_type,plate_number,lock');
         $drivers = $qD->get();
+        $orders = Order::where('status_id',5)->where('is_deleted',0)->selectRaw('qty,driver_id')->get();
+
+        $totalPickUpCount = 0;
+        $totalDeliveredCount = 0;
+        $totalFaileWithFeeCount = 0;
+        $totalReturnedCount = 0;
         foreach($drivers as $d){
-            $details = $this->getDriverSummaryDetails($packages,$d->id);
-            $d->delivered_count = $details->delivered_count;
+            $deliveryDetails = $this->getDriverDeliveryPackageDetails($packages,$d->id);
+            $pickupDetails = $this->getDriverPickupDetails($orders,$d->id);
+            $d->delivered_count = $deliveryDetails->delivered_count;
             $d->status_code = $d->lock ? 'Inactive' : 'Active';
-            $d->failed_with_fee_count = $details->failed_with_fee_count;
-            $d->returned_count = $details->returned_count;
+            $d->failed_with_fee_count = $deliveryDetails->failed_with_fee_count;
+            $d->returned_count = $deliveryDetails->returned_count;
+            $d->pickup_count = $pickupDetails->pickup_count;
+
+            $totalPickUpCount += $d->pickup_count;
+            $totalDeliveredCount += $d->delivered_count;
+            $totalFaileWithFeeCount += $d->failed_with_fee_count;
+            $totalReturnedCount += $d->returned_count;
         }
 
         $obj =(object)[
@@ -473,32 +486,108 @@ class ReportController extends Controller
             'date' => Helper::dateDMY($startDate).' to '.Helper::dateDMY($endDate),
             'total' => 1,
             'company_profile' => CompanyProfileService::profileInfo($user),
+            'total_package' => (object)[
+                'pickup' => $totalPickUpCount,
+                'delivered' => $totalDeliveredCount,
+                'fail_with_fee' => $totalFaileWithFeeCount,
+                'returned' => $totalReturnedCount
+            ],
             'list' => $drivers
         ];
         return ApiResponse::JsonResult($obj);
     }
 
-
     public function getDriverPaymentReport(Request $req){
         $user = UserService::getAuthUser();
         $startDate = $req->startDate;
         $endDate = $req->endDate;
-        // $payment = paym,
+        $payments = Payment::with(['driver:id,user_name','cashier'])->selectRaw('id,payer_id,payment_datetime,breakdown_notes,exchange_rate,payable_amount as amount,settled_uid')->where('is_settled',1)->get();
+        $paymentDetails = PaymentDetail::selectRaw('payment_id,method,amount,original_amount,currency_code')->get();
+        foreach($payments as $p){
+            $p->driver_name = $p->driver->user_name;
+            $p->booked_by = $p->cashier->user_name;
+            $pmtDetails = $this->getPaymentDetails($paymentDetails,$p->id);
+            $p->amount_usd = $pmtDetails->amount_usd;
+            $p->amount_khr = $pmtDetails->amount_khr;
+            unset($p->driver,$p->cashier);
+        }
         $obj =(object)[
             'title' => 'Daily Packages Summary',
             'status' => 'All Driver',
             'date' => Helper::dateDMY($startDate).' to '.Helper::dateDMY($endDate),
             'total' => 1,
             'company_profile' => CompanyProfileService::profileInfo($user),
-            // 'list' => $drivers
+            'list' => $payments
         ];
         return ApiResponse::JsonResult($obj);
+    }
+
+    public function getPackageDetailReport(Request $req){
+        $user = UserService::getAuthUser();
+        $startDate = $req->startDate;
+        $endDate = $req->endDate;
+        $packages = Package::where('is_deleted',0)->where('outstanding',0)
+        ->with(['merchant:id,user_name','status:id,name'])
+        ->selectRaw('status_id,qr_code,merchant_id,receiver_phone,receiver_name,cod,delivery_fee,taxi_fee,driver_total,remarks,zone_code,zone_name,payer')->get();
+        foreach ($packages as $p){
+            $p->merchant_name = $p->merchant->user_name;
+            $p->merchant_phone = $p->merchant->phone;
+            $p->status_code = $p->status->name;
+            unset($p->merchant,$p->status);
+        }
+        $obj =(object)[
+            'title' => 'Daily Packages Summary',
+            'status' => 'All Driver',
+            'date' => Helper::dateDMY($startDate).' to '.Helper::dateDMY($endDate),
+            'total' => 1,
+            'company_profile' => CompanyProfileService::profileInfo($user),
+            'list' => $packages
+        ];
+        return ApiResponse::JsonResult($obj);
+    }
+
+    public function getDriverCommissionPayment(){
+        $user = UserService::getAuthUser();
+
     }
 
 
     //** GET DETAILS */
 
-    private function getDriverSummaryDetails($rows,$driverId){
+    private function getPaymentDetails($rows,$pmtId){
+        $details = (object)[
+            'amount_usd' => 0,
+            'amount_khr' => 0,
+        ];
+        foreach($rows as $d){
+            if($d->payment_id == $pmtId){
+                if($d->currency_code == 'USD'){
+                    $details->amount_usd += $d->amount;
+                }else if($d->currency_code == 'KHR'){
+                    $details->amount_khr += $d->amount;
+                }
+            }
+        }
+        return $details;
+    }
+    private function getDriverPickupDetails($rows,$driverId){
+        $c = null;
+        $i = 0;
+        $pickupCount = 0;
+        do{
+            if(!isset($rows[$i])) break;
+            $c = $rows[$i];
+            if($c->driver_id == $driverId){
+                $pickupCount += $c->qty;
+            }
+            $i++;
+        }while($c);
+
+        return (object)[
+            'pickup_count' => $pickupCount,
+        ];
+    }
+    private function getDriverDeliveryPackageDetails($rows,$driverId){
         $c = null;
         $i = 0;
         $delivered_count = 0;
@@ -525,7 +614,27 @@ class ReportController extends Controller
 
 
 
+
     //** OPTION */
+
+    // public function driverDeliverySummaryReportOption(){
+    //     $user = UserService::getAuthUser();
+    //     $obj =(object)[
+    //         'warehouses' => GeneralSettingService::optionsWarehouse($user),
+    //         'drivers' => GeneralSettingService::optionsDriver($user)
+    //     ];
+    //     return ApiResponse::JsonResult($obj);
+    // }
+
+    public function driverDeliverySummaryReportOption(){
+        $user = UserService::getAuthUser();
+        $obj =(object)[
+            'warehouses' => GeneralSettingService::optionsWarehouse($user),
+            'drivers' => GeneralSettingService::optionsDriver($user)
+        ];
+        return ApiResponse::JsonResult($obj);
+    }
+
 
     public function formOptionDriver (){
         $user = UserService::getAuthUser();

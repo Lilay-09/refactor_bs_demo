@@ -6,6 +6,7 @@ use ApiResponse;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Mobile\V1\GeneralSettingController;
 use App\Models\Banner;
+use App\Models\BrandImage;
 use App\Models\FeedBack;
 use App\Models\Notification;
 use App\Models\Order;
@@ -271,9 +272,9 @@ class HomeController extends Controller
 
     public function getHomeScreen($user){
         $user = UserService::getAuthUser('merchant');
-        $bannerImages = Banner::where('is_deleted',0)
+        $bannerImages = BrandImage::where('is_deleted',0)
         ->where('channel',$user->account_type)->pluck('photo_file_name')
-        ->map(fn($img) => Helper::getImageUrl($img, $user->company_id, 'banner'))
+        ->map(fn($img) => Helper::getImageUrl($img, $user->company_id, 'brand_image'))
         ->toArray();
         $obj = [
             'banners' => $bannerImages,

@@ -18,6 +18,8 @@ class Disbursement extends Model
         'approved',
         'payable_amount',
         'delivery_fee',
+        'pickup_rate',
+        'delivery_rate',
         'taxi_fee',
         'is_settled',
         'remarks',

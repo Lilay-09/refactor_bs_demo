@@ -42,6 +42,7 @@ class MerchantManagementController extends Controller
             $query->where(function($q) use ($search){
                 $q->where('code','ilike','%'.$search.'%')
                 ->orWhere('user_name','ilike','%'.$search.'%')
+                ->orWhere('name_km','ilike','%'.$search.'%')
                 ->orWhere('phone','ilike','%'.$search.'%');
             });
         }

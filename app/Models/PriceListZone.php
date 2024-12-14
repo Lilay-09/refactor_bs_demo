@@ -22,6 +22,9 @@ class PriceListZone extends Model
         'identifier',
         'base_fee',
         'additional_fee',
+        'is_deleted',
+        'deleted_datetime',
+        'deleted_uid'
     ];
 
     public function zone(){

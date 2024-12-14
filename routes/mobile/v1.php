@@ -17,10 +17,12 @@ Route::prefix('driver/v1/{lang}/auth')->middleware('localize')->group(function()
     Route::post('login',[AuthController::class,'login']);
     Route::middleware('jwtDriver')->group(function(){
         Route::post('resetPassword',[AuthController::class,'resetPassword']);
+        Route::delete('account',[AuthController::class,'deleteAccount']);
         Route::get('profile',[AuthController::class,'getProfile']);
         Route::post('profile',[AuthController::class,'updateProfile']);
     });
 });
+
 Route::middleware(['jwtDriver','localize'])->prefix('driver/v1/{lang}')->group(function(){
     Route::post('notification/subscribe',[AuthController::class,'subscribeTopics']);
     Route::post('notification/unsubscribe',[AuthController::class,'unsubscribeTopics']);
@@ -85,6 +87,7 @@ Route::prefix('merchant/v1/{lang}/auth')->middleware('localize')->group(function
     Route::post('verifyOtp',[AuthMerchantController::class,'verifyOtp']);
     Route::post('registration/password',[AuthMerchantController::class,'registrationPassword']);
     Route::middleware('jwtMerchant')->group(function(){
+        Route::delete('account',[AuthMerchantController::class,'deleteAccount']);
         Route::post('resetPassword',[AuthMerchantController::class,'resetPassword']);
         Route::get('profile',[AuthMerchantController::class,'getProfile']);
         Route::post('profile',[AuthMerchantController::class,'updateProfile']);

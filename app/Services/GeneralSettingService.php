@@ -308,11 +308,11 @@ class GeneralSettingService
             if($merchant_id){
                 $priceListId = MerchantPriceList::where('merchant_id',$merchant_id)->take(1)->value('price_list_id');
             }
-            $row = PriceListZone::where('zone_id',$zone_id)->where('price_list_id',$priceListId)->first();
-            // if($row) {
-            //     $row->base_fee = $row->base_fee;
-            //     unset($row->zones,$row->price);
-            // }
+            $row = PriceListZone::with('priceList:id,base_fee')->where('zone_id',$zone_id)->where('price_list_id',$priceListId)->first();
+            if($row) {
+                $row->base_fee = $row->priceList->base_fee;
+                unset($row->zones,$row->price,$row->priceList);
+            }
         return $row;
     }
 

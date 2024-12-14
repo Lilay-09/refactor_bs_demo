@@ -29,7 +29,7 @@ class DriverTransactionController extends Controller
         $startDate = $req->startDate;
         $endDate = $req->endDate;
         $qD = User::selectRaw('code,id,user_name as driver_name,phone as driver_phone')->where('account_type','driver');
-        $qD->where('id',$driverId);
+        if($driverId) $qD->where('id',$driverId);
         $driverInfo = $qD->get();
         $qP = Package::selectRaw('status_id,driver_id')
         ->where('status_id',9)
@@ -49,7 +49,7 @@ class DriverTransactionController extends Controller
             $qO->whereBetween('order_datetime',[$startDate,$endDate])->orWhereDate('order_datetime',$endDate);
         }
         $orders = $qO->get();
-        $qDc = DriverCommission::where('is_deleted',0)->selectRaw('delivery_type,pickup_commission,delivery_commission,use_percentage');
+        $qDc = DriverCommission::where('is_deleted',0)->selectRaw('id,driver_id,delivery_type,pickup_commission,delivery_commission');
         if($driverId) $qDc->where('driver_id',$driverId);
         $driverCommissions = $qDc->get();
         foreach($driverInfo as $driver){

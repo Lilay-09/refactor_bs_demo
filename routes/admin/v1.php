@@ -31,6 +31,7 @@ use App\Http\Controllers\V1\SocialMediaController;
 use App\Http\Controllers\V1\UserController;
 use App\Http\Controllers\V1\UserManagementController;
 use App\Http\Controllers\V1\VehicleTypeController;
+use App\Http\Controllers\V1\WarehouseController;
 use App\Http\Controllers\V1\ZoneController;
 use Illuminate\Support\Facades\Route;
 
@@ -53,6 +54,10 @@ Route::middleware(['jwt','localize'])->prefix('admin/v1/{lang}')->group(function
             Route::get('/{id?}', [UserManagementController::class,'getRole']);
             Route::put('/{id?}', [UserManagementController::class,'updateRole']);
             Route::delete('/{id?}', [UserManagementController::class,'deleteRole']);
+        });
+
+        Route::prefix('warehouse')->group(function (){
+            Route::put('/{id}',[WarehouseController::class,'updateWarehouse']);
         });
     });
 
@@ -400,7 +405,11 @@ Route::middleware(['jwt','localize'])->prefix('admin/v1/{lang}')->group(function
             Route::get('delivery/summary/option',[ReportController::class,'formOptionDriver']);
             Route::get('delivery/summary',[ReportController::class,'driverDeliverySummaryReport']);
             Route::get('delivery/summary/option',[ReportController::class,'driverDeliverySummaryReportOption']);
-            Route::get('delivery/summary',[ReportController::class,'get']);
+            Route::get('payment',[ReportController::class,'getDriverPaymentReport']);
+            Route::get('payment/option',[ReportController::class,'driverDeliverySummaryReportOption']);
+            Route::get('packageDetail',[ReportController::class,'getPackageDetailReport']);
+            Route::get('packageDetail/option',[ReportController::class,'driverDeliverySummaryReportOption']);
+            Route::get('payment/commission',[ReportController::class,'getDriverCommissionPayment']);
         });
     });
 });

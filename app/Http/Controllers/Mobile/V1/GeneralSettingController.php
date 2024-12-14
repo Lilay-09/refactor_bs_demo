@@ -106,6 +106,7 @@ class GeneralSettingController extends Controller
         $changeDriver = $req->change_driver;
         $markContact = $req->mark_contact ?? 0;
         $confirmDelivery = $req->confirm_delivery ?? 0;
+        $cms = new CloudMessagingService();
         $package = Package::where('qr_code',$item_ref)->where('is_deleted',0)->with('driver')->first();
         if(!$package) $package = Package::where('is_deleted',0)->find($item_ref);
         if(!$package) return ApiResponse::NotFound();
@@ -139,7 +140,17 @@ class GeneralSettingController extends Controller
         }else $confirmDelivery = ($package->status_id == 6);
         if($markContact && !$confirmDelivery) return ApiResponse::ValidateFail(__('messages.info',[
             'info' => 'You cannot mark contact on package which is not on delivery'
-        ])); else $updateArr['is_contact'] = true;
+        ])); else {
+            $updateArr['is_contact'] = true;
+            $topics = GeneralSettingService::getGeneralTopics($user->company_id,'merchant',$package->merchant_id);
+            $notifReq = new Request([
+                'topic' => $topics->private,
+                'title' => 'Contact',
+                'body' => 'Driver has contacted your customer ('.$package->receiver_phone.')',
+            ]);
+
+            $cms->sendNotificationByTopic($notifReq,$user);
+        }
 
         if($changeDriver){
             if($user->id == $package->driver_id) return ApiResponse::Duplicated(__('messages.info',[
@@ -147,7 +158,6 @@ class GeneralSettingController extends Controller
                 // 'info' => 'This package is already marked as out for delivery. Please check the delivery status before proceeding.'
             ]));
             $requester = $user->info->phone."($user->user_name)";
-            $cms = new CloudMessagingService();
             $topics = GeneralSettingService::getGeneralTopics($user->company_id,'driver',$package->driver_id);
             Cache::set($topics->private,(object)[
                 'requester' => $requester,

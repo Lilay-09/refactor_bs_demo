@@ -26,6 +26,27 @@ class TransactionController extends Controller
             [
                 'payment_date' => '',
                 'item_count' => 10,
+                'payment_status' => 'Paid',
+                'cashier_name' => 'Sam',
+                'remarks' => '',
+                'method' => '',
+                'total' => 20,
+                'amount' => 20
+            ],
+            [
+                'payment_date' => '',
+                'item_count' => 10,
+                'payment_status' => 'Paid',
+                'cashier_name' => 'Sam',
+                'remarks' => '',
+                'method' => '',
+                'total' => 20,
+                'amount' => 20
+            ],
+            [
+                'payment_date' => '',
+                'item_count' => 10,
+                'payment_status' => 'Paid',
                 'cashier_name' => 'Sam',
                 'remarks' => '',
                 'method' => '',
