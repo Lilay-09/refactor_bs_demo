@@ -14,6 +14,7 @@ use Exception;
 use Helper;
 use Illuminate\Http\Request;
 use Log;
+use Str;
 
 class PickupCenterService
 {
@@ -162,7 +163,7 @@ class PickupCenterService
             // if($driverId){
                 $notif = new CloudMessagingService();
                 $topics = GeneralSettingService::getGeneralTopics($user->company_id,'driver',$driverId);
-                $notifBody = 'New order is available for pickup';
+                $notifBody = "$validMerchant->user_name :".$inputs['qty']."\nPickup Address:".Str::limit($pickupAddress, 25, '...');;
                 $notifTitle = 'New Order Available';
                 if($driverId) {
                     $notifBody = 'You have been assigned to deliver the order('.$code.') has '.$inputs['qty'].' package(s).';

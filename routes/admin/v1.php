@@ -92,6 +92,7 @@ Route::middleware(['jwt','localize'])->prefix('admin/v1/{lang}')->group(function
             Route::get('settle/payment',[DriverTransactionController::class,'getApprovedPayments']);
             Route::put('settle/payment',[DriverTransactionController::class,'settleApprovedPayments']);
             Route::delete('payment/{id}',[DriverTransactionController::class,'deletePayment']);
+            Route::delete('settle/payment/{id}',[DriverTransactionController::class,'deleteSettlePayment']);
             Route::get('balance',[DriverTransactionController::class,'getDriverBalance']);
         });
         //** Driver Commission Module */

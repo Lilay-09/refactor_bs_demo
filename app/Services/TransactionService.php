@@ -502,6 +502,29 @@ class TransactionService
 
     }
 
+    public function deleteSettlePayment($id,$user,$type){
+        $validType = $this->validType($type);
+        if($validType->error) return $validType;
+        $payment = Payment::where('is_deleted',0)->where('company_id',$user->company_id)->orderByDesc('id')->find($id);
+        if(!$payment) return DataResponse::NotFound(__('messages.not_found',[
+            'info' => 'Payment'
+        ]));
+        //** remove payment key from packages */
+        $pmtKey = $type.'_payment_id';
+        $payment->update([
+            'is_deleted' => 1,
+            'deleted_datetime' => now(),
+            'deleted_uid' => $user->id
+        ]);
+        Package::where($pmtKey,$id)->update([
+            $type.'_payment_id' => null,
+        ]);
+
+        return DataResponse::JsonResult(null,false,__('messages.deleted',[
+            'info' => 'Payment'
+        ]));
+    }
+
     private function validType($type){
         $validType = ['driver','merchant'];
         if(!in_array($type,$validType)) return DataResponse::ValidateFail('Invalid type');

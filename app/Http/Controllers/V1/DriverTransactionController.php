@@ -164,7 +164,14 @@ class DriverTransactionController extends Controller
         $user = UserService::getAuthUser();
         $id = $req->id;
         $trxService = new TransactionService();
-        return ApiResponse::flex($trxService->deletePayment($id,'driver',$user));
+        return ApiResponse::flex($trxService->deletePayment($id,$user,'driver'));
+    }
+
+    public function deleteSettlePayment(Request $req){
+        $user = UserService::getAuthUser();
+        $id = $req->id;
+        $trxService = new TransactionService();
+        return ApiResponse::flex($trxService->deleteSettlePayment($id,$user,'driver'));
     }
 
     public function updateDeliveryPackage(Request $req){
