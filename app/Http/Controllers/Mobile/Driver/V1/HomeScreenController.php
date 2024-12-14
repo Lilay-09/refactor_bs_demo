@@ -100,7 +100,6 @@ class HomeScreenController extends Controller
         ->where('driver_id',$user->id)
         ->selectRaw('id,warehouse_id,driver_id,pickup_address_google_map,order_datetime,merchant_id,status_id,qty,code,pickup_address,pickup_address_google_map,vehicle_type,delivery_type')
         ->find($orderId);
-
         return ApiResponse::JsonResult($orders);
     }
 
@@ -111,7 +110,9 @@ class HomeScreenController extends Controller
         $packages = $this->tripPackageInfo();
         $fleets = Delivery::where('driver_id', $driverId)->where('is_deleted',0)
         ->with(['status'])
-        ->where('finished',0)->orWhereDate('depart_datetime',Carbon::today())
+        ->where(function ($q){
+            $q->where('finished',0)->orWhereDate('depart_datetime',Carbon::today());
+        })
         ->selectRaw('id,status_id,package_count,delivered_count,fleet_tracking_number,depart_datetime,driver_id')->orderByDesc('id')->get();
         foreach($fleets as $fleet){
             $fleet->status_code = $fleet->status->name;
