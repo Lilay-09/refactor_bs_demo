@@ -112,7 +112,7 @@ class HomeScreenController extends Controller
         $fleets = Delivery::where('driver_id', $driverId)->where('is_deleted',0)
         ->with(['status'])
         ->where('finished',0)->orWhereDate('depart_datetime',Carbon::today())
-        ->selectRaw('id,status_id,package_count,delivered_count,fleet_tracking_number,depart_datetime')->get();
+        ->selectRaw('id,status_id,package_count,delivered_count,fleet_tracking_number,depart_datetime')->orderByDesc('id')->get();
         foreach($fleets as $fleet){
             $fleet->status_code = $fleet->status->name;
             $fleet->total = $this->getTripTotal($packages,$fleet->id);

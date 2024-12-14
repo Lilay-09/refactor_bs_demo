@@ -270,7 +270,7 @@ class PackageTrailController extends Controller
                 'body' => 'You have been assigned to deliver the package('.$package->qr_code.').'
             ]);
             $notif->sendNotificationByTopic($notifReq,$user);
-            Log::info(json_encode(Delivery::selectRaw('id,package_count')->orderByDesc('id')->get()));
+            // Log::info(json_encode(Delivery::selectRaw('id,package_count')->orderByDesc('id')->get()));
             DB::commit();
             return ApiResponse::JsonResult(null,__('messages.assigned',['info' => '']));
         }catch(Exception $e){

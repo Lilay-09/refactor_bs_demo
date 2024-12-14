@@ -34,11 +34,13 @@ class FleetManagementController extends Controller
         ->get();
         $query = Delivery::with(['status','driver'])->where('is_deleted',0)->where('company_id',$user->company_id)
         ->orderByDesc('id')
-        ->selectRaw('id,fleet_tracking_number,status_id,driver_id,depart_datetime,remarks,package_count,delivered_count,failed_count,warehouse_id,vehicle_type,driver_id');
+        ->selectRaw('id,fleet_tracking_number,status_id,driver_id,depart_datetime,remarks,package_count,delivered_count,failed_count,warehouse_id,vehicle_type,driver_id,is_completed,finished');
         if($search){
             $query->whereHas('packages.package',function($q) use ($search){
                 $q->where('qr_code',$search);
-            })->orWhere('fleet_tracking_number',$search);
+            })->orWhere('fleet_tracking_number',$search)->orWhereHas('driver',function($q) use ($search){
+                $q->where('user_name','ilike','%'.$search.'%')->orWhere('name_km','ilike','%'.$search.'%');
+            });
         }
         $deliveries = $query->get();
         foreach($deliveries as $delivery){
