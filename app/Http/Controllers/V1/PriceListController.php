@@ -94,7 +94,7 @@ class PriceListController extends Controller
         if(!isset($priceListIds[0]) && $identifier){
             $priceListIds = PriceListZone::where('identifier', $identifier)->selectRaw('price_list_id')->groupByRaw('price_list_id')->pluck('price_list_id')->toArray();
         }
-        if(!$identifier) $defaultPlIds = PriceList::where('price_list_name_id',$priceListNameId)->pluck('id')->toArray();
+        $defaultPlIds = PriceList::where('price_list_name_id',$priceListNameId)->where('is_deleted',0)->pluck('id')->toArray();
         // return $priceListIds;
         DB::beginTransaction();
         try{
@@ -126,6 +126,10 @@ class PriceListController extends Controller
                     }
                     $priceListZone = PriceListZone::where('price_list_id',$plId)->where('identifier',$uniqueKeys)->where('zone_id',$id)->first();
                     // if($priceListId) $useIds[] = $id;
+                    $existsWithDiffGroup = PriceListZone::with('zone')->whereIn('price_list_id',$defaultPlIds)->where('identifier','!=',$uniqueKeys)->where('zone_id',$id)->first();
+                    if($existsWithDiffGroup) return ApiResponse::Duplicated(__('messages.info',[
+                            'info' => 'Zone ('.$existsWithDiffGroup->zone->zone_name.') is already assigned.'
+                    ]));
                     if(!$priceListZone) {
                         PriceListZone::create([
                             'zone_id' => $id,
@@ -138,7 +142,7 @@ class PriceListController extends Controller
                 }
             }
             PriceListZone::whereIn('price_list_id',$priceListIds)->where('identifier',$uniqueKeys)->whereNotIn('zone_id',$zoneIds)->delete();
-            // DB::commit();
+            DB::commit();
             return ApiResponse::JsonResult(null,__('messages.assigned'));
 
         }catch(Exception $e){
