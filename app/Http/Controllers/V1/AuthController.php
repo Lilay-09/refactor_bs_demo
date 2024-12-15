@@ -73,6 +73,7 @@ class AuthController extends Controller
         $data = (object)[];
         $data->id = $user->id;
         $data->name = $user->id;
+        $data->system_admin = $user->system_admin;
         $data->user_name = $account;
         $data->profile = Helper::getImageUrl($user->photo_file_name,$user->company_id,'user_profile');
         $data->full_name = $user->first_name.' '.$user->last_login;

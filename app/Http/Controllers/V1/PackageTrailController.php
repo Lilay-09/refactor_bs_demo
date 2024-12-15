@@ -210,7 +210,7 @@ class PackageTrailController extends Controller
         if($package->status_id == 9) return ApiResponse::Duplicated(__('messages.error',['info' => 'This package is already delivered']));
         if($package->status_id == 19) return ApiResponse::Duplicated(__('messages.error',['info' => 'This package is already marked as failed with fee']));
         if($package->status_id == 11) return ApiResponse::Duplicated(__('messages.error',['info' => 'This package is already returned']));
-        if($package->driver_id == $driver_id) return ApiResponse::Duplicated(__('messages.error',[
+        if($package->driver_id == $driver_id && $package->status_id != 10) return ApiResponse::Duplicated(__('messages.error',[
             'info' => 'It seems like you are trying to assign this package to the same driver'
         ]));
 
@@ -235,19 +235,22 @@ class PackageTrailController extends Controller
                 }
                 $selfTrip = Delivery::where('driver_id',$package->driver_id)->where('finished',0)->orderByDesc('id')->first();
                 //** remove self pacakge */
-                $selfTrip->update([
-                    'package_count' => $selfTrip->package_count - 1
-                ]);
-                DeliveryPackage::where('delivery_id',$selfTrip->id)
-                ->where('package_id',$package->id)
-                ->update([
-                    'is_deleted' => true,
-                    'deleted_uid' => $user->id,
-                    'has_swap' => true,
-                    'delay_count' => 0,
-                    'deleted_datetime' => now(),
-                    'notes' => DB::raw('notes || \'| admin change driver\'')
-                ]);
+                if($selfTrip){
+                    $selfTrip->update([
+                        'package_count' => $selfTrip->package_count - 1
+                    ]);
+                     DeliveryPackage::where('delivery_id',$selfTrip->id)
+                    ->where('package_id',$package->id)
+                    ->update([
+                        'is_deleted' => true,
+                        'deleted_uid' => $user->id,
+                        'has_swap' => true,
+                        'delay_count' => 0,
+                        'deleted_datetime' => now(),
+                        'notes' => DB::raw('notes || \'| admin change driver\'')
+                    ]);
+                }
+
             }
             $package->update([
                 'driver_id' => $driver_id,
@@ -338,6 +341,7 @@ class PackageTrailController extends Controller
                 $isNewPkg = false;
                 $delay = 0;
                 if($statusId){
+
                     $existsPkg->update([
                         'status_id' => $statusId
                     ]);

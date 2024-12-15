@@ -17,7 +17,6 @@ use DB;
 use Exception;
 use Helper;
 use Illuminate\Http\Request;
-use Illuminate\Log\Logger;
 use Log;
 
 class FleetManagementController extends Controller
@@ -33,6 +32,7 @@ class FleetManagementController extends Controller
         // ->groupBy('p.id','dp.delivery_id','dp.delay_count')
         ->get();
         $query = Delivery::with(['status','driver'])->where('is_deleted',0)->where('company_id',$user->company_id)
+        ->orderBy('status_id')
         ->orderByDesc('id')
         ->selectRaw('id,fleet_tracking_number,status_id,driver_id,depart_datetime,remarks,package_count,delivered_count,failed_count,warehouse_id,vehicle_type,driver_id,is_completed,finished');
         if($search){

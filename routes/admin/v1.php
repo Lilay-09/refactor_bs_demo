@@ -208,7 +208,7 @@ Route::middleware(['jwt','localize'])->prefix('admin/v1/{lang}')->group(function
     });
 
     Route::prefix('priceList')->group(function(){
-        Route::get('{price_list_name_id}/zone',[PriceListController::class,'getPriceZones']);
+        Route::get('{price_list_name_id?}/zone',[PriceListController::class,'getPriceZones']);
         // Route::post('',[PriceListController::class,'createPriceList']);
         // Route::get('',[PriceListController::class,'getPriceList']);
         Route::put('assign',[PriceListController::class,'assignZoneToPriceList']);
@@ -220,6 +220,7 @@ Route::middleware(['jwt','localize'])->prefix('admin/v1/{lang}')->group(function
             Route::post('',[PriceListNameController::class,'createPriceListName']);
             Route::get('{id}',[PriceListNameController::class,'getOnePriceListName']);
             Route::put('{id}',[PriceListNameController::class,'updatePriceListName']);
+            Route::delete('{id}',[PriceListNameController::class,'deletePriceListName']);
         });
     });
 

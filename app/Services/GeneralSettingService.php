@@ -129,7 +129,7 @@ class GeneralSettingService
     }
 
     public static function optionsZone($user){
-        return Zone::where('status',1)->where('company_id',$user->company_id)->orWhere('is_deleted',0)->selectRaw('id,zone_name,zone_code')->orderByDesc('id')->get();
+        return Zone::where('status',1)->where('company_id',$user->company_id)->where('is_deleted',0)->selectRaw('id,zone_name,zone_code')->orderByDesc('id')->get();
     }
 
 
