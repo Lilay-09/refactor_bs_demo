@@ -250,7 +250,6 @@ class PackageTrailController extends Controller
                         'notes' => DB::raw('notes || \'| admin change driver\'')
                     ]);
                 }
-
             }
             $package->update([
                 'driver_id' => $driver_id,

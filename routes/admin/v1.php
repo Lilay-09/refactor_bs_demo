@@ -208,20 +208,22 @@ Route::middleware(['jwt','localize'])->prefix('admin/v1/{lang}')->group(function
     });
 
     Route::prefix('priceList')->group(function(){
+        Route::prefix('name')->group(function(){
+            Route::post('',[PriceListNameController::class,'createPriceListName']);
+            Route::get('/{id}',[PriceListNameController::class,'getOnePriceListName']);
+            Route::put('/{id}',[PriceListNameController::class,'updatePriceListName']);
+            Route::delete('{id}',[PriceListNameController::class,'deletePriceListName']);
+        });
         Route::get('{price_list_name_id?}/zone',[PriceListController::class,'getPriceZones']);
         // Route::post('',[PriceListController::class,'createPriceList']);
         // Route::get('',[PriceListController::class,'getPriceList']);
         Route::put('assign',[PriceListController::class,'assignZoneToPriceList']);
+        Route::delete('assign',[PriceListController::class,'deleteAssignZone']);
         Route::get('/{id}',[PriceListController::class,'getOnePriceList']);
         Route::post('/{id?}',[PriceListController::class,'updatePriceList']);
         Route::delete('/{id}',[PriceListController::class,'deletePriceList']);
 
-        Route::prefix('name')->group(function(){
-            Route::post('',[PriceListNameController::class,'createPriceListName']);
-            Route::get('{id}',[PriceListNameController::class,'getOnePriceListName']);
-            Route::put('{id}',[PriceListNameController::class,'updatePriceListName']);
-            Route::delete('{id}',[PriceListNameController::class,'deletePriceListName']);
-        });
+
     });
 
     Route::prefix('productType')->group(function(){

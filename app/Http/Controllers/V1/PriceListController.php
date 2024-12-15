@@ -88,7 +88,8 @@ class PriceListController extends Controller
         $priceListName = PriceListname::where('is_deleted',0)->find($priceListNameId);
         if(!$priceListName) return ApiResponse::NotFound(__('messages.not_found',['info' => 'Price List']));
         // $priceList = PriceList::where('price_list_name_id',$priceListNameId)->first();
-        $priceListIds[] = isset($inputs['price_list_id']) ? $inputs['price_list_id'] : null;
+        $priceListIds = [];
+        if(isset($inputs['price_list_id'])) $priceListIds[] = $inputs['price_list_id'];
         // $isUpdate = $priceListId ? true:false;
         if(!isset($priceListIds[0]) && $identifier){
             $priceListIds = PriceListZone::where('identifier', $identifier)->selectRaw('price_list_id')->groupByRaw('price_list_id')->pluck('price_list_id')->toArray();
@@ -110,15 +111,20 @@ class PriceListController extends Controller
                 ]);
                 $priceListIds[] = $create->id;
             }
+            Log::error(json_encode($priceListIds));
             // $useIds = [];
             $uniqueKeys = $identifier ?? uniqid('PZ');
             foreach($priceListIds as $plId){
                 foreach($zoneIds as $idx=>$id){
                     $existZone = Zone::where('is_deleted',0)->find($id);
                     if(!$existZone) return ApiResponse::NotFound(__('messages.not_found',['info' => 'Zone']).' at row '.($idx+1));
+                    if(!$identifier){
+                        $defaultPlIds = PriceList::where('price_list_name_id',$priceListNameId)->pluck('id')->toArray();
+                        $exists = PriceListZone::whereIn('price_list_id',$defaultPlIds)->where('zone_id',$id)->first();
+                        if($exists) return ApiResponse::Duplicated('duplicated');
+                    }
                     $priceListZone = PriceListZone::where('price_list_id',$plId)->where('identifier',$uniqueKeys)->where('zone_id',$id)->first();
                     // if($priceListId) $useIds[] = $id;
-
                     if(!$priceListZone) {
                         PriceListZone::create([
                             'zone_id' => $id,
@@ -247,8 +253,24 @@ class PriceListController extends Controller
         return ApiResponse::JsonResult(null,'Updated');
     }
 
-    public function deleteZoneFromPriceList(){
-
+    public function deleteAssignZone(Request $req){
+        $user = UserService::getAuthUser();
+        $validate = validator($req->all(),[
+            'price_list_name_id' => 'required|exists:price_list_names,id',
+            'identifier' => 'required|string',
+            'zones' => 'required|array'
+        ]);
+        if($validate->fails()) return ApiResponse::ValidateFail($validate->errors()->first());
+        $inputs = $validate->validated();
+        $zoneIds = $inputs[ 'zones'];
+        $identifier = $inputs[ 'identifier'];
+        $priceListNameId = $inputs['price_list_name_id'];
+        $priceListName = PriceListname::where('is_deleted',0)->find($priceListNameId);
+        if(!$priceListName) return ApiResponse::NotFound(__('messages.not_found',['info' => 'Price List']));
+        $priceListIds = PriceListZone::where('identifier', $identifier)->selectRaw('price_list_id')->groupByRaw('price_list_id')->pluck('price_list_id')->toArray();
+        PriceListZone::whereIn('price_list_id',$priceListIds)->where('is_deleted',0)->where('identifier',$identifier)->whereIn('zone_id',$zoneIds)->delete();
+        PriceList::whereIn('id',$priceListIds)->delete();
+        return ApiResponse::JsonResult(null,__('messages.assigned'));
     }
 
     private function checkValidPriceList($type,$priceListNameId): bool{
