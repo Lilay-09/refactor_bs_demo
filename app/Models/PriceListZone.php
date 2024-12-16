@@ -14,7 +14,7 @@ class PriceListZone extends Model
 
     public $incrementing = false;
 
-    public $timestamps = false;
+    // public $timestamps = false;
 
     protected $fillable = [
         'zone_id',
@@ -24,7 +24,9 @@ class PriceListZone extends Model
         'additional_fee',
         'is_deleted',
         'deleted_datetime',
-        'deleted_uid'
+        'deleted_uid',
+        'create_uid',
+        'update_uid',
     ];
 
     public function zone(){

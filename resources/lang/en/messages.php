@@ -5,6 +5,7 @@ return [
     'not_found' => ':info Not Found',
     'created' => ':info Created',
     'deleted' => ':info Deleted',
+    'removed' => ':info Deleted',
     'arrived' => ':info Arrived',
     'updated' => 'Updated',
     'get_list' => 'Get :info List',
