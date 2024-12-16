@@ -85,7 +85,6 @@ class PickupCenterService
         $inputs['booking_channel'] = $user->account_type;
         $details = $inputs['details'] ?? [];
         $images = $inputs['images'] ?? [];
-        // Log::info(json_encode($images));
         $inputs['original_qty'] = $inputs['qty'];
         $inputs['order_datetime'] = now();
         $inputs['warehouse_id'] = GeneralSettingService::getWarehouse($user)->id;
@@ -136,8 +135,6 @@ class PickupCenterService
 
             if(isset($images[0])){
                 foreach($images as $photo){
-                    // Log::info($photo->getClientOriginalName());
-                    // Log::info($photo->getClientMimeType());
                     $img = Helper::saveImageFile($photo,$companyId,'order_image');
                     $deleteImgs[] = $img->filename;
                     OrderImage::create([
@@ -177,8 +174,6 @@ class PickupCenterService
                     'body' => $notifBody
                 ]);
                 $notif->sendNotificationByTopic($notifReq,$user);
-            // }
-            // Log::error(Order::selectRaw('loc_lat,loc_lng')->find($orderId));
             DB::commit();
             return DataResponse::JsonResult(null,false,__('messages.info',[
                 'info' => 'Order created ('.$code.')',

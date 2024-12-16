@@ -55,7 +55,11 @@ class ZoneController extends Controller
 
     public function getZones(Request $req){
         $user = UserService::getAuthUser();
+        $search = $req->search;
         $query = Zone::where('is_deleted',0)->with('country:id,name')->selectRaw('id,zone_code,zone_type,zone_name,commune,description,city,district,country_id,status')->where('company_id',$user->company_id);
+        if($search){
+            $query->where('zone_name','ilike','%'.$search.'%');
+        }
         $zones = $query->get();
         foreach($zones as $zone){
             $zone->country_name = $zone->country->name;

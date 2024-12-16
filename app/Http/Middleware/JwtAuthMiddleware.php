@@ -58,7 +58,6 @@ class JwtAuthMiddleware
 
             if(!$hasUser->error){
                 $payload = JWTAuth::getPayload($token);
-                // Log::info('JWT token generated successfully.', ['token_payload' => $payload->toArray()]);
                 $payloadArr = $payload->toArray();
                 if($payloadArr['type'] == 'refresh') return ApiResponse::Unauthorized('Invalid Token');
                 if($payloadArr['system_admin'] === 0) return response()->json([
@@ -85,12 +84,10 @@ class JwtAuthMiddleware
             // return $next($request);
         } catch (TokenInvalidException $e) {
             // Token is invalid
-            // Log::error('Token is invalid');
             return ApiResponse::Unauthorized('Token is invalid');
         } catch (TokenExpiredException $e) {
             return ApiResponse::Unauthorized('Token has expired');
         } catch (JWTException $e) {
-            // Log::error('Authorization not found');
            return ApiResponse::Unauthorized('Unauthorized');
         }
         return $next($request);

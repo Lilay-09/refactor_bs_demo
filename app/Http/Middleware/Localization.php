@@ -18,7 +18,6 @@ class Localization
     public function handle(Request $request, Closure $next)
     {
         $locale = $request->route('lang'); // Get the locale from the route parameter
-        // \Log::info($locale);
         // Check if the locale is valid
         if($locale == 'kh') $locale = 'km';
         if (in_array($locale, config('app.supported_locales'))) {
@@ -27,10 +26,6 @@ class Localization
             // Fallback to default locale if invalid
             App::setLocale(config('app.fallback_locale'));
         }
-
-        // \Log::info(App::getLocale()); // Log the current locale
-
-
         return $next($request);
     }
 }

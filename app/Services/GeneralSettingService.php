@@ -112,11 +112,20 @@ class GeneralSettingService
     }
 
     public static function optionsPriceList($user){
-        $pricelist =  PriceList::where('is_deleted',0)->selectRaw('id,price_list_name_id')->with('priceListName')->get();
-        foreach($pricelist as $pl){
-            $pl->name = $pl->priceListName?->name;
-            unset($pl->priceListName);
-        }
+        $pricelist = PriceListname::where('is_deleted',0)->selectRaw( 'id,name')->get();
+        //  PriceList::where('is_deleted', 0)
+        //     ->selectRaw('price_list_name_id,delivery_type') // Select only price_list_name_id
+        //     ->distinct() // Ensure distinct results
+        //     ->with('priceListName')
+        //     ->whereHas('priceListName',function($q){
+        //         $q->where('is_deleted',0);
+        //     }) // Load the relationship
+        //     ->get();
+
+        // foreach($pricelist as $pl){
+        //     $pl->name = $pl->priceListName?->name;
+        //     unset($pl->priceListName);
+        // }
         return $pricelist;
     }
 
@@ -305,10 +314,13 @@ class GeneralSettingService
             ->where('base_fee','>',0)
             ->selectRaw('base_fee,id,price')
             ->take(1)->value('id');
-            if($merchant_id){
-                $priceListId = MerchantPriceList::where('merchant_id',$merchant_id)->take(1)->value('price_list_id');
-            }
             $row = PriceListZone::with('priceList:id,base_fee')->where('zone_id',$zone_id)->where('price_list_id',$priceListId)->first();
+            if($merchant_id){
+                $plNameId = MerchantPriceList::where('merchant_id',$merchant_id)->take(1)->value('price_list_id');
+                $plIds = PriceList::where('is_deleted',0)->where('price_list_name_id',$plNameId)->pluck('id')->toArray();
+                $row = PriceListZone::with('priceList:id,base_fee')->where('zone_id',$zone_id)->whereIn('price_list_id',$plIds)->first();
+            }
+
             if($row) {
                 $row->base_fee = $row->priceList->base_fee;
                 unset($row->zones,$row->price,$row->priceList);
@@ -376,7 +388,7 @@ class GeneralSettingService
         ];
     }
     public static function optionsPriceListName($user){
-        return PriceListname::where('company_id',$user->company_id)->orderByDesc('id')->selectRaw('id,name,kg_marker')->get();
+        return PriceListname::where('company_id',$user->company_id)->where('is_deleted',0)->orderByDesc('id')->selectRaw('id,name,kg_marker')->get();
     }
 
     public static function getZonePriceByCode($zone_code,$user){
@@ -456,7 +468,6 @@ class GeneralSettingService
             $status_id = 16;
             $packages = $queryDeliveryPackage->where('is_deleted',0)->where('delay_count',0)->get();
             foreach($packages as $pck){
-                // Log::info($pck->status_id);
                 if($pck->status_id == 9){
                     $deliveredCount += 1;
                 }else if($pck->status_id == 10 || $pck->status_id == 19){
@@ -489,7 +500,6 @@ class GeneralSettingService
                 'status_id' => $status_id,
                 'delivered_count' => $deliveredCount
             ];
-            // Log::info('test2 =>'.json_encode($updateArr));
             Delivery::where('id',$id)->update($updateArr);
         }
     }

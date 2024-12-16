@@ -27,7 +27,6 @@ class ProtectedRoute
         //     // Assuming you have a user role checking system in place
         //     // Replace 'isSuperAdmin()' with your actual method of checking the Super Admin role
         //     $user = $this->user;
-        //     Log::error(json_encode($user));
         //     if (!$user || !$user->system_admin) {
         //         // Return a 403 Forbidden response if the user is not a Super Admin
         //         return ApiResponse::Forbidden('Forbidden: Only Super Admins can delete.');

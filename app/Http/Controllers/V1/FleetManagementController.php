@@ -75,7 +75,6 @@ class FleetManagementController extends Controller
                 if($pkg->status_id == 10) $failedCount +=1;
                 if($pkg->status_id == 19) $failedWithFeeCount +=1;
                 if($pkg->status_id == 6) $deliveryCount +=1;
-                // Log::info(json_encode($pkg));
             }
         }
         return (object)[
@@ -185,7 +184,6 @@ class FleetManagementController extends Controller
         if(!$package) return ApiResponse::NotFound(__('messages.not_found',['info' => 'Package','khInfo' => 'កញ្ចប់']));
         $todayDT = Helper::getDateTime();
         $driverName = $package->driver?->user_name;
-        // Log::error($package->id);
         if($package->status_id != 6) return ApiResponse::ValidateFail(__('messages.info',[
             'info' => 'Only delivery package can be kicked from trip'
         ]));
@@ -368,7 +366,6 @@ class FleetManagementController extends Controller
                 if(isset($hasFailPackage[0])) $QuerylastPackage->update([
                     'delay_count' => 1,
                 ]);
-                // Log::error(json_encode($hasFailPackage));
                 $create = Delivery::create([
                     'driver_id' => $driverId,
                     'depart_datetime' => now(),
@@ -411,7 +408,6 @@ class FleetManagementController extends Controller
 
                     $dPackage = DeliveryPackage::where('delay_count',0)->where('is_deleted',0)->where('package_id',$packageId)->first();
                     if(!$dPackage){
-                        // Log::info('here');
                         $dPackage = DeliveryPackage::create([
                             'notes' => 'Admin add package to trip',
                             'driver_id' => $driverId,
@@ -426,7 +422,6 @@ class FleetManagementController extends Controller
                         if(!$dPackage) return DataResponse::Error(__('messages.error',['info' => 'Fail to assign package']));
                     }
                     if(in_array(6,$allowedPkgStatuses)){
-                        // Log::error('sdfsdf');
                         $dPackage = DeliveryPackage::create([
                             'notes' => 'Admin add package to trip',
                             'driver_id' => $driverId,

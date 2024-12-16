@@ -27,8 +27,8 @@ class MerchantManagementController extends Controller
         $user = UserService::getAuthUser();
         $statusId = $req->status_id ?? null;
         $search = $req->search;
-        $priceList = DB::table('price_list as pl')->join('price_list_names as n','n.id','pl.price_list_name_id')
-        ->selectRaw('pl.id,n.name,mpl.merchant_id')->join('merchant_price_list as mpl','mpl.price_list_id','pl.id')
+        $priceList = DB::table('price_list_names as n')
+        ->selectRaw('n.id,n.name,mpl.merchant_id')->join('merchant_price_list as mpl','mpl.price_list_id','n.id')
         ->get();
         $query = User::where('is_deleted',0)->where('company_id',$user->company_id)
         ->where('account_type',$this->userClass)

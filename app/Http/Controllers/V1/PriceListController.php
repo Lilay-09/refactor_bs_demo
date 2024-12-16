@@ -327,7 +327,7 @@ class PriceListController extends Controller
      */
     public function getPriceZones(Request $req){
         $priceListNameId = $req?->price_list_name_id ?? 0;
-        if(!$priceListNameId) return ApiResponse::NotFound('Price list not found');
+        if(!$priceListNameId) return ApiResponse::NotFound('Price list not found 1');
         $priceListName = PriceListname::where('is_deleted',0)->selectRaw('id,name,kg_marker')->find($priceListNameId);
         if(!$priceListName) return ApiResponse::NotFound('Price list not found');
 
