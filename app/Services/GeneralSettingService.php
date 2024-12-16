@@ -415,7 +415,6 @@ class GeneralSettingService
         $priceList = GeneralSettingService::priceByZone($zoneId,$user,$merchant_id);
         if(!$priceList) return DataResponse::NotFound('Zone price not found');
         $baseFee = $priceList->price > 0 ? $priceList->price : $priceList->base_fee;
-        \Log::error(json_encode($priceList->base_fee));
         if($baseFee <=0) return DataResponse::NotFound('Please set price to your zone');
         $zPrice = $baseFee + $extraCharge;
         $selectKg = $billedKg ?? $actualKg;

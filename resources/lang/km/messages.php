@@ -5,4 +5,5 @@ return [
     'error' => ':khInfo',
     'info' => ':khInfo',
     'created' => ':khInfo',
+    'assigned' => ':khInfo',
 ];

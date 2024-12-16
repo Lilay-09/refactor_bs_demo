@@ -143,7 +143,10 @@ class PriceListController extends Controller
             }
             PriceListZone::whereIn('price_list_id',$priceListIds)->where('identifier',$uniqueKeys)->whereNotIn('zone_id',$zoneIds)->delete();
             DB::commit();
-            return ApiResponse::JsonResult(null,__('messages.assigned'));
+            return ApiResponse::JsonResult(null,__('messages.assigned',[
+                'info' => 'Zone(s)',
+                'khInfo' => 'ទីតាំងចំនួន('.count($zoneIds).')បានបញ្ចូលក្នុងតារាងតម្លៃ('.$priceListName->name.')'
+            ]));
 
         }catch(Exception $e){
             Log::error($e->getMessage());
