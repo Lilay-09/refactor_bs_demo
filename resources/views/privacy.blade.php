@@ -2611,23 +2611,23 @@
                 class="c18"><a class="c13"
                     href="https://www.google.com/url?q=https://dms.vectorasoft.com/privacy&amp;sa=D&amp;source=editors&amp;ust=1734341000074100&amp;usg=AOvVaw0pofnokzZyL4nJDiPSQ4k2">&nbsp;</a></span><span
                 class="c16"><a class="c13" target="_blank"
-                    href="https://admin.jsexpresscambodia.com/privacy/personal/collect">&nbsp;Collect
+                    href="https://api.jsexpresscambodia.com/privacy/personal/collect">&nbsp;Collect
                     on Me and Others?</a></span></li>
         <li class="c25 li-bullet-0"><span class="c18">What Personal Information Does JS Express </span><span
                 class="c16"><a class="c13" target="_blank"
-                    href="https://admin.jsexpresscambodia.com/privacy/personal/purpose">&nbsp;Disclose
+                    href="https://api.jsexpresscambodia.com/privacy/personal/purpose">&nbsp;Disclose
                     for a Business Purpose?</a></span></li>
     </ol>
     <ol class="c10 lst-kix_jnoeb13yp9e9-0" start="3">
         <li class="c1 li-bullet-0"><span class="c16"><a class="c13" target="_blank"
-                    href="https://admin.jsexpresscambodia.com/privacy/personal/collect">How
+                    href="https://api.jsexpresscambodia.com/privacy/personal/collect">How
                     Does &nbsp;</a></span><span class="c0">&nbsp;JS Express Collect My Personal Information?</span>
         </li>
         <li class="c1 li-bullet-0"><span class="c16"><a class="c13" target="_blank"
-                    href="https://admin.jsexpresscambodia.com/privacy/personal/use">How
+                    href="https://api.jsexpresscambodia.com/privacy/personal/use">How
                     Does &nbsp;</a></span><span class="c0">&nbsp;JS Express Use My Personal Information?</span></li>
         <li class="c1 li-bullet-0"><span class="c16"><a class="c13" target="_blank"
-                    href="https://admin.jsexpresscambodia.com/privacy/personal/share">How
+                    href="https://api.jsexpresscambodia.com/privacy/personal/share">How
                     Does &nbsp;</a></span><span class="c0">&nbsp;JS Express Share My Information?</span></li>
         <li class="c5 li-bullet-0"><span class="c0">What are My Rights?</span></li>
         <li class="c1 li-bullet-0"><span class="c0">Erasure, Access, and Others</span></li>
