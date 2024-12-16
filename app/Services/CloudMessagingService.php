@@ -200,7 +200,6 @@ class CloudMessagingService
             }
         try {
             // Log the message data for debugging purposes (optional)
-            // Log::debug("Sending notification to target: {$targetValue}");
 
             // Ensure the message is sent only once
             $response = $this->messaging->send($message);

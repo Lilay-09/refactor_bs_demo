@@ -91,7 +91,6 @@ class JwtDriverMiddleware
         } catch (TokenExpiredException $e) {
             return ApiResponse::Unauthorized('Token has expired');
         } catch (JWTException $e) {
-            // Log::error('Authorization not found');
            return ApiResponse::Unauthorized('Unauthorized');
         }
         return $next($request);

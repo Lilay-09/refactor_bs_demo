@@ -41,6 +41,20 @@ class PriceListNameController extends Controller
         return ApiResponse::JsonResult($priceListName,__('messages.get one',['info' => 'Price list']));
     }
 
+    public function deletePriceListName(Request $req){
+        $user = UserService::getAuthUser();
+        $id = $req->id;
+        if($id == 1) return ApiResponse::ValidateFail('You cannot delete Default price list');
+        $priceListName = PriceListname::where('is_deleted',0)->where('company_id',$user->company_id)->find($id);
+        if(!$priceListName) return ApiResponse::NotFound();
+        $priceListName->update([
+            'is_deleted' => 1,
+            'deleted_datetime' => now(),
+            'deleted_uid' => $user->id
+        ]);
+        return ApiResponse::JsonResult(null);
+    }
+
     public function updatePriceListName(Request $req){
         $user = UserService::getAuthUser();
         $id = $req->id;

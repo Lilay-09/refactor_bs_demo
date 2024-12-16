@@ -68,12 +68,12 @@ class ApiResponse
         $perPage = isset($filter->per_page) ? ($filter->per_page == 0 ? 1:$filter->per_page) : 10;
         $currentPage = isset($filter->page_no) ? $filter->page_no : 1;
         $skip_row = $perPage * ($currentPage - 1);
-        if(isset($filter->search_value)){
+        $count = $data->count();
+        if(isset($filter->search_value) || isset($filter->search)){
             $skip_row = 0;
+            $perPage = $count > 0 ? $count : 1;
         }
         $limitation = $data->slice($skip_row,$perPage);
-
-        $count = $data->count();
         $total_page = ceil($count/$perPage);
         $obj = (object)[
             'status' => "OK",
@@ -809,12 +809,12 @@ class DataResponse //extends Model
         $perPage = isset($filter->per_page) ? ($filter->per_page == 0 ? 1:$filter->per_page) : 10;
         $currentPage = isset($filter->page_no) ? $filter->page_no : 1;
         $skip_row = $perPage * ($currentPage - 1);
+        $count = $data->count();
         if(isset($filter->search_value) || isset($filter->search)){
             $skip_row = 0;
+            $perPage = $count > 0 ? $count : 1;
         }
         $limitation = $data->slice($skip_row,$perPage);
-
-        $count = $data->count();
         $total_page = ceil($count/$perPage);
         $obj = (object)[
             'status' => "OK",

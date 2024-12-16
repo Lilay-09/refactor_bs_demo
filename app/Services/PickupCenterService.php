@@ -85,7 +85,6 @@ class PickupCenterService
         $inputs['booking_channel'] = $user->account_type;
         $details = $inputs['details'] ?? [];
         $images = $inputs['images'] ?? [];
-        // Log::info(json_encode($images));
         $inputs['original_qty'] = $inputs['qty'];
         $inputs['order_datetime'] = now();
         $inputs['warehouse_id'] = GeneralSettingService::getWarehouse($user)->id;
@@ -136,8 +135,6 @@ class PickupCenterService
 
             if(isset($images[0])){
                 foreach($images as $photo){
-                    // Log::info($photo->getClientOriginalName());
-                    // Log::info($photo->getClientMimeType());
                     $img = Helper::saveImageFile($photo,$companyId,'order_image');
                     $deleteImgs[] = $img->filename;
                     OrderImage::create([
@@ -177,8 +174,6 @@ class PickupCenterService
                     'body' => $notifBody
                 ]);
                 $notif->sendNotificationByTopic($notifReq,$user);
-            // }
-            // Log::error(Order::selectRaw('loc_lat,loc_lng')->find($orderId));
             DB::commit();
             return DataResponse::JsonResult(null,false,__('messages.info',[
                 'info' => 'Order created ('.$code.')',
@@ -282,14 +277,14 @@ class PickupCenterService
         $zoneCode = $inputs['zone_code'];
         $inputs['delivery_type'] = $inputs['delivery_type'] ?? 'normal';
         $inputs['booking_channel'] = 'admin';
+        $taxiFee = $inputs['taxi_fee'] ?? 0;
         $inputs['tracking_notes'] = '['.$user->id.']Admin ('.$user->user_name.') add new package ('.date('d-M-Y h:i:s A').')';
         if($user->account_type == 'driver') $inputs['booking_channel'] = 'driver';
         if($user->account_type == 'merchant') $inputs['booking_channel'] = 'merchant';
-
         $zoneName = Zone::where('zone_code',$zoneCode)->value('zone_name');
         $inputs['zone_name'] = $zoneName;
         $extraCharge = $inputs['extra_charge'] ?? 0;
-        $calPrice = GeneralSettingService::calculatePackageFee($zoneCode,$price,$billedKg,$actualKg,$payer,$cod,$extraCharge,$user);
+        $calPrice = GeneralSettingService::calculatePackageFee($zoneCode,$price,$billedKg,$actualKg,$payer,$cod,$extraCharge,$user,$taxiFee,$inputs['merchant_id']);
         if($calPrice->error) return $calPrice;
         $inputs['driver_total'] = $calPrice->driver_total;
         $inputs['merchant_total'] = $calPrice->merchant_total;

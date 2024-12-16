@@ -186,7 +186,7 @@ class AuthController extends Controller
             'login_name' => $phone,
             'password' => $hpwd,
             'has_account' => true,
-            'registered_status' => 'registered',
+            'register_status' => 'registered',
             'lock' => false,
         ]);
         return ApiResponse::JsonResult(null,'Success');

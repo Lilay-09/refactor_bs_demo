@@ -5,7 +5,6 @@ use App\Models\PrivacyStatement;
 use App\Models\TermCondition;
 use Barryvdh\DomPDF\PDF;
 use DataResponse;
-use Exception;
 use Helper;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Http\Request;

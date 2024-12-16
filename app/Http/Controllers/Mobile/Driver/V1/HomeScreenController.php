@@ -100,7 +100,6 @@ class HomeScreenController extends Controller
         ->where('driver_id',$user->id)
         ->selectRaw('id,warehouse_id,driver_id,pickup_address_google_map,order_datetime,merchant_id,status_id,qty,code,pickup_address,pickup_address_google_map,vehicle_type,delivery_type')
         ->find($orderId);
-
         return ApiResponse::JsonResult($orders);
     }
 
@@ -111,8 +110,10 @@ class HomeScreenController extends Controller
         $packages = $this->tripPackageInfo();
         $fleets = Delivery::where('driver_id', $driverId)->where('is_deleted',0)
         ->with(['status'])
-        ->where('finished',0)->orWhereDate('depart_datetime',Carbon::today())
-        ->selectRaw('id,status_id,package_count,delivered_count,fleet_tracking_number,depart_datetime')->get();
+        ->where(function ($q){
+            $q->where('finished',0)->orWhereDate('depart_datetime',Carbon::today());
+        })
+        ->selectRaw('id,status_id,package_count,delivered_count,fleet_tracking_number,depart_datetime,driver_id')->orderByDesc('id')->get();
         foreach($fleets as $fleet){
             $fleet->status_code = $fleet->status->name;
             $fleet->total = $this->getTripTotal($packages,$fleet->id);
@@ -145,12 +146,18 @@ class HomeScreenController extends Controller
         ->where('dp.is_deleted',0)
         ->where('p.created_at', '>=', Carbon::now()->subDays(10))
         ->join('tracking_statuses as ts','ts.id','dp.status_id')
-        ->selectRaw('p.merchant_id,p.qr_code,p.price,p.cod,p.receiver_name,p.receiver_phone,p.zone_code,p.zone_name,ts.name as status_code,d.user_name as driver_name,d.phone as driver_phone,m.user_name as merchant_name,m.phone as merchant_phone,p.id as package_id,dp.delivery_id,p.zone_code,p.zone_name,p.delivery_fee as base_fee,p.driver_total,p.driver_total as delivery_fee,p.taxi_fee,p.product_type,dp.status_id')
+        ->selectRaw('p.delivered_datetime,p.failed_datetime,p.assign_driver_datetime,p.merchant_id,p.qr_code,p.price,p.cod,p.receiver_name,p.receiver_phone,p.zone_code,p.zone_name,ts.name as status_code,d.user_name as driver_name,d.phone as driver_phone,m.user_name as merchant_name,m.phone as merchant_phone,p.id as package_id,dp.delivery_id,p.zone_code,p.zone_name,p.delivery_fee as base_fee,p.driver_total,p.driver_total as delivery_fee,p.taxi_fee,p.product_type,dp.status_id')
         ->orderByRaw('(dp.status_id = ?) DESC', [6]);
         if($tripId){
             $qP->where('dp.delivery_id',$tripId);
         }
         $packages = $qP->get();
+        foreach($packages as $p){
+            $p->date = $p->assign_driver_datetime;
+            if($p->status_id == 9) $p->date = $p->delivered_datetime;
+            if($p->status_id == 10 || $p->status_id == 19) $p->date = $p->failed_datetime;
+            unset($p->assign_driver_datetime,$p->delivered_datetime,$p->failed_datetime);
+        }
         return $packages;
     }
 
@@ -373,7 +380,7 @@ class HomeScreenController extends Controller
         }
 
         if($payer){
-            $calucalteFee = GeneralSettingService::calculatePackageFee($package->zone_code,$package->price,$package->billed_kg,$package->actual_kg,$payer,$package->cod,$package->extra_charge,$user,$package->taxi_fee);
+            $calucalteFee = GeneralSettingService::calculatePackageFee($package->zone_code,$package->price,$package->billed_kg,$package->actual_kg,$payer,$package->cod,$package->extra_charge,$user,$package->taxi_fee,$package->merchant_id);
             $inputs['merchant_total'] = $calucalteFee->merchant_total;
             $inputs['driver_total'] = $calucalteFee->driver_total;
         }
