@@ -148,7 +148,7 @@ class UserService
         $pin_address = $inputs['pin_address'] ?? null;
         $phone = $inputs['phone'];
 
-        $priceListId = $inputs['price_list_id'] ?? null;
+        $priceListId = $inputs['price_list_id'] ?? 1; //:: Default = 1
         if($pin_address){
             $getLatLng = Helper::getLatLongFromGoogleMapsUrl($pin_address);
             $inputs['latitude'] = $getLatLng->latitude ?? 0;

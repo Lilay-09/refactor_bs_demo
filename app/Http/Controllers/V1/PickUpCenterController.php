@@ -342,8 +342,8 @@ class PickUpCenterController extends Controller
         $id = $req->id;
         $package = Package::where('company_id',$user->company_id)->where('is_deleted',0)->find($id);
         if(!$package) return ApiResponse::NotFound(trans('messages.not_found',['info' => 'Package','khInfo' => 'កញ្ចប់​']));
-        $calFee = GeneralSettingService::calculatePackageFee($package->zone_code,$package->price,$package->billed_kg,$package->actual_kg,$package->payer,$package->cod,$package->extra_charge,$user);
-        $package->total = $calFee->total;
+        // $calFee = GeneralSettingService::calculatePackageFee($package->zone_code,$package->price,$package->billed_kg,$package->actual_kg,$package->payer,$package->cod,$package->extra_charge,$user,$package->taxi_fee,$package->merchant_id);
+        $package->total = $package->merchant_total + $package->driver_total;
         return ApiResponse::JsonResult($package,__('messages.get one'));
     }
 

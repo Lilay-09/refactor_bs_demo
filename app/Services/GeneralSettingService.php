@@ -112,7 +112,7 @@ class GeneralSettingService
     }
 
     public static function optionsPriceList($user){
-        $pricelist = PriceListname::where('is_deleted',0)->selectRaw( 'id,name')->get();
+        $pricelist = PriceListname::where('is_deleted',0)->selectRaw( 'id,id as price_list_name_id,name')->get();
         //  PriceList::where('is_deleted', 0)
         //     ->selectRaw('price_list_name_id,delivery_type') // Select only price_list_name_id
         //     ->distinct() // Ensure distinct results
@@ -391,16 +391,16 @@ class GeneralSettingService
         return PriceListname::where('company_id',$user->company_id)->where('is_deleted',0)->orderByDesc('id')->selectRaw('id,name,kg_marker')->get();
     }
 
-    public static function getZonePriceByCode($zone_code,$user){
-        // $user = UserService::getAuthUser();
-        return PriceList::with('zones')->where('is_deleted',0)
-        ->where('status',1)
-        ->where('company_id',$user->company_id)
-        ->whereHas('zones',function ($q) use ($zone_code){
-            $q->where('zone_code',$zone_code);
-        })
-        ->first();
-    }
+    // public static function getZonePriceByCode($zone_code,$user){
+    //     // $user = UserService::getAuthUser();
+    //     return PriceList::with('zones')->where('is_deleted',0)
+    //     ->where('status',1)
+    //     ->where('company_id',$user->company_id)
+    //     ->whereHas('zones',function ($q) use ($zone_code){
+    //         $q->where('zone_code',$zone_code);
+    //     })
+    //     ->first();
+    // }
 
     public static function concatBankInfo($bankName,$bankNumber,$accountName){
         $info = $bankName;
@@ -409,10 +409,14 @@ class GeneralSettingService
         return $info;
     }
 
-    public static function calculatePackageFee($zone_code,$price,$billedKg,$actualKg,$payer,$cod,$extraCharge,$user,$taxi_fee=0){
-        $priceList = GeneralSettingService::getZonePriceByCode($zone_code,$user);
+    public static function calculatePackageFee($zone_code,$price,$billedKg,$actualKg,$payer,$cod,$extraCharge,$user,$taxi_fee=0,$merchant_id=null){
+        // $priceList = GeneralSettingService::getZonePriceByCode($zone_code,$user);
+        $zoneId = Zone::where('is_deleted',0)->where('zone_code',$zone_code)->take(1)->value('id');
+        $priceList = GeneralSettingService::priceByZone($zoneId,$user,$merchant_id);
         if(!$priceList) return DataResponse::NotFound('Zone price not found');
         $baseFee = $priceList->price > 0 ? $priceList->price : $priceList->base_fee;
+        \Log::error(json_encode($priceList->base_fee));
+        if($baseFee <=0) return DataResponse::NotFound('Please set price to your zone');
         $zPrice = $baseFee + $extraCharge;
         $selectKg = $billedKg ?? $actualKg;
         $additionalPrice = 0;

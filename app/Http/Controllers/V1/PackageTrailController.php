@@ -129,12 +129,13 @@ class PackageTrailController extends Controller
         $actualKg = $inputs['actual_kg'] ?? 0;
         $billedKg = $inputs['billed_kg'] ?? 0;
         $inputs['actual_kg'] = $actualKg;
+        $taxiFee = $inputs['taxi_fee'] ?? 0;
         $payer = $inputs['payer'];
         $inputs['billed_kg'] = $actualKg;
         $inputs['status_id'] = $package->status_id; //** add warehouse */
         $zoneCode = $inputs['zone_code'];
         $extra_charge = $inputs['extra_charge'] ?? 0;
-        $calPrice = GeneralSettingService::calculatePackageFee($zoneCode,$price,$billedKg,$actualKg,$payer,$inputs['cod'],$extra_charge,$user);
+        $calPrice = GeneralSettingService::calculatePackageFee($zoneCode,$price,$billedKg,$actualKg,$payer,$inputs['cod'],$extra_charge,$user,$taxiFee,$package->merchant_id);
         if($calPrice->error) return $calPrice;
         $inputs['driver_total'] = $calPrice->driver_total;
         $inputs['merchant_total'] = $calPrice->merchant_total;

@@ -720,7 +720,7 @@ class TransactionService
         $cod = $inputs['cod'];
         $payer = $inputs['payer'];
         $taxi_fee = $inputs['taxi_fee'] ?? $package->taxi_fee;
-        $calFee = GeneralSettingService::calculatePackageFee($package->zone_code,$package->price,$package->billed_kg,$package->actual_kg,$payer,$cod,$package->extra_charge,$user,$taxi_fee);
+        $calFee = GeneralSettingService::calculatePackageFee($package->zone_code,$package->price,$package->billed_kg,$package->actual_kg,$payer,$cod,$package->extra_charge,$user,$taxi_fee,$package->merchant_id);
         $inputs['driver_total'] = $calFee->driver_total;
         $inputs['merchant_total'] = $calFee->merchant_total;
         $package->update($inputs);

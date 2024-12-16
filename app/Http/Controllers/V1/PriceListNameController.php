@@ -44,6 +44,7 @@ class PriceListNameController extends Controller
     public function deletePriceListName(Request $req){
         $user = UserService::getAuthUser();
         $id = $req->id;
+        if($id == 1) return ApiResponse::ValidateFail('You cannot delete Default price list');
         $priceListName = PriceListname::where('is_deleted',0)->where('company_id',$user->company_id)->find($id);
         if(!$priceListName) return ApiResponse::NotFound();
         $priceListName->update([

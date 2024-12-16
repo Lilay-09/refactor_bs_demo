@@ -158,6 +158,7 @@ class GeneralSettingController extends Controller
     public function getPriceByZone(Request $req){
         $user = UserService::getAuthUser();
         $merchantId = $req->merchant_id ?? null;
+        if(!$merchantId) return ApiResponse::ValidateFail('Merchant ID is required');
         $price = $this->gs::priceByZone($req->zone_id,$user,$merchantId);
         if(!$price) return ApiResponse::NotFound('Price not found');
         return ApiResponse::JsonResult($price,__('get zone price'));
@@ -191,7 +192,6 @@ class GeneralSettingController extends Controller
         ];
         return ApiResponse::JsonResult($obj);
     }
-
 
     public function getFormFleet(){
         $user = UserService::getAuthUser();
