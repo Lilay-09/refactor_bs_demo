@@ -147,7 +147,6 @@ class PriceListController extends Controller
                 'info' => 'Zone(s)',
                 'khInfo' => 'ទីតាំងចំនួន('.count($zoneIds).')បានបញ្ចូលក្នុងតារាងតម្លៃ('.$priceListName->name.')'
             ]));
-
         }catch(Exception $e){
             Log::error($e->getMessage());
             return ApiResponse::Error(__('messages.error',['info' => 'Fail to save']));

@@ -29,9 +29,10 @@ class PackageTrailController extends Controller
         $statusId = $req->status_id??null;
         $merchantId = $req->merchant_id ?? null;
         $driverId = $req->driver_id ?? null;
-        $zoneCode = $req->zone_code ?? null;
+        $zoneCode = $req->zone_code ?? $req->zone_id ?? null;
         $startDate = $req->startDate ?? null;
         $endDate = $req->endDate ?? null;
+        // Log::error(json_encode($req->all()));
         $query = Package::where('is_deleted',0)
         ->with(['status','merchant','driver'])
         ->where('outstanding',0)
@@ -65,8 +66,10 @@ class PackageTrailController extends Controller
             $startDate = date('Y-m-d',strtotime($startDate));
             $endDate = date('Y-m-d',strtotime($endDate));
             $query->where(function ($q) use($startDate,$endDate){
-                $q->whereBetween('failed_datetime',[$startDate,$endDate])->orWhereDate('failed_datetime',$endDate)
-                ->orWhereBetween('delivered_datetime',[$startDate,$endDate])->orWhereDate('delivered_datetime',$endDate);
+                $q->whereBetween('created_at',[$startDate,$endDate])->orWhereDate('created_at',$endDate);
+                // $q->whereBetween('failed_datetime',[$startDate,$endDate])->orWhereDate('failed_datetime',$endDate)
+                // ->whereNotNull('failed_datetime')->orWhereNotNull('delivered_datetime')
+                // ->orWhereBetween('delivered_datetime',[$startDate,$endDate])->orWhereDate('delivered_datetime',$endDate);
             });
         }
         $packages = $query->get();
