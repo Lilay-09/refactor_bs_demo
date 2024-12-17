@@ -2,7 +2,6 @@
 
 namespace App\Services;
 
-use ApiResponse;
 use App\Models\Bank;
 use App\Models\Disbursement;
 use App\Models\DisbursementDetails;
@@ -36,8 +35,10 @@ class TransactionService
         // ->leftJoin('payments as mpmt','mpmt.id','p.merchant_payment_id') //** if driver paid or unpaid */
         ->whereIn('p.status_id',[9,19]) //* delivered and failed with fee
         ->selectRaw('p.remarks,p.cod,p.price,d.phone as driver_phone,p.taxi_fee,p.payer,p.delivery_fee,p.merchant_total,p.driver_total,m.user_name as merchant_name,m.phone as merchant_phone,d.user_name as driver_name,p.status_id,p.id as package_id,d.id as driver_id,p.qr_code,ts.name as status_code,p.delivered_datetime,p.failed_datetime,p.zone_code,p.receiver_phone,p.delivery_type,'.$fkKey);
-        if($type == 'driver') $qP->where('p.driver_id',$driverId);
-        else $qP->where('p.merchant_id',$merchantId);
+        if($driverId || $merchantId){
+            if($type == 'driver') $qP->where('p.driver_id',$driverId);
+            else $qP->where('p.merchant_id',$merchantId);
+        }
         $packages = $qP->get();
         $statusKey = $type.'_payment_status';
         foreach($packages as $package){
@@ -431,6 +432,7 @@ class TransactionService
         ->where('p.approved',1)
         ->join('users as r','r.id','p.receiver_uid')
         ->leftJoin('users as st','st.id','p.settled_uid')
+        ->orderBy('p.is_settled')
         ->selectRaw('st.user_name as settlement_username,p.is_settled,r.user_name as receiver_name,p.payment_datetime,p.id as payment_id,d.user_name as payer_name,p.exchange_rate,p.amount,p.taxi_fee,p.breakdown_notes as remarks');
         $payments = $qP->get();
         $paymentDetails = PaymentDetail::get();
@@ -755,6 +757,7 @@ class TransactionService
         $payeeInfo = User::where('is_deleted',0)->whereIn('account_type',['driver','merchant'])->find($payeeId);
         if(!$payeeInfo) return DataResponse::NotFound('Could not find payee information');
         $validPackages = $this->validCommissionPackage($payeeId,$type,$startDate,$endDate);
+        if($validPackages->error) return $validPackages;
         $packageIds = $validPackages->package_ids;
         $orderIds = $validPackages->order_ids;
         $deliveryRate = $validPackages->delivery_rate;
@@ -853,11 +856,12 @@ class TransactionService
             Order::whereIn('id',$orderIds)->update([
                 $type.'_disbursement_id' => $paymentId
             ]);
-            // return Order::whereIn('id',$orderIds)->get();
-            // DB::commit();
+            // return $packageIds;
+            // return Package::whereIn('id',$packageIds)->get();
+            DB::commit();
 
             // return Package::whereIn('id',$packageIds)->get();
-            return DataResponse::JsonResult($dueAmount,false,__('messages.created',[
+            return DataResponse::JsonResult(null,false,__('messages.created',[
                 'info' => 'Payment'
             ]));
         }catch(Exception $e){
@@ -888,6 +892,7 @@ class TransactionService
             'package_ids' => [],
             'order_ids' => []
         ];
+
         $dc = (object)[
             'normal_pickup_commission' => 0,
             'normal_delivery_commission' => 0,
@@ -895,7 +900,7 @@ class TransactionService
             'fast_delivery_commission' => 0
         ];
 
-        $qP = Package::selectRaw('status_id,driver_id')
+        $qP = Package::selectRaw('id,status_id,driver_id,driver_disbursement_id')
         ->where('status_id',9)
         ->whereNotNull('driver_id');
         if($startDate && $endDate){
@@ -927,14 +932,20 @@ class TransactionService
             }
         }
         foreach($orders as $order){
-            $pickUpCount += $order->qty;
-            $obj->order_ids[] = $order->id;
+            if(!$order->driver_disbursement_id) {
+                $pickUpCount += $order->qty;
+                $obj->order_ids[] = $order->id;
+            }
+
         }
         foreach($packages as $package){
-            $deliveredCount += 1;
-            if($package->cod) $obj->total_taxi_fee += $package->delivery_fee;
-            if($package->taxi_fee) $obj->total_taxi_fee += $package->taxi_fee;
-            $obj->pacakage_ids[] = $package->id;
+            if(!$package->driver_disbursement_id) {
+                $deliveredCount += 1;
+                if($package->cod) $obj->total_taxi_fee += $package->delivery_fee;
+                if($package->taxi_fee) $obj->total_taxi_fee += $package->taxi_fee;
+                $obj->package_ids[] = $package->id;
+            }
+
         }
         $obj->total_pickup = $pickUpCount * $dc->normal_pickup_commission;
         $obj->total_delivered = $deliveredCount * $dc->normal_delivery_commission;
@@ -944,6 +955,9 @@ class TransactionService
         $obj->total_pickup_package = $pickUpCount;
         $obj->delivery_rate = $dc->normal_delivery_commission;
         $obj->pickup_rate = $dc->normal_pickup_commission;
+        if(empty($obj->pacakage_ids) && empty($obj->order_ids)){
+            return DataResponse::NotFound('No package found');
+        }
         return $obj;
     }
 

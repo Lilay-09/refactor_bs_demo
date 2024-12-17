@@ -21,31 +21,57 @@ class TransactionController extends Controller
 
     public function getTransactionSummary(Request $req){
         $user = UserService::getAuthUser('driver');
-        // $balanceInfo = Package::where('driver_id',$user->id)
-        // ->with(['driver_payment'])
-        // ->get();
         $balanceDue = Package::where('driver_id',$user->id)->where('is_deleted',1)->whereIn('status_id',[9,19])->sum('driver_total');
         $count = 0;
         $total = 0;
         $paidTrx = [];
-        $paymentTrx = Payment::where('payer_id',$user->id)
-        ->where('payments.is_deleted',0)
-        ->where('payments.is_settled',1)
-        ->join('users as c','c.id','payments.settled_uid')
-        ->selectRaw('payments.id,payments.payment_datetime,payments.payable_amount,payments.is_settled,payments.breakdown_notes,c.user_name as cashier_name,payments.remarks')
+        // $paymentTrx = Payment::where('payer_id',$user->id)
+        // ->where('payments.is_deleted',0)
+        // ->where('payments.is_settled',1)
+        // ->join('users as c','c.id','payments.settled_uid')
+        // ->selectRaw('payments.id,payments.payment_datetime,payments.payable_amount,payments.is_settled,payments.breakdown_notes,c.user_name as cashier_name,payments.remarks')
+        // ->get();
+        $paymentTrx = Package::where('packages.is_deleted', 0)
+        ->where('driver_id', $user->id)
+        ->whereIn('packages.status_id', [9, 19])
+        ->leftJoin('payments as p', 'p.id', 'packages.driver_payment_id')
+        ->leftJoin('users as c', 'c.id', 'p.settled_uid')
+        ->select([
+            'p.id as payment_id',
+            'p.payment_datetime',
+            'p.payable_amount',
+            'p.is_settled',
+            // 'p.breakdown_notes',
+            'c.user_name as cashier_name',
+            \DB::raw('SUM(packages.driver_total) as driver_total'), // Aggregate driver_total
+            'p.remarks'
+        ])
+        ->groupBy([
+            'p.id',
+            'p.payment_datetime',
+            'p.payable_amount',
+            'p.is_settled',
+            // 'p.breakdown_notes',
+            'c.user_name',
+            'p.remarks'
+        ])
         ->get();
+
+        // return $paymentTrx;
         $paymentDetails = PaymentDetail::selectRaw('id,payment_id,method,currency_code')->get();
         foreach($paymentTrx as $payment){
             $payment->payment_date = Helper::formatCustomDateTime($payment->payment_datetime,'d-M-Y');
             if($payment->is_settled) {
-                $paymentDetails = $this->getPaymentMethods($paymentDetails,$payment->id);
+                $paymentDetails = $this->getPaymentMethods($paymentDetails,$payment->payment_id);
                 $payment->breakdown_notes = $paymentDetails->method;
                 $paidTrx[] = $payment;
             }
             else {
                 $count += 1;
-                $total += 1;
+                $total += $payment->driver_total;
             }
+            $remarks = $payment->remarks;
+            $payment->remarks = $remarks ? $remarks : '';
             unset($payment->is_settled,$payment->payment_datetime);
         }
 
@@ -76,9 +102,17 @@ class TransactionController extends Controller
             // Ensure $d is an object before accessing its properties
             if (is_object($d) && isset($d->payment_id) && $d->payment_id == $pmtId) {
                 if (!$method) {
-                    $method = $d->method;
+                    $pMtd = $d->method;
+                    if($d->currency_code == 'KHR'){
+                        $pMtd = $pMtd.':KHR';
+                    }
+                    $method = $pMtd;
                 } else {
-                    $method .= '|' . $d->method;
+                    $pMtd = $d->method;
+                    if($d->currency_code == 'KHR'){
+                        $pMtd = $pMtd.':KHR';
+                    }
+                    $method .= '|' . $pMtd;
                 }
             }
         }
@@ -95,9 +129,9 @@ class TransactionController extends Controller
         $startDate = $req->startDate;
         $endDate = $req->endDate;
         $qP = Package::selectRaw('status_id,driver_id')
-        ->where('status_id',9)
-        ->where('driver_id',$driverId)
-        ->where('driver_disbursement_id',$driverId);
+        ->whereIn('status_id',[9,19])
+        ->where('driver_id',$driverId);
+        // ->where('driver_disbursement_id',$driverId);
         if($startDate && $endDate){
             $startDate = date('Y-m-d',strtotime($startDate));
             $endDate = date('Y-m-d',strtotime($endDate));
@@ -115,22 +149,24 @@ class TransactionController extends Controller
         $pickUpCount = $qO->sum('qty');
         $driverCommissions = DriverCommission::where('is_deleted',0)->where('driver_id',$driverId)->get();
         $driverCommissionInfo = TransactionService::getDriverCommissionInfo($driverCommissions,$driverId);
-        $total = $pickUpCount * $driverCommissionInfo->normal_pickup_commission + $deliveredCount * $driverCommissionInfo->normal_delivery_commission;
+        $pickUpRate = $driverCommissionInfo->normal_pickup_commission;
+        $deliveryRate = $driverCommissionInfo->normal_delivery_commission;
+        $total = $pickUpCount * $pickUpRate + $deliveredCount * $deliveryRate;
         $report = [
             "total" => $total,
             "details" => [
                 [
                     'category' => 'Pickup',
                     'count' => $pickUpCount,
-                    'unit' => 0.2,
-                    'total' => 20,
+                    'unit' => (float)$pickUpRate,
+                    'total' => $pickUpCount * $pickUpRate,
                     'remarks' => null,
                 ],
                 [
                     'category' => 'Delivered',
                     'count' => $deliveredCount,
-                    'unit' => 0.2,
-                    'total' => 20,
+                    'unit' => (float)$deliveryRate,
+                    'total' => $deliveryRate * $deliveredCount,
                     'remarks' => null,
                 ]
             ]
@@ -141,7 +177,8 @@ class TransactionController extends Controller
 
     public function getCommissionTrx(){
         $user = UserService::getAuthUser('driver');
-        // $disbursement = Disbursement::where('payee_type','driver')->where('payee_id',$user->id)->get();
+        $disbursement = Disbursement::where('payee_type','driver')
+        ->where('payee_id',$user->id)->get();
         $data = [
             [
                 'payment_date' => '',

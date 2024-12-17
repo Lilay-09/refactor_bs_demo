@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::table('disbursements', function (Blueprint $table) {
             //
-            $table->decimal('pickup_rate',10,2)->default(0);
+            $table->decimal('delivery_rate',10,2)->default(0);
         });
     }
 
@@ -24,7 +24,7 @@ return new class extends Migration
     {
         Schema::table('disbursements', function (Blueprint $table) {
             //
-            $table->dropColumn('pickup_rate');
+            $table->dropColumn('delivery_rate');
         });
     }
 };

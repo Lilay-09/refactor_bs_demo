@@ -4,6 +4,7 @@ namespace App\Services\Mobile;
 
 use App\Models\Delivery;
 use DataResponse;
+use Helper;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\Request;
 
@@ -14,6 +15,8 @@ class ReusableService
         $paymentStatus = $req->payment_status_id ?? null;
         $statusId = $req->status_id ?? null;
         $search = $req->search ?? null;
+        $startDate = $req->startDate;
+        $endDate = $req->endDate;
 
         if($reqSearch && !$search) return DataResponse::Pagination(new Collection(),$req);
         $qFp = Delivery::fromRaw('deliveries as d')->join('delivery_packages as dp','d.id','dp.delivery_id')
@@ -28,6 +31,11 @@ class ReusableService
         }
         if($user){
             $qFp->where('d.driver_id',$user->id);
+        }
+        if($startDate && $endDate){
+            $startDate = Helper::dateYMD($startDate);
+            $endDate = Helper::dateYMD($endDate);
+            $qFp->whereBetween('d.depart_datetime',[$startDate,$endDate])->orWhereDate('d.depart_datetime',$endDate);
         }
         // else if($paymentStatus == 1) $qFp->where('pmt.approved',0);
         if($statusId) $qFp->where('p.status_id',$statusId);
