@@ -12,7 +12,7 @@ use Illuminate\Http\Request;
 
 class MerchantTransactionController extends Controller
 {
-    //
+
     protected $userClass = 'merchant';
     public function getDeliveryPackages(Request $req){
         $user = UserService::getAuthUser();

@@ -25,6 +25,8 @@ class TransactionService
         $fkKey = $type.'_payment_id';
         $driverId = $req->driver_id;
         $merchantId = $req->merchant_id;
+        $startDate = $req->startDate;
+        $endDate = $req->endDate;
         $qP = Package::fromRaw('packages as p')->where('p.company_id',$user->company_id)
         ->join('users as d','d.id','p.driver_id')
         ->join('tracking_statuses as ts','ts.id','p.status_id')
@@ -34,7 +36,7 @@ class TransactionService
         // ->leftJoin('payments as dpmt','dpmt.id','p.'.$fkKey) //** if driver paid or unpaid */
         // ->leftJoin('payments as mpmt','mpmt.id','p.merchant_payment_id') //** if driver paid or unpaid */
         ->whereIn('p.status_id',[9,19]) //* delivered and failed with fee
-        ->selectRaw('p.remarks,p.cod,p.price,d.phone as driver_phone,p.taxi_fee,p.payer,p.delivery_fee,p.merchant_total,p.driver_total,m.user_name as merchant_name,m.phone as merchant_phone,d.user_name as driver_name,p.status_id,p.id as package_id,d.id as driver_id,p.qr_code,ts.name as status_code,p.delivered_datetime,p.failed_datetime,p.zone_code,p.receiver_phone,p.delivery_type,'.$fkKey);
+        ->selectRaw('p.additional_fee,p.remarks,p.cod,p.price,d.phone as driver_phone,p.taxi_fee,p.payer,p.delivery_fee,p.merchant_total,p.driver_total,m.user_name as merchant_name,m.phone as merchant_phone,d.user_name as driver_name,p.status_id,p.id as package_id,d.id as driver_id,p.qr_code,ts.name as status_code,p.delivered_datetime,p.failed_datetime,p.zone_code,p.receiver_phone,p.delivery_type,'.$fkKey);
         if($driverId || $merchantId){
             if($type == 'driver') $qP->where('p.driver_id',$driverId);
             else $qP->where('p.merchant_id',$merchantId);
@@ -45,7 +47,7 @@ class TransactionService
             $package->cod = $package->cod ? 'Yes' : 'No';
             $package->{$statusKey} = !$package->driver_payment_id ? 'Unpaid':($package->approved ? 'Approved':'Pending');
             $package->datetime = ($package->status_id == 9 && ($package->delivered_datetime || $package->delivered_datetime)) ? Helper::formatCustomDateTime($package->delivered_datetime) : Helper::formatCustomDateTime($package->failed_datetime);
-            // $package->total = $
+            $package->fee = PickupCenterService::getFees($package->cod,$package->payer,$package->price,$package->delivery_fee,$package->additional_fee,$package->extra_charge,$package->taxi_fee);
         }
         return DataResponse::Pagination($packages,$req);
     }
@@ -390,13 +392,24 @@ class TransactionService
 
     public function getPayments(Request $req,$user,$type='driver'){
         $payerId = $req->{$type.'_id'};
+        $startDate = $req->startDate;
+        $endDate = $req->endDate;
+        // Log::error(json_encode($req->all()));
         $qP = Payment::fromRaw('payments as p')->join('users as d','d.id','p.payer_id')
         ->where('p.is_deleted',0)
         ->where('p.is_settled',0)
         ->join('users as ap','ap.id','p.receiver_uid')
         ->where('payer_type',$type)
-        ->selectRaw('p.payment_datetime,p.package_count,ap.user_name as booked_user,p.payable_amount,p.id as payment_id,d.user_name as payer_name,p.exchange_rate,p.taxi_fee,p.approved,p.breakdown_notes')
-        ->where('p.payer_id',$payerId);
+        ->selectRaw('p.is_settled,p.payment_datetime,p.package_count,ap.user_name as booked_user,p.payable_amount,p.id as payment_id,d.user_name as payer_name,p.exchange_rate,p.taxi_fee,p.approved,p.breakdown_notes')
+        ->orderByDesc('payment_datetime');
+        if($payerId) $qP->where('p.payer_id',$payerId);
+        if($startDate && $endDate){
+            $startDate = Helper::dateYMD($startDate);
+            $endDate = Helper::dateYMD($endDate);
+            $qP->where(function($q) use($startDate,$endDate){
+                $q->whereBetween('payment_datetime',[$startDate,$endDate])->orWhereDate('payment_datetime',$endDate);
+            });
+        }
 
         $payments = $qP->get();
         $paymentDetails = PaymentDetail::get();
