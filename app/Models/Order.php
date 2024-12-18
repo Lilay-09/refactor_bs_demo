@@ -28,6 +28,7 @@ class Order extends Model
         'pickup_notes',
         'pickup_method',
         'request_pickup_datatime',
+        'pickup_datetime',
         'is_completed',
         'loc_lat',
         'loc_lng',

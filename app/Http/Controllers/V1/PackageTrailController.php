@@ -66,7 +66,7 @@ class PackageTrailController extends Controller
             $startDate = date('Y-m-d',strtotime($startDate));
             $endDate = date('Y-m-d',strtotime($endDate));
             $query->where(function ($q) use($startDate,$endDate){
-                $q->whereBetween('created_at',[$startDate,$endDate])->orWhereDate('created_at',$endDate);
+                $q->whereBetween('created_at',[$startDate,$endDate])->orWhereDate('created_at','<=',$endDate);
                 // $q->whereBetween('failed_datetime',[$startDate,$endDate])->orWhereDate('failed_datetime',$endDate)
                 // ->whereNotNull('failed_datetime')->orWhereNotNull('delivered_datetime')
                 // ->orWhereBetween('delivered_datetime',[$startDate,$endDate])->orWhereDate('delivered_datetime',$endDate);

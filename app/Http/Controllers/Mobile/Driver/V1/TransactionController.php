@@ -135,7 +135,7 @@ class TransactionController extends Controller
         if($startDate && $endDate){
             $startDate = date('Y-m-d',strtotime($startDate));
             $endDate = date('Y-m-d',strtotime($endDate));
-            $qP->whereBetween('delivered_datetime',[$startDate,$endDate])->orWhereDate('delivered_datetime',$endDate);
+            $qP->whereBetween('delivered_datetime',[$startDate,$endDate])->orWhereDate('delivered_datetime','<=',$endDate);
         }
         $deliveredCount = $qP->count();
         $qO = Order::where('is_deleted',0)->where('status_id',5)
@@ -144,7 +144,7 @@ class TransactionController extends Controller
         if($startDate && $endDate){
             $startDate = date('Y-m-d',strtotime($startDate));
             $endDate = date('Y-m-d',strtotime($endDate));
-            $qO->whereBetween('order_datetime',[$startDate,$endDate])->orWhereDate('order_datetime',$endDate);
+            $qO->whereBetween('order_datetime',[$startDate,$endDate])->orWhereDate('order_datetime','<=',$endDate);
         }
         $pickUpCount = $qO->sum('qty');
         $driverCommissions = DriverCommission::where('is_deleted',0)->where('driver_id',$driverId)->get();

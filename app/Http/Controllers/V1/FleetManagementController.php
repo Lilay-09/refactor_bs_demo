@@ -47,7 +47,7 @@ class FleetManagementController extends Controller
         if($startDate && $endDate){
             $startDate = date('Y-m-d',strtotime($startDate));
             $endDate = date('Y-m-d',strtotime($endDate));
-            $query->whereBetween('depart_datetime',[$startDate,$endDate])->orWhereDate('depart_datetime',$startDate);
+            $query->whereBetween('depart_datetime',[$startDate,$endDate])->orWhereDate('depart_datetime','<=',$startDate);
         }else $query->whereDate('depart_datetime',now());
         $deliveries = $query->get();
         foreach($deliveries as $delivery){

@@ -173,7 +173,7 @@ class PickUpCenterController extends Controller
         if($startDate && $endDate){
             $startDate = date('Y-m-d',strtotime($startDate));
             $endDate = date('Y-m-d',strtotime($endDate));
-            $query->whereBetween('order_datetime',[$startDate,$endDate])->orWhereDate('order_datetime',$endDate);
+            $query->whereBetween('order_datetime',[$startDate,$endDate])->orWhereDate('order_datetime','<=',$endDate);
         }
         $packages = Package::where('outstanding',1)->where('is_deleted',0)->get();
         $orders = $query->get();
@@ -253,6 +253,7 @@ class PickUpCenterController extends Controller
         }
         $trackingNotes = $order->tracking_notes.'|Admin assign ('.$order->code.') '.date('d-M-Y h:i:s A');
         $order->update([
+            'pickup_datetime' => now(),
             'tracking_notes' => $trackingNotes,
             'driver_id' => $driverId,
             'status_id' => ($driverId != 0 && $driverId) ? 3 : 1

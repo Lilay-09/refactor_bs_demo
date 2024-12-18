@@ -311,13 +311,25 @@ class ReportController extends Controller
     }
 
     private function getOperationSummary($startDate,$endDate){
+        $startDate = $startDate ? Helper::dateYMD($startDate):null;
+        $endDate = $endDate ? Helper::dateYMD($endDate):null;
         $qP =Package::where('is_deleted',0)
         ->where('outstanding',0)
         ->selectRaw('id,merchant_id,driver_id,status_id');
         $packages = $qP->get();
+        $qO = Order::where('status_id',5)->where('is_deleted',0);
+        if($startDate && $endDate){
+            $qO->whereBetween('pickup_datetime',[$startDate,$endDate])->orWhereDate('pickup_datetime','<=',$endDate);
+            // $qO->whereBetween('updated_at',[$startDate,$endDate])->orWhereDate('updated_at',$endDate);
+        }
+        $pickupCount = $qO->sum('qty');
         $merchantCount = 0;
         $deliveredCount = 0;
-        $pickupCount = 0;
+        $atWarehouseCount = 0;
+        $onDeliveryCount = 0;
+        $failedCount = 0;
+        $returnedCount = 0;
+        $faileWithFeeCount = 0;
         $seenMerchants = [];
         foreach($packages as $p){
             if (!isset($seenMerchants[$p->merchant_id])) {
@@ -325,7 +337,11 @@ class ReportController extends Controller
                 $merchantCount++;
             }
             if($p->status_id == 9) $deliveredCount += 1;
-            if($p->status_id == 6) $pickupCount += 1;
+            if($p->status_id == 6) $onDeliveryCount += 1;
+            if($p->status_id == 5) $atWarehouseCount += 1;
+            if($p->status_id == 10) $failedCount += 1;
+            if($p->status_id == 11) $returnedCount +=1;
+            if($p->status_id == 19) $faileWithFeeCount +=1;
         }
 
         return [
@@ -335,15 +351,15 @@ class ReportController extends Controller
             ],
             [
                 'title' => 'Total pacakge \'Pickup\'',
-                'count' => 6
+                'count' => $pickupCount
             ],
             [
                 'title' => 'Total package \'At Warehouse\'',
-                'count' => 6
+                'count' => $atWarehouseCount
             ],
             [
                 'title' => 'Total package \'On Delivery\'',
-                'count' => 6
+                'count' => $onDeliveryCount
             ],
             [
                 'title' => 'Total Package \'Delivered\'',
@@ -351,11 +367,15 @@ class ReportController extends Controller
             ],
             [
                 'title' => 'Total Package \'Failed\'',
-                'count' => 6
+                'count' => $failedCount
+            ],
+            [
+                'title' => 'Total Package \'Fail With Fee\'',
+                'count' => $faileWithFeeCount
             ],
             [
                 'title' => 'Total Package \'Returned\'',
-                'count' => 6
+                'count' => $returnedCount
             ]
         ];
 

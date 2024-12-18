@@ -35,7 +35,7 @@ class ReusableService
         if($startDate && $endDate){
             $startDate = Helper::dateYMD($startDate);
             $endDate = Helper::dateYMD($endDate);
-            $qFp->whereBetween('d.depart_datetime',[$startDate,$endDate])->orWhereDate('d.depart_datetime',$endDate);
+            $qFp->whereBetween('d.depart_datetime',[$startDate,$endDate])->orWhereDate('d.depart_datetime','<=',$endDate);
         }
         // else if($paymentStatus == 1) $qFp->where('pmt.approved',0);
         if($statusId) $qFp->where('p.status_id',$statusId);

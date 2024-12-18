@@ -176,7 +176,7 @@ class StockManagementService
             $endDate = Carbon::parse($endDate);
             $startDate = date('Y-m-d',strtotime($startDate));
             $endDate = date('Y-m-d',strtotime($endDate));
-            $query->whereBetween('approved_date',[$startDate,$endDate])->orWhereDate('approved_date',$endDate);
+            $query->whereBetween('approved_date',[$startDate,$endDate])->orWhereDate('approved_date','<=',$endDate);
         }
         $missingItems = $query->orderByDesc('id')->get();
         foreach($missingItems as $item){

@@ -16,7 +16,6 @@ use DB;
 use Exception;
 use Helper;
 use Illuminate\Http\Request;
-use Illuminate\Log\Logger;
 use Log;
 
 class TransactionService
@@ -27,6 +26,7 @@ class TransactionService
         $merchantId = $req->merchant_id;
         $startDate = $req->startDate;
         $endDate = $req->endDate;
+        $search = $req->search;
         $qP = Package::fromRaw('packages as p')->where('p.company_id',$user->company_id)
         ->join('users as d','d.id','p.driver_id')
         ->join('tracking_statuses as ts','ts.id','p.status_id')
@@ -36,10 +36,21 @@ class TransactionService
         // ->leftJoin('payments as dpmt','dpmt.id','p.'.$fkKey) //** if driver paid or unpaid */
         // ->leftJoin('payments as mpmt','mpmt.id','p.merchant_payment_id') //** if driver paid or unpaid */
         ->whereIn('p.status_id',[9,19]) //* delivered and failed with fee
-        ->selectRaw('p.additional_fee,p.remarks,p.cod,p.price,d.phone as driver_phone,p.taxi_fee,p.payer,p.delivery_fee,p.merchant_total,p.driver_total,m.user_name as merchant_name,m.phone as merchant_phone,d.user_name as driver_name,p.status_id,p.id as package_id,d.id as driver_id,p.qr_code,ts.name as status_code,p.delivered_datetime,p.failed_datetime,p.zone_code,p.receiver_phone,p.delivery_type,'.$fkKey);
+        ->selectRaw('p.additional_fee,p.remarks,p.cod,p.price,d.phone as driver_phone,p.taxi_fee,p.payer,p.delivery_fee,p.merchant_total,m.user_name as merchant_name,m.phone as merchant_phone,d.user_name as driver_name,p.status_id,p.id as package_id,d.id as driver_id,p.qr_code,ts.name as status_code,p.delivered_datetime,p.failed_datetime,p.zone_code,p.receiver_phone,p.delivery_type,'.$fkKey);
         if($driverId || $merchantId){
             if($type == 'driver') $qP->where('p.driver_id',$driverId);
             else $qP->where('p.merchant_id',$merchantId);
+        }
+        if($search){
+            $qP->where('p.qr_code',$search);
+        }
+        if($startDate && $endDate){
+            $startDate = Helper::dateYMD($startDate);
+            $endDate = Helper::dateYMD($endDate);
+            $qP->where(function ($q) use ($startDate,$endDate){
+                $q->whereBetween('delivered_datetime',[$startDate,$endDate])->orWhereBetween('failed_datetime',[$startDate,$endDate])
+                ->orWhereDate('delivered_datetime','<=',$endDate)->orWhereDate('failed_datetime','<=',$endDate);
+            });
         }
         $packages = $qP->get();
         $statusKey = $type.'_payment_status';
@@ -47,9 +58,27 @@ class TransactionService
             $package->cod = $package->cod ? 'Yes' : 'No';
             $package->{$statusKey} = !$package->driver_payment_id ? 'Unpaid':($package->approved ? 'Approved':'Pending');
             $package->datetime = ($package->status_id == 9 && ($package->delivered_datetime || $package->delivered_datetime)) ? Helper::formatCustomDateTime($package->delivered_datetime) : Helper::formatCustomDateTime($package->failed_datetime);
+            // $merchantTotal = $package->merchant_total;
+            // $package->merchant_total = -$merchantTotal;
+            // if($package->cod && $package->price > 0 && $package->payer == 'sender'){
+            //     $package->merchant_total = $package->driver_total - $merchantTotal;
+            // }
+            // if($package->cod) $package->remarks = $package->price;
+            $package->driver_total = self::getPackageTotal('driver',$package->cod,$package->price,$package->taxi_fee,$package->extra_charge,$package->additional_fee,$package->delivery_fee,$package->payer);
             $package->fee = PickupCenterService::getFees($package->cod,$package->payer,$package->price,$package->delivery_fee,$package->additional_fee,$package->extra_charge,$package->taxi_fee);
         }
         return DataResponse::Pagination($packages,$req);
+    }
+
+    public static function getPackageTotal($type,$cod,$price,$taxiFee,$extraCharge,$additionalFee,$baseFee,$payer){
+        $total = $extraCharge + $additionalFee;
+        if($type == 'driver'){
+            if($cod) $total += $price;
+            if($payer == 'receiver') $total += $baseFee;
+            if($taxiFee) $total -= $taxiFee;
+        }
+
+        return $total;
     }
     public function receivePaymentValidation(Request $req,$type='driver'){
         return validator($req->all(),[
@@ -99,7 +128,7 @@ class TransactionService
         $breakDownNotes = trim($breakDownNotes, '| ');
         DB::beginTransaction();
         try{
-            $createPayment = Payment::create([
+            $pmtArr = [
                 'payer_id' => $payerId,
                 'payer_type' => $type,
                 'taxi_fee' => $validPackages->total_taxi_fee,
@@ -118,7 +147,13 @@ class TransactionService
                 'company_id' => $user->company_id,
                 'received_datetime' => now(),
                 'branch_id' => $user->branch_id
-            ]);
+            ];
+            if($type == 'merchant'){
+                $pmtArr['approved'] = 1;
+                $pmtArr['approved_datetime'] = now();
+                $pmtArr['approved_uid'] = $user->id;
+            }
+            $createPayment = Payment::create($pmtArr);
             $paymentId = $createPayment->id;
             if($cash && $dueAmount > 0){
                 PaymentDetail::create([
@@ -178,6 +213,25 @@ class TransactionService
             return DataResponse::Error(__('messages.error',['info' => 'Fail to receive']));
         }
     }
+
+
+    public function receiveOrDisburesement(Request $req,$user,$type){
+        $isDisbursement = $req->is_disbursement;
+        if($isDisbursement){
+            return $this->disbursementPayment($req,$user,$type);
+        }else{
+            return $this->receivePaymentService($req,$user,$type);
+        }
+    }
+
+
+    // public function receiveOrDisbursedAmount(){
+
+    // }
+
+    // public function getMerchantLastPayment(){
+
+    // }
 
     public function getDriverCommissions($user,$driverId){
         $driver = User::where('is_deleted',0)->where('company_id',$user->company_id)
@@ -407,7 +461,7 @@ class TransactionService
             $startDate = Helper::dateYMD($startDate);
             $endDate = Helper::dateYMD($endDate);
             $qP->where(function($q) use($startDate,$endDate){
-                $q->whereBetween('payment_datetime',[$startDate,$endDate])->orWhereDate('payment_datetime',$endDate);
+                $q->whereBetween('payment_datetime',[$startDate,$endDate])->orWhereDate('payment_datetime','<=',$endDate);
             });
         }
 
@@ -700,7 +754,7 @@ class TransactionService
         $validate = validator($req->all(),[
             'cod' => 'required|in:1,0',
             'price' => 'nullable|numeric',
-            'payer' => 'required|in:receiver,merchant',
+            'payer' => 'required|in:receiver,sender',
             'taxi_fee' => 'nullable|numeric'
         ]);
         if($validate->fails()) return DataResponse::ValidateFail($validate->errors()->first());
@@ -919,7 +973,7 @@ class TransactionService
         if($startDate && $endDate){
             $startDate = date('Y-m-d',strtotime($startDate));
             $endDate = date('Y-m-d',strtotime($endDate));
-            $qP->whereBetween('delivered_datetime',[$startDate,$endDate])->orWhereDate('delivered_datetime',$endDate);
+            $qP->whereBetween('delivered_datetime',[$startDate,$endDate])->orWhereDate('delivered_datetime','<=',$endDate);
         }
         if($payeeId) $qP->where('driver_id',$payeeId);
         $packages = $qP->get();
@@ -928,7 +982,7 @@ class TransactionService
         if($startDate && $endDate){
             $startDate = date('Y-m-d',strtotime($startDate));
             $endDate = date('Y-m-d',strtotime($endDate));
-            $qO->whereBetween('order_datetime',[$startDate,$endDate])->orWhereDate('order_datetime',$endDate);
+            $qO->whereBetween('order_datetime',[$startDate,$endDate])->orWhereDate('order_datetime','<=',$endDate);
         }
         $orders = $qO->get();
         $qDc = DriverCommission::where('is_deleted',0)->selectRaw('delivery_type,pickup_commission,delivery_commission,use_percentage');

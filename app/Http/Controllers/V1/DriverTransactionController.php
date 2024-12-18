@@ -37,7 +37,7 @@ class DriverTransactionController extends Controller
         if($startDate && $endDate){
             $startDate = date('Y-m-d',strtotime($startDate));
             $endDate = date('Y-m-d',strtotime($endDate));
-            $qP->whereBetween('delivered_datetime',[$startDate,$endDate])->orWhereDate('delivered_datetime',$endDate);
+            $qP->whereBetween('delivered_datetime',[$startDate,$endDate])->orWhereDate('delivered_datetime','<=',$endDate);
         }
         if($driverId) $qP->where('driver_id',$driverId);
         $packages = $qP->get();
@@ -46,7 +46,7 @@ class DriverTransactionController extends Controller
         if($startDate && $endDate){
             $startDate = date('Y-m-d',strtotime($startDate));
             $endDate = date('Y-m-d',strtotime($endDate));
-            $qO->whereBetween('order_datetime',[$startDate,$endDate])->orWhereDate('order_datetime',$endDate);
+            $qO->whereBetween('order_datetime',[$startDate,$endDate])->orWhereDate('order_datetime','<=',$endDate);
         }
         $orders = $qO->get();
         $qDc = DriverCommission::where('is_deleted',0)->selectRaw('id,driver_id,delivery_type,pickup_commission,delivery_commission');
@@ -133,7 +133,7 @@ class DriverTransactionController extends Controller
     public function receivePackagesPayment(Request $req){
         $user = UserService::getAuthUser();
         $trxService = new TransactionService();
-        $receive = $trxService->receivePaymentService($req,$user,'driver');
+        $receive = $trxService->receiveOrDisburesement($req,$user,'driver');
         return ApiResponse::flex($receive);
     }
 
