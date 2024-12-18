@@ -368,6 +368,7 @@ Route::middleware(['jwt','localize'])->prefix('admin/v1/{lang}')->group(function
 
         Route::prefix('filter')->group(function(){
             Route::get('driver',[GeneralSettingController::class,'getDriverFilterOptions']);
+            Route::get('merchant/trx',[GeneralSettingController::class,'getMerchantTrxFilter']);
         });
         Route::prefix('form')->group(function(){
             Route::get('banner',[GeneralSettingController::class,'getFormBanner']);

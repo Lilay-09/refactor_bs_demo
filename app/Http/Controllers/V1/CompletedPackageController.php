@@ -24,7 +24,6 @@ class CompletedPackageController extends Controller
         $driverId = $req->driver_id;
         $warehouseId = $req->warehouse_id;
         $paymentStatusId = $req->payment_status_id;
-        \Log::error(json_encode($req->all()));
         // $query = Package::where('is_deleted',0)->whereIn('status_id',[9,19])
         // ->orderByDesc('id')
         // ->selectRaw('qr_code,id,status_id,dim_x,dim_y,dim_z,order_id,failure_notes,payer,cod,price,delivery_fee,receiver_address,zone_code,zone_name,receiver_phone,delivery_type,actual_kg,billed_kg,delivered_datetime,failed_datetime,driver_total,merchant_total');

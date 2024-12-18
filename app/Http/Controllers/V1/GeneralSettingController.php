@@ -193,6 +193,15 @@ class GeneralSettingController extends Controller
         return ApiResponse::JsonResult($obj);
     }
 
+    public function getMerchantTrxFilter(Request $req){
+        $user = UserService::getAuthUser();
+        $obj = (object)[
+            'merchants' => $this->gs::optionsMerchant($user),
+            'statuses' => $this->gs::paymentStatus(),
+        ];
+        return ApiResponse::JsonResult($obj);
+    }
+
     public function getFormFleet(){
         $user = UserService::getAuthUser();
         $obj = (object)[

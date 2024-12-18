@@ -26,8 +26,8 @@ use Log;
 class GeneralSettingController extends Controller
 {
     //
-    public function getOptionsDriverFailRemarks(){
-        return ApiResponse::JsonResult(GeneralSettingService::optionsDriverRemarks('failure'));
+    public function getOptionsDriverFailRemarks(Request $req){
+        return ApiResponse::JsonResult(GeneralSettingService::optionsDriverRemarks('failure',$req->isFailWithFee));
     }
 
     public function getMerchantFormBooking(){
@@ -71,10 +71,27 @@ class GeneralSettingController extends Controller
         if($package->status_id == 9) return ApiResponse::Duplicated(__('messages.info',[
             'info' => 'Package is completed'
         ]));
+        $diffDriver = $package->driver_id ? ($user->id != $package->driver_id) : false;
+        $isOnDelivery = $package->status_id == 6;
+        $data = null;
+        if(!$diffDriver && $isOnDelivery)
+            $data = Package::where('qr_code',$item_ref)
+            ->with('status:id,name')
+            ->selectRaw('id,qr_code,status_id,assign_driver_datetime,receiver_phone,receiver_name,product_type,cod,zone_name,zone_code,price,delivery_fee,driver_total as total,taxi_fee,additional_fee,extra_charge,payer')
+            // ->selectRaw('p.delivered_datetime,p.failed_datetime,p.assign_driver_datetime,p.merchant_id,p.qr_code,p.price,p.cod,p.receiver_name,p.receiver_phone,p.zone_code,p.zone_name,ts.name as status_code
+            // ,d.user_name as driver_name,d.phone as driver_phone,m.user_name as merchant_name,m.phone as merchant_phone,p.id as package_id,dp.delivery_id,p.zone_code,p.zone_name,p.delivery_fee as base_fee,p.driver_total,p.driver_total as delivery_fee,p.taxi_fee,p.product_type,dp.status_id')
+            ->first();
+            if($data){
+                $data->cod = $data->cod ? 'Yes' : 'No';
+                $data->status_code = $data->status->name;
+                $data->fee = PickupCenterService::getFees($data->cod,$data->payer,$data->price,$data->delivery_fee,$data->additional_fee,$data->extra_charge,$data->taxi_fee);
+                unset($data->status);
+            }
         return ApiResponse::JsonResult([
             'is_contact' => $package->is_contact,
-            'diff_driver' => $package->driver_id ? ($user->id != $package->driver_id) : false,
-            'is_delivery' => $package->status_id == 6
+            'diff_driver' => $diffDriver,
+            'is_delivery' => $isOnDelivery,
+            'info' => $data
         ]);
     }
 

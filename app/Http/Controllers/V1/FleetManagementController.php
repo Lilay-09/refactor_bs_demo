@@ -25,6 +25,8 @@ class FleetManagementController extends Controller
     public function getTrips(Request $req){
         $user = UserService::getAuthUser();
         $search = $req->search ?? null;
+        $startDate = $req->startDate;
+        $endDate = $req->endDate;
         $packages = Package::fromRaw('packages as p')->join('delivery_packages as dp','p.id','dp.package_id')
         ->selectRaw('p.id as package_id,dp.delivery_id,dp.delay_count,dp.status_id,p.driver_total')
         ->where('dp.is_deleted',0)
@@ -36,12 +38,17 @@ class FleetManagementController extends Controller
         ->orderByDesc('id')
         ->selectRaw('id,fleet_tracking_number,status_id,driver_id,depart_datetime,remarks,package_count,delivered_count,failed_count,warehouse_id,vehicle_type,driver_id,is_completed,finished');
         if($search){
-            $query->whereHas('packages.package',function($q) use ($search){
+        $query->whereHas('packages.package',function($q) use ($search){
                 $q->where('qr_code',$search);
             })->orWhere('fleet_tracking_number',$search)->orWhereHas('driver',function($q) use ($search){
                 $q->where('user_name','ilike','%'.$search.'%')->orWhere('name_km','ilike','%'.$search.'%');
             });
         }
+        if($startDate && $endDate){
+            $startDate = date('Y-m-d',strtotime($startDate));
+            $endDate = date('Y-m-d',strtotime($endDate));
+            $query->whereBetween('depart_datetime',[$startDate,$endDate])->orWhereDate('depart_datetime',$startDate);
+        }else $query->whereDate('depart_datetime',now());
         $deliveries = $query->get();
         foreach($deliveries as $delivery){
             $delivery->status_code = $delivery->status->name;
