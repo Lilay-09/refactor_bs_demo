@@ -11,6 +11,7 @@ use App\Services\GeneralSettingService;
 use App\Services\PickupCenterService;
 use App\Services\TransactionService;
 use App\Services\UserService;
+use Helper;
 use Illuminate\Http\Request;
 
 class CompletedPackageController extends Controller
@@ -41,11 +42,20 @@ class CompletedPackageController extends Controller
         //** Filter */
         if($search) $qP->where('p.qr_code',$search);
         if($driverId) $qP->where('p.driver_id',$driverId);
+        if($merchantId) $qP->where('p.merchant_id',$merchantId);
         if($warehouseId) $qP->where('o.warehouse_id',$warehouseId);
         if($paymentStatusId == 1){
             $qP->whereNotNull('driver_payment_id')->whereNotNull('driver_payment_id')->where('approved_driver_pmt',0)->where('merhchant_pmt_status',0);
         }else if($paymentStatusId == 2){
             $qP->where('dpmt.approved_driver_pmt',1)->where('mpmt.merhchant_pmt_status',1);
+        }
+        if($startDate && $endDate){
+            $startDate = Helper::dateYMD($startDate);
+            $endDate = Helper::dateYMD($endDate);
+            $qP->where(function ($q) use($startDate,$endDate){
+                $q->whereBetween('failed_datetime',[$startDate,$endDate])->orWhereBetween('delivered_datetime',[$startDate,$endDate])
+                ->orWhereDate('failed_datetime',$endDate)->orWhereDate('delivered_datetime',$endDate);
+            });
         }
         //** --------- */
         $packages = $qP->get();

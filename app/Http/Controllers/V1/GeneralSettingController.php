@@ -205,7 +205,7 @@ class GeneralSettingController extends Controller
     public function getFormFleet(){
         $user = UserService::getAuthUser();
         $obj = (object)[
-            'statuses' => $this->gs::optionsTrackingStatus($user,[15],[],'fleet'),
+            'statuses' => $this->gs::optionsTrackingStatus($user,[15,17],[],'fleet'),
             'warehouses' => $this->gs::optionsWarehouse($user),
             'drivers' => $this->gs::optionsDriver($user),
             'zones' => $this->gs::optionsZone($user)

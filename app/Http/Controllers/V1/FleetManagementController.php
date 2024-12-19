@@ -28,6 +28,7 @@ class FleetManagementController extends Controller
         $driverId = $req->driver_id;
         $startDate = $req->startDate;
         $endDate = $req->endDate;
+        $statusId = $req->status_id;
         $packages = Package::fromRaw('packages as p')->join('delivery_packages as dp','p.id','dp.package_id')
         ->selectRaw('p.id as package_id,dp.delivery_id,dp.delay_count,dp.status_id,p.driver_total')
         ->where('dp.is_deleted',0)
@@ -48,6 +49,9 @@ class FleetManagementController extends Controller
         }
         if($driverId){
             $query->where('driver_id',$driverId);
+        }
+        if($statusId){
+            $query->where('status_id',$statusId);
         }
         if($startDate && $endDate){
             $startDate = date('Y-m-d',strtotime($startDate));
