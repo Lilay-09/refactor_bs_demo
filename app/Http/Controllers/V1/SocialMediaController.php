@@ -17,6 +17,7 @@ class SocialMediaController extends Controller
         return validator($req->all(),[
             'url' => 'nullable|string',
             'name' => 'required|string|max:50',
+            'account_name' => 'nullable|string',
             'photo' => 'nullable|string'
         ]);
     }

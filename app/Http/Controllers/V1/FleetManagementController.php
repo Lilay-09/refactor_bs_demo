@@ -25,6 +25,7 @@ class FleetManagementController extends Controller
     public function getTrips(Request $req){
         $user = UserService::getAuthUser();
         $search = $req->search ?? null;
+        $driverId = $req->driver_id;
         $startDate = $req->startDate;
         $endDate = $req->endDate;
         $packages = Package::fromRaw('packages as p')->join('delivery_packages as dp','p.id','dp.package_id')
@@ -36,19 +37,25 @@ class FleetManagementController extends Controller
         $query = Delivery::with(['status','driver'])->where('is_deleted',0)->where('company_id',$user->company_id)
         ->orderBy('status_id')
         ->orderByDesc('id')
+        ->whereDate('depart_datetime',now())
         ->selectRaw('id,fleet_tracking_number,status_id,driver_id,depart_datetime,remarks,package_count,delivered_count,failed_count,warehouse_id,vehicle_type,driver_id,is_completed,finished');
         if($search){
-        $query->whereHas('packages.package',function($q) use ($search){
+            $query->whereHas('packages.package',function($q) use ($search){
                 $q->where('qr_code',$search);
             })->orWhere('fleet_tracking_number',$search)->orWhereHas('driver',function($q) use ($search){
                 $q->where('user_name','ilike','%'.$search.'%')->orWhere('name_km','ilike','%'.$search.'%');
             });
         }
+        if($driverId){
+            $query->where('driver_id',$driverId);
+        }
         if($startDate && $endDate){
             $startDate = date('Y-m-d',strtotime($startDate));
             $endDate = date('Y-m-d',strtotime($endDate));
-            $query->whereBetween('depart_datetime',[$startDate,$endDate])->orWhereDate('depart_datetime','<=',$startDate);
-        }else $query->whereDate('depart_datetime',now());
+            $query->where(function ($q) use ($startDate,$endDate){
+                $q->whereBetween('depart_datetime',[$startDate,$endDate])->orWhereDate('depart_datetime','<=',$endDate);
+            });
+        }
         $deliveries = $query->get();
         foreach($deliveries as $delivery){
             $delivery->status_code = $delivery->status->name;
@@ -298,6 +305,7 @@ class FleetManagementController extends Controller
                 $deliveredCount +=1;
                 $updatable->update([
                     'status_id' => 9,
+                    'delivered_datetime' => now(),
                     'update_uid' => $user->id
                 ]);
             }
@@ -305,6 +313,7 @@ class FleetManagementController extends Controller
             if($updatablePkg){
                 $updatablePkg->update([
                     'status_id' => 9,
+                    'delivered_datetime' => now(),
                     'update_uid' => $user->id
                 ]);
             }

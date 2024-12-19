@@ -55,7 +55,8 @@ class TransactionService
         $packages = $qP->get();
         $statusKey = $type.'_payment_status';
         foreach($packages as $package){
-            $package->cod = $package->cod ? 'Yes' : 'No';
+            $cod = $package->cod;
+            $package->cod = $cod ? 'Yes' : 'No';
             $package->{$statusKey} = !$package->driver_payment_id ? 'Unpaid':($package->approved ? 'Approved':'Pending');
             $package->datetime = ($package->status_id == 9 && ($package->delivered_datetime || $package->delivered_datetime)) ? Helper::formatCustomDateTime($package->delivered_datetime) : Helper::formatCustomDateTime($package->failed_datetime);
             // $merchantTotal = $package->merchant_total;
@@ -64,8 +65,11 @@ class TransactionService
             //     $package->merchant_total = $package->driver_total - $merchantTotal;
             // }
             // if($package->cod) $package->remarks = $package->price;
-            $package->driver_total = self::getPackageTotal('driver',$package->cod,$package->price,$package->taxi_fee,$package->extra_charge,$package->additional_fee,$package->delivery_fee,$package->payer);
-            $package->fee = PickupCenterService::getFees($package->cod,$package->payer,$package->price,$package->delivery_fee,$package->additional_fee,$package->extra_charge,$package->taxi_fee);
+            // $package->driver_total = self::getPackageTotal($type,$cod,$package->price,$package->taxi_fee,$package->extra_charge,$package->additional_fee,$package->delivery_fee,$package->payer);
+            // $package->{$type.'_total'} = self::getPackageTotal($type,$cod,$package->price,$package->taxi_fee,$package->extra_charge,$package->additional_fee,$package->delivery_fee,$package->payer);
+            $package->{$type.'_total'} = self::getPackageTotal($type,$cod,$package->price,$package->taxi_fee,$package->extra_charge,$package->additional_fee,$package->delivery_fee,$package->payer);
+            if($type == 'merchant') $package->total = -self::getPackageTotal($type,$cod,$package->price,$package->taxi_fee,$package->extra_charge,$package->additional_fee,$package->delivery_fee,$package->payer);
+            $package->fee = $package->delivery_fee + $package->extra_charge + $package->additional_fee;
         }
         return DataResponse::Pagination($packages,$req);
     }
@@ -75,6 +79,11 @@ class TransactionService
         if($type == 'driver'){
             if($cod) $total += $price;
             if($payer == 'receiver') $total += $baseFee;
+            if($taxiFee) $total -= $taxiFee;
+        }
+        if($type == 'merchant'){
+            if($cod) $total -= $price;
+            if($payer == 'sender') $total += $baseFee;
             if($taxiFee) $total -= $taxiFee;
         }
 
@@ -111,7 +120,10 @@ class TransactionService
         $bankId = $inputs['bank_id'] ?? null;
         $bankAmount = $inputs['bank_amount'] ?? 0;
         $bankAmountKh = $inputs['bank_amount_kh'] ?? 0;
-        $dueAmount = $validPackages->{$type.'_total'};
+        $dueAmount = $validPackages->total_due_amount;
+        if($dueAmount < 0) return DataResponse::ValidateFail(__('messages.info',[
+            'info' => 'This case should be receive not disbursement'
+        ]));
         $validPayment = $this->validPayment($cash,$cashKh,$bankAmount,$bankAmountKh,$bankId,$dueAmount,$exchangeRate);
         if($validPayment->error) return $validPayment;
         // return $validPayment;
@@ -203,7 +215,7 @@ class TransactionService
             DB::commit();
 
             // return Package::whereIn('id',$packageIds)->get();
-            return DataResponse::JsonResult($dueAmount,false,__('messages.created',[
+            return DataResponse::JsonResult(null,false,__('messages.created',[
                 'info' => 'Payment'
             ]));
         }catch(Exception $e){
@@ -216,10 +228,16 @@ class TransactionService
 
 
     public function receiveOrDisburesement(Request $req,$user,$type){
-        $isDisbursement = $req->is_disbursement;
-        if($isDisbursement){
+        $paymentType = $req->payment_type;
+        if(!in_array($paymentType,['disbursement','receive']) || !$paymentType){
+            return DataResponse::ValidateFail(__('messages.info',[
+                'info' => 'Payment type must be on of disbursement or receive'
+            ]));
+        }
+
+        if($paymentType == 'disbursement'){
             return $this->disbursementPayment($req,$user,$type);
-        }else{
+        }else if($paymentType == 'receive'){
             return $this->receivePaymentService($req,$user,$type);
         }
     }
@@ -373,7 +391,7 @@ class TransactionService
         ]);
     }
 
-    public function validPackages($packageIds,$driverOrMerchantId,$type){
+    public function validPackages($packageIds,$driverOrMerchantId,$type,$paymentType='receipt'){
         $validType = $this->validType($type);
         if($validType->error) return $validType;
         $obj = (object)[
@@ -407,27 +425,12 @@ class TransactionService
             $obj->driver_total += $package->driver_total;
             $obj->merchant_total += $package->merchant_total;
             $payableAmt = 0;
-            if($package->cod){
-                $obj->total_cod += $package->price;
-                $payableAmt = $package->price;
-                $taxiFee = $package->taxi_fee ?? 0;
-                if($package->payer == 'receiver' && $type == 'driver') $payableAmt += $package->delivery_fee;
-                if($package->payer == 'sender' && $type == 'merchant') $payableAmt += $package->delivery_fee;
-                if($type =='merchant') $payableAmt += $taxiFee; //** add taxi for merchant */
-                else if($type == 'driver') $payableAmt = $payableAmt - $taxiFee; //** sub taxi for driver */
-                $obj->total_due_amount += $payableAmt;
-            }else{
-                $taxiFee = $package->taxi_fee ?? 0;
-                // $payableAmt = 0;
-                if($package->payer == 'receiver' && $type == 'driver') $payableAmt += $package->delivery_fee;
-                if($package->payer == 'sender' && $type == 'merchant') $payableAmt += $package->delivery_fee;
-                if($type =='merchant') $payableAmt += $taxiFee; //** add taxi for merchant */
-                else if($type == 'driver') $payableAmt = $payableAmt - $taxiFee; //** sub taxi for driver */
-                $obj->total_due_amount += $payableAmt;
-            }
+            $obj->total_due_amount += self::getPackageTotal($type,$package->cod,$package->price,$package->taxi_fee,$package->extra_charge,$package->additional_fee,$package->delivery_fee,$package->payer);
+            if($package->cod) $obj->total_cod += $package->price;
             $obj->total_amount += $package->price + $package->delivery_fee;
             $obj->total_package_price += $package->price;
         }
+        // if($paymentType == 'disbursement') $obj->total_due_amount = abs($obj->total_due_amount);
         return DataResponse::JsonRaw([
             'error' => false,
             'pacakage_ids' => $packageIds,
@@ -440,23 +443,24 @@ class TransactionService
             'total_cod' => $obj->total_cod,
             'total_due_amount' => $obj->total_due_amount,
             'total_amount' => $obj->total_amount,
-            'delivered_package_count' => $obj->delivered_package_count
+            'delivered_package_count' => $obj->delivered_package_count,
         ]);
     }
 
     public function getPayments(Request $req,$user,$type='driver'){
-        $payerId = $req->{$type.'_id'};
+        $payeeOrPayerId = $req->{$type.'_id'};
         $startDate = $req->startDate;
         $endDate = $req->endDate;
-        // Log::error(json_encode($req->all()));
+        $allPayments = [];
         $qP = Payment::fromRaw('payments as p')->join('users as d','d.id','p.payer_id')
         ->where('p.is_deleted',0)
         ->where('p.is_settled',0)
         ->join('users as ap','ap.id','p.receiver_uid')
         ->where('payer_type',$type)
         ->selectRaw('p.is_settled,p.payment_datetime,p.package_count,ap.user_name as booked_user,p.payable_amount,p.id as payment_id,d.user_name as payer_name,p.exchange_rate,p.taxi_fee,p.approved,p.breakdown_notes')
-        ->orderByDesc('payment_datetime');
-        if($payerId) $qP->where('p.payer_id',$payerId);
+        ->orderByDesc('p.payment_datetime');
+
+        if($payeeOrPayerId) $qP->where('p.payer_id',$payeeOrPayerId);
         if($startDate && $endDate){
             $startDate = Helper::dateYMD($startDate);
             $endDate = Helper::dateYMD($endDate);
@@ -478,8 +482,28 @@ class TransactionService
             $totalKHR_to_USD = $totalKHR/$pmt->exchange_rate;
             $totalKHR_to_USD = floor($totalKHR_to_USD * 100) / 100;
             $pmt->total = $totalUSD + $totalKHR_to_USD;
+            $pmt->payment_type = 'receive';
+            $allPayments[] = $pmt;
         }
-        return DataResponse::Pagination($payments,$req);
+
+        $disbursements = Disbursement::fromRaw('disbursements as dis')
+        ->where('dis.is_deleted',0)
+        ->where('dis.type','payment')
+        ->where('dis.is_settled',0)
+        ->join('users as d','d.id','dis.payee_id')
+        ->join('users as ap','ap.id','dis.receiptionist_uid')
+        ->where('payee_type',$type)
+        ->selectRaw('dis.is_settled,dis.payment_datetime,dis.package_count,ap.user_name as booked_user,dis.payable_amount,dis.id as payment_id,d.user_name as payer_name,dis.exchange_rate,dis.taxi_fee,dis.approved,dis.breakdown_notes')
+        ->orderByDesc('dis.payment_datetime')
+        ->get();
+        foreach($disbursements as $d){
+            $d->payment_type = 'disbursement';
+            $d->payment_date = Helper::dateDMY($d->payment_datetime);
+            $allPayments[] = $d;
+        }
+
+        $allPayments = collect($allPayments);
+        return DataResponse::Pagination($allPayments,$req);
     }
 
 
@@ -619,26 +643,42 @@ class TransactionService
 
 
     public function approvePayments(Request $req,$user){
-        $paymentIds = $req->payments ?? [];
-        if(!isset($paymentIds[0])) return DataResponse::ValidateFail(__('messages.info',[
+        $payments = $req->payments ?? [];
+        if(!isset($payments[0])) return DataResponse::ValidateFail(__('messages.info',[
             'info' => 'Please check payments you want to approve'
         ]));
 
         DB::beginTransaction();
         try{
-            foreach($paymentIds as $id){
-                $pmt = Payment::where('is_deleted',0)->find($id);
-                if(!$pmt) return DataResponse::ValidateFail(__('messages.info',[
-                    'info' => 'check list includes invalid payment'
-                ]));
-                if($pmt->approved) return DataResponse::ValidateFail(__('messages.info',[
-                    'info' => 'check list includes approved payment'
-                ]));
-                $pmt->update([
-                    'approved' => 1,
-                    'approved_datetime' => now(),
-                    'approved_uid' => $user->id,
-                ]);
+            foreach($payments as $p){
+                $id = $p['id'];
+                if($p['payment_type'] == 'receive'){
+                    $pmt = Payment::where('is_deleted',0)->find($id);
+                    if(!$pmt) return DataResponse::ValidateFail(__('messages.info',[
+                        'info' => 'check list includes invalid payment'
+                    ]));
+                    if($pmt->approved) return DataResponse::ValidateFail(__('messages.info',[
+                        'info' => 'check list includes approved payment'
+                    ]));
+                    $pmt->update([
+                        'approved' => 1,
+                        'approved_datetime' => now(),
+                        'approved_uid' => $user->id,
+                    ]);
+                }else if($p['payment_type'] == 'disbursement'){
+                    $dis = Disbursement::where('is_deleted',0)->where('type','payment')->find($p->id);
+                    if(!$dis) return DataResponse::ValidateFail(__('messages.info',[
+                        'info' => 'check list includes invalid payment'
+                    ]));
+                    if($dis->approved) return DataResponse::ValidateFail(__('messages.info',[
+                        'info' => 'check list includes approved payment'
+                    ]));
+                    $dis->update([
+                        'approved' => 1,
+                        'approved_datetime' => now(),
+                        'approved_uid' => $user->id,
+                    ]);
+                }
             }
             DB::commit();
             return DataResponse::JsonResult(null,false,__('messages.info',[
@@ -646,6 +686,9 @@ class TransactionService
             ]));
         }catch(Exception $e){
             DB::rollBack();
+            Log::error($e->getTraceAsString());
+            Log::error($e->getMessage());
+            return DataResponse::Error(__('messages.error'));
         }
     }
 
@@ -685,25 +728,59 @@ class TransactionService
             ->where('d.account_type',$type)
             ->where('d.is_deleted', 0)
             ->where('d.company_id', $user->company_id) // Uncomment if needed
-            ->join('packages as p', 'p.driver_id', '=', 'd.id')
-            ->join('payments as pmt','p.driver_payment_id','pmt.id')
+            ->join('packages as p', 'p.'.$type.'_id', '=', 'd.id')
+            ->where('p.is_deleted',0)
+            ->whereIn('p.status_id',[9,19])
+            // ->join('payments as pmt','p.driver_payment_id','pmt.id')
             // ->where('pmt.is_settled',0)
-            ->selectRaw('DATE(p.delivered_datetime) as finished_date,DATE(p.failed_datetime) as failed_date,d.id, count(p.id) as package_count,SUM(p.price) as amount,d.user_name as driver_name,d.code,pmt.payable_amount')
-            ->groupBy(['d.id','pmt.payable_amount',DB::raw('DATE(p.delivered_datetime)'),DB::raw('DATE(p.failed_datetime)')]);
-
+            ->selectRaw('p.delivered_datetime,p.failed_datetime,d.id as driver_id,d.id,d.user_name as driver_name,d.code,p.status_id,p.updated_at');
+            // ->groupBy(['d.id','pmt.payable_amount',DB::raw('DATE(p.delivered_datetime)'),DB::raw('DATE(p.failed_datetime)')]);
         if($userId){
             $qP->where('d.id',$userId);
         }
         $drivers = $qP->get();
-        $totalPackages = 0;
-        $totalAmount = 0;
-        foreach ($drivers as $driver){
-            $totalPackages += $driver->package_count;
-            $totalAmount += $driver->amount;
-        }
-        return DataResponse::Pagination($drivers,$req,__('messages.Get List'),[
-            'total_packages' => $totalPackages,
-            'total_amount' => $totalAmount
+
+        $groupData = collect($drivers)->map(function ($item) {
+            // Set groupDate based on status
+            if ($item->status_id == 9) {
+                $date = $item->delivered_datetime ? $item->delivered_datetime : $item->updated_at;
+                $item->groupDate = date('d-M-Y', strtotime($date));
+            } elseif ($item->status_id == 19) {
+                $date = $item->failed_datetime ? $item->failed_datetime : $item->updated_at;
+                $item->groupDate = date('d-M-Y', strtotime($date));
+            }
+
+            return $item;
+        })->filter(function ($item) {
+            return $item->groupDate !== null; // Exclude items with no groupDate
+        })->groupBy(function ($item) {
+            // Group by both groupDate and driver_id
+            return $item->groupDate . '|' . $item->driver_id;
+        })->map(function ($group, $key) {
+            // Extract date and driver_id from the key
+            [$date, $driver_id] = explode('|', $key);
+
+            // Sum the package counts for this group
+
+            $packageTotal = $group->count(); // Count items in the group (equivalent to summing 1 per item)
+
+            $representative = $group->first();
+            // $representative->package_count = $packageTotal; // Add the summed total_package
+            unset($representative->groupDate);
+
+            return [
+                'finished_date' => $date,
+                'driver_id' => $driver_id,
+                'driver_name' => $representative->driver_name,
+                'code' => $representative->code,
+                'status_id' => $representative->status_id,
+                'package_count' => $packageTotal,
+            ];
+        })->values();
+
+        return DataResponse::Pagination(collect($groupData),$req,__('messages.Get List'),[
+            // 'total_packages' => $totalPackages,
+            // 'total_amount' => $totalAmount
         ]);
     }
 
@@ -809,10 +886,129 @@ class TransactionService
             'remarks' => 'nullable|string|max:500',
             'start_date' => 'nullable',
             'end_date' => 'nullable',
-            'exchange_rate' => 'nullable|numeric'
+            'exchange_rate' => 'nullable|numeric',
+            'packages' => 'nullable'
         ]);
     }
     public function disbursementPayment(Request $req,$user,$type){
+        $validType = $this->validType($type);
+        if($validType->error) return $validType;
+        $validate = self::disbursementPaymentValidation($req,$type);
+        if($validate->fails()) return DataResponse::ValidateFail($validate->errors()->first());
+        $inputs = $validate->validated();
+        $payeeId = $inputs[$type.'_id'];
+        $packageIds = $inputs['packages'] ?? null;
+        if(empty($packageIds)) return DataResponse::ValidateFail(__('messages.info',[
+            'info' => 'Please select package'
+        ]));
+        $payeeInfo = User::where('is_deleted',0)->whereIn('account_type',['driver','merchant'])->find($payeeId);
+        if(!$payeeInfo) return DataResponse::NotFound('Could not find payee information');
+        $validPackages = $this->validPackages($packageIds,$payeeId,$type,'disbursement');
+        if($validPackages->error) return $validPackages;
+        $exchangeRate = $inputs['exchange_rate'] ?? GeneralSettingService::getLatestXRate()->buy_rate;
+        $cashKh = $inputs['cash_kh'] ?? 0;
+        $cash = $inputs['cash'] ?? 0;
+        $bankId = $inputs['bank_id'] ?? null;
+        $bankAmount = $inputs['bank_amount'] ?? 0;
+        $bankAmountKh = $inputs['bank_amount_kh'] ?? 0;
+        $dueAmount = abs($validPackages->total_due_amount);
+        if($validPackages->total_due_amount >=0) return DataResponse::ValidateFail(__('messages.info',[
+            'info' => 'This case should be receive payment not disbursement'
+        ]));
+
+        // return $validPackages;
+        $validPayment = $this->validPayment($cash,$cashKh,$bankAmount,$bankAmountKh,$bankId,$dueAmount,$exchangeRate);
+        if($validPayment->error) return $validPayment;
+        $breakDownNotes = null;
+        if($dueAmount > 0){
+            if($cash) $breakDownNotes .= 'Cash: USD '.$cash.'|';
+            if($cashKh) $breakDownNotes .= 'Cash: KHR '.$cashKh.'|';
+            if($bankAmount) $breakDownNotes .= $validPayment->bank_name.': USD '.$bankAmount.'|';
+            if($bankAmountKh) $breakDownNotes .= $validPayment->bank_name.': KHR '.$bankAmountKh.'|';
+        }
+        $breakDownNotes = trim($breakDownNotes, '| ');
+        DB::beginTransaction();
+        try{
+            $createPayment = Disbursement::create([
+                'payee_id' => $payeeId,
+                'payee_type' => $type,
+                'taxi_fee' => $validPackages->total_taxi_fee,
+                'delivery_fee' => $validPackages->total_delivery_fee,
+                'payable_amount' => $dueAmount,
+                'create_uid' => $user->id,
+                'receiver_uid' => $user->id,
+                'amount' => $dueAmount,
+                'exchange_rate' => $exchangeRate,
+                'remarks' => $inputs['remarks'] ?? null,
+                'package_count' => $validPackages->total_package,
+                'delivered_package_count' => $validPackages->delivered_package_count,
+                'update_uid' => $user->id,
+                'payment_datetime' => now(),
+                'breakdown_notes' => $breakDownNotes,
+                'company_id' => $user->company_id,
+                'branch_id' => $user->branch_id
+            ]);
+            $paymentId = $createPayment->id;
+            if($cash && $dueAmount > 0){
+                DisbursementDetails::create([
+                    'disbursement_id' => $paymentId,
+                    'method' => 'cash',
+                    'amount' => $cash,
+                    'original_amount' => $cash,
+                    'currency_code' => 'USD'
+                ]);
+            }
+            if($cashKh && $dueAmount > 0){
+                DisbursementDetails::create([
+                    'disbursement_id' => $paymentId,
+                    'method' => 'cash',
+                    'amount' => $cashKh,
+                    'original_amount' => $validPayment->original_cash_amount_kh,
+                    'currency_code' => 'KHR'
+                ]);
+            }
+            if($bankId){
+                if($bankAmount && $dueAmount > 0){
+                    DisbursementDetails::create([
+                        'disbursement_id' => $paymentId,
+                        'method' => $validPayment->bank_name,
+                        'amount' => $bankAmount,
+                        'original_amount' => $bankAmount,
+                        'currency_code' => 'USD'
+                    ]);
+                }
+
+                if($bankAmountKh && $dueAmount > 0){
+                    DisbursementDetails::create([
+                        'disbursement_id' => $paymentId,
+                        'method' => $validPayment->bank_name,
+                        'amount' => $bankAmountKh,
+                        'original_amount' => $validPayment->original_bank_amount_kh,
+                        'currency_code' => 'KHR'
+                    ]);
+                }
+            }
+            Package::whereIn('id',$packageIds)->update([
+                $type.'_disbursement_id' => $paymentId
+            ]);
+            // return $packageIds;
+            // return Package::whereIn('id',$packageIds)->get();
+            DB::commit();
+
+            // return Package::whereIn('id',$packageIds)->get();
+            return DataResponse::JsonResult(null,false,__('messages.created',[
+                'info' => 'Payment'
+            ]));
+        }catch(Exception $e){
+            Log::error($e->getMessage());
+            Log::error($e->getTraceAsString());
+            DB::rollBack();
+            return DataResponse::Error(__('messages.error',['info' => 'Fail to receive']));
+        }
+    }
+
+
+    public function disbursementCommission(Request $req,$user,$type){
         $validType = $this->validType($type);
         if($validType->error) return $validType;
         $startDate = $req->startDate;
@@ -836,6 +1032,7 @@ class TransactionService
         $bankAmount = $inputs['bank_amount'] ?? 0;
         $bankAmountKh = $inputs['bank_amount_kh'] ?? 0;
         $dueAmount = $validPackages->grand_total;
+        var_dump($dueAmount);
         // return $validPackages;
         $validPayment = $this->validPayment($cash,$cashKh,$bankAmount,$bankAmountKh,$bankId,$dueAmount,$exchangeRate);
         if($validPayment->error) return $validPayment;
@@ -851,6 +1048,7 @@ class TransactionService
         try{
             $createPayment = Disbursement::create([
                 'payee_id' => $payeeId,
+                'type' => 'commission',
                 'payee_type' => $type,
                 'taxi_fee' => $validPackages->total_taxi_fee,
                 'delivery_fee' => $validPackages->total_delivery_fee,
@@ -918,14 +1116,14 @@ class TransactionService
                 }
             }
             Package::whereIn('id',$packageIds)->update([
-                $type.'_disbursement_id' => $paymentId
+                $type.'_commission_id' => $paymentId
             ]);
             Order::whereIn('id',$orderIds)->update([
-                $type.'_disbursement_id' => $paymentId
+                $type.'_commission_id' => $paymentId
             ]);
             // return $packageIds;
             // return Package::whereIn('id',$packageIds)->get();
-            DB::commit();
+            // DB::commit();
 
             // return Package::whereIn('id',$packageIds)->get();
             return DataResponse::JsonResult(null,false,__('messages.created',[

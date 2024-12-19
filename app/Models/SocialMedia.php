@@ -13,6 +13,7 @@ class SocialMedia extends Model
         'id',
         'url',
         'name',
+        'account_name',
         'photo_file_name',
         'create_uid',
         'update_uid',

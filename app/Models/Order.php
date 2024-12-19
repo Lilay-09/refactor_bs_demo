@@ -38,7 +38,7 @@ class Order extends Model
         'warehouse_id',
         'order_datetime',
         'pickup_address_google_map',
-        'driver_disbursement_id',
+        'driver_commission_id',
         'cancel_notes',
         'booking_channel',
         'tracking_notes',

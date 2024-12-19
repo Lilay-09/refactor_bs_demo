@@ -77,10 +77,10 @@ class AppSetting
         // Check if the device is an iPhone or iPad
         if (strpos($userAgent, 'iPhone') !== false || strpos($userAgent, 'iPad') !== false) {
             // Redirect to the App Store (iOS)
-            return Redirect::to('https://apps.apple.com/kh/app/meyhong-bus/id1640049130');
+            // return Redirect::to('https://apps.apple.com/kh/app/meyhong-bus/id1640049130');
         } else {
             // Redirect to the Play Store (Android or other devices)
-            return Redirect::to('https://play.google.com/store/apps/details?id=com.vectorasoft.meyhongbus');
+            return Redirect::to('https://play.google.com/store/apps/details?id=com.gtech.jsexpressmerchant');
         }
     }
 

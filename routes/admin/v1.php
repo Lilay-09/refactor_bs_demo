@@ -86,7 +86,7 @@ Route::middleware(['jwt','localize'])->prefix('admin/v1/{lang}')->group(function
         Route::prefix('transaction')->group(function(){
             Route::get('delivery/package',[DriverTransactionController::class,'getDeliveryPackages']);
             Route::put('delivery/package/{id}',[DriverTransactionController::class,'updateDeliveryPackage']);
-            Route::post('delivery/receivePayment',[DriverTransactionController::class,'receivePackagesPayment']);
+            Route::post('delivery/payment',[DriverTransactionController::class,'receivePackagesPayment']);
             Route::get('payment',[DriverTransactionController::class,'getPayments']);
             Route::put('payment',[DriverTransactionController::class,'approvePayments']);
             Route::get('settle/payment',[DriverTransactionController::class,'getApprovedPayments']);
@@ -114,12 +114,13 @@ Route::middleware(['jwt','localize'])->prefix('admin/v1/{lang}')->group(function
         Route::prefix('transaction')->group(function(){
             Route::get('delivery/package',[MerchantTransactionController::class,'getDeliveryPackages']);
             Route::put('delivery/package/{id}',[MerchantTransactionController::class,'updateDeliveryPackage']);
-            Route::post('delivery/receivePayment',[MerchantTransactionController::class,'receivePackagesPayment']);
+            Route::post('delivery/payment',[MerchantTransactionController::class,'receivePackagesPayment']);
             Route::get('payment',[MerchantTransactionController::class,'getPayments']);
             Route::put('payment',[MerchantTransactionController::class,'approvePayments']);
             Route::get('settle/payment',[MerchantTransactionController::class,'getApprovedPayments']);
             Route::put('settle/payment',[MerchantTransactionController::class,'settleApprovedPayments']);
             Route::delete('payment/{id}',[MerchantTransactionController::class,'deletePayment']);
+            Route::get('balance',[MerchantTransactionController::class,'getMerchantBalances']);
         });
     });
 

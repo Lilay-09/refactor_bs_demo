@@ -179,11 +179,11 @@ class PackageTrailController extends Controller
         $user = UserService::getAuthUser();
         $id = $req->id;
         $package = $package = Package::where('is_deleted',0)
-        ->with(['driver','merchant'])
+        ->with(['driver:id,user_name,phone','merchant:id,phone,user_name','updateUser:id,user_name'])
         ->where('outstanding',0)
         // ->whereNotIn('status_id',[]) // at warehouse
         ->where('company_id',$user->company_id)
-        ->selectRaw('merchant_id,id,taxi_fee,actual_kg,billed_kg,extra_charge,delivery_type,qr_code,price,driver_id,product_type,payer,cod,delivery_fee,receiver_address,zone_code,zone_name,receiver_name,receiver_phone,driver_total,merchant_total,driver_id,remarks')
+        ->selectRaw('zone_name,zone_code,merchant_id,driver_id,receiver_phone,receiver_address,created_at,arrive_warehouse_datetime,qr_code,remarks,price,update_uid')
         ->find($id);
         if(!$package) return ApiResponse::NotFound(trans('messages.not_found',['info' => 'Package','khInfo' => 'កញ្ចប់​']));
         $driver = $package->driver;
@@ -194,10 +194,19 @@ class PackageTrailController extends Controller
         $package->merchant_phone = $package->merchant->phone;
         $package->base_fee = $package->delivery_fee;
         $package->delivery_fee = $package->delivery_fee + $package->taxi + ($package->cod ? $package->price : 0);
-        unset($package->status,$package->driver,$package->merchant);
+        $package->created_by = $package->updateUser->user_name;
+        $package->created_date = Helper::formatCustomDateTime($package->created_at,'d-M-Y');
+        $package->warehouse_at = Helper::dateDMY($package->arrive_warehouse_datetime);
+        $total = 0;
+        if($package->cod) $total+=$package->price;
+        if($package->payer == 'recevier') $total+=$package->price;
+        $package->total = $total;
+        unset($package->status,$package->driver,$package->merchant,$package->arrive_warehouse_datetime,$package->updateUser,$package->create_uid,$package->created_at);
         $obj = (object)[
-            'company_info' => CompanyProfileService::profileInfo($user),
+            'company_info' => CompanyProfileService::profileInfo($user,true),
             'package' => $package,
+            'notes' => 'រាល់ទំនិញខុសច្បាប់ ម្ចាស់ទំនិញត្រូវទទួលខុសត្រូវចំពោះមុខច្បាប់ដោយខ្លួនឯង ក្រុមហ៊ុនមិនទទួលខុសត្រូវឡេីយ។ អរគុណសម្រាប់ការប្រើប្រាស់សេវាកម្មដឹកជញ្ជូន JS Express របស់ខ្ញុំ។',
+            'redirect' => asset('api/redirect-store')
         ];
         return ApiResponse::JsonResult($obj,__('messages.info',['info' => 'Print Information']));
     }
