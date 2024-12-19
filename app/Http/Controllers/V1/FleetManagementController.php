@@ -37,7 +37,7 @@ class FleetManagementController extends Controller
         $query = Delivery::with(['status','driver'])->where('is_deleted',0)->where('company_id',$user->company_id)
         ->orderBy('status_id')
         ->orderByDesc('id')
-        ->whereDate('depart_datetime',now())
+
         ->selectRaw('id,fleet_tracking_number,status_id,driver_id,depart_datetime,remarks,package_count,delivered_count,failed_count,warehouse_id,vehicle_type,driver_id,is_completed,finished');
         if($search){
             $query->whereHas('packages.package',function($q) use ($search){
@@ -53,8 +53,10 @@ class FleetManagementController extends Controller
             $startDate = date('Y-m-d',strtotime($startDate));
             $endDate = date('Y-m-d',strtotime($endDate));
             $query->where(function ($q) use ($startDate,$endDate){
-                $q->whereBetween('depart_datetime',[$startDate,$endDate])->orWhereDate('depart_datetime','<=',$endDate);
+                $q->whereBetween('depart_datetime',[$startDate,$endDate])->orWhereDate('depart_datetime','>=',$endDate);
             });
+        }else{
+            $query->whereDate('depart_datetime',now());
         }
         $deliveries = $query->get();
         foreach($deliveries as $delivery){

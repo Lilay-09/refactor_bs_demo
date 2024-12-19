@@ -190,3 +190,27 @@
 [stacktrace]
 #0 {main}
 "} 
+[2024-12-19 17:24:54] local.ERROR: Cannot declare class ApiResponse, because the name is already in use {"exception":"[object] (Symfony\\Component\\ErrorHandler\\Error\\FatalError(code: 0): Cannot declare class ApiResponse, because the name is already in use at D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\app\\helpers.php:4)
+[stacktrace]
+#0 {main}
+"} 
+[2024-12-19 17:25:54] local.ERROR: Cannot declare class ApiResponse, because the name is already in use {"exception":"[object] (Symfony\\Component\\ErrorHandler\\Error\\FatalError(code: 0): Cannot declare class ApiResponse, because the name is already in use at D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\app\\helpers.php:4)
+[stacktrace]
+#0 {main}
+"} 
+[2024-12-19 17:26:54] local.ERROR: Cannot declare class ApiResponse, because the name is already in use {"exception":"[object] (Symfony\\Component\\ErrorHandler\\Error\\FatalError(code: 0): Cannot declare class ApiResponse, because the name is already in use at D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\app\\helpers.php:4)
+[stacktrace]
+#0 {main}
+"} 
+[2024-12-19 17:27:54] local.ERROR: Cannot declare class ApiResponse, because the name is already in use {"exception":"[object] (Symfony\\Component\\ErrorHandler\\Error\\FatalError(code: 0): Cannot declare class ApiResponse, because the name is already in use at D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\app\\helpers.php:4)
+[stacktrace]
+#0 {main}
+"} 
+[2024-12-19 17:28:54] local.ERROR: Cannot declare class ApiResponse, because the name is already in use {"exception":"[object] (Symfony\\Component\\ErrorHandler\\Error\\FatalError(code: 0): Cannot declare class ApiResponse, because the name is already in use at D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\app\\helpers.php:4)
+[stacktrace]
+#0 {main}
+"} 
+[2024-12-19 17:29:54] local.ERROR: Cannot declare class ApiResponse, because the name is already in use {"exception":"[object] (Symfony\\Component\\ErrorHandler\\Error\\FatalError(code: 0): Cannot declare class ApiResponse, because the name is already in use at D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\app\\helpers.php:4)
+[stacktrace]
+#0 {main}
+"} 
