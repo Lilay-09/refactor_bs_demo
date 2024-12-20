@@ -87,6 +87,7 @@ class PickupCenterService
         $images = $inputs['images'] ?? [];
         $inputs['original_qty'] = $inputs['qty'];
         $inputs['order_datetime'] = now();
+        $productType = $inputs['product_type'] ?? null;
         $inputs['warehouse_id'] = GeneralSettingService::getWarehouse($user)->id;
         if($user->account_type == 'driver') $inputs['driver_id'] = $user->id;
         $driverId = $inputs['driver_id'] ?? null;
@@ -128,6 +129,7 @@ class PickupCenterService
                 // if($inputs['qty'] != count($details)) return DataResponse::ValidateFail('Your quantity is not matching the details');
                 foreach($details as $d){
                     $d['merchant_id'] = $merchantId;
+                    $d['product_type'] = $productType;
                     $dReq = new Request($d);
                     $savePkg = $this->createOrUpdatePackage($dReq,$user,null,$orderId);
                     if($savePkg->error) return $savePkg;
@@ -291,7 +293,9 @@ class PickupCenterService
         $inputs['merchant_total'] = $calPrice->merchant_total;
         $inputs['delivery_fee'] = $calPrice->delivery_fee;
         $productType = $inputs['product_type'] ?? ($orderId ? $order->product_type:null);
-        if(!$productType) unset($inputs['product_type']);
+        $inputs['product_type'] = $productType;
+        // if(!$productType) unset($inputs['product_type']);
+        // Log::error($productType);
         if(!$packageId){
             $inputs['status_id'] = 7;
             $inputs['create_uid'] = $user->id;

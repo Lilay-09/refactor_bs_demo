@@ -43,7 +43,7 @@ class SocialMediaController extends Controller
     public function getSocialMedias(Request $req){
         $user = UserService::getAuthUser();
         $socialMedias = SocialMedia::where('is_deleted',0)->where('company_id',$user->company_id)
-        ->selectRaw('id,name,url,photo_file_name,updated_at')
+        ->selectRaw('id,name,url,photo_file_name,account_name,updated_at')
         ->get();
         foreach($socialMedias as $socialMedia){
             $socialMedia->image_url = Helper::getImageUrl($socialMedia->photo_file_name,$user->company_id,$this->imgDir);
@@ -54,7 +54,7 @@ class SocialMediaController extends Controller
         $user = UserService::getAuthUser();
         $id = $req->id;
         $socialMedia = SocialMedia::where('is_deleted',0)->where('company_id',$user->company_id)
-        ->selectRaw('id,name,url,photo_file_name,updated_at')
+        ->selectRaw('id,name,url,photo_file_name,account_name,updated_at')
         ->find($id);
         if(!$socialMedia) return ApiResponse::NotFound(__('messages.not_found',[
             'info' => 'Social Media'

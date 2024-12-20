@@ -183,7 +183,7 @@ class PackageTrailController extends Controller
         ->where('outstanding',0)
         // ->whereNotIn('status_id',[]) // at warehouse
         ->where('company_id',$user->company_id)
-        ->selectRaw('zone_name,zone_code,merchant_id,driver_id,receiver_phone,receiver_address,created_at,arrive_warehouse_datetime,qr_code,remarks,price,update_uid')
+        ->selectRaw('cod,delivery_fee,zone_name,zone_code,merchant_id,driver_id,receiver_phone,receiver_address,created_at,arrive_warehouse_datetime,qr_code,remarks,price,update_uid,payer')
         ->find($id);
         if(!$package) return ApiResponse::NotFound(trans('messages.not_found',['info' => 'Package','khInfo' => 'កញ្ចប់​']));
         $driver = $package->driver;
@@ -198,8 +198,8 @@ class PackageTrailController extends Controller
         $package->created_date = Helper::formatCustomDateTime($package->created_at,'d-M-Y');
         $package->warehouse_at = Helper::dateDMY($package->arrive_warehouse_datetime);
         $total = 0;
-        if($package->cod) $total+=$package->price;
-        if($package->payer == 'recevier') $total+=$package->price;
+        if($package->cod) $total += $package->price;
+        if($package->payer == 'receiver') $total += $package->base_fee;
         $package->total = $total;
         unset($package->status,$package->driver,$package->merchant,$package->arrive_warehouse_datetime,$package->updateUser,$package->create_uid,$package->created_at);
         $obj = (object)[

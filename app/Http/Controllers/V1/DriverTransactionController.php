@@ -147,7 +147,7 @@ class DriverTransactionController extends Controller
     public function getApprovedPayments(Request $req){
         $user = UserService::getAuthUser();
         $trxService = new TransactionService();
-        return ApiResponse::flex($trxService->getApprovedPayments($req,$user));
+        return ApiResponse::flex($trxService->getPayments($req,$user,'driver',1));
     }
 
     public function settleApprovedPayments(Request $req){
@@ -165,14 +165,14 @@ class DriverTransactionController extends Controller
         $user = UserService::getAuthUser();
         $id = $req->id;
         $trxService = new TransactionService();
-        return ApiResponse::flex($trxService->deletePayment($id,$user,'driver'));
+        return ApiResponse::flex($trxService->deletePayment($id,$req->payment_type,'driver',$user));
     }
 
     public function deleteSettlePayment(Request $req){
         $user = UserService::getAuthUser();
         $id = $req->id;
         $trxService = new TransactionService();
-        return ApiResponse::flex($trxService->deleteSettlePayment($id,$user,'driver'));
+        return ApiResponse::flex($trxService->deletePayment($id,$req->payment_type,'driver',$user));
     }
 
     public function updateDeliveryPackage(Request $req){

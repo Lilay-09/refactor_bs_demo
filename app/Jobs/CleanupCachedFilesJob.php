@@ -26,6 +26,6 @@ class CleanupCachedFilesJob implements ShouldQueue
     // Delay job processing for 10 seconds before it runs again
     public function delay($delay)
     {
-        return now()->addSeconds(10); // This will ensure the job is delayed for 10 seconds
+        // return now()->addSeconds(10); // This will ensure the job is delayed for 10 seconds
     }
 }

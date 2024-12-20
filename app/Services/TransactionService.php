@@ -161,9 +161,11 @@ class TransactionService
                 'branch_id' => $user->branch_id
             ];
             if($type == 'merchant'){
-                $pmtArr['approved'] = 1;
-                $pmtArr['approved_datetime'] = now();
+                $pmtArr['is_settled'] = 1;
+                $pmtArr['settled_uid'] = $user->id;
                 $pmtArr['approved_uid'] = $user->id;
+                $pmtArr['approved_datetime'] = now();
+                $pmtArr['settled_datetime'] = now();
             }
             $createPayment = Payment::create($pmtArr);
             $paymentId = $createPayment->id;
@@ -242,14 +244,6 @@ class TransactionService
         }
     }
 
-
-    // public function receiveOrDisbursedAmount(){
-
-    // }
-
-    // public function getMerchantLastPayment(){
-
-    // }
 
     public function getDriverCommissions($user,$driverId){
         $driver = User::where('is_deleted',0)->where('company_id',$user->company_id)
@@ -447,14 +441,14 @@ class TransactionService
         ]);
     }
 
-    public function getPayments(Request $req,$user,$type='driver'){
+    public function getPayments(Request $req,$user,$type='driver',$isApproved=false){
         $payeeOrPayerId = $req->{$type.'_id'};
         $startDate = $req->startDate;
         $endDate = $req->endDate;
         $allPayments = [];
         $qP = Payment::fromRaw('payments as p')->join('users as d','d.id','p.payer_id')
         ->where('p.is_deleted',0)
-        ->where('p.is_settled',0)
+        ->where('p.approved',$isApproved)
         ->join('users as ap','ap.id','p.receiver_uid')
         ->where('payer_type',$type)
         ->selectRaw('p.is_settled,p.payment_datetime,p.package_count,ap.user_name as booked_user,p.payable_amount,p.id as payment_id,d.user_name as payer_name,p.exchange_rate,p.taxi_fee,p.approved,p.breakdown_notes')
@@ -489,7 +483,65 @@ class TransactionService
         $disbursements = Disbursement::fromRaw('disbursements as dis')
         ->where('dis.is_deleted',0)
         ->where('dis.type','payment')
-        ->where('dis.is_settled',0)
+        ->where('dis.approved',$isApproved)
+        ->join('users as d','d.id','dis.payee_id')
+        ->join('users as ap','ap.id','dis.receiptionist_uid')
+        ->where('payee_type',$type)
+        ->selectRaw('dis.is_settled,dis.payment_datetime,dis.package_count,ap.user_name as booked_user,dis.payable_amount,dis.id as payment_id,d.user_name as payer_name,dis.exchange_rate,dis.taxi_fee,dis.approved,dis.breakdown_notes')
+        ->orderByDesc('dis.payment_datetime')
+        ->get();
+        foreach($disbursements as $d){
+            $d->payment_type = 'disbursement';
+            $d->payment_date = Helper::dateDMY($d->payment_datetime);
+            $allPayments[] = $d;
+        }
+
+        $allPayments = collect($allPayments);
+        return DataResponse::Pagination($allPayments,$req);
+    }
+
+
+    public function getTransaction(Request $req,$type='merchant'){
+        $payeeOrPayerId = $req->{$type.'_id'};
+        $startDate = $req->startDate;
+        $endDate = $req->endDate;
+        $allPayments = [];
+        $qP = Payment::fromRaw('payments as p')->join('users as d','d.id','p.payer_id')
+        ->where('p.is_deleted',0)
+        ->join('users as ap','ap.id','p.receiver_uid')
+        ->where('payer_type',$type)
+        ->selectRaw('p.is_settled,p.payment_datetime,p.package_count,ap.user_name as booked_user,p.payable_amount,p.id as payment_id,d.user_name as payer_name,p.exchange_rate,p.taxi_fee,p.approved,p.breakdown_notes')
+        ->orderByDesc('p.payment_datetime');
+
+        if($payeeOrPayerId) $qP->where('p.payer_id',$payeeOrPayerId);
+        if($startDate && $endDate){
+            $startDate = Helper::dateYMD($startDate);
+            $endDate = Helper::dateYMD($endDate);
+            $qP->where(function($q) use($startDate,$endDate){
+                $q->whereBetween('payment_datetime',[$startDate,$endDate])->orWhereDate('payment_datetime','<=',$endDate);
+            });
+        }
+
+        $payments = $qP->get();
+        $paymentDetails = PaymentDetail::get();
+        foreach($payments as $pmt){
+            $pmt_details = $this->preparePaymentPackageAmount($paymentDetails,$pmt->payment_id);
+            $totalUSD = $pmt_details->total_usd;
+            $totalKHR = $pmt_details->total_khr;
+            $pmt->payment_date = Helper::formatCustomDateTime($pmt->payment_datetime,'d-M-Y');
+            $pmt->payment_time = Helper::formatCustomDateTime($pmt->payment_datetime,'h:i:s A');
+            $pmt->total_usd = Helper::displayMoney($totalUSD,'USD');
+            $pmt->total_khr = Helper::displayMoney($totalKHR,'KHR');
+            $totalKHR_to_USD = $totalKHR/$pmt->exchange_rate;
+            $totalKHR_to_USD = floor($totalKHR_to_USD * 100) / 100;
+            $pmt->total = $totalUSD + $totalKHR_to_USD;
+            $pmt->payment_type = 'receive';
+            $allPayments[] = $pmt;
+        }
+
+        $disbursements = Disbursement::fromRaw('disbursements as dis')
+        ->where('dis.is_deleted',0)
+        ->where('dis.type','payment')
         ->join('users as d','d.id','dis.payee_id')
         ->join('users as ap','ap.id','dis.receiptionist_uid')
         ->where('payee_type',$type)
@@ -567,27 +619,48 @@ class TransactionService
         return $dc;
     }
 
-    public function deletePayment($id,$type,$user){
+    public function deletePayment($id,$trxType,$type,$user){
         $validType = $this->validType($type);
         if($validType->error) return $validType;
-        $payment = Payment::where('is_deleted',0)->where('company_id',$user->company_id)->orderByDesc('id')->find($id);
-        if(!$payment) return DataResponse::NotFound('Payment not found');
-        if($payment->is_settled) return DataResponse::Duplicated(__('messages.info',[
-            'info' => 'Payment has already been settled'
-        ]));
-        if(!$payment) return DataResponse::NotFound(__('messages.not_found',[
-            'info' => 'Payment'
-        ]));
-        //** remove payment key from packages */
-        $pmtKey = $type.'_payment_id';
-        $payment->update([
-            'is_deleted' => 1,
-            'deleted_datetime' => now(),
-            'deleted_uid' => $user->id
-        ]);
-        Package::where($pmtKey,$id)->update([
-            $type.'_payment_id' => null,
-        ]);
+        if($trxType=='receive'){
+            $payment = Payment::where('is_deleted',0)->where('company_id',$user->company_id)->orderByDesc('id')->find($id);
+            if(!$payment) return DataResponse::NotFound('Payment not found');
+            if($payment->is_settled) return DataResponse::Duplicated(__('messages.info',[
+                'info' => 'Payment has already been settled'
+            ]));
+            if(!$payment) return DataResponse::NotFound(__('messages.not_found',[
+                'info' => 'Payment'
+            ]));
+            //** remove payment key from packages */
+            $pmtKey = $type.'_payment_id';
+            $payment->update([
+                'is_deleted' => 1,
+                'deleted_datetime' => now(),
+                'deleted_uid' => $user->id
+            ]);
+            Package::where($pmtKey,$id)->update([
+                $type.'_payment_id' => null,
+            ]);
+        }else if($trxType == 'disbursement'){
+            $payment = Disbursement::where('is_deleted',0)->where('company_id',$user->company_id)->where('type','payment')->orderByDesc('id')->find($id);
+            if(!$payment) return DataResponse::NotFound('Payment not found');
+            if($payment->is_settled) return DataResponse::Duplicated(__('messages.info',[
+                'info' => 'Payment has already been settled'
+            ]));
+            if(!$payment) return DataResponse::NotFound(__('messages.not_found',[
+                'info' => 'Payment'
+            ]));
+            //** remove payment key from packages */
+            $pmtKey = $type.'_disbursement_id';
+            $payment->update([
+                'is_deleted' => 1,
+                'deleted_datetime' => now(),
+                'deleted_uid' => $user->id
+            ]);
+            Package::where($pmtKey,$id)->update([
+                $type.'_disbursement_id' => null,
+            ]);
+        }
 
         return DataResponse::JsonResult(null,false,__('messages.deleted',[
             'info' => 'Payment'
@@ -595,28 +668,28 @@ class TransactionService
 
     }
 
-    public function deleteSettlePayment($id,$user,$type){
-        $validType = $this->validType($type);
-        if($validType->error) return $validType;
-        $payment = Payment::where('is_deleted',0)->where('company_id',$user->company_id)->orderByDesc('id')->find($id);
-        if(!$payment) return DataResponse::NotFound(__('messages.not_found',[
-            'info' => 'Payment'
-        ]));
-        //** remove payment key from packages */
-        $pmtKey = $type.'_payment_id';
-        $payment->update([
-            'is_deleted' => 1,
-            'deleted_datetime' => now(),
-            'deleted_uid' => $user->id
-        ]);
-        Package::where($pmtKey,$id)->update([
-            $type.'_payment_id' => null,
-        ]);
+    // public function deleteSettlePayment($id,$user,$type){
+    //     $validType = $this->validType($type);
+    //     if($validType->error) return $validType;
+    //     $payment = Payment::where('is_deleted',0)->where('company_id',$user->company_id)->orderByDesc('id')->find($id);
+    //     if(!$payment) return DataResponse::NotFound(__('messages.not_found',[
+    //         'info' => 'Payment'
+    //     ]));
+    //     //** remove payment key from packages */
+    //     $pmtKey = $type.'_payment_id';
+    //     $payment->update([
+    //         'is_deleted' => 1,
+    //         'deleted_datetime' => now(),
+    //         'deleted_uid' => $user->id
+    //     ]);
+    //     Package::where($pmtKey,$id)->update([
+    //         $type.'_payment_id' => null,
+    //     ]);
 
-        return DataResponse::JsonResult(null,false,__('messages.deleted',[
-            'info' => 'Payment'
-        ]));
-    }
+    //     return DataResponse::JsonResult(null,false,__('messages.deleted',[
+    //         'info' => 'Payment'
+    //     ]));
+    // }
 
     private function validType($type){
         $validType = ['driver','merchant'];
@@ -929,7 +1002,7 @@ class TransactionService
         $breakDownNotes = trim($breakDownNotes, '| ');
         DB::beginTransaction();
         try{
-            $createPayment = Disbursement::create([
+            $disArr = [
                 'payee_id' => $payeeId,
                 'payee_type' => $type,
                 'taxi_fee' => $validPackages->total_taxi_fee,
@@ -947,7 +1020,16 @@ class TransactionService
                 'breakdown_notes' => $breakDownNotes,
                 'company_id' => $user->company_id,
                 'branch_id' => $user->branch_id
-            ]);
+            ];
+
+            if($type == 'merchant'){
+                $disArr['is_settled'] = 1;
+                $disArr['settled_uid'] = $user->id;
+                $disArr['approved_ui'] = $user->id;
+                $disArr['approved_datetime'] = now();
+                $disArr['settled_datetime'] = now();
+            }
+            $createPayment = Disbursement::create($disArr);
             $paymentId = $createPayment->id;
             if($cash && $dueAmount > 0){
                 DisbursementDetails::create([
