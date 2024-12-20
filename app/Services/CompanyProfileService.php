@@ -24,7 +24,7 @@ class CompanyProfileService
         $info = CompanyProfile::selectRaw('id,name,address,email,phone,description,photo_file_name,cp_phone')->where('id',$user->company_id)->first();
         if($info){
             $info->image_url = Helper::getImageUrl($info->photo_file_name,$user->company_id,'company');
-            if($includeSocialMedias) $info->social_medias = SocialMedia::where('company_id',$info->id)->selectRaw('name,account_name')->get();
+            if($includeSocialMedias) $info->social_medias = SocialMedia::where('is_deleted',0)->where('company_id',$info->id)->selectRaw('name,account_name')->get();
         }
         return $info;
     }

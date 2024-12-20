@@ -328,7 +328,7 @@ class HomeScreenController extends Controller
         $id = $req->package_id;
         $validate = validator($req->all(),[
             'status_id' => 'required|in:9,10,19',
-            'delivery_remarks' => 'required|string',
+            'delivery_remarks' => 'nullable|string',
             'image' => 'nullable',
             'amount' => 'nullable|numeric',
             'payer' => 'nullable|in:sender,receiver'

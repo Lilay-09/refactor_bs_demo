@@ -74,14 +74,12 @@ class TransactionController extends Controller
             $payment->remarks = $remarks ? $remarks : '';
             unset($payment->is_settled,$payment->payment_datetime);
         }
-
         // foreach($balanceInfo as $balance){
         //     $hasPayment = $balance->driver_payment;
         //     if($hasPayment){
         //         if(!$hasPayment->is_settled) $count += 1;
         //     }
         // }
-
         $obj = (object)[
             'balance_due' => $balanceDue,
             'count' => $count,

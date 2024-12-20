@@ -29,6 +29,7 @@ class Disbursement extends Model
         'approved_datetime',
         'settled_datetime',
         'delivered_package_count',
+        'failed_with_fee_count',
         'pickup_package_count',
         'receiptionist_uid',
         'exchange_rate',

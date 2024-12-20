@@ -27,6 +27,7 @@ class Payment extends Model
         'approved_datetime',
         'settled_datetime',
         'delivered_package_count',
+        'failed_with_fee_count',
         'exchange_rate',
         'breakdown_notes',
         'approved_uid',

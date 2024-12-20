@@ -75,7 +75,7 @@ Route::middleware(['jwt','localize'])->prefix('admin/v1/{lang}')->group(function
         Route::put('/{id}',[DriverManagementController::class,'updateDriver']);
         Route::post('/{id}/setLock',[DriverManagementController::class,'setLockDriver']);
 
-        Route::prefix('{id}/commission')->group(function(){
+        Route::prefix('{id}/commission')->group(function(): void{
             Route::get('',[DriverManagementController::class,'getDriverCommissions']);
             Route::put('',[DriverManagementController::class,'saveDriverCommission']);
         });
@@ -370,6 +370,7 @@ Route::middleware(['jwt','localize'])->prefix('admin/v1/{lang}')->group(function
         Route::prefix('filter')->group(function(){
             Route::get('driver',[GeneralSettingController::class,'getDriverFilterOptions']);
             Route::get('merchant/trx',[GeneralSettingController::class,'getMerchantTrxFilter']);
+            Route::get('merchant/transaction',[GeneralSettingController::class,'getMerchantTransactionTabFilter']);
         });
         Route::prefix('form')->group(function(){
             Route::get('banner',[GeneralSettingController::class,'getFormBanner']);
@@ -393,6 +394,7 @@ Route::middleware(['jwt','localize'])->prefix('admin/v1/{lang}')->group(function
 
 
     Route::prefix('report')->group(function(){
+        Route::get('/option/warehouse',[ReportController::class,'optionsWarehouse']);
         Route::prefix('company')->group(function(){
             Route::get('/pickup',[ReportController::class,'getPickupReport']);
             Route::get('/pickup/option',[ReportController::class,'getPickupReportOption']);
@@ -406,7 +408,7 @@ Route::middleware(['jwt','localize'])->prefix('admin/v1/{lang}')->group(function
             Route::get('/reviewAndFeedBack',[ReportController::class,'getReviewAndFeedBackReport']);
         });
         Route::prefix('driver')->group(function(){
-            Route::get('/list/option',[ReportController::class,'formOptionDriver']);
+            Route::get('/list/option',[ReportController::class,'formOptionUser']);
             Route::get('list',[ReportController::class,'getDriverListReport']);
             Route::get('delivery/summary/option',[ReportController::class,'formOptionDriver']);
             Route::get('delivery/summary',[ReportController::class,'driverDeliverySummaryReport']);
@@ -416,6 +418,11 @@ Route::middleware(['jwt','localize'])->prefix('admin/v1/{lang}')->group(function
             Route::get('packageDetail',[ReportController::class,'getPackageDetailReport']);
             Route::get('packageDetail/option',[ReportController::class,'driverDeliverySummaryReportOption']);
             Route::get('payment/commission',[ReportController::class,'getDriverCommissionPayment']);
+        });
+        Route::prefix('merchant')->group(function(){
+            Route::get('list',[ReportController::class,'getMerchantListReport']);
+            Route::get('/list/option',[ReportController::class,'formOptionUser']);
+            Route::get('summary',[ReportController::class,'getMerchantSummaryReport']);
         });
     });
 });

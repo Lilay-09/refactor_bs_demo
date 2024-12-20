@@ -32,7 +32,9 @@ class DriverTransactionController extends Controller
         if($driverId) $qD->where('id',$driverId);
         $driverInfo = $qD->get();
         $qP = Package::selectRaw('status_id,driver_id')
-        ->where('status_id',9)
+        ->whereIn('status_id',[9,19])
+        ->where('is_deleted',0)
+        ->whereNull('driver_commission_id')
         ->whereNotNull('driver_id');
         if($startDate && $endDate){
             $startDate = date('Y-m-d',strtotime($startDate));
@@ -41,7 +43,7 @@ class DriverTransactionController extends Controller
         }
         if($driverId) $qP->where('driver_id',$driverId);
         $packages = $qP->get();
-        $qO = Order::where('is_deleted',0)->where('status_id',5);
+        $qO = Order::where('is_deleted',0)->whereNull('driver_commission_id')->where('status_id',5);
         if($driverId) $qO->where('driver_id',$driverId);
         if($startDate && $endDate){
             $startDate = date('Y-m-d',strtotime($startDate));
@@ -62,7 +64,7 @@ class DriverTransactionController extends Controller
             $deliverdInfo = $this->getDeliveredDetails($packages,$driver->id);
             $totalDelivered = $deliverdInfo->total_package;
             $driver->total_delivered = $totalDelivered;
-            $driver->total = $driver->pickup_rate * $totalPickUp + $driver->delivery_rate * $totalDelivered;
+            $driver->total = number_format($driver->pickup_rate * $totalPickUp + $driver->delivery_rate * $totalDelivered,2);
             $driver->bank_account = null;
             $driver->status_code = 'Pending';
             foreach($driver->bank_accounts as $b){
@@ -185,7 +187,7 @@ class DriverTransactionController extends Controller
         $user = UserService::getAuthUser();
         $trxService = new TransactionService();
         // return $trxService->disbursementPayment($req,$user,'driver');
-        return ApiResponse::flex($trxService->disbursementPayment($req,$user,'driver'));
+        return ApiResponse::flex($trxService->disbursementCommission($req,$user,'driver'));
     }
 
 

@@ -544,8 +544,8 @@ class ReportController extends Controller
 
     public function getPackageDetailReport(Request $req){
         $user = UserService::getAuthUser();
-        $startDate = $req->startDate;
-        $endDate = $req->endDate;
+        $startDate = $req->startDate ? Helper::dateDMY($req->startDate) : null;
+        $endDate = $req->endDate ? Helper::dateDMY($req->endDate) : null;
         $packages = Package::where('is_deleted',0)->where('outstanding',0)
         ->with(['merchant:id,user_name','status:id,name'])
         ->selectRaw('status_id,qr_code,merchant_id,receiver_phone,receiver_name,cod,delivery_fee,taxi_fee,driver_total,remarks,zone_code,zone_name,payer')->get();
@@ -558,7 +558,7 @@ class ReportController extends Controller
         $obj =(object)[
             'title' => 'Daily Packages Summary',
             'status' => 'All Driver',
-            'date' => Helper::dateDMY($startDate).' to '.Helper::dateDMY($endDate),
+            'date' => $startDate.' to '.$endDate,
             'total' => 1,
             'company_profile' => CompanyProfileService::profileInfo($user),
             'list' => $packages
@@ -566,8 +566,25 @@ class ReportController extends Controller
         return ApiResponse::JsonResult($obj);
     }
 
-    public function getDriverCommissionPayment(){
+    public function getDriverCommissionPayment(Request $req){
         $user = UserService::getAuthUser();
+        $startDate = $req->startDate ? Helper::dateDMY($req->startDate) : null;
+        $endDate = $req->endDate ? Helper::dateDMY($req->endDate) : null;
+        $qD = User::fromRaw('users as d')->where('d.account_type','driver')
+        ->join('disbursements as dis','dis.payee_id','d.id')
+        ->join('users as r','r.id','dis.receiptionist_uid')
+        ->selectRaw('d.code,dis.pickup_rate,dis.delivery_rate,dis.failed_with_fee_count,dis.delivered_package_count,dis.pickup_package_count,dis.payable_amount,dis.payment_datetime,dis.breakdown_notes,r.user_name as paid_by')
+        ->where('dis.type','commission');
+        $drivers = $qD->get();
+        $obj =(object)[
+            'title' => 'Daily Packages Summary',
+            'status' => 'All Driver',
+            'date' => $startDate.' to '.$endDate,
+            'total' => 1,
+            'company_profile' => CompanyProfileService::profileInfo($user),
+            'list' => $drivers
+        ];
+        return ApiResponse::JsonResult($obj);
 
     }
 
@@ -646,6 +663,94 @@ class ReportController extends Controller
     //     return ApiResponse::JsonResult($obj);
     // }
 
+    //** END::DRIVER REPORT */
+
+
+    //** BEGIN::MERCHANT REPORT */
+
+    public function getMerchantListReport(Request $req){
+        $user = UserService::getAuthUser();
+        $startDate = $req->startDate ? Helper::dateDMY($req->startDate) : null;
+        $endDate = $req->endDate ? Helper::dateDMY($req->endDate) : null;
+        $q = User::where('is_deleted',0)
+        ->with('bank_accounts:user_id,bank_name,bank_number,account_name')
+        ->selectRaw('user_name,business_type,phone,created_at,address,code,lock,id');
+        $merchants = $q->get();
+        foreach($merchants as $m){
+            $m->registered_date = Helper::dateDMY($m->created_at);
+            $m->status_code = $m->lock ? 'Inactive' : 'Active';
+            foreach($m->bank_accounts as $b){
+                if($b->is_primary) {
+                    $m->bank_account = GeneralSettingService::concatBankInfo($b->bank_name,$b->bank_number,$b->account_name);
+                    $m->bank_name = $b->bank_name;
+                    $m->bank_number = $b->bank_number;
+                    $m->account_name = $b->account_name;
+                }
+                if(!$b->bank_account) {
+                    $m->bank_account = GeneralSettingService::concatBankInfo($b->bank_name,$b->bank_number,$b->account_name);
+                    $m->bank_name = $b->bank_name;
+                    $m->bank_number = $b->bank_number;
+                    $m->account_name = $b->account_name;
+                }
+            }
+            unset($m->created_at,$m->bank_accounts);
+        }
+        $obj =(object)[
+            'title' => 'Daily Packages Summary',
+            'status' => 'All Driver',
+            'date' => $startDate.' to '.$endDate,
+            'total' => 1,
+            'company_profile' => CompanyProfileService::profileInfo($user),
+            'list' => $merchants
+        ];
+        return ApiResponse::JsonResult($obj);
+    }
+
+
+    public function getMerchantSummaryReport(Request $req){
+        $user = UserService::getAuthUser();
+        $startDate = $req->startDate ? Helper::dateDMY($req->startDate) : null;
+        $endDate = $req->endDate ? Helper::dateDMY($req->endDate) : null;
+        $summary = [];
+        $qP = Package::where('is_deleted',0);
+        $packages = $qP->whereIn('status_id',[9,10,19])->orderByRaw('DATE(failed_datetime) DESC,DATE(delivered_datetime) DESC')
+        ->selectRaw('id,qr_code,delivered_datetime,failed_datetime,delivery_remarks,remarks,taxi_fee,extra_charge,delivery_fee,cod,price,payer,receiver_phone,receiver_name,receiver_address')->get();
+        $groupedPackages = collect($packages)->map(function ($item) {
+            $finishDate = $item->failed_datetime;
+            if($item->status_id == 9) $finishDate = $item->delivered_datetime;
+            $
+            $item->groupDate = date('d-M-Y',strtotime($finishDate));
+            // $item->actionDate = $actionDate;
+            return $item;
+        })->groupBy('groupDate')
+        ->map(function ($group, $date) {
+            $group->each(function ($item) {
+                unset($item->groupDate);
+            });
+            return [
+                'date' => $date,
+                'details' => $group->toArray(),
+                'total' => [
+                    'package' => $group->sum('qty'),
+                ],
+            ];
+        })->values();
+        $obj =(object)[
+            'title' => 'Daily Packages Summary',
+            'status' => 'All Driver',
+            'date' => $startDate.' to '.$endDate,
+            'total' => 1,
+            'summary' => $summary,
+            'company_profile' => CompanyProfileService::profileInfo($user),
+            'list' => $groupedPackages
+        ];
+        return ApiResponse::JsonResult($obj);
+    }
+
+
+    //** END MERCHANT REPORT */
+
+
     public function driverDeliverySummaryReportOption(){
         $user = UserService::getAuthUser();
         $obj =(object)[
@@ -655,11 +760,11 @@ class ReportController extends Controller
         return ApiResponse::JsonResult($obj);
     }
 
-
-    public function formOptionDriver (){
+    public function formOptionUser (){
         $user = UserService::getAuthUser();
         $obj =(object)[
             'warehouses' => GeneralSettingService::optionsWarehouse($user),
+            'statuses' => GeneralSettingService::optionsUserStatus()
         ];
         return ApiResponse::JsonResult($obj);
     }
@@ -668,6 +773,4 @@ class ReportController extends Controller
         $user = UserService::getAuthUser();
         return ApiResponse::JsonResult(GeneralSettingService::optionsWarehouse($user));
     }
-
-    //** END::DRIVER REPORT */
 }

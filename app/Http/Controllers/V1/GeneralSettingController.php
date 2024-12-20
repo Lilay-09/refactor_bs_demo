@@ -202,6 +202,24 @@ class GeneralSettingController extends Controller
         return ApiResponse::JsonResult($obj);
     }
 
+    public function getMerchantTransactionTabFilter(Request $req){
+        $user = UserService::getAuthUser();
+        $obj = (object)[
+            'merchants' => $this->gs::optionsMerchant($user),
+            'transaction_types' => [
+                [
+                    'name' => 'Transfer Out',
+                    'value' => 'disbursement',
+                ],
+                [
+                    'name' => 'Transfer In',
+                    'value' => 'receive'
+                ]
+            ],
+        ];
+        return ApiResponse::JsonResult($obj);
+    }
+
     public function getFormFleet(){
         $user = UserService::getAuthUser();
         $obj = (object)[

@@ -221,8 +221,8 @@ class PickupCenterService
     //     ];
     // }
 
-    public function updateOrderQty($orderId){
-        $count = Package::where('is_deleted',0)->where('order_id',$orderId)->count();
+    public function updateOrderQty($orderId,$count){
+        // $count = Package::where('is_deleted',0)->where('order_id',$orderId)->count();
         Order::where('is_deleted',0)->find($orderId)->update([
             'qty' => $count
         ]);
@@ -307,7 +307,7 @@ class PickupCenterService
             ]);
             $count = Package::where('order_id',$orderId)->where('is_deleted',0)->count();
             if($count > $order->qty){
-                $this->updateOrderQty($orderId);
+                $this->updateOrderQty($orderId,$count);
             }
             return DataResponse::JsonResult(null,false,__('messages.created',['info' => 'Package Number ('.$qrCode.').']));
         }else{
