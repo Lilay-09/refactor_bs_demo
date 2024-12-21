@@ -711,14 +711,15 @@ class ReportController extends Controller
         $user = UserService::getAuthUser();
         $startDate = $req->startDate ? Helper::dateDMY($req->startDate) : null;
         $endDate = $req->endDate ? Helper::dateDMY($req->endDate) : null;
+        $merchantId = $req->merchant_id;
         $summary = [];
-        $qP = Package::where('is_deleted',0);
+        $qP = Package::where('is_deleted',0)->where('merchant_id',$merchantId);
         $packages = $qP->whereIn('status_id',[9,10,19])->orderByRaw('DATE(failed_datetime) DESC,DATE(delivered_datetime) DESC')
         ->selectRaw('id,qr_code,delivered_datetime,failed_datetime,delivery_remarks,remarks,taxi_fee,extra_charge,delivery_fee,cod,price,payer,receiver_phone,receiver_name,receiver_address')->get();
         $groupedPackages = collect($packages)->map(function ($item) {
             $finishDate = $item->failed_datetime;
             if($item->status_id == 9) $finishDate = $item->delivered_datetime;
-            $
+
             $item->groupDate = date('d-M-Y',strtotime($finishDate));
             // $item->actionDate = $actionDate;
             return $item;

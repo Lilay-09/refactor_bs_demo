@@ -439,9 +439,9 @@ class GeneralSettingService
             "error" => false,
             'message' => 'Success',
             'delivery_fee' => $baseFee,
-            'driver_total' => $driverTotal - $taxi_fee,
-            'merchant_total' => $merchant_total + $taxi_fee,
-            'total' => $total
+            'driver_total' => number_format($driverTotal - $taxi_fee,2),
+            'merchant_total' => number_format($merchant_total + $taxi_fee,2),
+            'total' => number_format($total,2)
         ];
     }
 

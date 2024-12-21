@@ -63,7 +63,6 @@ class Package extends Model
         'driver_payment_id',
         'merchant_payment_id',
         'driver_disbursement_id',
-        'driver_disbursement_id',
         'driver_commission_id',
         'is_contact',
         'contact_reason',

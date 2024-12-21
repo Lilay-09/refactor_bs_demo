@@ -98,9 +98,9 @@ class FleetManagementController extends Controller
             }
         }
         return (object)[
-            'total' => $total,
+            'total' => number_format($total,2),
             'failed_count' => $failedCount,
-            'total_delivered' => $total_delivered,
+            'total_delivered' => number_format($total_delivered,2),
             'failed_with_fee_count' => $failedWithFeeCount,
             'delivery_count' => $deliveryCount
         ];
@@ -116,7 +116,7 @@ class FleetManagementController extends Controller
         ->leftJoin('users as d','d.id','p.driver_id')
         ->where('dp.is_deleted',0)
         ->join('tracking_statuses as ts','ts.id','dp.status_id')
-        ->selectRaw('p.qr_code,p.price,p.cod,p.receiver_name,p.receiver_phone,p.zone_code,p.zone_name,ts.name as status_code,d.user_name as driver_name,d.phone as driver_phone,m.user_name as merchant_name,m.phone as merchant_phone,p.id as package_id,dp.delivery_id,p.zone_code,p.zone_name,p.delivery_fee as base_fee,p.driver_total,p.driver_total as delivery_fee,p.taxi_fee,p.product_type,dp.status_id')
+        ->selectRaw('p.qr_code,p.price,p.cod,p.receiver_name,p.receiver_phone,p.zone_code,p.zone_name,ts.name as status_code,d.user_name as driver_name,d.phone as driver_phone,m.user_name as merchant_name,m.phone as merchant_phone,p.id as package_id,dp.delivery_id,p.zone_code,p.zone_name,p.delivery_fee as base_fee,p.driver_total,p.taxi_fee,p.product_type,dp.status_id')
         ->orderByRaw('(dp.status_id = ?) DESC', [6]);
         if ($search && str_starts_with($search, 'JPK')) {
             $qP->where('p.qr_code',$search);
@@ -124,10 +124,10 @@ class FleetManagementController extends Controller
 
 
         $packages = $qP->get();
-        // foreach($packages as $package){
-
-        //     unset($package->status);
-        // }
+        foreach($packages as $package){
+            $package->delivery_fee = $package->base_fee + $package->extra_charge;
+            unset($package->status);
+        }
         return ApiResponse::Pagination($packages,$req,__('messages.get_list',['info' => 'Package']));
     }
 
