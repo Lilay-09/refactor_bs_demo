@@ -93,6 +93,7 @@ Route::prefix('merchant/v1/{lang}/auth')->middleware('localize')->group(function
         Route::get('profile',[AuthMerchantController::class,'getProfile']);
         Route::post('profile',[AuthMerchantController::class,'updateProfile']);
         Route::post('registration/forgetPassword',[AuthMerchantController::class,'forgetPassword']);
+        Route::post('logout',[AuthMerchantController::class,'logOut']);
     });
 });
 

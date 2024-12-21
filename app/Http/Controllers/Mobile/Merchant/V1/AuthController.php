@@ -246,4 +246,9 @@ class AuthController extends Controller
         $deleteAcc = UserService::deleteUserAccount($user->id,'merchant');
         return ApiResponse::flex($deleteAcc);
     }
+    public function logOut(Request $req){
+        $user = UserService::getAuthUser('merchant');
+        $deleteAcc = UserService::logOut($req,$user);
+        return ApiResponse::flex($deleteAcc);
+    }
 }
