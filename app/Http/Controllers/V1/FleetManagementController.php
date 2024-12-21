@@ -85,6 +85,9 @@ class FleetManagementController extends Controller
         if($req->package_count>=0){
             $updateArr['package_count'] = $req->package_count;
         }
+        if($req->delivered_count>=0){
+            $updateArr['delivered_count'] = $req->delivered_count;
+        }
         Delivery::where('fleet_tracking_number',$req->code)->where('is_deleted',0)->update($updateArr);
     }
 

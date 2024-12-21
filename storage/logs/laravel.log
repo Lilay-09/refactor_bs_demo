@@ -515,3 +515,171 @@ DETAIL:  Failing row contains (37, 2024-12-21 11:26:47+07, 2024-12-21 11:44:28+0
 [stacktrace]
 #0 {main}
 "} 
+[2024-12-21 13:28:03] local.ERROR: Cannot declare class ApiResponse, because the name is already in use {"exception":"[object] (Symfony\\Component\\ErrorHandler\\Error\\FatalError(code: 0): Cannot declare class ApiResponse, because the name is already in use at D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\app\\helpers.php:4)
+[stacktrace]
+#0 {main}
+"} 
+[2024-12-21 13:29:03] local.ERROR: Cannot declare class ApiResponse, because the name is already in use {"exception":"[object] (Symfony\\Component\\ErrorHandler\\Error\\FatalError(code: 0): Cannot declare class ApiResponse, because the name is already in use at D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\app\\helpers.php:4)
+[stacktrace]
+#0 {main}
+"} 
+[2024-12-21 13:30:03] local.ERROR: Cannot declare class ApiResponse, because the name is already in use {"exception":"[object] (Symfony\\Component\\ErrorHandler\\Error\\FatalError(code: 0): Cannot declare class ApiResponse, because the name is already in use at D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\app\\helpers.php:4)
+[stacktrace]
+#0 {main}
+"} 
+[2024-12-21 13:31:03] local.ERROR: Cannot declare class ApiResponse, because the name is already in use {"exception":"[object] (Symfony\\Component\\ErrorHandler\\Error\\FatalError(code: 0): Cannot declare class ApiResponse, because the name is already in use at D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\app\\helpers.php:4)
+[stacktrace]
+#0 {main}
+"} 
+[2024-12-21 13:32:03] local.ERROR: Cannot declare class ApiResponse, because the name is already in use {"exception":"[object] (Symfony\\Component\\ErrorHandler\\Error\\FatalError(code: 0): Cannot declare class ApiResponse, because the name is already in use at D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\app\\helpers.php:4)
+[stacktrace]
+#0 {main}
+"} 
+[2024-12-21 13:33:03] local.ERROR: Cannot declare class ApiResponse, because the name is already in use {"exception":"[object] (Symfony\\Component\\ErrorHandler\\Error\\FatalError(code: 0): Cannot declare class ApiResponse, because the name is already in use at D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\app\\helpers.php:4)
+[stacktrace]
+#0 {main}
+"} 
+[2024-12-21 13:34:03] local.ERROR: Cannot declare class ApiResponse, because the name is already in use {"exception":"[object] (Symfony\\Component\\ErrorHandler\\Error\\FatalError(code: 0): Cannot declare class ApiResponse, because the name is already in use at D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\app\\helpers.php:4)
+[stacktrace]
+#0 {main}
+"} 
+[2024-12-21 13:35:03] local.ERROR: Cannot declare class ApiResponse, because the name is already in use {"exception":"[object] (Symfony\\Component\\ErrorHandler\\Error\\FatalError(code: 0): Cannot declare class ApiResponse, because the name is already in use at D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\app\\helpers.php:4)
+[stacktrace]
+#0 {main}
+"} 
+[2024-12-21 13:36:03] local.ERROR: Cannot declare class ApiResponse, because the name is already in use {"exception":"[object] (Symfony\\Component\\ErrorHandler\\Error\\FatalError(code: 0): Cannot declare class ApiResponse, because the name is already in use at D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\app\\helpers.php:4)
+[stacktrace]
+#0 {main}
+"} 
+[2024-12-21 13:37:03] local.ERROR: Cannot declare class ApiResponse, because the name is already in use {"exception":"[object] (Symfony\\Component\\ErrorHandler\\Error\\FatalError(code: 0): Cannot declare class ApiResponse, because the name is already in use at D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\app\\helpers.php:4)
+[stacktrace]
+#0 {main}
+"} 
+[2024-12-21 13:38:03] local.ERROR: Cannot declare class ApiResponse, because the name is already in use {"exception":"[object] (Symfony\\Component\\ErrorHandler\\Error\\FatalError(code: 0): Cannot declare class ApiResponse, because the name is already in use at D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\app\\helpers.php:4)
+[stacktrace]
+#0 {main}
+"} 
+[2024-12-21 13:39:03] local.ERROR: Cannot declare class ApiResponse, because the name is already in use {"exception":"[object] (Symfony\\Component\\ErrorHandler\\Error\\FatalError(code: 0): Cannot declare class ApiResponse, because the name is already in use at D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\app\\helpers.php:4)
+[stacktrace]
+#0 {main}
+"} 
+[2024-12-21 13:40:03] local.ERROR: Cannot declare class ApiResponse, because the name is already in use {"exception":"[object] (Symfony\\Component\\ErrorHandler\\Error\\FatalError(code: 0): Cannot declare class ApiResponse, because the name is already in use at D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\app\\helpers.php:4)
+[stacktrace]
+#0 {main}
+"} 
+[2024-12-21 13:41:03] local.ERROR: Cannot declare class ApiResponse, because the name is already in use {"exception":"[object] (Symfony\\Component\\ErrorHandler\\Error\\FatalError(code: 0): Cannot declare class ApiResponse, because the name is already in use at D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\app\\helpers.php:4)
+[stacktrace]
+#0 {main}
+"} 
+[2024-12-21 13:42:03] local.ERROR: Cannot declare class ApiResponse, because the name is already in use {"exception":"[object] (Symfony\\Component\\ErrorHandler\\Error\\FatalError(code: 0): Cannot declare class ApiResponse, because the name is already in use at D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\app\\helpers.php:4)
+[stacktrace]
+#0 {main}
+"} 
+[2024-12-21 13:43:03] local.ERROR: Cannot declare class ApiResponse, because the name is already in use {"exception":"[object] (Symfony\\Component\\ErrorHandler\\Error\\FatalError(code: 0): Cannot declare class ApiResponse, because the name is already in use at D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\app\\helpers.php:4)
+[stacktrace]
+#0 {main}
+"} 
+[2024-12-21 13:44:03] local.ERROR: Cannot declare class ApiResponse, because the name is already in use {"exception":"[object] (Symfony\\Component\\ErrorHandler\\Error\\FatalError(code: 0): Cannot declare class ApiResponse, because the name is already in use at D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\app\\helpers.php:4)
+[stacktrace]
+#0 {main}
+"} 
+[2024-12-21 13:45:03] local.ERROR: Cannot declare class ApiResponse, because the name is already in use {"exception":"[object] (Symfony\\Component\\ErrorHandler\\Error\\FatalError(code: 0): Cannot declare class ApiResponse, because the name is already in use at D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\app\\helpers.php:4)
+[stacktrace]
+#0 {main}
+"} 
+[2024-12-21 13:46:03] local.ERROR: Cannot declare class ApiResponse, because the name is already in use {"exception":"[object] (Symfony\\Component\\ErrorHandler\\Error\\FatalError(code: 0): Cannot declare class ApiResponse, because the name is already in use at D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\app\\helpers.php:4)
+[stacktrace]
+#0 {main}
+"} 
+[2024-12-21 13:47:03] local.ERROR: Cannot declare class ApiResponse, because the name is already in use {"exception":"[object] (Symfony\\Component\\ErrorHandler\\Error\\FatalError(code: 0): Cannot declare class ApiResponse, because the name is already in use at D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\app\\helpers.php:4)
+[stacktrace]
+#0 {main}
+"} 
+[2024-12-21 13:48:03] local.ERROR: Cannot declare class ApiResponse, because the name is already in use {"exception":"[object] (Symfony\\Component\\ErrorHandler\\Error\\FatalError(code: 0): Cannot declare class ApiResponse, because the name is already in use at D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\app\\helpers.php:4)
+[stacktrace]
+#0 {main}
+"} 
+[2024-12-21 13:49:03] local.ERROR: Cannot declare class ApiResponse, because the name is already in use {"exception":"[object] (Symfony\\Component\\ErrorHandler\\Error\\FatalError(code: 0): Cannot declare class ApiResponse, because the name is already in use at D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\app\\helpers.php:4)
+[stacktrace]
+#0 {main}
+"} 
+[2024-12-21 13:50:03] local.ERROR: Cannot declare class ApiResponse, because the name is already in use {"exception":"[object] (Symfony\\Component\\ErrorHandler\\Error\\FatalError(code: 0): Cannot declare class ApiResponse, because the name is already in use at D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\app\\helpers.php:4)
+[stacktrace]
+#0 {main}
+"} 
+[2024-12-21 13:51:03] local.ERROR: Cannot declare class ApiResponse, because the name is already in use {"exception":"[object] (Symfony\\Component\\ErrorHandler\\Error\\FatalError(code: 0): Cannot declare class ApiResponse, because the name is already in use at D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\app\\helpers.php:4)
+[stacktrace]
+#0 {main}
+"} 
+[2024-12-21 13:52:03] local.ERROR: Cannot declare class ApiResponse, because the name is already in use {"exception":"[object] (Symfony\\Component\\ErrorHandler\\Error\\FatalError(code: 0): Cannot declare class ApiResponse, because the name is already in use at D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\app\\helpers.php:4)
+[stacktrace]
+#0 {main}
+"} 
+[2024-12-21 13:53:03] local.ERROR: Cannot declare class ApiResponse, because the name is already in use {"exception":"[object] (Symfony\\Component\\ErrorHandler\\Error\\FatalError(code: 0): Cannot declare class ApiResponse, because the name is already in use at D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\app\\helpers.php:4)
+[stacktrace]
+#0 {main}
+"} 
+[2024-12-21 13:54:03] local.ERROR: Cannot declare class ApiResponse, because the name is already in use {"exception":"[object] (Symfony\\Component\\ErrorHandler\\Error\\FatalError(code: 0): Cannot declare class ApiResponse, because the name is already in use at D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\app\\helpers.php:4)
+[stacktrace]
+#0 {main}
+"} 
+[2024-12-21 13:55:03] local.ERROR: Cannot declare class ApiResponse, because the name is already in use {"exception":"[object] (Symfony\\Component\\ErrorHandler\\Error\\FatalError(code: 0): Cannot declare class ApiResponse, because the name is already in use at D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\app\\helpers.php:4)
+[stacktrace]
+#0 {main}
+"} 
+[2024-12-21 13:56:03] local.ERROR: Cannot declare class ApiResponse, because the name is already in use {"exception":"[object] (Symfony\\Component\\ErrorHandler\\Error\\FatalError(code: 0): Cannot declare class ApiResponse, because the name is already in use at D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\app\\helpers.php:4)
+[stacktrace]
+#0 {main}
+"} 
+[2024-12-21 13:57:03] local.ERROR: Cannot declare class ApiResponse, because the name is already in use {"exception":"[object] (Symfony\\Component\\ErrorHandler\\Error\\FatalError(code: 0): Cannot declare class ApiResponse, because the name is already in use at D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\app\\helpers.php:4)
+[stacktrace]
+#0 {main}
+"} 
+[2024-12-21 13:58:03] local.ERROR: Cannot declare class ApiResponse, because the name is already in use {"exception":"[object] (Symfony\\Component\\ErrorHandler\\Error\\FatalError(code: 0): Cannot declare class ApiResponse, because the name is already in use at D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\app\\helpers.php:4)
+[stacktrace]
+#0 {main}
+"} 
+[2024-12-21 13:59:03] local.ERROR: Cannot declare class ApiResponse, because the name is already in use {"exception":"[object] (Symfony\\Component\\ErrorHandler\\Error\\FatalError(code: 0): Cannot declare class ApiResponse, because the name is already in use at D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\app\\helpers.php:4)
+[stacktrace]
+#0 {main}
+"} 
+[2024-12-21 14:00:03] local.ERROR: Cannot declare class ApiResponse, because the name is already in use {"exception":"[object] (Symfony\\Component\\ErrorHandler\\Error\\FatalError(code: 0): Cannot declare class ApiResponse, because the name is already in use at D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\app\\helpers.php:4)
+[stacktrace]
+#0 {main}
+"} 
+[2024-12-21 14:01:03] local.ERROR: Cannot declare class ApiResponse, because the name is already in use {"exception":"[object] (Symfony\\Component\\ErrorHandler\\Error\\FatalError(code: 0): Cannot declare class ApiResponse, because the name is already in use at D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\app\\helpers.php:4)
+[stacktrace]
+#0 {main}
+"} 
+[2024-12-21 14:02:03] local.ERROR: Cannot declare class ApiResponse, because the name is already in use {"exception":"[object] (Symfony\\Component\\ErrorHandler\\Error\\FatalError(code: 0): Cannot declare class ApiResponse, because the name is already in use at D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\app\\helpers.php:4)
+[stacktrace]
+#0 {main}
+"} 
+[2024-12-21 14:03:03] local.ERROR: Cannot declare class ApiResponse, because the name is already in use {"exception":"[object] (Symfony\\Component\\ErrorHandler\\Error\\FatalError(code: 0): Cannot declare class ApiResponse, because the name is already in use at D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\app\\helpers.php:4)
+[stacktrace]
+#0 {main}
+"} 
+[2024-12-21 14:04:03] local.ERROR: Cannot declare class ApiResponse, because the name is already in use {"exception":"[object] (Symfony\\Component\\ErrorHandler\\Error\\FatalError(code: 0): Cannot declare class ApiResponse, because the name is already in use at D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\app\\helpers.php:4)
+[stacktrace]
+#0 {main}
+"} 
+[2024-12-21 14:05:03] local.ERROR: Cannot declare class ApiResponse, because the name is already in use {"exception":"[object] (Symfony\\Component\\ErrorHandler\\Error\\FatalError(code: 0): Cannot declare class ApiResponse, because the name is already in use at D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\app\\helpers.php:4)
+[stacktrace]
+#0 {main}
+"} 
+[2024-12-21 14:06:03] local.ERROR: Cannot declare class ApiResponse, because the name is already in use {"exception":"[object] (Symfony\\Component\\ErrorHandler\\Error\\FatalError(code: 0): Cannot declare class ApiResponse, because the name is already in use at D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\app\\helpers.php:4)
+[stacktrace]
+#0 {main}
+"} 
+[2024-12-21 14:07:03] local.ERROR: Cannot declare class ApiResponse, because the name is already in use {"exception":"[object] (Symfony\\Component\\ErrorHandler\\Error\\FatalError(code: 0): Cannot declare class ApiResponse, because the name is already in use at D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\app\\helpers.php:4)
+[stacktrace]
+#0 {main}
+"} 
+[2024-12-21 14:08:03] local.ERROR: Cannot declare class ApiResponse, because the name is already in use {"exception":"[object] (Symfony\\Component\\ErrorHandler\\Error\\FatalError(code: 0): Cannot declare class ApiResponse, because the name is already in use at D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\app\\helpers.php:4)
+[stacktrace]
+#0 {main}
+"} 
+[2024-12-21 14:09:03] local.ERROR: Cannot declare class ApiResponse, because the name is already in use {"exception":"[object] (Symfony\\Component\\ErrorHandler\\Error\\FatalError(code: 0): Cannot declare class ApiResponse, because the name is already in use at D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\app\\helpers.php:4)
+[stacktrace]
+#0 {main}
+"} 
