@@ -174,12 +174,11 @@ class CloudMessagingService
         $this->messaging->subscribeToTopic($topic, $token);
     }
 
-    public function unsubscribeAllTopics($user)
+    public function unsubscribeAllTopics($token)
     {
-        $token = UserNotificationToken::where('user_id', $user->id)->value('token');
         $this->messaging->unsubscribeFromAllTopics($token);
-        return DataResponse::JsonResult(null,false,'unsubscribed');
     }
+
 
     public function unsubscribeTopic($user,$topic,$setToken=null)
     {

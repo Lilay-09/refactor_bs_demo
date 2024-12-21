@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use ApiResponse;
 use App\Models\Bank;
 use App\Models\Disbursement;
 use App\Models\DisbursementDetails;
@@ -37,6 +38,11 @@ class TransactionService
         // ->leftJoin('payments as mpmt','mpmt.id','p.merchant_payment_id') //** if driver paid or unpaid */
         ->whereIn('p.status_id',[9,19]) //* delivered and failed with fee
         ->selectRaw('p.additional_fee,p.remarks,p.cod,p.price,d.phone as driver_phone,p.taxi_fee,p.payer,p.delivery_fee,p.merchant_total,m.user_name as merchant_name,m.phone as merchant_phone,d.user_name as driver_name,p.status_id,p.id as package_id,d.id as driver_id,p.qr_code,ts.name as status_code,p.delivered_datetime,p.failed_datetime,p.zone_code,p.receiver_phone,p.delivery_type,'.$fkKey);
+        if($type == 'driver'){
+            $qP->where(function ($q) use($type){
+                $q->whereNull($type.'_payment_id')->orWhereNull($type.'_disbursement_id');
+            });
+        }
         if($driverId || $merchantId){
             if($type == 'driver') $qP->where('p.driver_id',$driverId);
             else $qP->where('p.merchant_id',$merchantId);
@@ -600,7 +606,7 @@ class TransactionService
         ->join('users as r','r.id','p.receiver_uid')
         ->leftJoin('users as st','st.id','p.settled_uid')
         ->orderBy('p.is_settled')
-        ->selectRaw('st.user_name as settlement_username,p.is_settled,r.user_name as receiver_name,p.payment_datetime,p.id as payment_id,d.user_name as payer_name,p.exchange_rate,p.amount,p.taxi_fee,p.breakdown_notes as remarks');
+        ->selectRaw('p.is_deleted,st.user_name as settlement_username,p.is_settled,r.user_name as receiver_name,p.payment_datetime,p.id as payment_id,d.user_name as payer_name,p.exchange_rate,p.amount,p.taxi_fee,p.breakdown_notes as remarks');
         $payments = $qP->get();
         $paymentDetails = PaymentDetail::get();
         foreach($payments as $pmt){
@@ -663,7 +669,8 @@ class TransactionService
                 'deleted_uid' => $user->id
             ]);
             Package::where($pmtKey,$id)->update([
-                $type.'_payment_id' => null,
+                // $type.'_disbursement_id' => null,
+                $pmtKey => null,
             ]);
         }else if($trxType == 'disbursement'){
             $payment = Disbursement::where('is_deleted',0)->where('company_id',$user->company_id)->where('type','payment')->orderByDesc('id')->find($id);
@@ -681,8 +688,9 @@ class TransactionService
                 'deleted_datetime' => now(),
                 'deleted_uid' => $user->id
             ]);
-            Package::where($pmtKey,$id)->update([
-                $type.'_disbursement_id' => null,
+            Package::where('disbursement_id',$id)->update([
+                $pmtKey => null,
+                // $type.'_payment_id' => null,
             ]);
         }
 
@@ -690,30 +698,61 @@ class TransactionService
             'info' => 'Payment'
         ]));
 
+
     }
 
-    // public function deleteSettlePayment($id,$user,$type){
-    //     $validType = $this->validType($type);
-    //     if($validType->error) return $validType;
-    //     $payment = Payment::where('is_deleted',0)->where('company_id',$user->company_id)->orderByDesc('id')->find($id);
-    //     if(!$payment) return DataResponse::NotFound(__('messages.not_found',[
-    //         'info' => 'Payment'
-    //     ]));
-    //     //** remove payment key from packages */
-    //     $pmtKey = $type.'_payment_id';
-    //     $payment->update([
-    //         'is_deleted' => 1,
-    //         'deleted_datetime' => now(),
-    //         'deleted_uid' => $user->id
-    //     ]);
-    //     Package::where($pmtKey,$id)->update([
-    //         $type.'_payment_id' => null,
-    //     ]);
+    public function deleteSettlePayment($id,$trxType,$type,$user){
+        $validType = $this->validType($type);
+        if($validType->error) return $validType;
+        if(!in_array($trxType,['receive','disbursement'])) return DataResponse::ValidateFail(__('messages.info',[
+            'info' => 'Please select payment type'
+        ]));
+        if($trxType =='receive'){
+            $payment = Payment::where('is_deleted',0)->where('company_id',$user->company_id)->orderByDesc('id')->find($id);
+            if(!$payment) return DataResponse::NotFound('Payment not found');
+            // if($payment->is_settled) return DataResponse::Duplicated(__('messages.info',[
+            //     'info' => 'Payment has already been settled'
+            // ]));
+            if(!$payment) return DataResponse::NotFound(__('messages.not_found',[
+                'info' => 'Payment'
+            ]));
+            //** remove payment key from packages */
+            $pmtKey = $type.'_payment_id';
+            $payment->update([
+                'is_deleted' => 1,
+                'deleted_datetime' => now(),
+                'deleted_uid' => $user->id
+            ]);
+            Package::where($pmtKey,$id)->update([
+                // $type.'_disbursement_id' => null,
+                $pmtKey => null,
+            ]);
+        }else if($trxType == 'disbursement'){
+            $payment = Disbursement::where('is_deleted',0)->where('company_id',$user->company_id)->where('type','payment')->orderByDesc('id')->find($id);
+            if(!$payment) return DataResponse::NotFound('Payment not found');
+            // if($payment->is_settled) return DataResponse::Duplicated(__('messages.info',[
+            //     'info' => 'Payment has already been settled'
+            // ]));
+            if(!$payment) return DataResponse::NotFound(__('messages.not_found',[
+                'info' => 'Payment'
+            ]));
+            //** remove payment key from packages */
+            $pmtKey = $type.'_disbursement_id';
+            $payment->update([
+                'is_deleted' => 1,
+                'deleted_datetime' => now(),
+                'deleted_uid' => $user->id
+            ]);
+            Package::where('disbursement_id',$id)->update([
+                $pmtKey => null,
+                // $type.'_payment_id' => null,
+            ]);
+        }
 
-    //     return DataResponse::JsonResult(null,false,__('messages.deleted',[
-    //         'info' => 'Payment'
-    //     ]));
-    // }
+        return DataResponse::JsonResult(null,false,__('messages.deleted',[
+            'info' => 'Payment'
+        ]));
+    }
 
     private function validType($type){
         $validType = ['driver','merchant'];

@@ -58,7 +58,7 @@ class HomeScreenController extends Controller
         ->whereIn('status_id',[2,3,4])
         ->where('company_id',$user->company_id)
         ->where('driver_id',$user->id)
-        // ->orderByRaw('order')
+        ->orderByRaw('status_id = ? desc',[3])
         ->orderByDesc('id')
         ->selectRaw('id,warehouse_id,driver_id,pickup_address_google_map,order_datetime,merchant_id,status_id,qty,code,pickup_address,pickup_address_google_map,vehicle_type,delivery_type,loc_lat,loc_lng,product_type')
         ->get();
@@ -344,6 +344,9 @@ class HomeScreenController extends Controller
         $photo = $inputs['image'] ?? null;
         $deliveryRemarks = $inputs['delivery_remarks'] ?? null;
         $payer = $inputs['payer'] ?? null;
+        if($codChange){
+            $inputs['driver_total'] = $amount;
+        }
 
         $package = Package::where('is_deleted',0)->find($id);
         if(!$package) return ApiResponse::NotFound(__('messages.not_found',[

@@ -432,11 +432,15 @@ class UserService
         ]));
     }
 
-    public static function logOut(Request $req,$type){
-        $user = self::getAuthUser($type);
+    public static function logOut(Request $req,$user){
         JWTAuth::invalidate(JWTAuth::getToken());
-        UserNotificationToken::where('user_id',$user->id)->get();
-        return DataResponse::JsonResult(null,false,__('messages.deleted',[
+        $token = UserNotificationToken::where('user_id', $user->id)->where('device_id',$req->device_id)->value('token');
+        $topic = GeneralSettingService::getGeneralTopics($user->company_id,$user->account_type,$user->id);
+        $cl = new CloudMessagingService();
+        foreach($topic as $t){
+            $cl->unsubscribeTopic($user,$t,$token);
+        }
+        return DataResponse::JsonResult(null,false,__('messages.info',[
             'info' => 'Logged Out',
         ]));
 

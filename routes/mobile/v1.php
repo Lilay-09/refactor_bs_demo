@@ -20,6 +20,7 @@ Route::prefix('driver/v1/{lang}/auth')->middleware('localize')->group(function()
         Route::delete('account',[AuthController::class,'deleteAccount']);
         Route::get('profile',[AuthController::class,'getProfile']);
         Route::post('profile',[AuthController::class,'updateProfile']);
+        Route::post('logout',[AuthController::class,'logOut']);
     });
 });
 
