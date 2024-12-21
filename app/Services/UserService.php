@@ -5,6 +5,7 @@ use ApiResponse;
 use App\Models\MerchantPriceList;
 use App\Models\User;
 use App\Models\UserBank;
+use App\Models\UserNotificationToken;
 use App\Models\UserRoles;
 use DataResponse;
 use DB;
@@ -424,11 +425,19 @@ class UserService
                 // 'deleted_uid' => $user->id,
                 // 'deleted_datetime' => now()
             ]);
-            auth()->logout();
         }
 
         return DataResponse::JsonResult(null,false,__('messages.deleted',[
             'info' => 'Account'
+        ]));
+    }
+
+    public static function logOut(Request $req,$type){
+        $user = self::getAuthUser($type);
+        JWTAuth::invalidate(JWTAuth::getToken());
+        UserNotificationToken::where('user_id',$user->id)->get();
+        return DataResponse::JsonResult(null,false,__('messages.deleted',[
+            'info' => 'Logged Out',
         ]));
 
     }

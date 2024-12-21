@@ -80,6 +80,14 @@ class FleetManagementController extends Controller
         return ApiResponse::Pagination($deliveries,$req);
     }
 
+    public function updateTripCount(Request $req){
+        $updateArr = [];
+        if($req->package_count){
+            $updateArr['package_count'] = $req->package_count;
+        }
+        Delivery::where('fleet_tracking_number',$req->code)->where('is_deleted',0)->update($updateArr);
+    }
+
     public function getTripDetails($packages,$deliveryId){
         $total = 0;
         $failedCount = 0;
@@ -230,6 +238,21 @@ class FleetManagementController extends Controller
         Delivery::find($trip_id)->update([
             'package_count' =>  DB::raw('package_count - 1'),
         ]);
+
+        $trip = Delivery::find($trip_id);
+        if($trip){
+            $onDeliveryCount = $trip->package_count - ($trip->delivered_count + $trip->failed_count);
+            if($onDeliveryCount == 0) $trip->update([
+                'finished' => 1,
+                'is_completed' => 1,
+            ]);
+            if($trip->package_count == 0) $trip->update([
+                'is_deleted' => 1,
+                'deleted_uid' => $user->id,
+                'deleted_datetime' => now(),
+                'tracking_notes' => $trip->tracking_notes.'| Kick all packages out so this trip is deleted'
+            ]);
+        }
 
         return ApiResponse::JsonResult(null,__('messages.info',[
             'info' => 'Package '.$package->qr_code.' has been removed from Driver'

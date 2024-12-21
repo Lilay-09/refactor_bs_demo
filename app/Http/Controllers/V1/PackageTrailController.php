@@ -230,7 +230,9 @@ class PackageTrailController extends Controller
         DB::beginTransaction();
         try{
             if($package->driver_id){
-                $deliveryPackage = DeliveryPackage::where('package_id',$id)->where('is_deleted',0)->where('delay_count',0)->first();
+                $deliveryPackage = DeliveryPackage::where('package_id',$id)->where(function($q){
+                    $q->where('is_deleted',0)->orWhere('delay_count',0);
+                })->first();
                 if($deliveryPackage){
                     if(!$user->system_admin && $deliveryPackage->status_id !== 10 && !in_array($package->status_id,[5,10,19]) ) return ApiResponse::Duplicated(__('messages.has already assigned',['info' => 'Package']));
                     // $fleet = new FleetManagementController();
@@ -248,7 +250,7 @@ class PackageTrailController extends Controller
                 }
                 $selfTrip = Delivery::where('driver_id',$package->driver_id)->where('finished',0)->orderByDesc('id')->first();
                 //** remove self pacakge */
-                if($selfTrip){
+                if($selfTrip && $driver_id != $package->driver_id){
                     $selfTrip->update([
                         'package_count' => $selfTrip->package_count - 1
                     ]);
@@ -304,14 +306,18 @@ class PackageTrailController extends Controller
         if(!$pendingTrip) {
             $oneTrip = Delivery::orderByDesc('id')->where('driver_id',$driverId)->where('is_deleted',0)->first();
             if($oneTrip){
-                $stillHasPackage = DeliveryPackage::where('delivery_id',$oneTrip->id)->where('delay_count',0)->where('status_id',6)->first();
+                $stillHasPackage = DeliveryPackage::where('delivery_id',$oneTrip->id)->where(function ($q){
+                    $q->where('delay_count',0)->orWhere('is_deleted',0);
+                })->where('status_id',6)->first();
                 if($stillHasPackage) $pendingTrip = $oneTrip ?? null;
             }
         }
 
 
         if(!$pendingTrip){
-            $QuerylastPackage = DeliveryPackage::where('package_id',$packageId)->where('delay_count',0)->where('is_deleted',0);
+            $QuerylastPackage = DeliveryPackage::where('package_id',$packageId)->where(function ($q){
+                $q->where('delay_count',0)->orWhere('is_deleted',0);
+            });
             $hasFailPackage = $QuerylastPackage->orderByDesc('id')->get();
             if(isset($hasFailPackage[0])) $QuerylastPackage->update([
                 'delay_count' => 1,
@@ -335,7 +341,9 @@ class PackageTrailController extends Controller
             $deliveryId = $pendingTrip->id;
             $newPackageCount = $pendingTrip->package_count;
             $delay = 1;
-            $existsPkg = DeliveryPackage::where('package_id',$packageId)->where('delivery_id',$deliveryId)->where('delay_count',0)->where('is_deleted',0)
+            $existsPkg = DeliveryPackage::where('package_id',$packageId)->where('delivery_id',$deliveryId)->where(function ($q){
+                $q->where('delay_count',0)->orWhere('is_deleted',0);
+            })
             ->first();
             if($existsPkg) {
                 $isNewPkg = false;
