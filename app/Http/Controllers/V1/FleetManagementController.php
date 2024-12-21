@@ -121,7 +121,8 @@ class FleetManagementController extends Controller
         $trip_id = $req->trip_id;
         $search = $req->search;
         $qP = Package::fromRaw('packages as p')->join('delivery_packages as dp','p.id','dp.package_id')
-        // ->where('dp.delay_count',0)
+        ->whereIn('status_id',[6,9,10,19])
+        ->where('dp.delay_count',0)
         ->where('dp.delivery_id',$trip_id)
         ->leftJoin('users as m','m.id','p.merchant_id')
         ->leftJoin('users as d','d.id','p.driver_id')
