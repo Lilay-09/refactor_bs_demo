@@ -82,7 +82,7 @@ class FleetManagementController extends Controller
 
     public function updateTripCount(Request $req){
         $updateArr = [];
-        if($req->package_count){
+        if($req->package_count>=0){
             $updateArr['package_count'] = $req->package_count;
         }
         Delivery::where('fleet_tracking_number',$req->code)->where('is_deleted',0)->update($updateArr);
