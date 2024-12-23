@@ -105,10 +105,10 @@ class ReportController extends Controller
                 'date' => $date,
                 'details' => $group->toArray(),
                 'total' => [
-                    'cod_fee' => $group->sum('cod_fee'), // Replace 'cod' with the actual property name
-                    'fee' => $group->sum('fee'),
-                    'driver' => $group->sum('driver_total'), // Add any other total calculations
-                    'merchant' => $group->sum('merchant_total'),
+                    'cod_fee' => number_format($group->sum('cod_fee'),2), // Replace 'cod' with the actual property name
+                    'fee' => number_format($group->sum('fee'),2),
+                    'driver' => number_format($group->sum('driver_total'),2), // Add any other total calculations
+                    'merchant' => number_format($group->sum('merchant_total'),2),
                 ],
             ];
         })->values();
@@ -131,6 +131,7 @@ class ReportController extends Controller
         $qP = Package::where('is_deleted',0)
         ->with(['merchant']);
         $packages = $qP->selectRaw('DATE(created_at) as created_date,merchant_id,status_id,delivery_fee,cod')
+        ->whereIn('status_id',[6,9,10,11,19])
         ->orderByDesc('created_date')
         ->get();
         $groupedPackages = collect($packages)->map(function ($pkg) {
@@ -147,10 +148,12 @@ class ReportController extends Controller
                 $item->merchant_code = $item->merchant->code;
                 $item->driver_name = $item->driver?->user_name;
                 $item->driver_phone = $item->driver?->phone;
-                $item->package_count = $group->where('merchant_id', $item->merchant_id)->count();
-                $item->delivered_count = $group->where('status_id', 9)->count(); // Count packages for this merchant
-                $item->returned_count = $group->where('status_id', 11)->count();
-                $item->outstanding_count = $group->whereIn('status_id', [10,19])->count();
+                $item->package_count += $group->where('merchant_id', $item->merchant_id)->count();
+                $item->delivered_count += $item->status_id == 9 ? 1 : 0;
+                $item->returned_count += $item->status_id == 11 ? 1 : 0;
+                // $item->delivered_count = $group->where('status_id', 9)->count(); // Count packages for this merchant
+                // $item->returned_count = $group->where('status_id', 11)->count();
+                $item->outstanding_count += $group->whereIn('status_id', [6,10,19])->where('merchant_id', $item->merchant_id)->count(); //$group->whereIn('status_id', [10,19])->count();
                 unset($status_id, $item->merchant, $item->driver,$item->cod,$item->cod);
             });
             return [

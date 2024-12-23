@@ -151,13 +151,20 @@ class PackageTrailController extends Controller
         $user = UserService::getAuthUser();
         $id = $req->id;
         $package = Package::where('company_id',$user->company_id)->where('is_deleted',0)->where('outstanding',0)->find($id);
-        // if(in_array($package->status_id,[]))
-        // $package->update([
-        //     'is_deleted' => true,
-        //     'deleted_datetime' => now(),
-        //     'deleted_uid' => $user->id
-        // ]);
-        return ApiResponse::JsonResult(null,__('messages.info',['info' => 'Deleted']));
+        if(!$package) return ApiResponse::NotFound();
+        if($package->status_id != 5) return ApiResponse::ValidateFail(__('messages.info',[
+            'info' => 'Only package at warehouse can be deleted',
+            'khInfo' => 'មានតែកញ្ចប់​នៅកន្លែងអាចលុបបាន'
+        ]));
+        $package->update([
+            'is_deleted' => true,
+            'deleted_datetime' => now(),
+            'deleted_uid' => $user->id
+        ]);
+        return ApiResponse::JsonResult(null,__('messages.info',[
+            'info' => 'Deleted',
+            'khInfo' => 'លុបជោគជ័យ'
+        ]));
     }
 
     public function returnPackage(Request $req){

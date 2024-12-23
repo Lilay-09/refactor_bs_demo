@@ -98,7 +98,9 @@ Route::middleware(['jwt','localize'])->prefix('admin/v1/{lang}')->group(function
         //** Driver Commission Module */
         Route::prefix('commission')->group(function(){
             Route::get('package',[DriverTransactionController::class,'getDriverCommissionPackage']);
-            Route::post('disbursement',[DriverTransactionController::class,'disbursementDriver']);
+            Route::get('transaction',[DriverTransactionController::class,'getDriverCommissionTrx']);
+            Route::post('disbursement',[DriverTransactionController::class,'disbursementDriverCommission']);
+            Route::delete('disbursement/{id}',[DriverTransactionController::class,'deleteDriverCommission']);
         });
     });
 

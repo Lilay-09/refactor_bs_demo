@@ -76,6 +76,26 @@ class DriverTransactionController extends Controller
         return ApiResponse::Pagination($driverInfo,$req);
     }
 
+    public function getDriverCommissionTrx(Request $req){
+        $driverId = $req->driver_id;
+        $startDate = $req->startDate;
+        $endDate = $req->endDate;
+        $qD = User::fromRaw('users as d')->where('d.account_type','driver')
+        ->join('disbursements as dis','dis.payee_id','d.id')->where('dis.type','commission')
+        ->join('users as rc','rc.id','dis.receiptionist_uid')
+        ->where('dis.is_deleted',0)
+        ->selectRaw('d.id as driver_id,dis.id as payment_id,d.user_name as driver_name,d.phone,d.code,dis.pickup_rate,dis.delivery_rate,dis.payment_datetime,dis.breakdown_notes,rc.user_name as receiptionist');
+        if($driverId) $qD->where('d.id',$driverId);
+        $driverInfo = $qD->get();
+        foreach($driverInfo as $d){
+            $d->paid_date = Helper::dateDMY($d->payment_datetime);
+            $d->paid_time = Helper::formatCustomDateTime($d->payment_datetime,'h:i:s A');
+            $d->status_code = 'Paid';
+            unset($d->payment_datetime);
+        }
+        return ApiResponse::Pagination($driverInfo,$req);
+    }
+
     private function getPickUpDetails($orders,$driverId){
         $totalPkg = 0;
         foreach($orders as $order){
@@ -142,14 +162,14 @@ class DriverTransactionController extends Controller
     public function getPayments(Request $req){
         $user = UserService::getAuthUser();
         $trxService = new TransactionService();
-        return ApiResponse::flex($trxService->getPayments($req,$user));
+        return ApiResponse::flex($trxService->getPayments($req,$user,'driver'));
     }
 
     //** Settle Statement */
     public function getApprovedPayments(Request $req){
         $user = UserService::getAuthUser();
         $trxService = new TransactionService();
-        return ApiResponse::flex($trxService->getPayments($req,$user));
+        return ApiResponse::flex($trxService->getPayments($req,$user,'driver',1));
     }
 
     public function settleApprovedPayments(Request $req){
@@ -184,11 +204,17 @@ class DriverTransactionController extends Controller
         return ApiResponse::flex($trxService->updateDeliveryPackage($req,'driver',$user));
     }
 
-    public function disbursementDriver(Request $req){
+    public function disbursementDriverCommission(Request $req){
         $user = UserService::getAuthUser();
         $trxService = new TransactionService();
-        // return $trxService->disbursementPayment($req,$user,'driver');
         return ApiResponse::flex($trxService->disbursementCommission($req,$user,'driver'));
+    }
+
+    public function deleteDriverCommission(Request $req){
+        $user = UserService::getAuthUser();
+        $trxService = new TransactionService();
+        $id = $req->id;
+        return ApiResponse::flex($trxService->deleteDisbursementCommission($id,$user,'driver'));
     }
 
 
