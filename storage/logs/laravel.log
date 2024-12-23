@@ -1,126 +1,56 @@
-[2024-12-23 17:32:28] local.ERROR: SQLSTATE[42703]: Undefined column: 7 ERROR:  column p.driver_payment_id does not exist
-LINE 1: ..."p"."payment_datetime", "dis"."payment_datetime", "p"."drive...
-                                                             ^ (Connection: pgsql, SQL: select "p"."id", "dis"."id", "p"."payment_datetime", "dis"."payment_datetime", "p"."driver_payment_id", "p"."driver_disbursement_id", "p"."payable_amount", CASE WHEN p.is_settled IS NOT NULL THEN p.is_settled ELSE dis.is_settled END as is_settled, "c"."user_name" as "cashier_name", CASE WHEN dis.payable_amount IS NOT NULL THEN SUM(dis.payable_amount) ELSE SUM(p.payable_amount) END as driver_total, "p"."remarks" from "packages" left join "payments" as "p" on "p"."id" = "packages"."driver_payment_id" and "p"."is_deleted" = 0 left join "disbursements" as "dis" on "dis"."id" = "packages"."driver_disbursement_id" and "dis"."is_deleted" = 0 left join "users" as "c" on "c"."id" = "p"."settled_uid" or "c"."id" = "dis"."settled_uid" where "packages"."is_deleted" = 0 and "driver_id" = 2 and "packages"."status_id" in (9, 19) group by "p"."id", "dis"."id", "p"."payment_datetime", "dis"."payment_datetime", "p"."driver_payment_id", "p"."driver_disbursement_id", "p"."payable_amount", "dis"."payable_amount", "p"."is_settled", "dis"."is_settled", "c"."user_name", "p"."remarks") {"userId":2,"exception":"[object] (Illuminate\\Database\\QueryException(code: 42703): SQLSTATE[42703]: Undefined column: 7 ERROR:  column p.driver_payment_id does not exist
-LINE 1: ...\"p\".\"payment_datetime\", \"dis\".\"payment_datetime\", \"p\".\"drive...
-                                                             ^ (Connection: pgsql, SQL: select \"p\".\"id\", \"dis\".\"id\", \"p\".\"payment_datetime\", \"dis\".\"payment_datetime\", \"p\".\"driver_payment_id\", \"p\".\"driver_disbursement_id\", \"p\".\"payable_amount\", CASE WHEN p.is_settled IS NOT NULL THEN p.is_settled ELSE dis.is_settled END as is_settled, \"c\".\"user_name\" as \"cashier_name\", CASE WHEN dis.payable_amount IS NOT NULL THEN SUM(dis.payable_amount) ELSE SUM(p.payable_amount) END as driver_total, \"p\".\"remarks\" from \"packages\" left join \"payments\" as \"p\" on \"p\".\"id\" = \"packages\".\"driver_payment_id\" and \"p\".\"is_deleted\" = 0 left join \"disbursements\" as \"dis\" on \"dis\".\"id\" = \"packages\".\"driver_disbursement_id\" and \"dis\".\"is_deleted\" = 0 left join \"users\" as \"c\" on \"c\".\"id\" = \"p\".\"settled_uid\" or \"c\".\"id\" = \"dis\".\"settled_uid\" where \"packages\".\"is_deleted\" = 0 and \"driver_id\" = 2 and \"packages\".\"status_id\" in (9, 19) group by \"p\".\"id\", \"dis\".\"id\", \"p\".\"payment_datetime\", \"dis\".\"payment_datetime\", \"p\".\"driver_payment_id\", \"p\".\"driver_disbursement_id\", \"p\".\"payable_amount\", \"dis\".\"payable_amount\", \"p\".\"is_settled\", \"dis\".\"is_settled\", \"c\".\"user_name\", \"p\".\"remarks\") at D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\vendor\\laravel\\framework\\src\\Illuminate\\Database\\Connection.php:825)
-[stacktrace]
-#0 D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\vendor\\laravel\\framework\\src\\Illuminate\\Database\\Connection.php(779): Illuminate\\Database\\Connection->runQueryCallback('select \"p\".\"id\"...', Array, Object(Closure))
-#1 D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\vendor\\laravel\\framework\\src\\Illuminate\\Database\\Connection.php(398): Illuminate\\Database\\Connection->run('select \"p\".\"id\"...', Array, Object(Closure))
-#2 D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\vendor\\laravel\\framework\\src\\Illuminate\\Database\\Query\\Builder.php(3130): Illuminate\\Database\\Connection->select('select \"p\".\"id\"...', Array, true)
-#3 D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\vendor\\laravel\\framework\\src\\Illuminate\\Database\\Query\\Builder.php(3115): Illuminate\\Database\\Query\\Builder->runSelect()
-#4 D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\vendor\\laravel\\framework\\src\\Illuminate\\Database\\Query\\Builder.php(3703): Illuminate\\Database\\Query\\Builder->Illuminate\\Database\\Query\\{closure}()
-#5 D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\vendor\\laravel\\framework\\src\\Illuminate\\Database\\Query\\Builder.php(3114): Illuminate\\Database\\Query\\Builder->onceWithColumns(Array, Object(Closure))
-#6 D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\vendor\\laravel\\framework\\src\\Illuminate\\Database\\Eloquent\\Builder.php(759): Illuminate\\Database\\Query\\Builder->get(Array)
-#7 D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\vendor\\laravel\\framework\\src\\Illuminate\\Database\\Eloquent\\Builder.php(741): Illuminate\\Database\\Eloquent\\Builder->getModels(Array)
-#8 D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\app\\Http\\Controllers\\Mobile\\Driver\\V1\\TransactionController.php(69): Illuminate\\Database\\Eloquent\\Builder->get()
-#9 D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\vendor\\laravel\\framework\\src\\Illuminate\\Routing\\ControllerDispatcher.php(46): App\\Http\\Controllers\\Mobile\\Driver\\V1\\TransactionController->getTransactionSummary(Object(Illuminate\\Http\\Request), 'en')
-#10 D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\vendor\\laravel\\framework\\src\\Illuminate\\Routing\\Route.php(262): Illuminate\\Routing\\ControllerDispatcher->dispatch(Object(Illuminate\\Routing\\Route), Object(App\\Http\\Controllers\\Mobile\\Driver\\V1\\TransactionController), 'getTransactionS...')
-#11 D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\vendor\\laravel\\framework\\src\\Illuminate\\Routing\\Route.php(208): Illuminate\\Routing\\Route->runController()
-#12 D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\vendor\\laravel\\framework\\src\\Illuminate\\Routing\\Router.php(808): Illuminate\\Routing\\Route->run()
-#13 D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(144): Illuminate\\Routing\\Router->Illuminate\\Routing\\{closure}(Object(Illuminate\\Http\\Request))
-#14 D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\app\\Http\\Middleware\\Localization.php(29): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
-#15 D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(183): App\\Http\\Middleware\\Localization->handle(Object(Illuminate\\Http\\Request), Object(Closure))
-#16 D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\app\\Http\\Middleware\\JwtDriverMiddleware.php(96): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
-#17 D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(183): App\\Http\\Middleware\\JwtDriverMiddleware->handle(Object(Illuminate\\Http\\Request), Object(Closure))
-#18 D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\vendor\\laravel\\framework\\src\\Illuminate\\Routing\\Middleware\\SubstituteBindings.php(51): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
-#19 D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(183): Illuminate\\Routing\\Middleware\\SubstituteBindings->handle(Object(Illuminate\\Http\\Request), Object(Closure))
-#20 D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(119): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
-#21 D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\vendor\\laravel\\framework\\src\\Illuminate\\Routing\\Router.php(807): Illuminate\\Pipeline\\Pipeline->then(Object(Closure))
-#22 D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\vendor\\laravel\\framework\\src\\Illuminate\\Routing\\Router.php(786): Illuminate\\Routing\\Router->runRouteWithinStack(Object(Illuminate\\Routing\\Route), Object(Illuminate\\Http\\Request))
-#23 D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\vendor\\laravel\\framework\\src\\Illuminate\\Routing\\Router.php(750): Illuminate\\Routing\\Router->runRoute(Object(Illuminate\\Http\\Request), Object(Illuminate\\Routing\\Route))
-#24 D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\vendor\\laravel\\framework\\src\\Illuminate\\Routing\\Router.php(739): Illuminate\\Routing\\Router->dispatchToRoute(Object(Illuminate\\Http\\Request))
-#25 D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Http\\Kernel.php(201): Illuminate\\Routing\\Router->dispatch(Object(Illuminate\\Http\\Request))
-#26 D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(144): Illuminate\\Foundation\\Http\\Kernel->Illuminate\\Foundation\\Http\\{closure}(Object(Illuminate\\Http\\Request))
-#27 D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Http\\Middleware\\TransformsRequest.php(21): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
-#28 D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Http\\Middleware\\ConvertEmptyStringsToNull.php(31): Illuminate\\Foundation\\Http\\Middleware\\TransformsRequest->handle(Object(Illuminate\\Http\\Request), Object(Closure))
-#29 D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(183): Illuminate\\Foundation\\Http\\Middleware\\ConvertEmptyStringsToNull->handle(Object(Illuminate\\Http\\Request), Object(Closure))
-#30 D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Http\\Middleware\\TransformsRequest.php(21): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
-#31 D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Http\\Middleware\\TrimStrings.php(51): Illuminate\\Foundation\\Http\\Middleware\\TransformsRequest->handle(Object(Illuminate\\Http\\Request), Object(Closure))
-#32 D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(183): Illuminate\\Foundation\\Http\\Middleware\\TrimStrings->handle(Object(Illuminate\\Http\\Request), Object(Closure))
-#33 D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\vendor\\laravel\\framework\\src\\Illuminate\\Http\\Middleware\\ValidatePostSize.php(27): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
-#34 D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(183): Illuminate\\Http\\Middleware\\ValidatePostSize->handle(Object(Illuminate\\Http\\Request), Object(Closure))
-#35 D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Http\\Middleware\\PreventRequestsDuringMaintenance.php(110): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
-#36 D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(183): Illuminate\\Foundation\\Http\\Middleware\\PreventRequestsDuringMaintenance->handle(Object(Illuminate\\Http\\Request), Object(Closure))
-#37 D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\vendor\\laravel\\framework\\src\\Illuminate\\Http\\Middleware\\HandleCors.php(62): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
-#38 D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(183): Illuminate\\Http\\Middleware\\HandleCors->handle(Object(Illuminate\\Http\\Request), Object(Closure))
-#39 D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\vendor\\laravel\\framework\\src\\Illuminate\\Http\\Middleware\\TrustProxies.php(58): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
-#40 D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(183): Illuminate\\Http\\Middleware\\TrustProxies->handle(Object(Illuminate\\Http\\Request), Object(Closure))
-#41 D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Http\\Middleware\\InvokeDeferredCallbacks.php(22): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
-#42 D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(183): Illuminate\\Foundation\\Http\\Middleware\\InvokeDeferredCallbacks->handle(Object(Illuminate\\Http\\Request), Object(Closure))
-#43 D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(119): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
-#44 D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Http\\Kernel.php(176): Illuminate\\Pipeline\\Pipeline->then(Object(Closure))
-#45 D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Http\\Kernel.php(145): Illuminate\\Foundation\\Http\\Kernel->sendRequestThroughRouter(Object(Illuminate\\Http\\Request))
-#46 D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Application.php(1188): Illuminate\\Foundation\\Http\\Kernel->handle(Object(Illuminate\\Http\\Request))
-#47 D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\public\\index.php(17): Illuminate\\Foundation\\Application->handleRequest(Object(Illuminate\\Http\\Request))
-#48 D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\resources\\server.php(23): require_once('D:\\\\Work\\\\GTech\\\\P...')
-#49 {main}
-
-[previous exception] [object] (PDOException(code: 42703): SQLSTATE[42703]: Undefined column: 7 ERROR:  column p.driver_payment_id does not exist
-LINE 1: ...\"p\".\"payment_datetime\", \"dis\".\"payment_datetime\", \"p\".\"drive...
-                                                             ^ at D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\vendor\\laravel\\framework\\src\\Illuminate\\Database\\Connection.php:412)
-[stacktrace]
-#0 D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\vendor\\laravel\\framework\\src\\Illuminate\\Database\\Connection.php(412): PDOStatement->execute()
-#1 D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\vendor\\laravel\\framework\\src\\Illuminate\\Database\\Connection.php(812): Illuminate\\Database\\Connection->Illuminate\\Database\\{closure}('select \"p\".\"id\"...', Array)
-#2 D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\vendor\\laravel\\framework\\src\\Illuminate\\Database\\Connection.php(779): Illuminate\\Database\\Connection->runQueryCallback('select \"p\".\"id\"...', Array, Object(Closure))
-#3 D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\vendor\\laravel\\framework\\src\\Illuminate\\Database\\Connection.php(398): Illuminate\\Database\\Connection->run('select \"p\".\"id\"...', Array, Object(Closure))
-#4 D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\vendor\\laravel\\framework\\src\\Illuminate\\Database\\Query\\Builder.php(3130): Illuminate\\Database\\Connection->select('select \"p\".\"id\"...', Array, true)
-#5 D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\vendor\\laravel\\framework\\src\\Illuminate\\Database\\Query\\Builder.php(3115): Illuminate\\Database\\Query\\Builder->runSelect()
-#6 D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\vendor\\laravel\\framework\\src\\Illuminate\\Database\\Query\\Builder.php(3703): Illuminate\\Database\\Query\\Builder->Illuminate\\Database\\Query\\{closure}()
-#7 D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\vendor\\laravel\\framework\\src\\Illuminate\\Database\\Query\\Builder.php(3114): Illuminate\\Database\\Query\\Builder->onceWithColumns(Array, Object(Closure))
-#8 D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\vendor\\laravel\\framework\\src\\Illuminate\\Database\\Eloquent\\Builder.php(759): Illuminate\\Database\\Query\\Builder->get(Array)
-#9 D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\vendor\\laravel\\framework\\src\\Illuminate\\Database\\Eloquent\\Builder.php(741): Illuminate\\Database\\Eloquent\\Builder->getModels(Array)
-#10 D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\app\\Http\\Controllers\\Mobile\\Driver\\V1\\TransactionController.php(69): Illuminate\\Database\\Eloquent\\Builder->get()
-#11 D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\vendor\\laravel\\framework\\src\\Illuminate\\Routing\\ControllerDispatcher.php(46): App\\Http\\Controllers\\Mobile\\Driver\\V1\\TransactionController->getTransactionSummary(Object(Illuminate\\Http\\Request), 'en')
-#12 D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\vendor\\laravel\\framework\\src\\Illuminate\\Routing\\Route.php(262): Illuminate\\Routing\\ControllerDispatcher->dispatch(Object(Illuminate\\Routing\\Route), Object(App\\Http\\Controllers\\Mobile\\Driver\\V1\\TransactionController), 'getTransactionS...')
-#13 D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\vendor\\laravel\\framework\\src\\Illuminate\\Routing\\Route.php(208): Illuminate\\Routing\\Route->runController()
-#14 D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\vendor\\laravel\\framework\\src\\Illuminate\\Routing\\Router.php(808): Illuminate\\Routing\\Route->run()
-#15 D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(144): Illuminate\\Routing\\Router->Illuminate\\Routing\\{closure}(Object(Illuminate\\Http\\Request))
-#16 D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\app\\Http\\Middleware\\Localization.php(29): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
-#17 D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(183): App\\Http\\Middleware\\Localization->handle(Object(Illuminate\\Http\\Request), Object(Closure))
-#18 D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\app\\Http\\Middleware\\JwtDriverMiddleware.php(96): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
-#19 D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(183): App\\Http\\Middleware\\JwtDriverMiddleware->handle(Object(Illuminate\\Http\\Request), Object(Closure))
-#20 D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\vendor\\laravel\\framework\\src\\Illuminate\\Routing\\Middleware\\SubstituteBindings.php(51): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
-#21 D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(183): Illuminate\\Routing\\Middleware\\SubstituteBindings->handle(Object(Illuminate\\Http\\Request), Object(Closure))
-#22 D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(119): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
-#23 D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\vendor\\laravel\\framework\\src\\Illuminate\\Routing\\Router.php(807): Illuminate\\Pipeline\\Pipeline->then(Object(Closure))
-#24 D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\vendor\\laravel\\framework\\src\\Illuminate\\Routing\\Router.php(786): Illuminate\\Routing\\Router->runRouteWithinStack(Object(Illuminate\\Routing\\Route), Object(Illuminate\\Http\\Request))
-#25 D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\vendor\\laravel\\framework\\src\\Illuminate\\Routing\\Router.php(750): Illuminate\\Routing\\Router->runRoute(Object(Illuminate\\Http\\Request), Object(Illuminate\\Routing\\Route))
-#26 D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\vendor\\laravel\\framework\\src\\Illuminate\\Routing\\Router.php(739): Illuminate\\Routing\\Router->dispatchToRoute(Object(Illuminate\\Http\\Request))
-#27 D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Http\\Kernel.php(201): Illuminate\\Routing\\Router->dispatch(Object(Illuminate\\Http\\Request))
-#28 D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(144): Illuminate\\Foundation\\Http\\Kernel->Illuminate\\Foundation\\Http\\{closure}(Object(Illuminate\\Http\\Request))
-#29 D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Http\\Middleware\\TransformsRequest.php(21): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
-#30 D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Http\\Middleware\\ConvertEmptyStringsToNull.php(31): Illuminate\\Foundation\\Http\\Middleware\\TransformsRequest->handle(Object(Illuminate\\Http\\Request), Object(Closure))
-#31 D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(183): Illuminate\\Foundation\\Http\\Middleware\\ConvertEmptyStringsToNull->handle(Object(Illuminate\\Http\\Request), Object(Closure))
-#32 D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Http\\Middleware\\TransformsRequest.php(21): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
-#33 D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Http\\Middleware\\TrimStrings.php(51): Illuminate\\Foundation\\Http\\Middleware\\TransformsRequest->handle(Object(Illuminate\\Http\\Request), Object(Closure))
-#34 D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(183): Illuminate\\Foundation\\Http\\Middleware\\TrimStrings->handle(Object(Illuminate\\Http\\Request), Object(Closure))
-#35 D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\vendor\\laravel\\framework\\src\\Illuminate\\Http\\Middleware\\ValidatePostSize.php(27): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
-#36 D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(183): Illuminate\\Http\\Middleware\\ValidatePostSize->handle(Object(Illuminate\\Http\\Request), Object(Closure))
-#37 D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Http\\Middleware\\PreventRequestsDuringMaintenance.php(110): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
-#38 D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(183): Illuminate\\Foundation\\Http\\Middleware\\PreventRequestsDuringMaintenance->handle(Object(Illuminate\\Http\\Request), Object(Closure))
-#39 D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\vendor\\laravel\\framework\\src\\Illuminate\\Http\\Middleware\\HandleCors.php(62): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
-#40 D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(183): Illuminate\\Http\\Middleware\\HandleCors->handle(Object(Illuminate\\Http\\Request), Object(Closure))
-#41 D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\vendor\\laravel\\framework\\src\\Illuminate\\Http\\Middleware\\TrustProxies.php(58): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
-#42 D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(183): Illuminate\\Http\\Middleware\\TrustProxies->handle(Object(Illuminate\\Http\\Request), Object(Closure))
-#43 D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Http\\Middleware\\InvokeDeferredCallbacks.php(22): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
-#44 D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(183): Illuminate\\Foundation\\Http\\Middleware\\InvokeDeferredCallbacks->handle(Object(Illuminate\\Http\\Request), Object(Closure))
-#45 D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(119): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
-#46 D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Http\\Kernel.php(176): Illuminate\\Pipeline\\Pipeline->then(Object(Closure))
-#47 D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Http\\Kernel.php(145): Illuminate\\Foundation\\Http\\Kernel->sendRequestThroughRouter(Object(Illuminate\\Http\\Request))
-#48 D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Application.php(1188): Illuminate\\Foundation\\Http\\Kernel->handle(Object(Illuminate\\Http\\Request))
-#49 D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\public\\index.php(17): Illuminate\\Foundation\\Application->handleRequest(Object(Illuminate\\Http\\Request))
-#50 D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\resources\\server.php(23): require_once('D:\\\\Work\\\\GTech\\\\P...')
-#51 {main}
-"} 
-[2024-12-23 17:33:09] local.ERROR: Cannot declare class ApiResponse, because the name is already in use {"exception":"[object] (Symfony\\Component\\ErrorHandler\\Error\\FatalError(code: 0): Cannot declare class ApiResponse, because the name is already in use at D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\app\\helpers.php:4)
+[2024-12-23 17:41:09] local.ERROR: Cannot declare class ApiResponse, because the name is already in use {"exception":"[object] (Symfony\\Component\\ErrorHandler\\Error\\FatalError(code: 0): Cannot declare class ApiResponse, because the name is already in use at D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\app\\helpers.php:4)
 [stacktrace]
 #0 {main}
 "} 
-[2024-12-23 17:34:09] local.ERROR: Cannot declare class ApiResponse, because the name is already in use {"exception":"[object] (Symfony\\Component\\ErrorHandler\\Error\\FatalError(code: 0): Cannot declare class ApiResponse, because the name is already in use at D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\app\\helpers.php:4)
+[2024-12-23 17:42:09] local.ERROR: Cannot declare class ApiResponse, because the name is already in use {"exception":"[object] (Symfony\\Component\\ErrorHandler\\Error\\FatalError(code: 0): Cannot declare class ApiResponse, because the name is already in use at D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\app\\helpers.php:4)
 [stacktrace]
 #0 {main}
 "} 
-[2024-12-23 17:35:09] local.ERROR: Cannot declare class ApiResponse, because the name is already in use {"exception":"[object] (Symfony\\Component\\ErrorHandler\\Error\\FatalError(code: 0): Cannot declare class ApiResponse, because the name is already in use at D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\app\\helpers.php:4)
+[2024-12-23 17:43:09] local.ERROR: Cannot declare class ApiResponse, because the name is already in use {"exception":"[object] (Symfony\\Component\\ErrorHandler\\Error\\FatalError(code: 0): Cannot declare class ApiResponse, because the name is already in use at D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\app\\helpers.php:4)
+[stacktrace]
+#0 {main}
+"} 
+[2024-12-23 17:44:09] local.ERROR: Cannot declare class ApiResponse, because the name is already in use {"exception":"[object] (Symfony\\Component\\ErrorHandler\\Error\\FatalError(code: 0): Cannot declare class ApiResponse, because the name is already in use at D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\app\\helpers.php:4)
+[stacktrace]
+#0 {main}
+"} 
+[2024-12-23 17:45:09] local.ERROR: Cannot declare class ApiResponse, because the name is already in use {"exception":"[object] (Symfony\\Component\\ErrorHandler\\Error\\FatalError(code: 0): Cannot declare class ApiResponse, because the name is already in use at D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\app\\helpers.php:4)
+[stacktrace]
+#0 {main}
+"} 
+[2024-12-23 17:46:09] local.ERROR: Cannot declare class ApiResponse, because the name is already in use {"exception":"[object] (Symfony\\Component\\ErrorHandler\\Error\\FatalError(code: 0): Cannot declare class ApiResponse, because the name is already in use at D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\app\\helpers.php:4)
+[stacktrace]
+#0 {main}
+"} 
+[2024-12-23 17:47:09] local.ERROR: Cannot declare class ApiResponse, because the name is already in use {"exception":"[object] (Symfony\\Component\\ErrorHandler\\Error\\FatalError(code: 0): Cannot declare class ApiResponse, because the name is already in use at D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\app\\helpers.php:4)
+[stacktrace]
+#0 {main}
+"} 
+[2024-12-23 17:48:09] local.ERROR: Cannot declare class ApiResponse, because the name is already in use {"exception":"[object] (Symfony\\Component\\ErrorHandler\\Error\\FatalError(code: 0): Cannot declare class ApiResponse, because the name is already in use at D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\app\\helpers.php:4)
+[stacktrace]
+#0 {main}
+"} 
+[2024-12-23 17:49:09] local.ERROR: Cannot declare class ApiResponse, because the name is already in use {"exception":"[object] (Symfony\\Component\\ErrorHandler\\Error\\FatalError(code: 0): Cannot declare class ApiResponse, because the name is already in use at D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\app\\helpers.php:4)
+[stacktrace]
+#0 {main}
+"} 
+[2024-12-23 17:50:09] local.ERROR: Cannot declare class ApiResponse, because the name is already in use {"exception":"[object] (Symfony\\Component\\ErrorHandler\\Error\\FatalError(code: 0): Cannot declare class ApiResponse, because the name is already in use at D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\app\\helpers.php:4)
+[stacktrace]
+#0 {main}
+"} 
+[2024-12-23 17:51:09] local.ERROR: Cannot declare class ApiResponse, because the name is already in use {"exception":"[object] (Symfony\\Component\\ErrorHandler\\Error\\FatalError(code: 0): Cannot declare class ApiResponse, because the name is already in use at D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\app\\helpers.php:4)
+[stacktrace]
+#0 {main}
+"} 
+[2024-12-23 17:52:09] local.ERROR: Cannot declare class ApiResponse, because the name is already in use {"exception":"[object] (Symfony\\Component\\ErrorHandler\\Error\\FatalError(code: 0): Cannot declare class ApiResponse, because the name is already in use at D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\app\\helpers.php:4)
+[stacktrace]
+#0 {main}
+"} 
+[2024-12-23 17:53:09] local.ERROR: Cannot declare class ApiResponse, because the name is already in use {"exception":"[object] (Symfony\\Component\\ErrorHandler\\Error\\FatalError(code: 0): Cannot declare class ApiResponse, because the name is already in use at D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\app\\helpers.php:4)
+[stacktrace]
+#0 {main}
+"} 
+[2024-12-23 17:54:09] local.ERROR: Cannot declare class ApiResponse, because the name is already in use {"exception":"[object] (Symfony\\Component\\ErrorHandler\\Error\\FatalError(code: 0): Cannot declare class ApiResponse, because the name is already in use at D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\app\\helpers.php:4)
 [stacktrace]
 #0 {main}
 "} 

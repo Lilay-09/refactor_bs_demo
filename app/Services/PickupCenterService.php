@@ -31,6 +31,7 @@ class PickupCenterService
             'dim_y' => 'nullable|numeric',
             'dim_x' => 'nullable|numeric',
             'status_id' => 'nullable|int',
+            'taxi_fee' => 'nullable|numeric',
             'failure_notes' => 'nullable|string|max:250',
             'payer' => 'required|in:sender,receiver',
             'cod' => 'required|in:0,1',

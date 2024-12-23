@@ -26,47 +26,47 @@ class TransactionController extends Controller
         $total = 0;
         $paidTrx = [];
         $paymentTrx = Package::where('packages.is_deleted', 0)
-    ->where('driver_id', $user->id)
-    ->whereIn('packages.status_id', [9, 19])
-    ->leftJoin('payments as p', function ($join) {
-        $join->on('p.id', '=', 'packages.driver_payment_id')
-            ->where('p.is_deleted', '=', 0);
-    })
-    ->leftJoin('disbursements as dis', function ($join) {
-        $join->on('dis.id', '=', 'packages.driver_disbursement_id')
-            ->where('dis.is_deleted', '=', 0);
-    })
-    ->leftJoin('users as c', function ($join) {
-        $join->on('c.id', '=', 'p.settled_uid')
-            ->orOn('c.id', '=', 'dis.settled_uid');
-    })
-    ->select([
-        'p.id',  // Group by payment_id to ensure proper aggregation
-        'dis.id',
-        'p.payment_datetime',
-        'dis.payment_datetime',
-        'packages.driver_payment_id',
-        'packages.driver_disbursement_id',
-        'p.payable_amount',
-        \DB::raw('CASE WHEN p.is_settled IS NOT NULL THEN p.is_settled ELSE dis.is_settled END as is_settled'),
-        'c.user_name as cashier_name',
-        \DB::raw('CASE WHEN dis.payable_amount IS NOT NULL THEN SUM(dis.payable_amount) ELSE SUM(p.payable_amount) END as driver_total'),
-        'p.remarks',
-    ])
-    ->groupBy([
-        'p.id',  // Group by payment_id to ensure proper aggregation
-        'dis.id', // Include dis.id in case it's selected when p.payable_amount is null
-        'p.payment_datetime',
-        'dis.payment_datetime',
-        'packages.driver_payment_id',
-        'packages.driver_disbursement_id',
-        'p.payable_amount',
-        'dis.payable_amount',
-        'p.is_settled',  // Ensure both fields are included in GROUP BY
-        'dis.is_settled',
-        'c.user_name',
-        'p.remarks',
-    ])->get();
+        ->where('driver_id', $user->id)
+        ->whereIn('packages.status_id', [9, 19])
+        ->leftJoin('payments as p', function ($join) {
+            $join->on('p.id', '=', 'packages.driver_payment_id')
+                ->where('p.is_deleted', '=', 0);
+        })
+        ->leftJoin('disbursements as dis', function ($join) {
+            $join->on('dis.id', '=', 'packages.driver_disbursement_id')
+                ->where('dis.is_deleted', '=', 0);
+        })
+        ->leftJoin('users as c', function ($join) {
+            $join->on('c.id', '=', 'p.settled_uid')
+                ->orOn('c.id', '=', 'dis.settled_uid');
+        })
+        ->select([
+            'p.id as p_id',  // Group by payment_id to ensure proper aggregation
+            'dis.id as dis_id',
+            'p.payment_datetime as pay_datetime',
+            'dis.payment_datetime as dis_datetime',
+            'packages.driver_payment_id',
+            'packages.driver_disbursement_id',
+            'p.payable_amount',
+            \DB::raw('CASE WHEN p.is_settled IS NOT NULL THEN p.is_settled ELSE dis.is_settled END as is_settled'),
+            'c.user_name as cashier_name',
+            \DB::raw('CASE WHEN dis.payable_amount IS NOT NULL THEN SUM(dis.payable_amount) ELSE SUM(p.payable_amount) END as driver_total'),
+            'p.remarks',
+        ])
+        ->groupBy([
+            'p.id',  // Group by payment_id to ensure proper aggregation
+            'dis.id', // Include dis.id in case it's selected when p.payable_amount is null
+            'p.payment_datetime',
+            'dis.payment_datetime',
+            'packages.driver_payment_id',
+            'packages.driver_disbursement_id',
+            'p.payable_amount',
+            'dis.payable_amount',
+            'p.is_settled',  // Ensure both fields are included in GROUP BY
+            'dis.is_settled',
+            'c.user_name',
+            'p.remarks',
+        ])->get();
 
 
 
@@ -105,7 +105,9 @@ class TransactionController extends Controller
         // return $paymentTrx;
         $paymentDetails = PaymentDetail::selectRaw('id,payment_id,method,currency_code')->get();
         foreach($paymentTrx as $payment){
-            $payment->payment_date = Helper::formatCustomDateTime($payment->payment_datetime,'d-M-Y');
+            $payment->id = $payment->dis_id ?? $payment->p_id;
+            $pDate = $payment->pay_datetime ?? $payment->dis_datetime;
+            $payment->payment_date = Helper::formatCustomDateTime($pDate,'d-M-Y');
             if($payment->is_settled) {
                 $paymentDetails = $this->getPaymentMethods($paymentDetails,$payment->payment_id);
                 $payment->breakdown_notes = $paymentDetails->method;
