@@ -39,7 +39,7 @@ class DriverTransactionController extends Controller
         if($startDate && $endDate){
             $startDate = date('Y-m-d',strtotime($startDate));
             $endDate = date('Y-m-d',strtotime($endDate));
-            $qP->whereBetween('delivered_datetime',[$startDate,$endDate])->orWhereDate('delivered_datetime','<=',$endDate);
+            $qP->whereRaw('delivered_datetime::DATE >= ? AND delivered_datetime::DATE <= ?', [$startDate, $endDate]);
         }
         if($driverId) $qP->where('driver_id',$driverId);
         $packages = $qP->get();
@@ -48,7 +48,17 @@ class DriverTransactionController extends Controller
         if($startDate && $endDate){
             $startDate = date('Y-m-d',strtotime($startDate));
             $endDate = date('Y-m-d',strtotime($endDate));
-            $qO->whereBetween('order_datetime',[$startDate,$endDate])->orWhereDate('order_datetime','<=',$endDate);
+            // $qO->whereRaw('DATE(order_datetime) >= ? AND DATE(order_datetime) <= ?', [$startDate,$endDate]);
+            $qO->whereDate('order_datetime', '>=', $startDate)
+            ->whereDate('order_datetime', '<=', $endDate);
+
+            // $qO->whereRaw('order_datetime::DATE >= ? AND order_datetime::DATE <= ?', [$startDate, $endDate]);
+
+
+        //     $qO->whereBetween('order_datetime',[$startDate,$endDate])->orWhere(function($subQuery) use ($startDate, $endDate) {
+        //         $subQuery->where('order_datetime', '>=', $startDate)
+        //         ->whereDate('order_datetime', '<=', $endDate);
+        //   });
         }
         $orders = $qO->get();
         $qDc = DriverCommission::where('is_deleted',0)->selectRaw('id,driver_id,delivery_type,pickup_commission,delivery_commission');
@@ -84,7 +94,7 @@ class DriverTransactionController extends Controller
         ->join('disbursements as dis','dis.payee_id','d.id')->where('dis.type','commission')
         ->join('users as rc','rc.id','dis.receiptionist_uid')
         ->where('dis.is_deleted',0)
-        ->selectRaw('d.id as driver_id,dis.id as payment_id,d.user_name as driver_name,d.phone,d.code,dis.pickup_rate,dis.delivery_rate,dis.payment_datetime,dis.breakdown_notes,rc.user_name as receiptionist');
+        ->selectRaw('d.id as driver_id,dis.id as payment_id,d.user_name as driver_name,d.phone,d.code,dis.pickup_rate,dis.delivery_rate,dis.payment_datetime,dis.breakdown_notes,rc.user_name as receiptionist,payable_amount,package_count,delivered_package_count,pickup_package_count');
         if($driverId) $qD->where('d.id',$driverId);
         $driverInfo = $qD->get();
         foreach($driverInfo as $d){

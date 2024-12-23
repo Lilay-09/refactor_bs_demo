@@ -173,7 +173,7 @@ class PickUpCenterController extends Controller
         if($startDate && $endDate){
             $startDate = date('Y-m-d',strtotime($startDate));
             $endDate = date('Y-m-d',strtotime($endDate));
-            $query->whereBetween('order_datetime',[$startDate,$endDate])->orWhereDate('order_datetime','<=',$endDate);
+            $query->whereRaw('order_datetime::DATE >= ? AND order_datetime::DATE <= ?', [$startDate, $endDate]);
         }
         $packages = Package::where('outstanding',1)->where('is_deleted',0)->get();
         $orders = $query->get();

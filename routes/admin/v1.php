@@ -368,6 +368,7 @@ Route::middleware(['jwt','localize'])->prefix('admin/v1/{lang}')->group(function
             Route::get('fleet/package/{barcode}',[FleetManagementController::class,'getPackageByBarcode']);
             Route::get('xrate',[GeneralSettingController::class,'getOptionsLatestXRate']);
             Route::get('userStatus',[GeneralSettingController::class,'getOptionsUserStatus']);
+            Route::get('payer',[GeneralSettingController::class,'getOptionsPayer']);
         });
 
         Route::prefix('filter')->group(function(){

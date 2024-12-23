@@ -53,8 +53,8 @@ class CompletedPackageController extends Controller
             $startDate = Helper::dateYMD($startDate);
             $endDate = Helper::dateYMD($endDate);
             $qP->where(function ($q) use($startDate,$endDate){
-                $q->whereBetween('failed_datetime',[$startDate,$endDate])->orWhereBetween('delivered_datetime',[$startDate,$endDate])
-                ->orWhereDate('failed_datetime',$endDate)->orWhereDate('delivered_datetime',$endDate);
+                $q->whereRaw('delivered_datetime::DATE >= ? AND delivered_datetime::DATE <= ?', [$startDate, $endDate])
+                ->orWhereRaw('failed_datetime::DATE >= ? AND failed_datetime::DATE <= ?', [$startDate, $endDate]);
             });
         }
         //** --------- */

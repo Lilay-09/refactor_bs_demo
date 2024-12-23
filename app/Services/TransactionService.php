@@ -54,8 +54,8 @@ class TransactionService
             $startDate = Helper::dateYMD($startDate);
             $endDate = Helper::dateYMD($endDate);
             $qP->where(function ($q) use ($startDate,$endDate){
-                $q->whereBetween('delivered_datetime',[$startDate,$endDate])->orWhereBetween('failed_datetime',[$startDate,$endDate])
-                ->orWhereDate('delivered_datetime','<=',$endDate)->orWhereDate('failed_datetime','<=',$endDate);
+                $q->whereRaw('delivered_datetime::DATE >= ? AND delivered_datetime::DATE <= ?', [$startDate, $endDate])
+                ->orWhereRaw('failed_datetime::DATE >= ? AND failed_datetime::DATE <= ?', [$startDate, $endDate]);
             });
         }
         $packages = $qP->get();
@@ -467,7 +467,7 @@ class TransactionService
         ->where('p.approved',$isApproved)
         ->join('users as ap','ap.id','p.receiver_uid')
         ->where('payer_type',$type)
-        ->selectRaw('p.is_settled,p.payment_datetime,p.package_count,ap.user_name as booked_user,p.payable_amount,p.id as payment_id,d.user_name as payer_name,p.exchange_rate,ap.user_name as receiver_name,p.taxi_fee,p.approved,p.breakdown_notes')
+        ->selectRaw('p.is_settled,p.payment_datetime,p.package_count,ap.user_name as booked_user,p.payable_amount,p.id as payment_id,d.user_name as driver_name,p.exchange_rate,ap.user_name as receiver_name,p.taxi_fee,p.approved,p.breakdown_notes')
         ->orderByDesc('p.payment_datetime');
 
         if($payeeOrPayerId) $qP->where('p.payer_id',$payeeOrPayerId);
@@ -475,7 +475,7 @@ class TransactionService
             $startDate = Helper::dateYMD($startDate);
             $endDate = Helper::dateYMD($endDate);
             $qP->where(function($q) use($startDate,$endDate){
-                $q->whereBetween('payment_datetime',[$startDate,$endDate])->orWhereDate('payment_datetime','<=',$endDate);
+                $q->whereRaw('payment_datetime::DATE >= ? AND payment_datetime::DATE <= ?', [$startDate, $endDate]);
             });
         }
 
@@ -508,16 +508,16 @@ class TransactionService
         ->leftJoin('users as ap','ap.id','dis.receiptionist_uid')
         ->where('payee_type',$type)
         ->leftJoin('users as py','py.id','dis.approved_uid')
-        ->selectRaw('dis.is_settled,dis.payment_datetime,dis.package_count,ap.user_name as booked_user,dis.payable_amount,dis.id as payment_id,d.user_name as receiver_name,py.user_name as payer_name,dis.exchange_rate,dis.taxi_fee,dis.approved,dis.breakdown_notes')
+        ->selectRaw('dis.is_settled,dis.payment_datetime,dis.package_count,ap.user_name as booked_user,dis.payable_amount,dis.id as payment_id,d.user_name as driver_name,py.user_name as payer_name,dis.exchange_rate,dis.taxi_fee,dis.approved,dis.breakdown_notes')
         ->orderByDesc('dis.payment_datetime')
         ->get();
         foreach($disbursements as $d){
-            $pmt_details = $this->preparePaymentPackageAmount($disbursementDetails,$pmt->payment_id,'disbursement');
+            $pmt_details = $this->preparePaymentPackageAmount($disbursementDetails,$d->payment_id,'disbursement');
             $totalUSD = $pmt_details->total_usd;
             $totalKHR = $pmt_details->total_khr;
-            if($isApproved){
-                $pmt->status_code = $pmt->is_settled ? 'Settled' : 'Pending';
-            }
+            // if($isApproved){
+            $d->status_code = $d->is_settled ? 'Settled' : 'Pending';
+            // }
             $d->total_usd = Helper::displayMoney($totalUSD,'USD');
             $d->total_khr = Helper::displayMoney($totalKHR,'KHR');
             $totalKHR_to_USD = $totalKHR/$d->exchange_rate;
@@ -550,7 +550,7 @@ class TransactionService
                 $startDate = Helper::dateYMD($startDate);
                 $endDate = Helper::dateYMD($endDate);
                 $qP->where(function($q) use($startDate,$endDate){
-                    $q->whereBetween('payment_datetime',[$startDate,$endDate])->orWhereDate('payment_datetime','<=',$endDate);
+                    $q->whereRaw('payment_datetime::DATE >= ? AND payment_datetime::DATE <= ?', [$startDate, $endDate]);
                 });
             }
             $payments = $qP->get();
@@ -857,7 +857,7 @@ class TransactionService
 
     public function settlePayments(Request $req,$user){
         $payments = $req->payments ?? [];
-        if(!isset($paymentIds[0])) return DataResponse::ValidateFail(__('messages.info',[
+        if(!isset($payments[0])) return DataResponse::ValidateFail(__('messages.info',[
             'info' => 'Please select payments you want to settle'
         ]));
 
@@ -870,21 +870,15 @@ class TransactionService
                     if(!$pmt) return DataResponse::ValidateFail(__('messages.info',[
                         'info' => 'check list includes invalid payment'
                     ]));
-                    if($pmt->approved) return DataResponse::ValidateFail(__('messages.info',[
-                        'info' => 'check list includes approved payment'
-                    ]));
                     $pmt->update([
                         'is_settled' => 1,
                         'settled_datetime' => now(),
                         'settled_uid' => $user->id,
                     ]);
                 }else if($p['payment_type'] == 'disbursement'){
-                    $dis = Disbursement::where('is_deleted',0)->where('type','payment')->find($p->id);
+                    $dis = Disbursement::where('is_deleted',0)->where('type','payment')->find($id);
                     if(!$dis) return DataResponse::ValidateFail(__('messages.info',[
                         'info' => 'check list includes invalid payment'
-                    ]));
-                    if($dis->approved) return DataResponse::ValidateFail(__('messages.info',[
-                        'info' => 'check list includes approved payment'
                     ]));
                     $dis->update([
                         'is_settled' => $user->id,
@@ -899,6 +893,9 @@ class TransactionService
             ]));
         }catch(Exception $e){
             DB::rollBack();
+            Log::error($e->getMessage());
+            Log::error($e->getTraceAsString());
+            return DataResponse::Error('Failed to settle');
         }
     }
 
@@ -1403,8 +1400,8 @@ class TransactionService
         ->whereNotNull('driver_id');
         if($startDate && $endDate){
             $startDate = date('Y-m-d',strtotime($startDate));
-            $endDate = date('Y-m-d',strtotime($endDate));
-            $qP->whereBetween('delivered_datetime',[$startDate,$endDate])->orWhereDate('delivered_datetime','<=',$endDate);
+            $endDate = date('Y-m-d',timestamp: strtotime($endDate));
+            $qP->whereRaw('delivered_datetime::DATE >= ? AND delivered_datetime::DATE <= ?', [$startDate, $endDate]);
         }
         if($payeeId) $qP->where('driver_id',$payeeId);
         $packages = $qP->get();
@@ -1413,7 +1410,7 @@ class TransactionService
         if($startDate && $endDate){
             $startDate = date('Y-m-d',strtotime($startDate));
             $endDate = date('Y-m-d',strtotime($endDate));
-            $qO->whereBetween('order_datetime',[$startDate,$endDate])->orWhereDate('order_datetime','<=',$endDate);
+            $qP->whereRaw('order_datetime::DATE >= ? AND order_datetime::DATE <= ?', [$startDate, $endDate]);
         }
         $orders = $qO->get();
         $qDc = DriverCommission::where('is_deleted',0)->selectRaw('delivery_type,pickup_commission,delivery_commission,use_percentage');

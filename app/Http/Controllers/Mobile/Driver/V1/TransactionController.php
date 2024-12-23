@@ -35,6 +35,9 @@ class TransactionController extends Controller
         ->where('driver_id', $user->id)
         ->whereIn('packages.status_id', [9, 19])
         ->leftJoin('payments as p', 'p.id', 'packages.driver_payment_id')
+        ->where('p.is_deleted',0)
+        ->leftJoin('disbursements as dis', 'dis.id', 'packages.driver_disbursement_id')
+        ->where('dis.is_deleted',0)
         ->leftJoin('users as c', 'c.id', 'p.settled_uid')
         ->select([
             'p.id as payment_id',
@@ -64,6 +67,8 @@ class TransactionController extends Controller
             if($payment->is_settled) {
                 $paymentDetails = $this->getPaymentMethods($paymentDetails,$payment->payment_id);
                 $payment->breakdown_notes = $paymentDetails->method;
+                if($payment->driver_payment_id) $payment->remarks = 'Transfered out';
+                if($payment->driver_disbursement_id) $payment->remarks = 'Transferred in';
                 $paidTrx[] = $payment;
             }
             else {
@@ -133,7 +138,7 @@ class TransactionController extends Controller
         if($startDate && $endDate){
             $startDate = date('Y-m-d',strtotime($startDate));
             $endDate = date('Y-m-d',strtotime($endDate));
-            $qP->whereBetween('delivered_datetime',[$startDate,$endDate])->orWhereDate('delivered_datetime','<=',$endDate);
+            $qP->whereRaw('delivered_datetime::DATE >= ? AND delivered_datetime::DATE <= ?', [$startDate, $endDate]);
         }
         $deliveredCount = $qP->count();
         $qO = Order::where('is_deleted',0)->where('status_id',5)
@@ -142,7 +147,7 @@ class TransactionController extends Controller
         if($startDate && $endDate){
             $startDate = date('Y-m-d',strtotime($startDate));
             $endDate = date('Y-m-d',strtotime($endDate));
-            $qO->whereBetween('order_datetime',[$startDate,$endDate])->orWhereDate('order_datetime','<=',$endDate);
+            $qP->whereRaw('order_datetime::DATE >= ? AND order_datetime::DATE <= ?', [$startDate, $endDate]);
         }
         $pickUpCount = $qO->sum('qty');
         $driverCommissions = DriverCommission::where('is_deleted',0)->where('driver_id',$driverId)->get();

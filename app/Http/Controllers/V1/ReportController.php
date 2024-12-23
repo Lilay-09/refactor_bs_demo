@@ -322,8 +322,7 @@ class ReportController extends Controller
         $packages = $qP->get();
         $qO = Order::where('status_id',5)->where('is_deleted',0);
         if($startDate && $endDate){
-            $qO->whereBetween('pickup_datetime',[$startDate,$endDate])->orWhereDate('pickup_datetime','<=',$endDate);
-            // $qO->whereBetween('updated_at',[$startDate,$endDate])->orWhereDate('updated_at',$endDate);
+            $qO->whereRaw('pickup_datetime::DATE >= ? AND pickup_datetime::DATE <= ?', [$startDate, $endDate]);
         }
         $pickupCount = $qO->sum('qty');
         $merchantCount = 0;

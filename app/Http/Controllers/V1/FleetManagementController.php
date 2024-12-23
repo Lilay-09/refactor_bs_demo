@@ -57,7 +57,7 @@ class FleetManagementController extends Controller
             $startDate = date('Y-m-d',strtotime($startDate));
             $endDate = date('Y-m-d',strtotime($endDate));
             $query->where(function ($q) use ($startDate,$endDate){
-                $q->whereBetween('depart_datetime',[$startDate,$endDate])->orWhereDate('depart_datetime','>=',$endDate);
+                $q->whereRaw('depart_datetime::DATE >= ? AND depart_datetime::DATE <= ?', [$startDate, $endDate]);
             });
         }else{
             $query->whereDate('depart_datetime',now());
@@ -69,7 +69,7 @@ class FleetManagementController extends Controller
             $delivery->driver_phone = $delivery->driver->phone;
             $details = $this->getTripDetails($packages,$delivery->id);
             $delivery->total = $details->total;
-            $delivery->total_delivered = $details->total_delivered;
+            $delivery->total_delivered = $details->total_delivered + $details->total_failed_with_fee;
             $delivery->failed_count = $details->failed_count;
             $delivery->delivery_count = $details->delivery_count;
             $delivery->failed_with_fee_count = $details->failed_with_fee_count;
@@ -96,6 +96,7 @@ class FleetManagementController extends Controller
         $failedCount = 0;
         $failedWithFeeCount = 0;
         $total_delivered = 0;
+        $totalFailedWithFee = 0;
         $deliveryCount = 0;
         foreach($packages as $pkg){
             if($pkg->delivery_id == $deliveryId){
@@ -104,7 +105,10 @@ class FleetManagementController extends Controller
                 }
                 if($pkg->status_id == 9) $total_delivered += $pkg->driver_total;
                 if($pkg->status_id == 10) $failedCount +=1;
-                if($pkg->status_id == 19) $failedWithFeeCount +=1;
+                if($pkg->status_id == 19) {
+                    $failedWithFeeCount +=1;
+                    $totalFailedWithFee += $pkg->driver_total;
+                }
                 if($pkg->status_id == 6) $deliveryCount +=1;
             }
         }
@@ -112,6 +116,7 @@ class FleetManagementController extends Controller
             'total' => number_format($total,2),
             'failed_count' => $failedCount,
             'total_delivered' => number_format($total_delivered,2),
+            'total_failed_with_fee' => number_format($totalFailedWithFee,2),
             'failed_with_fee_count' => $failedWithFeeCount,
             'delivery_count' => $deliveryCount
         ];
@@ -130,7 +135,7 @@ class FleetManagementController extends Controller
             $q->where('dp.is_deleted',0);//->orWhere('delay_count',0);
         })
         ->join('tracking_statuses as ts','ts.id','dp.status_id')
-        ->selectRaw('p.qr_code,p.price,p.cod,p.receiver_name,p.receiver_phone,p.zone_code,p.zone_name,ts.name as status_code,d.user_name as driver_name,d.phone as driver_phone,m.user_name as merchant_name,m.phone as merchant_phone,p.id as package_id,dp.delivery_id,p.zone_code,p.zone_name,p.delivery_fee as base_fee,p.driver_total,p.taxi_fee,p.product_type,dp.status_id')
+        ->selectRaw('p.qr_code,p.price,p.cod,p.receiver_name,p.receiver_phone,p.zone_code,p.zone_name,ts.name as status_code,d.user_name as driver_name,d.phone as driver_phone,m.user_name as merchant_name,m.phone as merchant_phone,p.id as package_id,dp.delivery_id,p.zone_code,p.zone_name,p.delivery_fee as base_fee,p.driver_total,p.taxi_fee,p.product_type,dp.status_id,p.payer')
         ->orderByRaw('(dp.status_id = ?) DESC', [6]);
         if ($search && str_starts_with($search, 'JPK')) {
             $qP->where('p.qr_code',$search);
@@ -151,6 +156,7 @@ class FleetManagementController extends Controller
         $package_id = $req->package_id;
         $status_id = $req->status_id;
         $failure_notes = $req->failure_notes ?? null;
+        $payer = $req->payer ?? null;
         $delivery = Delivery::where('is_deleted',0)->find($trip_id);
         $tripPackage = DeliveryPackage::where('package_id',$package_id)->where('delivery_id',$trip_id)->where('delay_count',0)->first();
         if(!$tripPackage) return ApiResponse::NotFound(__('messages.not_found',[
@@ -169,13 +175,15 @@ class FleetManagementController extends Controller
         $deliveredDatetime = $status_id == 9 ? now():null;
         DB::beginTransaction();
         try{
-            $package->update([
+            $updateArr = [
                 'update_uid' => $user->id,
                 'failure_notes' => $failure_notes,
                 'failed_datetime' => $failDatetime,
                 'delivered_datetime' => $deliveredDatetime,
                 'status_id' => $status_id
-            ]);
+            ];
+            if($status_id == 19) $updateArr['payer'] = $payer;
+            $package->update($updateArr);
 
             DeliveryPackage::where('package_id',$package_id)->where('delivery_id',$trip_id)->where('delay_count',0)->update([
                 'update_uid' => $user->id,
