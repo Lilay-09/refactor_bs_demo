@@ -63,10 +63,10 @@ class TransactionService
         foreach($packages as $package){
             $cod = $package->cod;
             $package->cod = $cod ? 'Yes' : 'No';
-            $package->{$statusKey} = (!$package->{$type.'_payment_id'}) ? 'Unpaid':'Paid';
-            if(!$package->{$statusKey}){
-                $package->{$statusKey} = (!$package->{$type.'_disbursement_id'}) ? 'Unpaid':'Paid';
-            }
+            $package->{$statusKey} = (!$package->{$type.'_payment_id'} && !$package->{$type.'_disbursement_id'}) ? 'Unpaid':'Paid';
+            // if(!$package->{$statusKey}){
+            //     $package->{$statusKey} = !$package->{$type.'_disbursement_id'} ? 'Unpaid':'Paid';
+            // }
             $package->datetime = ($package->status_id == 9 && ($package->delivered_datetime || $package->delivered_datetime)) ? Helper::formatCustomDateTime($package->delivered_datetime) : Helper::formatCustomDateTime($package->failed_datetime);
             // $merchantTotal = $package->merchant_total;
             // $package->merchant_total = -$merchantTotal;

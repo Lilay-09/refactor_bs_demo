@@ -117,7 +117,7 @@ class UserService
             $baseFields['business_type'] = 'nullable|string|max:50';
             $baseFields['cod'] = 'nullable|in:1,0';
             $baseFields['cod_fee'] = 'nullable|numeric|max:100';
-            $baseFields['price_list_id'] = 'nullable|exists:price_list,id';
+            $baseFields['price_list_id'] = 'nullable|exists:price_list_names,id';
             $baseFields['referrer_uid'] = 'nullable|int';
             $baseFields['pin_address'] = 'nullable|string';
             $baseFields['otp'] = 'nullable|string';
