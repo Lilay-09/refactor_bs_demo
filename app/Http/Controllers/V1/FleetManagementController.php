@@ -107,7 +107,7 @@ class FleetManagementController extends Controller
                 if($pkg->status_id == 10) $failedCount +=1;
                 if($pkg->status_id == 19) {
                     $failedWithFeeCount +=1;
-                    $totalFailedWithFee += $pkg->driver_total;
+                    if(!$pkg->cod) $totalFailedWithFee += $pkg->driver_total;
                 }
                 if($pkg->status_id == 6) $deliveryCount +=1;
             }
