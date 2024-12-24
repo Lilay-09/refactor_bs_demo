@@ -909,6 +909,7 @@ class TransactionService
             ->join('packages as p', 'p.'.$type.'_id', '=', 'd.id')
             ->where('p.is_deleted',0)
             ->whereIn('p.status_id',[9,19])
+            ->orderByRaw('COALESCE(p.failed_datetime, p.delivered_datetime) DESC NULLS LAST')
             // ->join('payments as pmt','p.driver_payment_id','pmt.id')
             // ->where('pmt.is_settled',0)
             ->selectRaw('p.additional_fee,p.extra_charge,p.payer,p.cod,p.delivery_fee,p.price,p.taxi_fee,p.extra_charge,p.delivered_datetime,p.failed_datetime,d.id as driver_id,d.id,d.user_name as driver_name,d.code,p.status_id,p.updated_at');
