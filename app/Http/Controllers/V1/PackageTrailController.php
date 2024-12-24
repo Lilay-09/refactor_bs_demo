@@ -39,7 +39,7 @@ class PackageTrailController extends Controller
         // ->whereNotIn('status_id',[]) // at warehouse
         ->where('company_id',$user->company_id)
         ->whereNotIn('status_id',[9])
-        ->selectRaw('merchant_id,order_id,id,taxi_fee,delivery_type,qr_code,price,driver_id,product_type,dim_z,dim_x,dim_y,status_id,failure_notes,payer,cod,delivery_fee,receiver_address,zone_code,zone_name,receiver_name,receiver_phone,delivered_datetime,assign_driver_datetime,arrive_warehouse_datetime,driver_total,merchant_total,billed_kg,actual_kg')
+        ->selectRaw('merchant_id,order_id,id,taxi_fee,delivery_type,qr_code,price,driver_id,product_type,dim_z,dim_x,dim_y,status_id,failure_notes,payer,cod,delivery_fee,receiver_address,zone_code,zone_name,receiver_name,receiver_phone,delivered_datetime,assign_driver_datetime,arrive_warehouse_datetime,driver_total,merchant_total,billed_kg,actual_kg,created_at')
         ->orderByRaw('(status_id = ?) DESC', [5])
         ->orderBy('arrive_warehouse_datetime','desc');
         if($warehouse_id){
@@ -63,8 +63,8 @@ class PackageTrailController extends Controller
             $query->where('qr_code',$search);
         }
         if($startDate && $endDate){
-            $startDate = date('Y-m-d',strtotime($startDate));
-            $endDate = date('Y-m-d',strtotime($endDate));
+            $startDate = Helper::dateYMD($startDate);
+            $endDate = Helper::dateYMD($endDate);
             $query->where(function ($q) use($startDate,$endDate){
                 $q->whereRaw('created_at::DATE >= ? AND created_at::DATE <= ?', [$startDate, $endDate]);
             });
@@ -77,7 +77,7 @@ class PackageTrailController extends Controller
             $pkg->merchant_phone = $pkg->merchant?->phone;
             $pkg->cod = $cod == true ? 1:0;
             $pkg->status_code = $pkg->status->name;
-            $pkg->total = PickupCenterService::getTotal($cod,$pkg->payer,$pkg->price,$pkg->delivery_fee,$pkg->additional_fee,$pkg->excharge_fee);
+            $pkg->total = PickupCenterService::getDriverTotal($cod,$pkg->payer,$pkg->price,$pkg->delivery_fee,$pkg->additional_fee,$pkg->excharge_fee);
             $pkg->warehouse_timeago = Helper::timeAgo($pkg->arrive_warehouse_datetime,false);
             unset($pkg->status,$pkg->merchant,$pkg->driver);
         }

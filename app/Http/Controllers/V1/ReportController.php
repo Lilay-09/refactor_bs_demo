@@ -4,6 +4,7 @@ namespace App\Http\Controllers\V1;
 
 use ApiResponse;
 use App\Http\Controllers\Controller;
+use App\Models\Disbursement;
 use App\Models\FeedBack;
 use App\Models\Order;
 use App\Models\Package;
@@ -715,6 +716,12 @@ class ReportController extends Controller
         $endDate = $req->endDate ? Helper::dateDMY($req->endDate) : null;
         $merchantId = $req->merchant_id;
         $summary = [];
+        $merchantInfo = User::where('is_deleted',0)->where('account_type','merchant')->find($merchantId);
+        if(!$merchantInfo) return ApiResponse::NotFound('Please select a merchant to view this report');
+        $merchantName = $merchantInfo->user_name;
+        $merchantPhone = $merchantInfo->phone;
+        $merchantAddress = $merchantInfo->address;
+        $merchantCode = $merchantInfo->code;
         $qP = Package::where('is_deleted',0)->where('merchant_id',$merchantId);
         $packages = $qP->whereIn('status_id',[9,10,19])->orderByRaw('DATE(failed_datetime) DESC,DATE(delivered_datetime) DESC')
         ->selectRaw('id,qr_code,delivered_datetime,failed_datetime,delivery_remarks,remarks,taxi_fee,extra_charge,delivery_fee,cod,price,payer,receiver_phone,receiver_name,receiver_address')->get();
@@ -742,12 +749,55 @@ class ReportController extends Controller
             'title' => 'Daily Packages Summary',
             'status' => 'All Driver',
             'date' => $startDate.' to '.$endDate,
-            'total' => 1,
+            'merchant_name' => $merchantName,
             'summary' => $summary,
             'company_profile' => CompanyProfileService::profileInfo($user),
             'list' => $groupedPackages
         ];
         return ApiResponse::JsonResult($obj);
+    }
+
+    public function getMerchantPaymentReport(Request $req){
+        $allPayments = [];
+        $pQ = Payment::where('payments.is_deleted',0)->where('payments.is_settled',1)
+        ->where('payer_type','merchant')
+        ->join('users as b','payments.settled_uid','b.id')
+        ->selectRaw('payments.id,payments.package_count,payments.payable_amount,payments.breakdown_notes,b.user_name as booked_user,payments.remarks,payments.payment_datetime');
+        $payments = $pQ->get();
+        foreach($payments as $p){
+            $p->payment_date = Helper::dateDMY($p->payment_datetime);
+            $p->trx_type = 'Receive';
+            $allPayments[] = $p;
+        }
+        $pQ = Disbursement::where('disbursements.is_deleted',0)->where('disbursements.is_settled',1)
+        ->where('payee_type','merchant')
+        ->join('users as b','disbursements.settled_uid','b.id')
+        ->selectRaw('disbursements.id,disbursements.package_count,disbursements.payable_amount,disbursements.breakdown_notes,b.user_name as booked_user,disbursements.remarks,disbursements.payment_datetime');
+        $payments = $pQ->get();
+        foreach($payments as $p){
+            $p->payment_date = Helper::dateDMY($p->payment_datetime);
+            $p->trx_type = 'Disbursement';
+            $allPayments[] = $p;
+        }
+        return ApiResponse::JsonResult($allPayments);
+    }
+
+    public function getMerchantOweFees(){
+        $sumAmount = 'SUM(CASE WHEN packages.payer = \'sender\' THEN packages.delivery_fee ELSE 0 END)
+             + SUM(CASE WHEN packages.payer = \'sender\' THEN packages.extra_charge ELSE 0 END) AS amount';
+        $pQ = Package::where('packages.is_deleted', 0)
+            ->whereNull('packages.merchant_disbursement_id')
+            ->whereNull('packages.merchant_payment_id')
+            ->join('users as m', 'm.id', '=', 'packages.merchant_id')
+            ->selectRaw('
+                m.user_name as merchant_name,
+                COUNT(packages.id) as total_package,
+                SUM(packages.taxi_fee) as taxi_fee,
+                ' . $sumAmount
+            )
+            ->groupByRaw('packages.merchant_id, m.user_name');
+        $packages = $pQ->get();
+        return ApiResponse::JsonResult($packages);
     }
 
 
@@ -756,16 +806,24 @@ class ReportController extends Controller
 
     public function driverDeliverySummaryReportOption(){
         $user = UserService::getAuthUser();
-        $obj =(object)[
+        $obj = [
             'warehouses' => GeneralSettingService::optionsWarehouse($user),
             'drivers' => GeneralSettingService::optionsDriver($user)
+        ];
+        return ApiResponse::JsonResult($obj);
+    }
+    public function getMerchatnPaymentReportOption(){
+        $user = UserService::getAuthUser();
+        $obj = [
+            'warehouses' => GeneralSettingService::optionsWarehouse($user),
+            'transaction_types' => GeneralSettingService::optionsTransactionType()
         ];
         return ApiResponse::JsonResult($obj);
     }
 
     public function formOptionUser (){
         $user = UserService::getAuthUser();
-        $obj =(object)[
+        $obj = [
             'warehouses' => GeneralSettingService::optionsWarehouse($user),
             'statuses' => GeneralSettingService::optionsUserStatus()
         ];

@@ -68,41 +68,6 @@ class TransactionController extends Controller
             'p.remarks',
         ])->get();
 
-
-
-
-        // $paymentTrx = Package::where('packages.is_deleted', 0)
-        // ->where('driver_id', $user->id)
-        // ->whereIn('packages.status_id', [9, 19])
-        // ->leftJoin('payments as p', 'p.id', 'packages.driver_payment_id')
-        // ->where('p.is_deleted',0)
-        // ->leftJoin('disbursements as dis', 'dis.id', 'packages.driver_disbursement_id')
-        // ->where('dis.is_deleted',0)
-        // ->leftJoin('users as c', 'c.id', 'p.settled_uid')
-        // ->select([
-        //     'p.id as payment_id',
-        //     'p.payment_datetime',
-        //     'p.payable_amount',
-        //     'p.is_settled',
-        //     // 'dis.is_settled',
-        //     // 'p.breakdown_notes',
-        //     'c.user_name as cashier_name',
-        //     \DB::raw('SUM(packages.driver_total) as driver_total'), // Aggregate driver_total
-        //     'p.remarks'
-        // ])
-        // ->groupBy([
-        //     'p.id',
-        //     'p.payment_datetime',
-        //     'p.payable_amount',
-        //     // 'p.is_settled',
-        //     'dis.is_settled',
-        //     // 'p.breakdown_notes',
-        //     'c.user_name',
-        //     'p.remarks'
-        // ])
-        // ->get();
-
-        // return $paymentTrx;
         $paymentDetails = PaymentDetail::selectRaw('id,payment_id,method,currency_code')->get();
         foreach($paymentTrx as $payment){
             $payment->id = $payment->dis_id ?? $payment->p_id;

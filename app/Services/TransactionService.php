@@ -37,10 +37,10 @@ class TransactionService
         // ->leftJoin('payments as dpmt','dpmt.id','p.'.$fkKey) //** if driver paid or unpaid */
         // ->leftJoin('payments as mpmt','mpmt.id','p.merchant_payment_id') //** if driver paid or unpaid */
         ->whereIn('p.status_id',[9,19]) //* delivered and failed with fee
-        ->selectRaw('p.additional_fee,p.remarks,p.cod,p.price,d.phone as driver_phone,p.taxi_fee,p.payer,p.delivery_fee,p.merchant_total,m.user_name as merchant_name,m.phone as merchant_phone,d.user_name as driver_name,p.status_id,p.id as package_id,d.id as driver_id,p.qr_code,ts.name as status_code,p.delivered_datetime,p.failed_datetime,p.zone_code,p.receiver_phone,p.delivery_type,'.$fkKey);
+        ->selectRaw('p.extra_charge,p.additional_fee,p.remarks,p.cod,p.price,d.phone as driver_phone,p.taxi_fee,p.payer,p.delivery_fee,p.merchant_total,m.user_name as merchant_name,m.phone as merchant_phone,d.user_name as driver_name,p.status_id,p.id as package_id,d.id as driver_id,p.qr_code,ts.name as status_code,p.delivered_datetime,p.failed_datetime,p.zone_code,p.receiver_phone,p.delivery_type,'.$fkKey);
         if($type == 'driver'){
             $qP->where(function ($q) use($type){
-                // $q->whereNull($type.'_payment_id')->whereNull($type.'_disbursement_id');
+                $q->whereNull($type.'_payment_id')->whereNull($type.'_disbursement_id');
             });
         }
         if($driverId || $merchantId){
@@ -433,7 +433,6 @@ class TransactionService
             $obj->merchant_total += $package->merchant_total;
             $rowTotal = self::getPackageTotal($type,$package->cod,$package->price,$package->taxi_fee,$package->extra_charge,$package->additional_fee,$package->delivery_fee,$package->payer);
             $obj->total_due_amount += $rowTotal;
-            // Log::info($rowTotal);
             if($package->cod) $obj->total_cod += $package->price;
             $obj->total_amount += $package->price + $package->delivery_fee;
             $obj->total_package_price += $package->price;
@@ -1068,7 +1067,7 @@ class TransactionService
             'cash_kh' => 'nullable|numeric',
             'bank_amount' => 'nullable|numeric',
             'bank_amount_kh' => 'nullable|numeric',
-            // 'bank_id' => 'nullable|int',
+            'bank_id' => 'nullable|int',
             'remarks' => 'nullable|string|max:500',
             'start_date' => 'nullable',
             'end_date' => 'nullable',

@@ -210,16 +210,7 @@ class GeneralSettingController extends Controller
         $user = UserService::getAuthUser();
         $obj = (object)[
             'merchants' => $this->gs::optionsMerchant($user),
-            'transaction_types' => [
-                [
-                    'name' => 'Transfer Out',
-                    'value' => 'disbursement',
-                ],
-                [
-                    'name' => 'Transfer In',
-                    'value' => 'receive'
-                ]
-            ],
+            'transaction_types' => $this->gs::optionsTransactionType(),
         ];
         return ApiResponse::JsonResult($obj);
     }

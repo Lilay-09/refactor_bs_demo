@@ -182,7 +182,11 @@ class FleetManagementController extends Controller
                 'delivered_datetime' => $deliveredDatetime,
                 'status_id' => $status_id
             ];
-            if($status_id == 19) $updateArr['payer'] = $payer;
+            if($status_id == 19) {
+                $updateArr['driver_total'] = PickupCenterService::getDriverTotal($package->cod,$payer,$package->price,$package->delivery_fee,$package->additional_fee,$package->extra_charge,$package->taxi_fee);
+                $updateArr['merchant_total'] = 0;
+                $updateArr['payer'] = $payer;
+            }
             $package->update($updateArr);
 
             DeliveryPackage::where('package_id',$package_id)->where('delivery_id',$trip_id)->where('delay_count',0)->update([
@@ -377,18 +381,6 @@ class FleetManagementController extends Controller
         ]));
     }
 
-    // public function saveDriverTrip(Request $req){
-    //     $user = UserService::getAuthUser();
-    //     $today = date('Y-m-d');
-    //     $validate = validator($req->all(),[
-    //         'barcode' => 'required|string',
-    //         'vehicle_type' => 'nullable|exists:vehicle_types,name',
-    //         'driver_id' => 'required|int'
-    //     ]);
-    //     if($validate->fails()) return ApiResponse::ValidateFail($validate->errors()->first());
-    //     $inputs = $validate->validated();
-    // }
-
     public function createOrUpdateTrip(Request $req){
         $user = UserService::getAuthUser();
         $createOrUpdate = $this->createOrUpdateTripService($req,$user);
@@ -535,7 +527,7 @@ class FleetManagementController extends Controller
         ]));
 
         $xRate = GeneralSettingService::getLatestXRate();
-        $total = PickupCenterService::getTotal($package->cod,$package->payer,$package->price,$package->delivery_fee,$package->additional_fee,$package->extra_charge);
+        $total = PickupCenterService::getDriverTotal($package->cod,$package->payer,$package->price,$package->delivery_fee,$package->additional_fee,$package->extra_charge,$package->taxi_fee);
         $package->total = $total;
         $package->cod = $package->cod ? 'Yes' : 'No';
         $package->total_khr = $total / $xRate->buy_rate;

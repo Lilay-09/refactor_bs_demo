@@ -216,6 +216,19 @@ class GeneralSettingService
         return Bank::where('is_deleted',0)->where('company_id',$user->company_id)->selectRaw('id,name')->get();
     }
 
+    public static function optionsTransactionType(){
+        return [
+            [
+                'name' => 'Transfer Out',
+                'value' => 'disbursement',
+            ],
+            [
+                'name' => 'Transfer In',
+                'value' => 'receive'
+            ]
+        ];
+    }
+
     public static function optionsMerchant($user){
         return User::where(function($q){
             $q->where('lock',0)->orWhere('is_deleted',0);

@@ -131,4 +131,13 @@ class MerchantTransactionController extends Controller
             'total_amount' => $grandTotal,
         ]);
     }
+
+    public function deleteSettlePayment(Request $req){
+        $user = UserService::getAuthUser();
+        $id = $req->id;
+        // \Log::error(json_encode($req->all()));
+        $trxService = new TransactionService();
+        return ApiResponse::flex($trxService->deleteSettlePayment($id,$req->payment_type,'merchant',$user));
+    }
+
 }

@@ -121,7 +121,7 @@ Route::middleware(['jwt','localize'])->prefix('admin/v1/{lang}')->group(function
             Route::put('payment',[MerchantTransactionController::class,'approvePayments']);
             Route::get('settle/payment',[MerchantTransactionController::class,'getApprovedPayments']);
             Route::put('settle/payment',[MerchantTransactionController::class,'settleApprovedPayments']);
-            Route::delete('payment/{id}',[MerchantTransactionController::class,'deletePayment']);
+            Route::delete('payment/{id}',[MerchantTransactionController::class,'deleteSettlePayment']);
             Route::get('balance',[MerchantTransactionController::class,'getMerchantBalances']);
         });
     });
@@ -427,6 +427,9 @@ Route::middleware(['jwt','localize'])->prefix('admin/v1/{lang}')->group(function
             Route::get('list',[ReportController::class,'getMerchantListReport']);
             Route::get('/list/option',[ReportController::class,'formOptionUser']);
             Route::get('summary',[ReportController::class,'getMerchantSummaryReport']);
+            Route::get('payment',[ReportController::class,'getMerchantPaymentReport']);
+            Route::get('payment/option',[ReportController::class,'getMerchatnPaymentReportOption']);
+            Route::get('owe',[ReportController::class,'getMerchantOweFees']);
         });
     });
 });
