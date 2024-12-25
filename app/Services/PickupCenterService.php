@@ -222,8 +222,8 @@ class PickupCenterService
     //     ];
     // }
 
-    public function updateOrderQty($orderId,$count){
-        // $count = Package::where('is_deleted',0)->where('order_id',$orderId)->count();
+    public function updateOrderQty($orderId,$count=null){
+        $count = $count ? $count : Package::where('is_deleted',0)->where('order_id',$orderId)->count();
         Order::where('is_deleted',0)->find($orderId)->update([
             'qty' => $count
         ]);
@@ -240,12 +240,18 @@ class PickupCenterService
     }
 
     public static function getTotal($type,$cod,$payer,$price,$deliveryFee,$additional_fee,$extra_charge,$taxi=0){
-        $total = $extra_charge + $additional_fee;
+        $total = $additional_fee;
         if($type == 'driver'){
             if($cod) $total += $price;
-            if($payer == 'receiver') $total += $deliveryFee;
+            if($payer == 'receiver') {
+                $total += $extra_charge;
+                $total += $deliveryFee;
+            }
         }else if($type == 'merchant'){
-            if($payer == 'sender') $total += $deliveryFee;
+            if($payer == 'sender') {
+                $total += $extra_charge;
+                $total += $deliveryFee;
+            }
         }
         return $total;
     }
