@@ -98,12 +98,12 @@ class MerchantTransactionController extends Controller
             // Sum the package counts for this group
 
             $packageTotal = $group->count(); // Count items in the group (equivalent to summing 1 per item)
-            $totalCod = $group->where('cod',1)->sum('price');
+            $totalCod = $group->where('cod',1)->where('status_id','!=',19)->sum('price');
             if($transactionType == 'disbursement'){
                 if($totalCod < 0)  return;
             }
             $totalTaxi = $group->sum('taxi_fee');
-            $totalExtraCharge = $group->sum('extra_charge');
+            $totalExtraCharge = $group->where('payer','sender')->sum('extra_charge');
             $totalDeliveryFee = $group->where('payer','sender')->sum('delivery_fee') + $totalExtraCharge;
             $representative = $group->first();
             $totalAmount = $totalCod - ($totalDeliveryFee +  + $group->sum('additional_fee'));
@@ -124,7 +124,7 @@ class MerchantTransactionController extends Controller
                 'code' => $representative->code,
                 'package_count' => $packageTotal,
                 'cod_amount' => number_format($totalCod,2),
-                'fee' => $totalDeliveryFee,
+                'fee' => number_format($totalDeliveryFee,2),
                 'taxi_fee' => $totalTaxi,
                 'status_id' => $representative->status_id,
                 'amount' => $totalAmount,

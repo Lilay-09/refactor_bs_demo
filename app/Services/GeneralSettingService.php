@@ -494,7 +494,9 @@ class GeneralSettingService
             $failCount = 0;
             $stillOnDelivery = 0;
             $status_id = 16;
-            $packages = $queryDeliveryPackage->where('is_deleted',0)->where('delay_count',0)->get();
+            $packages = $queryDeliveryPackage->where(function ($q){
+                $q->where('is_deleted',0)->orWhere('delay_count',0);
+            })->get();
             foreach($packages as $pck){
                 if($pck->status_id == 9){
                     $deliveredCount += 1;

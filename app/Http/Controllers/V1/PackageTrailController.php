@@ -116,6 +116,12 @@ class PackageTrailController extends Controller
         if(!$package) return ApiResponse::NotFound(__('messages.not_found',['info' => 'Package','khInfo' => 'កញ្ចប់']));
         if($package->status_id == 13) return ApiResponse::Forbidden(__('messages.no_access',['info' => 'This package is already assigned to driver']));
         if($package->status_id == 14) return ApiResponse::Forbidden(__('messages.no_access',['info' => 'This package is on delivery']));
+        if($package->driver_payment_id || $package->driver_disbursement_id) return DataResponse::Duplicated(__('messages.info',[
+            'info' => 'It seems like you try to update package which is on payment pending or paid with driver'
+        ]));
+        if($package->merchant_payment_id || $package->merchant_disbursement_id) return DataResponse::Duplicated(__('messages.info',[
+            'info' => 'It seems like you try to update package which is on payment pending or paid with merchant'
+        ]));
         $pkupService = new PickupCenterService();
         $req->merge(['merchant_id' => $package->merchant_id]);
         $validate = $pkupService->packageValidation($req);
@@ -125,7 +131,8 @@ class PackageTrailController extends Controller
         $inputs['branch_id'] = $user->branch_id;
         $inputs['update_uid'] = $user->id;
         $price = $inputs['price'] ?? 0;
-        $inputs['price'] = $price;
+        // Log::info($price);
+        // $inputs['price'] = $price;
         $actualKg = $inputs['actual_kg'] ?? 0;
         $billedKg = $inputs['billed_kg'] ?? 0;
         $inputs['actual_kg'] = $actualKg;
@@ -139,6 +146,8 @@ class PackageTrailController extends Controller
         if($calPrice->error) return $calPrice;
         // $inputs['driver_total'] = ($package->status_id == 19 && $package->cod) ? abs($package->price - $calPrice->driver_total):$calPrice->driver_total;
         $driverTotal = PickupCenterService::getDriverTotal($package->cod,$payer,$package->price,$package->delivery_fee,$package->additional_fee,$extra_charge,$taxiFee);
+        $inputs['driver_total'] = $driverTotal;
+        $inputs['merchant_total'] = PickupCenterService::getTotal('merchant',$package->cod,$payer,$package->price,$package->delivery_fee,$package->additional_fee,$extra_charge,$taxiFee);
         if($package->status_id == 19){
             if($payer == 'receiver') {
                 $inputs['driver_total'] = abs($package->price - $driverTotal);

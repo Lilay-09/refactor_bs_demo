@@ -67,12 +67,14 @@ class TransactionService
             $package->datetime = ($package->status_id == 9 && ($package->delivered_datetime || $package->delivered_datetime)) ? Helper::formatCustomDateTime($package->delivered_datetime) : Helper::formatCustomDateTime($package->failed_datetime);
 
             $package->{$type.'_total'} = self::getPackageTotal($type,$cod,$package->price,$package->taxi_fee,$package->extra_charge,$package->additional_fee,$package->delivery_fee,$package->payer);
+            if($type == 'merchant') $package->total = -self::getPackageTotal($type,$cod,$package->price,$package->taxi_fee,$package->extra_charge,$package->additional_fee,$package->delivery_fee,$package->payer);
             if($package->status_id == 19){
                 if($type == 'merchant'){
                     $package->{$type.'_total'} = $package->payer == 'sender' ? $package->delivery_fee+ $package->extra_charge : 0;
+                    $package->total = $package->payer == 'sender' ? -self::getPackageTotal($type,$cod,$package->price,$package->taxi_fee,$package->extra_charge,$package->additional_fee,$package->delivery_fee,$package->payer):0;
                 }else $package->{$type.'_total'} = $package->payer == 'receiver' ? $package->delivery_fee+ $package->extra_charge : 0;
             }
-            if($type == 'merchant') $package->total = -self::getPackageTotal($type,$cod,$package->price,$package->taxi_fee,$package->extra_charge,$package->additional_fee,$package->delivery_fee,$package->payer);
+
             $package->fee = number_format($package->delivery_fee + $package->extra_charge + $package->additional_fee,2);
         }
         return DataResponse::Pagination($packages,$req);
