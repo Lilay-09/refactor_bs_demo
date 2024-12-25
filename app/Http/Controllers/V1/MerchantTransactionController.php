@@ -102,7 +102,7 @@ class MerchantTransactionController extends Controller
             if($transactionType == 'disbursement'){
                 if($totalCod < 0)  return;
             }
-            $totalTaxi = $group->sum('taxi_fee');
+            $totalTaxi = $group->where('status_id','!=',19)->sum('taxi_fee');
             $totalExtraCharge = $group->where('payer','sender')->sum('extra_charge');
             $totalDeliveryFee = $group->where('payer','sender')->sum('delivery_fee') + $totalExtraCharge;
             $representative = $group->first();
@@ -112,11 +112,7 @@ class MerchantTransactionController extends Controller
             // $representative->package_count = $packageTotal; // Add the summed total_package
             $bankInfo = $representative->bank_accounts->where('is_primary',1)->first();
             if(!$bankInfo) $bankInfo = $representative->bank_accounts->first();
-            // foreach ($bankInfo as $b){
-
-            // }
             unset($representative->groupDate);
-
             return [
                 'finished_date' => $date,
                 'driver_id' => $driver_id,

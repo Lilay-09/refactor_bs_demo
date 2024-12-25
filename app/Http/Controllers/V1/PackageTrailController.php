@@ -151,16 +151,17 @@ class PackageTrailController extends Controller
         $inputs['delivery_fee'] = $calPrice->delivery_fee;
         // $inputs['driver_total'] = ($package->status_id == 19 && $package->cod) ? abs($package->price - $calPrice->driver_total):$calPrice->driver_total;
         $driverTotal = PickupCenterService::getDriverTotal($cod,$payer,$price,$deliveryFee,$package->additional_fee,$extra_charge,$taxiFee);
-        $inputs['driver_total'] = $driverTotal - $taxiFee;
+        $inputs['driver_total'] = $driverTotal;
         $inputs['merchant_total'] = PickupCenterService::getTotal('merchant',$cod,$payer,$price,$deliveryFee,$package->additional_fee,$extra_charge,$taxiFee);
         if($package->status_id == 19){
+            $driverTotal = PickupCenterService::getDriverTotal($cod,$payer,0,$deliveryFee,$package->additional_fee,$extra_charge,0);
             if($payer == 'receiver') {
-                $inputs['driver_total'] = abs($package->price - $driverTotal);
+                $inputs['driver_total'] = $driverTotal;
                 $inputs['merchant_total'] = 0;
             }
             else {
                 $inputs['driver_total'] = 0;
-                $inputs['merchant_total'] = PickupCenterService::getTotal('merchant',$cod,$payer,$price,$deliveryFee,$package->additional_fee,$extra_charge,$taxiFee);
+                $inputs['merchant_total'] = PickupCenterService::getTotal('merchant',$cod,$payer,0,$deliveryFee,$package->additional_fee,$extra_charge,0);
             }
         }
 

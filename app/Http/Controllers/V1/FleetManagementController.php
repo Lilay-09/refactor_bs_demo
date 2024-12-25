@@ -182,8 +182,9 @@ class FleetManagementController extends Controller
                 'delivered_datetime' => $deliveredDatetime,
                 'status_id' => $status_id
             ];
+
             if($status_id == 19) {
-                $driverTotal = PickupCenterService::getDriverTotal($package->cod,$payer,$package->price,$package->delivery_fee,$package->additional_fee,$package->extra_charge,$package->taxi_fee);
+                $driverTotal = PickupCenterService::getDriverTotal($package->cod,$payer,$package->price,$package->delivery_fee,$package->additional_fee,$package->extra_charge,0);
                 if($payer == 'receiver') {
                     $updateArr['driver_total'] = $driverTotal;
                     $updateArr['merchant_total'] = 0;
@@ -194,10 +195,14 @@ class FleetManagementController extends Controller
                 }
 
                 $updateArr['payer'] = $payer;
+            }else{
+                $driverTotal = PickupCenterService::getDriverTotal($package->cod,$payer,$package->price,$package->delivery_fee,$package->additional_fee,$package->extra_charge,$package->taxi_fee);
+                $updateArr['driver_total'] = $driverTotal;
             }
             $package->update($updateArr);
-
-            DeliveryPackage::where('package_id',$package_id)->where('delivery_id',$trip_id)->where('delay_count',0)->update([
+            DeliveryPackage::where('package_id',$package_id)->where('delivery_id',$trip_id)->where(function($q){
+                $q->where('delay_count',0)->orWhere('is_deleted',0);
+            })->update([
                 'update_uid' => $user->id,
                 'failure_notes' => $failure_notes,
                 'failed_datetime' => $failDatetime,

@@ -230,10 +230,13 @@ class PickupCenterService
     }
 
     public static function getDriverTotal($cod,$payer,$price,$deliveryFee,$additional_fee,$extra_charge,$taxi=0){
-        $total = $extra_charge + $additional_fee;
+        $total = $additional_fee;
         if($cod) $total += $price;
-        if($payer == 'receiver') $total += $deliveryFee;
-        return $total;
+        if($payer == 'receiver') {
+            $total += $extra_charge;
+            $total += $deliveryFee;
+        }
+        return $total - $taxi;
     }
 
     public static function getTotal($type,$cod,$payer,$price,$deliveryFee,$additional_fee,$extra_charge,$taxi=0){

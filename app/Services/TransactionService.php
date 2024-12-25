@@ -71,8 +71,8 @@ class TransactionService
             if($package->status_id == 19){
                 if($type == 'merchant'){
                     $package->{$type.'_total'} = $package->payer == 'sender' ? $package->delivery_fee+ $package->extra_charge : 0;
-                    $package->total = $package->payer == 'sender' ? -self::getPackageTotal($type,$cod,$package->price,$package->taxi_fee,$package->extra_charge,$package->additional_fee,$package->delivery_fee,$package->payer):0;
-                }else $package->{$type.'_total'} = $package->payer == 'receiver' ? $package->delivery_fee+ $package->extra_charge : 0;
+                    $package->total = $package->payer == 'sender' ? -self::getPackageTotal($type,$cod,0,0,$package->extra_charge,$package->additional_fee,$package->delivery_fee,$package->payer):0;
+                }else $package->{$type.'_total'} = $package->payer == 'receiver' ? $package->delivery_fee + $package->extra_charge : 0;
             }
 
             $package->fee = number_format($package->delivery_fee + $package->extra_charge + $package->additional_fee,2);
@@ -91,7 +91,7 @@ class TransactionService
         if($type == 'merchant'){
             if($cod) $total -= $price;
             if($payer == 'sender') $total += $baseFee;
-            if($taxiFee) $total -= $taxiFee;
+            if($taxiFee) $total += $taxiFee;
         }
 
         return number_format($total,2);
@@ -431,6 +431,7 @@ class TransactionService
             $rowTotal = self::getPackageTotal($type,$package->cod,$package->price,$package->taxi_fee,$package->extra_charge,$package->additional_fee,$package->delivery_fee,$package->payer);
             if($package->status_id == 19){
                 if($type == 'merchant'){
+                    $rowTotal = self::getPackageTotal($type,$package->cod,0,0,$package->extra_charge,$package->additional_fee,$package->delivery_fee,$package->payer);
                     $rowTotal = $package->payer == 'sender' ? $package->delivery_fee+ $package->extra_charge : 0;
                 }else $rowTotal = $package->payer == 'receiver' ? $package->delivery_fee+ $package->extra_charge : 0;
             }
@@ -1042,7 +1043,7 @@ class TransactionService
         $taxi_fee = $inputs['taxi_fee'] ?? $package->taxi_fee;
         $price = $inputs['price'] ?? $package->price;
         $calFee = GeneralSettingService::calculatePackageFee($package->zone_code,$price,$package->billed_kg,$package->actual_kg,$payer,$cod,$package->extra_charge,$user,$taxi_fee,$package->merchant_id);
-        $inputs['driver_total'] = ($package->status_id == 19 && $package->cod) ? abs($price - $calFee->driver_total) - $taxi_fee:$calFee->driver_total - $taxi_fee;
+        $inputs['driver_total'] = ($package->status_id == 19 && $package->cod) ? abs($price - $calFee->driver_total):$calFee->driver_total;
         $inputs['merchant_total'] = $calFee->merchant_total;
         $package->update($inputs);
         return DataResponse::JsonResult(null,false ,__('messages.updated',[
