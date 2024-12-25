@@ -1024,20 +1024,6 @@ class TransactionService
         ]);
         if($validate->fails()) return DataResponse::ValidateFail($validate->errors()->first());
         $inputs = $validate->validated();
-        // $joinCallback = function ($join) use ($type) {
-        //     $fkKey = $type ? $type . '_payment_id' : null;
-        //     if ($fkKey) {
-        //         // Join based on the specified type (driver or merchant)
-        //         $join->on('dpmt.id', '=', "p.$fkKey");
-        //     } else {
-        //         // If type is null, join on both driver_payment_id and merchant_payment_id
-        //         $join->on(function ($query) {
-        //             $query->whereColumn('dpmt.id', 'p.driver_payment_id')
-        //                 ->orWhereColumn('dpmt.id', 'p.merchant_payment_id');
-        //         });
-        //     }
-        // };
-        // $package = Package::where('is_deleted',0)->where('company_id',$user->company_id)->find($id);
         $package = Package::fromRaw('packages as p')->where('p.company_id',$user->company_id)
         // ->leftJoin('payments as dpmt',$joinCallback)
         ->selectRaw('p.extra_charge,p.id,p.taxi_fee,p.cod,p.payer,p.zone_code,p.price,p.billed_kg,p.actual_kg,p.driver_payment_id,p.merchant_payment_id,p.merchant_disbursement_id,p.driver_disbursement_id')
@@ -1054,8 +1040,9 @@ class TransactionService
         $cod = $inputs['cod'];
         $payer = $inputs['payer'];
         $taxi_fee = $inputs['taxi_fee'] ?? $package->taxi_fee;
-        $calFee = GeneralSettingService::calculatePackageFee($package->zone_code,$package->price,$package->billed_kg,$package->actual_kg,$payer,$cod,$package->extra_charge,$user,$taxi_fee,$package->merchant_id);
-        $inputs['driver_total'] = ($package->status_id == 19 && $package->cod) ? abs($package->price - $calFee->driver_total):$calFee->driver_total;
+        $price = $inputs['price'] ?? $package->price;
+        $calFee = GeneralSettingService::calculatePackageFee($package->zone_code,$price,$package->billed_kg,$package->actual_kg,$payer,$cod,$package->extra_charge,$user,$taxi_fee,$package->merchant_id);
+        $inputs['driver_total'] = ($package->status_id == 19 && $package->cod) ? abs($price - $calFee->driver_total):$calFee->driver_total;
         $inputs['merchant_total'] = $calFee->merchant_total;
         $package->update($inputs);
         return DataResponse::JsonResult(null,false ,__('messages.updated',[
