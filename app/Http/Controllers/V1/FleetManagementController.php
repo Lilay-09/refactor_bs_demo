@@ -107,7 +107,7 @@ class FleetManagementController extends Controller
                 if($pkg->status_id == 10) $failedCount +=1;
                 if($pkg->status_id == 19) {
                     $failedWithFeeCount +=1;
-                    if(!$pkg->cod) $totalFailedWithFee += $pkg->driver_total;
+                    $totalFailedWithFee += $pkg->driver_total;
                 }
                 if($pkg->status_id == 6) $deliveryCount +=1;
             }
@@ -569,7 +569,6 @@ class FleetManagementController extends Controller
             'company_info' => $companyInfo,
             'packages' => $packages
         ];
-
         return ApiResponse::JsonResult($obj);
     }
 }
