@@ -1042,7 +1042,7 @@ class TransactionService
         $taxi_fee = $inputs['taxi_fee'] ?? $package->taxi_fee;
         $price = $inputs['price'] ?? $package->price;
         $calFee = GeneralSettingService::calculatePackageFee($package->zone_code,$price,$package->billed_kg,$package->actual_kg,$payer,$cod,$package->extra_charge,$user,$taxi_fee,$package->merchant_id);
-        $inputs['driver_total'] = ($package->status_id == 19 && $package->cod) ? abs($price - $calFee->driver_total):$calFee->driver_total;
+        $inputs['driver_total'] = ($package->status_id == 19 && $package->cod) ? abs($price - $calFee->driver_total) - $taxi_fee:$calFee->driver_total - $taxi_fee;
         $inputs['merchant_total'] = $calFee->merchant_total;
         $package->update($inputs);
         return DataResponse::JsonResult(null,false ,__('messages.updated',[

@@ -151,7 +151,7 @@ class PackageTrailController extends Controller
         $inputs['delivery_fee'] = $calPrice->delivery_fee;
         // $inputs['driver_total'] = ($package->status_id == 19 && $package->cod) ? abs($package->price - $calPrice->driver_total):$calPrice->driver_total;
         $driverTotal = PickupCenterService::getDriverTotal($cod,$payer,$price,$deliveryFee,$package->additional_fee,$extra_charge,$taxiFee);
-        $inputs['driver_total'] = $driverTotal;
+        $inputs['driver_total'] = $driverTotal - $taxiFee;
         $inputs['merchant_total'] = PickupCenterService::getTotal('merchant',$cod,$payer,$price,$deliveryFee,$package->additional_fee,$extra_charge,$taxiFee);
         if($package->status_id == 19){
             if($payer == 'receiver') {
