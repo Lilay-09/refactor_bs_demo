@@ -137,6 +137,7 @@ class UserService
         $inputs['branch_id'] = $user->branch_id;
         $inputs['company_id'] = $user->company_id;
         $inputs['account_type'] = $user_class;
+        $inputs['cod'] = $inputs['cod'] ?? 0;
         $inputs['dob'] = isset($inputs['dob']) ? date('Y-m-d',strtotime($inputs['dob'])) : null;
         $inputs['driver_warehouse_id'] = $inputs['warehouse_id'] ?? null;
         if($isRegistered){

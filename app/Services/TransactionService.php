@@ -947,7 +947,7 @@ class TransactionService
             $totalPrice = $group->where('cod',1)->sum('price');
             $representative = $group->first();
             $fee = $group->where('payer','receiver')->sum('delivery_fee') + $group->sum('extra_charge') + $group->sum('additional_fee');
-            $amount = $totalPrice + $fee;
+            $amount = number_format($totalPrice + $fee,2);
             $totalPackages += $packageTotal;
             $totalAmount += $amount;
             // $representative->package_count = $packageTotal; // Add the summed total_package
@@ -1053,7 +1053,7 @@ class TransactionService
         $payer = $inputs['payer'];
         $taxi_fee = $inputs['taxi_fee'] ?? $package->taxi_fee;
         $calFee = GeneralSettingService::calculatePackageFee($package->zone_code,$package->price,$package->billed_kg,$package->actual_kg,$payer,$cod,$package->extra_charge,$user,$taxi_fee,$package->merchant_id);
-        $inputs['driver_total'] = $calFee->driver_total;
+        $inputs['driver_total'] = ($package->status_id == 19 && $package->cod) ? abs($package->price - $calFee->driver_total):$calFee->driver_total;
         $inputs['merchant_total'] = $calFee->merchant_total;
         $package->update($inputs);
         return DataResponse::JsonResult(null,false ,__('messages.updated',[

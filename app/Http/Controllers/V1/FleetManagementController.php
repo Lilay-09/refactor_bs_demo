@@ -184,7 +184,7 @@ class FleetManagementController extends Controller
             ];
             if($status_id == 19) {
                 $driverTotal = PickupCenterService::getDriverTotal($package->cod,$payer,$package->price,$package->delivery_fee,$package->additional_fee,$package->extra_charge,$package->taxi_fee);
-                $updateArr['driver_total'] = $package->cod ? $package->price - $driverTotal: $driverTotal;
+                $updateArr['driver_total'] = $package->cod ? abs($package->price - $driverTotal): $driverTotal;
                 $updateArr['merchant_total'] = 0;
 
                 $updateArr['payer'] = $payer;
