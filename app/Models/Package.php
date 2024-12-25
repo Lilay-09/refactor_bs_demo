@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Helper;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
@@ -73,30 +74,6 @@ class Package extends Model
         'arrive_warehouse_datetime'
     ];
 
-    // protected $casts = [
-    //     'cod' => 'boolean',  // Automatically casts 0/1 to true/false when accessing the attribute
-    // ];
-    // public function getCodAttribute($value)
-    // {
-    //     return $value ? 1:0; // Converts 1/0 to true/false
-    // }
-
-
-    // public function getAssignDriverDatetimeAttribute($value){
-    //     return \Carbon\Carbon::parse($value)->format('d-M-y H:i:s A');
-    // }
-
-    // public function getArriveWarehouseDatetimeAttribute($value){
-    //     return \Carbon\Carbon::parse($value)->format('d-M-y H:i:s A');
-    // }
-
-    // public function getFailedDatetimeAttribute($value){
-    //     return \Carbon\Carbon::parse($value)->format('d-M-y H:i:s A');
-    // }
-
-    // public function getDeliveredDatetimeAttribute($value){
-    //     return \Carbon\Carbon::parse($value)->format('d-M-y H:i:s A');
-    // }
     public function getAssignDriverDatetimeAttribute($value)
     {
         return $this->formatDatetime($value);
@@ -110,6 +87,21 @@ class Package extends Model
     public function getFailedDatetimeAttribute($value)
     {
         return $this->formatDatetime($value);
+    }
+
+    public function setPriceAttribute($value)
+    {
+        $this->attributes['price'] = Helper::getNumber($value);
+    }
+
+    public function setDriverTotalAttribute($value)
+    {
+        $this->attributes['driver_total'] = Helper::getNumber($value);
+    }
+
+    public function setMerchantTotalAttribute($value)
+    {
+        $this->attributes['merchant_total'] = Helper::getNumber($value);
     }
 
     public function getDeliveredDatetimeAttribute($value)

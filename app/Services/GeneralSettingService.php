@@ -141,6 +141,18 @@ class GeneralSettingService
         return Zone::where('status',1)->where('company_id',$user->company_id)->where('is_deleted',0)->selectRaw('id,zone_name,zone_code')->orderByDesc('id')->get();
     }
 
+    public static function optionsZoneByPriceListNameId($user,$id=null){
+        $qZ = Zone::where('status',1)->where('company_id',$user->company_id)->where('is_deleted',0)->selectRaw('id,zone_name,zone_code')->orderByDesc('id');
+        if($id){
+            $plIds = PriceList::where('is_deleted',0)->where('price_list_name_id',$id)->pluck('id')->toArray();
+            $qZ->whereHas('priceListZone', function ($q) use ($plIds) {
+                $q->whereIn('price_list_zones.price_list_id', $plIds);
+            });
+        }
+        $zone = $qZ->get();
+        return $zone;
+    }
+
 
     public static function termAndConditions($user){
         return TermCondition::where('channel',$user->account_type)->selectRaw('text')->first();

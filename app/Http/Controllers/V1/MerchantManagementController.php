@@ -64,6 +64,12 @@ class MerchantManagementController extends Controller
         return ApiResponse::Pagination($merhcants,$req);
     }
 
+    public function getDefaultOptions(Request $req){
+        $id = $req->id;
+        $merchant = User::where('is_deleted',0)->with('merchantPriceList')->where('account_type','merchant')->selectRaw('id,cod,cod_fee')->where('id',$id)->first();
+        if(!$merchant) return ApiResponse::NotFound();
+        return ApiResponse::JsonResult($merchant);
+    }
     // public static function concatBankInfo($bankName,$bankNumber,$accountName){
     //     $info = $bankName;
     //     if($bankNumber) $info .= '|'.$bankNumber;

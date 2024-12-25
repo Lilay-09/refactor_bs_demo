@@ -563,6 +563,10 @@ class Helper{
 
     }
 
+    static function getNumber($value,$decimalPoint=2){
+        return number_format((float)$value,$decimalPoint,'.','');
+    }
+
     static function convertJsonTextToJson($jsonString,$assoc=true) {
         $correctedJson = str_replace("'", '"', $jsonString);
 

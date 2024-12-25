@@ -7,6 +7,7 @@ use App\Models\User;
 use App\Models\UserBank;
 use App\Models\UserNotificationToken;
 use App\Models\UserRoles;
+use App\Models\Zone;
 use DataResponse;
 use DB;
 use Exception;
@@ -117,6 +118,7 @@ class UserService
             $baseFields['business_type'] = 'nullable|string|max:50';
             $baseFields['cod'] = 'nullable|in:1,0';
             $baseFields['cod_fee'] = 'nullable|numeric|max:100';
+            $baseFields['zone_id'] = 'nullable';
             $baseFields['price_list_id'] = 'nullable|exists:price_list_names,id';
             $baseFields['referrer_uid'] = 'nullable|int';
             $baseFields['pin_address'] = 'nullable|string';
@@ -156,7 +158,8 @@ class UserService
             $inputs['latitude'] = $getLatLng->latitude ?? 0;
             $inputs['longitude'] = $getLatLng->longitude ?? 0;
         }
-        unset($inputs['bank_info'],$inputs['photo'],$inputs['role_id'],$inputs['client_type_id']);
+        $zoneId = $inputs['zone_id'] ?? null;
+        unset($inputs['bank_info'],$inputs['photo'],$inputs['role_id'],$inputs['client_type_id'],$inputs['zone_id']);
         DB::beginTransaction();
         try{
             if($id){
@@ -206,7 +209,7 @@ class UserService
                 $saveUserBank = self::saveUserBanks($bankInfo,$userId,$user);
                 if($saveUserBank->error) return $saveUserBank;
             }
-            if($user_class == 'merchant' && isset($inputs['price_list_id'])) self::saveMerchantPriceList($userId,$priceListId,$user);
+            if($user_class == 'merchant' && isset($inputs['price_list_id'])) self::saveMerchantPriceList($userId,$priceListId,$zoneId,$user);
             DB::commit();
             return DataResponse::JsonResult(null,false,__('messages.saved'));
         }catch(Exception $e){
@@ -216,12 +219,15 @@ class UserService
         }
     }
 
-    private static function saveMerchantPriceList($merchantId,$priceListId,$user): void{
+    private static function saveMerchantPriceList($merchantId,$priceListId,$zoneId,$user): void{
         $found = MerchantPriceList::where('merchant_id',$merchantId)->first();
+        $zoneCode = Zone::where('id',$zoneId)->value('zone_code');
         if($found) {
             $found->update([
             'merchant_id' => $merchantId,
             'price_list_id' => $priceListId,
+            'zone_id' => $zoneId,
+            'zone_code' => $zoneCode,
             'update_uid' => $user->id,
             'company_id' => $user->company_id,
             'branch_id' => $user->branch_id
@@ -231,6 +237,8 @@ class UserService
             MerchantPriceList::create([
             'merchant_id' => $merchantId,
             'price_list_id' => $priceListId,
+            'zone_id' => $zoneId,
+            'zone_code' => $zoneCode,
             'create_uid' => $user->id,
             'update_uid' => $user->id,
             'company_id' => $user->company_id,

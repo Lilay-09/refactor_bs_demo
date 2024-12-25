@@ -112,6 +112,7 @@ Route::middleware(['jwt','localize'])->prefix('admin/v1/{lang}')->group(function
         Route::post('/{id}/setLock',[MerchantManagementController::class,'setLockMerchant']);
         Route::post('/{id}/account',[MerchantManagementController::class,'createMerchantAccount']);
         Route::put('/{id}/priceList',[MerchantManagementController::class,'setMerchantPriceList']);
+        Route::get('/{id}/default',[MerchantManagementController::class,'getDefaultOptions']);
 
         Route::prefix('transaction')->group(function(){
             Route::get('delivery/package',[MerchantTransactionController::class,'getDeliveryPackages']);
@@ -363,6 +364,7 @@ Route::middleware(['jwt','localize'])->prefix('admin/v1/{lang}')->group(function
             Route::get('city/district/{city_id}',[GeneralSettingController::class,'getOptionsDistrictByCity']);
             Route::get('district/commune/{district_id}',[GeneralSettingController::class,'getOptionsCommuneByDistrict']);
             Route::get('priceList/name',[GeneralSettingController::class,'getOptionsPriceListName']);
+            Route::get('priceList/name/zone/{id?}',[GeneralSettingController::class,'getOptionsZoneByPriceListNameId']);
             Route::get('priceList',[GeneralSettingController::class,'getOptionsPriceList']);
             Route::get('vehicleType',[GeneralSettingController::class,'getOptionsVehicleType']);
             Route::get('fleet/package/{barcode}',[FleetManagementController::class,'getPackageByBarcode']);

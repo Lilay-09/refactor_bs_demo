@@ -183,6 +183,12 @@ class GeneralSettingController extends Controller
         return ApiResponse::JsonResult($obj);
     }
 
+    public function getOptionsZoneByPriceListNameId(Request $req){
+        $user = UserService::getAuthUser();
+        $id = $req->id ?? null;
+        return ApiResponse::JsonResult($this->gs::optionsZoneByPriceListNameId($user,$id));
+
+    }
 
     public function getFormPackageTrail(Request $req){
         $user = UserService::getAuthUser();

@@ -64,19 +64,14 @@ class TransactionService
             $cod = $package->cod;
             $package->cod = $cod ? 'Yes' : 'No';
             $package->{$statusKey} = (!$package->{$type.'_payment_id'} && !$package->{$type.'_disbursement_id'}) ? 'Unpaid':'Paid';
-            // if(!$package->{$statusKey}){
-            //     $package->{$statusKey} = !$package->{$type.'_disbursement_id'} ? 'Unpaid':'Paid';
-            // }
             $package->datetime = ($package->status_id == 9 && ($package->delivered_datetime || $package->delivered_datetime)) ? Helper::formatCustomDateTime($package->delivered_datetime) : Helper::formatCustomDateTime($package->failed_datetime);
-            // $merchantTotal = $package->merchant_total;
-            // $package->merchant_total = -$merchantTotal;
-            // if($package->cod && $package->price > 0 && $package->payer == 'sender'){
-            //     $package->merchant_total = $package->driver_total - $merchantTotal;
-            // }
-            // if($package->cod) $package->remarks = $package->price;
-            // $package->driver_total = self::getPackageTotal($type,$cod,$package->price,$package->taxi_fee,$package->extra_charge,$package->additional_fee,$package->delivery_fee,$package->payer);
-            // $package->{$type.'_total'} = self::getPackageTotal($type,$cod,$package->price,$package->taxi_fee,$package->extra_charge,$package->additional_fee,$package->delivery_fee,$package->payer);
+
             $package->{$type.'_total'} = self::getPackageTotal($type,$cod,$package->price,$package->taxi_fee,$package->extra_charge,$package->additional_fee,$package->delivery_fee,$package->payer);
+            if($package->status_id == 19){
+                if($type == 'merchant'){
+                    $package->{$type.'_total'} = $package->payer == 'sender' ? $package->delivery_fee+ $package->extra_charge : 0;
+                }else $package->{$type.'_total'} = $package->payer == 'receiver' ? $package->delivery_fee+ $package->extra_charge : 0;
+            }
             if($type == 'merchant') $package->total = -self::getPackageTotal($type,$cod,$package->price,$package->taxi_fee,$package->extra_charge,$package->additional_fee,$package->delivery_fee,$package->payer);
             $package->fee = number_format($package->delivery_fee + $package->extra_charge + $package->additional_fee,2);
         }
@@ -432,6 +427,11 @@ class TransactionService
             $obj->driver_total += $package->driver_total;
             $obj->merchant_total += $package->merchant_total;
             $rowTotal = self::getPackageTotal($type,$package->cod,$package->price,$package->taxi_fee,$package->extra_charge,$package->additional_fee,$package->delivery_fee,$package->payer);
+            if($package->status_id == 19){
+                if($type == 'merchant'){
+                    $rowTotal = $package->payer == 'sender' ? $package->delivery_fee+ $package->extra_charge : 0;
+                }else $rowTotal = $package->payer == 'receiver' ? $package->delivery_fee+ $package->extra_charge : 0;
+            }
             $obj->total_due_amount += $rowTotal;
             if($package->cod) $obj->total_cod += $package->price;
             $obj->total_amount += $package->price + $package->delivery_fee;

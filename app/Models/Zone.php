@@ -35,6 +35,6 @@ class Zone extends Model
     }
 
     public function priceListZone(){
-        return $this->has(PriceListZone::class,'zone_id','id');
+        return $this->hasMany(PriceListZone::class,'zone_id','id');
     }
 }
