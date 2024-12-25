@@ -1037,8 +1037,8 @@ class TransactionService
         if($package->merchant_payment_id || $package->merchant_disbursement_id) return DataResponse::Duplicated(__('messages.info',[
             'info' => 'It seems like you try to update package which is on payment pending or paid with merchant'
         ]));
-        $cod = $inputs['cod'];
-        $payer = $inputs['payer'];
+        $cod = $inputs['cod'] ?? $package->cod;
+        $payer = $inputs['payer'] ?? $package->payer;
         $taxi_fee = $inputs['taxi_fee'] ?? $package->taxi_fee;
         $price = $inputs['price'] ?? $package->price;
         $calFee = GeneralSettingService::calculatePackageFee($package->zone_code,$price,$package->billed_kg,$package->actual_kg,$payer,$cod,$package->extra_charge,$user,$taxi_fee,$package->merchant_id);

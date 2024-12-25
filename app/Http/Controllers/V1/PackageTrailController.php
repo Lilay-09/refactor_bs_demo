@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Delivery;
 use App\Models\DeliveryPackage;
 use App\Models\Package;
+use App\Models\Zone;
 use App\Services\CloudMessagingService;
 use App\Services\CompanyProfileService;
 use App\Services\GeneralSettingService;
@@ -142,13 +143,16 @@ class PackageTrailController extends Controller
         $inputs['billed_kg'] = $actualKg;
         $inputs['status_id'] = $package->status_id; //** add warehouse */
         $zoneCode = $inputs['zone_code'] ?? $package->zone_code;
+        $inputs['zone_name'] = Zone::where('zone_code', $zoneCode)->value('zone_name');
         $extra_charge = $inputs['extra_charge'] ?? 0;
         $calPrice = GeneralSettingService::calculatePackageFee($zoneCode,$price,$billedKg,$actualKg,$payer,$cod,$extra_charge,$user,$taxiFee,$package->merchant_id);
         if($calPrice->error) return $calPrice;
+        $deliveryFee = $calPrice->delivery_fee;
+        $inputs['delivery_fee'] = $calPrice->delivery_fee;
         // $inputs['driver_total'] = ($package->status_id == 19 && $package->cod) ? abs($package->price - $calPrice->driver_total):$calPrice->driver_total;
-        $driverTotal = PickupCenterService::getDriverTotal($cod,$payer,$price,$package->delivery_fee,$package->additional_fee,$extra_charge,$taxiFee);
+        $driverTotal = PickupCenterService::getDriverTotal($cod,$payer,$price,$deliveryFee,$package->additional_fee,$extra_charge,$taxiFee);
         $inputs['driver_total'] = $driverTotal;
-        $inputs['merchant_total'] = PickupCenterService::getTotal('merchant',$cod,$payer,$price,$package->delivery_fee,$package->additional_fee,$extra_charge,$taxiFee);
+        $inputs['merchant_total'] = PickupCenterService::getTotal('merchant',$cod,$payer,$price,$deliveryFee,$package->additional_fee,$extra_charge,$taxiFee);
         if($package->status_id == 19){
             if($payer == 'receiver') {
                 $inputs['driver_total'] = abs($package->price - $driverTotal);
@@ -156,10 +160,10 @@ class PackageTrailController extends Controller
             }
             else {
                 $inputs['driver_total'] = 0;
-                $inputs['merchant_total'] = PickupCenterService::getTotal('merchant',$cod,$payer,$price,$package->delivery_fee,$package->additional_fee,$extra_charge,$taxiFee);
+                $inputs['merchant_total'] = PickupCenterService::getTotal('merchant',$cod,$payer,$price,$deliveryFee,$package->additional_fee,$extra_charge,$taxiFee);
             }
         }
-        $inputs['delivery_fee'] = $calPrice->delivery_fee;
+
         $package->update($inputs);
         return ApiResponse::JsonResult(null,__('messages.updated'));
     }
