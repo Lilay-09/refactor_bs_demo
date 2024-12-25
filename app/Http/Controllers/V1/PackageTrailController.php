@@ -77,7 +77,7 @@ class PackageTrailController extends Controller
             $pkg->merchant_phone = $pkg->merchant?->phone;
             $pkg->cod = $cod == true ? 1:0;
             $pkg->status_code = $pkg->status->name;
-            $pkg->total = PickupCenterService::getDriverTotal($cod,$pkg->payer,$pkg->price,$pkg->delivery_fee,$pkg->additional_fee,$pkg->excharge_fee);
+            $pkg->total = abs($pkg->driver_total - $pkg->merchant_total);//PickupCenterService::getDriverTotal($cod,$pkg->payer,$pkg->price,$pkg->delivery_fee,$pkg->additional_fee,$pkg->excharge_fee);
             $pkg->warehouse_timeago = Helper::timeAgo($pkg->arrive_warehouse_datetime,false);
             unset($pkg->status,$pkg->merchant,$pkg->driver);
         }
@@ -103,7 +103,7 @@ class PackageTrailController extends Controller
             $package->driver_name = $driver->user_name;
         }
         $package->base_fee = $package->delivery_fee;
-        $package->delivery_fee = $package->delivery_fee + $package->taxi + ($cod ? $package->price : 0);
+        $package->delivery_fee = $package->delivery_fee + $package->extra_charge + $package->taxi + (($cod && $package->status_id !== 19) ? $package->price : 0);
         $package->warehouse_timeago = Helper::timeAgo($package->arrive_warehouse_datetime,false);
         unset($package->status,$package->driver);
         return ApiResponse::JsonResult($package);
@@ -137,8 +137,18 @@ class PackageTrailController extends Controller
         $extra_charge = $inputs['extra_charge'] ?? 0;
         $calPrice = GeneralSettingService::calculatePackageFee($zoneCode,$price,$billedKg,$actualKg,$payer,$inputs['cod'],$extra_charge,$user,$taxiFee,$package->merchant_id);
         if($calPrice->error) return $calPrice;
-        $inputs['driver_total'] = ($package->status_id == 19 && $package->cod) ? abs($package->price - $calPrice->driver_total):$calPrice->driver_total;
-        $inputs['merchant_total'] = $calPrice->merchant_total;
+        // $inputs['driver_total'] = ($package->status_id == 19 && $package->cod) ? abs($package->price - $calPrice->driver_total):$calPrice->driver_total;
+        $driverTotal = PickupCenterService::getDriverTotal($package->cod,$payer,$package->price,$package->delivery_fee,$package->additional_fee,$package->extra_charge,$package->taxi_fee);
+        if($package->status_id == 19){
+            if($payer == 'receiver') {
+                $inputs['driver_total'] = abs($package->price - $driverTotal);
+                $inputs['merchant_total'] = 0;
+            }
+            else {
+                $inputs['driver_total'] = 0;
+                $inputs['merchant_total'] = PickupCenterService::getTotal('merchant',$package->cod,$payer,$package->price,$package->delivery_fee,$package->additional_fee,$package->extra_charge,$package->taxi_fee);
+            }
+        }
         $inputs['delivery_fee'] = $calPrice->delivery_fee;
         $package->update($inputs);
         return ApiResponse::JsonResult(null,__('messages.updated'));

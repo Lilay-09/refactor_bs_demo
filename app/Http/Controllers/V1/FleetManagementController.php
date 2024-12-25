@@ -184,8 +184,14 @@ class FleetManagementController extends Controller
             ];
             if($status_id == 19) {
                 $driverTotal = PickupCenterService::getDriverTotal($package->cod,$payer,$package->price,$package->delivery_fee,$package->additional_fee,$package->extra_charge,$package->taxi_fee);
-                $updateArr['driver_total'] = $package->cod ? abs($package->price - $driverTotal): $driverTotal;
-                $updateArr['merchant_total'] = 0;
+                if($payer == 'receiver') {
+                    $updateArr['driver_total'] = abs($package->price - $driverTotal);
+                    $updateArr['merchant_total'] = 0;
+                }
+                else {
+                    $updateArr['driver_total'] = 0;
+                    $updateArr['merchant_total'] = PickupCenterService::getTotal('merchant',$package->cod,$payer,$package->price,$package->delivery_fee,$package->additional_fee,$package->extra_charge,$package->taxi_fee);
+                }
 
                 $updateArr['payer'] = $payer;
             }
@@ -532,8 +538,8 @@ class FleetManagementController extends Controller
         $total = PickupCenterService::getDriverTotal($package->cod,$package->payer,$package->price,$package->delivery_fee,$package->additional_fee,$package->extra_charge,$package->taxi_fee);
         $package->total = $total;
         $package->cod = $package->cod ? 'Yes' : 'No';
-        $package->total_khr = $total / $xRate->buy_rate;
-        $package->fee = PickupCenterService::getFees($package->cod,$package->payer,$package->price,$package->delivery_fee,$package->additional_fee,$package->extra_charge);
+        $package->total_khr = $total * $xRate->buy_rate;
+        $package->fee = PickupCenterService::getFees($package->payer,$package->delivery_fee,$package->delivery_fee,$package->extra_charge);
         $package->merchant_name = $package->merchant?->user_name;
         $package->merchant_phone = $package->merchant?->phone;
         unset($package->merchant);
