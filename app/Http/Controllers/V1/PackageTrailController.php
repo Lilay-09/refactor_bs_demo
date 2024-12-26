@@ -61,7 +61,9 @@ class PackageTrailController extends Controller
             $query->where('driver_id',$driverId);
         }
         if($search){
-            $query->where('qr_code',$search);
+            $query->where(function ($q) use($search){
+                $q->where('qr_code',$search)->orWhere('receiver_phone','ilike','%'.$search.'%');
+            });
         }
         if($startDate && $endDate){
             $startDate = Helper::dateYMD($startDate);
@@ -78,7 +80,7 @@ class PackageTrailController extends Controller
             $pkg->merchant_phone = $pkg->merchant?->phone;
             $pkg->cod = $cod == true ? 1:0;
             $pkg->status_code = $pkg->status->name;
-            $pkg->total = abs($pkg->driver_total - $pkg->merchant_total);//PickupCenterService::getDriverTotal($cod,$pkg->payer,$pkg->price,$pkg->delivery_fee,$pkg->additional_fee,$pkg->excharge_fee);
+            $pkg->total = number_format(abs($pkg->driver_total - $pkg->merchant_total),2);//PickupCenterService::getDriverTotal($cod,$pkg->payer,$pkg->price,$pkg->delivery_fee,$pkg->additional_fee,$pkg->excharge_fee);
             $pkg->warehouse_timeago = Helper::timeAgo($pkg->arrive_warehouse_datetime,false);
             unset($pkg->status,$pkg->merchant,$pkg->driver);
         }

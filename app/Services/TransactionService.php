@@ -25,6 +25,7 @@ class TransactionService
         $fkKey = $type.'_payment_id,'.$type.'_disbursement_id';
         $driverId = $req->driver_id;
         $merchantId = $req->merchant_id;
+        $pmtStatusId = $req->payment_status_id;
         $startDate = $req->startDate;
         $endDate = $req->endDate;
         $search = $req->search;
@@ -56,6 +57,12 @@ class TransactionService
             $qP->where(function ($q) use ($startDate,$endDate){
                 $q->whereRaw('delivered_datetime::DATE >= ? AND delivered_datetime::DATE <= ?', [$startDate, $endDate])
                 ->orWhereRaw('failed_datetime::DATE >= ? AND failed_datetime::DATE <= ?', [$startDate, $endDate]);
+            });
+        }
+        // Log::error(json_encode($req->all()));
+        if($type == 'merchant' && $pmtStatusId == 2){
+            $qP->where(function ($q) {
+                $q->whereNotNull('p.merchant_payment_id')->orWhereNotNull('p.merchant_disbursement_id');
             });
         }
         $packages = $qP->get();

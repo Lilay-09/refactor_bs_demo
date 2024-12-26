@@ -170,6 +170,9 @@ class FleetManagementController extends Controller
         if($package->status_id == 9) return ApiResponse::Duplicated(__('messages.info',[
             'info' => 'Package has already been delivered'
         ]));
+        if($package->status_id == 19) return ApiResponse::Duplicated(__('messages.info',[
+            'info' => 'Package has already been marked as failed with fee'
+        ]));
         if(!in_array($package->status_id,[6,9,10,19])) return ApiResponse::ValidateFail(__('messages.error',['info' => 'Package must be on delivery before set to delivered,failed or failed with fee.']));
         $failDatetime = ($status_id == 10 || $status_id == 19) ? now() : null;
         $deliveredDatetime = $status_id == 9 ? now():null;
