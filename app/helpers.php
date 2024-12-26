@@ -63,12 +63,13 @@ class ApiResponse
             'errors' => []
         ],500);
     }
-    static function Pagination($data,$filter=null,$message=null,$additionalKey=[]){
+    static function Pagination($data,$filter=null,$message=null,$additionalKey=[],$limit=1000){
         $filter = (object)$filter;
         $perPage = isset($filter->per_page) ? ($filter->per_page == 0 ? 1:$filter->per_page) : 10;
         $currentPage = isset($filter->page_no) ? $filter->page_no : 1;
         $skip_row = $perPage * ($currentPage - 1);
-        $count = $data->count();
+        $totalCount = $data->count();
+        $count = $totalCount > $limit ? $limit : $totalCount;
         if(isset($filter->search_value) || isset($filter->search)){
             $skip_row = 0;
             $perPage = $count > 0 ? $count : 1;
@@ -807,13 +808,14 @@ class DataResponse //extends Model
         ];
     }
 
-    static function Pagination($data, $filter = null, $message = "get list",$additionalKey=[])
+    static function Pagination($data, $filter = null, $message = "get list",$additionalKey=[],$limit=1000)
     {
         $filter = (object)$filter;
         $perPage = isset($filter->per_page) ? ($filter->per_page == 0 ? 1:$filter->per_page) : 10;
         $currentPage = isset($filter->page_no) ? $filter->page_no : 1;
         $skip_row = $perPage * ($currentPage - 1);
-        $count = $data->count();
+        $totalCount = $data->count();
+        $count = $totalCount > $limit ? $limit : $totalCount;
         if(isset($filter->search_value) || isset($filter->search)){
             $skip_row = 0;
             $perPage = $count > 0 ? $count : 1;

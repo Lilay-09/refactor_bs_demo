@@ -422,7 +422,7 @@ class TransactionService
             if(!$package){
                 return DataResponse::ValidateFail(__('messages.info',['info' => 'Invalid package'.' on row ('.($key+1).')']));
             }
-            if($package->{$type.'_payment_id'} > 0) return DataResponse::ValidateFail(__('messages.error',[
+            if($package->{$type.'_payment_id'} > 0 || $package->{$type.'_disbursement_id'}) return DataResponse::ValidateFail(__('messages.error',[
                 'info' => 'Check list might include package that has been paid',
             ]));
 
@@ -954,7 +954,7 @@ class TransactionService
             // Sum the package counts for this group
 
             $packageTotal = $group->count(); // Count items in the group (equivalent to summing 1 per item)
-            $totalPrice = $group->where('cod',1)->sum('price');
+            $totalPrice = $group->where('cod',1)->where('status_id','!=',19)->sum('price');
             $representative = $group->first();
             $fee = $group->where('payer','receiver')->sum('delivery_fee') + $group->sum('extra_charge') + $group->sum('additional_fee');
             $amount = number_format($totalPrice + $fee,2);

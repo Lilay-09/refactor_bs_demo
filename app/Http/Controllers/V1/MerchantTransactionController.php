@@ -57,6 +57,8 @@ class MerchantTransactionController extends Controller
         $merchantId = $req->merchant_id ?? null;
         $transactionType = $req->transaction_type;
         $userId = $driverId ?? $merchantId;
+        $startDate = $req->startDate;
+        $endDate = $req->endDate;
         $qP = User::from('users as d')
             ->where('d.account_type','merchant')
             ->with('bank_accounts:user_id,bank_name,bank_number,account_name,is_primary')
@@ -72,6 +74,14 @@ class MerchantTransactionController extends Controller
             // ->groupBy(['d.id','pmt.payable_amount',DB::raw('DATE(p.delivered_datetime)'),DB::raw('DATE(p.failed_datetime)')]);
         if($userId){
             $qP->where('d.id',operator: $userId);
+        }
+        if($startDate && $endDate){
+            $startDate = Helper::dateYMD($startDate);
+            $endDate = Helper::dateYMD($endDate);
+            $qP->whereRaw('(DATE(delivered_datetime) >= ? AND DATE(delivered_datetime) <= ? OR DATE(failed_datetime) >= ? AND DATE(failed_datetime) <= ?)',[
+                $startDate, $endDate, $startDate, $endDate
+            ]);
+
         }
         $merchants = $qP->get();
         $grandTotal = 0;
