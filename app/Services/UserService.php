@@ -209,7 +209,7 @@ class UserService
                 $saveUserBank = self::saveUserBanks($bankInfo,$userId,$user);
                 if($saveUserBank->error) return $saveUserBank;
             }
-            if($user_class == 'merchant' && isset($inputs['price_list_id'])) self::saveMerchantPriceList($userId,$priceListId,$zoneId,$user);
+            if($user_class == 'merchant' && $priceListId) self::saveMerchantPriceList($userId,$priceListId,$zoneId,$user);
             DB::commit();
             return DataResponse::JsonResult(null,false,__('messages.saved'));
         }catch(Exception $e){
@@ -332,17 +332,18 @@ class UserService
         $hpwd = Hash::make($pwd);
         $photoFile = null;
         $photo = $inputs['photo'] ?? null;
-        if(Helper::isValidBase64Image($photo) || $photo){
+        if(Helper::isValidBase64Image($photo) || !$photo){
             $photoFile = Helper::base64ToImageFile($photo,$user->company_id,'user_profile')->filename;
         }
-        $user->update([
+        $updateArr = [
             'has_account' => true,
-            'photo_file_name' => $photoFile,
             'login_name' => $loginName,
             'delete_account' => false,
             'lock' => false,
             'password' => $hpwd
-        ]);
+        ];
+        if($photoFile) $updateArr['photo_file_name'] = $photoFile;
+        $user->update($updateArr);
         return DataResponse::JsonResult(null,false,__('messages.created'));
     }
 
