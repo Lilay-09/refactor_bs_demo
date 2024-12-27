@@ -4,7 +4,6 @@ namespace App\Http\Controllers\V1;
 
 use ApiResponse;
 use App\Http\Controllers\Controller;
-use App\Models\Package;
 use App\Models\User;
 use App\Services\TransactionService;
 use App\Services\UserService;

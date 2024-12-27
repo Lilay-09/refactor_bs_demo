@@ -64,6 +64,10 @@ class TransactionService
             $qP->where(function ($q) {
                 $q->whereNotNull('p.merchant_payment_id')->orWhereNotNull('p.merchant_disbursement_id');
             });
+        }else if($type == 'merchant' && $pmtStatusId == 1){
+            $qP->where(function ($q) {
+                $q->whereNull('p.merchant_payment_id')->whereNull('p.merchant_disbursement_id');
+            });
         }
         $packages = $qP->get();
         $statusKey = $type.'_payment_status';
@@ -146,10 +150,10 @@ class TransactionService
         // ]));
         $breakDownNotes = null;
         if($dueAmount > 0){
-            if($cash) $breakDownNotes .= 'Cash: USD '.$cash.'|';
-            if($cashKh) $breakDownNotes .= 'Cash: KHR '.$cashKh.'|';
-            if($bankAmount) $breakDownNotes .= $validPayment->bank_name.': USD '.$bankAmount.'|';
-            if($bankAmountKh) $breakDownNotes .= $validPayment->bank_name.': KHR '.$bankAmountKh.'|';
+            if($cash > 0) $breakDownNotes .= 'Cash: USD '.$cash.'|';
+            if($cashKh > 0) $breakDownNotes .= 'Cash: KHR '.$cashKh.'|';
+            if($bankAmount > 0) $breakDownNotes .= $validPayment->bank_name.': USD '.$bankAmount.'|';
+            if($bankAmountKh > 0) $breakDownNotes .= $validPayment->bank_name.': KHR '.$bankAmountKh.'|';
         }
         $breakDownNotes = trim($breakDownNotes, '| ');
         DB::beginTransaction();
@@ -202,8 +206,9 @@ class TransactionService
                     'currency_code' => 'KHR'
                 ]);
             }
+
             if($bankId){
-                if($bankAmount && $dueAmount > 0){
+                if($bankAmount > 0 && $dueAmount > 0){
                     PaymentDetail::create([
                         'payment_id' => $paymentId,
                         'method' => $validPayment->bank_name,
@@ -213,7 +218,7 @@ class TransactionService
                     ]);
                 }
 
-                if($bankAmountKh && $dueAmount > 0){
+                if($bankAmountKh > 0 && $dueAmount > 0){
                     PaymentDetail::create([
                         'payment_id' => $paymentId,
                         'method' => $validPayment->bank_name,
@@ -223,6 +228,7 @@ class TransactionService
                     ]);
                 }
             }
+
             foreach($packageIds as $id){
                 $fkField = [
                     $type.'_payment_id' => $paymentId
@@ -291,8 +297,8 @@ class TransactionService
 
     private function validPayment($cash,$cashKh,$bankAmount,$bankAmountKh,$bankId,$dueAmount,$exhangeRate){
         $bankName = null;
-        if($bankAmount && !$bankId) return DataResponse::ValidateFail(__('messages.error',['info' => 'Please enter bank']));
-        if($bankAmountKh && !$bankId) return DataResponse::ValidateFail(__('messages.error',['info' => 'Please enter bank']));
+        if($bankAmount > 0 && !$bankId) return DataResponse::ValidateFail(__('messages.error',['info' => 'Please enter bank']));
+        if($bankAmountKh > 0 && !$bankId) return DataResponse::ValidateFail(__('messages.error',['info' => 'Please enter bank']));
         if($bankId && (!$bankAmount && !$bankAmountKh)) return DataResponse::ValidateFail(__('messages.error',['info' => 'Please enter bank amount in USD or KHR']));
         if($bankId) {
             $existsBank = Bank::where('is_deleted',0)->find($bankId);
@@ -326,6 +332,15 @@ class TransactionService
         $dueAmount = number_format($dueAmount,2);
         $totalAmountUSD = $cash + $bankAmount;
         $totalAmountKHR = $cashKh + $bankAmountKh;
+        $hasMoreThanTwoDecimals = function ($amount) {
+            $amount = (float)$amount;
+            $decimalPart = explode('.', (string)$amount);
+            return isset($decimalPart[1]) && strlen($decimalPart[1]) > 2;
+        };
+
+        if ($hasMoreThanTwoDecimals($cash) || $hasMoreThanTwoDecimals($cashKh) || $hasMoreThanTwoDecimals($bankAmount) || $hasMoreThanTwoDecimals($bankAmountKh) || $hasMoreThanTwoDecimals($dueAmount)) {
+            return DataResponse::ValidateFail('Your input amount includes more than two decimal digits');
+        }
         $originalCashKh = 0;
         $originalBankAmtKh = 0;
         if($totalAmountUSD && $totalAmountKHR){
@@ -354,7 +369,7 @@ class TransactionService
                 $additionalSuggestion = abs($dueAmount - $cash);
                 if($additionalSuggestion != $bankAmount)
                 return DataResponse::ValidateFail(__('messages.info',[
-                        'info' => 'If Cash Amount USD '.$cash.',so bank amount must be USD '.$additionalSuggestion
+                        'info' => 'If Cash Amount USD '.number_format($cash,2).',so bank amount must be USD '.number_format($additionalSuggestion,2)
                     ]));
             }
             if($totalAmountUSD < $dueAmount) return DataResponse::ValidateFail(__('messages.info',[
@@ -381,7 +396,7 @@ class TransactionService
                 $maxSuggestionAmt = ceil($minSuggestionAmt / 100) * 100;
                 if(!($bankAmountKh >= $minSuggestionAmtDown && $bankAmountKh <= $maxSuggestionAmt)){
                     return DataResponse::ValidateFail(__('messages.info',[
-                        'info' => 'If Cash Amount KHR '.$cashKh.' bank amount must be around KHR '.$minSuggestionAmtDown.' or KHR '.$maxSuggestionAmt
+                        'info' => 'If Cash Amount KHR '.number_format($cashKh,2).' bank amount must be around KHR '.number_format($minSuggestionAmtDown,2).' or KHR '.number_format($maxSuggestionAmt,2)
                     ]));
                 }
             }else{
@@ -1104,10 +1119,10 @@ class TransactionService
         if($validPayment->error) return $validPayment;
         $breakDownNotes = null;
         if($dueAmount > 0){
-            if($cash) $breakDownNotes .= 'Cash: USD '.$cash.'|';
-            if($cashKh) $breakDownNotes .= 'Cash: KHR '.$cashKh.'|';
-            if($bankAmount) $breakDownNotes .= $validPayment->bank_name.': USD '.$bankAmount.'|';
-            if($bankAmountKh) $breakDownNotes .= $validPayment->bank_name.': KHR '.$bankAmountKh.'|';
+            if($cash > 0) $breakDownNotes .= 'Cash: USD '.$cash.'|';
+            if($cashKh > 0) $breakDownNotes .= 'Cash: KHR '.$cashKh.'|';
+            if($bankAmount > 0) $breakDownNotes .= $validPayment->bank_name.': USD '.$bankAmount.'|';
+            if($bankAmountKh > 0) $breakDownNotes .= $validPayment->bank_name.': KHR '.$bankAmountKh.'|';
         }
         $breakDownNotes = trim($breakDownNotes, '| ');
         DB::beginTransaction();
@@ -1146,7 +1161,7 @@ class TransactionService
             }
             $createPayment = Disbursement::create($disArr);
             $paymentId = $createPayment->id;
-            if($cash && $dueAmount > 0){
+            if($cash > 0 && $dueAmount > 0){
                 DisbursementDetails::create([
                     'disbursement_id' => $paymentId,
                     'method' => 'cash',
@@ -1155,7 +1170,7 @@ class TransactionService
                     'currency_code' => 'USD'
                 ]);
             }
-            if($cashKh && $dueAmount > 0){
+            if($cashKh > 0 && $dueAmount > 0){
                 DisbursementDetails::create([
                     'disbursement_id' => $paymentId,
                     'method' => 'cash',
@@ -1165,7 +1180,7 @@ class TransactionService
                 ]);
             }
             if($bankId){
-                if($bankAmount && $dueAmount > 0){
+                if($bankAmount > 0 && $dueAmount > 0){
                     DisbursementDetails::create([
                         'disbursement_id' => $paymentId,
                         'method' => $validPayment->bank_name,
@@ -1175,7 +1190,7 @@ class TransactionService
                     ]);
                 }
 
-                if($bankAmountKh && $dueAmount > 0){
+                if($bankAmountKh > 0 && $dueAmount > 0){
                     DisbursementDetails::create([
                         'disbursement_id' => $paymentId,
                         'method' => $validPayment->bank_name,
@@ -1239,10 +1254,10 @@ class TransactionService
         // ]));
         $breakDownNotes = null;
         if($dueAmount > 0){
-            if($cash) $breakDownNotes .= 'Cash: USD '.$cash.'|';
-            if($cashKh) $breakDownNotes .= 'Cash: KHR '.$cashKh.'|';
-            if($bankAmount) $breakDownNotes .= $validPayment->bank_name.': USD '.$bankAmount.'|';
-            if($bankAmountKh) $breakDownNotes .= $validPayment->bank_name.': KHR '.$bankAmountKh.'|';
+            if($cash > 0) $breakDownNotes .= 'Cash: USD '.$cash.'|';
+            if($cashKh > 0) $breakDownNotes .= 'Cash: KHR '.$cashKh.'|';
+            if($bankAmount > 0) $breakDownNotes .= $validPayment->bank_name.': USD '.$bankAmount.'|';
+            if($bankAmountKh > 0) $breakDownNotes .= $validPayment->bank_name.': KHR '.$bankAmountKh.'|';
         }
         $breakDownNotes = trim($breakDownNotes, '| ');
         DB::beginTransaction();

@@ -95,7 +95,7 @@ class ReportController extends Controller
                 $item->driver_name = $item->driver?->user_name;
                 $item->driver_phone = $item->driver?->phone;
                 $item->cod_fee = $item->cod ? $item->delivery_fee : 0;
-                $item->fee = PickupCenterService::getFees($item->cod,$item->payer,$item->price,$item->delivery_fee,$item->additional_fee,$item->extra_charge);
+                $item->fee = PickupCenterService::getFees($item->cod,$item->delivery_fee,$item->additional_fee,$item->extra_charge);
                 unset(
                     $item->status,$item->cod,$item->merchant,$item->driver,$item->driver_id,
                     $item->merchant_id,$item->arrive_warehouse_datetime,$item->assign_driver_datetime,
@@ -130,6 +130,7 @@ class ReportController extends Controller
         $startDate = $req->startDate;
         $endDate = $req->endDate;
         $qP = Package::where('is_deleted',0)
+        ->where('outstanding',0)
         ->with(['merchant']);
         $packages = $qP->selectRaw('DATE(created_at) as created_date,merchant_id,status_id,delivery_fee,cod')
         ->whereIn('status_id',[6,9,10,11,19])
@@ -142,14 +143,14 @@ class ReportController extends Controller
         ->groupBy('groupKey')
         ->map(function ($group, $date) {
             $uniqueMerchants = $group->unique('merchant_id');
-                $uniqueMerchants->each(function ($item) use ($group) {
+            $uniqueMerchants->each(function ($item) use ($group) {
                 $item->merchant_name = $item->merchant->user_name;
                 $item->merchant_phone = $item->merchant->phone;
                 $item->merchant_address = $item->merchant->address;
                 $item->merchant_code = $item->merchant->code;
                 $item->driver_name = $item->driver?->user_name;
                 $item->driver_phone = $item->driver?->phone;
-                $item->package_count += $group->where('merchant_id', $item->merchant_id)->count();
+                // $item->package_count += $group->whereIn('status_id',[6,9,10,11,19])->count();
                 $item->delivered_count += $item->status_id == 9 ? 1 : 0;
                 $item->returned_count += $item->status_id == 11 ? 1 : 0;
                 // $item->delivered_count = $group->where('status_id', 9)->count(); // Count packages for this merchant
@@ -715,22 +716,20 @@ class ReportController extends Controller
         $startDate = $req->startDate ? Helper::dateDMY($req->startDate) : null;
         $endDate = $req->endDate ? Helper::dateDMY($req->endDate) : null;
         $merchantId = $req->merchant_id;
-        $summary = [];
-        $merchantInfo = User::where('is_deleted',0)->where('account_type','merchant')->find($merchantId);
+        $summary = $this->getMerchantSummaryHeader($merchantId,$startDate,$endDate);
+        $merchantInfo = User::where('is_deleted',0)->where('account_type','merchant')
+        ->selectRaw('id,user_name as merchant_name,phone as merchant_phone')->find($merchantId);
         if(!$merchantInfo) return ApiResponse::NotFound('Please select a merchant to view this report');
-        $merchantName = $merchantInfo->user_name;
-        $merchantPhone = $merchantInfo->phone;
-        $merchantAddress = $merchantInfo->address;
-        $merchantCode = $merchantInfo->code;
-        $qP = Package::where('is_deleted',0)->where('merchant_id',$merchantId);
-        $packages = $qP->whereIn('status_id',[9,10,19])->orderByRaw('DATE(failed_datetime) DESC,DATE(delivered_datetime) DESC')
-        ->selectRaw('id,qr_code,delivered_datetime,failed_datetime,delivery_remarks,remarks,taxi_fee,extra_charge,delivery_fee,cod,price,payer,receiver_phone,receiver_name,receiver_address')->get();
+        $qP = Package::where('is_deleted',0)->where('merchant_id',$merchantId)
+        ->where(function ($q) {
+            $q->whereNotNull('failed_datetime')->orWhereNotNull('delivered_datetime');
+        })
+        ->selectRaw('status_id,id,qr_code,delivered_datetime,failed_datetime,delivery_remarks,remarks,taxi_fee,extra_charge,delivery_fee,cod,price,payer,receiver_phone,receiver_name,receiver_address');
+        $packages = $qP->whereIn('status_id',[9,10,19])->orderByRaw('DATE(failed_datetime) DESC,DATE(delivered_datetime) DESC')->get();
         $groupedPackages = collect($packages)->map(function ($item) {
             $finishDate = $item->failed_datetime;
             if($item->status_id == 9) $finishDate = $item->delivered_datetime;
-
-            $item->groupDate = date('d-M-Y',strtotime($finishDate));
-            // $item->actionDate = $actionDate;
+            $item->groupDate = Helper::dateDMY($finishDate);
             return $item;
         })->groupBy('groupDate')
         ->map(function ($group, $date) {
@@ -741,7 +740,11 @@ class ReportController extends Controller
                 'date' => $date,
                 'details' => $group->toArray(),
                 'total' => [
-                    'package' => $group->sum('qty'),
+                    'cod' => $group->where('status_id','!=',19)->where('cod',1)->sum('price'),
+                    'delivery_fee' => $group->where('payer', 'sender')
+                        ->sum(function ($item) {
+                            return $item->delivery_fee + $item->extra_charge;
+                        }) ?? 0
                 ],
             ];
         })->values();
@@ -749,13 +752,55 @@ class ReportController extends Controller
             'title' => 'Daily Packages Summary',
             'status' => 'All Driver',
             'date' => $startDate.' to '.$endDate,
-            'merchant_name' => $merchantName,
+            'merchant' => $merchantInfo,
             'summary' => $summary,
             'company_profile' => CompanyProfileService::profileInfo($user),
             'list' => $groupedPackages
         ];
         return ApiResponse::JsonResult($obj);
     }
+
+    private function getMerchantSummaryHeader($merchantId,$startDate,$endDate){
+        $pQ = Package::where('is_deleted',0)->where('outstanding',0)
+        ->whereIn('status_id',[5,6,9,10,11,19])
+        ->where('merchant_id',$merchantId);
+        $packages = $pQ->get();
+        $pkgInfo = [
+            5 => ['title' => 'ចំនួនកញ្ចប់ដែលនៅសល់', 'count' => 0,'total' => 0],
+            "5.1" => ['title' => 'ចំនួនកញ្ចប់​ចូលថ្មី', 'count' => 0, 'total' => 0],
+            "5.2" => ['title' => 'ចំនួនកញ្ចប់សរុប',"count" => 0, 'total' => 0],
+            9 => ['title' => 'ជោគជ័យ', 'count' => 0, 'total' => 0],
+            6 => ['title' => 'បន្តដឹក', 'count' => 0, 'total' => 0],
+            10 => ['title' => 'បរាជ័យ', 'count' => 0, 'total' => 0],
+            19 => ['title' => 'បរាជ័យគិតសេវា', 'count' => 0, 'total' => 0],
+            11 => ['title' => 'ត្រឡប់ទៅហាងវិញ', 'count' => 0, 'total' => 0],
+        ];
+
+        foreach ($packages as $p) {
+            $statusId = $p->status_id;
+            if(isset($pkgInfo[$p->status_id])){
+                $pkgInfo[$statusId]['count'] += 1;
+                $pkgInfo[$statusId]['total'] += $p->merchant_total;
+            }
+            if($statusId == 5){
+                $pkgInfo[$statusId.'.1']['count'] += 1;
+                $pkgInfo[$statusId.'.1']['total'] += $p->merchant_total;
+                $pkgInfo[$statusId.'.2']['count'] = $pkgInfo[$statusId.'.1']['count'] + $pkgInfo[$statusId]['count'];
+                $pkgInfo[$statusId.'.2']['total'] = $pkgInfo[$statusId.'.1']['total'] + $pkgInfo[$statusId]['total'];
+            }
+
+            // if($p->status_id == 5){
+            //     $statusId = $p->status_id.'.1';
+            //     return $statusId;
+            //     $pkgInfo[$statusId]['count'] += 1;
+            // }
+        }
+
+        return array_values($pkgInfo);
+
+    }
+
+
 
     public function getMerchantPaymentReport(Request $req){
         $allPayments = [];

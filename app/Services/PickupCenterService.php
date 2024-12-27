@@ -350,7 +350,4 @@ class PickupCenterService
             return DataResponse::JsonResult(null,false,__('messages.updated'));
         }
     }
-
-
-
 }

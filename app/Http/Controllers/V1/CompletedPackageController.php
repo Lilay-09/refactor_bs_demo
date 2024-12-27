@@ -110,7 +110,7 @@ class CompletedPackageController extends Controller
         ->leftJoin('payments as mpmt','mpmt.id','p.merchant_payment_id') //** if driver paid or unpaid */
         ->orderByDesc('p.id')
         ->whereIn('p.status_id',[9,11,19]) //* delivered and failed with fee
-        ->selectRaw('p.delivered_datetime,m.user_name as merchant_name,m.phone as merchant_phone,dpmt.approved as approved_driver_pmt,mpmt.approved as approved_merchant_pmt,d.user_name as driver_name,p.status_id,p.id as package_id,d.id as driver_id,p.qr_code,p.price,ts.name as status_code,p.product_type,p.delivered_datetime,p.failed_datetime,p.taxi_fee,p.payer,p.cod,p.zone_code,p.zone_name,p.receiver_phone,p.delivery_type,p.delivery_fee as base_fee,p.driver_total,p.merchant_total,p.extra_charge,p.actual_kg,p.billed_kg,p.receiver_address,p.dim_z,p.dim_x,p.dim_y,p.remarks,p.receiver_name')
+        ->selectRaw('p.delivered_datetime,m.user_name as merchant_name,m.phone as merchant_phone,dpmt.approved as approved_driver_pmt,mpmt.approved as approved_merchant_pmt,d.user_name as driver_name,p.status_id,p.id as package_id,d.id as driver_id,p.qr_code,p.price,ts.name as status_code,p.product_type,p.delivered_datetime,p.failed_datetime,p.taxi_fee,p.payer,p.cod,p.zone_code,p.zone_name,p.receiver_phone,p.delivery_type,p.delivery_fee as base_fee,p.driver_total,p.merchant_total,p.extra_charge,p.actual_kg,p.billed_kg,p.receiver_address,p.additional_fee,p.dim_z,p.dim_x,p.dim_y,p.remarks,p.receiver_name')
         ->where('p.id',$packageId)->first();
         if(!$package) return ApiResponse::NotFound();
         $package->cod = $package->cod ? 1 : 0;
