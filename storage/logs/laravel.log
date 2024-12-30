@@ -1,4 +1,6 @@
-[2024-12-30 09:30:14] local.ERROR: Cannot declare class ApiResponse, because the name is already in use {"exception":"[object] (Symfony\\Component\\ErrorHandler\\Error\\FatalError(code: 0): Cannot declare class ApiResponse, because the name is already in use at D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\app\\helpers.php:4)
+[2024-12-30 10:27:23] local.ERROR: SQLSTATE[23502]: Not null violation: 7 ERROR:  null value in column "user_id" of relation "user_roles" violates not-null constraint
+DETAIL:  Failing row contains (null, 2). (Connection: pgsql, SQL: insert into "user_roles" ("role_id") values (2))  
+[2024-12-30 10:28:14] local.ERROR: Cannot declare class ApiResponse, because the name is already in use {"exception":"[object] (Symfony\\Component\\ErrorHandler\\Error\\FatalError(code: 0): Cannot declare class ApiResponse, because the name is already in use at D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\app\\helpers.php:4)
 [stacktrace]
 #0 {main}
 "} 

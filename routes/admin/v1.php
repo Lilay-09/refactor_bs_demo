@@ -45,6 +45,11 @@ Route::middleware(['jwt','localize'])->prefix('admin/v1/{lang}')->group(function
             Route::get('',[UserManagementController::class,'getModules']);
         });
 
+        Route::prefix('permission')->group(function(){
+            Route::post('',[UserManagementController::class,'savePermission']);
+            Route::get('',[UserManagementController::class,'getPermissions']);
+        });
+
         Route::prefix('application')->group(function(){
             Route::get('',[UserManagementController::class,'getApplications']);
             Route::post('',[UserManagementController::class,'createApplication']);
@@ -441,6 +446,7 @@ Route::middleware(['jwt','localize'])->prefix('admin/v1/{lang}')->group(function
             Route::get('list',[ReportController::class,'getMerchantListReport']);
             Route::get('/list/option',[ReportController::class,'formOptionUser']);
             Route::get('summary',[ReportController::class,'getMerchantSummaryReport']);
+            Route::get('summary/option',[ReportController::class,'merchantSummaryReportOption']);
             Route::get('payment',[ReportController::class,'getMerchantPaymentReport']);
             Route::get('payment/option',[ReportController::class,'getMerchatnPaymentReportOption']);
             Route::get('owe',[ReportController::class,'getMerchantOweFees']);

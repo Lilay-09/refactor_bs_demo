@@ -234,7 +234,7 @@ class UserService
         }
         foreach($roleIds as $roleId){
             UserRoles::create([
-                'user' => $userId,
+                'user_id' => $userId,
                 'role_id' => $roleId
             ]);
         }

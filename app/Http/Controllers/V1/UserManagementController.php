@@ -9,6 +9,7 @@ use App\Models\AppModule;
 use App\Models\Role;
 use App\Models\User;
 use App\Models\UserRoles;
+use App\Services\UserManagementService;
 use App\Services\UserService;
 use DataResponse;
 use DB;
@@ -309,6 +310,8 @@ class UserManagementController extends Controller
 
     public function saveModule(Request $req){
         $user = UserService::getAuthUser();
+        $um = new UserManagementService();
+        return ApiResponse::JsonResult($um->saveModule($req,$user));
     }
 
 }
