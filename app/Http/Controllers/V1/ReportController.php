@@ -5,17 +5,21 @@ namespace App\Http\Controllers\V1;
 use ApiResponse;
 use App\Http\Controllers\Controller;
 use App\Models\Disbursement;
+use App\Models\DisbursementDetails;
+use App\Models\ExchangeRate;
 use App\Models\FeedBack;
 use App\Models\Order;
 use App\Models\Package;
 use App\Models\Payment;
 use App\Models\PaymentDetail;
 use App\Models\User;
+use App\Models\UserBank;
 use App\Services\CompanyProfileService;
 use App\Services\GeneralSettingService;
 use App\Services\PickupCenterService;
 use App\Services\TransactionService;
 use App\Services\UserService;
+use DB;
 use Helper;
 use Illuminate\Http\Request;
 
@@ -459,7 +463,7 @@ class ReportController extends Controller
         $startDate = $req->startDate;
         $endDate = $req->endDate;
         $qD = User::where('account_type','driver')
-        ->selectRaw('code,user_name,gender,shift_type,phone,address,vehicle_type,plate_number,lock');
+        ->selectRaw('code,user_name,gender,shift_type,phone,address,vehicle_type,plate_number,lock,employment_date');
         $drivers = $qD->get();
         foreach($drivers as $driver){
             $driver->status_code = $driver->lock ? 'Inactive' : 'Active';
@@ -525,15 +529,39 @@ class ReportController extends Controller
         $user = UserService::getAuthUser();
         $startDate = $req->startDate;
         $endDate = $req->endDate;
-        $payments = Payment::with(['driver:id,user_name','cashier'])->selectRaw('id,payer_id,payment_datetime,breakdown_notes,exchange_rate,payable_amount as amount,settled_uid')->where('is_settled',1)->get();
+        $allPayments = [];
+        $amount = 0;
+        $amountKh = 0;
+        $total = 0;
+        $payments = Payment::with(['driver:id,user_name,code','cashier:id,user_name'])->selectRaw('id,payer_id,payment_datetime,breakdown_notes,exchange_rate,payable_amount as amount,approved_uid')->where('approved',1)->get();
         $paymentDetails = PaymentDetail::selectRaw('payment_id,method,amount,original_amount,currency_code')->get();
         foreach($payments as $p){
-            $p->driver_name = $p->driver->user_name;
-            $p->booked_by = $p->cashier->user_name;
+            $p->driver_name = $p->driver?->user_name;
+            $p->code = $p->driver?->code;
+            $p->booked_by = $p->cashier?->user_name;
             $pmtDetails = $this->getPaymentDetails($paymentDetails,$p->id);
-            $p->amount_usd = $pmtDetails->amount_usd;
-            $p->amount_khr = $pmtDetails->amount_khr;
+            $p->amount_usd = number_format($pmtDetails->amount_usd,2);
+            $p->amount_khr = number_format($pmtDetails->amount_khr,2);
+            $amount += $pmtDetails->amount_usd;
+            $amountKh += $pmtDetails->amount_khr;
+            $p->payment_type = 'receive';
             unset($p->driver,$p->cashier);
+            $allPayments[] = $p;
+        }
+        $disbursements = Disbursement::with(['driver:id,user_name,code','cashier:id,user_name'])->selectRaw('id,payee_id,payment_datetime,breakdown_notes,exchange_rate,payable_amount as amount,approved_uid')->where('approved',1)->get();
+        $paymentDetails = DisbursementDetails::selectRaw('disbursement_id,method,amount,original_amount,currency_code')->get();
+        foreach($disbursements as $p){
+            $p->driver_name = $p->driver?->user_name;
+            $p->code = $p->driver?->code;
+            $p->booked_by = $p->cashier?->user_name;
+            $pmtDetails = $this->getPaymentDetails($paymentDetails,$p->id);
+            $p->amount_usd = number_format($pmtDetails->amount_usd,2);
+            $p->amount_khr = number_format($pmtDetails->amount_khr,2);
+            $amount += $p->amount_usd;
+            $amountKh += $p->amount_khr;
+            $p->payment_type = 'disbursement';
+            unset($p->driver,$p->cashier);
+            $allPayments[] = $p;
         }
         $obj =(object)[
             'title' => 'Daily Packages Summary',
@@ -541,7 +569,12 @@ class ReportController extends Controller
             'date' => Helper::dateDMY($startDate).' to '.Helper::dateDMY($endDate),
             'total' => 1,
             'company_profile' => CompanyProfileService::profileInfo($user),
-            'list' => $payments
+            'list' => $allPayments,
+            'grand' => [
+                'amount' => number_format($amount,2),
+                'amount_kh' => number_format($amountKh,2),
+                'total' => number_format($total,2)
+            ]
         ];
         return ApiResponse::JsonResult($obj);
     }
@@ -581,7 +614,7 @@ class ReportController extends Controller
         ->where('dis.type','commission');
         $drivers = $qD->get();
         $obj =(object)[
-            'title' => 'Daily Packages Summary',
+            'title' => 'Driver Commission',
             'status' => 'All Driver',
             'date' => $startDate.' to '.$endDate,
             'total' => 1,
@@ -700,7 +733,7 @@ class ReportController extends Controller
             unset($m->created_at,$m->bank_accounts);
         }
         $obj =(object)[
-            'title' => 'Daily Packages Summary',
+            'title' => 'Merchant List',
             'status' => 'All Driver',
             'date' => $startDate.' to '.$endDate,
             'total' => 1,
@@ -710,7 +743,6 @@ class ReportController extends Controller
         return ApiResponse::JsonResult($obj);
     }
 
-
     public function getMerchantSummaryReport(Request $req){
         $user = UserService::getAuthUser();
         $startDate = $req->startDate ? Helper::dateDMY($req->startDate) : null;
@@ -718,34 +750,71 @@ class ReportController extends Controller
         $merchantId = $req->merchant_id;
         $summary = $this->getMerchantSummaryHeader($merchantId,$startDate,$endDate);
         $merchantInfo = User::where('is_deleted',0)->where('account_type','merchant')
-        ->selectRaw('id,user_name as merchant_name,phone as merchant_phone')->find($merchantId);
+        ->selectRaw('id,user_name as merchant_name,phone as merchant_phone,address')->find($merchantId);
         if(!$merchantInfo) return ApiResponse::NotFound('Please select a merchant to view this report');
+        foreach($merchantInfo->bank_accounts as $b){
+            if($b->is_primary){
+                $merchantInfo->bank_account = GeneralSettingService::concatBankInfo($b->bank_name,$b->bank_number,$b->account_name);
+                $merchantInfo->bank_name = $b->bank_name;
+                $merchantInfo->bank_number = $b->bank_number;
+                $merchantInfo->account_name = $b->account_name;
+            }
+            if(!$b->bank_account) {
+                $merchantInfo->bank_account = GeneralSettingService::concatBankInfo($b->bank_name,$b->bank_number,$b->account_name);
+                $merchantInfo->bank_name = $b->bank_name;
+                $merchantInfo->bank_number = $b->bank_number;
+                $merchantInfo->account_name = $b->account_name;
+            }
+        }
+        unset($merchantInfo->bank_accounts);
+        $xRate = ExchangeRate::whereRaw('DATE(x_date) >= ? AND DATE(x_date) <= ?', [$startDate, $endDate])
+            ->orderBy('x_date', 'desc') // Ensures the latest rate in the range is prioritized
+            ->take(1)->value('buy_rate');
+
+        if (!$xRate) {
+            $xRate = GeneralSettingService::getLatestXRate()->buy_rate;
+        }
+
+        $merchantInfo->exchange_rate = $xRate;
         $qP = Package::where('is_deleted',0)->where('merchant_id',$merchantId)
         ->where(function ($q) {
             $q->whereNotNull('failed_datetime')->orWhereNotNull('delivered_datetime');
         })
-        ->selectRaw('status_id,id,qr_code,delivered_datetime,failed_datetime,delivery_remarks,remarks,taxi_fee,extra_charge,delivery_fee,cod,price,payer,receiver_phone,receiver_name,receiver_address');
+        ->with('status')
+        ->selectRaw('status_id,id,qr_code,delivered_datetime,failed_datetime,delivery_remarks,remarks,taxi_fee,extra_charge,delivery_fee,cod,price,payer,receiver_phone,receiver_name,receiver_address,delivery_remarks');
+
+        if($startDate && $endDate){
+            $qP->whereRaw('failed_datetime::DATE >= ? AND failed_datetime::DATE <= ? OR failed_datetime::DATE >= ? AND failed_datetime::DATE <= ?', [$startDate, $endDate,$startDate, $endDate]);
+        }
+
         $packages = $qP->whereIn('status_id',[9,10,19])->orderByRaw('DATE(failed_datetime) DESC,DATE(delivered_datetime) DESC')->get();
         $groupedPackages = collect($packages)->map(function ($item) {
             $finishDate = $item->failed_datetime;
             if($item->status_id == 9) $finishDate = $item->delivered_datetime;
             $item->groupDate = Helper::dateDMY($finishDate);
+            $item->status_code = $item->status->name;
+            unset($item->status);
             return $item;
         })->groupBy('groupDate')
         ->map(function ($group, $date) {
             $group->each(function ($item) {
                 unset($item->groupDate);
+                $item->finished_date = $item->failed_datetime ? Helper::dateDMY($item->failed_datetime): Helper::dateDMY($item->delivered_datetime);
+                $finished_time = $item->failed_datetime ? Helper::formatCustomDateTime($item->failed_datetime,'h:i:s A'):Helper::formatCustomDateTime($item->delivered_datetime,'h:i:s A');
+                $item->finished_time = $finished_time;
+                $item->total = PickupCenterService::getTotal('merchant',$item->cod,$item->payer,$item->price,$item->delivery_fee,$item->additional_fee,$item->extra_charge,$item->taxi_fee);
             });
             return [
                 'date' => $date,
                 'details' => $group->toArray(),
                 'total' => [
                     'cod' => $group->where('status_id','!=',19)->where('cod',1)->sum('price'),
-                    'taxi' => $group->where('status_id','!=',19)->sum('price'),
+                    'taxi' => $group->where('status_id','!=',19)->sum('taxi_fee'),
                     'delivery_fee' => $group->where('payer', 'sender')
                         ->sum(function ($item) {
                             return $item->delivery_fee + $item->extra_charge;
-                        }) ?? 0
+                        }) ?? 0,
+                    'grand' => 0
                 ],
             ];
         })->values();
@@ -765,6 +834,25 @@ class ReportController extends Controller
         $pQ = Package::where('is_deleted',0)->where('outstanding',0)
         ->whereIn('status_id',[5,6,9,10,11,19])
         ->where('merchant_id',$merchantId);
+
+        if($startDate && $endDate){
+            $pQ->whereRaw('
+                (arrive_warehouse_datetime::DATE >= ? AND arrive_warehouse_datetime::DATE <= ?) OR
+                (assign_driver_datetime::DATE >= ? AND assign_driver_datetime::DATE <= ?) OR
+                (failed_datetime::DATE >= ? AND failed_datetime::DATE <= ?) OR
+                (delivered_datetime::DATE >= ? AND delivered_datetime::DATE <= ?) OR
+                (returned_datetime::DATE >= ? AND returned_datetime::DATE <= ?)',
+                [
+                    $startDate, $endDate, // For arrive_warehouse_datetime
+                    $startDate, $endDate, // For assign_driver_datetime
+                    $startDate, $endDate, // For failed_datetime
+                    $startDate, $endDate, // For delivered_datetime
+                    $startDate, $endDate  // For returned_datetime
+                ]
+            );
+
+        }
+
         $packages = $pQ->get();
         $pkgInfo = [
             5 => ['title' => 'ចំនួនកញ្ចប់ដែលនៅសល់', 'count' => 0,'total' => 0],
@@ -804,46 +892,113 @@ class ReportController extends Controller
 
 
     public function getMerchantPaymentReport(Request $req){
+        $user = UserService::getAuthUser();
+        $startDate = $req->startDate ? Helper::dateDMY($req->startDate) : null;
+        $endDate = $req->endDate ? Helper::dateDMY($req->endDate) : null;
         $allPayments = [];
         $pQ = Payment::where('payments.is_deleted',0)->where('payments.is_settled',1)
+        ->with(['merchant'])
         ->where('payer_type','merchant')
         ->join('users as b','payments.settled_uid','b.id')
-        ->selectRaw('payments.id,payments.package_count,payments.payable_amount,payments.breakdown_notes,b.user_name as booked_user,payments.remarks,payments.payment_datetime');
+        ->selectRaw('payments.id,payments.package_count,payments.payable_amount,payments.breakdown_notes,b.user_name as booked_user,payments.remarks,payments.payment_datetime,payer_id');
         $payments = $pQ->get();
+        $bankAccounts = UserBank::get();
         foreach($payments as $p){
+            $p->bank_account = $this->userBankAccount($bankAccounts,$p->payer_id);
             $p->payment_date = Helper::dateDMY($p->payment_datetime);
             $p->trx_type = 'Receive';
+            $p->merchant_name = $p->merchant?->user_name;
+            unset($p->merchant);
             $allPayments[] = $p;
         }
-        $pQ = Disbursement::where('disbursements.is_deleted',0)->where('disbursements.is_settled',1)
+        $dQ = Disbursement::where('disbursements.is_deleted',0)->where('disbursements.is_settled',1)
+        ->with(['merchant'])
         ->where('payee_type','merchant')
         ->join('users as b','disbursements.settled_uid','b.id')
-        ->selectRaw('disbursements.id,disbursements.package_count,disbursements.payable_amount,disbursements.breakdown_notes,b.user_name as booked_user,disbursements.remarks,disbursements.payment_datetime');
-        $payments = $pQ->get();
-        foreach($payments as $p){
+        ->selectRaw('disbursements.id,disbursements.package_count,disbursements.payable_amount,disbursements.breakdown_notes,b.user_name as booked_user,disbursements.remarks,disbursements.payment_datetime,payee_id');
+        $disbursements = $dQ->get();
+        foreach($disbursements as $p){
+            $p->bank_account = $this->userBankAccount($bankAccounts,$p->payee_id);
             $p->payment_date = Helper::dateDMY($p->payment_datetime);
+            $p->merchant_name = $p->merchant?->user_name;
             $p->trx_type = 'Disbursement';
+            unset($p->merchant);
             $allPayments[] = $p;
         }
-        return ApiResponse::JsonResult($allPayments);
+
+        $obj =(object)[
+            'title' => 'Merchant Payment',
+            'status' => 'All Merchant',
+            'total_merchant' => 0,
+            'date' => $startDate.' to '.$endDate,
+            'company_profile' => CompanyProfileService::profileInfo($user),
+            'grand' => [
+                'total' => 0
+            ],
+            'list' => $allPayments
+        ];
+        return ApiResponse::JsonResult($obj);
     }
 
-    public function getMerchantOweFees(){
-        $sumAmount = 'SUM(CASE WHEN packages.payer = \'sender\' THEN packages.delivery_fee ELSE 0 END)
-             + SUM(CASE WHEN packages.payer = \'sender\' THEN packages.extra_charge ELSE 0 END) AS amount';
+    private function userBankAccount($rows,$userId){
+        foreach($rows as $row){
+            if($row->user_id == $userId){
+                if($row->is_primary){
+                    return GeneralSettingService::concatBankInfo($row->bank_name,$row->bank_number,$row->account_name);
+                }else{
+                    return GeneralSettingService::concatBankInfo($row->bank_name,$row->bank_number,$row->account_name);
+                }
+            }
+        }
+        return null;
+    }
+
+
+    public function getMerchantOweFees(Request $req){
+        $user = UserService::getAuthUser();
+        $startDate = $req->startDate ? Helper::dateDMY($req->startDate) : null;
+        $endDate = $req->endDate ? Helper::dateDMY($req->endDate) : null;
+        $sumAmount = 'SUM(CASE WHEN packages.payer = \'sender\' THEN packages.delivery_fee + packages.extra_charge + packages.taxi_fee ELSE packages.taxi_fee END) AS amount';
         $pQ = Package::where('packages.is_deleted', 0)
             ->whereNull('packages.merchant_disbursement_id')
             ->whereNull('packages.merchant_payment_id')
             ->join('users as m', 'm.id', '=', 'packages.merchant_id')
+            ->leftJoinSub(
+                DB::table('user_bank_accounts as uba')
+                    ->selectRaw("
+                        CONCAT(uba.bank_name, '|', uba.bank_number, '|', uba.account_name) as bank_info
+                    ")
+                    ->where('uba.is_primary', true) // Prefer primary account
+                    ->orWhereNotExists(function ($query) {
+                        $query->select(DB::raw(1))
+                            ->from('user_bank_accounts as uba2')
+                            ->whereColumn('uba2.user_id', 'uba.user_id')
+                            ->where('uba2.is_primary', true);
+                    })
+                    ->groupBy('uba.user_id','uba.bank_name','uba.bank_number','uba.account_name'),
+                'uba',
+                'uba.user_id',
+                'packages.merchant_id'
+            )
             ->selectRaw('
+                m.code,
                 m.user_name as merchant_name,
                 COUNT(packages.id) as total_package,
                 SUM(packages.taxi_fee) as taxi_fee,
-                ' . $sumAmount
+                SUM(CASE WHEN packages.payer = \'sender\' THEN packages.delivery_fee + packages.extra_charge ELSE 0 END) AS total_delivery_fee,
+                '
+                . $sumAmount
             )
-            ->groupByRaw('packages.merchant_id, m.user_name');
+            ->groupByRaw('m.code,packages.merchant_id, m.user_name,uba.bank_name');
         $packages = $pQ->get();
-        return ApiResponse::JsonResult($packages);
+        $obj =(object)[
+            'title' => 'Merchant Payment',
+            'status' => 'Total Merchant',
+            'date' => $startDate.' to '.$endDate,
+            'company_profile' => CompanyProfileService::profileInfo($user),
+            'list' => $packages
+        ];
+        return ApiResponse::JsonResult($obj);
     }
 
     //** END MERCHANT REPORT */

@@ -37,8 +37,8 @@ class TransactionController extends Controller
                 ->where('dis.is_deleted', '=', 0);
         })
         ->leftJoin('users as c', function ($join) {
-            $join->on('c.id', '=', 'p.settled_uid')
-                ->orOn('c.id', '=', 'dis.settled_uid');
+            $join->on('c.id', '=', 'p.approved_uid')
+                ->orOn('c.id', '=', 'dis.approved_uid');
         })
         ->select([
             'p.id as p_id',  // Group by payment_id to ensure proper aggregation
@@ -49,10 +49,13 @@ class TransactionController extends Controller
             'packages.driver_disbursement_id',
             'p.payable_amount',
             \DB::raw('CASE WHEN p.is_settled IS NOT NULL THEN p.is_settled ELSE dis.is_settled END as is_settled'),
+            \DB::raw('CASE WHEN p.approved IS NOT NULL THEN p.approved ELSE dis.approved END as approved'),
             'c.user_name as cashier_name',
             \DB::raw('CASE WHEN dis.payable_amount IS NOT NULL THEN SUM(dis.payable_amount) ELSE SUM(p.payable_amount) END as driver_total'),
             'p.remarks',
         ])
+        ->orderByDesc('p.payment_datetime')
+        ->orderByDesc('dis.payment_datetime')
         ->groupBy([
             'p.id',  // Group by payment_id to ensure proper aggregation
             'dis.id', // Include dis.id in case it's selected when p.payable_amount is null
@@ -62,8 +65,8 @@ class TransactionController extends Controller
             'packages.driver_disbursement_id',
             'p.payable_amount',
             'dis.payable_amount',
-            'p.is_settled',  // Ensure both fields are included in GROUP BY
-            'dis.is_settled',
+            'p.approved',  // Ensure both fields are included in GROUP BY
+            'dis.approved',
             'c.user_name',
             'p.remarks',
         ])->get();
@@ -73,7 +76,7 @@ class TransactionController extends Controller
             $payment->id = $payment->dis_id ?? $payment->p_id;
             $pDate = $payment->pay_datetime ?? $payment->dis_datetime;
             $payment->payment_date = Helper::formatCustomDateTime($pDate,'d-M-Y');
-            if($payment->is_settled) {
+            if($payment->approved) {
                 $paymentDetails = $this->getPaymentMethods($paymentDetails,$payment->payment_id);
                 $payment->breakdown_notes = $paymentDetails->method;
                 if($payment->driver_payment_id) $payment->remarks = 'Disbursement';

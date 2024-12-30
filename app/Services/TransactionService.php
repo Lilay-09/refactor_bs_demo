@@ -1065,6 +1065,7 @@ class TransactionService
         $taxi_fee = $inputs['taxi_fee'] ?? $package->taxi_fee;
         $price = $inputs['price'] ?? $package->price;
         $calFee = GeneralSettingService::calculatePackageFee($package->zone_code,$price,$package->billed_kg,$package->actual_kg,$payer,$cod,$package->extra_charge,$user,$taxi_fee,$package->merchant_id);
+        if($calFee->error) return $calFee;
         $inputs['driver_total'] = ($package->status_id == 19 && $package->cod) ? abs($price - $calFee->driver_total):$calFee->driver_total;
         $inputs['merchant_total'] = $calFee->merchant_total;
         $package->update($inputs);

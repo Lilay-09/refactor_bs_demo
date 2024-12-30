@@ -45,4 +45,16 @@ class Disbursement extends Model
         'branch_id',
         'company_id'
     ];
+
+    public function merchant(){
+        return $this->belongsTo(User::class,'payee_id','id')->where('account_type','merchant');
+    }
+
+    public function cashier(){
+        return $this->belongsTo(User::class,'approved_uid','id');
+    }
+
+    public function driver(){
+        return $this->belongsTo(User::class,'payee_id','id')->where('account_type','driver');
+    }
 }

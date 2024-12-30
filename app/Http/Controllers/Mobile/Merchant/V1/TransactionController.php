@@ -9,8 +9,6 @@ use App\Models\Payment;
 use App\Models\PaymentDetail;
 use App\Services\UserService;
 use Helper;
-use Illuminate\Http\Request;
-
 class TransactionController extends Controller
 {
     //
@@ -22,38 +20,38 @@ class TransactionController extends Controller
         $balanceDue = Package::where('merchant_id',$user->id)->where('is_deleted',1)->whereIn('status_id',[9,19])->sum('merchant_total');
         $count = 0;
         $total = 0;
-        $paidTrx = [
-            [
-                'payment_date' => '',
-                'item_count' => 10,
-                'payment_status' => 'Paid',
-                'cashier_name' => 'Sam',
-                'remarks' => '',
-                'method' => '',
-                'total' => 20,
-                'amount' => 20
-            ],
-            [
-                'payment_date' => '',
-                'item_count' => 10,
-                'payment_status' => 'Paid',
-                'cashier_name' => 'Sam',
-                'remarks' => '',
-                'method' => '',
-                'total' => 20,
-                'amount' => 20
-            ],
-            [
-                'payment_date' => '',
-                'item_count' => 10,
-                'payment_status' => 'Paid',
-                'cashier_name' => 'Sam',
-                'remarks' => '',
-                'method' => '',
-                'total' => 20,
-                'amount' => 20
-            ]
-        ];
+        // $paidTrx = [
+        //     [
+        //         'payment_date' => '',
+        //         'item_count' => 10,
+        //         'payment_status' => 'Paid',
+        //         'cashier_name' => 'Sam',
+        //         'remarks' => '',
+        //         'method' => '',
+        //         'total' => 20,
+        //         'amount' => 20
+        //     ],
+        //     [
+        //         'payment_date' => '',
+        //         'item_count' => 10,
+        //         'payment_status' => 'Paid',
+        //         'cashier_name' => 'Sam',
+        //         'remarks' => '',
+        //         'method' => '',
+        //         'total' => 20,
+        //         'amount' => 20
+        //     ],
+        //     [
+        //         'payment_date' => '',
+        //         'item_count' => 10,
+        //         'payment_status' => 'Paid',
+        //         'cashier_name' => 'Sam',
+        //         'remarks' => '',
+        //         'method' => '',
+        //         'total' => 20,
+        //         'amount' => 20
+        //     ]
+        // ];
         $paymentTrx = Payment::where('payer_id',operator: $user->id)
         ->where('payments.is_deleted',0)
         ->where('payments.is_settled',1)
@@ -66,7 +64,7 @@ class TransactionController extends Controller
             if($payment->is_settled) {
                 $paymentDetails = $this->getPaymentMethods($paymentDetails,$payment->id);
                 $payment->breakdown_notes = $paymentDetails->method;
-                // $paidTrx[] = $payment;
+                $paidTrx[] = $payment;
             }
             else {
                 $count += 1;

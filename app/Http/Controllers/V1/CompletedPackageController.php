@@ -91,11 +91,19 @@ class CompletedPackageController extends Controller
     private function finishPackagePaymentStatus($query,$driverId,$merchantId,$paymentStatusId){
         if($driverId && $paymentStatusId == 2 && !$merchantId){
             $query->where(function ($q): void {
-                $q->where('dpmt.is_settled',1)->orWhere('dbur.is_settled',1)->whereNotNull('p.driver_payment_id')->orWhereNotNull('p.driver_disbursement_id')->orWhere('dpmt.approved',1);
+                $q->whereNotNull('p.driver_payment_id')->orWhereNotNull('p.driver_disbursement_id')->orWhere('dpmt.approved',1)->orWhere('dbur.approved',1);
             });
         }else if($driverId && $paymentStatusId == 1 && !$merchantId){
             $query->where(function ($q): void {
                 $q->whereNull('p.driver_payment_id')->whereNull('p.driver_disbursement_id');
+            });
+        }else if($merchantId && $paymentStatusId == 2 && !$driverId){
+            $query->where(function ($q): void {
+                $q->whereNotNull('p.merchant_payment_id')->orWhereNotNull('p.merchant_disbursement_id')->orWhere('dpmt.approved',1)->orWhere('dbur.approved',1);
+            });
+        }else if($merchantId && $paymentStatusId == 1 && !$driverId){
+            $query->where(function ($q): void {
+                $q->whereNull('p.merchant_payment_id')->whereNull('p.merchant_disbursement_id');
             });
         }
     }

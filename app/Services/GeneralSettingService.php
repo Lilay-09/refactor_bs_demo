@@ -242,9 +242,13 @@ class GeneralSettingService
     }
 
     public static function optionsMerchant($user){
-        return User::where(function($q){
+        $merchants = User::where(function($q){
             $q->where('lock',0)->orWhere('is_deleted',0);
         })->where('company_id',$user->company_id)->where('account_type','merchant')->selectRaw('id,user_name,phone')->orderByDesc('id')->get();
+        foreach($merchants as $m){
+            $m->user_name = $m->user_name."($m->phone)";
+        }
+        return $merchants;
     }
 
     public static function optionsVehicleType($user){
@@ -331,7 +335,7 @@ class GeneralSettingService
         $priceListId = PriceList::with(['zones'])
             ->where('status',1)
             ->where('company_id',$user->company_id)
-            ->where('is_deleted',0)
+            // ->where('is_deleted',0)
             ->whereHas('zones',function($q) use($zone_id){
                 $q->where('zone_id',$zone_id);
             })
@@ -342,7 +346,7 @@ class GeneralSettingService
             $row = PriceListZone::with('priceList:id,base_fee')->where('zone_id',$zone_id)->where('price_list_id',$priceListId)->first();
             if($merchant_id){
                 $plNameId = MerchantPriceList::where('merchant_id',$merchant_id)->take(1)->value('price_list_id');
-                $plIds = PriceList::where('is_deleted',0)->where('price_list_name_id',$plNameId)->pluck('id')->toArray();
+                $plIds = PriceList::where('price_list_name_id',$plNameId)->pluck('id')->toArray();
                 $row = PriceListZone::with('priceList:id,base_fee')->where('zone_id',$zone_id)->whereIn('price_list_id',$plIds)->first();
             }
 
@@ -436,7 +440,7 @@ class GeneralSettingService
 
     public static function calculatePackageFee($zone_code,$price,$billedKg,$actualKg,$payer,$cod,$extraCharge,$user,$taxi_fee=0,$merchant_id=null){
         // $priceList = GeneralSettingService::getZonePriceByCode($zone_code,$user);
-        $zoneId = Zone::where('is_deleted',0)->where('zone_code',$zone_code)->take(1)->value('id');
+        $zoneId = Zone::where('zone_code',$zone_code)->take(1)->value('id');
         $priceList = GeneralSettingService::priceByZone($zoneId,$user,$merchant_id);
         if(!$priceList) return DataResponse::NotFound('Zone price not found');
         $baseFee = $priceList->price > 0 ? $priceList->price : $priceList->base_fee;
