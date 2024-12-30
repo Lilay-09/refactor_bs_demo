@@ -87,7 +87,8 @@ class UserService
             'dob' => 'nullable',
             'photo' => 'nullable|string',
             'address' => 'nullable|string|max:500',
-            'password' => 'nullable|string|min:6|max:20'
+            'password' => 'nullable|string|min:6|max:20',
+            'roles' => 'nullable|array'
         ];
 
         $baseMsgs = [
@@ -142,6 +143,7 @@ class UserService
         $inputs['cod'] = $inputs['cod'] ?? 0;
         $inputs['dob'] = isset($inputs['dob']) ? date('Y-m-d',strtotime($inputs['dob'])) : null;
         $inputs['driver_warehouse_id'] = $inputs['warehouse_id'] ?? null;
+        $roleIds = $inputs['roles'] ?? [];
         if($isRegistered){
             $inputs['lock'] = true;
             $inputs['register_status'] = 'in-progress';
@@ -210,12 +212,31 @@ class UserService
                 if($saveUserBank->error) return $saveUserBank;
             }
             if($user_class == 'merchant' && $priceListId) self::saveMerchantPriceList($userId,$priceListId,$zoneId,$user);
+            self::assignRolesUser($userId,$roleIds,$user_class);
             DB::commit();
             return DataResponse::JsonResult(null,false,__('messages.saved'));
         }catch(Exception $e){
             DB::rollBack();
             Log::error($e->getMessage());
             return DataResponse::Error(__('messages.error',['info' => 'Fail to create']));
+        }
+    }
+
+    private static function assignRolesUser($userId,$roleIds,$class){
+        if(empty($roleIds)){
+            if($class == 'admin'){
+                $roleIds[] = 1;
+            }else if($class == 'merchant'){
+                $roleIds[] = 3;
+            }else if($class == 'driver'){
+                $roleIds[] = 2;
+            }
+        }
+        foreach($roleIds as $roleId){
+            UserRoles::create([
+                'user' => $userId,
+                'role_id' => $roleId
+            ]);
         }
     }
 

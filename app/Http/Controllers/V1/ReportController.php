@@ -741,6 +741,7 @@ class ReportController extends Controller
                 'details' => $group->toArray(),
                 'total' => [
                     'cod' => $group->where('status_id','!=',19)->where('cod',1)->sum('price'),
+                    'taxi' => $group->where('status_id','!=',19)->sum('price'),
                     'delivery_fee' => $group->where('payer', 'sender')
                         ->sum(function ($item) {
                             return $item->delivery_fee + $item->extra_charge;
@@ -845,10 +846,7 @@ class ReportController extends Controller
         return ApiResponse::JsonResult($packages);
     }
 
-
     //** END MERCHANT REPORT */
-
-
     public function driverDeliverySummaryReportOption(){
         $user = UserService::getAuthUser();
         $obj = [

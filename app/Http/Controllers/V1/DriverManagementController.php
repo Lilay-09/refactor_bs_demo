@@ -10,6 +10,7 @@ use App\Services\GeneralSettingService;
 use App\Services\UserService;
 use Helper;
 use Illuminate\Http\Request;
+use Log;
 
 class DriverManagementController extends Controller
 {
@@ -23,6 +24,7 @@ class DriverManagementController extends Controller
         $search = $req->search;
         $statusId = $req->status_id;
         $employeeType = $req->employee_type;
+        Log::error(json_encode($req->all()));
         $query = User::where('is_deleted',0)->where('company_id',$user->company_id)
         ->where('account_type','driver')
         ->with('createUser:id,user_name')

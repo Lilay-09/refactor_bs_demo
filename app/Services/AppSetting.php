@@ -23,14 +23,32 @@ class AppSetting
         'merchant' => []
     ];
 
+    protected static $userAppIds;
+
+    public static function initialize() {
+        // Initialize static property only once
+        if (is_null(self::$userAppIds)) {
+            self::$userAppIds = [
+                'admin' => config('app.admin_app_id'),
+                'merchant' => config('app.merchant_app_id'),
+                'driver' => config('app.driver_app_id')
+            ];
+        }
+    }
+
 
     private static function privacyTermConditionValidation(Request $req){
         return validator($req->all(),[
             'channel' => 'required|in:merchant,driver',
             'text' => 'nullable|string'
         ]);
-
     }
+
+    public static function getUserAppId($userClass){
+        self::initialize();
+        return self::$userAppIds[$userClass];
+    }
+
     public static function savePrivacyTermCondition(Request $req,$type,$user){
         $validate = self::privacyTermConditionValidation($req);
         if($validate->fails()) return DataResponse::ValidateFail($validate->errors()->first());
@@ -56,6 +74,7 @@ class AppSetting
                 $model = new TermCondition();
             }
         }
+
         if($isUpdate){
             $model->update($inputs);
             return DataResponse::JsonResult(null,false,__('messages.updated',[
@@ -73,11 +92,10 @@ class AppSetting
     public static function redirectBasedOnDevice(Request $request)
     {
         $userAgent = $request->header('User-Agent');
-
         // Check if the device is an iPhone or iPad
         if (strpos($userAgent, 'iPhone') !== false || strpos($userAgent, 'iPad') !== false) {
             // Redirect to the App Store (iOS)
-            // return Redirect::to('https://apps.apple.com/kh/app/meyhong-bus/id1640049130');
+            return Redirect::to('https://apps.apple.com/kh/app/js-express/id6739161811');
         } else {
             // Redirect to the Play Store (Android or other devices)
             return Redirect::to('https://play.google.com/store/apps/details?id=com.gtech.jsexpressmerchant');
@@ -135,6 +153,10 @@ class AppSetting
 
         $response = Http::withHeaders($headers)->post($url, $data);
         if ($response->successful()) {
+            if ($response->status() === 402) {
+                // Handle 402 Payment Required
+                return DataResponse::JsonResult(null,false,'Payment required', [],402);
+            }
             return DataResponse::JsonResult($response);
         }
         return DataResponse::Error($response->json()['message']);

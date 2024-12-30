@@ -15,6 +15,10 @@ return [
 
     'name' => env('APP_NAME', 'Laravel'),
 
+    'admin_app_id' => env('ADMIN_APPID'),
+    'merchant_app_id' => env('MERCHANT_APPID'),
+    'driver_app_id' => env('DRIVER_APPID'),
+
     /*
     |--------------------------------------------------------------------------
     | Application Environment

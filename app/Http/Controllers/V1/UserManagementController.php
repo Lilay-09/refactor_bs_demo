@@ -4,17 +4,80 @@ namespace App\Http\Controllers\V1;
 
 use ApiResponse;
 use App\Http\Controllers\Controller;
+use App\Models\Application;
+use App\Models\AppModule;
 use App\Models\Role;
 use App\Models\User;
 use App\Models\UserRoles;
 use App\Services\UserService;
+use DataResponse;
+use DB;
+use Exception;
 use Hash;
 use Helper;
 use Illuminate\Http\Request;
+use Log;
 
 class UserManagementController extends Controller
 {
     //
+    protected $userProfileDir = 'user_profile';
+
+    public function getUsers(Request $req){
+        $user = UserService::getAuthUser();
+        $role = $req->role;
+        // $branchId = $req->branch_id;
+        $search = $req->search;
+        $query = User::where('company_id',$user->company_id)->with(['user_roles'])->selectRaw('id,app_id,user_name,phone,email,phone,system_admin,lock,last_login,registered_datetime,branch_id,photo_file_name')->orderByDesc('id');
+        if($role){
+            $roleArr = explode(',',$role);
+            $query->whereHas('user_roles',function($query) use($roleArr){
+                $query->whereIn('role_id',$roleArr);
+            });
+        }
+        if($search){
+            $query->where('first_name','ilike','%'.$search.'%')
+            ->orWhere('last_name','ilike','%'.$search.'%')
+            ->orWhere('user_name','ilike','%'.$search.'%')
+            ->orWhere('phone','ilike','%'.$search.'%');
+        }
+        // if($branchId){
+        //     $branchArr = explode(',',$branchId);
+        //     $query->whereIn('branch_id',$branchArr);
+        // }
+        $userList = $query->get();
+        foreach($userList as $u){
+            $u->image_url = Helper::getImageUrl($u->photo_file_name,$user->company_id,$this->userProfileDir);
+        }
+        return ApiResponse::Pagination($userList, $req);
+    }
+
+    public function getApplications() {
+        return Application::selectRaw('id,app_type,name,is_mobile_app,user_class')
+                        ->get();
+    }
+
+
+    public function createApplication(Request $req){
+        // Insert the application with binary data
+        DB::table('applications')->insert([
+            'id' => $req->code,  // Insert binary data into the primary key column
+            'name' => $req->name,
+            'app_type' => $req->app_type ?? 'admin-panel',
+            'is_mobile_app' => $req->is_mobile_app ?? false
+        ]);
+    }
+
+    public function saveApplication(Request $req){
+        $id = $req->id;
+        $app = Application::whereRaw('id = ?', [$id])->first();
+        if(!$app) return;
+        $app->update([
+            'name' => $req->name,
+            'is_mobile_app' => $req->is_mobile_app ?? false,
+            'app_type' => $req->app_type ?? 'admin-panel'
+        ]);
+    }
 
     private function userValidation(Request $req){
         return validator($req->all(),[
@@ -119,7 +182,6 @@ class UserManagementController extends Controller
                     ]);
                     if(!$updateUserRole) return ApiResponse::Error('Fail to update role');
                 }
-
             }
             return ApiResponse::JsonResult(null,'Updated');
         }
@@ -166,7 +228,6 @@ class UserManagementController extends Controller
             $inputs['lock'] = 1;
             $user->update($inputs);
         }
-
         return ApiResponse::JsonResult(null,$msg);
     }
 
@@ -232,8 +293,22 @@ class UserManagementController extends Controller
         if($inUse) return ApiResponse::ValidateFail('You cannot delete role that has already been used by users.');
         $role = Role::where('company_id',$user->company_id)->find($id);
         if(!$role)return ApiResponse::NotFound('Role does not exist');
-        $role->delete();
+        // $role->delete();
         return ApiResponse::JsonResult(null,'Role deleted');
+    }
+
+    public function getModules(Request $req){
+        $search = $req->search;
+        $qM = AppModule::where('is_deleted',0);
+        if($search){
+            $qM->where('name','ilike','%'.$search.'%');
+        }
+        $modules = $qM->get();
+        return ApiResponse::JsonResult($modules);
+    }
+
+    public function saveModule(Request $req){
+        $user = UserService::getAuthUser();
     }
 
 }

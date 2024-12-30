@@ -40,7 +40,19 @@ Route::prefix('admin/v1/auth')->group(function(){
 });
 Route::middleware(['jwt','localize'])->prefix('admin/v1/{lang}')->group(function(){
     Route::prefix('management')->group(function(){
-        Route::get('/user', [UserController::class,'getUsers']);
+        Route::prefix('module')->group(function(){
+            Route::post('',[UserManagementController::class,'saveModule']);
+            Route::get('',[UserManagementController::class,'getModules']);
+        });
+
+        Route::prefix('application')->group(function(){
+            Route::get('',[UserManagementController::class,'getApplications']);
+            Route::post('',[UserManagementController::class,'createApplication']);
+            Route::put('/{id}',[UserManagementController::class,'saveApplication']);
+
+        });
+
+        Route::get('/user', [UserManagementController::class,'getUsers']);
         Route::get('user/profile',[UserController::class,'getProfile']);
         Route::post('/user',[UserManagementController::class,'createUser']);
         Route::get('/user/{id?}', [UserController::class,'getUser']);

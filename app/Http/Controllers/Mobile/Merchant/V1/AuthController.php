@@ -159,7 +159,8 @@ class AuthController extends Controller
                 'khInfo' => 'លេខសំងាត់ '.$otp
         ]);
 
-        AppSetting::sendSms("SMS Test",$phone,$message);
+        $smsInfo = AppSetting::sendSms("SMS Test",$phone,$message);
+        if($smsInfo->status_code == 402) return ApiResponse::ValidateFail('Error sending SMS, Please try again later.');
         return ApiResponse::JsonResult([
             'phone' => $phone,
         ],'Registered');
