@@ -452,9 +452,6 @@ class UserService
                 'has_account' => false,
                 'lock' => true,
                 'delete_account' => 1
-                // 'is_deleted' => 1,
-                // 'deleted_uid' => $user->id,
-                // 'deleted_datetime' => now()
             ]);
         }
 
@@ -474,7 +471,21 @@ class UserService
         return DataResponse::JsonResult(null,false,__('messages.info',[
             'info' => 'Logged Out',
         ]));
+    }
 
+    public static function setNewPassword(Request $req,$userId,$userclass,$authUser){
+        $user = User::where('is_deleted',0)->where('account_type',$userclass)->find($userId);
+        if(!$user) return DataResponse::NotFound('User not found');
+        $password = $req->password;
+        $cfConfirm = $req->confirm_password;
+        if(!$password) return DataResponse::ValidateFail('Password is required');
+        if($cfConfirm != $password) return DataResponse::ValidateFail('Confirm password is incorrect');
+        $user->update([
+            'update_uid' => $authUser->id,
+            'password' => Hash::make($password)
+        ]);
+
+        return DataResponse::JsonResult(null);
     }
 
 }

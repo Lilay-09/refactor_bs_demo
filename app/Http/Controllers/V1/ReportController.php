@@ -131,8 +131,8 @@ class ReportController extends Controller
 
     public function getDailyPackageSummaryReport(Request $req){
         $user = UserService::getAuthUser();
-        $startDate = $req->startDate;
-        $endDate = $req->endDate;
+        $startDate = $req->startDate ? Helper::dateDMY($req->startDate) : null;
+        $endDate = $req->endDate ? Helper::dateDMY($req->endDate) : null;
         $qP = Package::where('is_deleted',0)
         ->where('outstanding',0)
         ->with(['merchant']);
@@ -177,7 +177,7 @@ class ReportController extends Controller
         $obj =(object)[
             'title' => 'Daily Packages Summary',
             'sub_title' => 'Arrivate Date:',
-            'date' => Helper::dateDMY($startDate).' to '.Helper::dateDMY($endDate),
+            'date' => $startDate.' to '.Helper::dateDMY($endDate),
             'company_profile' => CompanyProfileService::profileInfo($user),
             'list' => $groupedPackages
         ];
@@ -610,7 +610,7 @@ class ReportController extends Controller
         $qD = User::fromRaw('users as d')->where('d.account_type','driver')
         ->join('disbursements as dis','dis.payee_id','d.id')
         ->join('users as r','r.id','dis.receiptionist_uid')
-        ->selectRaw('d.code,dis.pickup_rate,dis.delivery_rate,dis.failed_with_fee_count,dis.delivered_package_count,dis.pickup_package_count,dis.payable_amount,dis.payment_datetime,dis.breakdown_notes,r.user_name as paid_by')
+        ->selectRaw('d.user_name as driver_name,d.code,dis.pickup_rate,dis.delivery_rate,dis.failed_with_fee_count,dis.delivered_package_count,dis.pickup_package_count,dis.payable_amount,dis.payment_datetime,dis.breakdown_notes,r.user_name as paid_by')
         ->where('dis.type','commission');
         $drivers = $qD->get();
         $obj =(object)[
@@ -784,7 +784,7 @@ class ReportController extends Controller
         ->selectRaw('status_id,id,qr_code,delivered_datetime,failed_datetime,delivery_remarks,remarks,taxi_fee,extra_charge,delivery_fee,cod,price,payer,receiver_phone,receiver_name,receiver_address,delivery_remarks');
 
         if($startDate && $endDate){
-            $qP->whereRaw('failed_datetime::DATE >= ? AND failed_datetime::DATE <= ? OR failed_datetime::DATE >= ? AND failed_datetime::DATE <= ?', [$startDate, $endDate,$startDate, $endDate]);
+            $qP->whereRaw('failed_datetime::DATE >= ? AND failed_datetime::DATE <= ? OR delivered_datetime::DATE >= ? AND delivered_datetime::DATE <= ?', [$startDate, $endDate,$startDate, $endDate]);
         }
 
         $packages = $qP->whereIn('status_id',[9,10,19])->orderByRaw('DATE(failed_datetime) DESC,DATE(delivered_datetime) DESC')->get();

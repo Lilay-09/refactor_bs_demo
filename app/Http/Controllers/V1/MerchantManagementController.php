@@ -155,4 +155,9 @@ class MerchantManagementController extends Controller
         return ApiResponse::flex(UserService::setLockUser($user,$req->id,'merchant'));
     }
 
+    public function setPassword(Request $req){
+        $user = UserService::getAuthUser();
+        return ApiResponse::flex(UserService::setNewPassword($req,$req->id,'merchant',$user));
+    }
+
 }

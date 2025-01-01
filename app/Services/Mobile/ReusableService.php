@@ -25,23 +25,30 @@ class ReusableService
         ->leftJoin('payments as pmt','pmt.id','p.driver_payment_id')
         ->join('tracking_statuses as trs','trs.id','p.status_id')
         ->selectRaw('p.status_id,trs.name as status_code,d.id as delivery_id,d.fleet_tracking_number,m.user_name as merchant_name,m.phone as merchant_phone,p.receiver_name,p.receiver_phone,p.delivery_fee,p.taxi_fee,p.remarks as notes,p.delivery_remarks as remarks,p.id as package_id,p.product_type,p.driver_total as total,p.billed_kg')
-        ->whereIn('p.status_id',[9,10,11,19]);
+        ->whereIn('p.status_id',[6,9,10,11,19]);
         if($paymentStatus == 2){
             $qFp->where('pmt.approved',1);
         }
         if($user){
-            $qFp->where('d.driver_id',$user->id);
+            $qFp->where('p.driver_id',$user->id);
         }
         if($startDate && $endDate){
             $startDate = Helper::dateYMD($startDate);
             $endDate = Helper::dateYMD($endDate);
-            $qFp->whereBetween('d.depart_datetime',[$startDate,$endDate])->orWhereDate('d.depart_datetime','<=',$endDate);
+            $qFp->whereRaw('p.failed_datetime::DATE >= ? AND p.failed_datetime::DATE <= ? OR p.delivered_datetime::DATE >= ? AND p.delivered_datetime::DATE <= ? OR p.returned_datetime::DATE >= ? AND p.returned_datetime::DATE <= ?', [
+                $startDate, $endDate,
+                $startDate, $endDate,
+                $startDate, $endDate,
+            ]);
         }
         // else if($paymentStatus == 1) $qFp->where('pmt.approved',0);
         if($statusId) $qFp->where('p.status_id',$statusId);
-        if($search) $qFp->where('p.receiver_phone', 'ilike', '%' . $search . '%')
-        ->orWhere('m.phone', 'ilike', '%' . $search . '%')
-        ->orWhere('d.fleet_tracking_number', 'ilike', '%' . $search . '%');
+        if($search) $qFp->where(function ($q) use ($search){
+            $q->where('p.receiver_phone', 'ilike', '%' . $search . '%')
+            ->orWhere('m.phone', 'ilike', '%' . $search . '%')
+            ->orWhere('p.qr_code', 'ilike', '%' . $search . '%')
+            ->orWhere('d.fleet_tracking_number', 'ilike', '%' . $search . '%');
+        });
         $fleetPackages = $qFp->get();
         return DataResponse::Pagination($fleetPackages,$req);
     }

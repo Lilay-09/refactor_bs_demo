@@ -177,4 +177,11 @@ class DriverManagementController extends Controller
         $user = UserService::getAuthUser();
         return ApiResponse::flex(UserService::setLockUser($user,$req->id,'driver'));
     }
+
+
+    public function setPassword(Request $req){
+        $user = UserService::getAuthUser();
+        return ApiResponse::flex(UserService::setNewPassword($req,$req->id,'driver',$user));
+    }
 }
+

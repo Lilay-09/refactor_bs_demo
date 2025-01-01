@@ -91,6 +91,7 @@ Route::middleware(['jwt','localize'])->prefix('admin/v1/{lang}')->group(function
         Route::get('/{id}',[DriverManagementController::class,'getOneDriver']);
         Route::put('/{id}',[DriverManagementController::class,'updateDriver']);
         Route::post('/{id}/setLock',[DriverManagementController::class,'setLockDriver']);
+        Route::post('/{id}/setPassword',[DriverManagementController::class,'setPassword']);
 
         Route::prefix('{id}/commission')->group(function(): void{
             Route::get('',[DriverManagementController::class,'getDriverCommissions']);
@@ -130,6 +131,7 @@ Route::middleware(['jwt','localize'])->prefix('admin/v1/{lang}')->group(function
         Route::post('/{id}/account',[MerchantManagementController::class,'createMerchantAccount']);
         Route::put('/{id}/priceList',[MerchantManagementController::class,'setMerchantPriceList']);
         Route::get('/{id}/default',[MerchantManagementController::class,'getDefaultOptions']);
+        Route::post('/{id}/setPassword',[MerchantManagementController::class,'setPassword']);
 
         Route::prefix('transaction')->group(function(){
             Route::get('delivery/package',[MerchantTransactionController::class,'getDeliveryPackages']);
@@ -441,6 +443,7 @@ Route::middleware(['jwt','localize'])->prefix('admin/v1/{lang}')->group(function
             Route::get('packageDetail',[ReportController::class,'getPackageDetailReport']);
             Route::get('packageDetail/option',[ReportController::class,'driverDeliverySummaryReportOption']);
             Route::get('payment/commission',[ReportController::class,'getDriverCommissionPayment']);
+            Route::get('payment/commission/option',[ReportController::class,'driverDeliverySummaryReportOption']);
         });
         Route::prefix('merchant')->group(function(){
             Route::get('list',[ReportController::class,'getMerchantListReport']);

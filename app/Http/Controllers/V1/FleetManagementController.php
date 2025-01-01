@@ -69,7 +69,7 @@ class FleetManagementController extends Controller
             $delivery->driver_phone = $delivery->driver->phone;
             $details = $this->getTripDetails($packages,$delivery->id);
             $delivery->total = $details->total;
-            $delivery->total_delivered = $details->total_delivered + $details->total_failed_with_fee;
+            $delivery->total_delivered = number_format($details->total_delivered + $details->total_failed_with_fee,2);
             $delivery->failed_count = $details->failed_count;
             $delivery->delivery_count = $details->delivery_count;
             $delivery->failed_with_fee_count = $details->failed_with_fee_count;

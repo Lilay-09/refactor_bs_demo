@@ -7,22 +7,19 @@ use App\Http\Controllers\Controller;
 use App\Http\Controllers\Mobile\V1\GeneralSettingController;
 use App\Models\Delivery;
 use App\Models\DeliveryPackage;
+use App\Models\Disbursement;
 use App\Models\Notification;
 use App\Models\Order;
 use App\Models\OrderImage;
 use App\Models\Package;
+use App\Models\Payment;
 use App\Services\CloudMessagingService;
 use App\Services\GeneralSettingService;
 use App\Services\PickupCenterService;
-use App\Services\TransactionService;
 use App\Services\UserService;
-use DB;
-use Exception;
-use Google\Rpc\Help;
 use Helper;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
-use Log;
 
 class HomeScreenController extends Controller
 {
@@ -78,12 +75,12 @@ class HomeScreenController extends Controller
 
     public function getDriverBalance(Request $req){
         $user = UserService::getAuthUser('driver');
-        $trx = new TransactionService();
-        $deliveryCommission = $trx->getDriverCommissionBalance($user,$user->id,'delivery');
-        $pickUpComission = $trx->getDriverCommissionBalance($user,$user->id,'pick_up');
+        $totalEarning = (float)Disbursement::where('payee_id',$user->id)->where('type','commission')->where('is_deleted',0)->sum('payable_amount');
+        $totalSettledPayment = Payment::where('payer_id',$user->id)->where('is_settled',1)->where('is_deleted',0)->sum('payable_amount');
+        $totalSettledDisburment = Disbursement::where('payee_id',$user->id)->where('type','payment')->where('is_deleted',0)->where('is_settled',1)->sum('payable_amount');
         $obj = [
-            'earning' => $deliveryCommission->total + $pickUpComission->total,
-            'settlement' => 250
+            'earning' => $totalEarning,
+            'settlement' => 0
         ];
 
         return ApiResponse::JsonResult($obj);

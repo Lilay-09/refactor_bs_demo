@@ -894,6 +894,7 @@ class TransactionService
                     if(!$pmt) return DataResponse::ValidateFail(__('messages.info',[
                         'info' => 'check list includes invalid payment'
                     ]));
+                    if($pmt->is_settled) return DataResponse::ValidateFail('check list includes settled payment');
                     $pmt->update([
                         'is_settled' => 1,
                         'settled_datetime' => now(),
@@ -904,6 +905,7 @@ class TransactionService
                     if(!$dis) return DataResponse::ValidateFail(__('messages.info',[
                         'info' => 'check list includes invalid payment'
                     ]));
+                    if($pmt->is_settled) return DataResponse::ValidateFail('check list includes settled payment');
                     $dis->update([
                         'is_settled' => $user->id,
                         'setteled_datetime' => now(),
@@ -1220,7 +1222,6 @@ class TransactionService
         }
     }
 
-
     public function disbursementCommission(Request $req,$user,$type){
         $validType = $this->validType($type);
         if($validType->error) return $validType;
@@ -1245,14 +1246,8 @@ class TransactionService
         $bankAmount = $inputs['bank_amount'] ?? 0;
         $bankAmountKh = $inputs['bank_amount_kh'] ?? 0;
         $dueAmount = $validPackages->grand_total;
-        // var_dump($dueAmount);
-        // return $validPackages;
         $validPayment = $this->validPayment($cash,$cashKh,$bankAmount,$bankAmountKh,$bankId,$dueAmount,$exchangeRate);
         if($validPayment->error) return $validPayment;
-        // if($validPayment->total_input_amount<=0) return DataResponse::ValidateFail(__('messages.info',[
-        //     'info' => 'Invalid payment amount, due amount must be $'.$dueAmount,
-        //     'khInfo' => ''
-        // ]));
         $breakDownNotes = null;
         if($dueAmount > 0){
             if($cash > 0) $breakDownNotes .= 'Cash: USD '.$cash.'|';
@@ -1388,10 +1383,11 @@ class TransactionService
         $deliveredCount = 0;
         $pickUpCount = 0;
         $failedWithFeeCount = 0;
+        // Log::info($startDate.'--'.$endDate);
         $obj = (object)[
             'error' => false,
             'total_pickup' => 0,
-            'total_delivered' => 0 ,
+            'total_delivered' => 0,
             'total_delivery_fee' => 0,
             'total_taxi_fee' => 0,
             'grand_total' => 0,
@@ -1407,27 +1403,36 @@ class TransactionService
             'fast_pickup_commission' => 0,
             'fast_delivery_commission' => 0
         ];
-
-        $qP = Package::selectRaw('id,status_id,driver_id,driver_disbursement_id')
+        $payeeKey = $type.'_id';
+        $qP = Package::selectRaw('id,status_id,driver_id')
         ->whereIn('status_id',[9,19])
-        ->whereNotNull('driver_id');
+        ->where('is_deleted',0)
+        ->whereNull('driver_commission_id');
         if($startDate && $endDate){
-            $startDate = date('Y-m-d',strtotime($startDate));
-            $endDate = date('Y-m-d',timestamp: strtotime($endDate));
-            $qP->whereRaw('delivered_datetime::DATE >= ? AND delivered_datetime::DATE <= ?', [$startDate, $endDate]);
+            $startDate = Helper::dateYMD($startDate);
+            $endDate = Helper::dateYMD($endDate);
+            $qP->whereRaw("
+                (
+                    (status_id = 19 AND failed_datetime::DATE >= ? AND failed_datetime::DATE <= ?)
+                    OR
+                    (status_id = 9 AND delivered_datetime::DATE >= ? AND delivered_datetime::DATE <= ?)
+                )
+            ", [$startDate, $endDate, $startDate, $endDate]);
+
         }
-        if($payeeId) $qP->where('driver_id',$payeeId);
+        if($payeeId) $qP->where($payeeKey,$payeeId);
         $packages = $qP->get();
-        $qO = Order::where('is_deleted',0)->where('status_id',5);
-        if($payeeId) $qO->where('driver_id',$payeeId);
+        $qO = Order::where('is_deleted',0)->whereNull('driver_commission_id')
+        ->where('status_id',5)
+        ->selectRaw('id,status_id,qty');
+        if($payeeId) $qO->where($payeeKey,$payeeId);
         if($startDate && $endDate){
-            $startDate = date('Y-m-d',strtotime($startDate));
-            $endDate = date('Y-m-d',strtotime($endDate));
-            $qP->whereRaw('order_datetime::DATE >= ? AND order_datetime::DATE <= ?', [$startDate, $endDate]);
+            $startDate = Helper::dateYMD($startDate);
+            $endDate = Helper::dateYMD($endDate);
+            $qO->whereRaw('order_datetime::DATE >= ? AND order_datetime::DATE <= ?', [$startDate, $endDate]);
         }
         $orders = $qO->get();
-        $qDc = DriverCommission::where('is_deleted',0)->selectRaw('delivery_type,pickup_commission,delivery_commission,use_percentage');
-        if($payeeId) $qDc->where($type.'_id',$payeeId);
+        $qDc = DriverCommission::where('driver_id',$payeeId)->where('is_deleted',0)->selectRaw('delivery_type,pickup_commission,delivery_commission,use_percentage');
         $driverCommissions = $qDc->get();
         foreach($driverCommissions as $driverComm){
             if($driverComm->delivery_type == 'fast'){
@@ -1440,32 +1445,32 @@ class TransactionService
             }
         }
         foreach($orders as $order){
-            if(!$order->driver_commission_id) {
-                $pickUpCount += $order->qty;
-                $obj->order_ids[] = $order->id;
-            }
-
+            $pickUpCount += $order->qty;
+            $obj->order_ids[] = $order->id;
         }
         foreach($packages as $package){
-            if(!$package->driver_commission_id) {
-                if($package->status_id == 9) $deliveredCount += 1;
-                if($package->status_id == 19) $failedWithFeeCount +=1;
-                if($package->cod) $obj->total_taxi_fee += $package->delivery_fee;
-                if($package->taxi_fee) $obj->total_taxi_fee += $package->taxi_fee;
+            if($package->status_id == 9) {
+                $deliveredCount += 1;
                 $obj->package_ids[] = $package->id;
             }
-
+            if($package->status_id == 19) $failedWithFeeCount +=1;
+            if($package->cod) $obj->total_taxi_fee += $package->delivery_fee;
+            if($package->taxi_fee) $obj->total_taxi_fee += $package->taxi_fee;
         }
+
         $obj->total_pickup = $pickUpCount * $dc->normal_pickup_commission;
         $obj->total_delivered = $deliveredCount * $dc->normal_delivery_commission;
-        $obj->grand_total = $obj->total_pickup + $obj->total_delivered;
-        $obj->total_package = $pickUpCount + $deliveredCount;
+        $obj->total_package = $pickUpCount + $deliveredCount + $failedWithFeeCount;
         $obj->total_delivered_package = $deliveredCount;
         $obj->total_pickup_package = $pickUpCount;
         $obj->delivery_rate = $dc->normal_delivery_commission;
         $obj->pickup_rate = $dc->normal_pickup_commission;
         $obj->failed_with_fee_count = $failedWithFeeCount;
-        if(empty($obj->pacakage_ids) && empty($obj->order_ids)){
+        $obj->total_pickup_count = $pickUpCount;
+
+        $obj->grand_total = number_format($obj->total_pickup + $obj->total_delivered,2);
+        // Log::info($deliveredCount);
+        if(empty($obj->package_ids) && empty($obj->order_ids)){
             return DataResponse::NotFound('No package found');
         }
         return $obj;
