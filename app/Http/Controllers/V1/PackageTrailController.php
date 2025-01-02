@@ -201,7 +201,8 @@ class PackageTrailController extends Controller
         ]));
         $package->update([
             'status_id' => 11, // returned
-            'returned_datetime' => now()
+            'returned_datetime' => now(),
+            'update_uid' => $user->id,
         ]);
         return ApiResponse::JsonResult(null,__('messages.info',['info' => 'Returned']));
     }

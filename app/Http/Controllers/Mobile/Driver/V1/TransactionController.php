@@ -56,15 +56,19 @@ class TransactionController extends Controller
                 if($p->driver_payment_id){
                     if($samePmtId != $p->driver_payment_id){
                         $pmt = $this->getTrxDetails($payments,$p->driver_payment_id);
-                        $pmt->remarks = 'Disbursement';
-                        if($pmt) $paidTrx[] = $pmt;
+                        if($pmt) {
+                            $pmt->remarks = 'Disbursement';
+                            $paidTrx[] = $pmt;
+                        }
                         $samePmtId = $p->driver_payment_id;
                     }
                 }else {
                     $pmt = $this->getTrxDetails($disbursements,$p->driver_disbursement_id);
-                    $pmt->remarks = 'Receive';
-                    $total -= $pmt->payable_amount;
-                    if($pmt) $paidTrx[] = $pmt;
+                    if($pmt) {
+                        $total -= $pmt->payable_amount;
+                        $pmt->remarks = 'Receive';
+                        $paidTrx[] = $pmt;
+                    }
                 }
             }
         }

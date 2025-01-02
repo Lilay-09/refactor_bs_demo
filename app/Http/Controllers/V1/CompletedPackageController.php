@@ -42,7 +42,8 @@ class CompletedPackageController extends Controller
             WHEN p.merchant_disbursement_id IS NOT NULL AND dbur.is_settled = false THEN 'Approved'
             ELSE 'No Payment/Disbursement'
         END as merchant_status";
-        $qP = Package::from('packages as p')->where('p.company_id',$user->company_id)->join('users as d','d.id','p.driver_id')
+        $qP = Package::from('packages as p')->where('p.company_id',$user->company_id)
+        ->leftJoin('users as d','d.id','p.driver_id')
         ->join('tracking_statuses as ts','ts.id','p.status_id')
         ->join('orders as o','o.id','p.order_id')
         ->join('users as m','m.id','p.merchant_id')
@@ -111,7 +112,8 @@ class CompletedPackageController extends Controller
     public function getOneFinishedPackage(Request $req){
         $user = UserService::getAuthUser();
         $packageId = $req->id;
-        $package = Package::fromRaw('packages as p')->where('p.company_id',$user->company_id)->join('users as d','d.id','p.driver_id')
+        $package = Package::fromRaw('packages as p')->where('p.company_id',$user->company_id)
+        ->leftJoin('users as d','d.id','p.driver_id')
         ->join('tracking_statuses as ts','ts.id','p.status_id')
         ->join('users as m','m.id','p.merchant_id')
         ->leftJoin('payments as dpmt','dpmt.id','p.driver_payment_id') //** if driver paid or unpaid */
