@@ -359,7 +359,7 @@ class PickUpCenterController extends Controller
         $packages = $qP->get();
         foreach ($packages as $pkg){
             $pkg->cod = $pkg->cod? 1:0;
-            $pkg->total = PickupCenterService::getDriverTotal($pkg->cod,$pkg->payer,$pkg->price,$pkg->delivery_fee,$pkg->additional_fee,$pkg->extra_charge);
+            $pkg->total = $pkg->driver_total;//PickupCenterService::getDriverTotal($pkg->cod,$pkg->payer,$pkg->price,$pkg->delivery_fee,$pkg->additional_fee,$pkg->extra_charge);
             $pkg->fee = ($pkg->payer == 'receiver' ? $pkg->delivery_fee : 0) + $pkg->extra_charge + $pkg->additional_fee;
             unset($pkg->status);
         }

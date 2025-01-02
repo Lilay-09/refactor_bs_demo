@@ -29,10 +29,12 @@ class TransactionController extends Controller
         $payments = Payment::where('payments.is_deleted',0)->where('payments.payer_id',$user->id)->where('payments.approved',1)
         ->join('users as c','c.id','payments.approved_uid')
         ->selectRaw('payments.package_count,payments.id,payments.payable_amount,payments.breakdown_notes,c.user_name as cashier_name,payments.payment_datetime')
+        ->orderByDesc('payment_datetime')
         ->get();
         $disbursements = Disbursement::where('type','payment')->where('disbursements.is_deleted',0)->where('disbursements.payee_id',$user->id)->where('disbursements.approved',1)
         ->join('users as c','c.id','disbursements.receiptionist_uid')
         ->selectRaw('disbursements.package_count,disbursements.id,disbursements.payable_amount,disbursements.breakdown_notes,c.user_name as cashier_name,disbursements.payment_datetime')
+        ->orderByDesc('payment_datetime')
         ->get();
         $packages = Package::where('is_deleted',0)
         ->whereIn('status_id',[9,19])
