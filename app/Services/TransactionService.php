@@ -229,12 +229,26 @@ class TransactionService
                 }
             }
 
-            foreach($packageIds as $id){
-                $fkField = [
+
+            $fkField = [
                     $type.'_payment_id' => $paymentId
                 ];
-                Package::find($id)->update($fkField);
-            }
+            Package::whereIn('id',$packageIds)->update($fkField);
+
+            $notif = new CloudMessagingService();
+            $topics = GeneralSettingService::getGeneralTopics($user->company_id,'driver',$payerId);
+            // return $topics;
+            $notifReq = new Request([
+                'topic' => $topics->private,
+                'type' => 'private',
+                'target_uid' => $payerId,
+                'title' => __('messages.info',[
+                    'info' => 'Transaction',
+                    'khInfo' => ''
+                ]),
+                'body' => 'A total of '.$validPackages->total_package.' packages have been processed for this payment.'
+            ]);
+            $notif->sendNotificationByTopic($notifReq,$user);
             DB::commit();
 
             // return Package::whereIn('id',$packageIds)->get();
@@ -905,7 +919,7 @@ class TransactionService
                     if(!$dis) return DataResponse::ValidateFail(__('messages.info',[
                         'info' => 'check list includes invalid payment'
                     ]));
-                    if($pmt->is_settled) return DataResponse::ValidateFail('check list includes settled payment');
+                    if($dis->is_settled) return DataResponse::ValidateFail('check list includes settled payment');
                     $dis->update([
                         'is_settled' => $user->id,
                         'setteled_datetime' => now(),
@@ -1206,6 +1220,20 @@ class TransactionService
             Package::whereIn('id',$packageIds)->update([
                 $type.'_disbursement_id' => $paymentId
             ]);
+            $notif = new CloudMessagingService();
+            $topics = GeneralSettingService::getGeneralTopics($user->company_id,'driver',$payeeId);
+            // return $topics;
+            $notifReq = new Request([
+                'topic' => $topics->private,
+                'type' => 'private',
+                'target_uid' => $payeeId,
+                'title' => __('messages.info',[
+                    'info' => 'Payment Received',
+                    'khInfo' => ''
+                ]),
+                'body' => 'A total of '.$validPackages->total_package.' packages have been processed for this payment.'
+            ]);
+            $notif->sendNotificationByTopic($notifReq,$user);
             // return $packageIds;
             // return Package::whereIn('id',$packageIds)->get();
             DB::commit();

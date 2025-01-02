@@ -285,7 +285,7 @@ class HomeController extends Controller
 
     private function daily_summaries($user){
         $today = now();
-        $dateaAgo = Helper::getDateDaysAgo(10);
+        $dateaAgo = Helper::getDateDaysAgo(90);
         $successCount = Package::where('merchant_id',$user->id)->where('is_deleted',0)
         ->where('status_id',9)
         ->whereBetween('delivered_datetime',[$dateaAgo,$today])->count();
@@ -294,9 +294,18 @@ class HomeController extends Controller
         ->whereBetween('failed_datetime',[$dateaAgo,$today])->count();
         $returnCount = Package::where('merchant_id',$user->id)->where('is_deleted',0)
         ->whereIn('status_id',[11])
-        ->whereBetween('returned_datetime',[$dateaAgo,$today])->orWhereBetween('updated_at',[$dateaAgo,$today])->count();
+        ->where(function ($query) use ($dateaAgo, $today) {
+        $query->where(function ($q) use ($dateaAgo, $today) {
+            $q->whereNull('returned_datetime')
+              ->whereBetween('updated_at', [$dateaAgo, $today]);
+        })
+        ->orWhere(function ($q) use ($dateaAgo, $today) {
+            $q->whereNotNull('returned_datetime')
+              ->whereBetween('returned_datetime', [$dateaAgo, $today]);
+            });
+        })->count();
         return [
-            'balance' => 0,
+            'balance' => 99,
             'delivered' => $successCount,
             'failed' => $failCount,
             'returned' => $returnCount,

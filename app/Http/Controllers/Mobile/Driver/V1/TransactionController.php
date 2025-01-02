@@ -9,8 +9,6 @@ use App\Models\DriverCommission;
 use App\Models\Order;
 use App\Models\Package;
 use App\Models\Payment;
-use App\Models\PaymentDetail;
-use App\Services\PickupCenterService;
 use App\Services\TransactionService;
 use App\Services\UserService;
 use Carbon\Carbon;
@@ -69,7 +67,7 @@ class TransactionController extends Controller
                 }else {
                     $pmt = $this->getTrxDetails($disbursements,$p->driver_disbursement_id);
                     if($pmt) {
-                        $total -= $pmt->payable_amount;
+                        $total -= (float)$pmt->payable_amount;
                         $pmt->remarks = 'Receive';
                         $paidTrx[] = $pmt;
                     }
@@ -79,6 +77,7 @@ class TransactionController extends Controller
         usort($paidTrx, function ($a, $b) {
             return strtotime($b['payment_datetime']) <=> strtotime($a['payment_datetime']);
         });
+
         $obj = (object)[
             'balance_due' => (float)number_format($total,2),
             'count' => $count,
@@ -195,7 +194,7 @@ class TransactionController extends Controller
         foreach($disbursements as $d){
             $d->payment_date = Helper::dateDMY($d->payment_datetime);
             $d->payer_name = $d->receiptionist->user_name;
-            $d->payable_amount = (float)$d->payment_amount;
+            $d->payable_amount = (float)$d->payable_amount;
             unset($d->receiptionist,$d->receiptionist_uid,$d->payment_datetime);
         }
         return ApiResponse::JsonResult($disbursements);

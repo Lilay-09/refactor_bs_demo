@@ -79,15 +79,15 @@ class Package extends Model
         return $this->formatDatetime($value);
     }
 
-    public function getArriveWarehouseDatetimeAttribute($value)
-    {
-        return $this->formatDatetime($value);
-    }
+    // public function getArriveWarehouseDatetimeAttribute($value)
+    // {
+    //     return $this->formatDatetime($value);
+    // }
 
-    public function getFailedDatetimeAttribute($value)
-    {
-        return $this->formatDatetime($value);
-    }
+    // public function getFailedDatetimeAttribute($value)
+    // {
+    //     return $this->formatDatetime($value);
+    // }
 
     public function setPriceAttribute($value)
     {
@@ -104,10 +104,10 @@ class Package extends Model
         $this->attributes['merchant_total'] = Helper::getNumber($value);
     }
 
-    public function getDeliveredDatetimeAttribute($value)
-    {
-        return $this->formatDatetime($value);
-    }
+    // public function getDeliveredDatetimeAttribute($value)
+    // {
+    //     return $this->formatDatetime($value);
+    // }
 
     protected function formatDatetime($value)
     {

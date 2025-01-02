@@ -193,7 +193,7 @@ class ReportController extends Controller
         ->where('p.approved',1)
         ->join('users as ap','ap.id','p.approved_uid')
         ->leftJoin('users as st','st.id','p.settled_uid')
-        ->selectRaw('p.payable_amount,p.id as payment_id,d.user_name as payer_name,p.approved_uid,p.exchange_rate,p.taxi_fee,p.approved,p.payment_datetime,ap.user_name as approved_user,st.user_name as settlement_user,p.payer_id');
+        ->selectRaw('p.payable_amount,p.id as payment_id,d.user_name as payer_name,p.approved_uid,p.exchange_rate,p.taxi_fee,p.approved,p.payment_datetime,ap.user_name as approved_user,p.is_settled,st.user_name as settlement_user,p.payer_id');
         $payments = $qP->get();
         $paymentDetails = PaymentDetail::get();
         foreach($payments as $pmt){
@@ -958,36 +958,37 @@ class ReportController extends Controller
         $endDate = $req->endDate ? Helper::dateDMY($req->endDate) : null;
         $sumAmount = 'SUM(CASE WHEN packages.payer = \'sender\' THEN packages.delivery_fee + packages.extra_charge + packages.taxi_fee ELSE packages.taxi_fee END) AS amount';
         $pQ = Package::where('packages.is_deleted', 0)
-            ->whereNull('packages.merchant_disbursement_id')
-            ->whereNull('packages.merchant_payment_id')
-            ->join('users as m', 'm.id', '=', 'packages.merchant_id')
-            ->leftJoinSub(
-                DB::table('user_bank_accounts as uba')
-                    ->selectRaw("
-                        CONCAT(uba.bank_name, '|', uba.bank_number, '|', uba.account_name) as bank_info
-                    ")
-                    ->where('uba.is_primary', true) // Prefer primary account
-                    ->orWhereNotExists(function ($query) {
-                        $query->select(DB::raw(1))
-                            ->from('user_bank_accounts as uba2')
-                            ->whereColumn('uba2.user_id', 'uba.user_id')
-                            ->where('uba2.is_primary', true);
-                    })
-                    ->groupBy('uba.user_id','uba.bank_name','uba.bank_number','uba.account_name'),
-                'uba',
-                'uba.user_id',
-                'packages.merchant_id'
-            )
-            ->selectRaw('
-                m.code,
-                m.user_name as merchant_name,
-                COUNT(packages.id) as total_package,
-                SUM(packages.taxi_fee) as taxi_fee,
-                SUM(CASE WHEN packages.payer = \'sender\' THEN packages.delivery_fee + packages.extra_charge ELSE 0 END) AS total_delivery_fee,
-                '
-                . $sumAmount
-            )
-            ->groupByRaw('m.code,packages.merchant_id, m.user_name,uba.bank_name');
+        ->whereNull('packages.merchant_disbursement_id')
+        ->whereNull('packages.merchant_payment_id')
+        ->join('users as m', 'm.id', '=', 'packages.merchant_id')
+        ->leftJoinSub(
+            DB::table('user_bank_accounts as uba')
+                ->selectRaw("
+                    uba.user_id,
+                    CONCAT(uba.bank_name, '|', uba.bank_number, '|', uba.account_name) as bank_info
+                ")
+                ->where('uba.is_primary', true) // Prefer primary account
+                ->orWhereNotExists(function ($query) {
+                    $query->select(DB::raw(1))
+                        ->from('user_bank_accounts as uba2')
+                        ->whereColumn('uba2.user_id', 'uba.user_id')
+                        ->where('uba2.is_primary', true);
+                })
+                ->groupBy('uba.user_id', 'uba.bank_name', 'uba.bank_number', 'uba.account_name'),
+            'uba',  // Use 'uba' as the alias for the subquery
+            'uba.user_id',  // Join condition for the subquery
+            'packages.merchant_id'
+        )
+        ->selectRaw('
+            m.code,
+            uba.bank_info,
+            m.user_name as merchant_name,
+            COUNT(packages.id) as total_package,
+            SUM(packages.taxi_fee) as taxi_fee,
+            SUM(CASE WHEN packages.payer = \'sender\' THEN packages.delivery_fee + packages.extra_charge ELSE 0 END) AS total_delivery_fee,
+            ' . $sumAmount
+        )
+        ->groupByRaw('m.code, packages.merchant_id, m.user_name, uba.bank_info') ;
         $packages = $pQ->get();
         $obj =(object)[
             'title' => 'Merchant Payment',

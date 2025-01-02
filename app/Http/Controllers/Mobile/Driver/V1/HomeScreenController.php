@@ -77,12 +77,11 @@ class HomeScreenController extends Controller
         $user = UserService::getAuthUser('driver');
         $totalEarning = (float)Disbursement::where('payee_id',$user->id)->where('type','commission')->where('is_deleted',0)->sum('payable_amount');
         $totalSettledPayment = Payment::where('payer_id',$user->id)->where('is_settled',1)->where('is_deleted',0)->sum('payable_amount');
-        $totalSettledDisburment = Disbursement::where('payee_id',$user->id)->where('type','payment')->where('is_deleted',0)->where('is_settled',1)->sum('payable_amount');
+        // $totalSettledDisburment = Disbursement::where('payee_id',$user->id)->where('type','payment')->where('is_deleted',0)->where('is_settled',1)->sum('payable_amount');
         $obj = [
             'earning' => $totalEarning,
-            'settlement' => 0
+            'settlement' => (float)$totalSettledPayment
         ];
-
         return ApiResponse::JsonResult($obj);
     }
 

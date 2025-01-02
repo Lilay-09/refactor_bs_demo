@@ -82,6 +82,7 @@ class PackageTrailController extends Controller
             $pkg->status_code = $pkg->status->name;
             $pkg->total = number_format(abs($pkg->driver_total - $pkg->merchant_total),2);//PickupCenterService::getDriverTotal($cod,$pkg->payer,$pkg->price,$pkg->delivery_fee,$pkg->additional_fee,$pkg->excharge_fee);
             $pkg->warehouse_timeago = Helper::timeAgo($pkg->arrive_warehouse_datetime,false);
+            $pkg->arrive_warehouse_datetime = Helper::formatCustomDateTime($pkg->arrive_warehouse_datetime);
             unset($pkg->status,$pkg->merchant,$pkg->driver);
         }
         return ApiResponse::Pagination($packages,$req,__('messages.get_list',['info'=>'Package']));

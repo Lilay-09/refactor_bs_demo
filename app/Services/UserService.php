@@ -486,7 +486,6 @@ class UserService
             'update_uid' => $authUser->id,
             'password' => Hash::make($password)
         ]);
-
         return DataResponse::JsonResult(null,false,'New password has been set.');
     }
 
