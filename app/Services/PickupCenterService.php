@@ -321,6 +321,11 @@ class PickupCenterService
         if(!$packageId){
             $inputs['status_id'] = 7;
             $inputs['create_uid'] = $user->id;
+            if($user->account_type == 'merchant'){
+                $inputs['tracking_notes'] = 'Merchant add new package ('.date('d-M-Y h:i:s A').')';
+            }else if($user->account_type == 'driver'){
+                $inputs['tracking_notes'] = 'Driver add new package ('.date('d-M-Y h:i:s A').')';
+            }
             $createPackage = Package::create($inputs);
             if(!$createPackage) return DataResponse::Error(__('messages.Fail to create package'));
             $qrCode = Helper::generateBarcodeString($createPackage->id,$user->company_id);
@@ -338,11 +343,6 @@ class PickupCenterService
                 $qP->$whereClause;
             }
             $package = $qP->find($packageId);
-            if($user->account_type == 'merchant'){
-                $inputs['tracking_notes'] = $package->tracking_notes.'|Merchant add new package ('.date('d-M-Y h:i:s A').')';
-            }else if($user->account_type == 'driver'){
-                $inputs['tracking_notes'] = $package->tracking_notes.'|Driver add new package ('.date('d-M-Y h:i:s A').')';
-            }
             $inputs['status_id'] = $package->status_id;
             if(!$package) return DataResponse::NotFound(trans('messages.not_found',['info' => 'Package','khInfo' => 'កញ្ចប់']));
             // if($package->status_id == 5) return DataResponse::Forbidden(__('messages.no_access',['info' => 'This package has already assigned to driver']));

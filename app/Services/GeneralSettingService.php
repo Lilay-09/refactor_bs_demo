@@ -462,14 +462,15 @@ class GeneralSettingService
             $total += $zPrice;
             $merchant_total = 0;
             $driverTotal += $zPrice;
-        }
 
+        }
+        $driverTotal -= $taxi_fee;
         return (object)[
             "error" => false,
             'message' => 'Success',
             'delivery_fee' => $baseFee,
-            'driver_total' => number_format($driverTotal - $taxi_fee,2),
-            'merchant_total' => number_format($merchant_total + $taxi_fee,2),
+            'driver_total' => number_format($driverTotal,2),
+            'merchant_total' => number_format($merchant_total,2),
             'total' => number_format($total,2)
         ];
     }
