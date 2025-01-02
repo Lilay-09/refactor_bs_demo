@@ -479,13 +479,14 @@ class UserService
         $password = $req->password;
         $cfConfirm = $req->confirm_password;
         if(!$password) return DataResponse::ValidateFail('Password is required');
+        if(strlen($password) < 6) return DataResponse::ValidateFail('Password must be at least 6 characters');
         if($cfConfirm != $password) return DataResponse::ValidateFail('Confirm password is incorrect');
         $user->update([
             'update_uid' => $authUser->id,
             'password' => Hash::make($password)
         ]);
 
-        return DataResponse::JsonResult(null);
+        return DataResponse::JsonResult(null,'New password has been set.');
     }
 
 }
