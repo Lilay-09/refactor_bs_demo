@@ -13,6 +13,7 @@ use App\Models\PaymentDetail;
 use App\Services\PickupCenterService;
 use App\Services\TransactionService;
 use App\Services\UserService;
+use Carbon\Carbon;
 use Helper;
 use Illuminate\Http\Request;
 
@@ -37,6 +38,7 @@ class TransactionController extends Controller
         ->orderByDesc('payment_datetime')
         ->get();
         $packages = Package::where('is_deleted',0)
+        ->where('created_at', '>=', Carbon::now()->subMonths(2))
         ->whereIn('status_id',[9,19])
         ->selectRaw('*')
         ->where('driver_id',$user->id)
@@ -74,6 +76,9 @@ class TransactionController extends Controller
                 }
             }
         }
+        usort($paidTrx, function ($a, $b) {
+            return strtotime($b['payment_date']) <=> strtotime($a['payment_date']);
+        });
         $obj = (object)[
             'balance_due' => (float)number_format($total,2),
             'count' => $count,
@@ -90,13 +95,13 @@ class TransactionController extends Controller
     private function getTrxDetails($rows,$pmtId){
         foreach($rows as $row){
             if($row->id == $pmtId){
+                $row->breakdown_notes = str_replace('|', '&', $row->breakdown_notes);
                 $row->payment_date = Helper::dateDMY($row->payment_datetime);
                 return $row;
             }
         }
         return null;
     }
-
 
     public function getPaymentMethods($details,$pmtId){
         $method = null;
