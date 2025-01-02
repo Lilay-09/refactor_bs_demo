@@ -476,6 +476,7 @@ class UserService
     public static function setNewPassword(Request $req,$userId,$userclass,$authUser){
         $user = User::where('is_deleted',0)->where('account_type',$userclass)->find($userId);
         if(!$user) return DataResponse::NotFound('User not found');
+        if(!$user->has_account) return DataResponse::ValidateFail('This user does not have account!');
         $password = $req->password;
         $cfConfirm = $req->confirm_password;
         if(!$password) return DataResponse::ValidateFail('Password is required');
@@ -486,7 +487,7 @@ class UserService
             'password' => Hash::make($password)
         ]);
 
-        return DataResponse::JsonResult(null,'New password has been set.');
+        return DataResponse::JsonResult(null,false,'New password has been set.');
     }
 
 }

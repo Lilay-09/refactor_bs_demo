@@ -77,7 +77,7 @@ class TransactionController extends Controller
             }
         }
         usort($paidTrx, function ($a, $b) {
-            return strtotime($b['payment_date']) <=> strtotime($a['payment_date']);
+            return strtotime($b['payment_datetime']) <=> strtotime($a['payment_datetime']);
         });
         $obj = (object)[
             'balance_due' => (float)number_format($total,2),
@@ -97,6 +97,7 @@ class TransactionController extends Controller
             if($row->id == $pmtId){
                 $row->breakdown_notes = str_replace('|', '&', $row->breakdown_notes);
                 $row->payment_date = Helper::dateDMY($row->payment_datetime);
+                $row->payment_time = Helper::formatCustomDateTime($row->payment_datetime,'h:i A');
                 return $row;
             }
         }
