@@ -298,3 +298,71 @@
 [stacktrace]
 #0 {main}
 "} 
+[2025-01-03 12:53:26] local.ERROR: Cannot declare class ApiResponse, because the name is already in use {"exception":"[object] (Symfony\\Component\\ErrorHandler\\Error\\FatalError(code: 0): Cannot declare class ApiResponse, because the name is already in use at D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\app\\helpers.php:4)
+[stacktrace]
+#0 {main}
+"} 
+[2025-01-03 12:54:26] local.ERROR: Cannot declare class ApiResponse, because the name is already in use {"exception":"[object] (Symfony\\Component\\ErrorHandler\\Error\\FatalError(code: 0): Cannot declare class ApiResponse, because the name is already in use at D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\app\\helpers.php:4)
+[stacktrace]
+#0 {main}
+"} 
+[2025-01-03 12:55:26] local.ERROR: Cannot declare class ApiResponse, because the name is already in use {"exception":"[object] (Symfony\\Component\\ErrorHandler\\Error\\FatalError(code: 0): Cannot declare class ApiResponse, because the name is already in use at D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\app\\helpers.php:4)
+[stacktrace]
+#0 {main}
+"} 
+[2025-01-03 12:56:26] local.ERROR: Cannot declare class ApiResponse, because the name is already in use {"exception":"[object] (Symfony\\Component\\ErrorHandler\\Error\\FatalError(code: 0): Cannot declare class ApiResponse, because the name is already in use at D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\app\\helpers.php:4)
+[stacktrace]
+#0 {main}
+"} 
+[2025-01-03 12:57:26] local.ERROR: Cannot declare class ApiResponse, because the name is already in use {"exception":"[object] (Symfony\\Component\\ErrorHandler\\Error\\FatalError(code: 0): Cannot declare class ApiResponse, because the name is already in use at D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\app\\helpers.php:4)
+[stacktrace]
+#0 {main}
+"} 
+[2025-01-03 12:58:26] local.ERROR: Cannot declare class ApiResponse, because the name is already in use {"exception":"[object] (Symfony\\Component\\ErrorHandler\\Error\\FatalError(code: 0): Cannot declare class ApiResponse, because the name is already in use at D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\app\\helpers.php:4)
+[stacktrace]
+#0 {main}
+"} 
+[2025-01-03 12:59:28] local.ERROR: Cannot declare class ApiResponse, because the name is already in use {"exception":"[object] (Symfony\\Component\\ErrorHandler\\Error\\FatalError(code: 0): Cannot declare class ApiResponse, because the name is already in use at D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\app\\helpers.php:4)
+[stacktrace]
+#0 {main}
+"} 
+[2025-01-03 13:00:27] local.ERROR: Cannot declare class ApiResponse, because the name is already in use {"exception":"[object] (Symfony\\Component\\ErrorHandler\\Error\\FatalError(code: 0): Cannot declare class ApiResponse, because the name is already in use at D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\app\\helpers.php:4)
+[stacktrace]
+#0 {main}
+"} 
+[2025-01-03 13:01:26] local.ERROR: Cannot declare class ApiResponse, because the name is already in use {"exception":"[object] (Symfony\\Component\\ErrorHandler\\Error\\FatalError(code: 0): Cannot declare class ApiResponse, because the name is already in use at D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\app\\helpers.php:4)
+[stacktrace]
+#0 {main}
+"} 
+[2025-01-03 13:02:26] local.ERROR: Cannot declare class ApiResponse, because the name is already in use {"exception":"[object] (Symfony\\Component\\ErrorHandler\\Error\\FatalError(code: 0): Cannot declare class ApiResponse, because the name is already in use at D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\app\\helpers.php:4)
+[stacktrace]
+#0 {main}
+"} 
+[2025-01-03 13:03:26] local.ERROR: Cannot declare class ApiResponse, because the name is already in use {"exception":"[object] (Symfony\\Component\\ErrorHandler\\Error\\FatalError(code: 0): Cannot declare class ApiResponse, because the name is already in use at D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\app\\helpers.php:4)
+[stacktrace]
+#0 {main}
+"} 
+[2025-01-03 13:04:26] local.ERROR: Cannot declare class ApiResponse, because the name is already in use {"exception":"[object] (Symfony\\Component\\ErrorHandler\\Error\\FatalError(code: 0): Cannot declare class ApiResponse, because the name is already in use at D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\app\\helpers.php:4)
+[stacktrace]
+#0 {main}
+"} 
+[2025-01-03 13:05:26] local.ERROR: Cannot declare class ApiResponse, because the name is already in use {"exception":"[object] (Symfony\\Component\\ErrorHandler\\Error\\FatalError(code: 0): Cannot declare class ApiResponse, because the name is already in use at D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\app\\helpers.php:4)
+[stacktrace]
+#0 {main}
+"} 
+[2025-01-03 13:06:27] local.ERROR: Cannot declare class ApiResponse, because the name is already in use {"exception":"[object] (Symfony\\Component\\ErrorHandler\\Error\\FatalError(code: 0): Cannot declare class ApiResponse, because the name is already in use at D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\app\\helpers.php:4)
+[stacktrace]
+#0 {main}
+"} 
+[2025-01-03 13:07:26] local.ERROR: Cannot declare class ApiResponse, because the name is already in use {"exception":"[object] (Symfony\\Component\\ErrorHandler\\Error\\FatalError(code: 0): Cannot declare class ApiResponse, because the name is already in use at D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\app\\helpers.php:4)
+[stacktrace]
+#0 {main}
+"} 
+[2025-01-03 13:08:26] local.ERROR: Cannot declare class ApiResponse, because the name is already in use {"exception":"[object] (Symfony\\Component\\ErrorHandler\\Error\\FatalError(code: 0): Cannot declare class ApiResponse, because the name is already in use at D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\app\\helpers.php:4)
+[stacktrace]
+#0 {main}
+"} 
+[2025-01-03 13:09:26] local.ERROR: Cannot declare class ApiResponse, because the name is already in use {"exception":"[object] (Symfony\\Component\\ErrorHandler\\Error\\FatalError(code: 0): Cannot declare class ApiResponse, because the name is already in use at D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\app\\helpers.php:4)
+[stacktrace]
+#0 {main}
+"} 
