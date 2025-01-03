@@ -5,9 +5,11 @@ namespace App\Http\Controllers\Mobile\Driver\V1;
 use ApiResponse;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Mobile\V1\GeneralSettingController;
+use App\Http\Controllers\V1\DriverTransactionController;
 use App\Models\Delivery;
 use App\Models\DeliveryPackage;
 use App\Models\Disbursement;
+use App\Models\DriverCommission;
 use App\Models\Notification;
 use App\Models\Order;
 use App\Models\OrderImage;
@@ -75,12 +77,37 @@ class HomeScreenController extends Controller
 
     public function getDriverBalance(Request $req){
         $user = UserService::getAuthUser('driver');
-        $totalEarning = (float)Disbursement::where('payee_id',$user->id)->where('type','commission')->where('is_deleted',0)->sum('payable_amount');
-        $totalSettledPayment = Payment::where('payer_id',$user->id)->where('is_settled',1)->where('is_deleted',0)->sum('payable_amount');
+        // $totalEarning = (float)Disbursement::where('payee_id',$user->id)->where('type','commission')->where('is_deleted',0)->sum('payable_amount');
+        $qP = Package::selectRaw('status_id,driver_id')
+        ->whereIn('status_id',[9,19])
+        ->where('is_deleted',0)
+        ->whereNull('driver_commission_id')
+        ->where('driver_id',$user->id);
+        $packages = $qP->get();
+        $qO = Order::where('is_deleted',0)->whereNull('driver_commission_id')->where('status_id',5)
+        ->where('driver_id',$user->id);
+        $orders = $qO->get();
+        // $totalSettledPayment = Payment::where('payer_id',$user->id)->where('is_settled',1)->where('is_deleted',0)->sum('payable_amount');
+        $driverCommissions = DriverCommission::where('driver_id',$user->id)->where('is_deleted',0)
+        ->selectRaw('id,driver_id,delivery_type,pickup_commission,delivery_commission')
+        ->get();
+
+        $commissionInfo = DriverTransactionController::getDriverCommissionInfo($driverCommissions,$user->id);
+        $dtc = new DriverTransactionController();
+        $totalPickUpPackage = $dtc->getPickUpDetails($orders,$user->id)->total_package;
+        $totalDeliveredPackage = $dtc->getDeliveredDetails($packages,$user->id)->delivered_count;
+        $pickup_rate = $commissionInfo->normal_pickup_commission;
+        $delivery_rate = $commissionInfo->normal_delivery_commission;
+
+        $totalEarning = (float)number_format($pickup_rate * $totalPickUpPackage + $delivery_rate * $totalDeliveredPackage,2);
+        $balanceDue = Package::where('driver_id',$user->id)->where('is_deleted',0)->where(function($q){
+            $q->whereNull('driver_payment_id')->whereNull('driver_disbursement_id');
+        })->whereIn('status_id',[9,19])->sum('driver_total');
         // $totalSettledDisburment = Disbursement::where('payee_id',$user->id)->where('type','payment')->where('is_deleted',0)->where('is_settled',1)->sum('payable_amount');
         $obj = [
             'earning' => $totalEarning,
-            'settlement' => (float)$totalSettledPayment
+            // 'settlement' => (float)$totalSettledPayment,
+            'settlement' => (float)$balanceDue
         ];
         return ApiResponse::JsonResult($obj);
     }

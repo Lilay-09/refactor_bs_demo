@@ -63,12 +63,12 @@ class PickUpCenterController extends Controller
         if($order->status_id == 4) return ApiResponse::ValidateFail(__('messages.error',['info' => 'Order has '.$status]));
         $order->update([
             'is_deleted' => 1,
-            'delete_uid' => $user->id,
+            'deleted_uid' => $user->id,
             'deleted_datetime' => now()
         ]);
         Package::where('order_id',$id)->update([
             'is_deleted' => 1,
-            'delete_uid' => $user->id,
+            'deleted_uid' => $user->id,
             'deleted_datetime' => now()
         ]);
 

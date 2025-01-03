@@ -21,7 +21,7 @@ class TransactionController extends Controller
 
     public function getTransactionSummary(Request $req){
         $user = UserService::getAuthUser('driver');
-        $balanceDue = Package::where('driver_id',$user->id)->where('is_deleted',0)->whereIn('status_id',[9,19])->sum('driver_total');
+        // $balanceDue = Package::where('driver_id',$user->id)->where('is_deleted',0)->whereIn('status_id',[9,19])->sum('driver_total');
         $count = 0;
         $total = 0;
         $paidTrx = [];

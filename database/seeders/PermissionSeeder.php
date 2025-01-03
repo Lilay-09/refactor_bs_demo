@@ -15,6 +15,7 @@ class PermissionSeeder extends Seeder
     {
         //
          Permission::insert([
+            //** Booking Center */
             [
                 'id' => 200,
                 'module_id' => 251,
@@ -90,7 +91,63 @@ class PermissionSeeder extends Seeder
             [
                 'id' => 208,
                 'module_id' => 251,
+                'name' => 'Print Daily Package',
+                'create_uid' => 1,
+                'update_uid' => 1,
+                'company_id' => 1,
+                'branch_id' => 1,
+            ],
+
+            //** Package Trails */
+            [
+                'id' => 209,
+                'module_id' => 251,
                 'name' => 'Delete Package',
+                'create_uid' => 1,
+                'update_uid' => 1,
+                'company_id' => 1,
+                'branch_id' => 1,
+            ],
+            [
+                'id' => 210,
+                'module_id' => 251,
+                'name' => 'Print Daily Package',
+                'create_uid' => 1,
+                'update_uid' => 1,
+                'company_id' => 1,
+                'branch_id' => 1,
+            ],
+            [
+                'id' => 211,
+                'module_id' => 251,
+                'name' => 'Delete Package',
+                'create_uid' => 1,
+                'update_uid' => 1,
+                'company_id' => 1,
+                'branch_id' => 1,
+            ],
+            [
+                'id' => 211,
+                'module_id' => 251,
+                'name' => 'Print Daily Package',
+                'create_uid' => 1,
+                'update_uid' => 1,
+                'company_id' => 1,
+                'branch_id' => 1,
+            ],
+            [
+                'id' => 212,
+                'module_id' => 251,
+                'name' => 'Delete Package',
+                'create_uid' => 1,
+                'update_uid' => 1,
+                'company_id' => 1,
+                'branch_id' => 1,
+            ],
+            [
+                'id' => 2,
+                'module_id' => 251,
+                'name' => 'Print Daily Package',
                 'create_uid' => 1,
                 'update_uid' => 1,
                 'company_id' => 1,

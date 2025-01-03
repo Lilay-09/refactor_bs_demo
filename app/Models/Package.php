@@ -39,6 +39,7 @@ class Package extends Model
         'zone_name',
         'photo_file_name',
         'receiver_phone',
+        'returned_datetime',
         'receiver_name',
         'delivery_type',
         'additional_fee',

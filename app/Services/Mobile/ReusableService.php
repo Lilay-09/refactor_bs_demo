@@ -17,15 +17,17 @@ class ReusableService
         $search = $req->search ?? null;
         $startDate = $req->startDate;
         $endDate = $req->endDate;
-
+        $statusIds = [9,10,11,19];
         if($reqSearch && !$search) return DataResponse::Pagination(new Collection(),$req);
-        $qFp = Delivery::fromRaw('deliveries as d')->join('delivery_packages as dp','d.id','dp.delivery_id')
+        $qFp = Delivery::fromRaw('deliveries as d')
+        ->join('delivery_packages as dp','d.id','dp.delivery_id')
         ->join('packages as p','p.id','dp.package_id')->orderByDesc('d.id')
         ->join('users as m','m.id','p.merchant_id')
         ->leftJoin('payments as pmt','pmt.id','p.driver_payment_id')
         ->join('tracking_statuses as trs','trs.id','p.status_id')
-        ->selectRaw('p.status_id,trs.name as status_code,d.id as delivery_id,d.fleet_tracking_number,m.user_name as merchant_name,m.phone as merchant_phone,p.receiver_name,p.receiver_phone,p.delivery_fee,p.taxi_fee,p.remarks as notes,p.delivery_remarks as remarks,p.id as package_id,p.product_type,p.driver_total as total,p.billed_kg')
-        ->whereIn('p.status_id',[6,9,10,11,19]);
+        ->selectRaw('p.receiver_address,p.qr_code,p.status_id,trs.name as status_code,d.id as delivery_id,d.fleet_tracking_number,m.user_name as merchant_name,m.phone as merchant_phone,p.receiver_name,p.receiver_phone,p.delivery_fee,p.taxi_fee,p.remarks as notes,p.delivery_remarks as remarks,p.id as package_id,p.product_type,p.driver_total as total,p.billed_kg,p.failed_datetime,p.delivered_datetime,p.arrive_warehouse_datetime,p.returned_datetime')
+        ->whereIn('p.status_id',$statusIds);
+        if($reqSearch) $statusIds[] = 6;
         if($paymentStatus == 2){
             $qFp->where('pmt.approved',1);
         }
@@ -50,6 +52,17 @@ class ReusableService
             ->orWhere('d.fleet_tracking_number', 'ilike', '%' . $search . '%');
         });
         $fleetPackages = $qFp->get();
+        foreach($fleetPackages as $f){
+            $warehouse_datetime = Helper::formatCustomDateTime($f->arrive_warehouse_datetime,'Y-m-d H:i A');
+            $finished_date = $f->delivered_datetime;
+            if($f->status_id == 6) $finished_date = $f->arrive_warehouse_datetime;
+            if($f->status_id == 10) $finished_date = $f->failed_datetime;
+            if($f->status_id == 11) $finished_date = $f->returned_datetime;
+            if($f->status_id == 19) $finished_date = $f->failed_datetime;
+            $f->finished_datetime = Helper::formatCustomDateTime($finished_date);
+            $f->arrive_warehouse_datetime = $warehouse_datetime;
+            unset($f->failed_datetime,$f->returned_datetime,$f->delivered_datetime);
+        }
         return DataResponse::Pagination($fleetPackages,$req);
     }
 }

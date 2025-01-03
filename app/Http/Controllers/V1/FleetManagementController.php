@@ -157,21 +157,25 @@ class FleetManagementController extends Controller
         $status_id = $req->status_id;
         $failure_notes = $req->failure_notes ?? null;
         $payer = $req->payer ?? null;
-        $delivery = Delivery::where('is_deleted',0)->find($trip_id);
-        $tripPackage = DeliveryPackage::where('package_id',$package_id)->where('delivery_id',$trip_id)->where('delay_count',0)->first();
-        if(!$tripPackage) return ApiResponse::NotFound(__('messages.not_found',[
-            'info' => 'Package',
-            'khInfo' => 'កញ្ចប់'
-        ]));
+        $delivery = Delivery::where('is_deleted',0)->selectRaw('id')->find($trip_id);
+        $tripPackage = DeliveryPackage::where('package_id',$package_id)->where('delivery_id','!=',$trip_id)->where('delay_count',0)->orderByDesc('id')->first();
+        // if(!$tripPackage) return ApiResponse::NotFound(__('messages.not_found',[
+        //     'info' => 'Package',
+        //     'khInfo' => 'កញ្ចប់'
+        // ]));
+        $delayMsg = '.';
+        if($tripPackage) $delayMsg = ', This package is delivered in trip number('.Delivery::where('id',$tripPackage->delivery_id).')';
         if(!$delivery) return ApiResponse::NotFound(__('messages.not_found',['info' => 'Trip']));
         if(!$status_id || !in_array($status_id,[9,10,19])) return ApiResponse::ValidateFail(__('messages.not_found',['info' => 'Status']));
-        $package = Package::where('company_id',$user->company_id)->where('is_deleted',0)->find($package_id);
+        $package = Package::where('company_id',$user->company_id)->where('is_deleted',0)
+        ->selectRaw('tranking_notes,payer,id,status_id,driver_id,cod,delivery_fee,price,additional_fee,extra_charge,taxi_fee')
+        ->find($package_id);
         if(!$package) return ApiResponse::NotFound(__('messages.not_found',['info' => 'Package','khInfo' => 'កញ្ចប់']));
         if($package->status_id == 9) return ApiResponse::Duplicated(__('messages.info',[
             'info' => 'Package has already been delivered'
         ]));
         if($package->status_id == 19 && $status_id != 19) return ApiResponse::Duplicated(__('messages.info',[
-            'info' => 'Package has already been marked as failed with fee'
+            'info' => 'Package has already been marked as failed with fee'.$delayMsg
         ]));
         if(!in_array($package->status_id,[6,9,10,19])) return ApiResponse::ValidateFail(__('messages.error',['info' => 'Package must be on delivery before set to delivered,failed or failed with fee.']));
         $failDatetime = ($status_id == 10 || $status_id == 19) ? now() : null;

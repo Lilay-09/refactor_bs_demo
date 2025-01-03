@@ -195,12 +195,17 @@ class PackageTrailController extends Controller
     public function returnPackage(Request $req){
         $user = UserService::getAuthUser();
         $id = $req->id;
+        $driverId = $req->driver_id;
+        if(!$driverId) return ApiResponse::ValidateFail(__('messages.info',[
+            'info' => 'Please choose driver'
+        ]));
         $package = Package::where('company_id',$user->company_id)->where('is_deleted',0)->where('outstanding',0)->find($id);
         if(!$package) return ApiResponse::NotFound(trans('messages.not_found',['info' => 'Package','khInfo' => 'កញ្ចប់​']));
-        if(!in_array($package->status_id,[5,10,19])) return ApiResponse::ValidateFail(__('messages.info',[
-            'info' => 'Only failed package can be returned'
+        if(!in_array($package->status_id,[5,10])) return ApiResponse::ValidateFail(__('messages.info',[
+            'info' => 'Only failed package or at warehouse can be returned'
         ]));
         $package->update([
+            'returned_uid' => $driverId,
             'status_id' => 11, // returned
             'returned_datetime' => now(),
             'update_uid' => $user->id,

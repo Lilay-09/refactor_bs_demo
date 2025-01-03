@@ -60,6 +60,7 @@ class PickupCenterService
             'loc_lat' => 'nullable|numeric',
             'loc_lng' => 'nullable|numeric',
             'pickup_address_google_map' => 'nullable|string',
+            'pin_address' => 'nullable|string',
             'pickup_address' => 'nullable|string|max:300',
             'details' => 'nullable|array',
             'images' => 'nullable'
@@ -110,7 +111,7 @@ class PickupCenterService
         else if($user->account_type == 'admin') $inputs['tracking_notes'] = 'Admin create order ('.$dateTime.')';
         $deleteImgs = [];
         $pickupAddress = $inputs['pickup_address'] ?? null;
-        $pickup_address_google_map = $inputs['pickup_address_google_map'] ?? null;
+        $pickup_address_google_map = $inputs['pickup_address_google_map'] ?? $inputs['pin_address'] ?? null;
         $latLng = Helper::getLatLongFromGoogleMapsUrl($pickup_address_google_map);
         $inputs['loc_lat'] = $inputs['loc_lat'] ?? $latLng->latitude;
         $inputs['loc_lng'] = $inputs['loc_lng'] ?? $latLng->longitude;

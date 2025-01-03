@@ -707,8 +707,7 @@ class TransactionService
         $validType = $this->validType($type);
         if($validType->error) return $validType;
         if($trxType=='receive'){
-            $payment = Payment::where('is_deleted',0)->where('company_id',$user->company_id)->orderByDesc('id')->find($id);
-            if(!$payment) return DataResponse::NotFound('Payment not found');
+            $payment = Payment::where('is_deleted',0)->orderByDesc('id')->find($id);
             if($payment->is_settled) return DataResponse::Duplicated(__('messages.info',[
                 'info' => 'Payment has already been settled'
             ]));
@@ -727,8 +726,7 @@ class TransactionService
                 $pmtKey => null,
             ]);
         }else if($trxType == 'disbursement'){
-            $payment = Disbursement::where('is_deleted',0)->where('company_id',$user->company_id)->where('type','payment')->orderByDesc('id')->find($id);
-            if(!$payment) return DataResponse::NotFound('Payment not found');
+            $payment = Disbursement::where('is_deleted',0)->where('type','payment')->orderByDesc('id')->find($id);
             if($payment->is_settled) return DataResponse::Duplicated(__('messages.info',[
                 'info' => 'Payment has already been settled'
             ]));
@@ -762,11 +760,7 @@ class TransactionService
             'info' => 'Please select payment type'
         ]));
         if($trxType =='receive'){
-            $payment = Payment::where('is_deleted',0)->where('company_id',$user->company_id)->orderByDesc('id')->find($id);
-            if(!$payment) return DataResponse::NotFound('Payment not found');
-            // if($payment->is_settled) return DataResponse::Duplicated(__('messages.info',[
-            //     'info' => 'Payment has already been settled'
-            // ]));
+            $payment = Payment::where('is_deleted',0)->orderByDesc('id')->find($id);
             if(!$payment) return DataResponse::NotFound(__('messages.not_found',[
                 'info' => 'Payment'
             ]));
@@ -782,11 +776,7 @@ class TransactionService
                 $pmtKey => null,
             ]);
         }else if($trxType == 'disbursement'){
-            $payment = Disbursement::where('is_deleted',0)->where('company_id',$user->company_id)->where('type','payment')->orderByDesc('id')->find($id);
-            if(!$payment) return DataResponse::NotFound('Payment not found');
-            // if($payment->is_settled) return DataResponse::Duplicated(__('messages.info',[
-            //     'info' => 'Payment has already been settled'
-            // ]));
+            $payment = Disbursement::where('is_deleted',0)->where('type','payment')->orderByDesc('id')->find($id);
             if(!$payment) return DataResponse::NotFound(__('messages.not_found',[
                 'info' => 'Payment'
             ]));
@@ -1078,9 +1068,10 @@ class TransactionService
         ]));
         $cod = $inputs['cod'] ?? $package->cod;
         $payer = $inputs['payer'] ?? $package->payer;
+        $extraCharge = $inputs['extra_charge'] ?? $package->extra_charge;
         $taxi_fee = $inputs['taxi_fee'] ?? $package->taxi_fee;
         $price = $inputs['price'] ?? $package->price;
-        $calFee = GeneralSettingService::calculatePackageFee($package->zone_code,$price,$package->billed_kg,$package->actual_kg,$payer,$cod,$package->extra_charge,$user,$taxi_fee,$package->merchant_id);
+        $calFee = GeneralSettingService::calculatePackageFee($package->zone_code,$price,$package->billed_kg,$package->actual_kg,$payer,$cod,$extraCharge,$user,$taxi_fee,$package->merchant_id);
         if($calFee->error) return $calFee;
         $inputs['driver_total'] = ($package->status_id == 19 && $package->cod) ? abs($price - $calFee->driver_total):$calFee->driver_total;
         $inputs['merchant_total'] = $calFee->merchant_total;

@@ -58,7 +58,7 @@ class DriverTransactionController extends Controller
             ->whereDate('order_datetime', '<=', $endDate);
         }
         $orders = $qO->get();
-        $qDc = DriverCommission::where('driver_id',$driverId)->where('is_deleted',0)->selectRaw('id,driver_id,delivery_type,pickup_commission,delivery_commission');
+        $qDc = DriverCommission::where('is_deleted',0)->selectRaw('id,driver_id,delivery_type,pickup_commission,delivery_commission');
         if($driverId) $qDc->where('driver_id',$driverId);
         $driverCommissions = $qDc->get();
         foreach($driverInfo as $driver){
@@ -103,7 +103,7 @@ class DriverTransactionController extends Controller
         return ApiResponse::Pagination($driverInfo,$req);
     }
 
-    private function getPickUpDetails($orders,$driverId){
+    public function getPickUpDetails($orders,$driverId){
         $totalPkg = 0;
         foreach($orders as $order){
             if($order->driver_id == $driverId){
@@ -115,7 +115,7 @@ class DriverTransactionController extends Controller
         ];
     }
 
-    private function getDeliveredDetails($packages,$driverId){
+    public function getDeliveredDetails($packages,$driverId){
         $totalPkg = 0;
         $failedWithFeeCount = 0;
         $deliveredCount = 0;
