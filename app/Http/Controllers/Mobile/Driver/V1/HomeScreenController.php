@@ -98,7 +98,6 @@ class HomeScreenController extends Controller
         $totalDeliveredPackage = $dtc->getDeliveredDetails($packages,$user->id)->delivered_count;
         $pickup_rate = $commissionInfo->normal_pickup_commission;
         $delivery_rate = $commissionInfo->normal_delivery_commission;
-
         $totalEarning = (float)number_format($pickup_rate * $totalPickUpPackage + $delivery_rate * $totalDeliveredPackage,2);
         $balanceDue = Package::where('packages.driver_id', $user->id)
         ->where('packages.is_deleted', 0)

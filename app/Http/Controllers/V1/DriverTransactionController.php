@@ -91,6 +91,7 @@ class DriverTransactionController extends Controller
         ->join('disbursements as dis','dis.payee_id','d.id')->where('dis.type','commission')
         ->join('users as rc','rc.id','dis.receiptionist_uid')
         ->where('dis.is_deleted',0)
+        ->orderByDesc('dis.id')
         ->selectRaw('d.id as driver_id,dis.id as payment_id,d.user_name as driver_name,d.phone,d.code,dis.pickup_rate,dis.delivery_rate,dis.payment_datetime,dis.breakdown_notes,rc.user_name as receiptionist,payable_amount,package_count,delivered_package_count,pickup_package_count');
         if($driverId) $qD->where('d.id',$driverId);
         $driverInfo = $qD->get();
