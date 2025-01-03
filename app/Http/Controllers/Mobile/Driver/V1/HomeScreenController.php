@@ -102,6 +102,7 @@ class HomeScreenController extends Controller
         $balanceDue = Package::where('packages.driver_id', $user->id)
         ->where('packages.is_deleted', 0)
         ->whereIn('packages.status_id', [9, 19])
+        ->whereNull('packages.driver_disbursement_id')
         ->leftJoin('payments', 'packages.driver_payment_id', '=', 'payments.id')
         ->where(function ($query) {
             $query->whereNull('payments.id') // Include rows without matching payments
