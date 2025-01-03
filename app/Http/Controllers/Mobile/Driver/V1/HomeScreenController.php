@@ -100,9 +100,15 @@ class HomeScreenController extends Controller
         $delivery_rate = $commissionInfo->normal_delivery_commission;
 
         $totalEarning = (float)number_format($pickup_rate * $totalPickUpPackage + $delivery_rate * $totalDeliveredPackage,2);
-        $balanceDue = Package::where('driver_id',$user->id)->where('is_deleted',0)->where(function($q){
-            $q->whereNull('driver_payment_id')->whereNull('driver_disbursement_id');
-        })->whereIn('status_id',[9,19])->sum('driver_total');
+        $balanceDue = Package::where('packages.driver_id', $user->id)
+        ->where('packages.is_deleted', 0)
+        ->whereIn('packages.status_id', [9, 19])
+        ->leftJoin('payments', 'packages.driver_payment_id', '=', 'payments.id')
+        ->where(function ($query) {
+            $query->whereNull('payments.id') // Include rows without matching payments
+                ->orWhere('payments.approved', 0); // Include rows where payments.approved = 0
+        })
+        ->sum('packages.driver_total');
         // $totalSettledDisburment = Disbursement::where('payee_id',$user->id)->where('type','payment')->where('is_deleted',0)->where('is_settled',1)->sum('payable_amount');
         $obj = [
             'earning' => $totalEarning,

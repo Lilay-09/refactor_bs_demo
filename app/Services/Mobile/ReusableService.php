@@ -53,13 +53,13 @@ class ReusableService
         });
         $fleetPackages = $qFp->get();
         foreach($fleetPackages as $f){
-            $warehouse_datetime = Helper::formatCustomDateTime($f->arrive_warehouse_datetime,'Y-m-d H:i A');
+            $warehouse_datetime = Helper::formatCustomDateTime($f->arrive_warehouse_datetime,'d-M-Y H:i A');
             $finished_date = $f->delivered_datetime;
             if($f->status_id == 6) $finished_date = $f->arrive_warehouse_datetime;
             if($f->status_id == 10) $finished_date = $f->failed_datetime;
             if($f->status_id == 11) $finished_date = $f->returned_datetime;
             if($f->status_id == 19) $finished_date = $f->failed_datetime;
-            $f->finished_datetime = Helper::formatCustomDateTime($finished_date);
+            $f->finished_datetime = Helper::formatCustomDateTime($finished_date,'d-M-Y h:i A');
             $f->arrive_warehouse_datetime = $warehouse_datetime;
             unset($f->failed_datetime,$f->returned_datetime,$f->delivered_datetime);
         }

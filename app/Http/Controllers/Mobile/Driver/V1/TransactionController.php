@@ -146,7 +146,7 @@ class TransactionController extends Controller
         }
         $deliveredCount = $qP->count();
         $qO = Order::where('is_deleted',0)->where('status_id',5)
-        ->where('driver_disbursement_id',$driverId)
+        // ->where('driver_disbursement_id',$driverId)
         ->where('driver_id',$driverId);
         if($startDate && $endDate){
             $startDate = date('Y-m-d',strtotime($startDate));
