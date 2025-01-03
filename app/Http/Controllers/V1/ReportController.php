@@ -785,9 +785,9 @@ class ReportController extends Controller
         if($startDate && $endDate){
             $qP->whereRaw('failed_datetime::DATE >= ? AND failed_datetime::DATE <= ? OR delivered_datetime::DATE >= ? AND delivered_datetime::DATE <= ?', [$startDate, $endDate,$startDate, $endDate]);
         }
-
+        $grand = 0;
         $packages = $qP->whereIn('status_id',[9,10,19])->orderByRaw('DATE(failed_datetime) DESC,DATE(delivered_datetime) DESC')->get();
-        $groupedPackages = collect($packages)->map(function ($item) {
+        $groupedPackages = collect($packages)->map(function ($item) use (&$grand)  {
             $finishDate = $item->failed_datetime;
             if($item->status_id == 9) $finishDate = $item->delivered_datetime;
             $item->groupDate = Helper::dateDMY($finishDate);
@@ -795,13 +795,17 @@ class ReportController extends Controller
             unset($item->status);
             return $item;
         })->groupBy('groupDate')
-        ->map(function ($group, $date) {
-            $group->each(function ($item) {
+        ->map(function ($group, $date) use (&$grand){
+            $group->each(function ($item) use (&$grand) {
                 unset($item->groupDate);
                 $item->finished_date = $item->failed_datetime ? Helper::dateDMY($item->failed_datetime): Helper::dateDMY($item->delivered_datetime);
                 $finished_time = $item->failed_datetime ? Helper::formatCustomDateTime($item->failed_datetime,'h:i:s A'):Helper::formatCustomDateTime($item->delivered_datetime,'h:i:s A');
                 $item->finished_time = $finished_time;
-                $item->total = PickupCenterService::getTotal('merchant',$item->cod,$item->payer,$item->price,$item->delivery_fee,$item->additional_fee,$item->extra_charge,$item->taxi_fee);
+                $total = $item->cod ? $item->price : 0;
+                if($item->payer == 'sender') $total -= $item->delivery_fee + $item->extra_charge + $item->taxi_fee;
+                $item->total = $total;
+                $grand += $total;
+
             });
             return [
                 'date' => $date,
@@ -813,7 +817,7 @@ class ReportController extends Controller
                         ->sum(function ($item) {
                             return $item->delivery_fee + $item->extra_charge;
                         }) ?? 0,
-                    'grand' => 0
+                    'grand' => $grand
                 ],
             ];
         })->values();

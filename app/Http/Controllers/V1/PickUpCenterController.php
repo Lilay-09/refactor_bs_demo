@@ -183,6 +183,11 @@ class PickUpCenterController extends Controller
             $order->order_time = Helper::formatCustomDateTime($order->order_datetime,'h:i:s A');
             $order->merchant_name = $order->merchant->user_name;
             $order->merchant_code = $order->merchant->code;
+            $order->merchant_code = $order->merchant->code;
+            $order->default = [
+                'cod' => $order->merchant->cod ? 1:0,
+                'code' => $order->merchant->merchantPriceList?->zone_code
+            ];
             if(!$order->product_type) $order->product_type = 'Others';
             $order->status_code = $order->tracking_status->name;
             $order->status_code_kh = $order->tracking_status->name;

@@ -213,7 +213,7 @@ class UserService
             }
             if($user_class == 'merchant' && $priceListId) self::saveMerchantPriceList($userId,$priceListId,$zoneId,$user);
             self::assignRolesUser($userId,$roleIds,$user_class);
-            DB::commit();
+            // DB::commit();
             return DataResponse::JsonResult(null,false,__('messages.saved'));
         }catch(Exception $e){
             DB::rollBack();
@@ -232,6 +232,7 @@ class UserService
                 $roleIds[] = 2;
             }
         }
+
         foreach($roleIds as $roleId){
             UserRoles::create([
                 'user_id' => $userId,
@@ -243,6 +244,11 @@ class UserService
     private static function saveMerchantPriceList($merchantId,$priceListId,$zoneId,$user): void{
         $found = MerchantPriceList::where('merchant_id',$merchantId)->first();
         $zoneCode = Zone::where('id',$zoneId)->value('zone_code');
+        if(!$zoneCode) {
+            $zoneInfo = Zone::selectRaw('id,zone_code,zone_name')->find(300);
+            $zoneId = $zoneInfo->id;
+            $zoneCode = $zoneInfo->zone_code;
+        }
         if($found) {
             $found->update([
             'merchant_id' => $merchantId,

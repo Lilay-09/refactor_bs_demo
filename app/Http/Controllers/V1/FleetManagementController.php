@@ -168,7 +168,7 @@ class FleetManagementController extends Controller
         if(!$delivery) return ApiResponse::NotFound(__('messages.not_found',['info' => 'Trip']));
         if(!$status_id || !in_array($status_id,[9,10,19])) return ApiResponse::ValidateFail(__('messages.not_found',['info' => 'Status']));
         $package = Package::where('company_id',$user->company_id)->where('is_deleted',0)
-        ->selectRaw('tranking_notes,payer,id,status_id,driver_id,cod,delivery_fee,price,additional_fee,extra_charge,taxi_fee')
+        ->selectRaw('tracking_notes,payer,id,status_id,driver_id,cod,delivery_fee,price,additional_fee,extra_charge,taxi_fee')
         ->find($package_id);
         if(!$package) return ApiResponse::NotFound(__('messages.not_found',['info' => 'Package','khInfo' => 'កញ្ចប់']));
         if($package->status_id == 9) return ApiResponse::Duplicated(__('messages.info',[
