@@ -177,7 +177,7 @@ class HomeScreenController extends Controller
         })
         ->where('p.created_at', '>=', Carbon::now()->subDays(15))
         ->join('tracking_statuses as ts','ts.id','dp.status_id')
-        ->selectRaw('p.id,p.delivered_datetime,p.failed_datetime,p.assign_driver_datetime,p.merchant_id,p.qr_code,p.price,p.cod,p.receiver_name,p.receiver_phone,p.zone_code,p.zone_name,ts.name as status_code,d.user_name as driver_name,d.phone as driver_phone,m.user_name as merchant_name,m.phone as merchant_phone,p.id as package_id,dp.delivery_id,p.zone_code,p.zone_name,p.delivery_fee as base_fee,p.driver_total,p.driver_total as delivery_fee,p.taxi_fee,p.product_type,dp.status_id')
+        ->selectRaw('p.extra_charge,p.id,p.delivered_datetime,p.failed_datetime,p.assign_driver_datetime,p.merchant_id,p.qr_code,p.price,p.cod,p.receiver_name,p.receiver_phone,p.zone_code,p.zone_name,ts.name as status_code,d.user_name as driver_name,d.phone as driver_phone,m.user_name as merchant_name,m.phone as merchant_phone,p.id as package_id,dp.delivery_id,p.zone_code,p.zone_name,p.delivery_fee as base_fee,p.driver_total,p.taxi_fee,p.product_type,dp.status_id')
         ->orderByRaw('(dp.status_id = ?) DESC', [6]);
         if($driverId){
             $qP->where('p.driver_id',$driverId);
@@ -188,6 +188,10 @@ class HomeScreenController extends Controller
         $packages = $qP->get();
         foreach($packages as $p){
             $p->date = $p->assign_driver_datetime;
+            $p->delivery_fee = 0;
+            if($p->payer == 'receiver'){
+                $p->delivery_fee = $p->base_fee + $p->extra_charge;
+            }
             if($p->status_id == 9) $p->date = $p->delivered_datetime;
             if($p->status_id == 10 || $p->status_id == 19) $p->date = $p->failed_datetime;
             unset($p->assign_driver_datetime,$p->delivered_datetime,$p->failed_datetime);
@@ -387,7 +391,6 @@ class HomeScreenController extends Controller
             'info' => 'Package'
         ]));
         if($photo) {
-            // \Log::error($photo->getClientMimeType());
             $inputs['photo_file_name'] = Helper::saveImageFileOrBase64($photo,$user->company_id,'submit_package')->filename;
             Helper::deleteImageFile($package->photo_file_name,$user->company_id,'submit_package');
         }
@@ -408,6 +411,9 @@ class HomeScreenController extends Controller
             $inputs['delivery_remarks'] = $deliveryRemarks;
         }
         if($status_id == 10) {
+            if(!$deliveryRemarks) return ApiResponse::ValidateFail(__('messages.info',[
+                'Please input remarks'
+            ]));
             $inputs['failed_datetime'] = now();
             $inputs['failure_notes'] = $deliveryRemarks;
         }
