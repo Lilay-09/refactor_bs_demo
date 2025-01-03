@@ -608,7 +608,7 @@ class ReportController extends Controller
         $qD = User::fromRaw('users as d')->where('d.account_type','driver')
         ->join('disbursements as dis','dis.payee_id','d.id')
         ->join('users as r','r.id','dis.receiptionist_uid')
-        ->orderByDesc('id')
+        ->orderByDesc('dis.id')
         ->selectRaw('d.user_name as driver_name,d.code,dis.pickup_rate,dis.delivery_rate,dis.failed_with_fee_count,dis.delivered_package_count,dis.pickup_package_count,dis.payable_amount,dis.payment_datetime,dis.breakdown_notes,r.user_name as paid_by')
         ->where('dis.type','commission');
         $drivers = $qD->get();
