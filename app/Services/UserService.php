@@ -213,7 +213,7 @@ class UserService
             }
             if($user_class == 'merchant' && $priceListId) self::saveMerchantPriceList($userId,$priceListId,$zoneId,$user);
             self::assignRolesUser($userId,$roleIds,$user_class);
-            // DB::commit();
+            DB::commit();
             return DataResponse::JsonResult(null,false,__('messages.saved'));
         }catch(Exception $e){
             DB::rollBack();

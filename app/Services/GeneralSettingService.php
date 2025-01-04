@@ -37,7 +37,20 @@ class GeneralSettingService
         ['value' => 'normal','label' => 'Normal'],
     ];
 
+    public static $payerTrans = [
+        'sender' => 'អ្នកផ្ញើ',
+        'receiver' => 'អ្នកទទួល'
+    ];
+
+    public static $pmtStatusTrans = [
+        'pending' => 'ចាំការអនុម័ត',
+        'unpaid' => 'មិនទាន់ទូរទាត់',
+        'paid' => 'បានទូរទាត់'
+    ];
+
+
     public static $statusCodeTrans = [
+        5 => 'ដល់ឃ្លាំង',
         6 => 'កំពុងដឹក',
         9 => 'ជេាគជ័យ',
         10 => 'បរាជ័យ',

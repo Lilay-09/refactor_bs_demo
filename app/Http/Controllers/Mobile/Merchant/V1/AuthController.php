@@ -33,7 +33,7 @@ class AuthController extends Controller
             'username' => 'required|string',
             'password' => 'required|string|min:6|max:16',
         ]);
-        if($validate->fails()) return ApiResponse::ValidateFail($validate->errors()->all());//DataResponse::ValidateFail($validate->errors());
+        if($validate->fails()) return ApiResponse::ValidateFail($validate->errors()->first());//DataResponse::ValidateFail($validate->errors());
         $input = $validate->validated();
         $account = $input['username'];
         $password = $input['password'];
