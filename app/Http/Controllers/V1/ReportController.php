@@ -828,7 +828,10 @@ class ReportController extends Controller
             $finishDate = $item->failed_datetime;
             if($item->status_id == 9) $finishDate = $item->delivered_datetime;
             if($item->status_id == 5) $finishDate = $item->arrive_warehouse_datetime;
-            if($item->status_id == 6) $finishDate = $item->assign_driver_datetime;
+            if($item->status_id == 6) {
+                $finishDate = $item->assign_driver_datetime;
+                $item->failed_datetime = '';
+            }
             if($item->status_id == 10 || $item->status_id == 19) $finishDate = $item->failed_datetime;
             if($item->status_id == 11) $finishDate = $item->returned_datetime;
             $item->groupDate = Helper::dateDMY($finishDate);
@@ -844,9 +847,11 @@ class ReportController extends Controller
                 $isCal = in_array($item->status_id,[9,19]);
                 $item->price = ($item->cod && $isCal) ? $item->price:0;
                 $total = $item->cod ? $item->price : 0;
-                if($item->payer == 'sender') $total -= $item->delivery_fee + $item->extra_charge + $item->taxi_fee;
+                if($item->payer == 'sender') {
+                    $total -= $item->delivery_fee + $item->extra_charge + $item->taxi_fee;
+                    $item->delivery_fee = $isCal ? ($item->delivery_fee + $item->extra_charge) : 0;
+                }else $item->delivery_fee = 0;
                 $item->total = $isCal ? $total : 0;
-                $item->delivery_fee = $isCal ? $item->delivery_fee : 0;
                 if(in_array($item->status_id,[9,19])) $grand += number_format($total,2);
                 if($isKm) {
                     $item->status_code = GeneralSettingService::$statusCodeTrans[$item->status_id] ?? '';
@@ -866,7 +871,6 @@ class ReportController extends Controller
                     }
                     $item->status_code = $item->status->name;
                 }
-
             });
             return [
                 'date' => $date,

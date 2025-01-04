@@ -65,7 +65,7 @@ class GeneralSettingController extends Controller
     public function scanPackage(Request $req){
         $user = UserService::getAuthUser('driver');
         $item_ref = $req->item_ref;
-        $package = Package::where('qr_code',$item_ref)->where('is_deleted',0)->first();
+        $package = Package::where('qr_code',$item_ref)->where('is_deleted',0)->selectRaw('status_id,driver_id,merchant_id,is_contact')->first();
         if(!$package && is_numeric($item_ref)) $package = Package::where('is_deleted',0)->find($item_ref);
         if(!$package) return ApiResponse::NotFound();
         if($package->status_id == 9) return ApiResponse::Duplicated(__('messages.info',[
@@ -76,16 +76,17 @@ class GeneralSettingController extends Controller
         $data = null;
         if(!$diffDriver && $isOnDelivery)
             $data = Package::where('qr_code',$item_ref)
-            ->with('status:id,name')
-            ->selectRaw('id,qr_code,status_id,assign_driver_datetime,receiver_phone,receiver_name,product_type,cod,zone_name,zone_code,price,delivery_fee,driver_total as total,taxi_fee,additional_fee,extra_charge,payer')
+            ->with(['status:id,name','merchant:id,user_name'])
+            ->selectRaw('receiver_address,merchant_id,id,qr_code,status_id,assign_driver_datetime,receiver_phone,receiver_name,product_type,cod,zone_name,zone_code,price,delivery_fee,driver_total as total,taxi_fee,additional_fee,extra_charge,payer')
             // ->selectRaw('p.delivered_datetime,p.failed_datetime,p.assign_driver_datetime,p.merchant_id,p.qr_code,p.price,p.cod,p.receiver_name,p.receiver_phone,p.zone_code,p.zone_name,ts.name as status_code
             // ,d.user_name as driver_name,d.phone as driver_phone,m.user_name as merchant_name,m.phone as merchant_phone,p.id as package_id,dp.delivery_id,p.zone_code,p.zone_name,p.delivery_fee as base_fee,p.driver_total,p.driver_total as delivery_fee,p.taxi_fee,p.product_type,dp.status_id')
             ->first();
             if($data){
+                $data->merchant_name = $data->merchant?->user_name;
                 $data->cod = $data->cod ? 'Yes' : 'No';
                 $data->status_code = $data->status->name;
-                $data->fee = PickupCenterService::getFees($data->cod,$data->payer,$data->price,$data->delivery_fee,$data->additional_fee,$data->extra_charge,$data->taxi_fee);
-                unset($data->status);
+                $data->fee = PickupCenterService::getFees($data->payer,$data->delivery_fee,$data->extra_charge,$data->taxi_fee);
+                unset($data->status,$data->merchant);
             }
         return ApiResponse::JsonResult([
             'is_contact' => $package->is_contact,
