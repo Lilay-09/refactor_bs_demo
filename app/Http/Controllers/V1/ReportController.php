@@ -812,6 +812,7 @@ class ReportController extends Controller
             });
         }
         $grand = 0;
+        $totalDeliveryFee = 0;
         $packages = $qP->orderByRaw('
             CASE
                 WHEN p.status_id = ? THEN 1
@@ -839,7 +840,7 @@ class ReportController extends Controller
             return $item;
         })->groupBy('groupDate')
         ->map(function ($group, $date) use (&$grand,$isKm){
-            $group->each(function ($item) use (&$grand,$isKm) {
+            $group->each(function ($item) use (&$grand,$isKm,&$totalDeliveryFee) {
                 unset($item->groupDate);
                 $item->finished_date = $item->failed_datetime ? Helper::dateDMY($item->failed_datetime): Helper::dateDMY($item->delivered_datetime);
                 $finished_time = $item->failed_datetime ? Helper::formatCustomDateTime($item->failed_datetime,'h:i:s A'):Helper::formatCustomDateTime($item->delivered_datetime,'h:i:s A');
@@ -851,6 +852,7 @@ class ReportController extends Controller
                     $item->delivery_fee = $isCal ? ($item->delivery_fee + $item->extra_charge) : 0;
                     $total -= $item->delivery_fee + $item->extra_charge + $item->taxi_fee;
                 }else $item->delivery_fee = 0;
+                $totalDeliveryFee += $item->delivery_fee;
                 $item->total = $isCal ? $total : 0;
                 if(in_array($item->status_id,[9,19])) $grand += number_format($total,2);
                 if($isKm) {
@@ -878,10 +880,7 @@ class ReportController extends Controller
                 'total' => [
                     'cod' => $group->where('status_id','!=',19)->where('cod',1)->sum('price'),
                     'taxi' => $group->where('status_id','!=',19)->sum('taxi_fee'),
-                    'delivery_fee' => $group->where('payer', 'sender')
-                        ->sum(function ($item) {
-                            return $item->delivery_fee + $item->extra_charge;
-                        }) ?? 0,
+                    'delivery_fee' => $totalDeliveryFee,
                     'grand' => number_format($grand,2)
                 ],
             ];
