@@ -709,6 +709,7 @@ class ReportController extends Controller
         $startDate = $req->startDate ? Helper::dateDMY($req->startDate) : null;
         $endDate = $req->endDate ? Helper::dateDMY($req->endDate) : null;
         $q = User::where('is_deleted',0)
+        ->where('account_type','merchant')
         ->with('bank_accounts:user_id,bank_name,bank_number,account_name')
         ->selectRaw('user_name,business_type,phone,created_at,address,code,lock,id');
         $merchants = $q->get();
@@ -782,19 +783,19 @@ class ReportController extends Controller
         // ->whereIn('p.status_id',[5,6,9,10,19])
         ->orderByDesc('p.id')
         ->with('status')
-        // ->leftJoin('payments as pmt', function ($join) use($merchantId) {
-        //     $join->on('p.merchant_payment_id', '=', 'pmt.id')
-        //         ->where('pmt.payer_id',$merchantId)
-        //         ->where('pmt.payer_type', '=', 'merchant'); // Add merchant filter
-        // })
-        // ->leftJoin('disbursements as dis', function ($join) use($merchantId) {
-        //     $join->on('p.merchant_disbursement_id', '=', 'dis.id')
-        //         ->where('dis.payee_id',$merchantId)
-        //         ->where('dis.payee_type', '=', 'merchant')->where('dis.type','payment'); // Add merchant filter
-        // })
+        ->leftJoin('payments as pmt', function ($join) use($merchantId) {
+            $join->on('p.merchant_payment_id', '=', 'pmt.id')
+                ->where('pmt.payer_id',$merchantId)
+                ->where('pmt.payer_type', '=', 'merchant'); // Add merchant filter
+        })
+        ->leftJoin('disbursements as dis', function ($join) use($merchantId) {
+            $join->on('p.merchant_disbursement_id', '=', 'dis.id')
+                ->where('dis.payee_id',$merchantId)
+                ->where('dis.payee_type', '=', 'merchant')->where('dis.type','payment'); // Add merchant filter
+        })
         ->orderByRaw('DATE(p.failed_datetime) DESC,DATE(p.delivered_datetime) DESC')
         ->selectRaw('p.merchant_id,p.remarks,p.delivery_remarks,p.status_id,p.id,p.qr_code,p.delivered_datetime,p.failed_datetime,p.delivery_remarks,p.remarks,p.taxi_fee,p.extra_charge,p.delivery_fee,p.cod,p.price,p.payer,
-        p.arrive_warehouse_datetime,p.assign_driver_datetime,p.receiver_phone,p.receiver_name,p.receiver_address,p.delivery_remarks');
+        p.arrive_warehouse_datetime,p.assign_driver_datetime,p.receiver_phone,p.receiver_name,p.receiver_address,p.delivery_remarks'.$pmtCase);
         if($startDate && $endDate){
             $qP->where(function($q) use ($startDate,$endDate){
                 $q->whereRaw('
@@ -835,7 +836,7 @@ class ReportController extends Controller
                 $total = ($item->cod && !in_array($item->status_id,[11,19])) ? $item->price : 0;
                 if($item->payer == 'sender' && $item->status_id != 11) $total -= $item->delivery_fee + $item->extra_charge + $item->taxi_fee;
                 $item->total = $total;
-                if(in_array($item->status_id,[9,19])) $grand += $total;
+                if(in_array($item->status_id,[9,19])) $grand += number_format($total,2);
                 if($isKm) {
                     $item->status_code = GeneralSettingService::$statusCodeTrans[$item->status_id] ?? '';
                     $item->payer = GeneralSettingService::$payerTrans[$item->payer] ?? '';
@@ -852,7 +853,6 @@ class ReportController extends Controller
                         $item->payment_status = 'Unpaid';
                         if($item->approved) $item->payment_status = 'Paid';
                     }
-
                     $item->status_code = $item->status->name;
                 }
 
@@ -923,11 +923,11 @@ class ReportController extends Controller
             $statusId = $p->status_id;
             if(isset($pkgInfo[$p->status_id])){
                 $pkgInfo[$statusId]['count'] += 1;
-                $pkgInfo[$statusId]['total'] += $p->merchant_total;
+                $pkgInfo[$statusId]['total'] += (float)$p->merchant_total;
             }
             if($statusId == 5){
                 $pkgInfo[$statusId.'.1']['count'] += 1;
-                $pkgInfo[$statusId.'.1']['total'] += $p->merchant_total;
+                $pkgInfo[$statusId.'.1']['total'] += (float)$p->merchant_total;
                 $pkgInfo[$statusId.'.2']['count'] = $pkgInfo[$statusId.'.1']['count'] + $pkgInfo[$statusId]['count'];
                 $pkgInfo[$statusId.'.2']['total'] = (float)$pkgInfo[$statusId.'.1']['total'] + $pkgInfo[$statusId]['total'];
             }
