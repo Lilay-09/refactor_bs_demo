@@ -889,7 +889,8 @@ class ReportController extends Controller
         ->where('merchant_id',$merchantId);
 
         if($startDate && $endDate){
-            $pQ->whereRaw('
+            $pQ->where(function($q) use($startDate,$endDate){
+                $q->whereRaw('
                 (arrive_warehouse_datetime::DATE >= ? AND arrive_warehouse_datetime::DATE <= ?) OR
                 (assign_driver_datetime::DATE >= ? AND assign_driver_datetime::DATE <= ?) OR
                 (failed_datetime::DATE >= ? AND failed_datetime::DATE <= ?) OR
@@ -903,6 +904,7 @@ class ReportController extends Controller
                     $startDate, $endDate  // For returned_datetime
                 ]
             );
+            });
         }
 
         $packages = $pQ->get();
@@ -927,7 +929,7 @@ class ReportController extends Controller
                 $pkgInfo[$statusId.'.1']['count'] += 1;
                 $pkgInfo[$statusId.'.1']['total'] += $p->merchant_total;
                 $pkgInfo[$statusId.'.2']['count'] = $pkgInfo[$statusId.'.1']['count'] + $pkgInfo[$statusId]['count'];
-                $pkgInfo[$statusId.'.2']['total'] = $pkgInfo[$statusId.'.1']['total'] + $pkgInfo[$statusId]['total'];
+                $pkgInfo[$statusId.'.2']['total'] = (float)$pkgInfo[$statusId.'.1']['total'] + $pkgInfo[$statusId]['total'];
             }
 
 
