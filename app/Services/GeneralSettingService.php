@@ -500,13 +500,19 @@ class GeneralSettingService
         return $xRate;
     }
 
-    public static function optionMerchantOrder($merchant_id,$statusIds=[]){
+    public static function optionMerchantOrder($merchant_id,$startDate,$endDate,$statusIds=[]){
         if(!$merchant_id) return [];
+        $startDate = $startDate? Helper::dateYMD($startDate):null;
+        $endDate = $endDate? Helper::dateYMD($endDate):null;
         $qO = Order::where('is_deleted',0)
         ->where('merchant_id',$merchant_id)
-        ->selectRaw('code,id,qty,order_datetime');
+        ->selectRaw('code,id,qty,order_datetime')
+        ->orderByDesc('order_datetime');
         if(!empty($statusIds)){
             $qO->whereIn('status_id',$statusIds);
+        }
+        if($startDate && $endDate){
+            $qO->whereRaw('order_datetime::DATE >= ? && order_datetime::date <= ?',[$startDate,$endDate]);
         }
         $orders = $qO->get();
         foreach($orders as $order){

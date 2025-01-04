@@ -1046,6 +1046,7 @@ class TransactionService
     public function updateDeliveryPackage(Request $req,$type,$user){
         $id = $req->id;
         $validate = validator($req->all(),[
+            'remarks' => 'nullable|string|max:250',
             'cod' => 'required|in:1,0',
             'price' => 'nullable|numeric',
             'payer' => 'required|in:receiver,sender',
@@ -1055,7 +1056,7 @@ class TransactionService
         $inputs = $validate->validated();
         $package = Package::fromRaw('packages as p')->where('p.company_id',$user->company_id)
         // ->leftJoin('payments as dpmt',$joinCallback)
-        ->selectRaw('p.extra_charge,p.id,p.taxi_fee,p.cod,p.payer,p.zone_code,p.price,p.billed_kg,p.actual_kg,p.driver_payment_id,p.merchant_payment_id,p.merchant_disbursement_id,p.driver_disbursement_id')
+        ->selectRaw('p.status_id,p.extra_charge,p.id,p.taxi_fee,p.cod,p.payer,p.zone_code,p.price,p.billed_kg,p.actual_kg,p.driver_payment_id,p.merchant_payment_id,p.merchant_disbursement_id,p.driver_disbursement_id')
         ->where('p.id',$id)->first();
         if(!$package) return DataResponse::NotFound(__('messages.not_found',[
             'info' => 'Package'
@@ -1071,9 +1072,13 @@ class TransactionService
         $extraCharge = $inputs['extra_charge'] ?? $package->extra_charge;
         $taxi_fee = $inputs['taxi_fee'] ?? $package->taxi_fee;
         $price = $inputs['price'] ?? $package->price;
+        if($package->status_id == 19){
+            $price = 0;
+            $taxi_fee = 0;
+        }
         $calFee = GeneralSettingService::calculatePackageFee($package->zone_code,$price,$package->billed_kg,$package->actual_kg,$payer,$cod,$extraCharge,$user,$taxi_fee,$package->merchant_id);
         if($calFee->error) return $calFee;
-        $inputs['driver_total'] = ($package->status_id == 19 && $package->cod) ? abs($price - $calFee->driver_total):$calFee->driver_total;
+        $inputs['driver_total'] = $calFee->driver_total; //($package->status_id == 19 && $package->cod) ? abs($price - $calFee->driver_total):
         $inputs['merchant_total'] = $calFee->merchant_total;
         $package->update($inputs);
         return DataResponse::JsonResult(null,false ,__('messages.updated',[

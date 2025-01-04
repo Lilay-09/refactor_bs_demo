@@ -205,12 +205,16 @@ class PackageTrailController extends Controller
         ]));
         $package = Package::where('company_id',$user->company_id)->where('is_deleted',0)->where('outstanding',0)->find($id);
         if(!$package) return ApiResponse::NotFound(trans('messages.not_found',['info' => 'Package','khInfo' => 'កញ្ចប់​']));
-        if(!in_array($package->status_id,[5,10])) return ApiResponse::ValidateFail(__('messages.info',[
+        if(!in_array($package->status_id,[5,10,19])) return ApiResponse::ValidateFail(__('messages.info',[
             'info' => 'Only failed package or at warehouse can be returned'
         ]));
+        $statusId = 11;
+        if($package->status_id == 19){
+            $statusId = 19;
+        }
         $package->update([
             'returned_uid' => $driverId,
-            'status_id' => 11, // returned
+            'status_id' => $statusId, // returned
             'returned_datetime' => now(),
             'update_uid' => $user->id,
         ]);

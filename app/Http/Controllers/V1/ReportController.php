@@ -785,9 +785,7 @@ class ReportController extends Controller
                         ->whereNotNull('p.failed_datetime');
             });
         })
-        ->with('status')
-        ->selectRaw('p.status_id,p.id,p.qr_code,p.delivered_datetime,p.failed_datetime,p.delivery_remarks,p.remarks,p.taxi_fee,p.extra_charge,p.delivery_fee,p.cod,p.price,p.payer
-        ,p.receiver_phone,p.receiver_name,p.receiver_address,p.delivery_remarks');
+        ->with('status');
         if($startDate && $endDate){
             $qP->whereRaw('p.failed_datetime::DATE >= ? AND p.failed_datetime::DATE <= ? OR p.delivered_datetime::DATE >= ? AND p.delivered_datetime::DATE <= ?', [$startDate, $endDate,$startDate, $endDate]);
         }
@@ -795,7 +793,10 @@ class ReportController extends Controller
         $packages = $qP->whereIn('status_id',[9,10,19])
         ->leftJoin('payments as pmt', 'p.merchant_payment_id', '=', 'pmt.id')
         ->leftJoin('disbursements as dis', 'p.merchant_disbursement_id', '=', 'dis.id')
-        ->orderByRaw('DATE(p.failed_datetime) DESC,DATE(p.delivered_datetime) DESC')->get();
+        ->orderByRaw('DATE(p.failed_datetime) DESC,DATE(p.delivered_datetime) DESC')
+        ->selectRaw('p.remarks,p.delivery_remarks,p.status_id,p.id,p.qr_code,p.delivered_datetime,p.failed_datetime,p.delivery_remarks,p.remarks,p.taxi_fee,p.extra_charge,p.delivery_fee,p.cod,p.price,p.payer
+        ,p.receiver_phone,p.receiver_name,p.receiver_address,p.delivery_remarks,CASE WHEN p.merchant_disbursement_id IS NOT NULL THEN dis.approved WHEN p.merchant_payment_id IS NOT NULL THEN pmt.approved ELSE FALSE END AS approved')
+        ->get();
         $groupedPackages = collect($packages)->map(function ($item) use (&$grand)  {
             $finishDate = $item->failed_datetime;
             if($item->status_id == 9) $finishDate = $item->delivered_datetime;
@@ -811,6 +812,8 @@ class ReportController extends Controller
                 $item->finished_date = $item->failed_datetime ? Helper::dateDMY($item->failed_datetime): Helper::dateDMY($item->delivered_datetime);
                 $finished_time = $item->failed_datetime ? Helper::formatCustomDateTime($item->failed_datetime,'h:i:s A'):Helper::formatCustomDateTime($item->delivered_datetime,'h:i:s A');
                 $item->finished_time = $finished_time;
+                $item->payment_status = 'Pending';
+                if($item->approved) $item->payment_status = 'Paid';
                 $total = ($item->cod && !in_array($item->status_id,[11,19])) ? $item->price : 0;
                 if($item->payer == 'sender' && $item->status_id != 11) $total -= $item->delivery_fee + $item->extra_charge + $item->taxi_fee;
                 $item->total = $total;

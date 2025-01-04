@@ -68,7 +68,7 @@ class GeneralSettingController extends Controller
     }
 
     public function getOptionsMerchantOrder(Request $req){
-        return ApiResponse::JsonResult($this->gs::optionMerchantOrder($req->id,[5]));
+        return ApiResponse::JsonResult($this->gs::optionMerchantOrder($req->id,$req->startDate,$req->endDate,[5]));
     }
 
     public function getOptionsChannel(){
