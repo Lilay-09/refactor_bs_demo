@@ -65,6 +65,7 @@ class ApiResponse
     }
     static function Pagination($data,$filter=null,$message=null,$additionalKey=[],$limit=1000){
         $filter = (object)$filter;
+        // Log::error(json_encode($filter->all()));
         $perPage = isset($filter->per_page) ? ($filter->per_page == 0 ? 1:$filter->per_page) : 10;
         $currentPage = isset($filter->page_no) ? $filter->page_no : 1;
         $skip_row = $perPage * ($currentPage - 1);

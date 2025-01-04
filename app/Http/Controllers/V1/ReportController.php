@@ -32,11 +32,11 @@ class ReportController extends Controller
         $user = UserService::getAuthUser();
         $startDate = $req->startDate;
         $endDate = $req->endDate;
-        $qORder = Order::whereNotNull('driver_id')->with(['merchant','driver'])
+        $qO = Order::whereNotNull('driver_id')->with(['merchant','driver'])
         ->where('status_id',5)
         ->where('company_id',$user->company_id)
         ->selectRaw('merchant_id,code,product_type,pickup_address,qty,vehicle_type,driver_id');
-        $orders = $qORder->get();
+        $orders = $qO->orderByDesc('id')->get();
         foreach($orders as $order){
             $order->product_type = $order->product_type ? $order->product_type : 'Others';
             $order->merchant_name = $order->merchant->user_name;
@@ -845,11 +845,11 @@ class ReportController extends Controller
                 $finished_time = $item->failed_datetime ? Helper::formatCustomDateTime($item->failed_datetime,'h:i:s A'):Helper::formatCustomDateTime($item->delivered_datetime,'h:i:s A');
                 $item->finished_time = $finished_time;
                 $isCal = in_array($item->status_id,[9,19]);
-                $item->price = ($item->cod && $isCal) ? $item->price:0;
+                $item->price = $item->cod ? $item->price:0;
                 $total = $item->cod ? $item->price : 0;
                 if($item->payer == 'sender') {
-                    $total -= $item->delivery_fee + $item->extra_charge + $item->taxi_fee;
                     $item->delivery_fee = $isCal ? ($item->delivery_fee + $item->extra_charge) : 0;
+                    $total -= $item->delivery_fee + $item->extra_charge + $item->taxi_fee;
                 }else $item->delivery_fee = 0;
                 $item->total = $isCal ? $total : 0;
                 if(in_array($item->status_id,[9,19])) $grand += number_format($total,2);
