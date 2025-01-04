@@ -880,7 +880,7 @@ class ReportController extends Controller
                 'total' => [
                     'cod' => $group->where('status_id','!=',19)->where('cod',1)->sum('price'),
                     'taxi' => $group->where('status_id','!=',19)->sum('taxi_fee'),
-                    'delivery_fee' => $totalDeliveryFee,
+                    'delivery_fee' => number_format($totalDeliveryFee,2),
                     'grand' => number_format($grand,2)
                 ],
             ];
