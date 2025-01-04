@@ -13,6 +13,7 @@ use App\Models\DeliveryPackage;
 use App\Models\District;
 use App\Models\ExchangeRate;
 use App\Models\MerchantPriceList;
+use App\Models\Order;
 use App\Models\PriceList;
 use App\Models\PriceListname;
 use App\Models\PriceListZone;
@@ -24,6 +25,7 @@ use App\Models\VehicleType;
 use App\Models\Warehouse;
 use App\Models\Zone;
 use DataResponse;
+use Helper;
 // use Log;
 
 
@@ -33,6 +35,14 @@ class GeneralSettingService
     protected static $deliveryTypes = [
         // ['value' => 'fast','label' => 'Fast'],
         ['value' => 'normal','label' => 'Normal'],
+    ];
+
+    public static $statusCodeTrans = [
+        6 => 'កំពុងដឹក',
+        9 => 'ជេាគជ័យ',
+        10 => 'បរាជ័យ',
+        11 => 'ត្រឡប់ទៅហាង',
+        19 => 'បរាជ័យមានសេវា'
     ];
 
     public static $channels = [
@@ -488,6 +498,22 @@ class GeneralSettingService
             'sell_rate' => 4000
         ];
         return $xRate;
+    }
+
+    public static function optionMerchantOrder($merchant_id,$statusIds=[]){
+        if(!$merchant_id) return [];
+        $qO = Order::where('is_deleted',0)
+        ->where('merchant_id',$merchant_id)
+        ->selectRaw('code,id,qty,order_datetime');
+        if(!empty($statusIds)){
+            $qO->whereIn('status_id',$statusIds);
+        }
+        $orders = $qO->get();
+        foreach($orders as $order){
+            $order->order_ref = $order->code.' | '.Helper::formatCustomDateTime($order->order_datetime);
+        }
+
+        return $orders;
     }
 
     public static function updateTripStatus($id,$user): void{

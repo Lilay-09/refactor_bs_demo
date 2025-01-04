@@ -188,9 +188,11 @@ class HomeScreenController extends Controller
         $packages = $qP->get();
         foreach($packages as $p){
             $p->date = $p->assign_driver_datetime;
-            $p->delivery_fee = 0;
+            $p->delivery_fee = "0";
+            // $p->extra_charge = (float)$p->extra_charge;
+            // $p->price = (float)$p->price;
             if($p->payer == 'receiver'){
-                $p->delivery_fee = $p->base_fee + $p->extra_charge;
+                $p->delivery_fee = (string)$p->base_fee + $p->extra_charge;
             }
             if($p->status_id == 9) $p->date = $p->delivered_datetime;
             if($p->status_id == 10 || $p->status_id == 19) $p->date = $p->failed_datetime;

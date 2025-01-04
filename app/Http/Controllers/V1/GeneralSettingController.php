@@ -67,6 +67,10 @@ class GeneralSettingController extends Controller
         return ApiResponse::JsonResult($obj);
     }
 
+    public function getOptionsMerchantOrder(Request $req){
+        return ApiResponse::JsonResult($this->gs::optionMerchantOrder($req->id,[5]));
+    }
+
     public function getOptionsChannel(){
         return ApiResponse::JsonResult($this->gs::optionChannels());
     }

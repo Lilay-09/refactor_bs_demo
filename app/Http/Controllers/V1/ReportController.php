@@ -775,23 +775,33 @@ class ReportController extends Controller
         }
 
         $merchantInfo->exchange_rate = $xRate;
-        $qP = Package::where('is_deleted',0)->where('merchant_id',$merchantId)
+        $qP = Package::from('packages as p')->where('p.is_deleted',0)->where('p.merchant_id',$merchantId)
         ->where(function ($q) {
-            $q->whereNotNull('failed_datetime')->orWhereNotNull('delivered_datetime');
+            $q->where(function ($subQuery) {
+                $subQuery->where('p.status_id', 9)
+                        ->whereNotNull('p.delivered_datetime');
+            })->orWhere(function ($subQuery) {
+                $subQuery->where('p.status_id', '!=', 9)
+                        ->whereNotNull('p.failed_datetime');
+            });
         })
         ->with('status')
-        ->selectRaw('status_id,id,qr_code,delivered_datetime,failed_datetime,delivery_remarks,remarks,taxi_fee,extra_charge,delivery_fee,cod,price,payer,receiver_phone,receiver_name,receiver_address,delivery_remarks');
-
+        ->selectRaw('p.status_id,p.id,p.qr_code,p.delivered_datetime,p.failed_datetime,p.delivery_remarks,p.remarks,p.taxi_fee,p.extra_charge,p.delivery_fee,p.cod,p.price,p.payer
+        ,p.receiver_phone,p.receiver_name,p.receiver_address,p.delivery_remarks');
         if($startDate && $endDate){
-            $qP->whereRaw('failed_datetime::DATE >= ? AND failed_datetime::DATE <= ? OR delivered_datetime::DATE >= ? AND delivered_datetime::DATE <= ?', [$startDate, $endDate,$startDate, $endDate]);
+            $qP->whereRaw('p.failed_datetime::DATE >= ? AND p.failed_datetime::DATE <= ? OR p.delivered_datetime::DATE >= ? AND p.delivered_datetime::DATE <= ?', [$startDate, $endDate,$startDate, $endDate]);
         }
         $grand = 0;
-        $packages = $qP->whereIn('status_id',[9,10,19])->orderByRaw('DATE(failed_datetime) DESC,DATE(delivered_datetime) DESC')->get();
+        $packages = $qP->whereIn('status_id',[9,10,19])
+        ->leftJoin('payments as pmt', 'p.merchant_payment_id', '=', 'pmt.id')
+        ->leftJoin('disbursements as dis', 'p.merchant_disbursement_id', '=', 'dis.id')
+        ->orderByRaw('DATE(p.failed_datetime) DESC,DATE(p.delivered_datetime) DESC')->get();
         $groupedPackages = collect($packages)->map(function ($item) use (&$grand)  {
             $finishDate = $item->failed_datetime;
             if($item->status_id == 9) $finishDate = $item->delivered_datetime;
             $item->groupDate = Helper::dateDMY($finishDate);
-            $item->status_code = $item->status->name;
+            // $item->status_code = $item->status->name;
+            $item->status_code = GeneralSettingService::$statusCodeTrans[$item->status_id] ?? '';
             unset($item->status);
             return $item;
         })->groupBy('groupDate')
@@ -801,8 +811,8 @@ class ReportController extends Controller
                 $item->finished_date = $item->failed_datetime ? Helper::dateDMY($item->failed_datetime): Helper::dateDMY($item->delivered_datetime);
                 $finished_time = $item->failed_datetime ? Helper::formatCustomDateTime($item->failed_datetime,'h:i:s A'):Helper::formatCustomDateTime($item->delivered_datetime,'h:i:s A');
                 $item->finished_time = $finished_time;
-                $total = $item->cod ? $item->price : 0;
-                if($item->payer == 'sender') $total -= $item->delivery_fee + $item->extra_charge + $item->taxi_fee;
+                $total = ($item->cod && !in_array($item->status_id,[11,19])) ? $item->price : 0;
+                if($item->payer == 'sender' && $item->status_id != 11) $total -= $item->delivery_fee + $item->extra_charge + $item->taxi_fee;
                 $item->total = $total;
                 $grand += $total;
 
@@ -853,7 +863,6 @@ class ReportController extends Controller
                     $startDate, $endDate  // For returned_datetime
                 ]
             );
-
         }
 
         $packages = $pQ->get();
@@ -862,7 +871,7 @@ class ReportController extends Controller
             "5.1" => ['title' => 'ចំនួនកញ្ចប់​ចូលថ្មី', 'count' => 0, 'total' => 0],
             "5.2" => ['title' => 'ចំនួនកញ្ចប់សរុប',"count" => 0, 'total' => 0],
             9 => ['title' => 'ជោគជ័យ', 'count' => 0, 'total' => 0],
-            6 => ['title' => 'បន្តដឹក', 'count' => 0, 'total' => 0],
+            6 => ['title' => 'កំពុងដឹក', 'count' => 0, 'total' => 0],
             10 => ['title' => 'បរាជ័យ', 'count' => 0, 'total' => 0],
             19 => ['title' => 'បរាជ័យគិតសេវា', 'count' => 0, 'total' => 0],
             11 => ['title' => 'ត្រឡប់ទៅហាងវិញ', 'count' => 0, 'total' => 0],
@@ -880,6 +889,7 @@ class ReportController extends Controller
                 $pkgInfo[$statusId.'.2']['count'] = $pkgInfo[$statusId.'.1']['count'] + $pkgInfo[$statusId]['count'];
                 $pkgInfo[$statusId.'.2']['total'] = $pkgInfo[$statusId.'.1']['total'] + $pkgInfo[$statusId]['total'];
             }
+
 
             // if($p->status_id == 5){
             //     $statusId = $p->status_id.'.1';

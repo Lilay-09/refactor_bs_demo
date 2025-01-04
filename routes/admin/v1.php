@@ -188,7 +188,9 @@ Route::middleware(['jwt','localize'])->prefix('admin/v1/{lang}')->group(function
         Route::put('{id}/driver/{driver_id}',[PackageTrailController::class,'assignDriver']);
         Route::delete('{id}',[PackageTrailController::class,'deletePackage']);
         Route::put('/{id}/return',[PackageTrailController::class,'returnPackage']);
-        Route::get('/{id}/print',[PackageTrailController::class,'getPrintInfo']);
+        Route::post('/list/print',[PackageTrailController::class,'getPackagesPrintInfo']);
+        Route::get('/{id}/print',[PackageTrailController::class,'getPrintInfo'])->where('id', '[0-9]+');
+
     });
 
     //** End Pickup Center */
@@ -368,6 +370,7 @@ Route::middleware(['jwt','localize'])->prefix('admin/v1/{lang}')->group(function
 
     Route::prefix('setting')->group(function(){
         Route::prefix('option')->group(function(){
+            Route::get('merchant/{id}/order',[GeneralSettingController::class,'getOptionsMerchantOrder']);
             Route::get('operator',[GeneralSettingController::class,'getOptionsOperator']);
             Route::get('channel',[GeneralSettingController::class,'getOptionsChannel']);
             Route::get('zone',[GeneralSettingController::class,'getOptionsZone']);

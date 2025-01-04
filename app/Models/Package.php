@@ -10,11 +10,21 @@ class Package extends Model
 {
     use HasFactory;
     protected $table = 'packages';
+    // protected $casts = [
+    //     'price' => 'float',
+    //     'extra_charge' => 'float',
+    //     'additional_fee' => 'float',
+    //     'delivery_fee' => 'float',
+    //     'taxi_fee' => 'float',
+    //     'base_fee' => 'float',
+    //     'driver_total' => 'float',
+    // ];
     protected $fillable = [
         'id',
         'qr_code',
         'package_name',
         'product_type',
+        'returned_uid',
         'price',
         'dim_x',
         'taxi_fee',
@@ -127,6 +137,10 @@ class Package extends Model
 
     public function driver(){
         return $this->belongsTo(User::class,'driver_id','id');
+    }
+
+    public function returnUser(){
+        return $this->belongsTo(User::class,'returned_uid','id');
     }
 
     public function merchant(){

@@ -43,6 +43,7 @@ class CompletedPackageController extends Controller
             ELSE 'No Payment/Disbursement'
         END as merchant_status";
         $qP = Package::from('packages as p')->where('p.company_id',$user->company_id)
+        ->with('returnUser')
         ->leftJoin('users as d','d.id','p.driver_id')
         ->join('tracking_statuses as ts','ts.id','p.status_id')
         ->join('orders as o','o.id','p.order_id')
@@ -77,14 +78,11 @@ class CompletedPackageController extends Controller
         //** --------- */
         $packages = $qP->get();
         foreach($packages as $pkg){
-            if($pkg->status_id == 9 || $pkg->status_id == 19){
-                // if($pkg->approved_driver_pmt) $pkg->driver_pmt_status = 'Paid';
-                // else $pkg->driver_pmt_status = 'Unpaid';
-                // if($pkg->approved_merchant_pmt) $pkg->merhchant_pmt_status = 'Paid';
-                // else $pkg->merhchant_pmt_status = 'Unpaid';
+            if($pkg->returnUser){
+                $pkg->driver_name = $pkg->returnUser->user_name;
             }
             $pkg->total = number_format(abs($pkg->driver_total - $pkg->merchant_total),2);
-            // if($p->driver_disbursement_id || $p->driver_disbursement_id)
+            unset($pkg->returnUser);
         }
         return ApiResponse::Pagination($packages,$req,null,[]);
     }
