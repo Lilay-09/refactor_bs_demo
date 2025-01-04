@@ -749,7 +749,6 @@ class ReportController extends Controller
         $startDate = $req->startDate ? Helper::dateDMY($req->startDate) : null;
         $endDate = $req->endDate ? Helper::dateDMY($req->endDate) : null;
         $merchantId = $req->merchant_id;
-        $summary = $this->getMerchantSummaryHeader($merchantId,$startDate,$endDate);
         $merchantInfo = User::where('is_deleted',0)->where('account_type','merchant')
         ->selectRaw('id,user_name as merchant_name,phone as merchant_phone,address')->find($merchantId);
         if(!$merchantInfo) return ApiResponse::NotFound('Please select a merchant to view this report');
@@ -780,8 +779,7 @@ class ReportController extends Controller
         $pmtCase = ',CASE WHEN p.merchant_disbursement_id IS NOT NULL THEN dis.approved WHEN p.merchant_payment_id IS NOT NULL THEN pmt.approved ELSE FALSE END AS approved';
         $qP = Package::from('packages as p')->where('p.is_deleted',0)
         ->where('p.merchant_id',$merchantId)
-        // ->whereIn('p.status_id',[5,6,9,10,19])
-        ->orderByDesc('p.id')
+        ->whereIn('p.status_id',[5,6,9,10,11,19])
         ->with('status')
         ->leftJoin('payments as pmt', function ($join) use($merchantId) {
             $join->on('p.merchant_payment_id', '=', 'pmt.id')
@@ -793,9 +791,8 @@ class ReportController extends Controller
                 ->where('dis.payee_id',$merchantId)
                 ->where('dis.payee_type', '=', 'merchant')->where('dis.type','payment'); // Add merchant filter
         })
-        ->orderByRaw('DATE(p.failed_datetime) DESC,DATE(p.delivered_datetime) DESC')
-        ->selectRaw('p.merchant_id,p.remarks,p.delivery_remarks,p.status_id,p.id,p.qr_code,p.delivered_datetime,p.failed_datetime,p.delivery_remarks,p.remarks,p.taxi_fee,p.extra_charge,p.delivery_fee,p.cod,p.price,p.payer,
-        p.arrive_warehouse_datetime,p.assign_driver_datetime,p.receiver_phone,p.receiver_name,p.receiver_address,p.delivery_remarks'.$pmtCase);
+        ->selectRaw('p.merchant_total,p.merchant_id,p.remarks,p.delivery_remarks,p.status_id,p.id,p.qr_code,p.delivered_datetime,p.failed_datetime,p.delivery_remarks,p.remarks,p.taxi_fee,p.extra_charge,p.delivery_fee,p.cod,p.price,p.payer,
+        p.returned_datetime,p.arrive_warehouse_datetime,p.assign_driver_datetime,p.receiver_phone,p.receiver_name,p.receiver_address,p.delivery_remarks'.$pmtCase);
         if($startDate && $endDate){
             $qP->where(function($q) use ($startDate,$endDate){
                 $q->whereRaw('
@@ -815,12 +812,25 @@ class ReportController extends Controller
             });
         }
         $grand = 0;
-        $packages = $qP->get();
+        $packages = $qP->orderByRaw('
+            CASE
+                WHEN p.status_id = ? THEN 1
+                WHEN p.status_id = ? THEN 2
+                WHEN p.status_id = ? THEN 3
+                WHEN p.status_id = ? THEN 4
+                WHEN p.status_id = ? THEN 5
+                WHEN p.status_id = ? THEN 6
+                ELSE 7
+            END', [9, 19, 11, 6, 10, 5]
+        )->orderByRaw('DATE(p.failed_datetime) DESC,DATE(p.delivered_datetime) DESC')->get();
+        $summary = $this->getMerchantSummaryHeader($packages,$merchantId,$startDate,$endDate);
         $groupedPackages = collect($packages)->map(function ($item) use (&$grand)  {
             $finishDate = $item->failed_datetime;
             if($item->status_id == 9) $finishDate = $item->delivered_datetime;
             if($item->status_id == 5) $finishDate = $item->arrive_warehouse_datetime;
             if($item->status_id == 6) $finishDate = $item->assign_driver_datetime;
+            if($item->status_id == 10 || $item->status_id == 19) $finishDate = $item->failed_datetime;
+            if($item->status_id == 11) $finishDate = $item->returned_datetime;
             $item->groupDate = Helper::dateDMY($finishDate);
             unset($item->status);
             return $item;
@@ -831,11 +841,12 @@ class ReportController extends Controller
                 $item->finished_date = $item->failed_datetime ? Helper::dateDMY($item->failed_datetime): Helper::dateDMY($item->delivered_datetime);
                 $finished_time = $item->failed_datetime ? Helper::formatCustomDateTime($item->failed_datetime,'h:i:s A'):Helper::formatCustomDateTime($item->delivered_datetime,'h:i:s A');
                 $item->finished_time = $finished_time;
-
-                $item->price = $item->cod ? $item->price:0;
-                $total = ($item->cod && !in_array($item->status_id,[11,19])) ? $item->price : 0;
-                if($item->payer == 'sender' && $item->status_id != 11) $total -= $item->delivery_fee + $item->extra_charge + $item->taxi_fee;
-                $item->total = $total;
+                $isCal = in_array($item->status_id,[9,19]);
+                $item->price = ($item->cod && $isCal) ? $item->price:0;
+                $total = $item->cod ? $item->price : 0;
+                if($item->payer == 'sender') $total -= $item->delivery_fee + $item->extra_charge + $item->taxi_fee;
+                $item->total = $isCal ? $total : 0;
+                $item->delivery_fee = $isCal ? $item->delivery_fee : 0;
                 if(in_array($item->status_id,[9,19])) $grand += number_format($total,2);
                 if($isKm) {
                     $item->status_code = GeneralSettingService::$statusCodeTrans[$item->status_id] ?? '';
@@ -867,7 +878,7 @@ class ReportController extends Controller
                         ->sum(function ($item) {
                             return $item->delivery_fee + $item->extra_charge;
                         }) ?? 0,
-                    'grand' => $grand
+                    'grand' => number_format($grand,2)
                 ],
             ];
         })->values();
@@ -883,31 +894,31 @@ class ReportController extends Controller
         return ApiResponse::JsonResult($obj);
     }
 
-    private function getMerchantSummaryHeader($merchantId,$startDate,$endDate){
-        $pQ = Package::where('is_deleted',0)->where('outstanding',0)
-        ->whereIn('status_id',[5,6,9,10,11,19])
-        ->where('merchant_id',$merchantId);
+    private function getMerchantSummaryHeader($packages,$merchantId,$startDate,$endDate){
+        // $pQ = Package::where('is_deleted',0)->where('outstanding',0)
+        // ->whereIn('status_id',[5,6,9,10,11,19])
+        // ->where('merchant_id',$merchantId);
 
-        if($startDate && $endDate){
-            $pQ->where(function($q) use($startDate,$endDate){
-                $q->whereRaw('
-                (arrive_warehouse_datetime::DATE >= ? AND arrive_warehouse_datetime::DATE <= ?) OR
-                (assign_driver_datetime::DATE >= ? AND assign_driver_datetime::DATE <= ?) OR
-                (failed_datetime::DATE >= ? AND failed_datetime::DATE <= ?) OR
-                (delivered_datetime::DATE >= ? AND delivered_datetime::DATE <= ?) OR
-                (returned_datetime::DATE >= ? AND returned_datetime::DATE <= ?)',
-                [
-                    $startDate, $endDate, // For arrive_warehouse_datetime
-                    $startDate, $endDate, // For assign_driver_datetime
-                    $startDate, $endDate, // For failed_datetime
-                    $startDate, $endDate, // For delivered_datetime
-                    $startDate, $endDate  // For returned_datetime
-                ]
-            );
-            });
-        }
+        // if($startDate && $endDate){
+        //     $pQ->where(function($q) use($startDate,$endDate){
+        //         $q->whereRaw('
+        //         (arrive_warehouse_datetime::DATE >= ? AND arrive_warehouse_datetime::DATE <= ?) OR
+        //         (assign_driver_datetime::DATE >= ? AND assign_driver_datetime::DATE <= ?) OR
+        //         (failed_datetime::DATE >= ? AND failed_datetime::DATE <= ?) OR
+        //         (delivered_datetime::DATE >= ? AND delivered_datetime::DATE <= ?) OR
+        //         (returned_datetime::DATE >= ? AND returned_datetime::DATE <= ?)',
+        //         [
+        //             $startDate, $endDate, // For arrive_warehouse_datetime
+        //             $startDate, $endDate, // For assign_driver_datetime
+        //             $startDate, $endDate, // For failed_datetime
+        //             $startDate, $endDate, // For delivered_datetime
+        //             $startDate, $endDate  // For returned_datetime
+        //         ]
+        //     );
+        //     });
+        // }
 
-        $packages = $pQ->get();
+        // $packages = $pQ->get();
         $pkgInfo = [
             5 => ['title' => 'ចំនួនកញ្ចប់ដែលនៅសល់', 'count' => 0,'total' => 0],
             "5.1" => ['title' => 'ចំនួនកញ្ចប់​ចូលថ្មី', 'count' => 0, 'total' => 0],
