@@ -297,11 +297,11 @@ class HomeScreenController extends Controller
         }
 
         if(isset($details[0])){
-            $detailsCount = count($details);
-            if($qty < $detailsCount) return ApiResponse::ValidateFail(__('messages.info',[
-                'info' => 'Your details is greater than quantity',
-                'khInfo' => 'ចំនួនកញ្ចប់និងទិន្នន័យកញ្ចប់មិនត្រូវគ្នា, ទិន្នន័យបញ្ចូលលើសចំនួនសរុប'
-            ]));
+            // $detailsCount = count($details);
+            // if($qty < $detailsCount) return ApiResponse::ValidateFail(__('messages.info',[
+            //     'info' => 'Your details is greater than quantity',
+            //     'khInfo' => 'ចំនួនកញ្ចប់និងទិន្នន័យកញ្ចប់មិនត្រូវគ្នា, ទិន្នន័យបញ្ចូលលើសចំនួនសរុប'
+            // ]));
             foreach($details as $d){
                 $d['merchant_id'] = $order->merchant_id;
                 $rD = new Request($d);
