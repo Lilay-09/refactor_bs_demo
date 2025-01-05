@@ -332,7 +332,7 @@ class PackageTrailController extends Controller
                     // $createOrUpdate = $fleet->createOrUpdateTripService($fleetArr,$user,[6]);
                     // if($createOrUpdate->error) return ApiResponse::flex($createOrUpdate);
                 }
-                $selfTrip = Delivery::where('driver_id',$package->driver_id)->where('finished',0)->orderByDesc('id')->first();
+                $selfTrip = Delivery::where('driver_id',$package->driver_id)->where('status_id',14)->where('finished',0)->orderByDesc('id')->first();
                 //** remove self pacakge */
                 if($selfTrip && $driver_id != $package->driver_id){
                     $selfTrip->update([

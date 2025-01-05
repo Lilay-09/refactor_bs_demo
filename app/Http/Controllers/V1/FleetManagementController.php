@@ -253,48 +253,59 @@ class FleetManagementController extends Controller
         if($package->status_id != 6) return ApiResponse::ValidateFail(__('messages.info',[
             'info' => 'Only delivery package can be kicked from trip'
         ]));
-        $fleetNumber = Delivery::where('id',$trip_id)->take(1)->value('fleet_tracking_number');
-        $trackingNotes = $package->tracking_notes."|[$user->id]Admin('.$user->user_name) remove package from Driver($driverName) at ($todayDT) on fleet number $fleetNumber";
-        $package->update([
-            'driver_id' => null,
-            'kick_uid' => $user->id,
-            'kick_reason' => $kickReason,
-            'status_id' => 5,
-            'kick_notes' => $package->kick_notes."|[$user->id]$user->user_name remove package from Driver($driverName) at ($todayDT) on fleet number $fleetNumber",
-            'tracking_notes' => $trackingNotes
-        ]);
-        $deliveryPackage->update([
-            'deleted_datetime' => now(),
-            'deleted_uid' => $user->id,
-            'is_deleted' => true,
-            'kick_uid' => $user->id,
-            'kick_reason' => $kickReason,
-            'kick_notes' => $package->kick_notes."|[$user->id]$user->user_name remove package from Driver($driverName) at ($todayDT) on fleet number $fleetNumber",
-            'notes' => $deliveryPackage->notes."|[$user->id]-Admin('.$user->user_name) remove package from Driver($driverName) at ($todayDT) on fleet number $fleetNumber"
-        ]);
-
-        Delivery::find($trip_id)->update([
-            'package_count' =>  DB::raw('package_count - 1'),
-        ]);
-
-        $trip = Delivery::find($trip_id);
-        if($trip){
-            $onDeliveryCount = $trip->package_count - ($trip->delivered_count + $trip->failed_count);
-            if($onDeliveryCount == 0) $trip->update([
-                'finished' => 1,
-                'is_completed' => 1,
+        DB::beginTransaction();
+        try{
+            $fleetNumber = Delivery::where('id',$trip_id)->take(1)->value('fleet_tracking_number');
+            $trackingNotes = $package->tracking_notes."|[$user->id]Admin('.$user->user_name) remove package from Driver($driverName) at ($todayDT) on fleet number $fleetNumber";
+            $package->update([
+                'driver_id' => null,
+                'kick_uid' => $user->id,
+                'kick_reason' => $kickReason,
+                'status_id' => 5,
+                'kick_notes' => $package->kick_notes."|[$user->id]$user->user_name remove package from Driver($driverName) at ($todayDT) on fleet number $fleetNumber",
+                'tracking_notes' => $trackingNotes
             ]);
-            if($trip->package_count == 0) $trip->update([
-                'is_deleted' => 1,
-                'deleted_uid' => $user->id,
+            $deliveryPackage->update([
                 'deleted_datetime' => now(),
-                'tracking_notes' => $trip->tracking_notes.'| Kick all packages out so this trip is deleted'
+                'deleted_uid' => $user->id,
+                'is_deleted' => true,
+                'kick_uid' => $user->id,
+                'kick_reason' => $kickReason,
+                'kick_notes' => $package->kick_notes."|[$user->id]$user->user_name remove package from Driver($driverName) at ($todayDT) on fleet number $fleetNumber",
+                'notes' => $deliveryPackage->notes."|[$user->id]-Admin('.$user->user_name) remove package from Driver($driverName) at ($todayDT) on fleet number $fleetNumber"
             ]);
-        }
 
-        return ApiResponse::JsonResult(null,__('messages.info',[
-            'info' => 'Package '.$package->qr_code.' has been removed from Driver'
-        ]));
+            Delivery::find($trip_id)->update([
+                'package_count' =>  DB::raw('package_count - 1'),
+            ]);
+
+            $trip = Delivery::find($trip_id);
+            if($trip){
+                $onDeliveryCount = $trip->package_count - ($trip->delivered_count + $trip->failed_count);
+                if($onDeliveryCount == 0) {
+                    $trip->update([
+                        'finished' => 1,
+                        'is_completed' => 1,
+                        'status_id' => 16
+                    ]);
+                    // Log::error(json_encode(Delivery::select('status_id','is_completed','finished')->find($trip_id)));
+                }
+                // Log::error($onDeliveryCount);
+                if($trip->package_count == 0) $trip->update([
+                    'is_deleted' => 1,
+                    'deleted_uid' => $user->id,
+                    'deleted_datetime' => now(),
+                    'tracking_notes' => $trip->tracking_notes.'| Kick all packages out so this trip is deleted'
+                ]);
+            }
+            DB::commit();
+            return ApiResponse::JsonResult(null,__('messages.info',[
+                'info' => 'Package '.$package->qr_code.' has been removed from Driver'
+            ]));
+        }catch(Exception $e){
+            DB::rollBack();
+            return ApiResponse::Error('Failed');
+        }
     }
 
     public function deleteTrip(Request $req){
