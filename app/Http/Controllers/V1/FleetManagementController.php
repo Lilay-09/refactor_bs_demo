@@ -164,7 +164,7 @@ class FleetManagementController extends Controller
         //     'khInfo' => 'កញ្ចប់'
         // ]));
         $delayMsg = '.';
-        if($tripPackage) $delayMsg = ', This package is delivered in trip number('.Delivery::where('id',$tripPackage->delivery_id).')';
+        if($tripPackage) $delayMsg = ', This package is delivered in trip number('.Delivery::where('id',$tripPackage->delivery_id)->value('fleet_tracking_number').')';
         if(!$delivery) return ApiResponse::NotFound(__('messages.not_found',['info' => 'Trip']));
         if(!$status_id || !in_array($status_id,[9,10,19])) return ApiResponse::ValidateFail(__('messages.not_found',['info' => 'Status']));
         $package = Package::where('company_id',$user->company_id)->where('is_deleted',0)
