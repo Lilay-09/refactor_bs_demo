@@ -269,6 +269,7 @@ class FleetManagementController extends Controller
                 'deleted_datetime' => now(),
                 'deleted_uid' => $user->id,
                 'is_deleted' => true,
+                'delay_count' => 1,
                 'kick_uid' => $user->id,
                 'kick_reason' => $kickReason,
                 'kick_notes' => $package->kick_notes."|[$user->id]$user->user_name remove package from Driver($driverName) at ($todayDT) on fleet number $fleetNumber",
