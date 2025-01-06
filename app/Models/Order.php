@@ -40,6 +40,7 @@ class Order extends Model
         'pickup_address_google_map',
         'driver_commission_id',
         'cancel_notes',
+        'cancel_uid',
         'booking_channel',
         'tracking_notes',
         'create_uid',

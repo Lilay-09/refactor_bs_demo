@@ -455,12 +455,13 @@ class HomeScreenController extends Controller
         if(!$order) return ApiResponse::NotFound(__('messages.not_found',[
             'info' => 'Order'
         ]));
-        if($order->status_id == 20) return ApiResponse::Duplicated(__('messages.info',[
-            'info' => 'Package has already been canceled'
-        ]));
+        // if($order->status_id == 20) return ApiResponse::Duplicated(__('messages.info',[
+        //     'info' => 'Package has already been canceled'
+        // ]));
         $order->update([
             'cancel_notes' => $reason,
-            'status_id' => 20 // canceled
+            'cancel_uid' => $user->id,
+            'status_id' => 1 // canceled
         ]);
         return ApiResponse::JsonResult(null,__('messages.canceled'));
     }
