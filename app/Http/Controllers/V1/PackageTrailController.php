@@ -111,7 +111,7 @@ class PackageTrailController extends Controller
             $package->driver_name = $driver->user_name;
         }
         $package->base_fee = $package->delivery_fee;
-        $package->delivery_fee = $package->delivery_fee + $package->extra_charge + $package->taxi + (($cod && $package->status_id !== 19) ? $package->price : 0);
+        $package->delivery_fee = $package->delivery_fee + $package->extra_charge + $package->taxi_fee;
         $package->warehouse_timeago = Helper::timeAgo($package->arrive_warehouse_datetime,false);
         unset($package->status,$package->driver);
         return ApiResponse::JsonResult($package);

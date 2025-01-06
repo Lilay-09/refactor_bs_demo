@@ -240,10 +240,11 @@ class GeneralSettingService
         return User::where('is_deleted',0)->where('delete_account',0)->where('account_type','driver')->orderByDesc('id')->find($id);
     }
 
-    public static function sumDeliveryFee($baseFee,$extraCharge,$payer){
+    public static function sumDeliveryFee($baseFee,$extraCharge,$taxi_fee,$payer){
         $total = 0;
-        if($payer == 'receiver') $total += $baseFee;
-        $total += $extraCharge;
+        if($payer == 'receiver') {
+            $total += $baseFee + $taxi_fee + $extraCharge;
+        }
         return $total;
     }
 
