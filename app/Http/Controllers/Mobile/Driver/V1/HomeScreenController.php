@@ -371,17 +371,17 @@ class HomeScreenController extends Controller
         if($validate->fails()) return ApiResponse::ValidateFail($validate->errors()->first());
         $inputs = $validate->validated();
         $status_id = $inputs['status_id'];
-        $amount = $inputs['amount'] ?? 0;
-        $inputs['price'] = $amount;
-        $inputs['cod'] = $amount > 0 ? true:false;
-        $codChange = $amount > 0 ? true:false;
-        $inputs['cod_changed'] = $codChange;
+        // $amount = $inputs['amount'] ?? 0;
+        // $inputs['price'] = $amount;
+        // $inputs['cod'] = $amount > 0 ? true:false;
+        // $codChange = $amount > 0 ? true:false;
+        // $inputs['cod_changed'] = $codChange;
         $photos = $inputs['images'] ?? null;
         $deliveryRemarks = $inputs['delivery_remarks'] ?? null;
         $payer = $inputs['payer'] ?? null;
-        if($codChange){
-            $inputs['driver_total'] = $amount;
-        }
+        // if($codChange){
+        //     $inputs['driver_total'] = $amount;
+        // }
 
         $package = Package::where('is_deleted',0)->find($id);
         if(!$package) return ApiResponse::NotFound(__('messages.not_found',[
@@ -409,9 +409,9 @@ class HomeScreenController extends Controller
         $driverName = $user->user_name;
         $statusCode = $status_id == 9 ? 'Delivered' : ($status_id == 10 ? 'Failed':($status_id == 19 ? 'Failed with fee':''));
         $inputs['tracking_notes'] = $package->tracking_notes."|[$user->id]Driver ($driverName) submit $statusCode ($todayDt)[Remark: $deliveryRemarks]";
-        if($codChange && $package->price != $amount){
-            $inputs['tracking_notes'] .= "|[$user->id]Driver ($driverName) change cod $package->price to $amount ($todayDt)";
-        }
+        // if($codChange && $package->price != $amount){
+        //     $inputs['tracking_notes'] .= "|[$user->id]Driver ($driverName) change cod $package->price to $amount ($todayDt)";
+        // }
         if($status_id == 9) {
             $inputs['delivered_datetime'] = now();
             $inputs['delivery_remarks'] = $deliveryRemarks;

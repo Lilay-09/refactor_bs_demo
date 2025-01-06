@@ -93,15 +93,19 @@ class TransactionService
 
     public static function getPackageTotal($type,$cod,$price,$taxiFee,$extraCharge,$additionalFee,$baseFee,$payer){
         $total = 0;
-        $baseFee += $extraCharge;
+        // $baseFee += $extraCharge;
         if($type == 'driver'){
             if($cod) $total += $price;
-            if($payer == 'receiver') $total += $baseFee;
-            if($taxiFee) $total -= $taxiFee;
+            if($payer == 'receiver') {
+                $total += $baseFee + $extraCharge;
+            }
+            $total -= $taxiFee;
         }
         if($type == 'merchant'){
             if($cod) $total -= $price;
-            if($payer == 'sender') $total += $baseFee;
+            if($payer == 'sender') {
+                $total += $baseFee + $extraCharge;
+            }
             if($taxiFee) $total += $taxiFee;
         }
 
