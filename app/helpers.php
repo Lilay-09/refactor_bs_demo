@@ -179,72 +179,34 @@ class Helper{
         }
     }
 
-    // static function formatCustomDateTime($datetime, $outputFormat = 'd-M-Y h:i:s A', $useMeridiem = false) {
-    //     if (!$datetime) return null;
-
-    //     // Default timezone
-    //     $timezone = new DateTimeZone(date_default_timezone_get());
-
-    //     // Check for Indochina Time
-    //     if (strpos($datetime, 'Indochina Time') !== false) {
-    //         $datetime = str_replace('Indochina Time', '', $datetime);  // Remove the timezone text
-    //         $timezone = new DateTimeZone(config('app.timezone'));  // Set the timezone
-    //     }
-
-    //     // Parse the datetime
-    //     try {
-    //         $date = new DateTime(trim($datetime), $timezone);
-    //     } catch (Exception $e) {
-    //         return "Invalid datetime format";  // Return error if parsing fails
-    //     }
-
-    //     // If using meridiem (AM/PM), adjust the output format
-    //     if ($useMeridiem) {
-    //         // If it's 24-hour format, we need to convert it to 12-hour format
-    //         $outputFormat = str_replace('H', 'h', $outputFormat);  // Change 24-hour format to 12-hour format
-    //     }
-
-    //     // Return the formatted datetime string
-    //     return $date->format($outputFormat);
-    // }
     static function formatCustomDateTime($datetime, $outputFormat = 'd-M-Y h:i:s A', $useMeridiem = false) {
         if (!$datetime) return null;
 
         // Default timezone
         $timezone = new DateTimeZone(date_default_timezone_get());
 
-        // Handle timestamps
-        if (is_numeric($datetime)) {
-            try {
-                // Create DateTime from timestamp
-                $date = (new DateTime())->setTimestamp((int) $datetime)->setTimezone($timezone);
-            } catch (Exception $e) {
-                return "Invalid timestamp"; // Return error if parsing fails
-            }
-        } else {
-            // Check for Indochina Time
-            if (strpos($datetime, 'Indochina Time') !== false) {
-                $datetime = str_replace('Indochina Time', '', $datetime); // Remove the timezone text
-                $timezone = new DateTimeZone(config('app.timezone')); // Set the timezone
-            }
+        // Check for Indochina Time
+        if (strpos($datetime, 'Indochina Time') !== false) {
+            $datetime = str_replace('Indochina Time', '', $datetime);  // Remove the timezone text
+            $timezone = new DateTimeZone(config('app.timezone'));  // Set the timezone
+        }
 
-            // Parse the datetime string
-            try {
-                $date = new DateTime(trim($datetime), $timezone);
-            } catch (Exception $e) {
-                return "Invalid datetime format"; // Return error if parsing fails
-            }
+        // Parse the datetime
+        try {
+            $date = new DateTime(trim($datetime), $timezone);
+        } catch (Exception $e) {
+            return "Invalid datetime format";  // Return error if parsing fails
         }
 
         // If using meridiem (AM/PM), adjust the output format
         if ($useMeridiem) {
-            $outputFormat = str_replace('H', 'h', $outputFormat); // Change 24-hour format to 12-hour format
+            // If it's 24-hour format, we need to convert it to 12-hour format
+            $outputFormat = str_replace('H', 'h', $outputFormat);  // Change 24-hour format to 12-hour format
         }
 
         // Return the formatted datetime string
         return $date->format($outputFormat);
     }
-
 
 
 

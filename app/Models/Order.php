@@ -81,7 +81,7 @@ class Order extends Model
         return $this->belongsTo(TrackingStatus::class,'status_id','id');
     }
 
-    // public function getCreatedAtAttribute($value){
-    //     return \Carbon\Carbon::parse($value)->timezone(config('app.timezone'))->format('d-M-Y h:i:s A');
-    // }
+    public function getCreatedAtAttribute($value){
+        return \Carbon\Carbon::parse($value)->timezone(config('app.timezone'))->format('d-M-Y h:i:s A');
+    }
 }
