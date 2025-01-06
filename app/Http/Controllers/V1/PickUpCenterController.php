@@ -180,7 +180,7 @@ class PickUpCenterController extends Controller
         foreach($orders as $order){
             $order->created_user = $order->createdBy?->user_name;
             $order->order_date = Helper::dateDMY($order->order_datetime);
-            $order->created_at = Helper::formatCustomDateTime($order->created_at);
+            // $order->created_at = Helper::formatCustomDateTime($order->created_at);
             $order->order_time = Helper::formatCustomDateTime($order->order_datetime,'h:i:s A');
             $order->merchant_name = $order->merchant->user_name;
             $order->merchant_code = $order->merchant->code;

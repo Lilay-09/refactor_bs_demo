@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Delivery;
 use App\Models\DeliveryPackage;
 use App\Models\Package;
+use App\Models\PackageAttachment;
 use App\Models\Zone;
 use App\Services\CloudMessagingService;
 use App\Services\CompanyProfileService;
@@ -115,6 +116,12 @@ class PackageTrailController extends Controller
         $package->warehouse_timeago = Helper::timeAgo($package->arrive_warehouse_datetime,false);
         unset($package->status,$package->driver);
         return ApiResponse::JsonResult($package);
+    }
+
+    public function getPackageImages(Request $req){
+        $id = $req->id;
+        $images = PackageAttachment::where('package_id',$id)->get();
+        return ApiResponse::JsonResult($images);
     }
 
     public function updatePackage(Request $req){

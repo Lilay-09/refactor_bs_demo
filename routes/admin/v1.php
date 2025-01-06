@@ -190,6 +190,7 @@ Route::middleware(['jwt','localize'])->prefix('admin/v1/{lang}')->group(function
         Route::put('/{id}/return',[PackageTrailController::class,'returnPackage']);
         Route::post('/list/print',[PackageTrailController::class,'getPackagesPrintInfo']);
         Route::get('/{id}/print',[PackageTrailController::class,'getPrintInfo'])->where('id', '[0-9]+');
+        Route::get('/{id}/image',[PackageTrailController::class,'getPackageImages'])->where('id', '[0-9]+');
 
     });
 

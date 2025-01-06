@@ -99,7 +99,7 @@ class PickupCenterService
             unset($inputs['driver_id']);
         }
         $statusId = 3; //** accepted for pick up*/
-        if(!$driverId) $inputs['status_id'] = 1; //** available for pick */
+        if(!$driverId) $statusId = 1; //** available for pick */
         else{
             $inputs['pickup_datetime'] = now();
             $validDriver = User::where('is_deleted',0)->where('delete_account',0)->where('account_type','driver')->find($driverId);
