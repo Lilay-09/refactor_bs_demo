@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\V1\BannerController;
+use App\Http\Controllers\V1\DashboardController;
 use App\Http\Controllers\V1\ReportController;
 use App\Http\Controllers\V1\AppSettingController;
 use App\Http\Controllers\V1\AuthController;
@@ -77,6 +78,8 @@ Route::middleware(['jwt','localize'])->prefix('admin/v1/{lang}')->group(function
             Route::put('/{id}',[WarehouseController::class,'updateWarehouse']);
         });
     });
+
+    Route::get('dashboard',[DashboardController::class,'getDashboardSummary']);
 
     Route::prefix('notification')->group(function(){
         Route::post('token',[CloudMessagingController::class,'sendNoficationViaToken']);

@@ -249,13 +249,19 @@ class PickUpCenterController extends Controller
             $driver = GeneralSettingService::getDriverById($driverId);
             if(!$driver) return ApiResponse::ValidateFail('Invalid driver identity!');
             //* if order status = picked
-            if($order->status_id == 2 && $order->driver_id) return ApiResponse::Duplicated(__('messages.Order has already been picked'));
+            if($order->status_id == 2 && $order->driver_id) return ApiResponse::Duplicated(__('messages.info',[
+                'info' => 'Order has already been picked'
+            ]));
             //* if order status = Accepted For Pickup
-            if($order->status_id == 3 && $order->driver_id) return ApiResponse::Duplicated(__('messages.Order has already been accepted for picked'));
+            // if($order->status_id == 3 && $order->driver_id) return ApiResponse::Duplicated(__('messages.Order has already been accepted for picked'));
             //* if order status = Picked And Booked
-            if($order->status_id == 4 && $order->driver_id) return ApiResponse::Duplicated(__('messages.Order has already been Picked And Booked'));
+            if($order->status_id == 4 && $order->driver_id) return ApiResponse::Duplicated(__('messages.info',[
+                'info' => 'Order has already been Picked And Booked'
+            ]));
             //* if order status = Picked And Booked
-            if($order->status_id == 11) return ApiResponse::Duplicated(__('messages.Order has been cancled'));
+            if($order->status_id == 11) return ApiResponse::Duplicated(__('messages.info',[
+                'info' => 'Order has been cancled'
+            ]));
 
             if($driver->vehicle_type != $order->vehicle_type) return ApiResponse::ValidateFail(__('messages.error',['info' => 'Your Order vehicle type is ('.$order->vehicle_type.') and driver vehicle is '.$driver->vehicle_type]));
         }
