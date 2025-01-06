@@ -131,7 +131,7 @@ class MerchantTransactionController extends Controller
                 'fee' => number_format($totalDeliveryFee,2),
                 'taxi_fee' => $totalTaxi,
                 'status_id' => $representative->status_id,
-                'amount' => $totalAmount,
+                'amount' => number_format($totalAmount,2),
                 'account_info' => $bankInfo
             ];
         })->values();
