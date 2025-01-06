@@ -6,6 +6,7 @@ use ApiResponse;
 use App\Http\Controllers\Controller;
 use App\Models\Delivery;
 use App\Models\DeliveryPackage;
+use App\Models\Order;
 use App\Models\Package;
 use App\Models\PackageAttachment;
 use App\Models\Zone;
@@ -120,7 +121,11 @@ class PackageTrailController extends Controller
 
     public function getPackageImages(Request $req){
         $id = $req->id;
+        $user = UserService::getAuthUser();
         $images = PackageAttachment::where('package_id',$id)->get();
+        foreach($images as $img){
+            $img->image_url = Helper::getImageUrl($img->file_name,$user->company_id,'submit_package');
+        }
         return ApiResponse::JsonResult($images);
     }
 
@@ -192,7 +197,15 @@ class PackageTrailController extends Controller
             'info' => 'Only package at warehouse can be deleted',
             'khInfo' => 'មានតែកញ្ចប់​នៅកន្លែងអាចលុបបាន'
         ]));
+        $orderId = $package->order_id;
+        $otherPackageCount = Package::where('is_deleted',0)->where('order_id',$orderId)->where('id','!=',$id)->count();
+
         $package->update([
+            'is_deleted' => true,
+            'deleted_datetime' => now(),
+            'deleted_uid' => $user->id
+        ]);
+        if($otherPackageCount == 0) Order::find($orderId)->update([
             'is_deleted' => true,
             'deleted_datetime' => now(),
             'deleted_uid' => $user->id

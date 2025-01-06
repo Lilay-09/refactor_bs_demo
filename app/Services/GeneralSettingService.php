@@ -520,7 +520,7 @@ class GeneralSettingService
         $endDate = $endDate? Helper::dateYMD($endDate):null;
         $qO = Order::where('is_deleted',0)
         ->where('merchant_id',$merchant_id)
-        ->selectRaw('code,id,qty,order_datetime')
+        ->selectRaw('code,id,qty,order_datetime,is_deleted')
         ->orderByDesc('order_datetime');
         if(!empty($statusIds)){
             $qO->whereIn('status_id',$statusIds);

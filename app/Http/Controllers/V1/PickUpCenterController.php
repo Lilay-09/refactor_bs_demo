@@ -154,9 +154,11 @@ class PickUpCenterController extends Controller
             ->orderByDesc('id')
             ->selectRaw('booking_channel,id,merchant_id,status_id,order_datetime,driver_id,warehouse_id,vehicle_type,product_type,qty,pickup_address,code,created_at,create_uid');
         if($search){
-            $query->whereHas('merchant',function ($q) use ($search){
-                $q->where('phone','ilike','%'.$search.'%');
-            })->orWhere('code',$search);
+            $query->where(function($q) use ($search){
+                $q->whereHas('merchant',function ($q) use ($search){
+                    $q->where('phone','ilike','%'.$search.'%');
+                })->orWhere('code',$search);
+            });
         }
         if($driverId){
             $query->where('driver_id',$driverId);
