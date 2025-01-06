@@ -69,7 +69,7 @@ class GeneralSettingController extends Controller
         if(!$package && is_numeric($item_ref)) $package = Package::where('is_deleted',0)->find($item_ref);
         if(!$package) return ApiResponse::NotFound();
         if($package->status_id == 9) return ApiResponse::Duplicated(__('messages.info',[
-            'info' => 'Package is completed'
+            'info' => 'Package is already delivered.'
         ]));
         $diffDriver = $package->driver_id ? ($user->id != $package->driver_id) : false;
         $isOnDelivery = $package->status_id == 6;
