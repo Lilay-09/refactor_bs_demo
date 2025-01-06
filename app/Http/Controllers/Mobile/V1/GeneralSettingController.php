@@ -42,7 +42,7 @@ class GeneralSettingController extends Controller
     public function getFormOptionsHistory(){
         $user = UserService::getAuthUser('driver');
         $bonusRow = collect([['id' => 0, 'name' => 'All']]);
-        $results = GeneralSettingService::optionsTrackingStatus($user,[],[9,10,11],'delivery');
+        $results = GeneralSettingService::optionsTrackingStatus($user,[],[9,10,11,19],'delivery');
         // Merge the bonus row with the fetched results
         $results = $bonusRow->merge($results);
         $obj = (object)[

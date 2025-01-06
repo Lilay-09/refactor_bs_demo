@@ -80,24 +80,25 @@ class PickupCenterService
         $merchantId = $inputs['merchant_id'];
         $validMerchant = User::where('is_deleted',0)->where('delete_account',0)->where('account_type','merchant')->find($merchantId);
         if(!$validMerchant) return DataResponse::ValidateFail('Invalid sender identity!');
+        $userType = $user->account_type;
         $inputs['create_uid'] = $user->id;
         $inputs['update_uid'] = $user->id;
         $inputs['branch_id'] = $user->branch_id;
         $inputs['company_id'] = $user->company_id;
-        $inputs['booking_channel'] = $user->account_type;
+        $inputs['booking_channel'] = $userType;
         $details = $inputs['details'] ?? [];
         $images = $inputs['images'] ?? [];
         $inputs['original_qty'] = $inputs['qty'];
         $inputs['order_datetime'] = now();
         $productType = $inputs['product_type'] ?? null;
         $inputs['warehouse_id'] = GeneralSettingService::getWarehouse($user)->id;
-        if($user->account_type == 'driver') $inputs['driver_id'] = $user->id;
+        if($userType == 'driver') $inputs['driver_id'] = $user->id;
         $driverId = $inputs['driver_id'] ?? null;
         if($driverId == 0){
             $driverId = null;
             unset($inputs['driver_id']);
         }
-        $inputs['status_id'] = 3; //** accepted for pick up*/
+        $statusId = 3; //** accepted for pick up*/
         if(!$driverId) $inputs['status_id'] = 1; //** available for pick */
         else{
             $inputs['pickup_datetime'] = now();
@@ -106,9 +107,9 @@ class PickupCenterService
             if($validDriver->vehicle_type != $inputs['vehicle_type']) return DataResponse::ValidateFail(__('messages.error',['info' => 'Driver vehicle type and chosen vehicle type is different!']));
         }
         $dateTime = Helper::getDateTime();
-        if($user->account_type == 'driver') $inputs['tracking_notes'] = 'Driver create order ('.$dateTime.')';
-        else if($user->account_type == 'merchant') $inputs['tracking_notes'] = 'Merchant create order ('.$dateTime.')';
-        else if($user->account_type == 'admin') $inputs['tracking_notes'] = 'Admin create order ('.$dateTime.')';
+        if($userType == 'driver') $inputs['tracking_notes'] = 'Driver create order ('.$dateTime.')';
+        else if($userType == 'merchant') $inputs['tracking_notes'] = 'Merchant create order ('.$dateTime.')';
+        else if($userType == 'admin') $inputs['tracking_notes'] = 'Admin create order ('.$dateTime.')';
         $deleteImgs = [];
         $pickupAddress = $inputs['pickup_address'] ?? null;
         $pickup_address_google_map = $inputs['pickup_address_google_map'] ?? $inputs['pin_address'] ?? null;
@@ -124,10 +125,9 @@ class PickupCenterService
             $code = Helper::generateCode('JS',$orderId,'',8);
 
 
-            Order::find($orderId)->update([
-                'code' => $code
-            ]);
+            // $statusId = $inputs['status_id'];
             if(isset($details[0])){
+                if($userType == 'driver') $statusId = 4;
                 // if($inputs['qty'] != count($details)) return DataResponse::ValidateFail('Your quantity is not matching the details');
                 foreach($details as $d){
                     $d['merchant_id'] = $merchantId;
@@ -137,6 +137,10 @@ class PickupCenterService
                     if($savePkg->error) return $savePkg;
                 }
             }
+            Order::find($orderId)->update([
+                'code' => $code,
+                'status_id' => $statusId
+            ]);
 
             if(isset($images[0])){
                 foreach($images as $photo){

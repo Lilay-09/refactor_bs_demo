@@ -122,7 +122,8 @@ class CompletedPackageController extends Controller
         ->where('p.id',$packageId)->first();
         if(!$package) return ApiResponse::NotFound();
         $package->cod = $package->cod ? 1 : 0;
-        $package->delivery_fee = GeneralSettingService::sumDeliveryFee($package->base_fee,$package->price,$package->cod,$package->payer);
+        $deliveryFee = GeneralSettingService::sumDeliveryFee($package->base_fee,$package->extra_charge,$package->payer);
+        $package->delivery_fee = number_format($deliveryFee,2);
         return ApiResponse::JsonResult($package);
     }
 

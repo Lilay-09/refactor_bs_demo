@@ -8,13 +8,12 @@ use App\Http\Controllers\Mobile\V1\GeneralSettingController;
 use App\Http\Controllers\V1\DriverTransactionController;
 use App\Models\Delivery;
 use App\Models\DeliveryPackage;
-use App\Models\Disbursement;
 use App\Models\DriverCommission;
 use App\Models\Notification;
 use App\Models\Order;
 use App\Models\OrderImage;
 use App\Models\Package;
-use App\Models\Payment;
+use App\Models\PackageAttachment;
 use App\Services\CloudMessagingService;
 use App\Services\GeneralSettingService;
 use App\Services\PickupCenterService;
@@ -69,7 +68,6 @@ class HomeScreenController extends Controller
             // $latLng = Helper::getLatLongFromGoogleMapsUrl($order->pickup_address_google_map);
             $order->latitude = $order->loc_lat ;//? $order->loc_lat : 11.552692;//;
             $order->longitude = $order->loc_lng ;// ? $order->loc_lng : 104.901413;//$order->loc_lng;
-
             unset($order->merchant,$order->tracking_status,$order->warehouse);
         }
         return ApiResponse::Pagination($orders,$req);
@@ -177,7 +175,7 @@ class HomeScreenController extends Controller
         })
         ->where('p.created_at', '>=', Carbon::now()->subDays(15))
         ->join('tracking_statuses as ts','ts.id','dp.status_id')
-        ->selectRaw('p.receiver_address,p.extra_charge,p.id,p.delivered_datetime,p.failed_datetime,p.assign_driver_datetime,p.merchant_id,p.qr_code,p.price,p.cod,p.receiver_name,p.receiver_phone,p.zone_code,p.zone_name,ts.name as status_code,d.user_name as driver_name,d.phone as driver_phone,m.user_name as merchant_name,m.phone as merchant_phone,p.id as package_id,dp.delivery_id,p.zone_code,p.zone_name,p.delivery_fee as base_fee,p.driver_total,p.taxi_fee,p.product_type,dp.status_id')
+        ->selectRaw('p.payer,p.receiver_address,p.extra_charge,p.id,p.delivered_datetime,p.failed_datetime,p.assign_driver_datetime,p.merchant_id,p.qr_code,p.price,p.cod,p.receiver_name,p.receiver_phone,p.zone_code,p.zone_name,ts.name as status_code,d.user_name as driver_name,d.phone as driver_phone,m.user_name as merchant_name,m.phone as merchant_phone,p.id as package_id,dp.delivery_id,p.zone_code,p.zone_name,p.delivery_fee as base_fee,p.driver_total,p.taxi_fee,p.product_type,dp.status_id')
         ->orderByRaw('(dp.status_id = ?) DESC', [6]);
         if($driverId){
             $qP->where('p.driver_id',$driverId);
@@ -192,7 +190,7 @@ class HomeScreenController extends Controller
             // $p->extra_charge = (float)$p->extra_charge;
             // $p->price = (float)$p->price;
             if($p->payer == 'receiver'){
-                $p->delivery_fee = (string)$p->base_fee + $p->extra_charge;
+                $p->delivery_fee = number_format($p->base_fee + $p->extra_charge,2);
             }
             if($p->status_id == 9) $p->date = $p->delivered_datetime;
             if($p->status_id == 10 || $p->status_id == 19) $p->date = $p->failed_datetime;
@@ -337,9 +335,6 @@ class HomeScreenController extends Controller
             'info' => 'You have accepted for '.$pickMsg,
             'khInfo' => 'បានបញ្ចូលទិន្នន័យកញ្ចប់'
         ]));
-
-
-
     }
 
 
@@ -369,7 +364,7 @@ class HomeScreenController extends Controller
         $validate = validator($req->all(),[
             'status_id' => 'required|in:9,10,19',
             'delivery_remarks' => 'nullable|string',
-            'image' => 'nullable',
+            'images' => 'nullable',
             'amount' => 'nullable|numeric',
             'payer' => 'nullable|in:sender,receiver'
         ]);
@@ -381,7 +376,7 @@ class HomeScreenController extends Controller
         $inputs['cod'] = $amount > 0 ? true:false;
         $codChange = $amount > 0 ? true:false;
         $inputs['cod_changed'] = $codChange;
-        $photo = $inputs['image'] ?? null;
+        $photos = $inputs['images'] ?? null;
         $deliveryRemarks = $inputs['delivery_remarks'] ?? null;
         $payer = $inputs['payer'] ?? null;
         if($codChange){
@@ -392,10 +387,19 @@ class HomeScreenController extends Controller
         if(!$package) return ApiResponse::NotFound(__('messages.not_found',[
             'info' => 'Package'
         ]));
-        if($photo) {
-            $inputs['photo_file_name'] = Helper::saveImageFileOrBase64($photo,$user->company_id,'submit_package')->filename;
-            Helper::deleteImageFile($package->photo_file_name,$user->company_id,'submit_package');
+
+        if(isset($photos[0])) {
+            foreach($photos as $p){
+                $fileName = Helper::saveImageFileOrBase64($p,$user->company_id,'submit_package')->filename;
+                if($fileName){
+                    PackageAttachment::create([
+                        'package_id' => $id,
+                        'file_name' => $fileName
+                    ]);
+                }
+            }
         }
+
         if($package->status_id == 9) return ApiResponse::Duplicated('This package has already been delivered!');
         if($package->status_id == 11) return ApiResponse::Duplicated('This package has already been returned!');
         if($package->driver_id !== $user->id) return ApiResponse::Duplicated(__('messages.info',[
@@ -431,7 +435,7 @@ class HomeScreenController extends Controller
         }
 
         $package->update($inputs);
-        $dp = DeliveryPackage::where('package_id',$id)->where('driver_id',$user->id)->where('delay_count',0)->first();
+        $dp = DeliveryPackage::where('package_id',$id)->where('driver_id',$user->id)->orderByDesc('id')->where('delay_count',0)->first();
         $dp->update([
             'notes' => $inputs['tracking_notes'],
             'status_id' => $status_id
