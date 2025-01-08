@@ -402,6 +402,7 @@ class FleetManagementController extends Controller
             'finished' => 1,
             'is_completed' =>1,
             'status_id' => 16,
+            'finished_uid' => $user->id,
             'delivered_count' => $deliveredCount + $trip->delivered_count,
             'finished_reason' => $reason,
             'finished_datetime' => now()

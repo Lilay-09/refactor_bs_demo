@@ -268,13 +268,20 @@ class GeneralSettingController extends Controller
                 'deleted_datetime' => now(),
                 'notes' => DB::raw('notes || \'| confirm to change swap package\'')
             ]);
-            $currTrip = Delivery::where('id',$selfTrip->id)->selectRaw('package_count,tracking_notes')->first();
-            if($currTrip->package_count == 0) $currTrip->update([
-                'is_deleted' => 1,
-                'deleted_datetime' => now(),
-                'deleted_uid' => $user->id,
-                'tracking_notes' => $currTrip->tracking_notes.'|Trip delete because driver has swapped package to '.$requester.'('.Helper::getDateTime().')'
-            ]);
+            $currTrip = Delivery::where('id',$selfTrip->id)->selectRaw('package_count,tracking_notes,delivered_count,failed_count')->first();
+            if($currTrip->package_count == 0) {
+                $currTrip->update([
+                    'is_deleted' => 1,
+                    'deleted_datetime' => now(),
+                    'deleted_uid' => $user->id,
+                    'tracking_notes' => $currTrip->tracking_notes.'|Trip delete because driver has swapped package to '.$requester.'('.Helper::getDateTime().')'
+                ]);
+            }else if($currTrip->package_count == ($currTrip->delivered_count + $currTrip->failed_count)){
+                $currTrip->update([
+                    'finished' => 1,
+                    'finished_datetime' => now(),
+                ]);
+            }
             $package->update([
                 'driver_id' => $requester_id,
                 'status_id' => 6,

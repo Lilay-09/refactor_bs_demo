@@ -584,6 +584,7 @@ class GeneralSettingService
                 'status_id' => $status_id,
                 'delivered_count' => $deliveredCount
             ];
+            if($isCompleted) $updateArr['finished_datetime'] = now();
             Delivery::where('id',$id)->update($updateArr);
         }
     }
