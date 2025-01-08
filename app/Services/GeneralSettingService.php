@@ -154,7 +154,7 @@ class GeneralSettingService
 
     public static function optionsDriverRemarks($category=null,$isFailedWithFee=false){
         if($isFailedWithFee == 'true') $category = 'fail with fee';
-        $qR = DefaultRemark::where('channel','driver');
+        $qR = DefaultRemark::where('channel','driver')->where('is_deleted',0);
         if($category) $qR->where('category',$category);
         $remarks = $qR->where('hidden',0)->selectRaw('id,remarks')->get();
         return $remarks;
