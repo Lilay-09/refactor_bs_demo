@@ -253,7 +253,7 @@ class GeneralSettingController extends Controller
             // }catch(Exception $e){
             //     DB::rollBack();
             // }
-            $selfTrip = Delivery::where('driver_id',$package->driver_id)->where('is_deleted',0)->where('finished',0)->orderByDesc('id')->first();
+            $selfTrip = Delivery::where('driver_id',$package->driver_id)->where('is_deleted',0)->where('finished',0)->selectRaw('package_count,id')->orderByDesc('id')->first();
             //** remove self pacakge */
             $selfTrip->update([
                 'package_count' => $selfTrip->package_count - 1
@@ -268,7 +268,7 @@ class GeneralSettingController extends Controller
                 'deleted_datetime' => now(),
                 'notes' => DB::raw('notes || \'| confirm to change swap package\'')
             ]);
-            $currTrip = Delivery::where('id',$selfTrip->id)->selectRaw('package_count,tracking_notes,delivered_count,failed_count')->first();
+            $currTrip = Delivery::where('id',$selfTrip->id)->selectRaw('id,package_count,tracking_notes,delivered_count,failed_count,is_deleted,deleted_datetime,deleted_uid')->first();
             if($currTrip->package_count == 0) {
                 $currTrip->update([
                     'is_deleted' => 1,
@@ -299,7 +299,7 @@ class GeneralSettingController extends Controller
             ]
         ]);
         $cms->sendNotificationByTopic($notifReq,$user);
-        return ApiResponse::JsonResult(null,$confirm ? 'Declined change driver':'Success');
+        return ApiResponse::JsonResult(Delivery::where('id',$currTrip->id)->first(),$confirm ? 'Declined change driver':'Success');
     }
 
     public function getOptionsZone(Request $req){
