@@ -368,7 +368,10 @@ class PackageTrailController extends Controller
                     // $createOrUpdate = $fleet->createOrUpdateTripService($fleetArr,$user,[6]);
                     // if($createOrUpdate->error) return ApiResponse::flex($createOrUpdate);
                 }
-                $selfTrip = Delivery::where('driver_id',$package->driver_id)->where('status_id',14)->where('finished',0)->orderByDesc('id')->first();
+                $selfTrip = Delivery::where('driver_id',$package->driver_id)->where('status_id',14)->where(function($query) {
+                    $query->where('finished', 0)
+                    ->where('is_deleted', 0);
+                })->orderByDesc('id')->first();
                 //** remove self pacakge */
                 if($selfTrip && $driver_id != $package->driver_id){
                     $selfTrip->update([
@@ -420,7 +423,10 @@ class PackageTrailController extends Controller
     public function createOrUpdateTrip($driverId,$packageId,$vehicleType,$user,$notes,$statusId){
         $today = date('Y-m-d');
         $isNewPkg = true;
-        $pendingTrip = Delivery::where('finished', 0)->where('company_id', $user->company_id)
+        $pendingTrip = Delivery::where(function($query) {
+            $query->where('finished', 0)
+            ->where('is_deleted', 0);
+        })->where('company_id', $user->company_id)
         ->where('driver_id', $driverId)
         ->first();
         if(!$pendingTrip) {

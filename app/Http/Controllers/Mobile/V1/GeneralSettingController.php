@@ -180,7 +180,7 @@ class GeneralSettingController extends Controller
             Cache::set($topics->private,(object)[
                 'requester' => $requester,
                 'requester_id' => $user->id,
-            ],3600);
+            ],250);
             $notifReq = new Request([
                 'topic' => $topics->private,
                 'title' => 'Change Driver',
@@ -253,7 +253,9 @@ class GeneralSettingController extends Controller
             // }catch(Exception $e){
             //     DB::rollBack();
             // }
-            $selfTrip = Delivery::where('driver_id',$package->driver_id)->where('is_deleted',0)->where('finished',0)->selectRaw('package_count,id')->orderByDesc('id')->first();
+            $selfTrip = Delivery::where('driver_id',$package->driver_id)->where(function($q){
+                $q->where('is_deleted',0)->where('finished',0);
+            })->selectRaw('package_count,id')->orderByDesc('id')->first();
             //** remove self pacakge */
             $selfTrip->update([
                 'package_count' => $selfTrip->package_count - 1
@@ -268,7 +270,7 @@ class GeneralSettingController extends Controller
                 'deleted_datetime' => now(),
                 'notes' => DB::raw('notes || \'| confirm to change swap package\'')
             ]);
-            $currTrip = Delivery::where('id',$selfTrip->id)->selectRaw('id,package_count,tracking_notes,delivered_count,failed_count,is_deleted,deleted_datetime,deleted_uid')->first();
+            $currTrip = Delivery::where('id',$selfTrip->id)->selectRaw('id,package_count,tracking_notes,delivered_count,failed_count,is_deleted,deleted_datetime,deleted_uid,finished,finished_datetime,status_id')->first();
             if($currTrip->package_count == 0) {
                 $currTrip->update([
                     'is_deleted' => 1,
@@ -279,6 +281,7 @@ class GeneralSettingController extends Controller
             }else if($currTrip->package_count == ($currTrip->delivered_count + $currTrip->failed_count)){
                 $currTrip->update([
                     'finished' => 1,
+                    'status_id' => 16,
                     'finished_datetime' => now(),
                 ]);
             }
@@ -299,7 +302,7 @@ class GeneralSettingController extends Controller
             ]
         ]);
         $cms->sendNotificationByTopic($notifReq,$user);
-        return ApiResponse::JsonResult(Delivery::where('id',$currTrip->id)->first(),$confirm ? 'Declined change driver':'Success');
+        return ApiResponse::JsonResult(null,$confirm ? 'Success':'Declined change driver');
     }
 
     public function getOptionsZone(Request $req){

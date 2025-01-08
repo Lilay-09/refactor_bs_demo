@@ -363,7 +363,7 @@ class FleetManagementController extends Controller
         $trip = Delivery::where('is_deleted',0)->where('company_id',$user->company_id)
         ->find($tripId);
         if(!$trip) return ApiResponse::NotFound(__('messages.not_found',['info' => 'Trip']));
-        if($trip->finished || $trip->is_completed) {
+        if(($trip->finished || $trip->is_completed) && $trip->status_id == 16) {
             return ApiResponse::Duplicated(__('messages.info',[
                 'info' => 'This trip has already been finisded'
             ]));
@@ -438,7 +438,9 @@ class FleetManagementController extends Controller
             'info' => 'Driver'
         ]));
         if(!$vehicleType) $vehicleType = $driver->vehicle_type;
-        $pendingTrip = Delivery::where('finished', 0)
+        $pendingTrip = Delivery::where(function($q){
+            $q->where('is_deleted',0)->where('finished',0);
+        })
         ->where('company_id', $user->company_id)
         ->where('driver_id', $driverId)
         ->first();
