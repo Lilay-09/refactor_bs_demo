@@ -171,7 +171,7 @@ class HomeScreenController extends Controller
         ->join('users as d','d.id','p.driver_id')
         ->leftJoin('users as m','m.id','p.merchant_id')
         ->where(function($q){
-            $q->where('dp.is_deleted',0)->orWhere('dp.delay_count',0);
+            $q->where('dp.is_deleted',0)->where('dp.delay_count',0);
         })
         ->where('p.created_at', '>=', Carbon::now()->subDays(15))
         ->join('tracking_statuses as ts','ts.id','dp.status_id')
