@@ -16,6 +16,7 @@ class Delivery extends Model
         'status_id',
         'depart_datetime',
         'remarks',
+        'tracking_notes',
         'package_count',
         'delivered_count',
         'failed_count',
