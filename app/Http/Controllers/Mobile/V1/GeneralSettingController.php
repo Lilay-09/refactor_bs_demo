@@ -285,6 +285,16 @@ class GeneralSettingController extends Controller
                     'finished_datetime' => now(),
                 ]);
             }
+            $onDeliveryCount = $currTrip->package_count - ($currTrip->delivered_count + $currTrip->failed_count);
+            if($onDeliveryCount == 0 && $currTrip->package_count > 0) {
+                $currTrip->update([
+                    'finished' => 1,
+                    'is_completed' => 1,
+                    'status_id' => 16
+                ]);
+                // Log::error(json_encode(Delivery::select('status_id','is_completed','finished')->find($trip_id)));
+            }
+
             $package->update([
                 'driver_id' => $requester_id,
                 'status_id' => 6,

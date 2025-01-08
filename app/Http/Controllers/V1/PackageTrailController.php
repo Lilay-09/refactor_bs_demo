@@ -374,10 +374,18 @@ class PackageTrailController extends Controller
                 })->orderByDesc('id')->first();
                 //** remove self pacakge */
                 if($selfTrip && $driver_id != $package->driver_id){
-                    $selfTrip->update([
-                        'package_count' => $selfTrip->package_count - 1
-                    ]);
-                     DeliveryPackage::where('delivery_id',$selfTrip->id)
+                    $pkgCount = $selfTrip->package_count - 1;
+                    $upArr = [
+                        'package_count' => $pkgCount
+                    ];
+                    if($pkgCount == 0){
+                        $upArr['is_deleted'] = 1;
+                        $upArr['deleted_datetime'] = now();
+                        $upArr['deleted_uid'] = $user->id;
+                        $upArr['tracking_notes'] = $selfTrip->tracking_notes.'|All packages were removed so trip is deleted';
+                    }
+                    $selfTrip->update($upArr);
+                    DeliveryPackage::where('delivery_id',$selfTrip->id)
                     ->where('package_id',$package->id)
                     ->update([
                         'is_deleted' => true,
@@ -506,6 +514,7 @@ class PackageTrailController extends Controller
             // ]);
 
         }
+
         //** add delivery tracking */
         if($isNewPkg) {
             $dPackage = DeliveryPackage::create([
