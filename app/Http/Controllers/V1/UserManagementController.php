@@ -188,6 +188,11 @@ class UserManagementController extends Controller
         }
     }
 
+    public function deleteUser(Request $req){
+        $user = UserService::getAuthUser();
+        return ApiResponse::flex(UserService::deleteUser($req->id,'driver',$user));
+    }
+
     public function userChangePassword(Request $req){
         $authUser = UserService::getAuthUser();
         $id = $req->id;

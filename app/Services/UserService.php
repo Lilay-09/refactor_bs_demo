@@ -495,4 +495,19 @@ class UserService
         return DataResponse::JsonResult(null,false,'New password has been set.');
     }
 
+    public static function deleteUser($id,$type,$authUser){
+        $user = User::where('is_deleted',0)->where('account_type',$type)->find($id);
+        if($user){
+            $user->update([
+                'is_deleted' => false,
+                'delete_datetime' => now(),
+                'delete_uid' => $authUser->id
+            ]);
+        }
+
+        return DataResponse::JsonResult(null,false,__('messages.deleted',[
+            'info' => 'User'
+        ]));
+    }
+
 }

@@ -5,6 +5,7 @@ namespace App\Services\Mobile;
 use App\Models\Delivery;
 use App\Services\GeneralSettingService;
 use DataResponse;
+use DB;
 use Helper;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\Request;

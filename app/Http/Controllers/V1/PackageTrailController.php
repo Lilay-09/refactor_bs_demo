@@ -36,16 +36,27 @@ class PackageTrailController extends Controller
         $zoneCode = $req->zone_code ?? $req->zone_id ?? null;
         $startDate = $req->startDate ?? null;
         $endDate = $req->endDate ?? null;
+        // $startFinishDate = $req->startFinishDate ?? null;
+        // $endFinishDate = $req->endFinishDate ?? null;
         // Log::error(json_encode($req->all()));
         $query = Package::where('is_deleted',0)
         ->with(['status','merchant','driver'])
         ->where('outstanding',0)
         // ->whereNotIn('status_id',[]) // at warehouse
         ->where('company_id',$user->company_id)
-        ->whereNotIn('status_id',[9,19,11])
+        ->where(function($q){
+            $q->whereNotIn('status_id',[9,11])->whereNull('returned_uid');
+        })
         ->selectRaw('merchant_id,order_id,id,taxi_fee,delivery_type,qr_code,price,driver_id,product_type,dim_z,dim_x,dim_y,status_id,failure_notes,payer,cod,delivery_fee,receiver_address,zone_code,zone_name,receiver_name,receiver_phone,delivered_datetime,assign_driver_datetime,arrive_warehouse_datetime,driver_total,merchant_total,billed_kg,actual_kg,created_at')
         ->orderByRaw('(status_id = ?) DESC', [5])
-        ->orderBy('arrive_warehouse_datetime','desc');
+        // ->orderBy('arrive_warehouse_datetime','desc')
+        ->orderByRaw("
+            CASE
+                WHEN status_id = 9 THEN delivered_datetime
+                WHEN status_id IN (10, 19) THEN failed_datetime
+                ELSE NULL
+            END DESC
+        ");
         if($warehouse_id){
             $query->whereHas('order',function($q) use($warehouse_id){
                 $q->where('warehouse_id',$warehouse_id);
@@ -75,9 +86,16 @@ class PackageTrailController extends Controller
             $startDate = Helper::dateYMD($startDate);
             $endDate = Helper::dateYMD($endDate);
             $query->where(function ($q) use($startDate,$endDate){
-                $q->whereRaw('created_at::DATE >= ? AND created_at::DATE <= ?', [$startDate, $endDate]);
+                $q->whereRaw('created_at::DATE >= ? AND created_at::DATE <= ? OR failed_datetime::DATE >= ? AND failed_datetime::DATE <= ?', [$startDate, $endDate,$startDate, $endDate]);
             });
         }
+        // if($startFinishDate && $endFinishDate){
+        //     $startFinishDate = Helper::dateYMD($startFinishDate);
+        //     $endFinishDate = Helper::dateYMD($endFinishDate);
+        //     $query->where(function ($q) use($startFinishDate,$endFinishDate){
+        //         $q->whereRaw('failed_datetime::DATE >= ? AND failed_datetime::DATE <= ?', [$startFinishDate, $endFinishDate]);
+        //     });
+        // }
         $packages = $query->get();
         foreach($packages as $pkg){
             $cod = $pkg->cod;

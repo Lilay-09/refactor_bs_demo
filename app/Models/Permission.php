@@ -13,6 +13,7 @@ class Permission extends Model
         'id',
         'name',
         'code',
+        'hidden',
         'module_id',
         'create_uid',
         'update_uid',

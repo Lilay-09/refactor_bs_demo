@@ -71,7 +71,6 @@ class HistoryController extends Controller
         ->groupBy('groupKey')
         ->map(function ($group, $fleetNumber) {
             $group->each(function ($item) use ($group) {
-
                 unset($item->delivery_id,$item->fleet_tracking_number,$item->groupKey);
             });
             return [

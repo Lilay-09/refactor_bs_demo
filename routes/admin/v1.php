@@ -66,6 +66,8 @@ Route::middleware(['jwt','localize'])->prefix('admin/v1/{lang}')->group(function
         Route::put('/user/set-lock/{id?}', [UserManagementController::class,'setLockUser']);
         Route::put('/user/change-password/{id?}', [UserManagementController::class,'userChangePassword']);
         Route::get('user/notification/token',[CloudMessagingController::class,'getUserToken']);
+        Route::delete('user/{id}',[UserManagementController::class,'deleteUser']);
+
         Route::prefix('role')->group(function(){
             Route::post('/', [UserManagementController::class,'createRole']);
             Route::get('/', [UserManagementController::class,'getRoles']);

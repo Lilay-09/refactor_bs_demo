@@ -219,6 +219,9 @@ class GeneralSettingService
         })->where('has_account',true)->where('company_id',$user->company_id)->where('account_type','driver')->selectRaw('id,user_name,phone');
         if($vehicleType) $qD->where('vehicle_type','ilike',$vehicleType);
         $drivers = $qD->orderByDesc('id')->get();
+        foreach($drivers as $d){
+            $d->user_name = $d->user_name . '(' .$d->phone. ')';
+        }
         return $drivers;
     }
 

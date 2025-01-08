@@ -123,9 +123,7 @@ class AppSetting
             ->selectRaw('id,channel,text')
             ->first();
         }
-        if(!$model) return DataResponse::NotFound(__('messages.not_found',[
-            'info' => $modelName
-        ]));
+        if(!$model) return DataResponse::JsonResult(null);
 
         return DataResponse::JsonResult($model,false,__('messages.get one',[
             'info' => $modelName
