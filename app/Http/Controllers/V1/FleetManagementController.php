@@ -447,7 +447,9 @@ class FleetManagementController extends Controller
         DB::beginTransaction();
         try{
             if(!$pendingTrip){
-                $QuerylastPackage = DeliveryPackage::whereIn('package_id',$packageIds)->where('delay_count',0)->where('is_deleted',0);
+                $QuerylastPackage = DeliveryPackage::whereIn('package_id',$packageIds)->where(function($q){
+                    $q->where('delay_count',0)->where('is_deleted',0);
+                });
                 $hasFailPackage = $QuerylastPackage->orderByDesc('id')->get();
                 if(isset($hasFailPackage[0])) $QuerylastPackage->update([
                     'delay_count' => 1,
