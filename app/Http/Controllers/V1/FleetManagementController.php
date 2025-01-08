@@ -132,7 +132,7 @@ class FleetManagementController extends Controller
         ->leftJoin('users as m','m.id','p.merchant_id')
         ->leftJoin('users as d','d.id','p.driver_id')
         ->where(function($q){
-            $q->where('dp.is_deleted',0);//->orWhere('delay_count',0);
+            $q->where('dp.is_deleted',0)->where('dp.delay_count',0);
         })
         ->join('tracking_statuses as ts','ts.id','dp.status_id')
         ->selectRaw('p.qr_code,p.price,p.cod,p.receiver_name,p.receiver_phone,p.zone_code,p.zone_name,ts.name as status_code,d.user_name as driver_name,d.phone as driver_phone,m.user_name as merchant_name,m.phone as merchant_phone,p.id as package_id,dp.delivery_id,p.zone_code,p.zone_name,p.delivery_fee as base_fee,p.driver_total,p.taxi_fee,p.product_type,dp.status_id,p.payer')
