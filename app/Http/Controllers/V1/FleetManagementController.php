@@ -494,20 +494,25 @@ class FleetManagementController extends Controller
                 //** add delivery tracking */
                 // if($isNewPkg) {
 
-                    $dPackage = DeliveryPackage::where('delay_count',0)->where('is_deleted',0)->where('package_id',$packageId)->first();
+                    $dPackage = DeliveryPackage::where(function($q){
+                        $q->where('delay_count',0)->where('is_deleted',0);
+                    })->where('package_id',$packageId)->first();
                     if(!$dPackage){
-                        $dPackage = DeliveryPackage::create([
-                            'notes' => 'Admin add package to trip',
-                            'driver_id' => $driverId,
-                            'delivery_id' => $deliveryId,
-                            'package_id' => $packageId,
-                            'status_id' => 6, // On Delivery
-                            'update_uid' => $user->id,
-                            'create_uid' => $user->id,
-                            'branch_id' => $user->branch_id,
-                            'company_id' => $user->company_id,
-                        ]);
-                        if(!$dPackage) return DataResponse::Error(__('messages.error',['info' => 'Fail to assign package']));
+                        if(!in_array(6,$allowedPkgStatuses)){
+                            $dPackage = DeliveryPackage::create([
+                                'notes' => 'Admin add package to trip',
+                                'driver_id' => $driverId,
+                                'delivery_id' => $deliveryId,
+                                'package_id' => $packageId,
+                                'status_id' => 6, // On Delivery
+                                'update_uid' => $user->id,
+                                'create_uid' => $user->id,
+                                'branch_id' => $user->branch_id,
+                                'company_id' => $user->company_id,
+                            ]);
+                            if(!$dPackage) return DataResponse::Error(__('messages.error',['info' => 'Fail to assign package']));
+                        }
+
                     }
                     if(in_array(6,$allowedPkgStatuses)){
                         $dPackage = DeliveryPackage::create([
