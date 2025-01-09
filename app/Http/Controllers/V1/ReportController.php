@@ -793,24 +793,59 @@ class ReportController extends Controller
         })
         ->selectRaw('p.order_id,p.merchant_total,p.merchant_id,p.remarks,p.delivery_remarks,p.status_id,p.id,p.qr_code,p.delivered_datetime,p.failed_datetime,p.delivery_remarks,p.remarks,p.taxi_fee,p.extra_charge,p.delivery_fee,p.cod,p.price,p.payer,
         p.returned_datetime,p.arrive_warehouse_datetime,p.assign_driver_datetime,p.receiver_phone,p.receiver_name,p.receiver_address,p.delivery_remarks'.$pmtCase);
-        if($startDate && $endDate){
-            $qP->where(function($q) use ($startDate,$endDate){
+
+        if ($startDate && $endDate) {
+        $qP->where(function($q) use ($startDate, $endDate) {
+            $q->where(function($q) use ($startDate, $endDate) {
+                // For status_id 10 or 19, query only failed_datetime
                 $q->whereRaw('
-                (p.failed_datetime::DATE >= ? AND p.failed_datetime::DATE <= ?) OR
-                (p.delivered_datetime::DATE >= ? AND p.delivered_datetime::DATE <= ?) OR
-                (p.arrive_warehouse_datetime::DATE >= ? AND p.arrive_warehouse_datetime::DATE <= ?) OR
-                (p.assign_driver_datetime::DATE >= ? AND p.assign_driver_datetime::DATE <= ?) OR
-                (p.returned_datetime::DATE >= ? AND p.returned_datetime::DATE <= ?)',
-                [
-                    $startDate, $endDate, // failed_datetime
-                    $startDate, $endDate, // delivered_datetime
-                    $startDate, $endDate, // arrive_warehouse_datetime
-                    $startDate, $endDate, // assign_driver_datetime
-                    $startDate, $endDate, // returned_datetime
-                ]
-            );
+                    (p.failed_datetime::DATE >= ? AND p.failed_datetime::DATE <= ?)', [$startDate, $endDate])
+                    ->whereIn('p.status_id', [10, 19]);
+            })
+            ->orWhere(function($q) use ($startDate, $endDate) {
+                // For status_id 9, query only delivered_datetime
+                $q->whereRaw('
+                    (p.delivered_datetime::DATE >= ? AND p.delivered_datetime::DATE <= ?)', [$startDate, $endDate])
+                    ->where('p.status_id', 9);
+            })
+            ->orWhere(function($q) use ($startDate, $endDate) {
+                // For status_id 6, query only assign_driver_datetime
+                $q->whereRaw('
+                    (p.assign_driver_datetime::DATE >= ? AND p.assign_driver_datetime::DATE <= ?)', [$startDate, $endDate])
+                    ->where('p.status_id', 6);
+            })
+            ->orWhere(function($q) use ($startDate, $endDate) {
+                // For status_id 5, query only arrive_warehouse_datetime
+                $q->whereRaw('
+                    (p.arrive_warehouse_datetime::DATE >= ? AND p.arrive_warehouse_datetime::DATE <= ?)', [$startDate, $endDate])
+                    ->where('p.status_id', 5);
+            })
+            ->orWhere(function($q) use ($startDate, $endDate) {
+                // For status_id 11, query only returned_datetime
+                $q->whereRaw('
+                    (p.returned_datetime::DATE >= ? AND p.returned_datetime::DATE <= ?)', [$startDate, $endDate])
+                    ->where('p.status_id', 11);
             });
-        }
+        });
+    }
+        // if($startDate && $endDate){
+        //     $qP->where(function($q) use ($startDate,$endDate){
+        //         $q->whereRaw('
+        //             (p.failed_datetime::DATE >= ? AND p.failed_datetime::DATE <= ?) OR
+        //             (p.delivered_datetime::DATE >= ? AND p.delivered_datetime::DATE <= ?) OR
+        //             (p.arrive_warehouse_datetime::DATE >= ? AND p.arrive_warehouse_datetime::DATE <= ?) OR
+        //             (p.assign_driver_datetime::DATE >= ? AND p.assign_driver_datetime::DATE <= ?) OR
+        //             (p.returned_datetime::DATE >= ? AND p.returned_datetime::DATE <= ?)',
+        //             [
+        //                 $startDate, $endDate, // failed_datetime
+        //                 $startDate, $endDate, // delivered_datetime
+        //                 $startDate, $endDate, // arrive_warehouse_datetime
+        //                 $startDate, $endDate, // assign_driver_datetime
+        //                 $startDate, $endDate, // returned_datetime
+        //             ]
+        //         );
+        //     });
+        // }
 
         $qP->orderByRaw('
             CASE
@@ -825,6 +860,7 @@ class ReportController extends Controller
         )->orderByRaw('DATE(p.failed_datetime) DESC,DATE(p.delivered_datetime) DESC');
         $clonePkg = clone $qP;
         $packages = $qP->get();
+        // return $packages;
         $summary = $this->getMerchantSummaryHeader($clonePkg,$merchantId,$startDate,$endDate);
         $groupedPackages = collect($packages)->map(function ($item) use (&$grand)  {
             $finishDate = $item->failed_datetime;
@@ -913,6 +949,10 @@ class ReportController extends Controller
         ->whereIn('p.status_id',[5,6,10])
         ->selectRaw('p.id as package_id,p.order_id,p.qr_code,p.merchant_total')
         ->get();
+        // return $lastOrder;
+        // if(isset($lastOrder[0])){
+        //     $clonePkg->where('p.order_id','!=',$lastOrder[0]->order_id);
+        // }
         $packages = $clonePkg->get();
         $pkgInfo = [
             5 => ['title' => 'ចំនួនកញ្ចប់ដែលនៅសល់ ', 'count' => 0,'total' => 0],
@@ -931,8 +971,8 @@ class ReportController extends Controller
         // return $packages;
         foreach ($packages as $p) {
             $statusId = $p->status_id;
-            // \Log::info($statusId);
             if(isset($pkgInfo[$statusId])){
+
                 $pkgInfo[$statusId]['count'] += 1;
                 $pkgInfo[$statusId]['total'] += -$p->merchant_total;
             }
