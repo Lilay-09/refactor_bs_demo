@@ -979,8 +979,8 @@ class ReportController extends Controller
             if(in_array($statusId,[5,6,10])){
                 $pkgInfo[5]['count'] += 1;
                 $pkgInfo[5]['total'] += -$p->merchant_total;
-                $pkgInfo['5.2']['count'] = $pkgInfo['5.1']['count'] + $pkgInfo[5]['count'];
-                $pkgInfo['5.2']['total'] = (float)$pkgInfo['5.1']['total'] + $pkgInfo[5]['total'];
+                $pkgInfo['5.2']['count'] = number_format($pkgInfo['5.1']['count'] + $pkgInfo[5]['count'],2);
+                $pkgInfo['5.2']['total'] = number_format($pkgInfo['5.1']['total'] + $pkgInfo[5]['total'],2);
             }
 
 
