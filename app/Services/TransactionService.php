@@ -937,6 +937,8 @@ class TransactionService
         $driverId = $req->driver_id ?? null;
         $merchantId = $req->merchant_id ?? null;
         $userId = $driverId ?? $merchantId;
+        $startDate = $req->startDate ? Helper::dateYMD($req->startDate) : null;
+        $endDate = $req->endDate ? Helper::dateYMD($req->endDate) : null;
         $qP = User::from('users as d')
             ->where('d.account_type',$type)
             ->where('d.is_deleted', 0)
@@ -952,6 +954,18 @@ class TransactionService
         if($userId){
             $qP->where('d.id',$userId);
         }
+        if ($startDate && $endDate) {
+            $qP->where(function ($q) use ($startDate, $endDate) {
+                $q->whereRaw(
+                    "(p.failed_datetime::DATE >= ? AND p.failed_datetime::DATE <= ?)
+                    OR
+                    (p.delivered_datetime::DATE >= ? AND p.delivered_datetime::DATE <= ?)",
+                    [$startDate, $endDate, $startDate, $endDate]
+                );
+            });
+        }
+
+
         $drivers = $qP->get();
         $totalPackages = 0;
         $totalAmount = 0;

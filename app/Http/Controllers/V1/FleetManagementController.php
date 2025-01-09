@@ -217,6 +217,7 @@ class FleetManagementController extends Controller
                 'status_id' => $status_id
             ]);
             GeneralSettingService::updateTripStatus($trip_id,$user);
+            // Log::error(json_encode(Delivery::where('id',$trip_id)->selectRaw('id,status_id')->first()));
             DB::commit();
         }catch(Exception $e){
             DB::rollBack();

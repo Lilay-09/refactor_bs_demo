@@ -296,13 +296,20 @@ class PackageTrailController extends Controller
     public function getPackagesPrintInfo(Request $req){
         $user = UserService::getAuthUser();
         $packageIds = $req->packages;
+        $orderByCase = collect($packageIds)
+        ->map(function ($id, $index) {
+            return "WHEN id = " . (int)$id . " THEN " . (int)$index;
+        })
+        ->implode(' ');
         $packages = Package::where('is_deleted',0)
         ->with(['driver:id,user_name,phone','merchant:id,phone,user_name','updateUser:id,user_name'])
         ->where('outstanding',0)
         // ->whereNotIn('status_id',[]) // at warehouse
         ->where('company_id',$user->company_id)
         ->selectRaw('cod,delivery_fee,zone_name,zone_code,merchant_id,driver_id,receiver_phone,receiver_address,created_at,arrive_warehouse_datetime,qr_code,remarks,price,update_uid,payer')
-        ->whereIn('id',$packageIds)->get();
+        ->whereIn('id',$packageIds)
+        ->orderByRaw("CASE $orderByCase END")
+        ->get();
         // if(!$package) return ApiResponse::NotFound(trans('messages.not_found',['info' => 'Package','khInfo' => 'កញ្ចប់​']));
         foreach($packages as $package){
             $driver = $package->driver;

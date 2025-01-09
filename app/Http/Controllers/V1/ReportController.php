@@ -791,7 +791,7 @@ class ReportController extends Controller
                 ->where('dis.payee_id',$merchantId)
                 ->where('dis.payee_type', '=', 'merchant')->where('dis.type','payment'); // Add merchant filter
         })
-        ->selectRaw('p.merchant_total,p.merchant_id,p.remarks,p.delivery_remarks,p.status_id,p.id,p.qr_code,p.delivered_datetime,p.failed_datetime,p.delivery_remarks,p.remarks,p.taxi_fee,p.extra_charge,p.delivery_fee,p.cod,p.price,p.payer,
+        ->selectRaw('p.order_id,p.merchant_total,p.merchant_id,p.remarks,p.delivery_remarks,p.status_id,p.id,p.qr_code,p.delivered_datetime,p.failed_datetime,p.delivery_remarks,p.remarks,p.taxi_fee,p.extra_charge,p.delivery_fee,p.cod,p.price,p.payer,
         p.returned_datetime,p.arrive_warehouse_datetime,p.assign_driver_datetime,p.receiver_phone,p.receiver_name,p.receiver_address,p.delivery_remarks'.$pmtCase);
         if($startDate && $endDate){
             $qP->where(function($q) use ($startDate,$endDate){
@@ -811,9 +811,8 @@ class ReportController extends Controller
             );
             });
         }
-        $grand = 0;
-        $totalDeliveryFee = 0;
-        $packages = $qP->orderByRaw('
+
+        $qP->orderByRaw('
             CASE
                 WHEN p.status_id = ? THEN 1
                 WHEN p.status_id = ? THEN 2
@@ -823,8 +822,10 @@ class ReportController extends Controller
                 WHEN p.status_id = ? THEN 6
                 ELSE 7
             END', [9, 19, 11, 6, 10, 5]
-        )->orderByRaw('DATE(p.failed_datetime) DESC,DATE(p.delivered_datetime) DESC')->get();
-        $summary = $this->getMerchantSummaryHeader($packages,$merchantId,$startDate,$endDate);
+        )->orderByRaw('DATE(p.failed_datetime) DESC,DATE(p.delivered_datetime) DESC');
+        $clonePkg = clone $qP;
+        $packages = $qP->get();
+        $summary = $this->getMerchantSummaryHeader($clonePkg,$merchantId,$startDate,$endDate);
         $groupedPackages = collect($packages)->map(function ($item) use (&$grand)  {
             $finishDate = $item->failed_datetime;
             if($item->status_id == 9) $finishDate = $item->delivered_datetime;
@@ -896,54 +897,50 @@ class ReportController extends Controller
         ];
         return ApiResponse::JsonResult($obj);
     }
-
-    private function getMerchantSummaryHeader($packages,$merchantId,$startDate,$endDate){
-        // $pQ = Package::where('is_deleted',0)->where('outstanding',0)
-        // ->whereIn('status_id',[5,6,9,10,11,19])
-        // ->where('merchant_id',$merchantId);
-
-        // if($startDate && $endDate){
-        //     $pQ->where(function($q) use($startDate,$endDate){
-        //         $q->whereRaw('
-        //         (arrive_warehouse_datetime::DATE >= ? AND arrive_warehouse_datetime::DATE <= ?) OR
-        //         (assign_driver_datetime::DATE >= ? AND assign_driver_datetime::DATE <= ?) OR
-        //         (failed_datetime::DATE >= ? AND failed_datetime::DATE <= ?) OR
-        //         (delivered_datetime::DATE >= ? AND delivered_datetime::DATE <= ?) OR
-        //         (returned_datetime::DATE >= ? AND returned_datetime::DATE <= ?)',
-        //         [
-        //             $startDate, $endDate, // For arrive_warehouse_datetime
-        //             $startDate, $endDate, // For assign_driver_datetime
-        //             $startDate, $endDate, // For failed_datetime
-        //             $startDate, $endDate, // For delivered_datetime
-        //             $startDate, $endDate  // For returned_datetime
-        //         ]
-        //     );
-        //     });
-        // }
-
-        // $packages = $pQ->get();
+    private function getMerchantSummaryHeader($clonePkg,$merchantId,$startDate,$endDate){
+        $lastOrder = Package::from('packages as p')->where('p.is_deleted',0)
+        ->joinSub(
+    Order::select('id as order_id','code')
+            ->where('merchant_id',$merchantId)
+            ->where('status_id',5)
+            ->orderByDesc('id') // Assuming 'id' defines the latest order
+            ->limit(1),
+        'o',
+        'o.order_id',
+        '=',
+        'p.order_id'
+        )
+        ->whereIn('p.status_id',[5,6,10])
+        ->selectRaw('p.id as package_id,p.order_id,p.qr_code,p.merchant_total')
+        ->get();
+        $packages = $clonePkg->get();
         $pkgInfo = [
-            5 => ['title' => 'ចំនួនកញ្ចប់ដែលនៅសល់', 'count' => 0,'total' => 0],
-            "5.1" => ['title' => 'ចំនួនកញ្ចប់​ចូលថ្មី', 'count' => 0, 'total' => 0],
-            "5.2" => ['title' => 'ចំនួនកញ្ចប់សរុប',"count" => 0, 'total' => 0],
-            9 => ['title' => 'ជោគជ័យ', 'count' => 0, 'total' => 0],
-            6 => ['title' => 'កំពុងដឹក', 'count' => 0, 'total' => 0],
-            10 => ['title' => 'បរាជ័យ', 'count' => 0, 'total' => 0],
-            19 => ['title' => 'បរាជ័យគិតសេវា', 'count' => 0, 'total' => 0],
-            11 => ['title' => 'ត្រឡប់ទៅហាងវិញ', 'count' => 0, 'total' => 0],
+            5 => ['title' => 'ចំនួនកញ្ចប់ដែលនៅសល់ ', 'count' => 0,'total' => 0],
+            "5.1" => ['title' => 'ចំនួនកញ្ចប់​ចូលថ្មី ', 'count' => 0, 'total' => 0],
+            "5.2" => ['title' => 'ចំនួនកញ្ចប់សរុប ',"count" => 0, 'total' => 0],
+            9 => ['title' => 'ជោគជ័យ ', 'count' => 0, 'total' => 0],
+            6 => ['title' => 'កំពុងដឹក ', 'count' => 0, 'total' => 0],
+            10 => ['title' => 'បរាជ័យ ', 'count' => 0, 'total' => 0],
+            19 => ['title' => 'បរាជ័យគិតសេវា ', 'count' => 0, 'total' => 0],
+            11 => ['title' => 'ត្រឡប់ទៅហាងវិញ ', 'count' => 0, 'total' => 0],
         ];
-
+        foreach($lastOrder as $p){
+            $pkgInfo['5.1']['count'] += 1;
+            $pkgInfo['5.1']['total'] += -$p->merchant_total;
+        }
+        // return $packages;
         foreach ($packages as $p) {
             $statusId = $p->status_id;
-            if(isset($pkgInfo[$p->status_id])){
+            // \Log::info($statusId);
+            if(isset($pkgInfo[$statusId])){
                 $pkgInfo[$statusId]['count'] += 1;
-                $pkgInfo[$statusId]['total'] += (float)$p->merchant_total;
+                $pkgInfo[$statusId]['total'] += -$p->merchant_total;
             }
-            if($statusId == 5){
-                $pkgInfo[$statusId.'.1']['count'] += 1;
-                $pkgInfo[$statusId.'.1']['total'] += (float)$p->merchant_total;
-                $pkgInfo[$statusId.'.2']['count'] = $pkgInfo[$statusId.'.1']['count'] + $pkgInfo[$statusId]['count'];
-                $pkgInfo[$statusId.'.2']['total'] = (float)$pkgInfo[$statusId.'.1']['total'] + $pkgInfo[$statusId]['total'];
+            if(in_array($statusId,[5,6,10])){
+                $pkgInfo[5]['count'] += 1;
+                $pkgInfo[5]['total'] += -$p->merchant_total;
+                $pkgInfo['5.2']['count'] = $pkgInfo['5.1']['count'] + $pkgInfo[5]['count'];
+                $pkgInfo['5.2']['total'] = (float)$pkgInfo['5.1']['total'] + $pkgInfo[5]['total'];
             }
 
 
@@ -953,6 +950,8 @@ class ReportController extends Controller
             //     $pkgInfo[$statusId]['count'] += 1;
             // }
         }
+
+
 
         return array_values($pkgInfo);
 

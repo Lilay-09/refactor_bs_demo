@@ -26,6 +26,7 @@ use App\Models\Warehouse;
 use App\Models\Zone;
 use DataResponse;
 use Helper;
+use Log;
 // use Log;
 
 
@@ -584,15 +585,10 @@ class GeneralSettingService
                 'status_id' => $status_id,
                 'delivered_count' => $deliveredCount
             ];
-            // if($failCount == 0 && $deliveredCount == 0){
-            //     $updateArr = [
-            //         'is_deleted' => 1,
-            //         'deleted_uid' => $user->id,
-            //         'deleted_datetime' => now()
-            //     ];
-            // }
+            // Log::info($status_id);
             if($isCompleted) $updateArr['finished_datetime'] = now();
-            Delivery::where('id',$id)->update($updateArr);
+            // Delivery::find($id)->update($updateArr);
+            $trip->update($updateArr);
         }
     }
 
