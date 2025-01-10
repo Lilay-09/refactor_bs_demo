@@ -127,17 +127,17 @@ class MerchantTransactionController extends Controller
                 'merchant_name' => $representative->merchant_name,
                 'code' => $representative->code,
                 'package_count' => $packageTotal,
-                'cod_amount' => number_format($totalCod,2),
-                'fee' => number_format($totalDeliveryFee,2),
+                'cod_amount' => Helper::getNumber($totalCod,2),
+                'fee' => Helper::getNumber($totalDeliveryFee,2),
                 'taxi_fee' => $totalTaxi,
                 'status_id' => $representative->status_id,
-                'amount' => number_format($totalAmount,2),
+                'amount' => Helper::getNumber($totalAmount,2),
                 'account_info' => $bankInfo
             ];
         })->values();
         return ApiResponse::Pagination($groupData,$req,null,[
             'total_package' => $totalPackageCount,
-            'total_amount' => number_format($grandTotal,2),
+            'total_amount' => Helper::getNumber($grandTotal,2),
         ]);
     }
 

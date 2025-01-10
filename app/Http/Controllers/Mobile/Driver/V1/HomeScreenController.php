@@ -96,7 +96,7 @@ class HomeScreenController extends Controller
         $totalDeliveredPackage = $dtc->getDeliveredDetails($packages,$user->id)->delivered_count;
         $pickup_rate = $commissionInfo->normal_pickup_commission;
         $delivery_rate = $commissionInfo->normal_delivery_commission;
-        $totalEarning = (float)number_format($pickup_rate * $totalPickUpPackage + $delivery_rate * $totalDeliveredPackage,2);
+        $totalEarning = (float)Helper::getNumber($pickup_rate * $totalPickUpPackage + $delivery_rate * $totalDeliveredPackage,2);
         $balanceDue = Package::where('packages.driver_id', $user->id)
         ->where('packages.is_deleted', 0)
         ->whereIn('packages.status_id', [9, 19])
@@ -190,7 +190,7 @@ class HomeScreenController extends Controller
             // $p->extra_charge = (float)$p->extra_charge;
             // $p->price = (float)$p->price;
             if($p->payer == 'receiver'){
-                $p->delivery_fee = number_format($p->base_fee + $p->extra_charge,2);
+                $p->delivery_fee = Helper::getNumber($p->base_fee + $p->extra_charge,2);
             }
             if($p->status_id == 9) $p->date = $p->delivered_datetime;
             if($p->status_id == 10 || $p->status_id == 19) $p->date = $p->failed_datetime;

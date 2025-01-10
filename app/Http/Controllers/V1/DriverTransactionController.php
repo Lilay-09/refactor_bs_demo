@@ -71,7 +71,7 @@ class DriverTransactionController extends Controller
             $deliverdInfo = $this->getDeliveredDetails($packages,$driver->id);
             $totalDelivered = $deliverdInfo->delivered_count;
             $driver->total_delivered = $totalDelivered;
-            $driver->total = number_format($driver->pickup_rate * $totalPickUp + $driver->delivery_rate * $totalDelivered,2);
+            $driver->total = Helper::getNumber($driver->pickup_rate * $totalPickUp + $driver->delivery_rate * $totalDelivered,2);
             $driver->bank_account = null;
             $driver->status_code = 'Pending';
             foreach($driver->bank_accounts as $b){

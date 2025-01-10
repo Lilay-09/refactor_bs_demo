@@ -79,9 +79,9 @@ class TransactionController extends Controller
         });
 
         $obj = (object)[
-            'balance_due' => (float)number_format($total,2),
+            'balance_due' => (float)Helper::getNumber($total,2),
             'count' => $count,
-            'total' => (float)number_format($total,2),
+            'total' => (float)Helper::getNumber($total,2),
             'payment_transaction' => $paidTrx
         ];
 
@@ -166,14 +166,14 @@ class TransactionController extends Controller
                     'category' => 'Pickup',
                     'count' => $pickUpCount,
                     'unit' => (float)$pickUpRate,
-                    'total' => (float)number_format($pickUpCount * $pickUpRate,2),
+                    'total' => (float)Helper::getNumber($pickUpCount * $pickUpRate,2),
                     'remarks' => '',
                 ],
                 [
                     'category' => 'Delivered',
                     'count' => $deliveredCount,
                     'unit' => (float)$deliveryRate,
-                    'total' => (float)number_format($deliveryRate * $deliveredCount,2),
+                    'total' => (float)Helper::getNumber($deliveryRate * $deliveredCount,2),
                     'remarks' => '',
                 ]
             ]

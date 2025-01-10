@@ -110,10 +110,10 @@ class ReportController extends Controller
                 'date' => $date,
                 'details' => $group->toArray(),
                 'total' => [
-                    'cod_fee' => number_format($group->sum('cod_fee'),2), // Replace 'cod' with the actual property name
-                    'fee' => number_format($group->sum('fee'),2),
-                    'driver' => number_format($group->sum('driver_total'),2), // Add any other total calculations
-                    'merchant' => number_format($group->sum('merchant_total'),2),
+                    'cod_fee' => Helper::getNumber($group->sum('cod_fee'),2), // Replace 'cod' with the actual property name
+                    'fee' => Helper::getNumber($group->sum('fee'),2),
+                    'driver' => Helper::getNumber($group->sum('driver_total'),2), // Add any other total calculations
+                    'merchant' => Helper::getNumber($group->sum('merchant_total'),2),
                 ],
             ];
         })->values();
@@ -538,8 +538,8 @@ class ReportController extends Controller
             $p->code = $p->driver?->code;
             $p->booked_by = $p->cashier?->user_name;
             $pmtDetails = $this->getPaymentDetails($paymentDetails,$p->id);
-            $p->amount_usd = number_format($pmtDetails->amount_usd,2);
-            $p->amount_khr = number_format($pmtDetails->amount_khr,2);
+            $p->amount_usd = Helper::getNumber($pmtDetails->amount_usd,2);
+            $p->amount_khr = Helper::getNumber($pmtDetails->amount_khr,2);
             $amount += $pmtDetails->amount_usd;
             $amountKh += $pmtDetails->amount_khr;
             $p->payment_type = 'receive';
@@ -553,8 +553,8 @@ class ReportController extends Controller
             $p->code = $p->driver?->code;
             $p->booked_by = $p->cashier?->user_name;
             $pmtDetails = $this->getPaymentDetails($paymentDetails,$p->id);
-            $p->amount_usd = number_format($pmtDetails->amount_usd,2);
-            $p->amount_khr = number_format($pmtDetails->amount_khr,2);
+            $p->amount_usd = Helper::getNumber($pmtDetails->amount_usd,2);
+            $p->amount_khr = Helper::getNumber($pmtDetails->amount_khr,2);
             $amount += $p->amount_usd;
             $amountKh += $p->amount_khr;
             $p->payment_type = 'disbursement';
@@ -569,9 +569,9 @@ class ReportController extends Controller
             'company_profile' => CompanyProfileService::profileInfo($user),
             'list' => $allPayments,
             'grand' => [
-                'amount' => number_format($amount,2),
-                'amount_kh' => number_format($amountKh,2),
-                'total' => number_format($total,2)
+                'amount' => Helper::getNumber($amount,2),
+                'amount_kh' => Helper::getNumber($amountKh,2),
+                'total' => Helper::getNumber($total,2)
             ]
         ];
         return ApiResponse::JsonResult($obj);
@@ -891,7 +891,7 @@ class ReportController extends Controller
                 }else $item->delivery_fee = 0;
                 $totalDeliveryFee += $item->delivery_fee;
                 $item->total = $isCal ? $total : 0;
-                if(in_array($item->status_id,[9,19])) $grand += number_format($total,2);
+                if(in_array($item->status_id,[9,19])) $grand += Helper::getNumber($total,2);
                 if($isKm) {
                     $item->status_code = GeneralSettingService::$statusCodeTrans[$item->status_id] ?? '';
                     $item->payer = GeneralSettingService::$payerTrans[$item->payer] ?? '';
@@ -917,8 +917,8 @@ class ReportController extends Controller
                 'total' => [
                     'cod' => $group->where('status_id','!=',19)->where('cod',1)->sum('price'),
                     'taxi' => $group->where('status_id','!=',19)->sum('taxi_fee'),
-                    'delivery_fee' => number_format($totalDeliveryFee,2),
-                    'grand' => number_format($grand,2)
+                    'delivery_fee' => Helper::getNumber($totalDeliveryFee,2),
+                    'grand' => Helper::getNumber($grand,2)
                 ],
             ];
         })->values();
@@ -987,9 +987,9 @@ class ReportController extends Controller
             //     $pkgInfo[$statusId]['count'] += 1;
             // }
         }
-        if(isset($pkgInfo[9])) $pkgInfo[9]['total'] = number_format($pkgInfo[9]['total'],2);
-        if(isset($pkgInfo[11])) $pkgInfo[11]['total'] = number_format($pkgInfo[11]['total'],2);
-        if(isset($pkgInfo[19])) $pkgInfo[19]['total'] = number_format($pkgInfo[19]['total'],2);
+        if(isset($pkgInfo[9])) $pkgInfo[9]['total'] = Helper::getNumber($pkgInfo[9]['total'],2);
+        if(isset($pkgInfo[11])) $pkgInfo[11]['total'] = Helper::getNumber($pkgInfo[11]['total'],2);
+        if(isset($pkgInfo[19])) $pkgInfo[19]['total'] = Helper::getNumber($pkgInfo[19]['total'],2);
 
 
 

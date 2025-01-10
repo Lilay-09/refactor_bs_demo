@@ -496,9 +496,9 @@ class GeneralSettingService
             "error" => false,
             'message' => 'Success',
             'delivery_fee' => $baseFee,
-            'driver_total' => number_format($driverTotal,2,'.',''),
-            'merchant_total' => number_format($merchant_total,2,'.',''),
-            'total' => number_format($total,2)
+            'driver_total' => Helper::getNumber($driverTotal,2),
+            'merchant_total' => Helper::getNumber($merchant_total,2),
+            'total' => Helper::getNumber($total,2)
         ];
     }
 

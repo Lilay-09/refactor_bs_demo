@@ -85,7 +85,7 @@ class CompletedPackageController extends Controller
             if($pkg->returnUser){
                 $pkg->driver_name = 'return by '. $pkg->returnUser->user_name;
             }
-            $pkg->total = number_format(abs($pkg->driver_total - $pkg->merchant_total),2);
+            $pkg->total = Helper::getNumber(abs($pkg->driver_total - $pkg->merchant_total),2);
             unset($pkg->returnUser);
         }
         return ApiResponse::Pagination($packages,$req,null,[]);
@@ -127,7 +127,7 @@ class CompletedPackageController extends Controller
         if(!$package) return ApiResponse::NotFound();
         $package->cod = $package->cod ? 1 : 0;
         $deliveryFee = GeneralSettingService::sumDeliveryFee($package->base_fee,$package->extra_charge,$package->taxi_fee,$package->payer);
-        $package->delivery_fee = number_format($deliveryFee,2);
+        $package->delivery_fee = Helper::getNumber($deliveryFee,2);
         return ApiResponse::JsonResult($package);
     }
 

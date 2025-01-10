@@ -69,7 +69,7 @@ class FleetManagementController extends Controller
             $delivery->driver_phone = $delivery->driver->phone;
             $details = $this->getTripDetails($packages,$delivery->id);
             $delivery->total = $details->total;
-            $delivery->total_delivered = number_format($details->total_delivered + $details->total_failed_with_fee,2);
+            $delivery->total_delivered = Helper::getNumber($details->total_delivered + $details->total_failed_with_fee,2);//number_format($details->total_delivered + $details->total_failed_with_fee,2);
             $delivery->failed_count = $details->failed_count;
             $delivery->delivery_count = $details->delivery_count;
             $delivery->failed_with_fee_count = $details->failed_with_fee_count;
@@ -113,10 +113,10 @@ class FleetManagementController extends Controller
             }
         }
         return (object)[
-            'total' => number_format($total,2),
+            'total' => Helper::getNumber($total,2),
             'failed_count' => $failedCount,
-            'total_delivered' => number_format($total_delivered,2),
-            'total_failed_with_fee' => number_format($totalFailedWithFee,2),
+            'total_delivered' => Helper::getNumber($total_delivered,2),
+            'total_failed_with_fee' => Helper::getNumber($totalFailedWithFee,2),
             'failed_with_fee_count' => $failedWithFeeCount,
             'delivery_count' => $deliveryCount
         ];

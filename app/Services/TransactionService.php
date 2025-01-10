@@ -86,7 +86,7 @@ class TransactionService
                 }else $package->{$type.'_total'} = $package->payer == 'receiver' ? $package->delivery_fee + $package->extra_charge : 0;
             }
 
-            $package->fee = number_format($package->delivery_fee + $package->extra_charge + $package->additional_fee,2);
+            $package->fee = Helper::getNumber($package->delivery_fee + $package->extra_charge + $package->additional_fee,2);
         }
         return DataResponse::Pagination($packages,$req);
     }
@@ -109,7 +109,7 @@ class TransactionService
             if($taxiFee) $total += $taxiFee;
         }
 
-        return number_format($total,2);
+        return Helper::getNumber($total,2);
     }
     public function receivePaymentValidation(Request $req,$type='driver'){
         return validator($req->all(),[
@@ -347,7 +347,7 @@ class TransactionService
     }
 
     public function paymentSuggestion($cash,$cashKh,$bankAmount,$bankAmountKh,$dueAmount,$exchangeRate){
-        $dueAmount = number_format($dueAmount,2);
+        $dueAmount = Helper::getNumber($dueAmount,2);
         $totalAmountUSD = $cash + $bankAmount;
         $totalAmountKHR = $cashKh + $bankAmountKh;
         $hasMoreThanTwoDecimals = function ($amount) {
@@ -387,7 +387,7 @@ class TransactionService
                 $additionalSuggestion = abs($dueAmount - $cash);
                 if($additionalSuggestion != $bankAmount)
                 return DataResponse::ValidateFail(__('messages.info',[
-                        'info' => 'If Cash Amount USD '.number_format($cash,2).',so bank amount must be USD '.number_format($additionalSuggestion,2)
+                        'info' => 'If Cash Amount USD '.Helper::getNumber($cash,2).',so bank amount must be USD '.Helper::getNumber($additionalSuggestion,2)
                     ]));
             }
             if($totalAmountUSD < $dueAmount) return DataResponse::ValidateFail(__('messages.info',[
@@ -414,7 +414,7 @@ class TransactionService
                 $maxSuggestionAmt = ceil($minSuggestionAmt / 100) * 100;
                 if(!($bankAmountKh >= $minSuggestionAmtDown && $bankAmountKh <= $maxSuggestionAmt)){
                     return DataResponse::ValidateFail(__('messages.info',[
-                        'info' => 'If Cash Amount KHR '.number_format($cashKh,2).' bank amount must be around KHR '.number_format($minSuggestionAmtDown,2).' or KHR '.number_format($maxSuggestionAmt,2)
+                        'info' => 'If Cash Amount KHR '.Helper::getNumber($cashKh,2).' bank amount must be around KHR '.Helper::getNumber($minSuggestionAmtDown,2).' or KHR '.Helper::getNumber($maxSuggestionAmt,2)
                     ]));
                 }
             }else{
@@ -996,7 +996,7 @@ class TransactionService
             $totalPrice = $group->where('cod',1)->where('status_id','!=',19)->sum('price');
             $representative = $group->first();
             $fee = $group->where('payer','receiver')->sum('delivery_fee') + $group->sum('extra_charge') + $group->sum('additional_fee');
-            $amount = number_format($totalPrice + $fee,2);
+            $amount = Helper::getNumber($totalPrice + $fee,2);
             $totalPackages += $packageTotal;
             $totalAmount += $amount;
             // $representative->package_count = $packageTotal; // Add the summed total_package
@@ -1015,7 +1015,7 @@ class TransactionService
 
         return DataResponse::Pagination(collect($groupData),$req,__('messages.Get List'),[
             'total_packages' => $totalPackages,
-            'total_amount' => number_format($totalAmount,2)
+            'total_amount' => Helper::getNumber($totalAmount,2)
         ]);
     }
 
@@ -1033,7 +1033,7 @@ class TransactionService
             foreach($orders as $order){
                 $totalPickUpCommission += $order->total_qty * $normalPickUpCommission;
             }
-            if($type != 'all') return (object)['total' => number_format($totalPickUpCommission,2)];
+            if($type != 'all') return (object)['total' => Helper::getNumber($totalPickUpCommission,2)];
         }else if($type == 'delivery' || $type == 'all'){
             $packages = Package::where('driver_id',$driver_id)
             ->where('is_deleted',0)
@@ -1048,16 +1048,16 @@ class TransactionService
                 }
             }
             if($type != 'all') return (object)[
-                'total' => number_format($totalFastDeliveryCommission + $totalNormalDeliveryCommission,2),
-                'total_fast_delivery' => number_format($totalFastDeliveryCommission,2),
-                'total_normal_delivery' => number_format($totalNormalDeliveryCommission,2),
+                'total' => Helper::getNumber($totalFastDeliveryCommission + $totalNormalDeliveryCommission,2),
+                'total_fast_delivery' => Helper::getNumber($totalFastDeliveryCommission,2),
+                'total_normal_delivery' => Helper::getNumber($totalNormalDeliveryCommission,2),
             ];
         }
         //
         return (object)[
-            'total_pickup' => number_format($totalPickUpCommission,2),
-            'total_fast_delivery' => number_format($totalFastDeliveryCommission,2),
-            'total_normal_delivery' => number_format($totalNormalDeliveryCommission,2)
+            'total_pickup' => Helper::getNumber($totalPickUpCommission,2),
+            'total_fast_delivery' => Helper::getNumber($totalFastDeliveryCommission,2),
+            'total_normal_delivery' => Helper::getNumber($totalNormalDeliveryCommission,2)
         ];
     }
 
@@ -1510,7 +1510,7 @@ class TransactionService
         $obj->failed_with_fee_count = $failedWithFeeCount;
         $obj->total_pickup_count = $pickUpCount;
 
-        $obj->grand_total = number_format($obj->total_pickup + $obj->total_delivered,2);
+        $obj->grand_total = Helper::getNumber($obj->total_pickup + $obj->total_delivered,2);
         // Log::info($deliveredCount);
         if(empty($obj->package_ids) && empty($obj->order_ids)){
             return DataResponse::NotFound('No package found');

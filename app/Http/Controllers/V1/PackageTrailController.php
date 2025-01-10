@@ -104,7 +104,7 @@ class PackageTrailController extends Controller
             $pkg->merchant_phone = $pkg->merchant?->phone;
             $pkg->cod = $cod == true ? 1:0;
             $pkg->status_code = $pkg->status->name;
-            $pkg->total = number_format(abs($pkg->driver_total - $pkg->merchant_total),2);//PickupCenterService::getDriverTotal($cod,$pkg->payer,$pkg->price,$pkg->delivery_fee,$pkg->additional_fee,$pkg->excharge_fee);
+            $pkg->total = Helper::getNumber(abs($pkg->driver_total - $pkg->merchant_total),2);//PickupCenterService::getDriverTotal($cod,$pkg->payer,$pkg->price,$pkg->delivery_fee,$pkg->additional_fee,$pkg->excharge_fee);
             $pkg->warehouse_timeago = Helper::timeAgo($pkg->arrive_warehouse_datetime,false);
             $pkg->arrive_warehouse_datetime = Helper::formatCustomDateTime($pkg->arrive_warehouse_datetime);
             unset($pkg->status,$pkg->merchant,$pkg->driver);
@@ -141,11 +141,10 @@ class PackageTrailController extends Controller
         $id = $req->id;
         $user = UserService::getAuthUser();
         // $images = PackageAttachment::where('package_id',$id)->pluck('file_name')->toArray();
+        $lastDate = PackageAttachment::where('package_id',$id)->orderByDesc('created_at')->value('created_at');
         $images = PackageAttachment::where('package_id', $id)
-        ->select(DB::raw("file_name, to_char(created_at, 'YYYY-MM-DD HH24:MI') as created_at_minute"))
-        ->groupByRaw("to_char(created_at, 'YYYY-MM-DD HH24:MI'), file_name, created_at")
-        ->orderBy('created_at', 'desc')
-        ->take(2)
+        ->take(2)  // Limit to the 2 most recent images
+        ->whereRaw('created_at = ?',[$lastDate])
         ->pluck('file_name')
         ->toArray();
         $imageUrls = array_map(fn($img) => Helper::getImageUrl($img, $user->company_id, 'submit_package'), $images);
