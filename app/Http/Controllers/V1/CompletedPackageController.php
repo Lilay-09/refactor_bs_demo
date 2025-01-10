@@ -55,7 +55,7 @@ class CompletedPackageController extends Controller
         ->leftJoin('disbursements as mbur','mbur.id','p.merchant_disbursement_id') //** if driver paid or unpaid */
         ->orderByDesc('p.delivered_datetime')
         ->orderByDesc('p.failed_datetime')
-        ->orderByDesc('p.returned_datetimes')
+        ->orderByDesc('p.returned_datetime')
         ->orderByDesc('p.id')
         ->whereIn('p.status_id',[9,11,19]) //* delivered and failed with fee
         ->where(function ($query) {
