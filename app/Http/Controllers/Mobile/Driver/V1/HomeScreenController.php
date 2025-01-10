@@ -117,8 +117,8 @@ class HomeScreenController extends Controller
         }
         // $totalSettledDisburment = Disbursement::where('payee_id',$user->id)->where('type','payment')->where('is_deleted',0)->where('is_settled',1)->sum('payable_amount');
         $obj = [
-            'earning' => Helper::getNumber($totalEarning),
-            'settlement' => Helper::getNumber($balanceDue)
+            'earning' => (float)Helper::getNumber($totalEarning),
+            'settlement' => (float)Helper::getNumber($balanceDue)
         ];
         return ApiResponse::JsonResult($obj);
     }
@@ -233,7 +233,8 @@ class HomeScreenController extends Controller
                 'info' => 'This order is not available'
             ]));
             else return ApiResponse::Duplicated(__('messages.info',[
-                'info' => 'You have already accepted order ('.$order->code.')'
+                'info' => 'You have already accepted order ('.$order->code.')',
+                'khInfo' => 'ការកម្នង់នេះបានទទួលរួចហើយ ('.$order->code.')'
             ]));
         }
 
@@ -246,7 +247,8 @@ class HomeScreenController extends Controller
         ]);
 
         return ApiResponse::JsonResult(null,__('messages.info',[
-            'info' => 'Order accepted'
+            'info' => 'Order accepted',
+            'khInfo' => 'ទទួលយកយកការកម្មង់'
         ]));
     }
 

@@ -481,11 +481,47 @@ class ReportController extends Controller
         $user = UserService::getAuthUser();
         $startDate = $req->startDate;
         $endDate = $req->endDate;
-        $packages = Package::where('is_deleted',0)->whereIn('status_id',[9,10,19])->get();
+        $driverId = $req->driver_id;
+        $qP = Package::where('is_deleted',0)->whereIn('status_id',[9,10,19]);
         $qD = User::where('account_type','driver')
         ->selectRaw('id,code,user_name,gender,shift_type,phone,address,vehicle_type,plate_number,lock');
+        if($driverId){
+            $qP->where('driver_id',$driverId); // Package
+            $qD->where('id',$driverId);
+        }
+        if($startDate && $endDate){
+            $startDate = Helper::dateYMD($startDate);
+            $endDate = Helper::dateYMD($endDate);
+            $qP->where(function($q) use ($startDate, $endDate) {
+                $q->where(function($q) use ($startDate, $endDate) {
+                    // For status_id 10 or 19, query only failed_datetime
+                    $q->whereRaw('
+                        (failed_datetime::DATE >= ? AND failed_datetime::DATE <= ?)', [$startDate, $endDate])
+                        ->where('status_id',19);
+                })
+                ->orWhere(function($q) use ($startDate, $endDate) {
+                    // For status_id 9, query only delivered_datetime
+                    $q->whereRaw('
+                        (delivered_datetime::DATE >= ? AND delivered_datetime::DATE <= ?)', [$startDate, $endDate])
+                        ->where('status_id', 9);
+                })
+                ->orWhere(function($q) use ($startDate, $endDate) {
+                    // For status_id 11, query only returned_datetime
+                    $q->whereRaw('
+                        (returned_datetime::DATE >= ? AND returned_datetime::DATE <= ?)', [$startDate, $endDate])
+                        ->where('status_id', 11);
+                });
+            });
+        }
         $drivers = $qD->get();
-        $orders = Order::where('status_id',5)->where('is_deleted',0)->selectRaw('qty,driver_id')->get();
+        $packages = $qP->get();
+        $oD = Order::where('status_id',5)->where('is_deleted',0)->selectRaw('qty,driver_id');
+        if($startDate && $endDate){
+            $startDate = Helper::dateYMD($startDate);
+            $endDate = Helper::dateYMD($endDate);
+            $oD->whereRaw('updated_at::DATE >= ? AND updated_at::DATE <= ?', [$startDate, $endDate]);
+        }
+        $orders = $oD->get();
 
         $totalPickUpCount = 0;
         $totalDeliveredCount = 0;
@@ -579,22 +615,66 @@ class ReportController extends Controller
 
     public function getPackageDetailReport(Request $req){
         $user = UserService::getAuthUser();
-        $startDate = $req->startDate ? Helper::dateDMY($req->startDate) : null;
-        $endDate = $req->endDate ? Helper::dateDMY($req->endDate) : null;
-        $packages = Package::where('is_deleted',0)->where('outstanding',0)
+        $startDate = $req->startDate ? Helper::dateYMD($req->startDate) : null;
+        $endDate = $req->endDate ? Helper::dateYMD($req->endDate) : null;
+        $qP = Package::where('is_deleted',0)->where('outstanding',0)
         ->with(['merchant:id,user_name','status:id,name'])
-        ->selectRaw('status_id,qr_code,merchant_id,receiver_phone,receiver_name,cod,delivery_fee,taxi_fee,driver_total,remarks,zone_code,zone_name,payer')->get();
+        ->orderByDesc('id')
+        ->selectRaw('status_id,qr_code,merchant_id,receiver_phone,receiver_name,cod,delivery_fee,taxi_fee,driver_total,remarks,zone_code,zone_name,payer,driver_id');
+        if($startDate && $endDate){
+            $qP->where(function($q) use ($startDate, $endDate) {
+                $q->where(function($q) use ($startDate, $endDate) {
+                    // For status_id 10 or 19, query only failed_datetime
+                    $q->whereRaw('
+                        (failed_datetime::DATE >= ? AND failed_datetime::DATE <= ?)', [$startDate, $endDate])
+                        ->whereIn('status_id', [10, 19]);
+                })
+                ->orWhere(function($q) use ($startDate, $endDate) {
+                    // For status_id 9, query only delivered_datetime
+                    $q->whereRaw('
+                        (delivered_datetime::DATE >= ? AND delivered_datetime::DATE <= ?)', [$startDate, $endDate])
+                        ->where('status_id', 9);
+                })
+                ->orWhere(function($q) use ($startDate, $endDate) {
+                    // For status_id 6, query only assign_driver_datetime
+                    $q->whereRaw('
+                        (assign_driver_datetime::DATE >= ? AND assign_driver_datetime::DATE <= ?)', [$startDate, $endDate])
+                        ->where('status_id', 6);
+                })
+                ->orWhere(function($q) use ($startDate, $endDate) {
+                    // For status_id 5, query only arrive_warehouse_datetime
+                    $q->whereRaw('
+                        (arrive_warehouse_datetime::DATE >= ? AND arrive_warehouse_datetime::DATE <= ?)', [$startDate, $endDate])
+                        ->where('status_id', 5);
+                })
+                ->orWhere(function($q) use ($startDate, $endDate) {
+                    // For status_id 11, query only returned_datetime
+                    $q->whereRaw('
+                        (returned_datetime::DATE >= ? AND returned_datetime::DATE <= ?)', [$startDate, $endDate])
+                        ->where('status_id', 11);
+                });
+            });
+
+        }
+        $uniqueDrivers = [];
+        $distinctDriverCount = 0;
+        $packages = $qP->get();
         foreach ($packages as $p){
             $p->merchant_name = $p->merchant->user_name;
             $p->merchant_phone = $p->merchant->phone;
             $p->status_code = $p->status->name;
+            if ($p->driver_id !== null && empty($uniqueDrivers[$p->driver_id])) {
+                $uniqueDrivers[$p->driver_id] = true; // Mark this driver_id as seen
+                $distinctDriverCount+=1; // Increment the distinct count
+            }
             unset($p->merchant,$p->status);
         }
+        \Log::error(json_encode($uniqueDrivers));
         $obj =(object)[
             'title' => 'Daily Packages Summary',
             'status' => 'All Driver',
-            'date' => $startDate.' to '.$endDate,
-            'total' => 1,
+            'date' => Helper::dateDMY($startDate).' to '.Helper::dateDMY($endDate),
+            'total' => $distinctDriverCount,
             'company_profile' => CompanyProfileService::profileInfo($user),
             'list' => $packages
         ];
@@ -795,38 +875,38 @@ class ReportController extends Controller
         p.returned_datetime,p.arrive_warehouse_datetime,p.assign_driver_datetime,p.receiver_phone,p.receiver_name,p.receiver_address,p.delivery_remarks'.$pmtCase);
 
         if ($startDate && $endDate) {
-        $qP->where(function($q) use ($startDate, $endDate) {
-            $q->where(function($q) use ($startDate, $endDate) {
-                // For status_id 10 or 19, query only failed_datetime
-                $q->whereRaw('
-                    (p.failed_datetime::DATE >= ? AND p.failed_datetime::DATE <= ?)', [$startDate, $endDate])
-                    ->whereIn('p.status_id', [10, 19]);
-            })
-            ->orWhere(function($q) use ($startDate, $endDate) {
-                // For status_id 9, query only delivered_datetime
-                $q->whereRaw('
-                    (p.delivered_datetime::DATE >= ? AND p.delivered_datetime::DATE <= ?)', [$startDate, $endDate])
-                    ->where('p.status_id', 9);
-            })
-            ->orWhere(function($q) use ($startDate, $endDate) {
-                // For status_id 6, query only assign_driver_datetime
-                $q->whereRaw('
-                    (p.assign_driver_datetime::DATE >= ? AND p.assign_driver_datetime::DATE <= ?)', [$startDate, $endDate])
-                    ->where('p.status_id', 6);
-            })
-            ->orWhere(function($q) use ($startDate, $endDate) {
-                // For status_id 5, query only arrive_warehouse_datetime
-                $q->whereRaw('
-                    (p.arrive_warehouse_datetime::DATE >= ? AND p.arrive_warehouse_datetime::DATE <= ?)', [$startDate, $endDate])
-                    ->where('p.status_id', 5);
-            })
-            ->orWhere(function($q) use ($startDate, $endDate) {
-                // For status_id 11, query only returned_datetime
-                $q->whereRaw('
-                    (p.returned_datetime::DATE >= ? AND p.returned_datetime::DATE <= ?)', [$startDate, $endDate])
-                    ->where('p.status_id', 11);
+            $qP->where(function($q) use ($startDate, $endDate) {
+                $q->where(function($q) use ($startDate, $endDate) {
+                    // For status_id 10 or 19, query only failed_datetime
+                    $q->whereRaw('
+                        (p.failed_datetime::DATE >= ? AND p.failed_datetime::DATE <= ?)', [$startDate, $endDate])
+                        ->whereIn('p.status_id', [10, 19]);
+                })
+                ->orWhere(function($q) use ($startDate, $endDate) {
+                    // For status_id 9, query only delivered_datetime
+                    $q->whereRaw('
+                        (p.delivered_datetime::DATE >= ? AND p.delivered_datetime::DATE <= ?)', [$startDate, $endDate])
+                        ->where('p.status_id', 9);
+                })
+                ->orWhere(function($q) use ($startDate, $endDate) {
+                    // For status_id 6, query only assign_driver_datetime
+                    $q->whereRaw('
+                        (p.assign_driver_datetime::DATE >= ? AND p.assign_driver_datetime::DATE <= ?)', [$startDate, $endDate])
+                        ->where('p.status_id', 6);
+                })
+                ->orWhere(function($q) use ($startDate, $endDate) {
+                    // For status_id 5, query only arrive_warehouse_datetime
+                    $q->whereRaw('
+                        (p.arrive_warehouse_datetime::DATE >= ? AND p.arrive_warehouse_datetime::DATE <= ?)', [$startDate, $endDate])
+                        ->where('p.status_id', 5);
+                })
+                ->orWhere(function($q) use ($startDate, $endDate) {
+                    // For status_id 11, query only returned_datetime
+                    $q->whereRaw('
+                        (p.returned_datetime::DATE >= ? AND p.returned_datetime::DATE <= ?)', [$startDate, $endDate])
+                        ->where('p.status_id', 11);
+                });
             });
-        });
     }
         // if($startDate && $endDate){
         //     $qP->where(function($q) use ($startDate,$endDate){

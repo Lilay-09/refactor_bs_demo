@@ -42,6 +42,7 @@ class PickupCenterService
             'receiver_phone' => 'required|string|min:9',
             'receiver_name' => 'nullable|string',
             'pickup_notes' => 'nullable|string',
+            'noted' => 'nullable|string',
             'extra_charge' => 'nullable|numeric',
             'actual_kg' => 'nullable|numeric',
             'billed_kg' => 'nullable|numeric',
@@ -300,7 +301,9 @@ class PickupCenterService
         $actualKg = $inputs['actual_kg'] ?? 0;
         $billedKg = $inputs['billed_kg'] ?? 0;
         $inputs['actual_kg'] = $actualKg;
+        $inputs['pickup_notes'] = $inputs['pickup_notes'] ?? $inputs['noted'] ?? '';
         $payer = $inputs['payer'];
+        $inputs['pickup_datetime'] = now();
         $inputs['billed_kg'] = $actualKg;
         $cod = $inputs['cod'];
         $inputs['extra_charge'] = $inputs['extra_charge'] ?? 0;
