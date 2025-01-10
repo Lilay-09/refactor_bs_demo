@@ -21,6 +21,7 @@ use App\Services\UserService;
 use Helper;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Log;
 
 class HomeScreenController extends Controller
 {
@@ -97,21 +98,27 @@ class HomeScreenController extends Controller
         $pickup_rate = $commissionInfo->normal_pickup_commission;
         $delivery_rate = $commissionInfo->normal_delivery_commission;
         $totalEarning = (float)Helper::getNumber($pickup_rate * $totalPickUpPackage + $delivery_rate * $totalDeliveredPackage,2);
-        $balanceDue = Package::where('packages.driver_id', $user->id)
-        ->where('packages.is_deleted', 0)
-        ->whereIn('packages.status_id', [9, 19])
-        ->whereNull('packages.driver_disbursement_id')
-        ->leftJoin('payments', 'packages.driver_payment_id', '=', 'payments.id')
+        $balanceDues = Package::from('packages as p')->where('p.driver_id', $user->id)
+        ->where('p.is_deleted', 0)
+        ->whereIn('p.status_id', [9, 19])
+        ->whereNull('p.driver_disbursement_id')
+        ->leftJoin('payments', 'p.driver_payment_id', '=', 'payments.id')
+        ->selectRaw('p.qr_code,p.id,p.driver_total,p.cod,p.price,p.extra_charge,p.delivery_fee,p.additional_fee,p.payer,p.status_id,p.taxi_fee')
         ->where(function ($query) {
             $query->whereNull('payments.id') // Include rows without matching payments
                 ->orWhere('payments.approved', 0); // Include rows where payments.approved = 0
         })
-        ->sum('packages.driver_total');
+        ->get();
+        $balanceDue = 0;
+        foreach($balanceDues as $b){
+            $totalPrice = (($b->cod && $b->status_id !=19) ? $b->price : 0) - $b->taxi_fee;
+            $fee = PickupCenterService::getFees($b->payer,$b->delivery_fee,$b->additional_fee,$b->extra_charge);
+            $balanceDue += $totalPrice + $fee;
+        }
         // $totalSettledDisburment = Disbursement::where('payee_id',$user->id)->where('type','payment')->where('is_deleted',0)->where('is_settled',1)->sum('payable_amount');
         $obj = [
             'earning' => $totalEarning,
-            // 'settlement' => (float)$totalSettledPayment,
-            'settlement' => (float)$balanceDue
+            'settlement' => $balanceDue
         ];
         return ApiResponse::JsonResult($obj);
     }

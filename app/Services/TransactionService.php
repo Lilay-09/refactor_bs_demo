@@ -995,7 +995,7 @@ class TransactionService
             $packageTotal = $group->count(); // Count items in the group (equivalent to summing 1 per item)
             $totalPrice = $group->where('cod',1)->where('status_id','!=',19)->sum('price');
             $representative = $group->first();
-            $fee = $group->where('payer','receiver')->sum('delivery_fee') + $group->sum('extra_charge') + $group->sum('additional_fee');
+            $fee = $group->where('payer','receiver')->sum('delivery_fee') + $group->sum('extra_charge') + $group->sum('additional_fee') - $group->sum('taxi_fee');
             $amount = Helper::getNumber($totalPrice + $fee,2);
             $totalPackages += $packageTotal;
             $totalAmount += $amount;
