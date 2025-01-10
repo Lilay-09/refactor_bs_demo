@@ -39,14 +39,14 @@ class GeneralSettingController extends Controller
         return ApiResponse::JsonResult($obj);
     }
 
-    public function getFormOptionsHistory(){
+    public function getFormOptionsHistory(Request $req){
         $user = UserService::getAuthUser('driver');
         $bonusRow = collect([['id' => 0, 'name' => 'All']]);
-        $results = GeneralSettingService::optionsTrackingStatus($user,[],[9,10,11,19],'delivery');
+        $results = GeneralSettingService::optionsTrackingStatus($user,[],[9,10,11,19],'delivery',null,$req->lang);
         // Merge the bonus row with the fetched results
         $results = $bonusRow->merge($results);
         $obj = (object)[
-            'payment_statuses' => GeneralSettingService::paymentStatus(),
+            'payment_statuses' => GeneralSettingService::paymentStatus($req->lang),
             'statuses' =>$results
         ];
         return ApiResponse::JsonResult($obj);

@@ -860,6 +860,9 @@ class ReportController extends Controller
         )->orderByRaw('DATE(p.failed_datetime) DESC,DATE(p.delivered_datetime) DESC');
         $clonePkg = clone $qP;
         $packages = $qP->get();
+        foreach($packages as $p){
+            $p->arrive_warehouse_datetime = Helper::formatCustomDateTime($p->arrive_warehouse_datetime);
+        }
         // return $packages;
         $summary = $this->getMerchantSummaryHeader($clonePkg,$merchantId,$startDate,$endDate);
         $groupedPackages = collect($packages)->map(function ($item) use (&$grand)  {

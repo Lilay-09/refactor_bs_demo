@@ -46,7 +46,8 @@ class GeneralSettingService
     public static $pmtStatusTrans = [
         'pending' => 'ចាំការអនុម័ត',
         'unpaid' => 'មិនទាន់ទូរទាត់',
-        'paid' => 'បានទូរទាត់'
+        'paid' => 'បានទូរទាត់',
+        'all' => 'ទាំងអស់'
     ];
 
 
@@ -186,7 +187,7 @@ class GeneralSettingService
         return BusinessType::where('company_id',$user->company_id)->where('is_deleted',0)->selectRaw('id,name')->get();
     }
 
-    public static function optionsTrackingStatus($user,$exludeIds=[],$selectIds=[],$stage=null,$selectCols=null){
+    public static function optionsTrackingStatus($user,$exludeIds=[],$selectIds=[],$stage=null,$selectCols=null,$lang='en'){
         if(!$selectCols) $selectCols = 'id,name';
         $q = TrackingStatus::where('hidden',0)->where('is_deleted',0)
         ->where('company_id',$user->company_id)
@@ -201,6 +202,11 @@ class GeneralSettingService
             $q->whereIn('id',$selectIds);
         }
         $statuses = $q->get();
+        foreach($statuses as $st){
+            if($lang != 'en'){
+                $st->name = self::$statusCodeTrans[$st->id] ?? null;
+            }
+        }
         return $statuses;
     }
 
@@ -428,8 +434,12 @@ class GeneralSettingService
         ];
     }
 
-    public static function paymentStatus(){
-        return [
+    public static function paymentStatus($lang='en'){
+        $rows = [
+            [
+                'label' => 'All',
+                'value' => 0
+            ],
             [
                 'label' => 'Paid',
                 'value' => 2
@@ -437,12 +447,15 @@ class GeneralSettingService
             [
                 'label' => 'Unpaid',
                 'value' => 1
-            ],
-            [
-                'label' => 'All',
-                'value' => 0
-            ],
+            ]
         ];
+        if($lang != 'en'){
+            foreach($rows as &$row){
+                $lw = strtolower($row['label']);
+                $row['label'] = isset(self::$pmtStatusTrans[$lw]) ? self::$pmtStatusTrans[$lw]: $row['label'];
+            }
+        }
+        return $rows;
     }
     public static function optionsPriceListName($user){
         return PriceListname::where('company_id',$user->company_id)->where('is_deleted',0)->orderByDesc('id')->selectRaw('id,name,kg_marker')->get();

@@ -306,7 +306,7 @@ class GeneralSettingController extends Controller
 
 
 
-    public function getFormFinished(){
+    public function getFormFinished(Request $req){
         $user = UserService::getAuthUser();
         $obj = (object)[
             'warehouses' => $this->gs::optionsWarehouse($user),
