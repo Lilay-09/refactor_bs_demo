@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Delivery;
 use App\Models\DeliveryPackage;
 use App\Models\Package;
+use App\Models\PackageAttachment;
 use App\Services\GeneralSettingService;
 use App\Services\PickupCenterService;
 use App\Services\TransactionService;
@@ -52,6 +53,9 @@ class CompletedPackageController extends Controller
         ->leftJoin('payments as mpmt','mpmt.id','p.merchant_payment_id') //** if driver paid or unpaid */
         ->leftJoin('disbursements as dbur','dbur.id','p.driver_disbursement_id') //** if driver paid or unpaid */
         ->leftJoin('disbursements as mbur','mbur.id','p.merchant_disbursement_id') //** if driver paid or unpaid */
+        ->orderByDesc('p.delivered_datetime')
+        ->orderByDesc('p.failed_datetime')
+        ->orderByDesc('p.returned_datetimes')
         ->orderByDesc('p.id')
         ->whereIn('p.status_id',[9,11,19]) //* delivered and failed with fee
         ->where(function ($query) {
@@ -82,6 +86,7 @@ class CompletedPackageController extends Controller
         //** --------- */
         $packages = $qP->get();
         foreach($packages as $pkg){
+            $pkg->has_image = PackageAttachment::where('hidden',0)->where('package_id',$pkg->id)->value('package_id') ? 1 : 0;
             if($pkg->returnUser){
                 $pkg->driver_name = 'return by '. $pkg->returnUser->user_name;
             }

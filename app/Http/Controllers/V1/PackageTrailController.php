@@ -104,6 +104,7 @@ class PackageTrailController extends Controller
             $pkg->merchant_phone = $pkg->merchant?->phone;
             $pkg->cod = $cod == true ? 1:0;
             $pkg->status_code = $pkg->status->name;
+            $pkg->has_image = PackageAttachment::where('hidden',0)->where('package_id',$pkg->id)->value('package_id') ? 1 : 0;
             $pkg->total = Helper::getNumber(abs($pkg->driver_total - $pkg->merchant_total),2);//PickupCenterService::getDriverTotal($cod,$pkg->payer,$pkg->price,$pkg->delivery_fee,$pkg->additional_fee,$pkg->excharge_fee);
             $pkg->warehouse_timeago = Helper::timeAgo($pkg->arrive_warehouse_datetime,false);
             $pkg->arrive_warehouse_datetime = Helper::formatCustomDateTime($pkg->arrive_warehouse_datetime);
@@ -142,7 +143,6 @@ class PackageTrailController extends Controller
         $user = UserService::getAuthUser();
         $images = PackageAttachment::where('package_id', $id)
         ->take(2)  // Limit to the 2 most recent images
-        // ->whereRaw('created_at = ?',[$lastDate])
         ->where('hidden',0)
         ->pluck('file_name')
         ->toArray();
