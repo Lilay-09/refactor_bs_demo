@@ -52,6 +52,7 @@ class GeneralSettingService
 
 
     public static $statusCodeTrans = [
+        0 => 'ទាំងអស់',
         5 => 'ដល់ឃ្លាំង',
         6 => 'កំពុងដឹក',
         9 => 'ជេាគជ័យ',
@@ -202,11 +203,6 @@ class GeneralSettingService
             $q->whereIn('id',$selectIds);
         }
         $statuses = $q->get();
-        foreach($statuses as $st){
-            if($lang != 'en'){
-                $st->name = self::$statusCodeTrans[$st->id] ?? null;
-            }
-        }
         return $statuses;
     }
 

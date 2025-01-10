@@ -41,12 +41,19 @@ class GeneralSettingController extends Controller
 
     public function getFormOptionsHistory(Request $req){
         $user = UserService::getAuthUser('driver');
-        $bonusRow = collect([['id' => 0, 'name' => 'All']]);
+        $lang = $req->lang;
+        $stCode = $lang != 'en' ? 'ទាំងអស់':'All';
+        $bonusRow = collect([['id' => 0, 'name' => $stCode]]);
         $results = GeneralSettingService::optionsTrackingStatus($user,[],[9,10,11,19],'delivery',null,$req->lang);
         // Merge the bonus row with the fetched results
         $results = $bonusRow->merge($results);
+        foreach($results as $st){
+            if($lang != 'en'){
+                $st['name'] = isset(GeneralSettingService::$statusCodeTrans[$st['id']]) ? GeneralSettingService::$statusCodeTrans[$st['id']] : null;
+            }
+        }
         $obj = (object)[
-            'payment_statuses' => GeneralSettingService::paymentStatus($req->lang),
+            'payment_statuses' => GeneralSettingService::paymentStatus($lang),
             'statuses' =>$results
         ];
         return ApiResponse::JsonResult($obj);
