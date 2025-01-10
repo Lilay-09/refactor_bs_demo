@@ -316,7 +316,7 @@ class PickupCenterService
         $extraCharge = $inputs['extra_charge'] ?? 0;
         $calPrice = GeneralSettingService::calculatePackageFee($zoneCode,$price,$billedKg,$actualKg,$payer,$cod,$extraCharge,$user,$taxiFee,$inputs['merchant_id']);
         if($calPrice->error) return $calPrice;
-        Log::info($calPrice->driver_total);
+        // Log::info($calPrice->driver_total);
         $inputs['driver_total'] = $calPrice->driver_total;
         $inputs['merchant_total'] = $calPrice->merchant_total;
         $inputs['delivery_fee'] = $calPrice->delivery_fee;

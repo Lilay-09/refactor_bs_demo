@@ -490,7 +490,6 @@ class GeneralSettingService
             $total += $zPrice;
             $merchant_total = 0;
             $driverTotal += $zPrice;
-
         }
         $driverTotal -= $taxi_fee;
         return (object)[
