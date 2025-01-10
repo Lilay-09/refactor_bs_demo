@@ -189,12 +189,12 @@ class GeneralSettingController extends Controller
             $notifReq = new Request([
                 'topic' => $topics->private,
                 'title' => 'Change Driver',
-                'body' => "DRIVER NAME ($requester) request change package ",
+                'body' => "$requester request change package ",
                 'data' => [
                     'action' => 'change-driver',
                     'requester' => $requester,
                     'barcode' => $item_ref,
-                    "en_message" => "DRIVER NAME ($requester) request change package ",//$requester." request swap the package",
+                    "en_message" => "$requester request change package ",//$requester." request swap the package",
                     "km_message" => $requester." ស្នើរសុំកញ្ចប់"
                 ]
             ]);
