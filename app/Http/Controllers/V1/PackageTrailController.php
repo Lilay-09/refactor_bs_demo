@@ -140,7 +140,14 @@ class PackageTrailController extends Controller
     public function getPackageImages(Request $req){
         $id = $req->id;
         $user = UserService::getAuthUser();
-        $images = PackageAttachment::where('package_id',$id)->pluck('file_name')->toArray();
+        // $images = PackageAttachment::where('package_id',$id)->pluck('file_name')->toArray();
+        $images = PackageAttachment::where('package_id', $id)
+        ->select(DB::raw("file_name, to_char(created_at, 'YYYY-MM-DD HH24:MI') as created_at_minute"))
+        ->groupByRaw("to_char(created_at, 'YYYY-MM-DD HH24:MI'), file_name, created_at")
+        ->orderBy('created_at', 'desc')
+        ->take(2)
+        ->pluck('file_name')
+        ->toArray();
         $imageUrls = array_map(fn($img) => Helper::getImageUrl($img, $user->company_id, 'submit_package'), $images);
         return ApiResponse::JsonResult($imageUrls);
     }

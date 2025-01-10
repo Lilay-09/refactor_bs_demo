@@ -972,26 +972,24 @@ class ReportController extends Controller
         foreach ($packages as $p) {
             $statusId = $p->status_id;
             if(isset($pkgInfo[$statusId])){
-
                 $pkgInfo[$statusId]['count'] += 1;
-                // $pkgInfo[$statusId]['total'] += -$p->merchant_total;
-                $pkgInfo[$statusId]['total'] += round(-$p->merchant_total, 2);
-
+                $pkgInfo[$statusId]['total'] += -$p->merchant_total;
             }
             if(in_array($statusId,[5,6,10])){
                 $pkgInfo[5]['count'] += 1;
                 $pkgInfo[5]['total'] += -$p->merchant_total;
-                $pkgInfo['5.2']['count'] = number_format($pkgInfo['5.1']['count'] + $pkgInfo[5]['count'],2);
-                $pkgInfo['5.2']['total'] = number_format($pkgInfo['5.1']['total'] + $pkgInfo[5]['total'],2);
+                $pkgInfo['5.2']['count'] = $pkgInfo['5.1']['count'] + $pkgInfo[5]['count'];
+                $pkgInfo['5.2']['total'] = $pkgInfo['5.1']['total'] + $pkgInfo[5]['total'];
             }
-
-
             // if($p->status_id == 5){
             //     $statusId = $p->status_id.'.1';
             //     return $statusId;
             //     $pkgInfo[$statusId]['count'] += 1;
             // }
         }
+        if(isset($pkgInfo[9])) $pkgInfo[9]['total'] = number_format($pkgInfo[9]['total'],2);
+        if(isset($pkgInfo[11])) $pkgInfo[11]['total'] = number_format($pkgInfo[11]['total'],2);
+        if(isset($pkgInfo[19])) $pkgInfo[19]['total'] = number_format($pkgInfo[19]['total'],2);
 
 
 

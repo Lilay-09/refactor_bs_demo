@@ -442,7 +442,10 @@ class HomeScreenController extends Controller
             'status_id' => $status_id
         ]);
         GeneralSettingService::updateTripStatus($dp->delivery_id,$user);
-        return ApiResponse::JsonResult(null,__('messages.submitted'));
+        return ApiResponse::JsonResult(null,__('messages.submitted',[
+            'info' => 'Package has',
+            'khInfo' => 'បានបញ្ចូន'
+        ]));
     }
 
     public function cancelOrder(Request $req){
