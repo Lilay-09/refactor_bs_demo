@@ -395,12 +395,16 @@ class HomeScreenController extends Controller
             'info' => 'Package'
         ]));
 
+        PackageAttachment::where('package_id',$id)->update([
+            'hidden' => 1
+        ]);
         if(isset($photos[0])) {
             foreach($photos as $p){
                 $fileName = Helper::saveImageFileOrBase64($p,$user->company_id,'submit_package')->filename;
                 if($fileName){
                     PackageAttachment::create([
                         'package_id' => $id,
+                        'submit_uid' => $user->id,
                         'file_name' => $fileName
                     ]);
                 }

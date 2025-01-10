@@ -17,6 +17,9 @@ class PackageAttachment extends Model
 
     protected $fillable = [
         'file_name',
+        'hidden',
+        'submit_uid',
+        'user_class',
         'file_type',
         'package_id'
     ];

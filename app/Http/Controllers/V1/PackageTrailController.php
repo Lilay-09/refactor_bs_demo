@@ -140,11 +140,10 @@ class PackageTrailController extends Controller
     public function getPackageImages(Request $req){
         $id = $req->id;
         $user = UserService::getAuthUser();
-        // $images = PackageAttachment::where('package_id',$id)->pluck('file_name')->toArray();
-        $lastDate = PackageAttachment::where('package_id',$id)->orderByDesc('created_at')->value('created_at');
         $images = PackageAttachment::where('package_id', $id)
         ->take(2)  // Limit to the 2 most recent images
-        ->whereRaw('created_at = ?',[$lastDate])
+        // ->whereRaw('created_at = ?',[$lastDate])
+        ->where('hidden',0)
         ->pluck('file_name')
         ->toArray();
         $imageUrls = array_map(fn($img) => Helper::getImageUrl($img, $user->company_id, 'submit_package'), $images);
