@@ -189,7 +189,7 @@ class GeneralSettingController extends Controller
             $notifReq = new Request([
                 'topic' => $topics->private,
                 'title' => 'Change Driver',
-                'body' => 'Request package',
+                'body' => "DRIVER NAME ($requester) request change package ",
                 'data' => [
                     'action' => 'change-driver',
                     'requester' => $requester,
