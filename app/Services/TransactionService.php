@@ -363,7 +363,7 @@ class TransactionService
         $originalBankAmtKh = 0;
         if($totalAmountUSD && $totalAmountKHR){
             $totalAmountKHR_to_USD = $totalAmountKHR/$exchangeRate;
-            $totalAllAmt = $totalAmountUSD + $totalAmountKHR_to_USD;
+            $totalAllAmt = Helper::getNumber($totalAmountUSD + $totalAmountKHR_to_USD);
             if($totalAllAmt > $dueAmount) return DataResponse::ValidateFail('You amount is exceeding the expected, amount is only $'.$dueAmount.' in total');
             $remainingAmt = abs($totalAmountUSD - $dueAmount);
             $totalSuggestionAmt_KH = $remainingAmt * $exchangeRate;
