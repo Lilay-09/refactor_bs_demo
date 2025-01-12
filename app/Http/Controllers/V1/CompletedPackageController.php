@@ -87,7 +87,7 @@ class CompletedPackageController extends Controller
         $packages = $qP->get();
         foreach($packages as $pkg){
             $pkg->arrive_warehouse_datetime = Helper::formatCustomDateTime($pkg->arrive_warehouse_datetime);
-            $pkg->has_image = PackageAttachment::where('hidden',0)->where('package_id',$pkg->id)->value('package_id') ? 1 : 0;
+            $pkg->has_image = PackageAttachment::where('hidden',0)->where('package_id',$pkg->package_id)->value('package_id') ? 1 : 0;
             if($pkg->returnUser){
                 $pkg->driver_name = 'return by '. $pkg->returnUser->user_name;
             }
