@@ -1073,8 +1073,9 @@ class ReportController extends Controller
         if(isset($pkgInfo[9])) $pkgInfo[9]['total'] = Helper::getNumber($pkgInfo[9]['total'],2);
         if(isset($pkgInfo[11])) $pkgInfo[11]['total'] = Helper::getNumber($pkgInfo[11]['total'],2);
         if(isset($pkgInfo[19])) $pkgInfo[19]['total'] = Helper::getNumber($pkgInfo[19]['total'],2);
-
-
+        if(isset($pkgInfo[5])) $pkgInfo[5]['total'] = Helper::getNumber($pkgInfo[5]['total'],2);
+        if(isset($pkgInfo['5.1'])) $pkgInfo['5.1']['total'] = Helper::getNumber($pkgInfo['5.1']['total'],2);
+        if(isset($pkgInfo['5.2'])) $pkgInfo['5.2']['total'] = Helper::getNumber($pkgInfo['5.2']['total'],2);
 
         return array_values($pkgInfo);
 
