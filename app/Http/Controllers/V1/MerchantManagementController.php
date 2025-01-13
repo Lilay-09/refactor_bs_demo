@@ -64,6 +64,16 @@ class MerchantManagementController extends Controller
         return ApiResponse::Pagination($merhcants,$req);
     }
 
+    public function getDefaultOptions(Request $req){
+        $id = $req->id;
+        $merchant = User::where('is_deleted',0)->with('merchantPriceList')->where('account_type','merchant')->selectRaw('id,cod,cod_fee')->where('id',$id)->first();
+        if(!$merchant) return ApiResponse::NotFound();
+        $merchant->cod = $merchant->cod ? 1:0;
+        $merchant->zone_code = $merchant->merchantPriceList->zone_code;
+        $merchant->zone_id = $merchant->merchantPriceList->zone_id;
+        unset($merchant->merchantPriceList);
+        return ApiResponse::JsonResult($merchant);
+    }
     // public static function concatBankInfo($bankName,$bankNumber,$accountName){
     //     $info = $bankName;
     //     if($bankNumber) $info .= '|'.$bankNumber;
@@ -147,6 +157,16 @@ class MerchantManagementController extends Controller
      public function setLockMerchant(Request $req){
         $user = UserService::getAuthUser();
         return ApiResponse::flex(UserService::setLockUser($user,$req->id,'merchant'));
+    }
+
+    public function setPassword(Request $req){
+        $user = UserService::getAuthUser();
+        return ApiResponse::flex(UserService::setNewPassword($req,$req->id,'merchant',$user));
+    }
+
+    public function deleteMerchant(Request $req){
+        $user = UserService::getAuthUser();
+        return ApiResponse::flex(UserService::deleteUser($req->id,'merchant',$user));
     }
 
 }

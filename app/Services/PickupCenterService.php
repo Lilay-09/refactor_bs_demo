@@ -31,6 +31,7 @@ class PickupCenterService
             'dim_y' => 'nullable|numeric',
             'dim_x' => 'nullable|numeric',
             'status_id' => 'nullable|int',
+            'taxi_fee' => 'nullable|numeric',
             'failure_notes' => 'nullable|string|max:250',
             'payer' => 'required|in:sender,receiver',
             'cod' => 'required|in:0,1',
@@ -41,6 +42,7 @@ class PickupCenterService
             'receiver_phone' => 'required|string|min:9',
             'receiver_name' => 'nullable|string',
             'pickup_notes' => 'nullable|string',
+            'noted' => 'nullable|string',
             'extra_charge' => 'nullable|numeric',
             'actual_kg' => 'nullable|numeric',
             'billed_kg' => 'nullable|numeric',
@@ -59,6 +61,7 @@ class PickupCenterService
             'loc_lat' => 'nullable|numeric',
             'loc_lng' => 'nullable|numeric',
             'pickup_address_google_map' => 'nullable|string',
+            'pin_address' => 'nullable|string',
             'pickup_address' => 'nullable|string|max:300',
             'details' => 'nullable|array',
             'images' => 'nullable'
@@ -78,36 +81,39 @@ class PickupCenterService
         $merchantId = $inputs['merchant_id'];
         $validMerchant = User::where('is_deleted',0)->where('delete_account',0)->where('account_type','merchant')->find($merchantId);
         if(!$validMerchant) return DataResponse::ValidateFail('Invalid sender identity!');
+        $userType = $user->account_type;
         $inputs['create_uid'] = $user->id;
         $inputs['update_uid'] = $user->id;
         $inputs['branch_id'] = $user->branch_id;
         $inputs['company_id'] = $user->company_id;
-        $inputs['booking_channel'] = $user->account_type;
+        $inputs['booking_channel'] = $userType;
         $details = $inputs['details'] ?? [];
         $images = $inputs['images'] ?? [];
         $inputs['original_qty'] = $inputs['qty'];
         $inputs['order_datetime'] = now();
+        $productType = $inputs['product_type'] ?? null;
         $inputs['warehouse_id'] = GeneralSettingService::getWarehouse($user)->id;
-        if($user->account_type == 'driver') $inputs['driver_id'] = $user->id;
+        if($userType == 'driver') $inputs['driver_id'] = $user->id;
         $driverId = $inputs['driver_id'] ?? null;
         if($driverId == 0){
             $driverId = null;
             unset($inputs['driver_id']);
         }
-        $inputs['status_id'] = 3; //** accepted for pick up*/
-        if(!$driverId) $inputs['status_id'] = 1; //** available for pick */
+        $statusId = 3; //** accepted for pick up*/
+        if(!$driverId) $statusId = 1; //** available for pick */
         else{
+            $inputs['pickup_datetime'] = now();
             $validDriver = User::where('is_deleted',0)->where('delete_account',0)->where('account_type','driver')->find($driverId);
             if(!$validDriver) return DataResponse::ValidateFail('Invalid driver identity!');
             if($validDriver->vehicle_type != $inputs['vehicle_type']) return DataResponse::ValidateFail(__('messages.error',['info' => 'Driver vehicle type and chosen vehicle type is different!']));
         }
         $dateTime = Helper::getDateTime();
-        if($user->account_type == 'driver') $inputs['tracking_notes'] = 'Driver create order ('.$dateTime.')';
-        else if($user->account_type == 'merchant') $inputs['tracking_notes'] = 'Merchant create order ('.$dateTime.')';
-        else if($user->account_type == 'admin') $inputs['tracking_notes'] = 'Admin create order ('.$dateTime.')';
+        if($userType == 'driver') $inputs['tracking_notes'] = 'Driver create order ('.$dateTime.')';
+        else if($userType == 'merchant') $inputs['tracking_notes'] = 'Merchant create order ('.$dateTime.')';
+        else if($userType == 'admin') $inputs['tracking_notes'] = 'Admin create order ('.$dateTime.')';
         $deleteImgs = [];
         $pickupAddress = $inputs['pickup_address'] ?? null;
-        $pickup_address_google_map = $inputs['pickup_address_google_map'] ?? null;
+        $pickup_address_google_map = $inputs['pickup_address_google_map'] ?? $inputs['pin_address'] ?? null;
         $latLng = Helper::getLatLongFromGoogleMapsUrl($pickup_address_google_map);
         $inputs['loc_lat'] = $inputs['loc_lat'] ?? $latLng->latitude;
         $inputs['loc_lng'] = $inputs['loc_lng'] ?? $latLng->longitude;
@@ -120,18 +126,22 @@ class PickupCenterService
             $code = Helper::generateCode('JS',$orderId,'',8);
 
 
-            Order::find($orderId)->update([
-                'code' => $code
-            ]);
+            // $statusId = $inputs['status_id'];
             if(isset($details[0])){
+                if($userType == 'driver') $statusId = 4;
                 // if($inputs['qty'] != count($details)) return DataResponse::ValidateFail('Your quantity is not matching the details');
                 foreach($details as $d){
                     $d['merchant_id'] = $merchantId;
+                    $d['product_type'] = $productType;
                     $dReq = new Request($d);
                     $savePkg = $this->createOrUpdatePackage($dReq,$user,null,$orderId);
                     if($savePkg->error) return $savePkg;
                 }
             }
+            Order::find($orderId)->update([
+                'code' => $code,
+                'status_id' => $statusId
+            ]);
 
             if(isset($images[0])){
                 foreach($images as $photo){
@@ -218,21 +228,42 @@ class PickupCenterService
     //     ];
     // }
 
-    public function updateOrderQty($orderId){
-        $count = Package::where('is_deleted',0)->where('order_id',$orderId)->count();
+    public function updateOrderQty($orderId,$count=null){
+        $count = $count ? $count : Package::where('is_deleted',0)->where('order_id',$orderId)->count();
         Order::where('is_deleted',0)->find($orderId)->update([
             'qty' => $count
         ]);
     }
 
-    public static function getTotal($cod,$payer,$price,$deliveryFee,$additional_fee,$extra_charge,$taxi=0){
-        $total = $extra_charge + $additional_fee;
+    public static function getDriverTotal($cod,$payer,$price,$deliveryFee,$additional_fee,$extra_charge,$taxi=0){
+        $total = $additional_fee;
         if($cod) $total += $price;
-        if($payer == 'receiver') $total += $deliveryFee;
+        if($payer == 'receiver') {
+            $total += $extra_charge;
+            $total += $deliveryFee;
+        }
+        return $total - $taxi;
+    }
+
+    public static function getTotal($type,$cod,$payer,$price,$deliveryFee,$additional_fee,$extra_charge,$taxi=0){
+        $total = $additional_fee;
+        if($type == 'driver'){
+            if($cod) $total += $price;
+            if($payer == 'receiver') {
+                $total += $extra_charge;
+                $total += $deliveryFee;
+            }
+        }else if($type == 'merchant'){
+            if($payer == 'sender') {
+                $total += $extra_charge;
+                $total += $deliveryFee;
+            }
+        }
         return $total;
     }
 
-    public static function getFees($cod,$payer,$price,$deliveryFee,$additional_fee,$extra_charge,$taxi=0){
+
+    public static function getFees($payer,$deliveryFee,$additional_fee,$extra_charge){
         $total = $extra_charge + $additional_fee;
         if($payer == 'receiver') $total += $deliveryFee;
         return $total;
@@ -270,7 +301,9 @@ class PickupCenterService
         $actualKg = $inputs['actual_kg'] ?? 0;
         $billedKg = $inputs['billed_kg'] ?? 0;
         $inputs['actual_kg'] = $actualKg;
+        if(isset($inputs['noted'])) $inputs['pickup_notes'] = $inputs['noted'];
         $payer = $inputs['payer'];
+        $inputs['pickup_datetime'] = now();
         $inputs['billed_kg'] = $actualKg;
         $cod = $inputs['cod'];
         $inputs['extra_charge'] = $inputs['extra_charge'] ?? 0;
@@ -286,14 +319,22 @@ class PickupCenterService
         $extraCharge = $inputs['extra_charge'] ?? 0;
         $calPrice = GeneralSettingService::calculatePackageFee($zoneCode,$price,$billedKg,$actualKg,$payer,$cod,$extraCharge,$user,$taxiFee,$inputs['merchant_id']);
         if($calPrice->error) return $calPrice;
+        // Log::info($calPrice->driver_total);
         $inputs['driver_total'] = $calPrice->driver_total;
         $inputs['merchant_total'] = $calPrice->merchant_total;
         $inputs['delivery_fee'] = $calPrice->delivery_fee;
         $productType = $inputs['product_type'] ?? ($orderId ? $order->product_type:null);
-        if(!$productType) unset($inputs['product_type']);
+        $inputs['product_type'] = $productType;
+        // if(!$productType) unset($inputs['product_type']);
+        // Log::error($productType);
         if(!$packageId){
             $inputs['status_id'] = 7;
             $inputs['create_uid'] = $user->id;
+            if($user->account_type == 'merchant'){
+                $inputs['tracking_notes'] = 'Merchant add new package ('.date('d-M-Y h:i:s A').')';
+            }else if($user->account_type == 'driver'){
+                $inputs['tracking_notes'] = 'Driver add new package ('.date('d-M-Y h:i:s A').')';
+            }
             $createPackage = Package::create($inputs);
             if(!$createPackage) return DataResponse::Error(__('messages.Fail to create package'));
             $qrCode = Helper::generateBarcodeString($createPackage->id,$user->company_id);
@@ -302,7 +343,7 @@ class PickupCenterService
             ]);
             $count = Package::where('order_id',$orderId)->where('is_deleted',0)->count();
             if($count > $order->qty){
-                $this->updateOrderQty($orderId);
+                $this->updateOrderQty($orderId,$count);
             }
             return DataResponse::JsonResult(null,false,__('messages.created',['info' => 'Package Number ('.$qrCode.').']));
         }else{
@@ -311,11 +352,6 @@ class PickupCenterService
                 $qP->$whereClause;
             }
             $package = $qP->find($packageId);
-            if($user->account_type == 'merchant'){
-                $inputs['tracking_notes'] = $package->tracking_notes.'|Merchant add new package ('.date('d-M-Y h:i:s A').')';
-            }else if($user->account_type == 'driver'){
-                $inputs['tracking_notes'] = $package->tracking_notes.'|Driver add new package ('.date('d-M-Y h:i:s A').')';
-            }
             $inputs['status_id'] = $package->status_id;
             if(!$package) return DataResponse::NotFound(trans('messages.not_found',['info' => 'Package','khInfo' => 'កញ្ចប់']));
             // if($package->status_id == 5) return DataResponse::Forbidden(__('messages.no_access',['info' => 'This package has already assigned to driver']));
@@ -323,7 +359,4 @@ class PickupCenterService
             return DataResponse::JsonResult(null,false,__('messages.updated'));
         }
     }
-
-
-
 }

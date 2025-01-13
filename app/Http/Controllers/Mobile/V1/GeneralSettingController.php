@@ -39,14 +39,21 @@ class GeneralSettingController extends Controller
         return ApiResponse::JsonResult($obj);
     }
 
-    public function getFormOptionsHistory(){
+    public function getFormOptionsHistory(Request $req){
         $user = UserService::getAuthUser('driver');
-        $bonusRow = collect([['id' => 0, 'name' => 'All']]);
-        $results = GeneralSettingService::optionsTrackingStatus($user,[],[9,10,11],'delivery');
+        $lang = $req->lang;
+        $stCode = $lang != 'en' ? 'ទាំងអស់':'All';
+        $bonusRow = collect([['id' => 0, 'name' => $stCode]]);
+        $results = GeneralSettingService::optionsTrackingStatus($user,[],[9,10,11,19],'delivery',null,$req->lang);
         // Merge the bonus row with the fetched results
         $results = $bonusRow->merge($results);
+        foreach($results as $st){
+            if($lang != 'en'){
+                $st['name'] = isset(GeneralSettingService::$statusCodeTrans[$st['id']]) ? GeneralSettingService::$statusCodeTrans[$st['id']] : null;
+            }
+        }
         $obj = (object)[
-            'payment_statuses' => GeneralSettingService::paymentStatus(),
+            'payment_statuses' => GeneralSettingService::paymentStatus($lang),
             'statuses' =>$results
         ];
         return ApiResponse::JsonResult($obj);
@@ -65,27 +72,33 @@ class GeneralSettingController extends Controller
     public function scanPackage(Request $req){
         $user = UserService::getAuthUser('driver');
         $item_ref = $req->item_ref;
-        $package = Package::where('qr_code',$item_ref)->where('is_deleted',0)->first();
+        $package = Package::where('qr_code',$item_ref)->where('is_deleted',0)->selectRaw('status_id,driver_id,merchant_id,is_contact')->first();
         if(!$package && is_numeric($item_ref)) $package = Package::where('is_deleted',0)->find($item_ref);
         if(!$package) return ApiResponse::NotFound();
         if($package->status_id == 9) return ApiResponse::Duplicated(__('messages.info',[
-            'info' => 'Package is completed'
+            'info' => 'Package is already delivered.',
+            'khInfo' => 'កញ្ចប់បានដឹកហើយ'
+        ]));
+        if($package->status_id == 19) return ApiResponse::Duplicated(__('messages.info',[
+            'info' => 'Package is already failed with fee.',
+            'khInfo' => 'កញ្ចប់ធ្លាប់បរាជ័យគិតសេវា'
         ]));
         $diffDriver = $package->driver_id ? ($user->id != $package->driver_id) : false;
         $isOnDelivery = $package->status_id == 6;
         $data = null;
         if(!$diffDriver && $isOnDelivery)
             $data = Package::where('qr_code',$item_ref)
-            ->with('status:id,name')
-            ->selectRaw('id,qr_code,status_id,assign_driver_datetime,receiver_phone,receiver_name,product_type,cod,zone_name,zone_code,price,delivery_fee,driver_total as total,taxi_fee,additional_fee,extra_charge,payer')
+            ->with(['status:id,name','merchant:id,user_name'])
+            ->selectRaw('receiver_address,merchant_id,id,qr_code,status_id,assign_driver_datetime,receiver_phone,receiver_name,product_type,cod,zone_name,zone_code,price,delivery_fee,driver_total as total,taxi_fee,additional_fee,extra_charge,payer')
             // ->selectRaw('p.delivered_datetime,p.failed_datetime,p.assign_driver_datetime,p.merchant_id,p.qr_code,p.price,p.cod,p.receiver_name,p.receiver_phone,p.zone_code,p.zone_name,ts.name as status_code
             // ,d.user_name as driver_name,d.phone as driver_phone,m.user_name as merchant_name,m.phone as merchant_phone,p.id as package_id,dp.delivery_id,p.zone_code,p.zone_name,p.delivery_fee as base_fee,p.driver_total,p.driver_total as delivery_fee,p.taxi_fee,p.product_type,dp.status_id')
             ->first();
             if($data){
+                $data->merchant_name = $data->merchant?->user_name;
                 $data->cod = $data->cod ? 'Yes' : 'No';
                 $data->status_code = $data->status->name;
-                $data->fee = PickupCenterService::getFees($data->cod,$data->payer,$data->price,$data->delivery_fee,$data->additional_fee,$data->extra_charge,$data->taxi_fee);
-                unset($data->status);
+                $data->fee = PickupCenterService::getFees($data->payer,$data->delivery_fee,$data->extra_charge,$data->taxi_fee);
+                unset($data->status,$data->merchant);
             }
         return ApiResponse::JsonResult([
             'is_contact' => $package->is_contact,
@@ -179,16 +192,16 @@ class GeneralSettingController extends Controller
             Cache::set($topics->private,(object)[
                 'requester' => $requester,
                 'requester_id' => $user->id,
-            ],3600);
+            ],250);
             $notifReq = new Request([
                 'topic' => $topics->private,
                 'title' => 'Change Driver',
-                'body' => 'Request package',
+                'body' => "$requester request change package ",
                 'data' => [
                     'action' => 'change-driver',
                     'requester' => $requester,
                     'barcode' => $item_ref,
-                    "en_message" => $requester." request swap the package",
+                    "en_message" => "$requester request change package ",//$requester." request swap the package",
                     "km_message" => $requester." ស្នើរសុំកញ្ចប់"
                 ]
             ]);
@@ -252,7 +265,9 @@ class GeneralSettingController extends Controller
             // }catch(Exception $e){
             //     DB::rollBack();
             // }
-            $selfTrip = Delivery::where('driver_id',$package->driver_id)->where('finished',0)->orderByDesc('id')->first();
+            $selfTrip = Delivery::where('driver_id',$package->driver_id)->where(function($q){
+                $q->where('is_deleted',0)->where('finished',0);
+            })->selectRaw('package_count,id')->orderByDesc('id')->first();
             //** remove self pacakge */
             $selfTrip->update([
                 'package_count' => $selfTrip->package_count - 1
@@ -267,6 +282,31 @@ class GeneralSettingController extends Controller
                 'deleted_datetime' => now(),
                 'notes' => DB::raw('notes || \'| confirm to change swap package\'')
             ]);
+            $currTrip = Delivery::where('id',$selfTrip->id)->selectRaw('id,package_count,tracking_notes,delivered_count,failed_count,is_deleted,deleted_datetime,deleted_uid,finished,finished_datetime,status_id')->first();
+            if($currTrip->package_count == 0) {
+                $currTrip->update([
+                    'is_deleted' => 1,
+                    'deleted_datetime' => now(),
+                    'deleted_uid' => $user->id,
+                    'tracking_notes' => $currTrip->tracking_notes.'|Trip delete because driver has swapped package to '.$requester.'('.Helper::getDateTime().')'
+                ]);
+            }else if($currTrip->package_count == ($currTrip->delivered_count + $currTrip->failed_count)){
+                $currTrip->update([
+                    'finished' => 1,
+                    'status_id' => 16,
+                    'finished_datetime' => now(),
+                ]);
+            }
+            $onDeliveryCount = $currTrip->package_count - ($currTrip->delivered_count + $currTrip->failed_count);
+            if($onDeliveryCount == 0 && $currTrip->package_count > 0) {
+                $currTrip->update([
+                    'finished' => 1,
+                    'is_completed' => 1,
+                    'status_id' => 16
+                ]);
+                // Log::error(json_encode(Delivery::select('status_id','is_completed','finished')->find($trip_id)));
+            }
+
             $package->update([
                 'driver_id' => $requester_id,
                 'status_id' => 6,
@@ -284,7 +324,7 @@ class GeneralSettingController extends Controller
             ]
         ]);
         $cms->sendNotificationByTopic($notifReq,$user);
-        return ApiResponse::JsonResult(null,$confirm ? 'Declined change driver':'Success');
+        return ApiResponse::JsonResult(null,$confirm ? 'Success':'Declined change driver');
     }
 
     public function getOptionsZone(Request $req){

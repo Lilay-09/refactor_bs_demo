@@ -21,6 +21,7 @@ class User extends Authenticatable implements JWTSubject
     protected $table = 'users';
     protected $fillable = [
         'id',
+        'app_id',
         'code',
         'first_name',
         'last_name',
@@ -61,6 +62,7 @@ class User extends Authenticatable implements JWTSubject
         'salary',
         'referrer_uid',
         'register_status',
+        'registered_datetime',
         'employee_type',
         'is_available',
         'business_type',
@@ -76,6 +78,10 @@ class User extends Authenticatable implements JWTSubject
 
     public function bank_accounts(){
         return $this->hasMany(UserBank::class,'user_id','id');
+    }
+
+    public function merchantPriceList(){
+        return $this->hasOne(MerchantPriceList::class,'merchant_id','id');
     }
 
     public function user_roles(){

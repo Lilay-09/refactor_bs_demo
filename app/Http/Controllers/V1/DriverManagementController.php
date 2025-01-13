@@ -10,6 +10,7 @@ use App\Services\GeneralSettingService;
 use App\Services\UserService;
 use Helper;
 use Illuminate\Http\Request;
+use Log;
 
 class DriverManagementController extends Controller
 {
@@ -176,4 +177,16 @@ class DriverManagementController extends Controller
         $user = UserService::getAuthUser();
         return ApiResponse::flex(UserService::setLockUser($user,$req->id,'driver'));
     }
+
+
+    public function setPassword(Request $req){
+        $user = UserService::getAuthUser();
+        return ApiResponse::flex(UserService::setNewPassword($req,$req->id,'driver',$user));
+    }
+
+    public function deleteDriver(Request $req){
+        $user = UserService::getAuthUser();
+        return ApiResponse::flex(UserService::deleteUser($req->id,'driver',$user));
+    }
 }
+

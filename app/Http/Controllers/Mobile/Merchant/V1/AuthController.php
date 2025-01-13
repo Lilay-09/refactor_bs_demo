@@ -33,7 +33,7 @@ class AuthController extends Controller
             'username' => 'required|string',
             'password' => 'required|string|min:6|max:16',
         ]);
-        if($validate->fails()) return ApiResponse::ValidateFail($validate->errors()->all());//DataResponse::ValidateFail($validate->errors());
+        if($validate->fails()) return ApiResponse::ValidateFail($validate->errors()->first());//DataResponse::ValidateFail($validate->errors());
         $input = $validate->validated();
         $account = $input['username'];
         $password = $input['password'];
@@ -159,7 +159,8 @@ class AuthController extends Controller
                 'khInfo' => 'លេខសំងាត់ '.$otp
         ]);
 
-        AppSetting::sendSms("SMS Test",$phone,$message);
+        $smsInfo = AppSetting::sendSms("SMS Test",$phone,$message);
+        if($smsInfo->status_code == 402) return ApiResponse::ValidateFail('Error sending SMS, Please try again later.');
         return ApiResponse::JsonResult([
             'phone' => $phone,
         ],'Registered');
@@ -244,6 +245,11 @@ class AuthController extends Controller
     public function deleteAccount(Request $req){
         $user = UserService::getAuthUser('merchant');
         $deleteAcc = UserService::deleteUserAccount($user->id,'merchant');
+        return ApiResponse::flex($deleteAcc);
+    }
+    public function logOut(Request $req){
+        $user = UserService::getAuthUser('merchant');
+        $deleteAcc = UserService::logOut($req,$user);
         return ApiResponse::flex($deleteAcc);
     }
 }

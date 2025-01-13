@@ -63,12 +63,12 @@ class PickUpCenterController extends Controller
         if($order->status_id == 4) return ApiResponse::ValidateFail(__('messages.error',['info' => 'Order has '.$status]));
         $order->update([
             'is_deleted' => 1,
-            'delete_uid' => $user->id,
+            'deleted_uid' => $user->id,
             'deleted_datetime' => now()
         ]);
         Package::where('order_id',$id)->update([
             'is_deleted' => 1,
-            'delete_uid' => $user->id,
+            'deleted_uid' => $user->id,
             'deleted_datetime' => now()
         ]);
 
@@ -154,9 +154,11 @@ class PickUpCenterController extends Controller
             ->orderByDesc('id')
             ->selectRaw('booking_channel,id,merchant_id,status_id,order_datetime,driver_id,warehouse_id,vehicle_type,product_type,qty,pickup_address,code,created_at,create_uid');
         if($search){
-            $query->whereHas('merchant',function ($q) use ($search){
-                $q->where('phone','ilike','%'.$search.'%');
-            })->orWhere('code',$search);
+            $query->where(function($q) use ($search){
+                $q->whereHas('merchant',function ($q) use ($search){
+                    $q->where('phone','ilike','%'.$search.'%');
+                })->orWhere('code',$search);
+            });
         }
         if($driverId){
             $query->where('driver_id',$driverId);
@@ -173,16 +175,22 @@ class PickUpCenterController extends Controller
         if($startDate && $endDate){
             $startDate = date('Y-m-d',strtotime($startDate));
             $endDate = date('Y-m-d',strtotime($endDate));
-            $query->whereBetween('order_datetime',[$startDate,$endDate])->orWhereDate('order_datetime',$endDate);
+            $query->whereRaw('order_datetime::DATE >= ? AND order_datetime::DATE <= ?', [$startDate, $endDate]);
         }
         $packages = Package::where('outstanding',1)->where('is_deleted',0)->get();
         $orders = $query->get();
         foreach($orders as $order){
             $order->created_user = $order->createdBy?->user_name;
             $order->order_date = Helper::dateDMY($order->order_datetime);
+            // $order->created_at = Helper::formatCustomDateTime($order->created_at);
             $order->order_time = Helper::formatCustomDateTime($order->order_datetime,'h:i:s A');
             $order->merchant_name = $order->merchant->user_name;
             $order->merchant_code = $order->merchant->code;
+            $order->merchant_code = $order->merchant->code;
+            $order->default = [
+                'cod' => $order->merchant->cod ? 1:0,
+                'code' => $order->merchant->merchantPriceList?->zone_code
+            ];
             if(!$order->product_type) $order->product_type = 'Others';
             $order->status_code = $order->tracking_status->name;
             $order->status_code_kh = $order->tracking_status->name;
@@ -241,18 +249,25 @@ class PickUpCenterController extends Controller
             $driver = GeneralSettingService::getDriverById($driverId);
             if(!$driver) return ApiResponse::ValidateFail('Invalid driver identity!');
             //* if order status = picked
-            if($order->status_id == 2 && $order->driver_id) return ApiResponse::Duplicated(__('messages.Order has already been picked'));
+            if($order->status_id == 2 && $order->driver_id) return ApiResponse::Duplicated(__('messages.info',[
+                'info' => 'Order has already been picked'
+            ]));
             //* if order status = Accepted For Pickup
-            if($order->status_id == 3 && $order->driver_id) return ApiResponse::Duplicated(__('messages.Order has already been accepted for picked'));
+            // if($order->status_id == 3 && $order->driver_id) return ApiResponse::Duplicated(__('messages.Order has already been accepted for picked'));
             //* if order status = Picked And Booked
-            if($order->status_id == 4 && $order->driver_id) return ApiResponse::Duplicated(__('messages.Order has already been Picked And Booked'));
+            if($order->status_id == 4 && $order->driver_id) return ApiResponse::Duplicated(__('messages.info',[
+                'info' => 'Order has already been Picked And Booked'
+            ]));
             //* if order status = Picked And Booked
-            if($order->status_id == 11) return ApiResponse::Duplicated(__('messages.Order has been cancled'));
+            if($order->status_id == 11) return ApiResponse::Duplicated(__('messages.info',[
+                'info' => 'Order has been cancled'
+            ]));
 
             if($driver->vehicle_type != $order->vehicle_type) return ApiResponse::ValidateFail(__('messages.error',['info' => 'Your Order vehicle type is ('.$order->vehicle_type.') and driver vehicle is '.$driver->vehicle_type]));
         }
         $trackingNotes = $order->tracking_notes.'|Admin assign ('.$order->code.') '.date('d-M-Y h:i:s A');
         $order->update([
+            'pickup_datetime' => now(),
             'tracking_notes' => $trackingNotes,
             'driver_id' => $driverId,
             'status_id' => ($driverId != 0 && $driverId) ? 3 : 1
@@ -351,13 +366,14 @@ class PickUpCenterController extends Controller
         $user = UserService::getAuthUser();
         $orderId = $req->order_id;
         $qP = Package::where('order_id',$orderId)->whereIn('status_id',[1,3,7])->with(['status'])->where('company_id',$user->company_id)
-                ->selectRaw('merchant_id,order_id,id,id as package_id,taxi_fee,delivery_type,qr_code,price,driver_id,product_type,dim_z,dim_x,dim_y,status_id,failure_notes,payer,cod,delivery_fee,receiver_address,zone_code,zone_name,receiver_name,receiver_phone,delivered_datetime,assign_driver_datetime,arrive_warehouse_datetime,driver_total,merchant_total,extra_charge,additional_fee,remarks,billed_kg,actual_kg')
+                ->selectRaw('merchant_id,order_id,id,id as package_id,taxi_fee,delivery_type,qr_code,price,driver_id,product_type,dim_z,dim_x,dim_y,status_id,failure_notes,payer,cod,delivery_fee,receiver_address,zone_code,zone_name,receiver_name,receiver_phone,delivered_datetime,assign_driver_datetime,arrive_warehouse_datetime,driver_total,merchant_total,extra_charge,additional_fee,remarks,billed_kg,actual_kg,pickup_notes')
+                ->orderBy('id')
         ->where('is_deleted',0);
         $count = $qP->count();
         $packages = $qP->get();
         foreach ($packages as $pkg){
             $pkg->cod = $pkg->cod? 1:0;
-            $pkg->total = PickupCenterService::getTotal($pkg->cod,$pkg->payer,$pkg->price,$pkg->delivery_fee,$pkg->additional_fee,$pkg->extra_charge);
+            $pkg->total = $pkg->driver_total;//PickupCenterService::getDriverTotal($pkg->cod,$pkg->payer,$pkg->price,$pkg->delivery_fee,$pkg->additional_fee,$pkg->extra_charge);
             $pkg->fee = ($pkg->payer == 'receiver' ? $pkg->delivery_fee : 0) + $pkg->extra_charge + $pkg->additional_fee;
             unset($pkg->status);
         }

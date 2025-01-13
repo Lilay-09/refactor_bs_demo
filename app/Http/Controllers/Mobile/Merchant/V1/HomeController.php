@@ -16,6 +16,7 @@ use App\Models\SocialMedia;
 use App\Models\UserBank;
 use App\Services\CompanyProfileService;
 use App\Services\GeneralSettingService;
+use App\Services\Mobile\ReusableService;
 use App\Services\PickupCenterService;
 use App\Services\UserService;
 use Cache;
@@ -42,14 +43,31 @@ class HomeController extends Controller
         ]));
     }
 
+    public function cancelOrder(Request $req){
+        $user = UserService::getAuthUser('merchant');
+        $id = $req->id;
+        $cancelNotes = $req->notes ?? null;
+        $order = Order::where('is_deleted',0)->find($id);
+        if(!$order) return ApiResponse::NotFound(__('messages.not_found',[
+            'info' => 'Order'
+        ]));
+        $order->update([
+            'cancel_uid' => $user->id,
+            'cancel_datetime' => now(),
+            'cancel_notes' => $cancelNotes,
+            'status_id' => 20 //cancel
+        ]);
+        return ApiResponse::JsonResult(null,__('messages.canceled'));
+    }
+
     public function trackingActivitySummary(Request $req){
         $user = UserService::getAuthUser('merchant');
         $pendingCount = Order::where('merchant_id',$user->id)->where('is_deleted',0)->where('status_id',1)->count();
         $pickCount = Order::where('merchant_id',$user->id)->where('is_deleted',0)->whereIn('status_id',[2,3,4])->count();
         $onDeliveryCount = Package::where('merchant_id',$user->id)->where('is_deleted',0)->where('status_id',6)->count();
         $successCount = Package::where('merchant_id',$user->id)->where('is_deleted',0)->where('status_id',9)->count();
-        $failCount = Package::where('merchant_id',$user->id)->where('is_deleted',0)->whereIn('status_id',[10])->count();
-        $returnCount = Package::where('merchant_id',$user->id)->where('is_deleted',0)->whereIn('status_id',[11])->count();
+        $failCount = Package::where('merchant_id',$user->id)->where('is_deleted',0)->whereIn('status_id',[10,19])->count();
+        $returnCount = Package::where('merchant_id',$user->id)->where('is_deleted',0)->where('status_id',11)->count();
         $totalCount = $pendingCount + $pickCount + $onDeliveryCount + $successCount + $failCount + $returnCount;
         $obj = [
             'pending' => $pendingCount,
@@ -207,12 +225,12 @@ class HomeController extends Controller
         ->selectRaw('id,merchant_id,arrive_warehouse_datetime,receiver_phone,receiver_address,receiver_name,cod,price,delivery_fee,status_id,remarks,driver_id,failed_datetime')
         ->get();
         foreach($packages as $package){
-            $package->cod_fee = $package->cod ? $package->price : 0;
+            $package->cod_fee = (float) ($package->cod ? $package->price : 0);
             $package->status_code = $package->status->name;
             $package->driver_phone = $package->driver->phone;
             $package->driver_name = $package->driver->user_name;
-            $package->total = $package->cod_fee + $package->delivery_fee;
-            $package->fee = $package->delivery_fee;
+            $package->total = (float)Helper::getNumber($package->cod_fee + $package->delivery_fee,2);
+            $package->fee = (float)$package->delivery_fee;
             unset($package->driver,$package->status);
         }
         return ApiResponse::Pagination($packages,$req);
@@ -285,18 +303,27 @@ class HomeController extends Controller
 
     private function daily_summaries($user){
         $today = now();
-        $dateaAgo = Helper::getDateDaysAgo(10);
+        $dateaAgo = Helper::getDateDaysAgo(90);
         $successCount = Package::where('merchant_id',$user->id)->where('is_deleted',0)
         ->where('status_id',9)
         ->whereBetween('delivered_datetime',[$dateaAgo,$today])->count();
         $failCount = Package::where('merchant_id',$user->id)
-        ->where('is_deleted',0)->whereIn('status_id',[10])
+        ->where('is_deleted',0)->whereIn('status_id',[10,19])
         ->whereBetween('failed_datetime',[$dateaAgo,$today])->count();
         $returnCount = Package::where('merchant_id',$user->id)->where('is_deleted',0)
         ->whereIn('status_id',[11])
-        ->whereBetween('returned_datetime',[$dateaAgo,$today])->orWhereBetween('updated_at',[$dateaAgo,$today])->count();
+        ->where(function ($query) use ($dateaAgo, $today) {
+        $query->where(function ($q) use ($dateaAgo, $today) {
+            $q->whereNull('returned_datetime')
+              ->whereBetween('updated_at', [$dateaAgo, $today]);
+        })
+        ->orWhere(function ($q) use ($dateaAgo, $today) {
+            $q->whereNotNull('returned_datetime')
+              ->whereBetween('returned_datetime', [$dateaAgo, $today]);
+            });
+        })->count();
         return [
-            'balance' => 0,
+            'balance' => 99,
             'delivered' => $successCount,
             'failed' => $failCount,
             'returned' => $returnCount,
@@ -349,6 +376,12 @@ class HomeController extends Controller
             unset($package->driver,$package->status);
         }
         return ApiResponse::Pagination($packages,$req);
+    }
+
+    public function getSearchPackages(Request $req){
+        $user = UserService::getAuthUser('merchant');
+        return ApiResponse::flex(ReusableService::getHistoryPackages($req,$user,true,'merchant'));
+
     }
 
     public function feedBack(Request $req){

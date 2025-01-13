@@ -21,7 +21,7 @@ class Kernel extends ConsoleKernel
     protected function schedule(Schedule $schedule)
     {
         // Run the delete:pdf-files command every minute
-        $schedule->command('delete:pdf-files')->everyMinute();
+        $schedule->command('delete:pdf-files')->monthly();
     }
 
 

@@ -1,6 +1,7 @@
 <?php
 
 namespace App\Services;
+use App\Models\AppModule;
 use App\Models\Bank;
 use App\Models\BusinessType;
 use App\Models\City;
@@ -13,10 +14,13 @@ use App\Models\DeliveryPackage;
 use App\Models\District;
 use App\Models\ExchangeRate;
 use App\Models\MerchantPriceList;
+use App\Models\Order;
+use App\Models\Permission;
 use App\Models\PriceList;
 use App\Models\PriceListname;
 use App\Models\PriceListZone;
 use App\Models\ProductType;
+use App\Models\Role;
 use App\Models\TermCondition;
 use App\Models\TrackingStatus;
 use App\Models\User;
@@ -24,6 +28,8 @@ use App\Models\VehicleType;
 use App\Models\Warehouse;
 use App\Models\Zone;
 use DataResponse;
+use Helper;
+use Log;
 // use Log;
 
 
@@ -33,6 +39,29 @@ class GeneralSettingService
     protected static $deliveryTypes = [
         // ['value' => 'fast','label' => 'Fast'],
         ['value' => 'normal','label' => 'Normal'],
+    ];
+
+    public static $payerTrans = [
+        'sender' => 'អ្នកផ្ញើ',
+        'receiver' => 'អ្នកទទួល'
+    ];
+
+    public static $pmtStatusTrans = [
+        'pending' => 'ចាំការអនុម័ត',
+        'unpaid' => 'មិនទាន់ទូរទាត់',
+        'paid' => 'បានទូរទាត់',
+        'all' => 'ទាំងអស់'
+    ];
+
+
+    public static $statusCodeTrans = [
+        0 => 'ទាំងអស់',
+        5 => 'ដល់ឃ្លាំង',
+        6 => 'កំពុងដឹក',
+        9 => 'ជេាគជ័យ',
+        10 => 'បរាជ័យ',
+        11 => 'ត្រឡប់ទៅហាង',
+        19 => 'បរាជ័យមានសេវា'
     ];
 
     public static $channels = [
@@ -45,6 +74,18 @@ class GeneralSettingService
             return isset(self::$channels[$idx]) ? [self::$channels[$idx]] : [];
         }
         return self::$channels;
+    }
+
+    public static function optionsRole(){
+        return Role::selectRaw('id,name')->get();
+    }
+
+    public static function optionsModule(){
+        return AppModule::selectRaw('id,name')->get();
+    }
+
+    public static function optionsPermission(){
+        return Permission::selectRaw('id,name')->get();
     }
 
     public static function getWarehouse($user){
@@ -131,7 +172,7 @@ class GeneralSettingService
 
     public static function optionsDriverRemarks($category=null,$isFailedWithFee=false){
         if($isFailedWithFee == 'true') $category = 'fail with fee';
-        $qR = DefaultRemark::where('channel','driver');
+        $qR = DefaultRemark::where('channel','driver')->where('is_deleted',0);
         if($category) $qR->where('category',$category);
         $remarks = $qR->where('hidden',0)->selectRaw('id,remarks')->get();
         return $remarks;
@@ -139,6 +180,18 @@ class GeneralSettingService
 
     public static function optionsZone($user){
         return Zone::where('status',1)->where('company_id',$user->company_id)->where('is_deleted',0)->selectRaw('id,zone_name,zone_code')->orderByDesc('id')->get();
+    }
+
+    public static function optionsZoneByPriceListNameId($user,$id=null){
+        $qZ = Zone::where('status',1)->where('company_id',$user->company_id)->where('is_deleted',0)->selectRaw('id,zone_name,zone_code')->orderByDesc('id');
+        if($id){
+            $plIds = PriceList::where('is_deleted',0)->where('price_list_name_id',$id)->pluck('id')->toArray();
+            $qZ->whereHas('priceListZone', function ($q) use ($plIds) {
+                $q->whereIn('price_list_zones.price_list_id', $plIds);
+            });
+        }
+        $zone = $qZ->get();
+        return $zone;
     }
 
 
@@ -150,7 +203,7 @@ class GeneralSettingService
         return BusinessType::where('company_id',$user->company_id)->where('is_deleted',0)->selectRaw('id,name')->get();
     }
 
-    public static function optionsTrackingStatus($user,$exludeIds=[],$selectIds=[],$stage=null,$selectCols=null){
+    public static function optionsTrackingStatus($user,$exludeIds=[],$selectIds=[],$stage=null,$selectCols=null,$lang='en'){
         if(!$selectCols) $selectCols = 'id,name';
         $q = TrackingStatus::where('hidden',0)->where('is_deleted',0)
         ->where('company_id',$user->company_id)
@@ -184,6 +237,9 @@ class GeneralSettingService
         })->where('has_account',true)->where('company_id',$user->company_id)->where('account_type','driver')->selectRaw('id,user_name,phone');
         if($vehicleType) $qD->where('vehicle_type','ilike',$vehicleType);
         $drivers = $qD->orderByDesc('id')->get();
+        foreach($drivers as $d){
+            $d->user_name = $d->user_name . '(' .$d->phone. ')';
+        }
         return $drivers;
     }
 
@@ -205,10 +261,11 @@ class GeneralSettingService
         return User::where('is_deleted',0)->where('delete_account',0)->where('account_type','driver')->orderByDesc('id')->find($id);
     }
 
-    public static function sumDeliveryFee($baseFee,$price,$cod,$payer){
+    public static function sumDeliveryFee($baseFee,$extraCharge,$taxi_fee,$payer){
         $total = 0;
-        if($payer == 'receiver') $total += $baseFee;
-        if($cod) $total += $price;
+        if($payer == 'receiver') {
+            $total += $baseFee + $taxi_fee + $extraCharge;
+        }
         return $total;
     }
 
@@ -216,10 +273,27 @@ class GeneralSettingService
         return Bank::where('is_deleted',0)->where('company_id',$user->company_id)->selectRaw('id,name')->get();
     }
 
+    public static function optionsTransactionType(){
+        return [
+            [
+                'name' => 'Transfer Out',
+                'value' => 'disbursement',
+            ],
+            [
+                'name' => 'Transfer In',
+                'value' => 'receive'
+            ]
+        ];
+    }
+
     public static function optionsMerchant($user){
-        return User::where(function($q){
+        $merchants = User::where(function($q){
             $q->where('lock',0)->orWhere('is_deleted',0);
         })->where('company_id',$user->company_id)->where('account_type','merchant')->selectRaw('id,user_name,phone')->orderByDesc('id')->get();
+        foreach($merchants as $m){
+            $m->user_name = $m->user_name."($m->phone)";
+        }
+        return $merchants;
     }
 
     public static function optionsVehicleType($user){
@@ -306,7 +380,7 @@ class GeneralSettingService
         $priceListId = PriceList::with(['zones'])
             ->where('status',1)
             ->where('company_id',$user->company_id)
-            ->where('is_deleted',0)
+            // ->where('is_deleted',0)
             ->whereHas('zones',function($q) use($zone_id){
                 $q->where('zone_id',$zone_id);
             })
@@ -317,7 +391,7 @@ class GeneralSettingService
             $row = PriceListZone::with('priceList:id,base_fee')->where('zone_id',$zone_id)->where('price_list_id',$priceListId)->first();
             if($merchant_id){
                 $plNameId = MerchantPriceList::where('merchant_id',$merchant_id)->take(1)->value('price_list_id');
-                $plIds = PriceList::where('is_deleted',0)->where('price_list_name_id',$plNameId)->pluck('id')->toArray();
+                $plIds = PriceList::where('price_list_name_id',$plNameId)->pluck('id')->toArray();
                 $row = PriceListZone::with('priceList:id,base_fee')->where('zone_id',$zone_id)->whereIn('price_list_id',$plIds)->first();
             }
 
@@ -371,8 +445,12 @@ class GeneralSettingService
         ];
     }
 
-    public static function paymentStatus(){
-        return [
+    public static function paymentStatus($lang='en'){
+        $rows = [
+            [
+                'label' => 'All',
+                'value' => 0
+            ],
             [
                 'label' => 'Paid',
                 'value' => 2
@@ -380,12 +458,15 @@ class GeneralSettingService
             [
                 'label' => 'Unpaid',
                 'value' => 1
-            ],
-            [
-                'label' => 'All',
-                'value' => 0
-            ],
+            ]
         ];
+        if($lang != 'en'){
+            foreach($rows as &$row){
+                $lw = strtolower($row['label']);
+                $row['label'] = isset(self::$pmtStatusTrans[$lw]) ? self::$pmtStatusTrans[$lw]: $row['label'];
+            }
+        }
+        return $rows;
     }
     public static function optionsPriceListName($user){
         return PriceListname::where('company_id',$user->company_id)->where('is_deleted',0)->orderByDesc('id')->selectRaw('id,name,kg_marker')->get();
@@ -411,7 +492,7 @@ class GeneralSettingService
 
     public static function calculatePackageFee($zone_code,$price,$billedKg,$actualKg,$payer,$cod,$extraCharge,$user,$taxi_fee=0,$merchant_id=null){
         // $priceList = GeneralSettingService::getZonePriceByCode($zone_code,$user);
-        $zoneId = Zone::where('is_deleted',0)->where('zone_code',$zone_code)->take(1)->value('id');
+        $zoneId = Zone::where('zone_code',$zone_code)->take(1)->value('id');
         $priceList = GeneralSettingService::priceByZone($zoneId,$user,$merchant_id);
         if(!$priceList) return DataResponse::NotFound('Zone price not found');
         $baseFee = $priceList->price > 0 ? $priceList->price : $priceList->base_fee;
@@ -434,14 +515,14 @@ class GeneralSettingService
             $merchant_total = 0;
             $driverTotal += $zPrice;
         }
-
+        $driverTotal -= $taxi_fee;
         return (object)[
             "error" => false,
             'message' => 'Success',
             'delivery_fee' => $baseFee,
-            'driver_total' => $driverTotal - $taxi_fee,
-            'merchant_total' => $merchant_total + $taxi_fee,
-            'total' => $total
+            'driver_total' => Helper::getNumber($driverTotal,2),
+            'merchant_total' => Helper::getNumber($merchant_total,2),
+            'total' => Helper::getNumber($total,2)
         ];
     }
 
@@ -460,6 +541,28 @@ class GeneralSettingService
         return $xRate;
     }
 
+    public static function optionMerchantOrder($merchant_id,$startDate,$endDate,$statusIds=[]){
+        if(!$merchant_id) return [];
+        $startDate = $startDate? Helper::dateYMD($startDate):null;
+        $endDate = $endDate? Helper::dateYMD($endDate):null;
+        $qO = Order::where('is_deleted',0)
+        ->where('merchant_id',$merchant_id)
+        ->selectRaw('code,id,qty,order_datetime,is_deleted')
+        ->orderByDesc('order_datetime');
+        if(!empty($statusIds)){
+            $qO->whereIn('status_id',$statusIds);
+        }
+        if($startDate && $endDate){
+            $qO->whereRaw('order_datetime::DATE >= ? && order_datetime::date <= ?',[$startDate,$endDate]);
+        }
+        $orders = $qO->get();
+        foreach($orders as $order){
+            $order->order_ref = $order->code.' | '.Helper::formatCustomDateTime($order->order_datetime);
+        }
+
+        return $orders;
+    }
+
     public static function updateTripStatus($id,$user): void{
         $trip = Delivery::where('is_deleted',0)->where('company_id',$user->company_id)->find($id);
         if($trip){
@@ -469,7 +572,9 @@ class GeneralSettingService
             $failCount = 0;
             $stillOnDelivery = 0;
             $status_id = 16;
-            $packages = $queryDeliveryPackage->where('is_deleted',0)->where('delay_count',0)->get();
+            $packages = $queryDeliveryPackage->where(function ($q){
+                $q->where('is_deleted',0)->orWhere('delay_count',0);
+            })->get();
             foreach($packages as $pck){
                 if($pck->status_id == 9){
                     $deliveredCount += 1;
@@ -503,7 +608,10 @@ class GeneralSettingService
                 'status_id' => $status_id,
                 'delivered_count' => $deliveredCount
             ];
-            Delivery::where('id',$id)->update($updateArr);
+            // Log::info($status_id);
+            if($isCompleted) $updateArr['finished_datetime'] = now();
+            // Delivery::find($id)->update($updateArr);
+            $trip->update($updateArr);
         }
     }
 

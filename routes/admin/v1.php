@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\V1\BannerController;
+use App\Http\Controllers\V1\DashboardController;
 use App\Http\Controllers\V1\ReportController;
 use App\Http\Controllers\V1\AppSettingController;
 use App\Http\Controllers\V1\AuthController;
@@ -40,26 +41,49 @@ Route::prefix('admin/v1/auth')->group(function(){
 });
 Route::middleware(['jwt','localize'])->prefix('admin/v1/{lang}')->group(function(){
     Route::prefix('management')->group(function(){
-        Route::get('/user', [UserController::class,'getUsers']);
-        Route::get('user/profile',[UserController::class,'getProfile']);
+        Route::prefix('module')->group(function(){
+            Route::post('',[UserManagementController::class,'saveModule']);
+            Route::get('',[UserManagementController::class,'getModules']);
+        });
+
+        Route::prefix('permission')->group(function(){
+            Route::post('',[UserManagementController::class,'savePermission']);
+            Route::get('',[UserManagementController::class,'getPermissions']);
+        });
+
+        Route::prefix('application')->group(function(){
+            Route::get('',[UserManagementController::class,'getApplications']);
+            Route::post('',[UserManagementController::class,'createApplication']);
+            Route::put('/{id}',[UserManagementController::class,'saveApplication']);
+
+        });
+
+        Route::get('/user', [UserManagementController::class,'getUsers']);
+        // Route::get('user/profile',[UserController::class,'getProfile']);
         Route::post('/user',[UserManagementController::class,'createUser']);
-        Route::get('/user/{id?}', [UserController::class,'getUser']);
-        Route::put('/user/{id?}', [UserManagementController::class,'updateUser']);
-        Route::put('/user/set-lock/{id?}', [UserManagementController::class,'setLockUser']);
-        Route::put('/user/change-password/{id?}', [UserManagementController::class,'userChangePassword']);
+        Route::get('/user/{id}',[UserManagementController::class,'getOneUser']);
+        Route::get('/user/{id}/permission',[UserManagementController::class,'getUserPermissions']);
+        // Route::get('/user/{id?}', [UserController::class,'getUser']);
+        // Route::put('/user/{id?}', [UserManagementController::class,'updateUser']);
+        Route::put('/user/{id}/setLock', [UserManagementController::class,'setLockUser']);
+        Route::put('/user/{id}/changePassword', [UserManagementController::class,'userChangePassword']);
         Route::get('user/notification/token',[CloudMessagingController::class,'getUserToken']);
+        Route::delete('user/{id}',[UserManagementController::class,'deleteUser']);
+
         Route::prefix('role')->group(function(){
             Route::post('/', [UserManagementController::class,'createRole']);
             Route::get('/', [UserManagementController::class,'getRoles']);
-            Route::get('/{id?}', [UserManagementController::class,'getRole']);
-            Route::put('/{id?}', [UserManagementController::class,'updateRole']);
-            Route::delete('/{id?}', [UserManagementController::class,'deleteRole']);
+            Route::get('/{id}', [UserManagementController::class,'getRole']);
+            Route::put('/{id}', [UserManagementController::class,'updateRole']);
+            Route::delete('/{id}', [UserManagementController::class,'deleteRole']);
         });
 
         Route::prefix('warehouse')->group(function (){
             Route::put('/{id}',[WarehouseController::class,'updateWarehouse']);
         });
     });
+
+    Route::get('dashboard',[DashboardController::class,'getDashboardSummary']);
 
     Route::prefix('notification')->group(function(){
         Route::post('token',[CloudMessagingController::class,'sendNoficationViaToken']);
@@ -74,8 +98,9 @@ Route::middleware(['jwt','localize'])->prefix('admin/v1/{lang}')->group(function
         Route::get('/{id}',[DriverManagementController::class,'getOneDriver']);
         Route::put('/{id}',[DriverManagementController::class,'updateDriver']);
         Route::post('/{id}/setLock',[DriverManagementController::class,'setLockDriver']);
+        Route::post('/{id}/setPassword',[DriverManagementController::class,'setPassword']);
 
-        Route::prefix('{id}/commission')->group(function(){
+        Route::prefix('{id}/commission')->group(function(): void{
             Route::get('',[DriverManagementController::class,'getDriverCommissions']);
             Route::put('',[DriverManagementController::class,'saveDriverCommission']);
         });
@@ -86,7 +111,7 @@ Route::middleware(['jwt','localize'])->prefix('admin/v1/{lang}')->group(function
         Route::prefix('transaction')->group(function(){
             Route::get('delivery/package',[DriverTransactionController::class,'getDeliveryPackages']);
             Route::put('delivery/package/{id}',[DriverTransactionController::class,'updateDeliveryPackage']);
-            Route::post('delivery/receivePayment',[DriverTransactionController::class,'receivePackagesPayment']);
+            Route::post('delivery/payment',[DriverTransactionController::class,'receivePackagesPayment']);
             Route::get('payment',[DriverTransactionController::class,'getPayments']);
             Route::put('payment',[DriverTransactionController::class,'approvePayments']);
             Route::get('settle/payment',[DriverTransactionController::class,'getApprovedPayments']);
@@ -98,7 +123,9 @@ Route::middleware(['jwt','localize'])->prefix('admin/v1/{lang}')->group(function
         //** Driver Commission Module */
         Route::prefix('commission')->group(function(){
             Route::get('package',[DriverTransactionController::class,'getDriverCommissionPackage']);
-            Route::post('disbursement',[DriverTransactionController::class,'disbursementDriver']);
+            Route::get('transaction',[DriverTransactionController::class,'getDriverCommissionTrx']);
+            Route::post('disbursement',[DriverTransactionController::class,'disbursementDriverCommission']);
+            Route::delete('disbursement/{id}',[DriverTransactionController::class,'deleteDriverCommission']);
         });
     });
 
@@ -107,19 +134,23 @@ Route::middleware(['jwt','localize'])->prefix('admin/v1/{lang}')->group(function
         Route::get('',[MerchantManagementController::class,'getMerchants']);
         Route::get('/{id}',[MerchantManagementController::class,'getOneMerchant']);
         Route::put('/{id}',[MerchantManagementController::class,'updateMerchant']);
+        Route::delete('/{id}',[MerchantManagementController::class,'deleteMerchant']);
         Route::post('/{id}/setLock',[MerchantManagementController::class,'setLockMerchant']);
         Route::post('/{id}/account',[MerchantManagementController::class,'createMerchantAccount']);
         Route::put('/{id}/priceList',[MerchantManagementController::class,'setMerchantPriceList']);
+        Route::get('/{id}/default',[MerchantManagementController::class,'getDefaultOptions']);
+        Route::post('/{id}/setPassword',[MerchantManagementController::class,'setPassword']);
 
         Route::prefix('transaction')->group(function(){
             Route::get('delivery/package',[MerchantTransactionController::class,'getDeliveryPackages']);
             Route::put('delivery/package/{id}',[MerchantTransactionController::class,'updateDeliveryPackage']);
-            Route::post('delivery/receivePayment',[MerchantTransactionController::class,'receivePackagesPayment']);
+            Route::post('delivery/payment',[MerchantTransactionController::class,'receivePackagesPayment']);
             Route::get('payment',[MerchantTransactionController::class,'getPayments']);
             Route::put('payment',[MerchantTransactionController::class,'approvePayments']);
             Route::get('settle/payment',[MerchantTransactionController::class,'getApprovedPayments']);
             Route::put('settle/payment',[MerchantTransactionController::class,'settleApprovedPayments']);
-            Route::delete('payment/{id}',[MerchantTransactionController::class,'deletePayment']);
+            Route::delete('payment/{id}',[MerchantTransactionController::class,'deleteSettlePayment']);
+            Route::get('balance',[MerchantTransactionController::class,'getMerchantBalances']);
         });
     });
 
@@ -165,7 +196,10 @@ Route::middleware(['jwt','localize'])->prefix('admin/v1/{lang}')->group(function
         Route::put('{id}/driver/{driver_id}',[PackageTrailController::class,'assignDriver']);
         Route::delete('{id}',[PackageTrailController::class,'deletePackage']);
         Route::put('/{id}/return',[PackageTrailController::class,'returnPackage']);
-        Route::get('/{id}/print',[PackageTrailController::class,'getPrintInfo']);
+        Route::post('/list/print',[PackageTrailController::class,'getPackagesPrintInfo']);
+        Route::get('/{id}/print',[PackageTrailController::class,'getPrintInfo'])->where('id', '[0-9]+');
+        Route::get('/{id}/image',[PackageTrailController::class,'getPackageImages'])->where('id', '[0-9]+');
+
     });
 
     //** End Pickup Center */
@@ -180,6 +214,7 @@ Route::middleware(['jwt','localize'])->prefix('admin/v1/{lang}')->group(function
         Route::put('{trip_id}/package/status',[FleetManagementController::class,'setPackageStatus']);
         Route::post('{trip_id}/takeOut/{package_id}',[FleetManagementController::class,'takeOutPackage']);
         Route::get('{trip_id}/print/package',[FleetManagementController::class,'printTripPackages']);
+        Route::put('special/{code}',[FleetManagementController::class,'updateTripCount']);
     });
     //** End Fleet Management */
 
@@ -344,6 +379,10 @@ Route::middleware(['jwt','localize'])->prefix('admin/v1/{lang}')->group(function
 
     Route::prefix('setting')->group(function(){
         Route::prefix('option')->group(function(){
+            Route::get('role',[GeneralSettingController::class,'getOptionsRole']);
+            Route::get('permission',[GeneralSettingController::class,'getOptionsPermission']);
+            Route::get('module',[GeneralSettingController::class,'getOptionsModule']);
+            Route::get('merchant/{id}/order',[GeneralSettingController::class,'getOptionsMerchantOrder']);
             Route::get('operator',[GeneralSettingController::class,'getOptionsOperator']);
             Route::get('channel',[GeneralSettingController::class,'getOptionsChannel']);
             Route::get('zone',[GeneralSettingController::class,'getOptionsZone']);
@@ -359,16 +398,19 @@ Route::middleware(['jwt','localize'])->prefix('admin/v1/{lang}')->group(function
             Route::get('city/district/{city_id}',[GeneralSettingController::class,'getOptionsDistrictByCity']);
             Route::get('district/commune/{district_id}',[GeneralSettingController::class,'getOptionsCommuneByDistrict']);
             Route::get('priceList/name',[GeneralSettingController::class,'getOptionsPriceListName']);
+            Route::get('priceList/name/zone/{id?}',[GeneralSettingController::class,'getOptionsZoneByPriceListNameId']);
             Route::get('priceList',[GeneralSettingController::class,'getOptionsPriceList']);
             Route::get('vehicleType',[GeneralSettingController::class,'getOptionsVehicleType']);
             Route::get('fleet/package/{barcode}',[FleetManagementController::class,'getPackageByBarcode']);
             Route::get('xrate',[GeneralSettingController::class,'getOptionsLatestXRate']);
             Route::get('userStatus',[GeneralSettingController::class,'getOptionsUserStatus']);
+            Route::get('payer',[GeneralSettingController::class,'getOptionsPayer']);
         });
 
         Route::prefix('filter')->group(function(){
             Route::get('driver',[GeneralSettingController::class,'getDriverFilterOptions']);
             Route::get('merchant/trx',[GeneralSettingController::class,'getMerchantTrxFilter']);
+            Route::get('merchant/transaction',[GeneralSettingController::class,'getMerchantTransactionTabFilter']);
         });
         Route::prefix('form')->group(function(){
             Route::get('banner',[GeneralSettingController::class,'getFormBanner']);
@@ -392,6 +434,7 @@ Route::middleware(['jwt','localize'])->prefix('admin/v1/{lang}')->group(function
 
 
     Route::prefix('report')->group(function(){
+        Route::get('/option/warehouse',[ReportController::class,'optionsWarehouse']);
         Route::prefix('company')->group(function(){
             Route::get('/pickup',[ReportController::class,'getPickupReport']);
             Route::get('/pickup/option',[ReportController::class,'getPickupReportOption']);
@@ -405,7 +448,7 @@ Route::middleware(['jwt','localize'])->prefix('admin/v1/{lang}')->group(function
             Route::get('/reviewAndFeedBack',[ReportController::class,'getReviewAndFeedBackReport']);
         });
         Route::prefix('driver')->group(function(){
-            Route::get('/list/option',[ReportController::class,'formOptionDriver']);
+            Route::get('/list/option',[ReportController::class,'formOptionUser']);
             Route::get('list',[ReportController::class,'getDriverListReport']);
             Route::get('delivery/summary/option',[ReportController::class,'formOptionDriver']);
             Route::get('delivery/summary',[ReportController::class,'driverDeliverySummaryReport']);
@@ -415,6 +458,16 @@ Route::middleware(['jwt','localize'])->prefix('admin/v1/{lang}')->group(function
             Route::get('packageDetail',[ReportController::class,'getPackageDetailReport']);
             Route::get('packageDetail/option',[ReportController::class,'driverDeliverySummaryReportOption']);
             Route::get('payment/commission',[ReportController::class,'getDriverCommissionPayment']);
+            Route::get('payment/commission/option',[ReportController::class,'driverDeliverySummaryReportOption']);
+        });
+        Route::prefix('merchant')->group(function(){
+            Route::get('list',[ReportController::class,'getMerchantListReport']);
+            Route::get('/list/option',[ReportController::class,'formOptionUser']);
+            Route::get('summary',[ReportController::class,'getMerchantSummaryReport']);
+            Route::get('summary/option',[ReportController::class,'merchantSummaryReportOption']);
+            Route::get('payment',[ReportController::class,'getMerchantPaymentReport']);
+            Route::get('payment/option',[ReportController::class,'getMerchatnPaymentReportOption']);
+            Route::get('owe',[ReportController::class,'getMerchantOweFees']);
         });
     });
 });

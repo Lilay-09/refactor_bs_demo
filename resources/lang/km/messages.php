@@ -5,5 +5,6 @@ return [
     'error' => ':khInfo',
     'info' => ':khInfo',
     'created' => ':khInfo',
+    'cancel' => 'បោះបង់',
     'assigned' => ':khInfo',
 ];

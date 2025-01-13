@@ -44,6 +44,10 @@ class GeneralSettingController extends Controller
         return ApiResponse::JsonResult($this->gs::optionsOperator($user));
     }
 
+    public function getOptionsPayer(){
+        return ApiResponse::JsonResult($this->gs::optionsPayer());
+    }
+
     public function getFormZone(){
         $user = UserService::getAuthUser();
 
@@ -54,6 +58,19 @@ class GeneralSettingController extends Controller
         return ApiResponse::JsonResult($obj);
     }
 
+    public function getOptionsRole(){
+        return ApiResponse::JsonResult($this->gs::optionsRole());
+    }
+
+    public function getOptionsModule(){
+        return ApiResponse::JsonResult($this->gs::optionsModule());
+    }
+
+    public function getOptionsPermission(){
+        return ApiResponse::JsonResult($this->gs::optionsPermission());
+    }
+
+
     public function getDriverFilterOptions(){
         $user = UserService::getAuthUser();
         $obj = [
@@ -61,6 +78,10 @@ class GeneralSettingController extends Controller
             'employee_types' => $this->gs::optionsEmployeeType()
         ];
         return ApiResponse::JsonResult($obj);
+    }
+
+    public function getOptionsMerchantOrder(Request $req){
+        return ApiResponse::JsonResult($this->gs::optionMerchantOrder($req->id,$req->startDate,$req->endDate,[5]));
     }
 
     public function getOptionsChannel(){
@@ -179,6 +200,12 @@ class GeneralSettingController extends Controller
         return ApiResponse::JsonResult($obj);
     }
 
+    public function getOptionsZoneByPriceListNameId(Request $req){
+        $user = UserService::getAuthUser();
+        $id = $req->id ?? null;
+        return ApiResponse::JsonResult($this->gs::optionsZoneByPriceListNameId($user,$id));
+
+    }
 
     public function getFormPackageTrail(Request $req){
         $user = UserService::getAuthUser();
@@ -202,10 +229,19 @@ class GeneralSettingController extends Controller
         return ApiResponse::JsonResult($obj);
     }
 
+    public function getMerchantTransactionTabFilter(Request $req){
+        $user = UserService::getAuthUser();
+        $obj = (object)[
+            'merchants' => $this->gs::optionsMerchant($user),
+            'transaction_types' => $this->gs::optionsTransactionType(),
+        ];
+        return ApiResponse::JsonResult($obj);
+    }
+
     public function getFormFleet(){
         $user = UserService::getAuthUser();
         $obj = (object)[
-            'statuses' => $this->gs::optionsTrackingStatus($user,[15],[],'fleet'),
+            'statuses' => $this->gs::optionsTrackingStatus($user,[15,17],[],'fleet'),
             'warehouses' => $this->gs::optionsWarehouse($user),
             'drivers' => $this->gs::optionsDriver($user),
             'zones' => $this->gs::optionsZone($user)
@@ -283,7 +319,7 @@ class GeneralSettingController extends Controller
 
 
 
-    public function getFormFinished(){
+    public function getFormFinished(Request $req){
         $user = UserService::getAuthUser();
         $obj = (object)[
             'warehouses' => $this->gs::optionsWarehouse($user),

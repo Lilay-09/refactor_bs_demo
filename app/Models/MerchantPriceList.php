@@ -14,6 +14,8 @@ class MerchantPriceList extends Model
         'id',
         'merchant_id',
         'price_list_id',
+        'zone_id',
+        'zone_code',
         'create_uid',
         'update_uid',
         'branch_id',

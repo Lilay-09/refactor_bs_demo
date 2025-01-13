@@ -64,6 +64,8 @@ class HistoryController extends Controller
             ->selectRaw('id,merchant_id,receiver_phone,receiver_address,receiver_name,cod,price,delivery_fee,remarks,driver_id,delivered_datetime,arrive_warehouse_datetime')
             ->get();
             foreach($successPackages as $package){
+                $package->delivered_datetime = Helper::formatCustomDateTime($package->delivered_datetime,'d-M-Y h:i A');
+                $package->arrive_warehouse_datetime = Helper::formatCustomDateTime($package->arrive_warehouse_datetime,'d-M-Y h:i A');
                 $package->cod_fee = $package->cod ? $package->price : 0;
                 $package->status_code = 'Success';// 'Delivered';
                 $package->render_status = 'Success';
@@ -85,6 +87,7 @@ class HistoryController extends Controller
             ->selectRaw('id,merchant_id,arrive_warehouse_datetime,receiver_phone,receiver_address,receiver_name,cod,price,delivery_fee,status_id,remarks,driver_id,failed_datetime')
             ->get();
             foreach($packages as $package){
+                $package->failed_datetime = Helper::formatCustomDateTime($package->failed_datetime,'d-M-Y h:i A');
                 $package->cod_fee = $package->cod ? $package->price : 0;
                 $package->status_code = $package->status->name;
                 $package->render_status = $package->status_code;
@@ -114,7 +117,7 @@ class HistoryController extends Controller
                 $package->fee = $package->delivery_fee;
                 $returnDate = $package->return_datetime ? $package->return_datetime : $package->updated_at;
                 $package->returned_date = Helper::dateDMY($returnDate);
-                $package->return_time = Helper::formatCustomDateTime($returnDate, 'h:i:s');
+                $package->arrive_warehouse_datetime = Helper::formatCustomDateTime($package->arrive_warehouse_datetime,'d-M-Y h:i A');
                 unset($package->driver,$package->status);
                 $items[] = $package;
             }

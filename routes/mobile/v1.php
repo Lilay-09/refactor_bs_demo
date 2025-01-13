@@ -20,6 +20,7 @@ Route::prefix('driver/v1/{lang}/auth')->middleware('localize')->group(function()
         Route::delete('account',[AuthController::class,'deleteAccount']);
         Route::get('profile',[AuthController::class,'getProfile']);
         Route::post('profile',[AuthController::class,'updateProfile']);
+        Route::post('logout',[AuthController::class,'logOut']);
     });
 });
 
@@ -92,6 +93,7 @@ Route::prefix('merchant/v1/{lang}/auth')->middleware('localize')->group(function
         Route::get('profile',[AuthMerchantController::class,'getProfile']);
         Route::post('profile',[AuthMerchantController::class,'updateProfile']);
         Route::post('registration/forgetPassword',[AuthMerchantController::class,'forgetPassword']);
+        Route::post('logout',[AuthMerchantController::class,'logOut']);
     });
 });
 
@@ -106,6 +108,7 @@ Route::middleware(['jwtMerchant','localize'])->prefix('merchant/v1/{lang}')->gro
     Route::get('notification',[HomeController::class,'getNotifications']);
     Route::put('notification/read/{id?}',[HomeController::class,'readNotification']);
     Route::get('history/packages',[MerchantHistoryController::class,'getAllHistories']);
+    Route::get('search/packages',[HomeController::class,'getSearchPackages']);
     Route::get('transaction',[MerchantTransactionController::class,'getTransaction']);
     Route::prefix('home')->group(function(){
         Route::get('',[HomeController::class,'getHomeScreen']);
@@ -120,6 +123,7 @@ Route::middleware(['jwtMerchant','localize'])->prefix('merchant/v1/{lang}')->gro
             Route::get('fail',[HomeController::class,'getFailPackages']);
             Route::get('return',[HomeController::class,'getReturnPackages']);
             Route::get('activity',[HomeController::class,'trackingActivitySummary']);
+            Route::post('order/{id}/cancel',[HomeController::class,'cancelOrder']);
         });
     });
 

@@ -21,6 +21,7 @@ class Disbursement extends Model
         'delivery_fee',
         'pickup_rate',
         'delivery_rate',
+        'type',
         'taxi_fee',
         'is_settled',
         'remarks',
@@ -28,7 +29,9 @@ class Disbursement extends Model
         'approved_datetime',
         'settled_datetime',
         'delivered_package_count',
+        'failed_with_fee_count',
         'pickup_package_count',
+        'receiptionist_uid',
         'exchange_rate',
         'breakdown_notes',
         'approved_uid',
@@ -42,4 +45,19 @@ class Disbursement extends Model
         'branch_id',
         'company_id'
     ];
+
+    public function merchant(){
+        return $this->belongsTo(User::class,'payee_id','id')->where('account_type','merchant');
+    }
+
+    public function cashier(){
+        return $this->belongsTo(User::class,'approved_uid','id');
+    }
+    public function receiptionist(){
+        return $this->belongsTo(User::class,'receiptionist_uid','id');
+    }
+
+    public function driver(){
+        return $this->belongsTo(User::class,'payee_id','id')->where('account_type','driver');
+    }
 }

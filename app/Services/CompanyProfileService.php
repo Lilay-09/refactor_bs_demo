@@ -3,6 +3,7 @@
 namespace App\Services;
 use App\Models\Branch;
 use App\Models\CompanyProfile;
+use App\Models\SocialMedia;
 use DataResponse;
 use Helper;
 use Tymon\JWTAuth\Facades\JWTAuth;
@@ -15,24 +16,26 @@ class CompanyProfileService
         return $user;
     }
 
-    public function profile(){
+    public function profile($includeSocialMedias=false){
         return CompanyProfile::selectRaw('id,name,address,email,phone,description')->first();
     }
 
-    public static function profileInfo($user){
+    public static function profileInfo($user,$includeSocialMedias=false){
         $info = CompanyProfile::selectRaw('id,name,address,email,phone,description,photo_file_name,cp_phone')->where('id',$user->company_id)->first();
         if($info){
             $info->image_url = Helper::getImageUrl($info->photo_file_name,$user->company_id,'company');
+            if($includeSocialMedias) $info->social_medias = SocialMedia::where('is_deleted',0)->where('company_id',$info->id)->selectRaw('name,account_name')->get();
         }
         return $info;
     }
 
-    public function info(){
+    public function info($includeSocialMedias=false){
         $row = CompanyProfile::selectRaw('id,name,address,email,phone,description')->first();
         if($row){
             $branches = self::companyBranches($row->id);
             $row->branches = $branches->list;
             $row->total_branches = $branches->total_branches;
+            if($includeSocialMedias) $row->social_medias = SocialMedia::where('company_id',$row->id)->get();
         }
         return DataResponse::JsonResult($row);
     }

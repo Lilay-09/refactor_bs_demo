@@ -33,7 +33,6 @@ class HistoryController extends Controller
         $startDate = $req->startDate;
         $endDate = $req->endDate;
         $userId = $user->id;
-
         $paymentStatus = $req->payment_status_id ?? null;
         $statusId = $req->status_id ?? null;
         $search = $req->search ?? null;
@@ -46,6 +45,7 @@ class HistoryController extends Controller
         ->selectRaw('trs.id as status_id,trs.name as status_code,d.fleet_tracking_number,m.user_name as merchant_name,m.phone as merchant_phone,p.receiver_name,p.receiver_address,p.receiver_phone,p.driver_total as total')
         ->whereIn('p.status_id',[9,10,11,19])
         ->where('d.driver_id',$userId);
+
         if($paymentStatus == 2){
             $qFp->where('pmt.approved',1);
         }
@@ -53,7 +53,8 @@ class HistoryController extends Controller
         if($startDate && $endDate){
             $startDate = Helper::dateYMD($startDate);
             $endDate = Helper::dateYMD($endDate);
-            $qFp->whereBetween('d.depart_datetime',[$startDate,$endDate])->orWhereDate('d.depart_datetime',$endDate);
+            $qFp->whereDate('d.depart_datetime', '>=', $startDate)
+            ->whereDate('d.depart_datetime', '<=', $endDate);
         }
 
         // else if($paymentStatus == 1) $qFp->where('pmt.approved',0);
@@ -70,7 +71,6 @@ class HistoryController extends Controller
         ->groupBy('groupKey')
         ->map(function ($group, $fleetNumber) {
             $group->each(function ($item) use ($group) {
-
                 unset($item->delivery_id,$item->fleet_tracking_number,$item->groupKey);
             });
             return [

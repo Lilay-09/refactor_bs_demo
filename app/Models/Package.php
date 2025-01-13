@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Helper;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
@@ -9,11 +10,21 @@ class Package extends Model
 {
     use HasFactory;
     protected $table = 'packages';
+    // protected $casts = [
+    //     'price' => 'float',
+    //     'extra_charge' => 'float',
+    //     'additional_fee' => 'float',
+    //     'delivery_fee' => 'float',
+    //     'taxi_fee' => 'float',
+    //     'base_fee' => 'float',
+    //     'driver_total' => 'float',
+    // ];
     protected $fillable = [
         'id',
         'qr_code',
         'package_name',
         'product_type',
+        'returned_uid',
         'price',
         'dim_x',
         'taxi_fee',
@@ -28,6 +39,7 @@ class Package extends Model
         'pickup_notes',
         'pickup_datetime',
         'order_id',
+        'return_uid',
         'payer',
         'cod',
         'driver_id',
@@ -38,6 +50,7 @@ class Package extends Model
         'zone_name',
         'photo_file_name',
         'receiver_phone',
+        'returned_datetime',
         'receiver_name',
         'delivery_type',
         'additional_fee',
@@ -62,6 +75,9 @@ class Package extends Model
         'is_deleted',
         'driver_payment_id',
         'merchant_payment_id',
+        'driver_disbursement_id',
+        'merchant_disbursement_id',
+        'driver_commission_id',
         'is_contact',
         'contact_reason',
         'priority_level',
@@ -70,49 +86,40 @@ class Package extends Model
         'arrive_warehouse_datetime'
     ];
 
-    // protected $casts = [
-    //     'cod' => 'boolean',  // Automatically casts 0/1 to true/false when accessing the attribute
-    // ];
-    // public function getCodAttribute($value)
-    // {
-    //     return $value ? 1:0; // Converts 1/0 to true/false
-    // }
-
-
-    // public function getAssignDriverDatetimeAttribute($value){
-    //     return \Carbon\Carbon::parse($value)->format('d-M-y H:i:s A');
-    // }
-
-    // public function getArriveWarehouseDatetimeAttribute($value){
-    //     return \Carbon\Carbon::parse($value)->format('d-M-y H:i:s A');
-    // }
-
-    // public function getFailedDatetimeAttribute($value){
-    //     return \Carbon\Carbon::parse($value)->format('d-M-y H:i:s A');
-    // }
-
-    // public function getDeliveredDatetimeAttribute($value){
-    //     return \Carbon\Carbon::parse($value)->format('d-M-y H:i:s A');
-    // }
     public function getAssignDriverDatetimeAttribute($value)
     {
         return $this->formatDatetime($value);
     }
 
-    public function getArriveWarehouseDatetimeAttribute($value)
+    // public function getArriveWarehouseDatetimeAttribute($value)
+    // {
+    //     return $this->formatDatetime($value);
+    // }
+
+    // public function getFailedDatetimeAttribute($value)
+    // {
+    //     return $this->formatDatetime($value);
+    // }
+
+    public function setPriceAttribute($value)
     {
-        return $this->formatDatetime($value);
+        $this->attributes['price'] = Helper::getNumber($value);
     }
 
-    public function getFailedDatetimeAttribute($value)
+    public function setDriverTotalAttribute($value)
     {
-        return $this->formatDatetime($value);
+        $this->attributes['driver_total'] = Helper::getNumber($value);
     }
 
-    public function getDeliveredDatetimeAttribute($value)
+    public function setMerchantTotalAttribute($value)
     {
-        return $this->formatDatetime($value);
+        $this->attributes['merchant_total'] = Helper::getNumber($value);
     }
+
+    // public function getDeliveredDatetimeAttribute($value)
+    // {
+    //     return $this->formatDatetime($value);
+    // }
 
     protected function formatDatetime($value)
     {
@@ -133,10 +140,16 @@ class Package extends Model
         return $this->belongsTo(User::class,'driver_id','id');
     }
 
+    public function returnUser(){
+        return $this->belongsTo(User::class,'returned_uid','id');
+    }
+
     public function merchant(){
         return $this->belongsTo(User::class,'merchant_id','id');
     }
-
+    public function updateUser(){
+        return $this->belongsTo(User::class,'update_uid','id');
+    }
     public function order(){
         return $this->belongsTo(Order::class,'order_id','id');
     }

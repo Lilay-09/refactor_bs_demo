@@ -9,9 +9,9 @@ use App\Models\DriverCommission;
 use App\Models\Order;
 use App\Models\Package;
 use App\Models\Payment;
-use App\Models\PaymentDetail;
 use App\Services\TransactionService;
 use App\Services\UserService;
+use Carbon\Carbon;
 use Helper;
 use Illuminate\Http\Request;
 
@@ -21,71 +21,67 @@ class TransactionController extends Controller
 
     public function getTransactionSummary(Request $req){
         $user = UserService::getAuthUser('driver');
-        $balanceDue = Package::where('driver_id',$user->id)->where('is_deleted',1)->whereIn('status_id',[9,19])->sum('driver_total');
+        // $balanceDue = Package::where('driver_id',$user->id)->where('is_deleted',0)->whereIn('status_id',[9,19])->sum('driver_total');
         $count = 0;
         $total = 0;
         $paidTrx = [];
-        // $paymentTrx = Payment::where('payer_id',$user->id)
-        // ->where('payments.is_deleted',0)
-        // ->where('payments.is_settled',1)
-        // ->join('users as c','c.id','payments.settled_uid')
-        // ->selectRaw('payments.id,payments.payment_datetime,payments.payable_amount,payments.is_settled,payments.breakdown_notes,c.user_name as cashier_name,payments.remarks')
-        // ->get();
-        $paymentTrx = Package::where('packages.is_deleted', 0)
-        ->where('driver_id', $user->id)
-        ->whereIn('packages.status_id', [9, 19])
-        ->leftJoin('payments as p', 'p.id', 'packages.driver_payment_id')
-        ->leftJoin('users as c', 'c.id', 'p.settled_uid')
-        ->select([
-            'p.id as payment_id',
-            'p.payment_datetime',
-            'p.payable_amount',
-            'p.is_settled',
-            // 'p.breakdown_notes',
-            'c.user_name as cashier_name',
-            \DB::raw('SUM(packages.driver_total) as driver_total'), // Aggregate driver_total
-            'p.remarks'
-        ])
-        ->groupBy([
-            'p.id',
-            'p.payment_datetime',
-            'p.payable_amount',
-            'p.is_settled',
-            // 'p.breakdown_notes',
-            'c.user_name',
-            'p.remarks'
-        ])
+        $payments = Payment::where('payments.is_deleted',0)->where('payments.payer_id',$user->id)->where('payments.approved',1)
+        ->join('users as c','c.id','payments.approved_uid')
+        ->selectRaw('payments.package_count,payments.id,payments.payable_amount,payments.breakdown_notes,c.user_name as cashier_name,payments.payment_datetime')
+        ->orderByDesc('payment_datetime')
         ->get();
-
-        // return $paymentTrx;
-        $paymentDetails = PaymentDetail::selectRaw('id,payment_id,method,currency_code')->get();
-        foreach($paymentTrx as $payment){
-            $payment->payment_date = Helper::formatCustomDateTime($payment->payment_datetime,'d-M-Y');
-            if($payment->is_settled) {
-                $paymentDetails = $this->getPaymentMethods($paymentDetails,$payment->payment_id);
-                $payment->breakdown_notes = $paymentDetails->method;
-                $paidTrx[] = $payment;
+        $disbursements = Disbursement::where('type','payment')->where('disbursements.is_deleted',0)->where('disbursements.payee_id',$user->id)->where('disbursements.approved',1)
+        ->join('users as c','c.id','disbursements.receiptionist_uid')
+        ->selectRaw('disbursements.package_count,disbursements.id,disbursements.payable_amount,disbursements.breakdown_notes,c.user_name as cashier_name,disbursements.payment_datetime')
+        ->orderByDesc('payment_datetime')
+        ->get();
+        $packages = Package::where('is_deleted',0)
+        ->where('created_at', '>=', Carbon::now()->subMonths(2))
+        ->whereIn('status_id',[9,19])
+        ->selectRaw('*')
+        ->where('driver_id',$user->id)
+        ->orderBy('driver_payment_id','desc')
+        ->orderBy('driver_disbursement_id','desc')
+        ->get();
+        $samePmtId = null;
+        foreach($packages as $p){
+            if(!$p->driver_disbursement_id && !$p->driver_payment_id){
+                $count +=1;
+                $price = $p->price;
+                $taxiFee = $p->taxi_fee;
+                if($p->status_id == 19){
+                    $price = 0;
+                    $taxiFee = 0;
+                }
+                $total += TransactionService::getPackageTotal('driver',$p->cod,$price,$taxiFee,$p->extra_charge,$p->additional_fee,$p->delivery_fee,$p->payer);
+            }else{
+                if($p->driver_payment_id){
+                    if($samePmtId != $p->driver_payment_id){
+                        $pmt = $this->getTrxDetails($payments,$p->driver_payment_id);
+                        if($pmt) {
+                            $pmt->remarks = 'Disbursement';
+                            $paidTrx[] = $pmt;
+                        }
+                        $samePmtId = $p->driver_payment_id;
+                    }
+                }else {
+                    $pmt = $this->getTrxDetails($disbursements,$p->driver_disbursement_id);
+                    if($pmt) {
+                        $total -= (float)$pmt->payable_amount;
+                        $pmt->remarks = 'Receive';
+                        $paidTrx[] = $pmt;
+                    }
+                }
             }
-            else {
-                $count += 1;
-                $total += $payment->driver_total;
-            }
-            $remarks = $payment->remarks;
-            $payment->remarks = $remarks ? $remarks : '';
-            unset($payment->is_settled,$payment->payment_datetime);
         }
-
-        // foreach($balanceInfo as $balance){
-        //     $hasPayment = $balance->driver_payment;
-        //     if($hasPayment){
-        //         if(!$hasPayment->is_settled) $count += 1;
-        //     }
-        // }
+        usort($paidTrx, function ($a, $b) {
+            return strtotime($b['payment_datetime']) <=> strtotime($a['payment_datetime']);
+        });
 
         $obj = (object)[
-            'balance_due' => $balanceDue,
+            'balance_due' => (float)Helper::getNumber($total,2),
             'count' => $count,
-            'total' => $total,
+            'total' => (float)Helper::getNumber($total,2),
             'payment_transaction' => $paidTrx
         ];
 
@@ -95,6 +91,17 @@ class TransactionController extends Controller
     }
 
 
+    private function getTrxDetails($rows,$pmtId){
+        foreach($rows as $row){
+            if($row->id == $pmtId){
+                $row->breakdown_notes = str_replace('|', '&', $row->breakdown_notes);
+                $row->payment_date = Helper::dateDMY($row->payment_datetime);
+                $row->payment_time = Helper::formatCustomDateTime($row->payment_datetime,'h:i A');
+                return $row;
+            }
+        }
+        return null;
+    }
 
     public function getPaymentMethods($details,$pmtId){
         $method = null;
@@ -135,16 +142,16 @@ class TransactionController extends Controller
         if($startDate && $endDate){
             $startDate = date('Y-m-d',strtotime($startDate));
             $endDate = date('Y-m-d',strtotime($endDate));
-            $qP->whereBetween('delivered_datetime',[$startDate,$endDate])->orWhereDate('delivered_datetime',$endDate);
+            $qP->whereRaw('delivered_datetime::DATE >= ? AND delivered_datetime::DATE <= ?', [$startDate, $endDate]);
         }
         $deliveredCount = $qP->count();
         $qO = Order::where('is_deleted',0)->where('status_id',5)
-        ->where('driver_disbursement_id',$driverId)
+        // ->where('driver_disbursement_id',$driverId)
         ->where('driver_id',$driverId);
         if($startDate && $endDate){
             $startDate = date('Y-m-d',strtotime($startDate));
             $endDate = date('Y-m-d',strtotime($endDate));
-            $qO->whereBetween('order_datetime',[$startDate,$endDate])->orWhereDate('order_datetime',$endDate);
+            $qP->whereRaw('order_datetime::DATE >= ? AND order_datetime::DATE <= ?', [$startDate, $endDate]);
         }
         $pickUpCount = $qO->sum('qty');
         $driverCommissions = DriverCommission::where('is_deleted',0)->where('driver_id',$driverId)->get();
@@ -159,15 +166,15 @@ class TransactionController extends Controller
                     'category' => 'Pickup',
                     'count' => $pickUpCount,
                     'unit' => (float)$pickUpRate,
-                    'total' => $pickUpCount * $pickUpRate,
-                    'remarks' => null,
+                    'total' => (float)Helper::getNumber($pickUpCount * $pickUpRate,2),
+                    'remarks' => '',
                 ],
                 [
                     'category' => 'Delivered',
                     'count' => $deliveredCount,
                     'unit' => (float)$deliveryRate,
-                    'total' => $deliveryRate * $deliveredCount,
-                    'remarks' => null,
+                    'total' => (float)Helper::getNumber($deliveryRate * $deliveredCount,2),
+                    'remarks' => '',
                 ]
             ]
         ];
@@ -177,17 +184,20 @@ class TransactionController extends Controller
 
     public function getCommissionTrx(){
         $user = UserService::getAuthUser('driver');
-        $disbursement = Disbursement::where('payee_type','driver')
-        ->where('payee_id',$user->id)->get();
-        $data = [
-            [
-                'payment_date' => '',
-                'payable_amount' => 0,
-                'method' => '',
-                'payer_name' => '',
-            ]
-        ];
-        return ApiResponse::JsonResult($data);
+        $disbursements = Disbursement::where('payee_type','driver')
+        ->where('type','commission')
+        ->where('is_deleted',0)
+        ->with('receiptionist:id,user_name')
+        ->where('payee_id',$user->id)
+        ->selectRaw('id,payable_amount,breakdown_notes as method,receiptionist_uid,payment_datetime')
+        ->get();
+        foreach($disbursements as $d){
+            $d->payment_date = Helper::dateDMY($d->payment_datetime);
+            $d->payer_name = $d->receiptionist->user_name;
+            $d->payable_amount = (float)$d->payable_amount;
+            unset($d->receiptionist,$d->receiptionist_uid,$d->payment_datetime);
+        }
+        return ApiResponse::JsonResult($disbursements);
     }
 
     // public function getCommissonTranxAndReport(Request $req){

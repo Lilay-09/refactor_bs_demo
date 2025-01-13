@@ -105,6 +105,7 @@ class ZoneController extends Controller
     public function deleteZone(Request $req){
         $user = UserService::getAuthUser();
         $id = $req->id;
+        if($id == 300) return ApiResponse::ValidateFail('You cannot delete default zone!');
         $zone = Zone::where('company_id',$user->company_id)->where('is_deleted',0)->find($id);
         if(!$zone) return ApiResponse::NotFound(__('messages.not_found'));
         $deletedArr = [

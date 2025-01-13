@@ -27,7 +27,7 @@ class AuthController extends Controller
             'username' => 'required|string',
             'password' => 'required|string|min:6|max:16',
         ]);
-        if($validate->fails()) return ApiResponse::ValidateFail($validate->errors()->all());//DataResponse::ValidateFail($validate->errors());
+        if($validate->fails()) return ApiResponse::ValidateFail($validate->errors()->first());//DataResponse::ValidateFail($validate->errors());
         $input = $validate->validated();
         $account = $input['username'];
         $password = $input['password'];
@@ -40,7 +40,7 @@ class AuthController extends Controller
         })->selectRaw('photo_file_name,email,phone,id,system_admin,lock,company_id,account_type,login_name,delete_account')->first();
         $systemAdmin = $user->system_admin ?? false;
         $isLock = $user->lock ?? false;
-        if(!$user) return  ApiResponse::NotFound('Invalid Username or password');
+        if(!$user) return  ApiResponse::NotFound('Invalid Username or Password');
         // return $user;
         if($isLock || $user->delete_account) {
             if(!$systemAdmin) return ApiResponse::Unauthorized('You have no access to this application.');
@@ -65,7 +65,7 @@ class AuthController extends Controller
             $ttl = (int)env('DRIVER_JWT_TTL');
             JWTAuth::factory()->setTTL($ttl);
             if(!$token = JWTAuth::attempt($credentials)) {
-                return ApiResponse::Unauthorized('invalid_credentials');
+                return ApiResponse::Unauthorized('Invalid Username or Password');
             }
             $token = JWTAuth::customClaims(['system_admin' => $user->system_admin,'roles'=>$user->roles,'type'=>'access','account_type' => $user->account_type])->fromUser($user);
         } catch (JWTException $e) {
@@ -143,6 +143,12 @@ class AuthController extends Controller
     public function deleteAccount(Request $req){
         $user = UserService::getAuthUser('driver');
         $deleteAcc = UserService::deleteUserAccount($user->id,'driver');
+        return ApiResponse::flex($deleteAcc);
+    }
+
+    public function logOut(Request $req){
+        $user = UserService::getAuthUser('driver');
+        $deleteAcc = UserService::logOut($req,$user);
         return ApiResponse::flex($deleteAcc);
     }
 }

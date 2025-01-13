@@ -27,6 +27,7 @@ class Payment extends Model
         'approved_datetime',
         'settled_datetime',
         'delivered_package_count',
+        'failed_with_fee_count',
         'exchange_rate',
         'breakdown_notes',
         'approved_uid',
@@ -43,11 +44,14 @@ class Payment extends Model
     ];
 
     public function cashier(){
-        return $this->belongsTo(User::class,'settled_uid','id');
+        return $this->belongsTo(User::class,'approved_uid','id');
     }
 
     public function driver(){
         return $this->belongsTo(User::class,'payer_id','id')->where('account_type','driver');
+    }
+    public function merchant(){
+        return $this->belongsTo(User::class,'payer_id','id')->where('account_type','merchant');
     }
 
     public function approvedUser($fkId='settled_uid'){
