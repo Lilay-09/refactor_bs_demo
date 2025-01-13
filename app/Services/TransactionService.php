@@ -1068,7 +1068,8 @@ class TransactionService
             'cod' => 'required|in:1,0',
             'price' => 'nullable|numeric',
             'payer' => 'required|in:receiver,sender',
-            'taxi_fee' => 'nullable|numeric'
+            'taxi_fee' => 'nullable|numeric|min:0',
+            'extra_charge' => 'nullable|numeric|min:0'
         ]);
         if($validate->fails()) return DataResponse::ValidateFail($validate->errors()->first());
         $inputs = $validate->validated();

@@ -28,9 +28,19 @@ class ReusableService
         ->join('packages as p','p.id','dp.package_id')->orderByDesc('d.id')
         ->join('users as m','m.id','p.merchant_id')
         ->leftJoin('payments as pmt','pmt.id','p.driver_payment_id')
+        // ->leftJoin('payments as pmt','pmt.id','p.merchant_payment_id')
         ->join('tracking_statuses as trs','trs.id','p.status_id')
         ->selectRaw('p.pickup_notes as notes,p.receiver_address,p.qr_code,p.status_id,trs.name as status_code,d.id as delivery_id,d.fleet_tracking_number,m.user_name as merchant_name,m.phone as merchant_phone,p.receiver_name,p.receiver_phone,p.delivery_fee,p.taxi_fee,p.remarks,p.id as package_id,p.product_type,p.driver_total as total,p.billed_kg,p.failed_datetime,p.delivered_datetime,p.arrive_warehouse_datetime,p.returned_datetime')
-        ->whereIn('p.status_id',$statusIds);
+        ->whereIn('p.status_id',$statusIds)
+        ->orderByRaw('
+            CASE
+                WHEN p.status_id = ? THEN 1
+                WHEN p.status_id = ? THEN 2
+                WHEN p.status_id = ? THEN 3
+                WHEN p.status_id = ? THEN 4
+                ELSE 7
+            END DESC', [9,10,11,19]
+        );
 
         if($paymentStatus == 2){
             $qFp->where('pmt.approved',1);
@@ -91,12 +101,13 @@ class ReusableService
         foreach($fleetPackages as $f){
             $warehouse_datetime = Helper::formatCustomDateTime($f->arrive_warehouse_datetime,'d-M-Y H:i A');
             $finished_date = $f->delivered_datetime;
-            if($f->status_id == 6) $finished_date = $f->arrive_warehouse_datetime;
-            if($f->status_id == 10) $finished_date = $f->failed_datetime;
-            if($f->status_id == 11) $finished_date = $f->returned_datetime;
-            if($f->status_id == 19) $finished_date = $f->failed_datetime;
+            $statusId = $f->status_id;
+            if($statusId == 6) $finished_date = $f->arrive_warehouse_datetime;
+            if($statusId == 10) $finished_date = $f->failed_datetime;
+            if($statusId == 11) $finished_date = $f->returned_datetime;
+            if($statusId == 19) $finished_date = $f->failed_datetime;
             if($isKm){
-                $f->status_code = GeneralSettingService::$statusCodeTrans[$f->status_id] ?? '';
+                $f->status_code = GeneralSettingService::$statusCodeTrans[$statusId] ?? '';
             }
             $f->finished_datetime = Helper::formatCustomDateTime($finished_date,'d-M-Y h:i A');
             $f->arrive_warehouse_datetime = $warehouse_datetime;

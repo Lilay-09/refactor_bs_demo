@@ -288,6 +288,9 @@ class PackageTrailController extends Controller
         if($package->cod) $total += $package->price;
         if($package->payer == 'receiver') $total += $package->delivery_fee;
         $package->total = $total;
+        $exchange = GeneralSettingService::getLatestXRate();
+        $package->total = $total;
+        $package->total_khr = Helper::getNumber($total * $exchange->sell_rate);
         unset($package->status,$package->driver,$package->merchant,$package->arrive_warehouse_datetime,$package->updateUser,$package->create_uid,$package->created_at);
         $obj = (object)[
             'company_info' => CompanyProfileService::profileInfo($user,true),
@@ -316,6 +319,7 @@ class PackageTrailController extends Controller
         ->orderByRaw("CASE $orderByCase END")
         ->get();
         // if(!$package) return ApiResponse::NotFound(trans('messages.not_found',['info' => 'Package','khInfo' => 'កញ្ចប់​']));
+        $exchange = GeneralSettingService::getLatestXRate();
         foreach($packages as $package){
             $driver = $package->driver;
             if($driver){
@@ -332,6 +336,7 @@ class PackageTrailController extends Controller
             if($package->cod) $total += $package->price;
             if($package->payer == 'receiver') $total += $package->delivery_fee;
             $package->total = $total;
+            $package->total_khr = Helper::getNumber($total * $exchange->sell_rate);
             unset($package->status,$package->driver,$package->merchant,$package->arrive_warehouse_datetime,$package->updateUser,$package->create_uid,$package->created_at);
         }
         $obj = (object)[

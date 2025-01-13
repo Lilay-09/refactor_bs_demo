@@ -301,7 +301,7 @@ class PickupCenterService
         $actualKg = $inputs['actual_kg'] ?? 0;
         $billedKg = $inputs['billed_kg'] ?? 0;
         $inputs['actual_kg'] = $actualKg;
-        $inputs['pickup_notes'] = $inputs['pickup_notes'] ?? $inputs['noted'] ?? '';
+        if(isset($inputs['noted'])) $inputs['pickup_notes'] = $inputs['noted'];
         $payer = $inputs['payer'];
         $inputs['pickup_datetime'] = now();
         $inputs['billed_kg'] = $actualKg;

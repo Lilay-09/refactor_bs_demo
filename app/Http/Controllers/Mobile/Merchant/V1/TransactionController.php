@@ -59,6 +59,7 @@ class TransactionController extends Controller
         ->selectRaw('payments.id,payments.payment_datetime,payments.payable_amount,payments.is_settled,payments.breakdown_notes,c.user_name as cashier_name,payments.remarks')
         ->get();
         $paymentDetails = PaymentDetail::selectRaw('id,payment_id,method,currency_code')->get();
+        $paidTrx = [];
         foreach($paymentTrx as $payment){
             $payment->payment_date = Helper::formatCustomDateTime($payment->payment_datetime,'d-M-Y');
             if($payment->is_settled) {

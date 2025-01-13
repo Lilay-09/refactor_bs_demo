@@ -122,6 +122,7 @@ Route::middleware(['jwtMerchant','localize'])->prefix('merchant/v1/{lang}')->gro
             Route::get('fail',[HomeController::class,'getFailPackages']);
             Route::get('return',[HomeController::class,'getReturnPackages']);
             Route::get('activity',[HomeController::class,'trackingActivitySummary']);
+            Route::post('order/{id}/cancel',[HomeController::class,'cancelOrder']);
         });
     });
 

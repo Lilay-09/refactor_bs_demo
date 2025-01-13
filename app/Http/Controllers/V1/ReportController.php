@@ -669,7 +669,6 @@ class ReportController extends Controller
             }
             unset($p->merchant,$p->status);
         }
-        \Log::error(json_encode($uniqueDrivers));
         $obj =(object)[
             'title' => 'Daily Packages Summary',
             'status' => 'All Driver',
@@ -1018,6 +1017,12 @@ class ReportController extends Controller
     }
     private function getMerchantSummaryHeader($clonePkg,$merchantId,$startDate,$endDate){
         $lastOrder = Package::from('packages as p')->where('p.is_deleted',0)
+        ->whereRaw(
+            "(p.status_id = 5 AND p.arrive_warehouse_datetime BETWEEN ? AND ?)
+            OR (p.status_id = 6 AND p.assign_driver_datetime BETWEEN ? AND ?)
+            OR (p.status_id = 10 AND p.failed_datetime BETWEEN ? AND ?)",
+            [$startDate, $endDate, $startDate, $endDate, $startDate, $endDate]
+        )
         ->joinSub(
     Order::select('id as order_id','code')
             ->where('merchant_id',$merchantId)
@@ -1078,8 +1083,6 @@ class ReportController extends Controller
         if(isset($pkgInfo['5.2'])) $pkgInfo['5.2']['total'] = Helper::getNumber($pkgInfo['5.2']['total'],2);
         return array_values($pkgInfo);
     }
-
-
 
     public function getMerchantPaymentReport(Request $req){
         $user = UserService::getAuthUser();
