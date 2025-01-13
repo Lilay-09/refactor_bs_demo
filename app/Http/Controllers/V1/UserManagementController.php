@@ -6,8 +6,10 @@ use ApiResponse;
 use App\Http\Controllers\Controller;
 use App\Models\Application;
 use App\Models\AppModule;
+use App\Models\Permission;
 use App\Models\Role;
 use App\Models\User;
+use App\Models\UserPermission;
 use App\Models\UserRoles;
 use App\Services\UserManagementService;
 use App\Services\UserService;
@@ -27,19 +29,23 @@ class UserManagementController extends Controller
     public function getUsers(Request $req){
         $user = UserService::getAuthUser();
         $role = $req->role;
+        $roleId = $req->role_id;
         // $branchId = $req->branch_id;
         $search = $req->search;
-        $query = User::where('company_id',$user->company_id)->with(['user_roles'])->selectRaw('id,app_id,user_name,phone,email,phone,system_admin,lock,last_login,registered_datetime,branch_id,photo_file_name')->orderByDesc('id');
+        $query = User::where('company_id',$user->company_id)->with(['user_roles.role'])->selectRaw('id,code,user_name,phone,email,account_type,phone,system_admin,lock,last_login,registered_datetime,branch_id,photo_file_name,login_name,created_at')->orderByDesc('id');
         if($role){
             $roleArr = explode(',',$role);
             $query->whereHas('user_roles',function($query) use($roleArr){
                 $query->whereIn('role_id',$roleArr);
             });
         }
+        if($roleId){
+            $query->whereHas('user_roles',function($query) use($roleId){
+                $query->where('role_id',$roleId);
+            });
+        }
         if($search){
-            $query->where('first_name','ilike','%'.$search.'%')
-            ->orWhere('last_name','ilike','%'.$search.'%')
-            ->orWhere('user_name','ilike','%'.$search.'%')
+            $query->where('user_name','ilike','%'.$search.'%')
             ->orWhere('phone','ilike','%'.$search.'%');
         }
         // if($branchId){
@@ -48,9 +54,28 @@ class UserManagementController extends Controller
         // }
         $userList = $query->get();
         foreach($userList as $u){
+            $u->create_date = Helper::formatCustomDateTime($u->created_at);
+            $u->role = $u->user_roles[0]?->role?->name ?? null;
+            $u->login_name = $u->login_name ?? $u->phone;
+            $u->last_login = Helper::formatCustomDateTime($u->last_login);
             $u->image_url = Helper::getImageUrl($u->photo_file_name,$user->company_id,$this->userProfileDir);
+            unset($u->user_roles,$u->created_date);
         }
         return ApiResponse::Pagination($userList, $req);
+    }
+
+    public function getOneUser(Request $req){
+        $id = $req->id;
+        $user = User::with(['user_roles.role'])
+        ->selectRaw('id,code,user_name,phone,email,account_type,phone,system_admin,lock,last_login,registered_datetime,branch_id,photo_file_name,login_name,created_at')
+        ->orderByDesc('id')->find($id);
+        if(!$user) return ApiResponse::NotFound(__('messages.not_found',[
+            'info' => 'User'
+        ]));
+        $user->role_id = $user->user_roles[0]?->role_id ?? null;
+        $user->image_url = Helper::getImageUrl($user->photo_file_name,$user->company_id,$this->userProfileDir);
+        unset($user->user_roles);
+        return ApiResponse::JsonResult($user,'get one user');
     }
 
     public function getApplications() {
@@ -85,107 +110,53 @@ class UserManagementController extends Controller
             'first_name' => 'nullable|string|max:50',
             'last_name' => 'nullable|string|max:50',
             'email' => 'nullable|string|max:100',
-            'phone' => 'nullable|string|max:20',
+            'phone' => 'required|string|max:20',
             'lock' => 'nullable|in:true,false',
-            'branch_id' => 'required|exists:branches,id',
+            'login_name' => 'required|string|max:50',
+            'branch_id' => 'nullable|exists:branches,id',
             'role_id' => 'required|exists:roles,id',
             'photo' => 'nullable|string',
-            'password' => 'nullable|string|min:6|max:20'
+            'password' => 'required|string|min:6|max:20',
+            'confirm_password' => 'required|string|min:6|max:20'
         ]);
     }
 
     public function createUser(Request $req){
         $authUser = UserService::getAuthUser();
-        $validate = $this->userValidation($req);
-        if($validate->fails()) return ApiResponse::ValidateFail($validate->errors()->first());
-        $inputs = $validate->validated();
-        $role_id = $inputs['role_id'] ?? null;
-        $photo = $inputs['photo'] ?? null;
-        $hPwd = Hash::make($inputs['password']);
-        $createArr = [
-            'last_login' => null,
-            'create_uid' => $authUser->id,
-            'update_uid' => $authUser->id,
-            'branch_id' => $inputs['branch_id'] ?? $authUser->branch_id,
-            'company_id' => $authUser->company_id,
-            'first_name' => $inputs['first_name'],
-            'last_name' => $inputs['last_name'],
-            'email' => $inputs['email'],
-            'user_name' => $inputs['first_name']. ' ' .$inputs['last_name'],
-            'phone' => $inputs['phone'],
-            'password' => $hPwd
-        ];
-
-        if(Helper::isValidBase64Image($photo)){
-            $photo_file = Helper::base64ToImageFile($photo,$authUser->company_id,'user_profile')->filename;
-            $createArr['photo_file_name'] = $photo_file;
-        }
-
-        $createUser = User::create($createArr);
-        if(!$createUser){
-            Helper::deleteImageFile($createArr['photo_file_name'],$authUser->company_id,'user_profile');
-            return ApiResponse::Error('Fail to create user');
-        }
-        if($role_id){
-            UserRoles::create([
-                'user_id' => $createUser->id,
-                'role_id' => $role_id
-            ]);
-        }
-        return ApiResponse::JsonResult(null,'Created');
+        $createUser = UserService::createOrUpdateUser($req,'admin',$authUser);
+        return ApiResponse::flex($createUser);
     }
 
 
     public function updateUser(Request $req){
         $authUser = UserService::getAuthUser();
-        $validate = $this->userValidation($req);
-        $id = $req->id;
-        $user = User::where('company_id',$authUser->company_id)->find($id);
-        if(!$user) return ApiResponse::NotFound('User not found');
-        if($validate->fails()) return ApiResponse::ValidateFail($validate->errors()->first());
-        $inputs = $validate->validated();
-        $role_id = $inputs['role_id'] ?? null;
-        $photo = $inputs['photo'] ?? null;
+        $updateUser = UserService::createOrUpdateUser($req,'admin',$authUser,$req->id);
+        return ApiResponse::flex($updateUser);
+    }
 
-        $updateArr = [
-            'first_name' => $inputs['first_name'],
-            'last_name' => $inputs['last_name'],
-            'email' => $inputs['email'],
-            'user_name' => $inputs['first_name']. '' .$inputs['last_name'],
-            'phone' => $inputs['phone'],
-            'branch_id' => $inputs['branch_id']
-        ];
-        $createdAt = $user->created_at ?? null;
-        if($createdAt && !$user->start_date){
-            $updateArr['start_date'] = $createdAt;
-            // return ApiResponse::ValidateFail('fail now'.$user->created_at);
+    public function getUserPermissions(Request $req){
+        $permissions = Permission::from('permissions as p')->join('app_modules as m','m.id','p.module_id')->selectRaw('p.name as permission_name,m.native_name as module_name')->get();
+        $userId = $req->id;
+        $userPermissions = UserPermission::where('user_id',$userId)->get();
+        foreach($permissions as $p){
+            $p->accessing = $this->getAccessOrDenied($userPermissions,$p->id);
         }
-        if(!$photo || Helper::isValidBase64Image($photo)){
-            $photo_file = Helper::base64ToImageFile($photo,$authUser->company_id,'user_profile')->filename;
-            $updateArr['photo_file_name'] = $photo_file;
-                //** delete exists photo */
-            Helper::deleteImageFile($user->photo_file_name,$authUser->company_id,'user_profile');
-        }
-        $update = $user->update($updateArr);
-        if($update){
-            if($role_id){
-                $userRole = UserRoles::where('user_id',$id)->first();
-                if(!$userRole) {
-                    $updateUserRole = UserRoles::create([
-                        'user_id' => $id,
-                        'role_id' => $role_id
-                    ]);
-                    if(!$updateUserRole) return ApiResponse::Error('Fail to update role');
-                }else{
-                    $updateUserRole = $userRole->update([
-                        'role_id' => $role_id,
-                        'user_id' => $id
-                    ]);
-                    if(!$updateUserRole) return ApiResponse::Error('Fail to update role');
-                }
+        return ApiResponse::Pagination($permissions,$req);
+    }
+
+    private function getAccessOrDenied($rows,$id,$type='permission'){
+        foreach($rows as $r){
+            if($r->{$type}.'_id' == $id){
+                return [
+                    'allowed' => 1,
+                    'title' => 'Allowed'
+                ];
             }
-            return ApiResponse::JsonResult(null,'Updated');
         }
+        return [
+            'allowed' => 0,
+            'title' => 'Denied'
+        ];
     }
 
     public function deleteUser(Request $req){
@@ -219,22 +190,8 @@ class UserManagementController extends Controller
 
     public function setLockUser(Request $req){
         $authUser = UserService::getAuthUser();
-        $id = $req->id;
-        $user = User::where('company_id',$authUser->company_id)->find($id);
-        if(!$user) return ApiResponse::NotFound('User not found');
-        $inputs = [];
-        $inputs['update_uid'] = $authUser->id;
-        $inputs['branch_id'] = $authUser->branch_id;
-        $msg = 'User account has been locked';
-        if($user->lock){
-            $inputs['lock'] = 0;
-            $user->update($inputs);
-            $msg = 'User account has been unlocked';
-        }else{
-            $inputs['lock'] = 1;
-            $user->update($inputs);
-        }
-        return ApiResponse::JsonResult(null,$msg);
+        $setLock = UserService::setLockUser($authUser,$req->id);
+        return ApiResponse::flex($setLock);
     }
 
     function roleValidation(Request $req){

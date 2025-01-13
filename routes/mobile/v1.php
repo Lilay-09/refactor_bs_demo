@@ -108,6 +108,7 @@ Route::middleware(['jwtMerchant','localize'])->prefix('merchant/v1/{lang}')->gro
     Route::get('notification',[HomeController::class,'getNotifications']);
     Route::put('notification/read/{id?}',[HomeController::class,'readNotification']);
     Route::get('history/packages',[MerchantHistoryController::class,'getAllHistories']);
+    Route::get('search/packages',[HomeController::class,'getSearchPackages']);
     Route::get('transaction',[MerchantTransactionController::class,'getTransaction']);
     Route::prefix('home')->group(function(){
         Route::get('',[HomeController::class,'getHomeScreen']);

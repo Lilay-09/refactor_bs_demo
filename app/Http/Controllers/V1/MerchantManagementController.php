@@ -164,4 +164,9 @@ class MerchantManagementController extends Controller
         return ApiResponse::flex(UserService::setNewPassword($req,$req->id,'merchant',$user));
     }
 
+    public function deleteMerchant(Request $req){
+        $user = UserService::getAuthUser();
+        return ApiResponse::flex(UserService::deleteUser($req->id,'merchant',$user));
+    }
+
 }

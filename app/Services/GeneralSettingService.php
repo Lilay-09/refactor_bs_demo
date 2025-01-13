@@ -1,6 +1,7 @@
 <?php
 
 namespace App\Services;
+use App\Models\AppModule;
 use App\Models\Bank;
 use App\Models\BusinessType;
 use App\Models\City;
@@ -14,10 +15,12 @@ use App\Models\District;
 use App\Models\ExchangeRate;
 use App\Models\MerchantPriceList;
 use App\Models\Order;
+use App\Models\Permission;
 use App\Models\PriceList;
 use App\Models\PriceListname;
 use App\Models\PriceListZone;
 use App\Models\ProductType;
+use App\Models\Role;
 use App\Models\TermCondition;
 use App\Models\TrackingStatus;
 use App\Models\User;
@@ -71,6 +74,18 @@ class GeneralSettingService
             return isset(self::$channels[$idx]) ? [self::$channels[$idx]] : [];
         }
         return self::$channels;
+    }
+
+    public static function optionsRole(){
+        return Role::selectRaw('id,name')->get();
+    }
+
+    public static function optionsModule(){
+        return AppModule::selectRaw('id,name')->get();
+    }
+
+    public static function optionsPermission(){
+        return Permission::selectRaw('id,name')->get();
     }
 
     public static function getWarehouse($user){

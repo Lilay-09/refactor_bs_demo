@@ -13,7 +13,7 @@ use Illuminate\Http\Request;
 class ReusableService
 {
     // Your service methods go here
-    public static function getHistoryPackages(Request $req,$user=null,$reqSearch=false){
+    public static function getHistoryPackages(Request $req,$user=null,$reqSearch=false,$userClass='driver'){
         $paymentStatus = $req->payment_status_id ?? null;
         $statusId = $req->status_id ?? null;
         $search = $req->search ?? null;
@@ -45,8 +45,10 @@ class ReusableService
         if($paymentStatus == 2){
             $qFp->where('pmt.approved',1);
         }
-        if($user){
+        if($user && $userClass=='driver'){
             $qFp->where('p.driver_id',$user->id);
+        }else if($user && $userClass=='merchant'){
+            $qFp->where('p.merchant_id',$user->id);
         }
         if($startDate && $endDate){
             $startDate = Helper::dateYMD($startDate);

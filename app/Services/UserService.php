@@ -2,7 +2,10 @@
 
 namespace App\Services;
 use ApiResponse;
+use App\Models\Disbursement;
 use App\Models\MerchantPriceList;
+use App\Models\Package;
+use App\Models\Payment;
 use App\Models\User;
 use App\Models\UserBank;
 use App\Models\UserNotificationToken;
@@ -87,8 +90,7 @@ class UserService
             'dob' => 'nullable',
             'photo' => 'nullable|string',
             'address' => 'nullable|string|max:500',
-            'password' => 'nullable|string|min:6|max:20',
-            'roles' => 'nullable|array'
+            'role_id' => 'required|exists:roles,id'
         ];
 
         $baseMsgs = [
@@ -96,6 +98,8 @@ class UserService
         ];
 
         if($userClass == 'admin'){
+            $baseFields['password'] = 'required|string|max:20';
+            $baseFields['confirm_password'] = 'nullable';
             return validator($req->all(),$baseFields);
         }else if($userClass == 'driver'){
             $baseFields['employment_date'] = 'nullable|string|max:100';
@@ -213,7 +217,7 @@ class UserService
             }
             if($user_class == 'merchant' && $priceListId) self::saveMerchantPriceList($userId,$priceListId,$zoneId,$user);
             self::assignRolesUser($userId,$roleIds,$user_class);
-            DB::commit();
+            // DB::commit();
             return DataResponse::JsonResult(null,false,__('messages.saved'));
         }catch(Exception $e){
             DB::rollBack();
@@ -222,7 +226,7 @@ class UserService
         }
     }
 
-    private static function assignRolesUser($userId,$roleIds,$class){
+    private static function assignRolesUser($userId,$roleIds,$class,$allowOne=true){
         if(empty($roleIds)){
             if($class == 'admin'){
                 $roleIds[] = 1;
@@ -234,10 +238,17 @@ class UserService
         }
 
         foreach($roleIds as $roleId){
-            UserRoles::create([
-                'user_id' => $userId,
-                'role_id' => $roleId
-            ]);
+            $exists = UserRoles::where('user_id',$userId)->where('role_id',$roleId)->first();
+            if(!$exists){
+                if($allowOne) UserRoles::where('user_id',$userId)->delete();
+                UserRoles::create([
+                    'user_id' => $userId,
+                    'role_id' => $roleId
+                ]);
+            }else{
+                if($allowOne) UserRoles::where('user_id',$userId)->where('role_id','!=',$roleId)->delete();
+            }
+
         }
     }
 
@@ -251,26 +262,26 @@ class UserService
         }
         if($found) {
             $found->update([
-            'merchant_id' => $merchantId,
-            'price_list_id' => $priceListId,
-            'zone_id' => $zoneId,
-            'zone_code' => $zoneCode,
-            'update_uid' => $user->id,
-            'company_id' => $user->company_id,
-            'branch_id' => $user->branch_id
-        ]);
+                'merchant_id' => $merchantId,
+                'price_list_id' => $priceListId,
+                'zone_id' => $zoneId,
+                'zone_code' => $zoneCode,
+                'update_uid' => $user->id,
+                'company_id' => $user->company_id,
+                'branch_id' => $user->branch_id
+            ]);
         }
         else {
             MerchantPriceList::create([
-            'merchant_id' => $merchantId,
-            'price_list_id' => $priceListId,
-            'zone_id' => $zoneId,
-            'zone_code' => $zoneCode,
-            'create_uid' => $user->id,
-            'update_uid' => $user->id,
-            'company_id' => $user->company_id,
-            'branch_id' => $user->branch_id
-        ]);
+                'merchant_id' => $merchantId,
+                'price_list_id' => $priceListId,
+                'zone_id' => $zoneId,
+                'zone_code' => $zoneCode,
+                'create_uid' => $user->id,
+                'update_uid' => $user->id,
+                'company_id' => $user->company_id,
+                'branch_id' => $user->branch_id
+            ]);
         }
     }
 
@@ -498,6 +509,14 @@ class UserService
     public static function deleteUser($id,$type,$authUser){
         $user = User::where('is_deleted',0)->where('account_type',$type)->find($id);
         if($user){
+            if($type != 'admin'){
+                $disKey = $type.'_disbursement_id';
+                $package = Package::where('is_deleted',0)->where('outstanding',0)->first();
+                if(!$package->{$disKey}) return DataResponse::ValidateFail($type.' still has payment that is not paid.');
+                $payment = Payment::where('is_deleted',0)->where('approved',0)->first();
+                $disbursement = Disbursement::where('is_deleted',0)->where('approved',0)->where('type','payment')->first();
+                if($payment || $disbursement) return DataResponse::ValidateFail('Found some payments that are not paid yet!');
+            }
             $user->update([
                 'is_deleted' => false,
                 'delete_datetime' => now(),
@@ -508,6 +527,10 @@ class UserService
         return DataResponse::JsonResult(null,false,__('messages.deleted',[
             'info' => 'User'
         ]));
+    }
+
+    private function checkPayment($rows,$key){
+
     }
 
 }

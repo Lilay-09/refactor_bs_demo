@@ -59,21 +59,23 @@ Route::middleware(['jwt','localize'])->prefix('admin/v1/{lang}')->group(function
         });
 
         Route::get('/user', [UserManagementController::class,'getUsers']);
-        Route::get('user/profile',[UserController::class,'getProfile']);
+        // Route::get('user/profile',[UserController::class,'getProfile']);
         Route::post('/user',[UserManagementController::class,'createUser']);
-        Route::get('/user/{id?}', [UserController::class,'getUser']);
-        Route::put('/user/{id?}', [UserManagementController::class,'updateUser']);
-        Route::put('/user/set-lock/{id?}', [UserManagementController::class,'setLockUser']);
-        Route::put('/user/change-password/{id?}', [UserManagementController::class,'userChangePassword']);
+        Route::get('/user/{id}',[UserManagementController::class,'getOneUser']);
+        Route::get('/user/{id}/permission',[UserManagementController::class,'getUserPermissions']);
+        // Route::get('/user/{id?}', [UserController::class,'getUser']);
+        // Route::put('/user/{id?}', [UserManagementController::class,'updateUser']);
+        Route::put('/user/{id}/setLock', [UserManagementController::class,'setLockUser']);
+        Route::put('/user/{id}/changePassword', [UserManagementController::class,'userChangePassword']);
         Route::get('user/notification/token',[CloudMessagingController::class,'getUserToken']);
         Route::delete('user/{id}',[UserManagementController::class,'deleteUser']);
 
         Route::prefix('role')->group(function(){
             Route::post('/', [UserManagementController::class,'createRole']);
             Route::get('/', [UserManagementController::class,'getRoles']);
-            Route::get('/{id?}', [UserManagementController::class,'getRole']);
-            Route::put('/{id?}', [UserManagementController::class,'updateRole']);
-            Route::delete('/{id?}', [UserManagementController::class,'deleteRole']);
+            Route::get('/{id}', [UserManagementController::class,'getRole']);
+            Route::put('/{id}', [UserManagementController::class,'updateRole']);
+            Route::delete('/{id}', [UserManagementController::class,'deleteRole']);
         });
 
         Route::prefix('warehouse')->group(function (){
@@ -132,6 +134,7 @@ Route::middleware(['jwt','localize'])->prefix('admin/v1/{lang}')->group(function
         Route::get('',[MerchantManagementController::class,'getMerchants']);
         Route::get('/{id}',[MerchantManagementController::class,'getOneMerchant']);
         Route::put('/{id}',[MerchantManagementController::class,'updateMerchant']);
+        Route::delete('/{id}',[MerchantManagementController::class,'deleteMerchant']);
         Route::post('/{id}/setLock',[MerchantManagementController::class,'setLockMerchant']);
         Route::post('/{id}/account',[MerchantManagementController::class,'createMerchantAccount']);
         Route::put('/{id}/priceList',[MerchantManagementController::class,'setMerchantPriceList']);
@@ -376,6 +379,9 @@ Route::middleware(['jwt','localize'])->prefix('admin/v1/{lang}')->group(function
 
     Route::prefix('setting')->group(function(){
         Route::prefix('option')->group(function(){
+            Route::get('role',[GeneralSettingController::class,'getOptionsRole']);
+            Route::get('permission',[GeneralSettingController::class,'getOptionsPermission']);
+            Route::get('module',[GeneralSettingController::class,'getOptionsModule']);
             Route::get('merchant/{id}/order',[GeneralSettingController::class,'getOptionsMerchantOrder']);
             Route::get('operator',[GeneralSettingController::class,'getOptionsOperator']);
             Route::get('channel',[GeneralSettingController::class,'getOptionsChannel']);

@@ -546,7 +546,7 @@ class ReportController extends Controller
             'title' => 'Daily Packages Summary',
             'status' => 'All Driver',
             'date' => Helper::dateDMY($startDate).' to '.Helper::dateDMY($endDate),
-            'total' => 1,
+            'total' => count($drivers),
             'company_profile' => CompanyProfileService::profileInfo($user),
             'total_package' => (object)[
                 'pickup' => $totalPickUpCount,
@@ -617,10 +617,14 @@ class ReportController extends Controller
         $user = UserService::getAuthUser();
         $startDate = $req->startDate ? Helper::dateYMD($req->startDate) : null;
         $endDate = $req->endDate ? Helper::dateYMD($req->endDate) : null;
+        $driverId = $req->driver_id;
         $qP = Package::where('is_deleted',0)->where('outstanding',0)
         ->with(['merchant:id,user_name','status:id,name'])
         ->orderByDesc('id')
         ->selectRaw('status_id,qr_code,merchant_id,receiver_phone,receiver_name,cod,delivery_fee,taxi_fee,driver_total,remarks,zone_code,zone_name,payer,driver_id');
+        if($driverId){
+            $qP->where('driver_id',$driverId);
+        }
         if($startDate && $endDate){
             $qP->where(function($q) use ($startDate, $endDate) {
                 $q->where(function($q) use ($startDate, $endDate) {
@@ -663,6 +667,8 @@ class ReportController extends Controller
             $p->merchant_name = $p->merchant->user_name;
             $p->merchant_phone = $p->merchant->phone;
             $p->status_code = $p->status->name;
+            $p->cod = $p->cod ? 'Yes' : 'No';
+            $p->base_fee = $p->delivery_fee;
             if ($p->driver_id !== null && empty($uniqueDrivers[$p->driver_id])) {
                 $uniqueDrivers[$p->driver_id] = true; // Mark this driver_id as seen
                 $distinctDriverCount+=1; // Increment the distinct count
@@ -943,7 +949,8 @@ class ReportController extends Controller
             $p->arrive_warehouse_datetime = Helper::formatCustomDateTime($p->arrive_warehouse_datetime);
         }
         // return $packages;
-        $summary = $this->getMerchantSummaryHeader($clonePkg,$merchantId,$startDate,$endDate);
+        $headerSummary = $this->getMerchantSummaryHeader($clonePkg,$merchantId,$startDate,$endDate);
+        $summary = $headerSummary->package_info;
         $groupedPackages = collect($packages)->map(function ($item) use (&$grand)  {
             $finishDate = $item->failed_datetime;
             if($item->status_id == 9) $finishDate = $item->delivered_datetime;
@@ -1009,6 +1016,7 @@ class ReportController extends Controller
             'status' => 'All Driver',
             'date' => $startDate.' to '.$endDate,
             'merchant' => $merchantInfo,
+            'total_packages' => $headerSummary->total_count,
             'summary' => $summary,
             'company_profile' => CompanyProfileService::profileInfo($user),
             'list' => $groupedPackages
@@ -1042,6 +1050,7 @@ class ReportController extends Controller
         //     $clonePkg->where('p.order_id','!=',$lastOrder[0]->order_id);
         // }
         $packages = $clonePkg->get();
+        $totalCount = 0;
         $pkgInfo = [
             5 => ['title' => 'ចំនួនកញ្ចប់ដែលនៅសល់ ', 'count' => 0,'total' => 0],
             "5.1" => ['title' => 'ចំនួនកញ្ចប់​ចូលថ្មី ', 'count' => 0, 'total' => 0],
@@ -1051,13 +1060,16 @@ class ReportController extends Controller
             10 => ['title' => 'បរាជ័យ ', 'count' => 0, 'total' => 0],
             19 => ['title' => 'បរាជ័យគិតសេវា ', 'count' => 0, 'total' => 0],
             11 => ['title' => 'ត្រឡប់ទៅហាងវិញ ', 'count' => 0, 'total' => 0],
+            'all' => ['title' => 'ត្រឡប់ទៅហាងវិញ ', 'count' => 0, 'total' => 0],
         ];
         foreach($lastOrder as $p){
             $pkgInfo['5.1']['count'] += 1;
             $pkgInfo['5.1']['total'] += -$p->merchant_total;
+            $totalCount += 1;
         }
         // return $packages;
         foreach ($packages as $p) {
+            $totalCount += 1;
             $statusId = $p->status_id;
             if(isset($pkgInfo[$statusId])){
                 $pkgInfo[$statusId]['count'] += 1;
@@ -1081,7 +1093,10 @@ class ReportController extends Controller
         if(isset($pkgInfo[5])) $pkgInfo[5]['total'] = Helper::getNumber($pkgInfo[5]['total'],2);
         if(isset($pkgInfo['5.1'])) $pkgInfo['5.1']['total'] = Helper::getNumber($pkgInfo['5.1']['total'],2);
         if(isset($pkgInfo['5.2'])) $pkgInfo['5.2']['total'] = Helper::getNumber($pkgInfo['5.2']['total'],2);
-        return array_values($pkgInfo);
+        return (object)[
+            'package_info' => array_values($pkgInfo),
+            'total_count' => $totalCount
+        ];
     }
 
     public function getMerchantPaymentReport(Request $req){

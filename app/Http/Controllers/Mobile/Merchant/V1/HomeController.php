@@ -16,6 +16,7 @@ use App\Models\SocialMedia;
 use App\Models\UserBank;
 use App\Services\CompanyProfileService;
 use App\Services\GeneralSettingService;
+use App\Services\Mobile\ReusableService;
 use App\Services\PickupCenterService;
 use App\Services\UserService;
 use Cache;
@@ -375,6 +376,12 @@ class HomeController extends Controller
             unset($package->driver,$package->status);
         }
         return ApiResponse::Pagination($packages,$req);
+    }
+
+    public function getSearchPackages(Request $req){
+        $user = UserService::getAuthUser('merchant');
+        return ApiResponse::flex(ReusableService::getHistoryPackages($req,$user,true,'merchant'));
+
     }
 
     public function feedBack(Request $req){

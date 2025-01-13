@@ -58,6 +58,19 @@ class GeneralSettingController extends Controller
         return ApiResponse::JsonResult($obj);
     }
 
+    public function getOptionsRole(){
+        return ApiResponse::JsonResult($this->gs::optionsRole());
+    }
+
+    public function getOptionsModule(){
+        return ApiResponse::JsonResult($this->gs::optionsModule());
+    }
+
+    public function getOptionsPermission(){
+        return ApiResponse::JsonResult($this->gs::optionsPermission());
+    }
+
+
     public function getDriverFilterOptions(){
         $user = UserService::getAuthUser();
         $obj = [

@@ -358,6 +358,16 @@ class AppModuleSeeder extends Seeder
             [
                 'id' => 282,
                 'app_id' => $appId,
+                'name' => 'terms_and_conditions',
+                'native_name' => 'Terms And Conditions',
+                'create_uid' => 1,
+                'update_uid' => 1,
+                'company_id' => 1,
+                'branch_id' => 1,
+            ],
+            [
+                'id' => 283,
+                'app_id' => $appId,
                 'name' => 'exchange_rate',
                 'native_name' => 'Exchange Rate',
                 'create_uid' => 1,
@@ -366,7 +376,7 @@ class AppModuleSeeder extends Seeder
                 'branch_id' => 1,
             ],
             [
-                'id' => 283,
+                'id' => 284,
                 'app_id' => $appId,
                 'name' => 'product_categories',
                 'native_name' => 'Product Categories',
@@ -376,17 +386,17 @@ class AppModuleSeeder extends Seeder
                 'branch_id' => 1,
             ],
             [
-                'id' => 284,
+                'id' => 285,
                 'app_id' => $appId,
-                'name' => 'remakrs',
-                'native_name' => 'Remakrs',
+                'name' => 'remarks',
+                'native_name' => 'Remarks',
                 'create_uid' => 1,
                 'update_uid' => 1,
                 'company_id' => 1,
                 'branch_id' => 1,
             ],
             [
-                'id' => 285,
+                'id' => 286,
                 'app_id' => $appId,
                 'name' => 'countries_and_cities',
                 'native_name' => 'Countries and Cities',
@@ -396,7 +406,7 @@ class AppModuleSeeder extends Seeder
                 'branch_id' => 1,
             ],
             [
-                'id' => 286,
+                'id' => 287,
                 'app_id' => $appId,
                 'name' => 'delivery_zone',
                 'native_name' => 'Delivery Zone',
@@ -406,7 +416,7 @@ class AppModuleSeeder extends Seeder
                 'branch_id' => 1,
             ],
             [
-                'id' => 287,
+                'id' => 288,
                 'app_id' => $appId,
                 'name' => 'zone_prices',
                 'native_name' => 'Zone Prices',
@@ -416,7 +426,7 @@ class AppModuleSeeder extends Seeder
                 'branch_id' => 1,
             ],
             [
-                'id' => 288,
+                'id' => 289,
                 'app_id' => $appId,
                 'name' => 'bank',
                 'native_name' => 'Bank',
@@ -426,7 +436,7 @@ class AppModuleSeeder extends Seeder
                 'branch_id' => 1,
             ],
             [
-                'id' => 289,
+                'id' => 290,
                 'app_id' => $appId,
                 'name' => 'user_management',
                 'native_name' => 'User Management',
