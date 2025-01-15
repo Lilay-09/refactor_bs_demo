@@ -86,18 +86,18 @@ class MerchantManagementController extends Controller
         $merchant = User::where('is_deleted',0)->where('company_id',$user->company_id)
         ->where('account_type',$this->userClass)
         ->with(['bank_accounts:id,bank_name,bank_number,account_name,user_id,is_primary'])
-        // ->selectRaw('id,cod_fee,code,name_km,user_name,email,gender,photo_file_name,business_type,phone,client_type_id,address,referrer_uid,cod')
+        ->selectRaw('id,cod_fee,code,name_km,user_name,email,gender,photo_file_name,business_type,phone,client_type_id,address,referrer_uid,cod,pin_address')
         ->find($id);
-        $priceList = DB::table('price_list as pl')->join('price_list_names as n','n.id','pl.price_list_name_id')
-        ->selectRaw('pl.id,n.name,mpl.merchant_id')->join('merchant_price_list as mpl','mpl.price_list_id','pl.id')
+        $priceList = DB::table('price_list_names as n')
+        ->selectRaw('n.id,n.name,mpl.merchant_id')->join('merchant_price_list as mpl','mpl.price_list_id','n.id')
         ->where('mpl.merchant_id',$id)->first();
         if(!$merchant) return ApiResponse::NotFound(__('messages.not_found',['info' => 'Merchant']));
         $merchant->image_url = Helper::getImageUrl($merchant->photo_file_name,$user->company_id,'user_profile');
         if($priceList){
             $merchant->price_list_id = $priceList->id;
             $cod = $merchant->cod;
-            $merchant->cod = $cod ? 1:0;
         }
+        $merchant->cod = $cod ? 1:0;
         unset($m->merchantType,$m->bank_accounts);
         return ApiResponse::JsonResult($merchant,__('messages.get one'));
     }

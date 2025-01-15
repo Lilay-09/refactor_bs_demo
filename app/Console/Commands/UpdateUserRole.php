@@ -31,6 +31,7 @@ class UpdateUserRole extends Command
         // $existUserId = UserRoles::pluck('user_id')->toArray();
         $users = User::where('is_deleted',0)->selectRaw('id,account_type')->orderBy('id')->get();
         foreach($users as $u){
+            UserRoles::where('user_id',$u->id)->delete();
             if($u->account_type == 'driver'){
                 $assigned = UserRoles::where('user_id', $u->id)->where('role_id', 2)->first();
                 if(!$assigned) UserRoles::create(['user_id' => $u->id, 'role_id' =>2]);

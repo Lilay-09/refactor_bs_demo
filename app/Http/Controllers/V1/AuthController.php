@@ -55,7 +55,7 @@ class AuthController extends Controller
         else if($user->login_name == $account) $credentials['login_name'] = $account;
         try {
             if(!$token = JWTAuth::attempt($credentials)) {
-                return ApiResponse::Unauthorized('invalid_credentials');
+                return ApiResponse::Unauthorized('Invalid Username or password');
             }
             $token = JWTAuth::customClaims(['system_admin' => $user->system_admin,'roles'=>$user->roles,'type'=>'access','account_type' => $user->account_type])->fromUser($user);
         } catch (JWTException $e) {

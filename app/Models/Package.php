@@ -56,6 +56,7 @@ class Package extends Model
         'additional_fee',
         'outstanding',
         'sender_id',
+        'assign_uid',
         'actual_kg',
         'billed_kg',
         'delivered_date',

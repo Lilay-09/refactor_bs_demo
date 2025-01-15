@@ -33,6 +33,7 @@ class Order extends Model
         'loc_lat',
         'loc_lng',
         'expiry_date',
+        'assign_uid',
         'actual_pkg_count',
         'detail_type',
         'warehouse_id',

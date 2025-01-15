@@ -202,6 +202,9 @@ class GeneralSettingService
     public static function optionsBusinessType($user){
         return BusinessType::where('company_id',$user->company_id)->where('is_deleted',0)->selectRaw('id,name')->get();
     }
+    public static function optionsClientType($user){
+        return ClientType::where('company_id',$user->company_id)->where('is_deleted',0)->selectRaw('id,name')->get();
+    }
 
     public static function optionsTrackingStatus($user,$exludeIds=[],$selectIds=[],$stage=null,$selectCols=null,$lang='en'){
         if(!$selectCols) $selectCols = 'id,name';

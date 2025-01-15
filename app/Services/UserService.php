@@ -90,7 +90,6 @@ class UserService
             'dob' => 'nullable',
             'photo' => 'nullable|string',
             'address' => 'nullable|string|max:500',
-            'role_id' => 'required|exists:roles,id'
         ];
 
         $baseMsgs = [
@@ -100,6 +99,7 @@ class UserService
         if($userClass == 'admin'){
             $baseFields['password'] = 'required|string|max:20';
             $baseFields['confirm_password'] = 'nullable';
+            $baseFields['role_id'] = 'required|exists:roles,id';
             return validator($req->all(),$baseFields);
         }else if($userClass == 'driver'){
             $baseFields['employment_date'] = 'nullable|string|max:100';
@@ -119,7 +119,7 @@ class UserService
             return validator($req->all(),$baseFields);
         }else if($userClass == 'merchant'){
             $baseFields['bank_info'] = 'nullable|array';
-            $baseFields['client_type_id'] = 'nullable|int';
+            $baseFields['client_type_id'] = 'nullable';
             $baseFields['business_type'] = 'nullable|string|max:50';
             $baseFields['cod'] = 'nullable|in:1,0';
             $baseFields['cod_fee'] = 'nullable|numeric|max:100';
@@ -165,7 +165,9 @@ class UserService
             $inputs['longitude'] = $getLatLng->longitude ?? 0;
         }
         $zoneId = $inputs['zone_id'] ?? null;
-        unset($inputs['bank_info'],$inputs['photo'],$inputs['role_id'],$inputs['client_type_id'],$inputs['zone_id']);
+        $pwd = $inputs['password'] ?? null;
+        if($pwd) $inputs['password'] = Hash::make($pwd);
+        unset($inputs['bank_info'],$inputs['photo'],$inputs['role_id'],$inputs['zone_id']);
         DB::beginTransaction();
         try{
             if($id){
@@ -217,7 +219,7 @@ class UserService
             }
             if($user_class == 'merchant' && $priceListId) self::saveMerchantPriceList($userId,$priceListId,$zoneId,$user);
             self::assignRolesUser($userId,$roleIds,$user_class);
-            // DB::commit();
+            DB::commit();
             return DataResponse::JsonResult(null,false,__('messages.saved'));
         }catch(Exception $e){
             DB::rollBack();
@@ -507,9 +509,12 @@ class UserService
     }
 
     public static function deleteUser($id,$type,$authUser){
-        $user = User::where('is_deleted',0)->where('account_type',$type)->find($id);
+        $qU = User::where('is_deleted',0);
+        if($type != 'all') $qU->where('account_type',$type);
+        $user = $qU->find($id);
         if($user){
-            if($type != 'admin'){
+            if($user->system_admin) return DataResponse::Forbidden();
+            if($user->account_type != 'admin'){
                 $disKey = $type.'_disbursement_id';
                 $package = Package::where('is_deleted',0)->where('outstanding',0)->first();
                 if(!$package->{$disKey}) return DataResponse::ValidateFail($type.' still has payment that is not paid.');
@@ -518,7 +523,7 @@ class UserService
                 if($payment || $disbursement) return DataResponse::ValidateFail('Found some payments that are not paid yet!');
             }
             $user->update([
-                'is_deleted' => false,
+                'is_deleted' => true,
                 'delete_datetime' => now(),
                 'delete_uid' => $authUser->id
             ]);
@@ -528,9 +533,21 @@ class UserService
             'info' => 'User'
         ]));
     }
-
-    private function checkPayment($rows,$key){
-
+    public static function changeLoginName($id,$newLoginName,$authUser){
+        if(!$newLoginName) return DataResponse::ValidateFail(__('messages.info'),[
+            'info' => 'Login name is required'
+        ]);
+        $user = User::where('is_deleted',0)->find($id);
+        if(!$user) return DataResponse::NotFound(__('messages.not_found',[
+            'info' => 'User'
+        ]));
+        $user->update([
+            'login_name' => $newLoginName,
+            'update_uid' => $authUser->id,
+        ]);
+        return DataResponse::JsonResult(null,false,__('messages.info',[
+            'info' => 'New Login Name has been changed',
+        ]));
     }
 
 }

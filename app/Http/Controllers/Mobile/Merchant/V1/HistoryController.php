@@ -82,7 +82,29 @@ class HistoryController extends Controller
             $packages = Package::where('merchant_id',$user->id)
             ->with(['driver','status'])
             ->where('outstanding',0)
-            ->whereIn('status_id',[10,19])
+            ->where('status_id',10)
+            ->where('is_deleted',0)
+            ->selectRaw('id,merchant_id,arrive_warehouse_datetime,receiver_phone,receiver_address,receiver_name,cod,price,delivery_fee,status_id,remarks,driver_id,failed_datetime')
+            ->get();
+            foreach($packages as $package){
+                $package->failed_datetime = Helper::formatCustomDateTime($package->failed_datetime,'d-M-Y h:i A');
+                $package->cod_fee = $package->cod ? $package->price : 0;
+                $package->status_code = $package->status->name;
+                $package->render_status = $package->status_code;
+                $package->driver_phone = $package->driver->phone;
+                $package->driver_name = $package->driver->user_name;
+                $package->total = $package->cod_fee + $package->delivery_fee;
+                $package->fee = $package->delivery_fee;
+                unset($package->driver,$package->status);
+                $items[] = $package;
+            }
+        }
+
+        if(in_array($status,['All','Failed With Fee'])){
+            $packages = Package::where('merchant_id',$user->id)
+            ->with(['driver','status'])
+            ->where('outstanding',0)
+            ->where('status_id',19)
             ->where('is_deleted',0)
             ->selectRaw('id,merchant_id,arrive_warehouse_datetime,receiver_phone,receiver_address,receiver_name,cod,price,delivery_fee,status_id,remarks,driver_id,failed_datetime')
             ->get();

@@ -6,6 +6,7 @@ use ApiResponse;
 use App\Http\Controllers\Controller;
 use App\Models\StockLocation;
 use App\Models\Tax;
+use App\Models\User;
 use App\Services\GeneralSettingService;
 use App\Services\UserService;
 use Illuminate\Http\Request;
@@ -64,6 +65,20 @@ class GeneralSettingController extends Controller
 
     public function getOptionsModule(){
         return ApiResponse::JsonResult($this->gs::optionsModule());
+    }
+
+    public function getMerchants(Request $req){
+        $search = $req->search;
+        $mc = User::where('is_deleted',0)->where('account_type','merchant')->selectRaw('id,code,user_name,email,phone');
+        if($search){
+            $mc->where(function($q) use($search){
+                $q->where('code','ilike','%'.$search.'%')
+                ->orWhere('user_name','ilike','%'.$search.'%')
+                ->orWhere('phone','ilike','%'.$search.'%');
+            });
+        }
+        $merchants = $mc->get();
+        return ApiResponse::JsonResult($merchants);
     }
 
     public function getOptionsPermission(){
@@ -258,7 +273,7 @@ class GeneralSettingController extends Controller
     public function getFormMerchant(){
         $user = UserService::getAuthUser();
         $obj = (object)[
-            'merchant_types' => $this->gs::optionsBusinessType($user),
+            'merchant_types' => $this->gs::optionsClientType($user),
             'business_types' => $this->gs::optionsBusinessType($user),
             'cods' => $this->gs::optionsCOD(),
             'genders' => $this->gs::optionsGender(),
