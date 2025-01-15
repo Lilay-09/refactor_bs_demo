@@ -193,12 +193,11 @@ class HomeScreenController extends Controller
         $packages = $qP->get();
         foreach($packages as $p){
             $p->date = $p->assign_driver_datetime;
-            $p->delivery_fee = "0";
-            // $p->extra_charge = (float)$p->extra_charge;
-            // $p->price = (float)$p->price;
-            if($p->payer == 'receiver'){
-                $p->delivery_fee = Helper::getNumber($p->base_fee + $p->extra_charge,2);
-            }
+            // $p->delivery_fee = "0";
+            // if($p->payer == 'receiver'){
+
+            // }
+            $p->delivery_fee = Helper::getNumber($p->base_fee + $p->extra_charge,2);
             if($p->status_id == 9) $p->date = $p->delivered_datetime;
             if($p->status_id == 10 || $p->status_id == 19) $p->date = $p->failed_datetime;
             unset($p->assign_driver_datetime,$p->delivered_datetime,$p->failed_datetime);
@@ -586,7 +585,7 @@ class HomeScreenController extends Controller
                 'info' => 'Package'
             ]));
         }
-            // $package = PackageService::getPackage($sl['package_id']);
+        // $package = PackageService::getPackage($sl['package_id']);
     }
 
     public function booking(Request $req){

@@ -15,6 +15,7 @@ class DeliveryPackage extends Model
         'driver_notes',
         'notes',
         'status_id',
+        'assign_uid',
         'delivery_id',
         'driver_id',
         'is_completed',

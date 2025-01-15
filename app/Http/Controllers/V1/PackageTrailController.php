@@ -9,6 +9,7 @@ use App\Models\DeliveryPackage;
 use App\Models\Order;
 use App\Models\Package;
 use App\Models\PackageAttachment;
+use App\Models\User;
 use App\Models\Zone;
 use App\Services\CloudMessagingService;
 use App\Services\CompanyProfileService;
@@ -416,10 +417,11 @@ class PackageTrailController extends Controller
             }
             $package->update([
                 'driver_id' => $driver_id,
+                'assign_uid' => $user->id,
                 'status_id' => 6, // On Delivery
                 'assign_driver_datetime' => now(),
             ]);
-            $trip = $this->createOrUpdateTrip($driver_id,$id,$validDriver->vehicle_type,$user,$notes,6);
+            $trip = $this->createOrUpdateTrip($driver_id,$id,$validDriver->vehicle_type,$user,$notes,6,'assign');
             if($trip->error) return ApiResponse::flex($trip);
             $notif = new CloudMessagingService();
             $topics = GeneralSettingService::getGeneralTopics($user->company_id,'driver',$driver_id);
@@ -445,7 +447,26 @@ class PackageTrailController extends Controller
         }
     }
 
-    public function createOrUpdateTrip($driverId,$packageId,$vehicleType,$user,$notes,$statusId){
+    public function changeMerchant(Request $req){
+        $id = $req->id;
+        $merchantId = $req->merchant_id;
+        $merchant = User::where('is_deleted',0)->find($merchantId);
+        if(!$merchant) return ApiResponse::NotFound(__('messages.not_found',[
+            'info' => 'Merchant'
+        ]));
+        $user = UserService::getAuthUser();
+        $package = Package::where('is_deleted',0)->find($id);
+        if(!$package) return ApiResponse::NotFound();
+        $package->update([
+            'update_uid' => $user->id,
+            'merchant_id' => $merchantId
+        ]);
+        return ApiResponse::JsonResult(null,__('messages.info',[
+            'info' => 'Merchant('.$merchant->user_name.') has owned package('.$package->qr_code.') now.'
+        ]));
+    }
+
+    public function createOrUpdateTrip($driverId,$packageId,$vehicleType,$user,$notes,$statusId,$action=null){
         $today = date('Y-m-d');
         $isNewPkg = true;
         $pendingTrip = Delivery::where(function($query) {
@@ -502,7 +523,8 @@ class PackageTrailController extends Controller
                 $delay = 0;
                 if($statusId){
                     $existsPkg->update([
-                        'status_id' => $statusId
+                        'status_id' => $statusId,
+                        'assign_uid' => $action == 'assign' ? $user->id : null
                     ]);
                 }
             }else {
@@ -536,6 +558,7 @@ class PackageTrailController extends Controller
         if($isNewPkg) {
             $dPackage = DeliveryPackage::create([
                 'notes' => $notes,
+                'assign_uid' => $action == 'assign' ? $user->id : null,
                 'driver_id' => $driverId,
                 'delivery_id' => $deliveryId,
                 'package_id' => $packageId,

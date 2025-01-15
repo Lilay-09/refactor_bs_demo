@@ -268,6 +268,7 @@ class PickUpCenterController extends Controller
         $trackingNotes = $order->tracking_notes.'|Admin assign ('.$order->code.') '.date('d-M-Y h:i:s A');
         $order->update([
             'pickup_datetime' => now(),
+            'assign_uid' => $user->id,
             'tracking_notes' => $trackingNotes,
             'driver_id' => $driverId,
             'status_id' => ($driverId != 0 && $driverId) ? 3 : 1

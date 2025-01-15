@@ -39,7 +39,7 @@ use Illuminate\Support\Facades\Route;
 Route::prefix('admin/v1/auth')->group(function(){
     Route::post('login',[AuthController::class,'login']);
 });
-Route::middleware(['jwt','localize'])->prefix('admin/v1/{lang}')->group(function(){
+Route::middleware(['jwt','localize','userAccess:admin'])->prefix('admin/v1/{lang}')->group(function(){
     Route::prefix('management')->group(function(){
         Route::prefix('module')->group(function(){
             Route::post('',[UserManagementController::class,'saveModule']);
@@ -58,17 +58,27 @@ Route::middleware(['jwt','localize'])->prefix('admin/v1/{lang}')->group(function
 
         });
 
-        Route::get('/user', [UserManagementController::class,'getUsers']);
-        // Route::get('user/profile',[UserController::class,'getProfile']);
-        Route::post('/user',[UserManagementController::class,'createUser']);
-        Route::get('/user/{id}',[UserManagementController::class,'getOneUser']);
-        Route::get('/user/{id}/permission',[UserManagementController::class,'getUserPermissions']);
-        // Route::get('/user/{id?}', [UserController::class,'getUser']);
-        // Route::put('/user/{id?}', [UserManagementController::class,'updateUser']);
-        Route::put('/user/{id}/setLock', [UserManagementController::class,'setLockUser']);
-        Route::put('/user/{id}/changePassword', [UserManagementController::class,'userChangePassword']);
-        Route::get('user/notification/token',[CloudMessagingController::class,'getUserToken']);
-        Route::delete('user/{id}',[UserManagementController::class,'deleteUser']);
+
+
+        Route::prefix('user')->group(function(){
+            Route::get('', [UserManagementController::class,'getUsers']);
+            Route::post('',[UserManagementController::class,'createUser']);
+            Route::get('{id}',[UserManagementController::class,'getOneUser']);
+            Route::get('{id}/role',[UserManagementController::class,'getUserRole']);
+            Route::get('{id}/permission',[UserManagementController::class,'getUserPermissions']);
+            Route::put('{id}/permission/{permission_id}/assign',[UserManagementController::class,'assignUserPermission']);
+            Route::delete('{id}/permission/{permission_id}/remove',[UserManagementController::class,'removeUserPermission']);
+            Route::get('{id}/module',[UserManagementController::class,'getUserModules']);
+            Route::put('{id}/module/{module_id}/assign',[UserManagementController::class,'assignUserModule']);
+            Route::delete('{id}/module/{module_id}/remove',[UserManagementController::class,'removeUserModule']);
+            Route::put('{id}/setLock', [UserManagementController::class,'setLockUser']);
+            Route::post('{id}/setPassword', [UserManagementController::class,'userChangePassword']);
+            Route::put('{id}/setLoginName', [UserManagementController::class,'changeLoginName']);
+            Route::get('notification/token',[CloudMessagingController::class,'getUserToken']);
+            Route::delete('{id}',[UserManagementController::class,'deleteUser']);
+
+        });
+
 
         Route::prefix('role')->group(function(){
             Route::post('/', [UserManagementController::class,'createRole']);
@@ -93,10 +103,11 @@ Route::middleware(['jwt','localize'])->prefix('admin/v1/{lang}')->group(function
     });
 
     Route::prefix('driver')->group(function(){
-        Route::post('',[DriverManagementController::class,'createDriver']);
+        Route::post('',action: [DriverManagementController::class,'createDriver']);
         Route::get('',[DriverManagementController::class,'getDrivers']);
         Route::get('/{id}',[DriverManagementController::class,'getOneDriver']);
         Route::put('/{id}',[DriverManagementController::class,'updateDriver']);
+        Route::delete('/{id}',[DriverManagementController::class,'deleteDriver']);
         Route::post('/{id}/setLock',[DriverManagementController::class,'setLockDriver']);
         Route::post('/{id}/setPassword',[DriverManagementController::class,'setPassword']);
 
@@ -109,15 +120,22 @@ Route::middleware(['jwt','localize'])->prefix('admin/v1/{lang}')->group(function
 
         //** Driver Transaction Module */
         Route::prefix('transaction')->group(function(){
-            Route::get('delivery/package',[DriverTransactionController::class,'getDeliveryPackages']);
-            Route::put('delivery/package/{id}',[DriverTransactionController::class,'updateDeliveryPackage']);
-            Route::post('delivery/payment',[DriverTransactionController::class,'receivePackagesPayment']);
-            Route::get('payment',[DriverTransactionController::class,'getPayments']);
-            Route::put('payment',[DriverTransactionController::class,'approvePayments']);
-            Route::get('settle/payment',[DriverTransactionController::class,'getApprovedPayments']);
-            Route::put('settle/payment',[DriverTransactionController::class,'settleApprovedPayments']);
-            Route::delete('payment/{id}',[DriverTransactionController::class,'deletePayment']);
-            Route::delete('settle/payment/{id}',[DriverTransactionController::class,'deleteSettlePayment']);
+            Route::prefix('delivery')->group(function(){
+                Route::get('package',[DriverTransactionController::class,'getDeliveryPackages']);
+                Route::put('package/{id}',[DriverTransactionController::class,'updateDeliveryPackage']);
+                Route::post('payment',[DriverTransactionController::class,'receivePackagesPayment']);
+            });
+
+            Route::prefix('payment')->group(function(){
+                Route::get('',[DriverTransactionController::class,'getPayments']);
+                Route::put('',[DriverTransactionController::class,'approvePayments']);
+                Route::delete('{id}',[DriverTransactionController::class,'deletePayment']);
+            });
+            Route::prefix('settle')->group(function(){
+                Route::get('payment',[DriverTransactionController::class,'getApprovedPayments']);
+                Route::put('payment',[DriverTransactionController::class,'settleApprovedPayments']);
+                Route::delete('payment/{id}',[DriverTransactionController::class,'deleteSettlePayment']);
+            });
             Route::get('balance',[DriverTransactionController::class,'getDriverBalance']);
         });
         //** Driver Commission Module */
@@ -142,14 +160,21 @@ Route::middleware(['jwt','localize'])->prefix('admin/v1/{lang}')->group(function
         Route::post('/{id}/setPassword',[MerchantManagementController::class,'setPassword']);
 
         Route::prefix('transaction')->group(function(){
-            Route::get('delivery/package',[MerchantTransactionController::class,'getDeliveryPackages']);
-            Route::put('delivery/package/{id}',[MerchantTransactionController::class,'updateDeliveryPackage']);
-            Route::post('delivery/payment',[MerchantTransactionController::class,'receivePackagesPayment']);
-            Route::get('payment',[MerchantTransactionController::class,'getPayments']);
-            Route::put('payment',[MerchantTransactionController::class,'approvePayments']);
-            Route::get('settle/payment',[MerchantTransactionController::class,'getApprovedPayments']);
-            Route::put('settle/payment',[MerchantTransactionController::class,'settleApprovedPayments']);
-            Route::delete('payment/{id}',[MerchantTransactionController::class,'deleteSettlePayment']);
+            Route::prefix('delivery')->group(function(){
+                Route::get('package',[MerchantTransactionController::class,'getDeliveryPackages']);
+                Route::put('package/{id}',[MerchantTransactionController::class,'updateDeliveryPackage']);
+                Route::post('payment',[MerchantTransactionController::class,'receivePackagesPayment']);
+            });
+            Route::prefix('payment')->group(function(){
+                Route::get('',[MerchantTransactionController::class,'getPayments']);
+                Route::put('',[MerchantTransactionController::class,'approvePayments']);
+                Route::delete('{id}',[MerchantTransactionController::class,'deleteSettlePayment']);
+            });
+            Route::prefix('settle')->group(function(){
+                Route::get('payment',[MerchantTransactionController::class,'getApprovedPayments']);
+                Route::put('payment',[MerchantTransactionController::class,'settleApprovedPayments']);
+            });
+
             Route::get('balance',[MerchantTransactionController::class,'getMerchantBalances']);
         });
     });
@@ -178,7 +203,7 @@ Route::middleware(['jwt','localize'])->prefix('admin/v1/{lang}')->group(function
         Route::put('{id}/status',[PickUpCenterController::class,'setOrderStatus']);
         Route::delete('/{id}',[PickUpCenterController::class,'deleteOrder']);
         Route::get('',[PickUpCenterController::class,'getOrders']);
-        Route::put('{order_id}/driver/{driver_id?}',[PickUpCenterController::class,'assignDriver']);
+        Route::put('{order_id}/driver/{driver_id}',[PickUpCenterController::class,'assignDriver']);
         Route::get('{order_id}/packages',[PickUpCenterController::class,'getPackagesByOrderId']);
         Route::post('{order_id}/package',[PickUpCenterController::class,'addPackage']);
         Route::post('{order_id}/image',[PickUpCenterController::class,'addOrderImage']);
@@ -197,11 +222,10 @@ Route::middleware(['jwt','localize'])->prefix('admin/v1/{lang}')->group(function
         Route::delete('{id}',[PackageTrailController::class,'deletePackage']);
         Route::put('/{id}/return',[PackageTrailController::class,'returnPackage']);
         Route::post('/list/print',[PackageTrailController::class,'getPackagesPrintInfo']);
+        Route::put('/{id}/changeMerchant',[PackageTrailController::class,'changeMerchant']);
         Route::get('/{id}/print',[PackageTrailController::class,'getPrintInfo'])->where('id', '[0-9]+');
         Route::get('/{id}/image',[PackageTrailController::class,'getPackageImages'])->where('id', '[0-9]+');
-
     });
-
     //** End Pickup Center */
 
     //** Begin Fleet Management */
@@ -222,7 +246,6 @@ Route::middleware(['jwt','localize'])->prefix('admin/v1/{lang}')->group(function
         Route::get('package',[CompletedPackageController::class,'getFinishedPackages']);
         Route::get('package/{id}',[CompletedPackageController::class,'getOneFinishedPackage']);
         Route::put('package/{id}',[CompletedPackageController::class,'updatePackage']);
-
     });
 
     Route::prefix('bank')->group(function(){
@@ -257,8 +280,6 @@ Route::middleware(['jwt','localize'])->prefix('admin/v1/{lang}')->group(function
         Route::get('/{id}',[PriceListController::class,'getOnePriceList']);
         Route::post('/{id?}',[PriceListController::class,'updatePriceList']);
         Route::delete('/{id}',[PriceListController::class,'deletePriceList']);
-
-
     });
 
     Route::prefix('productType')->group(function(){
@@ -371,10 +392,16 @@ Route::middleware(['jwt','localize'])->prefix('admin/v1/{lang}')->group(function
     //     });
     // });
 
-    Route::put('termCondition',[AppSettingController::class,'saveTermCondition']);
-    Route::put('privacyStatement',[AppSettingController::class,'savePrivacyStatement']);
-    Route::get('privacyStatement/{channel}',[AppSettingController::class,'getPrivacyStatement']);
-    Route::get('termCondition/{channel}',[AppSettingController::class,'getTermCondition']);
+    Route::prefix('termCondition')->group(function(){
+        Route::put('/',[AppSettingController::class,'saveTermCondition']);
+        Route::get('{channel}',[AppSettingController::class,'getTermCondition']);
+    });
+    Route::prefix('privacyStatement')->group(function(){
+        Route::put('/',[AppSettingController::class,'savePrivacyStatement']);
+        Route::get('{channel}',[AppSettingController::class,'getPrivacyStatement']);
+    });
+
+
 
 
     Route::prefix('setting')->group(function(){
@@ -383,6 +410,7 @@ Route::middleware(['jwt','localize'])->prefix('admin/v1/{lang}')->group(function
             Route::get('permission',[GeneralSettingController::class,'getOptionsPermission']);
             Route::get('module',[GeneralSettingController::class,'getOptionsModule']);
             Route::get('merchant/{id}/order',[GeneralSettingController::class,'getOptionsMerchantOrder']);
+            Route::get('merchant',[GeneralSettingController::class,'getMerchants']);
             Route::get('operator',[GeneralSettingController::class,'getOptionsOperator']);
             Route::get('channel',[GeneralSettingController::class,'getOptionsChannel']);
             Route::get('zone',[GeneralSettingController::class,'getOptionsZone']);
