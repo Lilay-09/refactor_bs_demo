@@ -44,6 +44,7 @@ Route::middleware(['jwt','localize','userAccess:admin'])->prefix('admin/v1/{lang
         Route::prefix('module')->group(function(){
             Route::post('',[UserManagementController::class,'saveModule']);
             Route::get('',[UserManagementController::class,'getModules']);
+            Route::put('/{id}/setHidden',[UserManagementController::class,'setHiddenModule']);
         });
 
         Route::prefix('permission')->group(function(){

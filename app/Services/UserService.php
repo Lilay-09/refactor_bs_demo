@@ -147,7 +147,8 @@ class UserService
         $inputs['cod'] = $inputs['cod'] ?? 0;
         $inputs['dob'] = isset($inputs['dob']) ? date('Y-m-d',strtotime($inputs['dob'])) : null;
         $inputs['driver_warehouse_id'] = $inputs['warehouse_id'] ?? null;
-        $roleIds = $inputs['roles'] ?? [];
+        $roleId = $inputs['role_id'] ?? null;
+        $roleIds = $inputs['roles'] ?? ($roleId ? [$roleId] : []);
         if($isRegistered){
             $inputs['lock'] = true;
             $inputs['register_status'] = 'in-progress';
@@ -241,6 +242,7 @@ class UserService
 
         foreach($roleIds as $roleId){
             $exists = UserRoles::where('user_id',$userId)->where('role_id',$roleId)->first();
+            // if()
             if(!$exists){
                 if($allowOne) UserRoles::where('user_id',$userId)->delete();
                 UserRoles::create([

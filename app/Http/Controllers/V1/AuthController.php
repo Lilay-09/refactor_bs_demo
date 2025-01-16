@@ -5,6 +5,7 @@ namespace App\Http\Controllers\V1;
 use ApiResponse;
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Models\UserModule;
 use App\Services\UserService;
 use Helper;
 use Illuminate\Http\Request;
@@ -80,6 +81,8 @@ class AuthController extends Controller
         $data->phone = $user->phone;
         $data->roles = $user->roles;
         $data->token = $token;
+        $moduleIds = UserModule::where('user_id',$user->id)->pluck('module_id')->toArray();
+        $data->modules = $moduleIds;
         // return response()->json([
         //     'status_code' => 200,
         //     'data' => $data,
