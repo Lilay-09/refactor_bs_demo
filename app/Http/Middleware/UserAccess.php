@@ -36,7 +36,7 @@ class UserAccess
         // Get the last part of the prefix (the last segment)
         $lastPrefixSegment = basename(Route::getCurrentRoute()->getPrefix());
         $method = $req->method();
-        Log::info($lastPrefixSegment.' => '.$method);
+        // Log::info($lastPrefixSegment.' => '.$method);
         if(in_array($method,['POST', 'PUT','DELETE'])){
             $code = AppSetting::getCodeByURI($uri,$method,$lastPrefixSegment);
             Log::info($uri.'=>'.$code);
@@ -44,7 +44,7 @@ class UserAccess
         }
         // if($method === 'PUT') if(!$this->checkPermissionCode($userId,[201,202])) return DataResponse::Forbidden();
 
-        Log::info($uri);
+        // Log::info($uri);
         // if(!isset($userPermissions[0])) {
         //     if(!$systemAdmin) return DataResponse::Forbidden();
         // }
