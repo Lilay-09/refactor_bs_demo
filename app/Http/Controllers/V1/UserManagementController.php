@@ -177,6 +177,13 @@ class UserManagementController extends Controller
         return ApiResponse::JsonResult($permissions);
     }
 
+    public function setHiddenModule(Request $req){
+        AppModule::where('id',$req->id)->update([
+            'hidden' => $req->hidden,
+        ]);
+        return ApiResponse::JsonResult(null);
+    }
+
     public function getUserModules(Request $req){
         $userId = $req->id;
         $user = User::where('is_deleted',0)->where('id',$userId)->selectRaw('system_admin,account_type')->first();
@@ -184,7 +191,7 @@ class UserManagementController extends Controller
             'info' =>'User'
         ]));
         if($user->account_type != 'admin') return ApiResponse::JsonResult(null,'no modules available');
-        $appModules = AppModule::selectRaw('id,native_name as name')->get();
+        $appModules = AppModule::where('hidden',0)->selectRaw('id,native_name as name')->get();
         $userModules = UserModule::get();
         foreach($appModules as $m){
             $m->accessing = $this->getAccessOrDenied($userModules,$m->id,$user->system_admin,'module');

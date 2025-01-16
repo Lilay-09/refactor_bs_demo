@@ -44,35 +44,34 @@ class TransactionController extends Controller
         ->orderBy('driver_disbursement_id','desc')
         ->get();
         $samePmtId = null;
+        $sameDisId = null;
         foreach($packages as $p){
-            if(!$p->driver_disbursement_id && !$p->driver_payment_id){
-                $count +=1;
-                $price = $p->price;
-                $taxiFee = $p->taxi_fee;
-                if($p->status_id == 19){
-                    $price = 0;
-                    $taxiFee = 0;
-                }
-                $total += TransactionService::getPackageTotal('driver',$p->cod,$price,$taxiFee,$p->extra_charge,$p->additional_fee,$p->delivery_fee,$p->payer);
-            }else{
-                if($p->driver_payment_id){
-                    if($samePmtId != $p->driver_payment_id){
-                        $pmt = $this->getTrxDetails($payments,$p->driver_payment_id);
-                        if($pmt) {
-                            $pmt->remarks = 'Disbursement';
-                            $paidTrx[] = $pmt;
-                        }
-                        $samePmtId = $p->driver_payment_id;
-                    }
+            $price = $p->price;
+            $taxiFee = $p->taxi_fee;
+            if($p->status_id == 19){
+                $price = 0;
+                $taxiFee = 0;
+            }
+            if(!$samePmtId){
+                $pmt = $this->getTrxDetails($payments,$p->driver_payment_id);
+                if($pmt) {
+                    $pmt->remarks = 'Disbursement';
+                    $paidTrx[] = $pmt;
                 }else {
-                    $pmt = $this->getTrxDetails($disbursements,$p->driver_disbursement_id);
-                    if($pmt) {
-                        $total -= (float)$pmt->payable_amount;
-                        $pmt->remarks = 'Receive';
-                        $paidTrx[] = $pmt;
-                    }
+                    $total += TransactionService::getPackageTotal('driver',$p->cod,$price,$taxiFee,$p->extra_charge,$p->additional_fee,$p->delivery_fee,$p->payer);
+                    $count +=1;
                 }
             }
+            $samePmtId = $p->driver_payment_id;
+            $dis = $this->getTrxDetails($disbursements,$p->driver_disbursement_id);
+            if($dis) {
+                $total -= (float)$dis->payable_amount;
+                $dis->remarks = 'Receive';
+                $paidTrx[] = $dis;
+            }else {
+                // $count +=1;
+            }
+            $sameDisId = $p->driver_disbursement_id;
         }
         usort($paidTrx, function ($a, $b) {
             return strtotime($b['payment_datetime']) <=> strtotime($a['payment_datetime']);
@@ -160,7 +159,7 @@ class TransactionController extends Controller
         $deliveryRate = $driverCommissionInfo->normal_delivery_commission;
         $total = $pickUpCount * $pickUpRate + $deliveredCount * $deliveryRate;
         $report = [
-            "total" => $total,
+            "total" => (float)Helper::getNumber($total),
             "details" => [
                 [
                     'category' => 'Pickup',

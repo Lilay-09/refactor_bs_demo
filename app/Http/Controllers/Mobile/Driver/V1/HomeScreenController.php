@@ -105,15 +105,15 @@ class HomeScreenController extends Controller
         ->leftJoin('payments', 'p.driver_payment_id', '=', 'payments.id')
         ->selectRaw('p.qr_code,p.id,p.driver_total,p.cod,p.price,p.extra_charge,p.delivery_fee,p.additional_fee,p.payer,p.status_id,p.taxi_fee')
         ->where(function ($query) {
-            $query->whereNull('payments.id') // Include rows without matching payments
+            $query->whereNull('p.driver_payment_id') // Include rows without matching payments
                 ->orWhere('payments.approved', 0); // Include rows where payments.approved = 0
         })
         ->get();
         $balanceDue = 0;
         foreach($balanceDues as $b){
-            $totalPrice = (($b->cod && $b->status_id !=19) ? $b->price : 0) - $b->taxi_fee;
+            $totalPrice = ($b->cod && $b->status_id !=19) ? $b->price : 0;
             $fee = PickupCenterService::getFees($b->payer,$b->delivery_fee,$b->additional_fee,$b->extra_charge);
-            $balanceDue += $totalPrice + $fee;
+            $balanceDue += $totalPrice + $fee - $b->taxi_fee;
         }
         // $totalSettledDisburment = Disbursement::where('payee_id',$user->id)->where('type','payment')->where('is_deleted',0)->where('is_settled',1)->sum('payable_amount');
         $obj = [
