@@ -192,7 +192,7 @@ class UserManagementController extends Controller
         ]));
         if($user->account_type != 'admin') return ApiResponse::JsonResult(null,'no modules available');
         $appModules = AppModule::where('hidden',0)->selectRaw('id,native_name as name')->get();
-        $userModules = UserModule::get();
+        $userModules = UserModule::where('user_id',$userId)->get();
         foreach($appModules as $m){
             $m->accessing = $this->getAccessOrDenied($userModules,$m->id,$user->system_admin,'module');
         }
