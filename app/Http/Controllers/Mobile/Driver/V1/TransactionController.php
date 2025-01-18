@@ -63,13 +63,15 @@ class TransactionController extends Controller
                 }
             }
             $samePmtId = $p->driver_payment_id;
-            $dis = $this->getTrxDetails($disbursements,$p->driver_disbursement_id);
-            if($dis) {
-                $total -= (float)$dis->payable_amount;
-                $dis->remarks = 'Receive';
-                $paidTrx[] = $dis;
-            }else {
-                // $count +=1;
+            if(!$sameDisId){
+                $dis = $this->getTrxDetails($disbursements,$p->driver_disbursement_id);
+                if($dis) {
+                    $total -= (float)$dis->payable_amount;
+                    $dis->remarks = 'Receive';
+                    $paidTrx[] = $dis;
+                }else {
+                    // $count +=1;
+                }
             }
             $sameDisId = $p->driver_disbursement_id;
         }
