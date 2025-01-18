@@ -55,7 +55,6 @@ class TransactionController extends Controller
             if(!$samePmtId){
                 $pmt = $this->getTrxDetails($payments,$p->driver_payment_id);
                 if($pmt) {
-                    \Log::info($pmt);
                     $pmt->remarks = 'Disbursement';
                     $paidTrx[] = $pmt;
                 }else {
@@ -70,8 +69,6 @@ class TransactionController extends Controller
             if(!$sameDisId){
                 $dis = $this->getTrxDetails($disbursements,$p->driver_disbursement_id);
                 if($dis) {
-                    \Log::info('dis');
-                    \Log::info($pmt);
                     $total -= (float)$dis->payable_amount;
                     $dis->remarks = 'Receive';
                     $paidTrx[] = $dis;
