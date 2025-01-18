@@ -1519,4 +1519,35 @@ class TransactionService
         return $obj;
     }
 
+    public static function getPickUpDetails($orders,$driverId){
+        $totalPkg = 0;
+        foreach($orders as $order){
+            if($order->driver_id == $driverId){
+                $totalPkg += $order->qty;
+            }
+        }
+        return (object)[
+            'total_package' => $totalPkg,
+        ];
+    }
+
+    public static function getDeliveredDetails($packages,$driverId){
+        $totalPkg = 0;
+        $failedWithFeeCount = 0;
+        $deliveredCount = 0;
+        foreach($packages as $pkg){
+            if($pkg->driver_id == $driverId){
+                $totalPkg += 1;
+                if($pkg->status_id == 9) $deliveredCount +=1;
+                else if($pkg->status_id == 19) $failedWithFeeCount +=1;
+            }
+        }
+
+        return (object)[
+            'total_package' => $totalPkg,
+            'delivered_count' => $deliveredCount,
+            'failed_with_fee_count' => $deliveredCount,
+        ];
+    }
+
 }

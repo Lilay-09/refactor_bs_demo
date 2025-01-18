@@ -5,6 +5,7 @@ namespace App\Http\Controllers\V1;
 use ApiResponse;
 use App\Http\Controllers\Controller;
 use App\Models\Package;
+use App\Models\Payment;
 use Carbon\Carbon;
 use DB;
 use Illuminate\Http\Request;
@@ -14,7 +15,7 @@ class DashboardController extends Controller
     //
     public function getDashboardSummary(Request $req){
         $obj = [
-            'monthly' => $this->getEarning(),
+            'monthly' => $this->getMonthlyEarning(),
             'top_rider' => $this->topRiders(),
             'unpaid_rider' => $this->unpaidRiders(),
             'merchant_payable' => $this->merchantPayable(),
@@ -23,7 +24,13 @@ class DashboardController extends Controller
         return ApiResponse::JsonResult($obj);
     }
 
-    private function getEarning(){
+    private function getMonthlyEarning(){
+        $days = 90;
+        $payments = Payment::where('is_deleted',0)
+        ->where('payment_datetime', '>=', Carbon::now()->subDays($days))->get();
+        $packages = Package::where('is_deleted',0)
+        ->where('outstanding',0)
+        ->where('updated_at', '>=', Carbon::now()->subDays($days))->get();
         $data = [
             [
                 'title' => 'Total Earning',
@@ -60,6 +67,26 @@ class DashboardController extends Controller
         ];
 
         return $data;
+    }
+
+    private function getDaysEarning($rows){
+        $obj = [
+            'total_earning' => 0,
+            'average_daily_earning' => 0,
+        ];
+        foreach($rows as $p){
+
+        }
+    }
+
+    private function getDaysPackages($rows){
+        $obj = [
+            'total_earning' => 0,
+            'average_daily_earning' => 0,
+        ];
+        foreach($rows as $p){
+
+        }
     }
 
     private function topRiders($top=5){
@@ -126,38 +153,53 @@ class DashboardController extends Controller
 
     private function merchantPayable(){
         $dailyCollection = Package::fromRaw('packages as p')
-        ->whereIn('p.status_id',[9,19])
-        ->join('users as d','d.id','p.driver_id')
-        ->join('tracking_statuses as ts','ts.id','p.status_id')
-        ->join('users as m','m.id','p.merchant_id')
+        ->whereIn('p.status_id', [9, 19])
+        ->join('tracking_statuses as ts', 'ts.id', '=', 'p.status_id')
+        ->join('users as m', 'm.id', '=', 'p.merchant_id')
         ->leftJoin('payments as pmt', 'p.driver_payment_id', '=', 'pmt.id')
         ->leftJoin('disbursements as dis', 'p.merchant_disbursement_id', '=', 'dis.id')
         ->selectRaw('
-            CASE WHEN p.status_id = 9 THEN p.delivered_datetime::DATE ELSE p.failed_datetime::DATE END AS finished_date,
-            COUNT(DISTINCT p.merchant_id) as total_merchant,
-            SUM(CASE
-                WHEN p.cod = TRUE AND p.status_id != 19 THEN p.price
-                ELSE 0
-            END) AS cod_amount,
             CASE
-                WHEN MAX(CASE WHEN p.merchant_payment_id IS NOT NULL AND pmt.approved = TRUE THEN 1 ELSE 0 END) = 1
-                OR MAX(CASE WHEN p.merchant_disbursement_id IS NOT NULL AND dis.approved = TRUE THEN 1 ELSE 0 END) = 1
-                THEN \'paid\'
+                WHEN p.status_id = 9 THEN p.delivered_datetime::DATE
+                ELSE p.failed_datetime::DATE
+            END AS finished_date,
+            SUM(
+                CASE
+                    WHEN p.cod = TRUE AND p.status_id != 19 THEN p.price
+                    ELSE 0
+                END
+            ) AS cod_amount,
+            SUM(
+                p.taxi_fee
+            ) AS taxi_fee,
+            SUM(
+                CASE
+                    WHEN p.payer = \'sender\' THEN p.delivery_fee + p.extra_charge
+                    ELSE 0
+                END
+            ) AS fees,
+            CASE
+                WHEN p.merchant_payment_id IS NOT NULL AND pmt.approved = TRUE THEN \'paid\'
+                WHEN p.merchant_disbursement_id IS NOT NULL AND dis.approved = TRUE THEN \'paid\'
                 ELSE \'unpaid\'
             END AS payment_status
         ')
         ->groupByRaw('
+            m.id,
             CASE
                 WHEN p.status_id = 9 THEN p.delivered_datetime::DATE
                 ELSE p.failed_datetime::DATE
             END,
             CASE
-                WHEN p.merchant_payment_id IS NOT NULL THEN pmt.id
-                WHEN p.merchant_disbursement_id IS NOT NULL THEN dis.id
+                WHEN p.merchant_payment_id IS NOT NULL AND pmt.approved = TRUE THEN \'paid\'
+                WHEN p.merchant_disbursement_id IS NOT NULL AND dis.approved = TRUE THEN \'paid\'
+                ELSE \'unpaid\'
             END
         ')
-        ->orderByDesc('finished_date')
         ->get();
+        foreach($dailyCollection as $d){
+            $d->amount = $d->cod_amount - $d->taxi_fee - $d->fees;
+        }
         return $dailyCollection;
     }
 }

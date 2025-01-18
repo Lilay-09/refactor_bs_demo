@@ -6,6 +6,7 @@ use ApiResponse;
 use App\Http\Controllers\Controller;
 use App\Models\ProductType;
 use App\Services\UserService;
+use Helper;
 use Illuminate\Http\Request;
 
 class ProductTypeController extends Controller
@@ -39,7 +40,8 @@ class ProductTypeController extends Controller
 
     public function getProductTypes(Request $req){
         $user = UserService::getAuthUser();
-        $query = ProductType::where('is_deleted',0)->where('company_id',$user->company_id);
+        $query = ProductType::where('is_deleted',0)->where('company_id',$user->company_id)
+        ->selectRaw('id,name,updated_at');
         $productTypes = $query->get();
         return ApiResponse::Pagination($productTypes,$req,__('messages.get list'));
     }

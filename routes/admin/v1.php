@@ -38,6 +38,9 @@ use Illuminate\Support\Facades\Route;
 
 Route::prefix('admin/v1/auth')->group(function(){
     Route::post('login',[AuthController::class,'login']);
+    Route::middleware(['jwt'])->group(function(){
+        Route::post('logout',[UserManagementController::class,'logout']);
+    });
 });
 Route::middleware(['jwt','localize','userAccess:admin'])->prefix('admin/v1/{lang}')->group(function(){
     Route::prefix('management')->group(function(){
@@ -61,7 +64,6 @@ Route::middleware(['jwt','localize','userAccess:admin'])->prefix('admin/v1/{lang
         Route::prefix('user')->group(function(){
             Route::get('', [UserManagementController::class,'getUsers']);
             Route::post('',[UserManagementController::class,'createUser']);
-            Route::post('logout',[UserManagementController::class,'logout']);
             Route::get('accessability',[UserManagementController::class,'getAccessability']);
             Route::get('{id}',[UserManagementController::class,'getOneUser']);
             Route::put('{id}',[UserManagementController::class,'updateUser']);

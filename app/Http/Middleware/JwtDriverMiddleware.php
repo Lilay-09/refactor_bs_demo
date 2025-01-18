@@ -74,18 +74,18 @@ class JwtDriverMiddleware
             }else{
                 return ApiResponse::Unauthorized($hasUser->message);
             }
-            $checkDeleteAndSuperAdmin = new ProtectedRoute($hasUser);
+            // $checkDeleteAndSuperAdmin = new ProtectedRoute($hasUser);
 
-            // Call the CheckDeleteAndSuperAdmin middleware
-            $response = $checkDeleteAndSuperAdmin->handle($request, function ($request) {
-                // If CheckDeleteAndSuperAdmin passes, continue to the next middleware
-                return $request;
-            });
+            // // Call the CheckDeleteAndSuperAdmin middleware
+            // $response = $checkDeleteAndSuperAdmin->handle($request, function ($request) {
+            //     // If CheckDeleteAndSuperAdmin passes, continue to the next middleware
+            //     return $request;
+            // });
 
-            // If the response is not null, it means CheckDeleteAndSuperAdmin returned a response (like a 403)
-            if ($response !== $request) {
-                return $response;
-            }
+            // // If the response is not null, it means CheckDeleteAndSuperAdmin returned a response (like a 403)
+            // if ($response !== $request) {
+            //     return $response;
+            // }
         } catch (TokenInvalidException $e) {
             return ApiResponse::Unauthorized('Token is invalid');
         } catch (TokenExpiredException $e) {

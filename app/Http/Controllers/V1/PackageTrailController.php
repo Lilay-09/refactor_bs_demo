@@ -50,7 +50,7 @@ class PackageTrailController extends Controller
         })
         ->selectRaw('merchant_id,order_id,id,taxi_fee,delivery_type,qr_code,price,driver_id,product_type,dim_z,dim_x,dim_y,status_id,failure_notes,payer,cod,delivery_fee,receiver_address,zone_code,zone_name,receiver_name,receiver_phone,delivered_datetime,assign_driver_datetime,arrive_warehouse_datetime,driver_total,merchant_total,billed_kg,actual_kg,created_at')
         ->orderByRaw('(status_id = ?) DESC', [5])
-        // ->orderBy('arrive_warehouse_datetime','desc')
+        ->orderBy('arrive_warehouse_datetime','desc')
         ->orderByRaw("
             CASE
                 WHEN status_id = 9 THEN delivered_datetime
@@ -87,7 +87,7 @@ class PackageTrailController extends Controller
             $startDate = Helper::dateYMD($startDate);
             $endDate = Helper::dateYMD($endDate);
             $query->where(function ($q) use($startDate,$endDate){
-                $q->whereRaw('created_at::DATE >= ? AND created_at::DATE <= ? OR failed_datetime::DATE >= ? AND failed_datetime::DATE <= ?', [$startDate, $endDate,$startDate, $endDate]);
+                $q->whereRaw('created_at::DATE >= ? AND created_at::DATE <= ? OR arrive_warehouse_datetime::DATE >= ? AND arrive_warehouse_datetime::DATE <= ? OR failed_datetime::DATE >= ? AND failed_datetime::DATE <= ?', [$startDate, $endDate,$startDate, $endDate,$startDate, $endDate]);
             });
         }
         // if($startFinishDate && $endFinishDate){
