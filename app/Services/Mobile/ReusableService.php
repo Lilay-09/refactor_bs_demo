@@ -94,6 +94,7 @@ class ReusableService
         // else if($paymentStatus == 1) $qFp->where('pmt.approved',0);
         if($statusId) $qFp->where('p.status_id',$statusId);
         if($search) $qFp->where(function ($q) use ($search){
+            $search = str_replace(' ', '', $search);
             $q->where('p.receiver_phone', 'ilike', '%' . $search . '%')
             ->orWhere('m.phone', 'ilike', '%' . $search . '%')
             ->orWhere('p.qr_code', 'ilike', '%' . $search . '%')
