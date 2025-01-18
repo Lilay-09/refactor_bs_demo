@@ -45,7 +45,6 @@ class TransactionController extends Controller
         ->get();
         $samePmtId = [];
         $sameDisId = [];
-        \Log::info(count($packages));
         foreach($packages as $p){
             $price = $p->price;
             $taxiFee = $p->taxi_fee;
