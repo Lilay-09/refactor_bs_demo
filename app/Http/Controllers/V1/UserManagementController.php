@@ -84,6 +84,12 @@ class UserManagementController extends Controller
                         ->get();
     }
 
+    public function logout(Request $req){
+        $authUser = UserService::getAuthUser();
+        $createUser = UserService::logOut($req,$authUser);
+        return ApiResponse::flex($createUser);
+    }
+
 
     public function createApplication(Request $req){
         // Insert the application with binary data
@@ -156,8 +162,19 @@ class UserManagementController extends Controller
         return ApiResponse::JsonResult($roles);
     }
 
+    public function getAccessability(Request $req){
+        $user = UserService::getAuthUser();
+        $userId = $user->id;
+        $permissionIds = UserPermission::where('user_id',$userId)->pluck('permission_id')->toArray();
+        $moduleIds = UserModule::join('app_modules as am','am.id','user_app_modules.module_id')->where('user_app_modules.user_id',$userId)->orderBy('am.display_order')->pluck('user_app_modules.module_id')->toArray();
+        return ApiResponse::JsonResult([
+            'modules' => $moduleIds,
+            'permissions' => $permissionIds
+        ]);
+    }
+
     public function getUserPermissions(Request $req){
-        $permissions = Permission::from('permissions as p')->join('app_modules as m','m.id','p.module_id')->selectRaw('p.id,p.name as permission_name,m.native_name as module_name')->get();
+        $permissions = Permission::from('permissions as p')->join('app_modules as m','m.id','p.module_id')->orderBy('m.display_order')->selectRaw('p.id,p.name as permission_name,m.native_name as module_name')->get();
         $userId = $req->id;
         $user = User::where('id',$userId)->selectRaw('system_admin,account_type')->first();
         if(!$user) return ApiResponse::NotFound(__('messages.not_found',[
@@ -191,7 +208,7 @@ class UserManagementController extends Controller
             'info' =>'User'
         ]));
         if($user->account_type != 'admin') return ApiResponse::JsonResult(null,'no modules available');
-        $appModules = AppModule::where('hidden',0)->selectRaw('id,native_name as name')->get();
+        $appModules = AppModule::where('hidden',0)->orderBy('display_order')->selectRaw('id,native_name as name')->get();
         $userModules = UserModule::where('user_id',$userId)->get();
         foreach($appModules as $m){
             $m->accessing = $this->getAccessOrDenied($userModules,$m->id,$user->system_admin,'module');

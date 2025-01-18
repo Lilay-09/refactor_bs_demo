@@ -56,15 +56,15 @@ Route::middleware(['jwt','localize','userAccess:admin'])->prefix('admin/v1/{lang
             Route::get('',[UserManagementController::class,'getApplications']);
             Route::post('',[UserManagementController::class,'createApplication']);
             Route::put('/{id}',[UserManagementController::class,'saveApplication']);
-
         });
-
-
 
         Route::prefix('user')->group(function(){
             Route::get('', [UserManagementController::class,'getUsers']);
             Route::post('',[UserManagementController::class,'createUser']);
+            Route::post('logout',[UserManagementController::class,'logout']);
+            Route::get('accessability',[UserManagementController::class,'getAccessability']);
             Route::get('{id}',[UserManagementController::class,'getOneUser']);
+            Route::put('{id}',[UserManagementController::class,'updateUser']);
             Route::get('{id}/role',[UserManagementController::class,'getUserRole']);
             Route::get('{id}/permission',[UserManagementController::class,'getUserPermissions']);
             Route::put('{id}/permission/{permission_id}/assign',[UserManagementController::class,'assignUserPermission']);
@@ -77,16 +77,15 @@ Route::middleware(['jwt','localize','userAccess:admin'])->prefix('admin/v1/{lang
             Route::put('{id}/setLoginName', [UserManagementController::class,'changeLoginName']);
             Route::get('notification/token',[CloudMessagingController::class,'getUserToken']);
             Route::delete('{id}',[UserManagementController::class,'deleteUser']);
-
         });
 
 
         Route::prefix('role')->group(function(){
-            Route::post('/', [UserManagementController::class,'createRole']);
-            Route::get('/', [UserManagementController::class,'getRoles']);
-            Route::get('/{id}', [UserManagementController::class,'getRole']);
-            Route::put('/{id}', [UserManagementController::class,'updateRole']);
-            Route::delete('/{id}', [UserManagementController::class,'deleteRole']);
+            Route::post('', [UserManagementController::class,'createRole']);
+            Route::get('', [UserManagementController::class,'getRoles']);
+            Route::get('{id}', [UserManagementController::class,'getRole']);
+            Route::put('{id}', [UserManagementController::class,'updateRole']);
+            Route::delete('{id}', [UserManagementController::class,'deleteRole']);
         });
 
         Route::prefix('warehouse')->group(function (){

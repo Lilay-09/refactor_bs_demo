@@ -559,15 +559,42 @@ class ReportController extends Controller
         return ApiResponse::JsonResult($obj);
     }
 
+    public function getDailyMerchantActivities(Request $req){
+        $startDate = $req->startDate;
+        $endDate = $req->endDate;
+        $merchantId = $req->merchant_id;
+        $mP = Package::from('packages as p')->where('p.is_deleted',0)->where('p.outstanding',0)->join('users as m','m.id','p.merchant_id');
+        // $merchantPackages =
+    }
+
     public function getDriverPaymentReport(Request $req){
         $user = UserService::getAuthUser();
         $startDate = $req->startDate;
         $endDate = $req->endDate;
+        $driverId = $req->driver_id;
         $allPayments = [];
         $amount = 0;
         $amountKh = 0;
         $total = 0;
-        $payments = Payment::with(['driver:id,user_name,code','cashier:id,user_name'])->selectRaw('id,payer_id,payment_datetime,breakdown_notes,exchange_rate,payable_amount as amount,approved_uid')->where('approved',1)->get();
+        $qP = Payment::with(['driver:id,user_name,code','cashier:id,user_name'])->where('is_deleted',0)->where('payer_type','driver')->selectRaw('id,payer_id,payment_datetime,breakdown_notes,exchange_rate,payable_amount as amount,approved_uid');
+        $qD = Disbursement::with(['driver:id,user_name,code','cashier:id,user_name'])->where('is_deleted',0)->where('payee_type','driver')->where('type','payment')->selectRaw('id,payee_id,payment_datetime,breakdown_notes,exchange_rate,payable_amount as amount,approved_uid');
+        if($startDate && $endDate){
+            $startDate = Helper::dateYMD($startDate);
+            $endDate = Helper::dateYMD($endDate);
+            $qP->where(function($q) use($startDate,$endDate){
+                $q->whereRaw('payment_datetime::DATE >= ? AND payment_datetime::DATE <= ?',[$startDate,$endDate]);
+            });
+            $qD->where(function($q) use($startDate,$endDate){
+                $q->whereRaw('payment_datetime::DATE >= ? AND payment_datetime::DATE <= ?',[$startDate,$endDate]);
+            });
+        }
+        if($driverId){
+            $qD->where('payee_id',$driverId);
+            $qP->where('payer_id',$driverId);
+        }
+        $payments = $qP->where('approved',1)->get();
+        $disbursements = $qD->where('approved',1)->get();
+        $paymentDetails = DisbursementDetails::selectRaw('disbursement_id,method,amount,original_amount,currency_code')->get();
         $paymentDetails = PaymentDetail::selectRaw('payment_id,method,amount,original_amount,currency_code')->get();
         foreach($payments as $p){
             $p->driver_name = $p->driver?->user_name;
@@ -582,8 +609,6 @@ class ReportController extends Controller
             unset($p->driver,$p->cashier);
             $allPayments[] = $p;
         }
-        $disbursements = Disbursement::with(['driver:id,user_name,code','cashier:id,user_name'])->selectRaw('id,payee_id,payment_datetime,breakdown_notes,exchange_rate,payable_amount as amount,approved_uid')->where('approved',1)->get();
-        $paymentDetails = DisbursementDetails::selectRaw('disbursement_id,method,amount,original_amount,currency_code')->get();
         foreach($disbursements as $p){
             $p->driver_name = $p->driver?->user_name;
             $p->code = $p->driver?->code;
