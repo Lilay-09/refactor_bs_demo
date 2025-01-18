@@ -2,8 +2,11 @@
 
 namespace App\Services;
 use ApiResponse;
+use App\Http\Controllers\V1\DriverTransactionController;
 use App\Models\Disbursement;
+use App\Models\DriverCommission;
 use App\Models\MerchantPriceList;
+use App\Models\Order;
 use App\Models\Package;
 use App\Models\Payment;
 use App\Models\User;
@@ -32,10 +35,10 @@ class UserService
     public static function getAuthUser($class='admin',$action='',$useSpecificClass=true){
         $user = JWTAuth::user();
         if($user){
-            $hasUser = User::where('id',$user->id)->selectRaw('id,user_name,phone,account_type,company_id,branch_id,system_admin,vehicle_type,address,delete_account')->first();
+            $hasUser = User::where('id',$user->id)->selectRaw('id,user_name,phone,account_type,company_id,lock,branch_id,system_admin,vehicle_type,address,delete_account')->first();
             if($hasUser){
                 if($class != $hasUser->account_type && $useSpecificClass) return DataResponse::Forbidden();
-                if($hasUser->delete_account || $hasUser->lock) return DataResponse::Forbidden();
+                if($hasUser->delete_account || $hasUser->lock) return DataResponse::Unauthorized();
                 $validActions = ['create','update','modify','void','delete'];
                 // $roles = UserRoles::where('user_id',$hasUser->id)->with(['role:id,name'])->selectRaw('role_id')->get();
                 // $hasUser->roles = $roles;
@@ -421,7 +424,7 @@ class UserService
             $user->update([
                 'lock' => false,
             ]);
-            $msg = $type.' has tured on active mode';
+            $msg = $type.' has turned on active mode';
 
         }else{
             $user->update([
@@ -513,14 +516,19 @@ class UserService
         if($type != 'all') $qU->where('account_type',$type);
         $user = $qU->find($id);
         if($user){
+            $type = $user->account_type;
             if($user->system_admin) return DataResponse::Forbidden();
             if($user->account_type != 'admin'){
                 $disKey = $type.'_disbursement_id';
-                $package = Package::where('is_deleted',0)->where('outstanding',0)->first();
-                if(!$package->{$disKey}) return DataResponse::ValidateFail($type.' still has payment that is not paid.');
-                $payment = Payment::where('is_deleted',0)->where('approved',0)->first();
-                $disbursement = Disbursement::where('is_deleted',0)->where('approved',0)->where('type','payment')->first();
+                $pmtKey = $type.'_payment_id';
+                $package = Package::where('is_deleted',0)->where('driver_id',$id)->where('outstanding',0)
+                ->selectRaw('id,driver_id,'.$disKey.','.$pmtKey)
+                ->first();
+                if(!$package->{$disKey} && !$package->{$pmtKey}) return DataResponse::ValidateFail($type.' still has payment that is not paid.');
+                $payment = Payment::where('is_deleted',0)->where('payer_id',$id)->where('approved',0)->first();
+                $disbursement = Disbursement::where('is_deleted',0)->where('payee_id',$id)->where('approved',0)->where('type','payment')->first();
                 if($payment || $disbursement) return DataResponse::ValidateFail('Found some payments that are not paid yet!');
+                if($type == 'driver' && self::hasCommission($id)) return DataResponse::ValidateFail($type.' still has commission to settle');
             }
             $user->update([
                 'is_deleted' => true,
@@ -548,6 +556,32 @@ class UserService
         return DataResponse::JsonResult(null,false,__('messages.info',[
             'info' => 'New Login Name has been changed',
         ]));
+    }
+
+    private static function hasCommission($driverId){
+        $packages = Package::selectRaw('status_id,driver_id')
+        ->whereIn('status_id',[9,19])
+        ->where('driver_id',$driverId)
+        ->where('is_deleted',0)
+        ->whereNull('driver_commission_id')
+        ->get();
+        $orders = Order::where('is_deleted',0)->whereNull('driver_commission_id')
+        ->where('status_id',5)
+        ->where('driver_id',$driverId)
+        ->get();
+        $qDc = DriverCommission::where('is_deleted',0)
+        ->selectRaw('id,driver_id,delivery_type,pickup_commission,delivery_commission')
+        ->where('driver_id',$driverId);
+        $driverCommissions = $qDc->get();
+        $pkp = TransactionService::getPickUpDetails($orders,$driverId);
+        $delPkg = TransactionService::getDeliveredDetails($packages,$driverId);
+        $comm = DriverTransactionController::getDriverCommissionInfo($driverCommissions,$driverId);
+        $pickupRate = $comm->normal_pickup_commission;
+        $deliveryRate = $comm->normal_delivery_commission;
+        $totalDelivered = $delPkg->delivered_count;
+        $totalPickUp = $pkp->total_package;
+        $total = Helper::getNumber($pickupRate * $totalPickUp + $deliveryRate * $totalDelivered,2);
+        return $total > 0;
     }
 
 }
