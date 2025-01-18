@@ -55,23 +55,20 @@ class TransactionController extends Controller
             if(!$samePmtId){
                 $pmt = $this->getTrxDetails($payments,$p->driver_payment_id);
                 if($pmt) {
-                    \Log::info($pmt);
                     $pmt->remarks = 'Disbursement';
                     $paidTrx[] = $pmt;
                 }else {
-                    $total += TransactionService::getPackageTotal('driver',$p->cod,$price,$taxiFee,$p->extra_charge,$p->additional_fee,$p->delivery_fee,$p->payer);
+                    $total += Helper::getNumber(TransactionService::getPackageTotal('driver',$p->cod,$price,$taxiFee,$p->extra_charge,$p->additional_fee,$p->delivery_fee,$p->payer));
                     $count +=1;
                 }
             }else{
-                $total += TransactionService::getPackageTotal('driver',$p->cod,$price,$taxiFee,$p->extra_charge,$p->additional_fee,$p->delivery_fee,$p->payer);
-                    $count +=1;
+                $total += Helper::getNumber(TransactionService::getPackageTotal('driver',$p->cod,$price,$taxiFee,$p->extra_charge,$p->additional_fee,$p->delivery_fee,$p->payer));
+                $count +=1;
             }
             $samePmtId = $p->driver_payment_id;
             if(!$sameDisId){
                 $dis = $this->getTrxDetails($disbursements,$p->driver_disbursement_id);
                 if($dis) {
-                    \Log::info('dis');
-                    \Log::info($pmt);
                     $total -= (float)$dis->payable_amount;
                     $dis->remarks = 'Receive';
                     $paidTrx[] = $dis;
@@ -79,7 +76,7 @@ class TransactionController extends Controller
                     // $count +=1;
                 }
             }else{
-                $total += TransactionService::getPackageTotal('driver',$p->cod,$price,$taxiFee,$p->extra_charge,$p->additional_fee,$p->delivery_fee,$p->payer);
+                $total += Helper::getNumber(TransactionService::getPackageTotal('driver',$p->cod,$price,$taxiFee,$p->extra_charge,$p->additional_fee,$p->delivery_fee,$p->payer));
                 $count +=1;
             }
             $sameDisId = $p->driver_disbursement_id;
