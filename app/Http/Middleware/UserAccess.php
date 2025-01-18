@@ -33,12 +33,13 @@ class UserAccess
         // $userPermissions = UserPermission::where('user_id',$userId)->get();
         if($systemAdmin) return DataResponse::JsonResult(null);
         $uri = Route::getCurrentRoute()->uri();
-        // Get the last part of the prefix (the last segment)
         $lastPrefixSegment = basename(Route::getCurrentRoute()->getPrefix());
         $method = $req->method();
-        // Log::info($lastPrefixSegment.' => '.$method);
+        $code = AppSetting::getCodeByURI($uri,$method,$lastPrefixSegment);
+        if($method =='GET' && in_array($uri,AppSetting::protectedRoutes())){
+            if(!$this->checkPermissionCode($userId,$code)) return DataResponse::Forbidden();
+        }
         if(in_array($method,['POST', 'PUT','DELETE'])){
-            $code = AppSetting::getCodeByURI($uri,$method,$lastPrefixSegment);
             // Log::info($uri.'=>'.$code);
             if(!$this->checkPermissionCode($userId,$code)) return DataResponse::Forbidden();
         }
@@ -53,6 +54,10 @@ class UserAccess
 
     private function checkPermissionCode($userId,$code){
         return UserPermission::where('permission_id',$code)->where('user_id',$userId)->value('permission_id');
+    }
+
+    private function checkGetRoute(){
+
     }
 
     private function checkModules(){

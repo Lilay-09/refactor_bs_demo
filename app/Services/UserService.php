@@ -32,25 +32,25 @@ class UserService
     public static function getAuthUser($class='admin',$action='',$useSpecificClass=true){
         $user = JWTAuth::user();
         if($user){
-            $hasUser = User::where('id',$user->id)->first();
+            $hasUser = User::where('id',$user->id)->selectRaw('id,user_name,phone,account_type,company_id,branch_id,system_admin,vehicle_type,address,delete_account')->first();
             if($hasUser){
                 if($class != $hasUser->account_type && $useSpecificClass) return DataResponse::Forbidden();
-                if($user->delete_account || $user->lock) return DataResponse::Forbidden();
+                if($hasUser->delete_account || $hasUser->lock) return DataResponse::Forbidden();
                 $validActions = ['create','update','modify','void','delete'];
-                $roles = UserRoles::where('user_id',$hasUser->id)->with(['role:id,name'])->selectRaw('role_id')->get();
-                $hasUser->roles = $roles;
-                $action = $action ?? 'void';
+                // $roles = UserRoles::where('user_id',$hasUser->id)->with(['role:id,name'])->selectRaw('role_id')->get();
+                // $hasUser->roles = $roles;
+                // $action = $action ?? 'void';
                 if($action && !in_array($action,$validActions)){
                     return DataResponse::ValidateFail('You action must be one of '.implode(',',$validActions));
                 }
                 // if(!$hasUser->system_admin && $action == 'void'){
                 //     return DataResponse::Forbidden();
                 // }
-                foreach($roles as $role){
-                    $role->id = $role->role->id;
-                    $role->name = $role->role->name;
-                    unset($role->role);
-                }
+                // foreach($roles as $role){
+                //     $role->id = $role->role->id;
+                //     $role->name = $role->role->name;
+                //     unset($role->role);
+                // }
                 return DataResponse::JsonRaw([
                     'error'=>false,
                     'status_code' => 200,
@@ -71,8 +71,6 @@ class UserService
         }
         return DataResponse::Unauthorized();
     }
-
-    public function userPermissions(){}
 
     public static function getRolesByUsers($userId){
         return UserRoles::from('user_roles as ur')->where('ur.user_id',$userId)->join('roles as r','r.id','=','ur.role_id')->selectRaw('r.name as role,ur.role_id,r.description')->get();

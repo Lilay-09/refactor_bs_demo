@@ -466,7 +466,7 @@ class PermissionSeeder extends Seeder
             //** Driver Management */
             [
                 'id' => 239,
-                'module_id' => 260,
+                'module_id' => 150,
                 'name' => 'Add New Driver',
                 'hidden' => 0,
                 'category' => 'create',
@@ -477,7 +477,7 @@ class PermissionSeeder extends Seeder
             ],
             [
                 'id' => 240,
-                'module_id' => 260,
+                'module_id' => 150,
                 'name' => 'Modify Driver',
                 'hidden' => 0,
                 'category' => 'modify',
@@ -488,7 +488,7 @@ class PermissionSeeder extends Seeder
             ],
             [
                 'id' => 241,
-                'module_id' => 260,
+                'module_id' => 150,
                 'name' => 'Modify Driver Commission',
                 'hidden' => 0,
                 'category' => 'modify',
@@ -499,7 +499,7 @@ class PermissionSeeder extends Seeder
             ],
             [
                 'id' => 242,
-                'module_id' => 260,
+                'module_id' => 150,
                 'name' => 'Create Driver Mobile Account',
                 'hidden' => 0,
                 'category' => 'create',
@@ -510,7 +510,7 @@ class PermissionSeeder extends Seeder
             ],
             [
                 'id' => 243,
-                'module_id' => 260,
+                'module_id' => 150,
                 'name' => 'Change Driver Status',
                 'hidden' => 0,
                 'category' => 'special',
@@ -521,7 +521,7 @@ class PermissionSeeder extends Seeder
             ],
             [
                 'id' => 244,
-                'module_id' => 260,
+                'module_id' => 150,
                 'name' => 'Set Password',
                 'hidden' => 0,
                 'category' => 'special',
@@ -532,7 +532,7 @@ class PermissionSeeder extends Seeder
             ],
             [
                 'id' => 245,
-                'module_id' => 260,
+                'module_id' => 150,
                 'name' => 'Delete Driver',
                 'hidden' => 0,
                 'category' => 'delete',
@@ -544,7 +544,7 @@ class PermissionSeeder extends Seeder
             //** Merchant Management */
             [
                 'id' => 246,
-                'module_id' => 261,
+                'module_id' => 200,
                 'name' => 'Add New Merchant',
                 'hidden' => 0,
                 'category' => 'create',
@@ -555,7 +555,7 @@ class PermissionSeeder extends Seeder
             ],
             [
                 'id' => 247,
-                'module_id' => 260,
+                'module_id' => 200,
                 'name' => 'Modify Merchant',
                 'hidden' => 0,
                 'category' => 'modify',
@@ -566,7 +566,7 @@ class PermissionSeeder extends Seeder
             ],
             [
                 'id' => 248,
-                'module_id' => 260,
+                'module_id' => 200,
                 'name' => 'Create Merchant Mobile Account',
                 'hidden' => 0,
                 'category' => 'create',
@@ -577,8 +577,8 @@ class PermissionSeeder extends Seeder
             ],
             [
                 'id' => 303,
-                'module_id' => 260,
-                'name' => 'Add New Merchant',
+                'module_id' => 200,
+                'name' => 'Set Pricelist',
                 'hidden' => 0,
                 'category' => 'create',
                 'create_uid' => 1,
@@ -588,7 +588,7 @@ class PermissionSeeder extends Seeder
             ],
             [
                 'id' => 249,
-                'module_id' => 260,
+                'module_id' => 200,
                 'name' => 'Change Merchant Status',
                 'hidden' => 0,
                 'category' => 'special',
@@ -599,7 +599,7 @@ class PermissionSeeder extends Seeder
             ],
             [
                 'id' => 250,
-                'module_id' => 260,
+                'module_id' => 200,
                 'name' => 'Set Password',
                 'category' => 'special',
                 'hidden' => 0,
@@ -610,7 +610,7 @@ class PermissionSeeder extends Seeder
             ],
             [
                 'id' => 251,
-                'module_id' => 260,
+                'module_id' => 200,
                 'name' => 'Delete Merchant',
                 'hidden' => 0,
                 'category' => 'delete',
@@ -631,40 +631,39 @@ class PermissionSeeder extends Seeder
                 'company_id' => 1,
                 'branch_id' => 1,
             ],
-            // ,
-            // [
-            //     'id' => 253,
-            //     'module_id' => 277,
-            //     'name' => 'Add Social Media',
-            //     'hidden' => 0,
-            //     'category' => 'create',
-            //     'create_uid' => 1,
-            //     'update_uid' => 1,
-            //     'company_id' => 1,
-            //     'branch_id' => 1,
-            // ],
-            // [
-            //     'id' => 254,
-            //     'module_id' => 277,
-            //     'name' => 'Modify Social Media',
-            //     'hidden' => 0,
-            //     'category' => 'modify',
-            //     'create_uid' => 1,
-            //     'update_uid' => 1,
-            //     'company_id' => 1,
-            //     'branch_id' => 1,
-            // ],
-            // [
-            //     'id' => 255,
-            //     'module_id' => 277,
-            //     'name' => 'Delete Social Media',
-            //     'hidden' => 0,
-            //     'category' => 'delete',
-            //     'create_uid' => 1,
-            //     'update_uid' => 1,
-            //     'company_id' => 1,
-            //     'branch_id' => 1,
-            // ],
+            [
+                'id' => 253,
+                'module_id' => 254,
+                'name' => 'Print Package',
+                'hidden' => 0,
+                'category' => 'special',
+                'create_uid' => 1,
+                'update_uid' => 1,
+                'company_id' => 1,
+                'branch_id' => 1,
+            ],
+            [
+                'id' => 254,
+                'module_id' => 	257,
+                'name' => 'Driver Package Tab',
+                'hidden' => 0,
+                'category' => 'modify',
+                'create_uid' => 1,
+                'update_uid' => 1,
+                'company_id' => 1,
+                'branch_id' => 1,
+            ],
+            [
+                'id' => 255,
+                'module_id' => 	257,
+                'name' => 'Commission Transaction Tab',
+                'hidden' => 0,
+                'category' => 'delete',
+                'create_uid' => 1,
+                'update_uid' => 1,
+                'company_id' => 1,
+                'branch_id' => 1,
+            ],
             //** Brand Images */
             [
                 'id' => 256,
@@ -893,7 +892,7 @@ class PermissionSeeder extends Seeder
             ],
             [
                 'id' => 275,
-                'module_id' => 285,
+                'module_id' => 286,
                 'name' => 'Modify Country',
                 'hidden' => 0,
                 'category' => 'modify',
@@ -904,7 +903,7 @@ class PermissionSeeder extends Seeder
             ],
             [
                 'id' => 276,
-                'module_id' => 285,
+                'module_id' => 286,
                 'name' => 'Delete Country',
                 'hidden' => 0,
                 'category' => 'delete',
@@ -915,7 +914,7 @@ class PermissionSeeder extends Seeder
             ],
             [
                 'id' => 277,
-                'module_id' => 285,
+                'module_id' => 286,
                 'name' => 'View Cities',
                 'hidden' => 0,
                 'category' => 'view',
@@ -926,7 +925,7 @@ class PermissionSeeder extends Seeder
             ],
             [
                 'id' => 278,
-                'module_id' => 285,
+                'module_id' => 286,
                 'name' => 'Add City',
                 'hidden' => 0,
                 'category' => 'create',
@@ -937,7 +936,7 @@ class PermissionSeeder extends Seeder
             ],
             [
                 'id' => 279,
-                'module_id' => 285,
+                'module_id' => 286,
                 'name' => 'Modify City',
                 'hidden' => 0,
                 'category' => 'modify',
@@ -948,7 +947,7 @@ class PermissionSeeder extends Seeder
             ],
             [
                 'id' => 280,
-                'module_id' => 285,
+                'module_id' => 286,
                 'name' => 'Delete City',
                 'hidden' => 0,
                 'category' => 'delete',
@@ -959,7 +958,7 @@ class PermissionSeeder extends Seeder
             ],
             [
                 'id' => 281,
-                'module_id' => 285,
+                'module_id' => 286,
                 'name' => 'View Districts (Khan)',
                 'hidden' => 0,
                 'category' => 'view',
@@ -970,7 +969,7 @@ class PermissionSeeder extends Seeder
             ],
             [
                 'id' => 282,
-                'module_id' => 285,
+                'module_id' => 286,
                 'name' => 'Add District',
                 'hidden' => 0,
                 'category' => 'create',
@@ -981,7 +980,7 @@ class PermissionSeeder extends Seeder
             ],
             [
                 'id' => 283,
-                'module_id' => 285,
+                'module_id' => 286,
                 'name' => 'Modify District',
                 'hidden' => 0,
                 'category' => 'modify',
@@ -992,7 +991,7 @@ class PermissionSeeder extends Seeder
             ],
             [
                 'id' => 284,
-                'module_id' => 285,
+                'module_id' => 286,
                 'name' => 'Delete District',
                 'hidden' => 0,
                 'category' => 'delete',

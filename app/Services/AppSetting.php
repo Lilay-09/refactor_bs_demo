@@ -24,6 +24,10 @@ class AppSetting
     ];
 
     protected static $userAppIds;
+    protected static $baseUrl = 'api/admin/v1/{lang}';
+
+    public function __construct(){
+    }
 
     public static function initialize() {
         // Initialize static property only once
@@ -184,18 +188,18 @@ class AppSetting
     private static function orderPermissionCode(){
         return [
             'POST' => [
-                'api/admin/v1/{lang}/order' => 200,
-                'api/admin/v1/{lang}/order/{order_id}/package' => 206
+                self::$baseUrl.'/order' => 200,
+                self::$baseUrl.'/order/{order_id}/package' => 206
             ],
             'PUT' => [
                 '{order_id}/driver/{driver_id}' => 201,
-                'api/admin/v1/{lang}/order/{id}/arrive' => 202,
-                'api/admin/v1/{lang}/order/{id}/status' => 203,
-                'api/admin/v1/{lang}/order/{order_id}/driver/{driver_id}' => 204,
-                'api/admin/v1/{lang}/order/{order_id}/package/{id}' => 207
+                self::$baseUrl.'/order/{id}/arrive' => 202,
+                self::$baseUrl.'/order/{id}/status' => 203,
+                self::$baseUrl.'/order/{order_id}/driver/{driver_id}' => 204,
+                self::$baseUrl.'/order/{order_id}/package/{id}' => 207
             ],
             'DELETE' => [
-                'api/admin/v1/{lang}/order/{order_id}/package/{id}' => 208
+                self::$baseUrl.'/order/{order_id}/package/{id}' => 208
             ]
         ];
     }
@@ -203,16 +207,16 @@ class AppSetting
     private static function packagePermissionCode(){
         return [
             // 'POST' => [
-            //     'api/admin/v1/{lang}/order/{order_id}/package' => 206
+            //     self::$baseUrl.'/order/{order_id}/package' => 206
             // ],
             'PUT' => [
-                'api/admin/v1/{lang}/package/{id}' => 215,
-                'api/admin/v1/{lang}/package/{id}/driver/{driver_id}' => 210, //assign driver
-                'api/admin/v1/{lang}/package/{id}/return' => 211,
-                'api/admin/v1/{lang}/package/{id}/changeMerchant' => 211
+                self::$baseUrl.'/package/{id}' => 215,
+                self::$baseUrl.'/package/{id}/driver/{driver_id}' => 210, //assign driver
+                self::$baseUrl.'/package/{id}/return' => 211,
+                self::$baseUrl.'/package/{id}/changeMerchant' => 211
             ],
             'DELETE' => [
-                'api/admin/v1/{lang}/package/{id}' => 212
+                self::$baseUrl.'/package/{id}' => 212
             ]
         ];
     }
@@ -220,25 +224,25 @@ class AppSetting
     private static function fleetPermissionCode(){
         return [
             'POST' => [
-                'api/admin/v1/{lang}/trip' => 216,
-                'api/admin/v1/{lang}/trip/{trip_id}/takeOut/{package_id}' => 222,
+                self::$baseUrl.'/trip' => 216,
+                self::$baseUrl.'/trip/{trip_id}/takeOut/{package_id}' => 222,
             ],
             'PUT' => [
-                'api/admin/v1/{lang}/trip/{trip_id}/finish' => 217,
-                'api/admin/v1/{lang}/trip/{trip_id}/package/status' => 221,
+                self::$baseUrl.'/trip/{trip_id}/finish' => 217,
+                self::$baseUrl.'/trip/{trip_id}/package/status' => 221,
             ],
             // 'DELETE' => [
-            //     'api/admin/v1/{lang}/package/{id}' => 213
+            //     self::$baseUrl.'/package/{id}' => 213
             // ]
         ];
     }
     private static function completePackagePermissionCode(){
         return [
             'PUT' => [
-                'api/admin/v1/{lang}/finished/package/{id}' => 224,
+                self::$baseUrl.'/finished/package/{id}' => 224,
             ],
             // 'DELETE' => [
-            //     'api/admin/v1/{lang}/package/{id}' => 213
+            //     self::$baseUrl.'/package/{id}' => 213
             // ]
         ];
     }
@@ -247,13 +251,13 @@ class AppSetting
     private static function bankPermissionCode(){
         return [
             'POST' => [
-                'api/admin/v1/{lang}/bank' => 299,
+                self::$baseUrl.'/bank' => 299,
             ],
             'PUT' => [
-                'api/admin/v1/{lang}/bank/{id}' => 300,
+                self::$baseUrl.'/bank/{id}' => 300,
             ],
             'DELETE' => [
-                'api/admin/v1/{lang}/bank/{id}' => 301
+                self::$baseUrl.'/bank/{id}' => 301
             ]
         ];
     }
@@ -261,13 +265,13 @@ class AppSetting
     private static function zonePermissionCode(){
         return [
             'POST' => [
-                'api/admin/v1/{lang}/zone' => 299,
+                self::$baseUrl.'/zone' => 299,
             ],
             'PUT' => [
-                'api/admin/v1/{lang}/zone/{id}' => 300,
+                self::$baseUrl.'/zone/{id}' => 300,
             ],
             'DELETE' => [
-                'api/admin/v1/{lang}/zone/{id}' => 301
+                self::$baseUrl.'/zone/{id}' => 301
             ]
         ];
     }
@@ -275,13 +279,13 @@ class AppSetting
     private static function priceListPermissionCode(){
         return [
             'POST' => [
-                'api/admin/v1/{lang}/priceList/{id?}' => 298,
+                self::$baseUrl.'/priceList/{id?}' => 298,
             ],
             'PUT' => [
-                'api/admin/v1/{lang}/priceList/assign' => 296
+                self::$baseUrl.'/priceList/assign' => 296
             ],
             'DELETE' => [
-                'api/admin/v1/{lang}/priceList/assign' => 297
+                self::$baseUrl.'/priceList/assign' => 297
             ]
         ];
     }
@@ -467,6 +471,13 @@ class AppSetting
         $pattern = "#^" . $pattern . "$#";
 
         return preg_match($pattern, $uri);
+    }
+
+    public static function protectedRoutes(){
+        return [
+            self::$baseUrl.'/package/{id}/print',
+            self::$baseUrl.'/package/list/print',
+        ];
     }
 
 }

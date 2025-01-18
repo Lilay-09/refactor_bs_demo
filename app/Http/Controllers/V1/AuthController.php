@@ -6,6 +6,7 @@ use ApiResponse;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Models\UserModule;
+use App\Models\UserPermission;
 use App\Services\UserService;
 use Helper;
 use Illuminate\Http\Request;
@@ -81,8 +82,10 @@ class AuthController extends Controller
         $data->phone = $user->phone;
         $data->roles = $user->roles;
         $data->token = $token;
-        $moduleIds = UserModule::where('user_id',$user->id)->pluck('module_id')->toArray();
+        $moduleIds = UserModule::join('app_modules as am','am.id','user_app_modules.module_id')->where('user_app_modules.user_id',$user->id)->orderBy('am.display_order')->pluck('user_app_modules.module_id')->toArray();
         $data->modules = $moduleIds;
+        $permissionIds = UserPermission::where('user_id',$user->id)->pluck('permission_id')->toArray();
+        $data->permissions = $permissionIds;
         // return response()->json([
         //     'status_code' => 200,
         //     'data' => $data,
