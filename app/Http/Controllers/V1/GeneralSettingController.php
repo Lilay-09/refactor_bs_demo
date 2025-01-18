@@ -59,8 +59,8 @@ class GeneralSettingController extends Controller
         return ApiResponse::JsonResult($obj);
     }
 
-    public function getOptionsRole(){
-        return ApiResponse::JsonResult($this->gs::optionsRole());
+    public function getOptionsRole(Request $req){
+        return ApiResponse::JsonResult($this->gs::optionsRole($req->type));
     }
 
     public function getOptionsModule(){
