@@ -1636,7 +1636,7 @@ class PermissionSeeder extends Seeder
             [
                 'id' => 109,
                 'module_id' => 100,
-                'name' => 'Create Login',
+                'name' => 'Change Login Name',
                 'hidden' => 0,
                 'category' => 'special',
                 'create_uid' => 1,
