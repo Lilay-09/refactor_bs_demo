@@ -58,12 +58,7 @@ class TransactionController extends Controller
                     $pmt->remarks = 'Disbursement';
                     $total -= (float)$pmt->payable_amount;
                     $paidTrx[] = $pmt;
-
-
-                }
-                else {
-                    // $total += Helper::getNumber(TransactionService::getPackageTotal('driver',$p->cod,$price,$taxiFee,$p->extra_charge,$p->additional_fee,$p->delivery_fee,$p->payer));
-                    // $count +=1;
+                    $count -= $pmt->package_count;
                 }
                 $samePmtId[$p->driver_payment_id] = true;
             }
@@ -75,8 +70,7 @@ class TransactionController extends Controller
                     $total -= (float)$dis->payable_amount;
                     $dis->remarks = 'Receive';
                     $paidTrx[] = $dis;
-                }else {
-                    // $count +=1;
+                    $count -= $dis->package_count;
                 }
                 $sameDisId[$p->driver_disbursement_id] = true;
             }

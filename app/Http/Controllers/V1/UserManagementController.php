@@ -374,9 +374,17 @@ class UserManagementController extends Controller
         return ApiResponse::JsonResult(null,'Created');
     }
 
+    public function assignPermissionRoles(Request $req){
+        $user = UserService::getAuthUser();
+        $roleId = $req->id;
+        $permissionIds = $req->permissions;
+        $role = Role::where()->find($roleId);
+    }
+
 
     public function updateRole(Request $req){
         $id = $req->id;
+        if(in_array($id,[1,2,3])) return ApiResponse::ValidateFail('You can not update the default role');
         $user = UserService::getAuthUser();
         $role = Role::where('company_id',$user->company_id)->find($id);
         if(!$role) return ApiResponse::NotFound('Role not found');

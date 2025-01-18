@@ -76,8 +76,11 @@ class GeneralSettingService
         return self::$channels;
     }
 
-    public static function optionsRole(){
-        return Role::selectRaw('id,name')->get();
+public static function optionsRole($type=null){
+        $qR = Role::selectRaw('id,name');
+        if($type) $qR->where('group', $type);
+        $roles = $qR->get();
+        return $roles;
     }
 
     public static function optionsModule(){
