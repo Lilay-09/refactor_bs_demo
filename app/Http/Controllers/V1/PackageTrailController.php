@@ -409,7 +409,7 @@ class PackageTrailController extends Controller
                         'is_deleted' => true,
                         'deleted_uid' => $user->id,
                         'has_swap' => true,
-                        'delay_count' => 0,
+                        'delay_count' => 1,
                         'deleted_datetime' => now(),
                         'notes' => DB::raw('notes || \'| admin change driver\'')
                     ]);

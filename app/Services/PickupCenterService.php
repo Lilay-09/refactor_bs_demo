@@ -315,7 +315,7 @@ class PickupCenterService
         $inputs['delivery_type'] = $inputs['delivery_type'] ?? 'normal';
         $inputs['booking_channel'] = 'admin';
         $taxiFee = $inputs['taxi_fee'] ?? 0;
-        $inputs['tracking_notes'] = '['.$user->id.']Admin ('.$user->user_name.') add new package ('.date('d-M-Y h:i:s A').')';
+        // $inputs['tracking_notes'] = '['.$user->id.']Admin ('.$user->user_name.') add new package ('.date('d-M-Y h:i:s A').')';
         if($user->account_type == 'driver') $inputs['booking_channel'] = 'driver';
         if($user->account_type == 'merchant') $inputs['booking_channel'] = 'merchant';
         $zoneName = Zone::where('zone_code',$zoneCode)->value('zone_name');

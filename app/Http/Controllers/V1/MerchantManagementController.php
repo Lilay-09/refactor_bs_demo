@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Models\MerchantPriceList;
 use App\Models\PriceList;
 use App\Models\User;
+use App\Models\Zone;
 use App\Services\GeneralSettingService;
 use App\Services\UserService;
 use DB;
@@ -130,26 +131,30 @@ class MerchantManagementController extends Controller
         $user = UserService::getAuthUser();
         $id = $req->id;
         $priceListId = $req->price_list_id;
+        $zoneId = $req->zoneId;
         if(!$priceListId) return ApiResponse::ValidateFail(__('messages.info',[
             'info' => 'Please choose a price list'
         ]));
         $merchantPriceList = MerchantPriceList::where('merchant_id',$req->id)->first();
+        $insertOrUpdate = [
+            'price_list_id' => $priceListId,
+            'update_uid' => $user->id,
+            'branch_id' => $user->id,
+            'company_id' => $user->id
+        ];
+        if($zoneId) {
+            $zone = Zone::where('is_deleted',0)->find($zoneId);
+            if(!$zone) return ApiResponse::NotFound(__('messages.not_found',[
+                'info' => 'Zone'
+            ]));
+            $insertOrUpdate['zone_code'] = $zone->zone_code;
+            $insertOrUpdate['zone_id'] = $zoneId;
+        }
         if($merchantPriceList){
-            $merchantPriceList->update([
-                'price_list_id' => $priceListId,
-                'update_uid' => $user->id,
-                'branch_id' => $user->id,
-                'company_id' => $user->id
-            ]);
+            $merchantPriceList->update($insertOrUpdate);
         }else{
-            MerchantPriceList::create([
-                'merchant_id' => $id,
-                'price_list_id' => $priceListId,
-                'create_uid' => $user->id,
-                'update_uid' => $user->id,
-                'branch_id' => $user->id,
-                'company_id' => $user->id
-            ]);
+            $insertOrUpdate['merchant_id'] = $req->id;
+            MerchantPriceList::create($insertOrUpdate);
         }
         return ApiResponse::JsonResult(null,__('messages.updated'));
     }
