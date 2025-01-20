@@ -5,10 +5,24 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
     <title>{{ $title ?? 'History Packages' }}</title>
+
     <style>
-        body {
-            font-family: 'Noto Sans Khmer', sans-serif !important;
-        }
+    * {
+        font-family: "NotoSansKhmer" sans-serif;
+    }
+
+    /* Define the Battambang font */
+    @font-face {
+        font-weight: normal;
+        font-family: 'NotoSansKhmer';
+        src: url({{ public_path('fonts/NotoSansKhmer-Regular.ttf') }}) format('truetype');
+        font-style: normal;
+    }
+
+    /*
+        h1, p, td {
+            font-family: 'Noto Sans Khmer', sans-serif;
+        } */
         .header {
             text-align: center;
             font-size: 24px;
@@ -50,17 +64,15 @@
             }
         }
     </style>
-
 </head>
 <body>
     <h3 class="header">{{ $title ?? 'History Packages' }}</h3>
     <p>Date: {{ $date ?? now()->format('Y-m-d') }}</p>
-    <p>Driver: {{ $driver['user_name'] ?? 'N/A' }} ({{ $driver['phone'] ?? 'N/A' }})</p>
+    <p>Driver: {{ $driver['user_name'] ?? 'N/A' }} ({{ $driver['phone'] ?? '' }})</p>
     <div class="content">
-
         @if(isset($data[0]))
             @foreach($data as $key => $tracking)
-                <h4>Tracking Number: {{ $tracking['fleet_number'] ?? 'N/A' }}</h4>
+                <h4>Tracking Number: {{ $tracking['fleet_number'] ?? '' }}</h4>
                 <table class="table">
                     <thead>
                         <tr>
@@ -78,12 +90,12 @@
                                 <tr>
                                     <td>{{ $idx + 1 }}</td>
                                     <td>
-                                        <span>{{ $item->merchant_phone ?? 'N/A' }}</span>
-                                        <small>({{ $item->merchant_name ?? 'N/A' }})</small>
+                                        <span>{{ $item->merchant_phone ?? '' }}</span>
+                                        <small>({{ $item->merchant_name ?? '' }})</small>
                                     </td>
-                                    <td>{{ $item->receiver_phone ?? 'N/A' }}</td>
-                                    <td>{{ $item->receiver_address ?? 'N/A' }}</td>
-                                    <td>{{ $item->status_code ?? 'N/A' }}</td>
+                                    <td>{{ $item->receiver_phone ?? '' }}</td>
+                                    <td>{{ $item->receiver_address ?? '' }}</td>
+                                    <td>{{ $item->status_code ?? '' }}</td>
                                     <td>${{ number_format($item->total ?? 0, 2) }}</td>
                                 </tr>
                             @endforeach
@@ -104,3 +116,7 @@
     </div>
 </body>
 </html>
+
+
+
+

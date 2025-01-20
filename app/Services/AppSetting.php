@@ -3,7 +3,7 @@
 namespace App\Services;
 use App\Models\PrivacyStatement;
 use App\Models\TermCondition;
-use Barryvdh\DomPDF\PDF;
+// use Barryvdh\DomPDF\PDF;
 use DataResponse;
 use Helper;
 use Illuminate\Support\Facades\Http;
@@ -165,24 +165,24 @@ class AppSetting
     }
 
 
-    public static function generatePDF()
-    {
-        // Example data
-        $data = [
-            'title' => 'Dynamic PDF Example',
-            'date' => now()->toDateTimeString(),
-            'content' => 'This PDF was generated dynamically when requested.',
-        ];
+    // public static function generatePDF()
+    // {
+    //     // Example data
+    //     $data = [
+    //         'title' => 'Dynamic PDF Example',
+    //         'date' => now()->toDateTimeString(),
+    //         'content' => 'This PDF was generated dynamically when requested.',
+    //     ];
 
-        // Load the Blade view and pass data
-        $pdf = PDF::loadView('pdf.package_history', $data);
+    //     // Load the Blade view and pass data
+    //     $pdf = PDF::loadView('pdf.package_history', $data);
 
-        // Return the PDF file for viewing (inline)
-        return response($pdf->output(), 200, [
-            'Content-Type' => 'application/pdf',
-            'Content-Disposition' => 'inline; filename="dynamic-pdf.pdf"',
-        ]);
-    }
+    //     // Return the PDF file for viewing (inline)
+    //     return response($pdf->output(), 200, [
+    //         'Content-Type' => 'application/pdf',
+    //         'Content-Disposition' => 'inline; filename="dynamic-pdf.pdf"',
+    //     ]);
+    // }
 
 
     private static function orderPermissionCode(){

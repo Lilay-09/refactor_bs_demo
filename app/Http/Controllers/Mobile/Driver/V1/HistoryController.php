@@ -4,14 +4,12 @@ namespace App\Http\Controllers\Mobile\Driver\V1;
 
 use ApiResponse;
 use App\Http\Controllers\Controller;
-use Dompdf\Options;
 use App\Models\Delivery;
 use App\Services\GeneralSettingService;
 use App\Services\Mobile\ReusableService;
 use App\Services\UserService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Helper;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 
@@ -91,9 +89,12 @@ class HistoryController extends Controller
             'data' => $groupedPackages
         ];
 
-        $pdf = Pdf::loadView('pdf.package_history', $data);//->setOptions([$options]);
+        $pdf = Pdf::loadView('pdf.package_history', $data);
+        $pdf->set_option('isHtml5ParserEnabled', true);  // Enable HTML5 parsing
+        $pdf->set_option('isPhpEnabled', true);         // Enable PHP functions if needed
+        $pdf->set_option('fontDir', public_path('fonts')); // Path to public/fonts directory
+        $pdf->set_option('defaultFont', 'NotoSansKhmer');
 
-        // Save the PDF to a storage disk (public or a custom disk)
         $fileName = 'history-packages-' . time() . '.pdf';
         $filePath = 'pdfs/' . $fileName;
 

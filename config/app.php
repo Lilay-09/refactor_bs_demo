@@ -136,7 +136,7 @@ return [
     // ],
 
     // 'aliases' => [
-    //     'PDF' => Barryvdh\DomPDF\Facade::class,
+    //     'Pdf' => Barryvdh\DomPDF\Facade\Pdf::class,
     // ],
 
 

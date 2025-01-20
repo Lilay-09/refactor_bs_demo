@@ -5,11 +5,10 @@ namespace App\Http\Middleware;
 use ApiResponse;
 use App\Models\UserPermission;
 use App\Services\AppSetting;
-use Auth;
+use Illuminate\Support\Facades\Auth;
 use Closure;
 use DataResponse;
 use Illuminate\Http\Request;
-use Log;
 use Illuminate\Support\Facades\Route;
 use Symfony\Component\HttpFoundation\Response;
 

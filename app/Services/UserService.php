@@ -100,6 +100,7 @@ class UserService
         if($userClass == 'admin'){
             $baseFields['password'] = 'required|string|max:20';
             $baseFields['confirm_password'] = 'nullable';
+            $baseFields['login_name'] = 'nullable';
             $baseFields['role_id'] = 'required|exists:roles,id';
             return validator($req->all(),$baseFields);
         }else if($userClass == 'driver'){
