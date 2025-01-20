@@ -55,8 +55,7 @@ return [
          *
          * Note: This directory must exist and be writable by the webserver process.
          */
-        // 'font_cache' => storage_path('fonts'),
-        'font_cache' => storage_path('fonts/font-cache'),
+        'font_cache' => storage_path('fonts'),
 
         /**
          * The location of a temporary directory.
@@ -66,9 +65,6 @@ return [
          * using the PDFLib back end.
          */
         'temp_dir' => sys_get_temp_dir(),
-        'fonts' => [
-            'khmer' => public_path('fonts/NotoSansKhmer-Regular.ttf'), // Path to the Khmer font
-        ],
 
         /**
          * ==== IMPORTANT ====

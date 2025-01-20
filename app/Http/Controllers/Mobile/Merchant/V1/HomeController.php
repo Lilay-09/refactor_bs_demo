@@ -149,9 +149,11 @@ class HomeController extends Controller
         $user = UserService::getAuthUser('merchant');
         $orders = Order::where('merchant_id',$user->id)
         ->where('is_deleted',0)
+        ->with('driver')
         ->selectRaw('id,code,qty,product_type,vehicle_type,order_datetime,status_id')->where('status_id',1)->get();
         foreach($orders as $order){
             $order->status_code = 'Pending';
+            $order->driver_name = $order->driver?->user_name;
         }
         return ApiResponse::Pagination($orders,$req);
     }
