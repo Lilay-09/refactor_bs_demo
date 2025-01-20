@@ -137,7 +137,8 @@ class UserManagementController extends Controller
 
     public function updateUser(Request $req){
         $authUser = UserService::getAuthUser();
-        $updateUser = UserService::createOrUpdateUser($req,'admin',$authUser,$req->id);
+        $id = $req->id;
+        $updateUser = UserService::createOrUpdateUser($req,'admin',$authUser,$id);
         return ApiResponse::flex($updateUser);
     }
 

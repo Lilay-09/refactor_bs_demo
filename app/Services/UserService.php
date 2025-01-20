@@ -98,7 +98,7 @@ class UserService
         ];
 
         if($userClass == 'admin'){
-            $baseFields['password'] = 'required|string|max:20';
+            $baseFields['password'] = 'nullable|string|max:20';
             $baseFields['confirm_password'] = 'nullable';
             $baseFields['login_name'] = 'nullable';
             $baseFields['role_id'] = 'required|exists:roles,id';
@@ -174,6 +174,7 @@ class UserService
         DB::beginTransaction();
         try{
             if($id){
+                unset($inputs['password']);
                 $updateUser = User::where('account_type',$user_class)->where('is_deleted',0)->find($id);
                 if(!$updateUser) return DataResponse::NotFound(__('messages.not_found',['info' => 'User']));
                 if($updateUser->phone) unset($inputs['phone']);
@@ -197,6 +198,9 @@ class UserService
                 if(!$update) return DataResponse::Error(__('messages.error',['info' => 'Fail to update']));
                 $userId = $id;
             }else{
+                if(!isset($inputs['password']) && $user_class == 'admin') return DataResponse::ValidateFail(__('messages.info',[
+                    'info' => 'Password must be provided',
+                ]));
                 $inputs['create_uid'] = $user->id;
                 $existsEmail = User::where('account_type',$user_class)->where('is_deleted',0)->whereNotNull('email')->where('email',$email)->first();
                 $existsPhone = User::where('account_type',$user_class)->where('is_deleted',0)->where('phone',$phone)->first();

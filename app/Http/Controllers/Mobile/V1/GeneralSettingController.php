@@ -157,11 +157,11 @@ class GeneralSettingController extends Controller
             $updateArr['driver_id'] = $user->id;
             $updateArr['assign_driver_datetime'] = now();
             $notes = $package->tracking_notes."|[$user->id]Driver ($user->user_name) scan on delivery (".Helper::getDateTime()."";
-            $notifRequpdateArr['tracking_notes'] = $notes;
+            // $notifRequpdateArr['tracking_notes'] = $notes;
             $pckTl = new PackageTrailController();
             // DB::beginTransaction();
             // try{
-                $trip = $pckTl->createOrUpdateTrip($user->id,$package->id,$package->drivervehicle_type,$user,$notes,6);
+                $trip = $pckTl->createOrUpdateTrip($user->id,$package->id,$package->drivervehicle_type,$user,$notes,6,'assign');
                 if($trip->error) return ApiResponse::flex($trip);
                 // DB::commit();
             // }catch(Exception $e){
