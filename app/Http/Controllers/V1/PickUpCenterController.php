@@ -243,7 +243,7 @@ class PickUpCenterController extends Controller
         $user = UserService::getAuthUser();
         $driverId = $req->driver_id ?? null;
         $orderId = $req->order_id;
-        $order = Order::where('is_deleted',0)->whereIn('status_id',[1,3])->find($orderId);
+        $order = Order::where('is_deleted',0)->with('merchant')->whereIn('status_id',[1,3])->find($orderId);
         if(!$order) return ApiResponse::NotFound('Order not found');
         if($driverId){
             $driver = GeneralSettingService::getDriverById($driverId);
@@ -280,7 +280,7 @@ class PickUpCenterController extends Controller
                 'type' => 'private',
                 'target_uid' => $driverId,
                 'title' => 'Assigned Order',
-                'body' => 'You have been assigned to deliver the order('.$order->code.').'
+                'body' => 'You have been assigned to pickup the order('.$order->code.'). Merchant:'.$order->merchant->user_name
             ]);
             $notif->sendNotificationByTopic($notifReq,$user);
         if(!$driverId) return ApiResponse::JsonResult(null,__('Order '.$order->code.' is available now'));

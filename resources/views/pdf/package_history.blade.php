@@ -1,11 +1,13 @@
-
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>{{ $title ?? 'History' }}</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>{{ $title ?? 'History Packages' }}</title>
     <style>
         body {
-            font-family: Arial, sans-serif;
+            font-family: 'Noto Sans Khmer', sans-serif !important;
         }
         .header {
             text-align: center;
@@ -29,13 +31,33 @@
         th {
             background-color: #f8f9fa;
         }
+        .no-data {
+            text-align: center;
+            font-style: italic;
+            color: #6c757d;
+        }
+        .footer {
+            text-align: right;
+            margin-top: auto;
+            font-weight: bold;
+        }
+        @media (max-width: 768px) {
+            table {
+                font-size: 12px;
+            }
+            .header {
+                font-size: 18px;
+            }
+        }
     </style>
+
 </head>
 <body>
-    <h3 class="header">{{ $title ?? 'History Packages'}}</h3>
-    <p>Date: {{ $date ?? 'date' }}</p>
-    <p>Driver: {{ $driver['user_name'] }}({{ $driver['phone'] }})</p>
+    <h3 class="header">{{ $title ?? 'History Packages' }}</h3>
+    <p>Date: {{ $date ?? now()->format('Y-m-d') }}</p>
+    <p>Driver: {{ $driver['user_name'] ?? 'N/A' }} ({{ $driver['phone'] ?? 'N/A' }})</p>
     <div class="content">
+
         @if(isset($data[0]))
             @foreach($data as $key => $tracking)
                 <h4>Tracking Number: {{ $tracking['fleet_number'] ?? 'N/A' }}</h4>
@@ -56,27 +78,28 @@
                                 <tr>
                                     <td>{{ $idx + 1 }}</td>
                                     <td>
-                                        <span>{{ $item->merchant_phone }}</span>
-                                        <small>({{ $item->merchant_name }})</small>
+                                        <span>{{ $item->merchant_phone ?? 'N/A' }}</span>
+                                        <small>({{ $item->merchant_name ?? 'N/A' }})</small>
                                     </td>
-                                    <td>{{ $item->receiver_phone }}</td>
-                                    <td>{{ $item->receiver_address }}</td>
-                                    <td>{{ $item->status_code }}</td>
-                                    <td>${{ $item->total }}</td>
+                                    <td>{{ $item->receiver_phone ?? 'N/A' }}</td>
+                                    <td>{{ $item->receiver_address ?? 'N/A' }}</td>
+                                    <td>{{ $item->status_code ?? 'N/A' }}</td>
+                                    <td>${{ number_format($item->total ?? 0, 2) }}</td>
                                 </tr>
                             @endforeach
                         @else
-                            <p>No data available</p>
+                            <tr>
+                                <td colspan="6" class="no-data">No details available</td>
+                            </tr>
                         @endif
                     </tbody>
                 </table>
-                <div style="display: flex; flex-direction: column; min-height: 100vh; justify-content: flex-end; width: 100%;">
-                    <p style="text-align: right; margin-top: auto;">Grand Total ${{ $tracking['total']['grand'] }}</p>
+                <div class="footer">
+                    Grand Total: ${{ number_format($tracking['total']['grand'] ?? 0, 2) }}
                 </div>
-
             @endforeach
         @else
-            <p>No data available</p>
+            <p class="no-data">No data available</p>
         @endif
     </div>
 </body>
