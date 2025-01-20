@@ -572,16 +572,15 @@ public static function optionsRole($type=null){
     public static function updateTripStatus($id,$user): void{
         $trip = Delivery::where('is_deleted',0)->where('company_id',$user->company_id)->find($id);
         if($trip){
-            $queryDeliveryPackage = DeliveryPackage::where('delivery_id',$id)
-            ->where(function ($q){
-                $q->where('is_deleted',0)->orWhere('delay_count',0);
-            });
+            $queryDeliveryPackage = DeliveryPackage::where('delivery_id',$id);
             $deliveredCount = 0;
             $isCompleted = 1;
             $failCount = 0;
             $stillOnDelivery = 0;
             $status_id = 16;
-            $packages = $queryDeliveryPackage->get();
+            $packages = $queryDeliveryPackage->where(function ($q){
+                $q->where('is_deleted',0)->orWhere('delay_count',0);
+            })->get();
             foreach($packages as $pck){
                 if($pck->status_id == 9){
                     $deliveredCount += 1;
