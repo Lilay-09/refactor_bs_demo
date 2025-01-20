@@ -4,7 +4,7 @@ namespace App\Http\Controllers\Mobile\Driver\V1;
 
 use ApiResponse;
 use App\Http\Controllers\Controller;
-use App\Jobs\DeleteFileJob;
+use Dompdf\Options;
 use App\Models\Delivery;
 use App\Services\GeneralSettingService;
 use App\Services\Mobile\ReusableService;
@@ -83,24 +83,19 @@ class HistoryController extends Controller
         })->values();
 
         // Example data for the PDF
+        if(!isset($groupedPackages[0])) return ApiResponse::NotFound('No data available!');
         $data = [
             'title' => 'History Packages',
             'driver' => $driverInfo,
             'date' => date('d-M-Y',strtotime($startDate)) .' to '. date('d-M-Y',strtotime($endDate)),
             'data' => $groupedPackages
         ];
-        // return $data;
 
-        // return $data;
-        // return ApiResponse::JsonRaw($data);
-
-        // Load the Blade view and pass data to it
-        $pdf = Pdf::loadView('pdf.package_history', $data);
+        $pdf = Pdf::loadView('pdf.package_history', $data);//->setOptions([$options]);
 
         // Save the PDF to a storage disk (public or a custom disk)
         $fileName = 'history-packages-' . time() . '.pdf';
         $filePath = 'pdfs/' . $fileName;
-
 
         Storage::disk('public')->put($filePath, $pdf->output());
         // Generate the URL to the PDF
