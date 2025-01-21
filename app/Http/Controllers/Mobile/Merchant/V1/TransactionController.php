@@ -23,7 +23,7 @@ class TransactionController extends Controller
         // $balanceDue = Package::where('merchant_id',$user->id)->where('is_deleted',1)->whereIn('status_id',[9,19])->sum('merchant_total');
         $count = 0;
         $total = 0;
-        $paidTrx = [];
+        $packageInfo = [];
         $payments = Payment::where('payments.is_deleted',0)->where('payments.payer_id',$user->id)->where('payments.approved',1)
         ->join('users as c','c.id','payments.approved_uid')
         ->selectRaw('payments.package_count,payments.id,payments.payable_amount,payments.breakdown_notes,c.user_name as cashier_name,payments.payment_datetime')
@@ -42,38 +42,46 @@ class TransactionController extends Controller
         ->orderBy('merchant_payment_id','desc')
         ->orderBy('merchant_disbursement_id','desc')
         ->get();
-        $samePmtId = null;
+        $samePmtId = [];
+        $sameDisId = [];
         foreach($packages as $p){
-            if(!$p->merchant_disbursement_id && !$p->merchant_payment_id){
-                $count +=1;
-                $price = $p->price;
-                $taxiFee = $p->taxi_fee;
-                if($p->status_id == 19){
-                    $price = 0;
-                    $taxiFee = 0;
-                }
-                $total += TransactionService::getPackageTotal('driver',$p->cod,$price,$taxiFee,$p->extra_charge,$p->additional_fee,$p->delivery_fee,$p->payer);
-            }else{
-                if($p->merchant_payment_id){
-                    if($samePmtId != $p->merchant_payment_id){
-                        $pmt = $this->getTrxDetails($payments,$p->merchant_payment_id);
-                        if($pmt) {
-                            $pmt->remarks = 'Disbursement';
-                            $paidTrx[] = $pmt;
-                        }
-                        $samePmtId = $p->merchant_payment_id;
-                    }
-                }else {
-                    $pmt = $this->getTrxDetails($disbursements,$p->merchant_disbursement_id);
-                    if($pmt) {
-                        $total -= (float)$pmt->payable_amount;
-                        $pmt->remarks = 'Receive';
-                        $paidTrx[] = $pmt;
-                    }
-                }
+            $price = $p->price;
+            $taxiFee = $p->taxi_fee;
+            if($p->status_id == 19){
+                $price = 0;
+                $taxiFee = 0;
             }
+            if(!isset($samePmtId[$p->merchant_payment_id])){
+                $pmt = $this->getTrxDetails($payments,$p->merchant_payment_id);
+                if($pmt) {
+                    $pmt->payment_status = 'Paid';
+                    $pmt->remarks = 'Disbursement';
+                    $total -= (float)$pmt->payable_amount;
+                    $packageInfo[] = $pmt;
+                    $count -= $pmt->package_count;
+                }
+                $samePmtId[$p->merchant_payment_id] = true;
+            }
+
+            if(!isset($sameDisId[$p->merchant_disbursement_id])){
+                $dis = $this->getTrxDetails($disbursements,$p->merchant_disbursement_id);
+                if($dis) {
+                    $dis->payment_status = 'Paid';
+                    $total -= (float)$dis->payable_amount;
+                    $dis->remarks = 'Receive';
+                    $packageInfo[] = $dis;
+                    $count -= $dis->package_count;
+                }
+                $sameDisId[$p->merchant_disbursement_id] = true;
+            }
+            // else {
+            //     $total += Helper::getNumber(TransactionService::getPackageTotal('driver',$p->cod,$price,$taxiFee,$p->extra_charge,$p->additional_fee,$p->delivery_fee,$p->payer));
+            //     $count +=1;
+            // }
+            $total += Helper::getNumber(TransactionService::getPackageTotal('driver',$p->cod,$price,$taxiFee,$p->extra_charge,$p->additional_fee,$p->delivery_fee,$p->payer));
+            $count +=1;
         }
-        usort($paidTrx, function ($a, $b) {
+        usort($packageInfo, function ($a, $b) {
             return strtotime($b['payment_datetime']) <=> strtotime($a['payment_datetime']);
         });
 
@@ -81,7 +89,7 @@ class TransactionController extends Controller
             'balance_due' => (float)Helper::getNumber($total,2),
             'count' => $count,
             'total' => (float)Helper::getNumber($total,2),
-            'payment_transaction' => $paidTrx
+            'payment_transaction' => $packageInfo
         ];
 
         // $payments =

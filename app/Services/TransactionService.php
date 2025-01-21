@@ -527,6 +527,10 @@ class TransactionService
             $pmt_details = $this->preparePaymentPackageAmount($paymentDetails,$pmt->payment_id);
             $totalUSD = $pmt_details->total_usd;
             $totalKHR = $pmt_details->total_khr;
+            $cashUSD = $pmt_details->cash_usd;
+            $bankUSD = $pmt_details->bank_usd;
+            $cashKHR = $pmt_details->cash_khr;
+            $bankKHR = $pmt_details->bank_khr;
             if($isApproved){
                 $pmt->status_code = $pmt->is_settled ? 'Settled' : 'Pending';
             }
@@ -534,6 +538,10 @@ class TransactionService
             $pmt->payment_time = Helper::formatCustomDateTime($pmt->payment_datetime,'h:i:s A');
             $pmt->total_usd = Helper::displayMoney($totalUSD,'USD');
             $pmt->total_khr = Helper::displayMoney($totalKHR,'KHR');
+            $pmt->cash_usd = Helper::displayMoney($cashUSD,'USD');
+            $pmt->cash_khr = Helper::displayMoney($cashKHR,'KHR');
+            $pmt->bank_usd = Helper::displayMoney($bankUSD,'USD');
+            $pmt->bank_khr = Helper::displayMoney($bankKHR,'KHR');
             $totalKHR_to_USD = $totalKHR/$pmt->exchange_rate;
             $totalKHR_to_USD = floor($totalKHR_to_USD * 100) / 100;
             $pmt->total = $totalUSD + $totalKHR_to_USD;
@@ -811,23 +819,37 @@ class TransactionService
     public static function preparePaymentPackageAmount($paymentDetails,$paymentId,$type='receive'){
         $converter = (object)[
             'total_usd' => 0,
-            'total_khr' => 0
+            'total_khr' => 0,
+            'cash_usd' => 0,
+            'cash_khr' => 0,
+            'bank_usd' => 0,
+            'bank_khr' => 0,
         ];
-        foreach($paymentDetails as $d){
-            if($type == 'receive'){
-                if($d->payment_id == $paymentId){
-                    if($d->currency_code == 'USD'){
-                        $converter->total_usd += $d->amount;
-                    }else{
-                        $converter->total_khr += $d->amount;
-                    }
+        foreach ($paymentDetails as $d) {
+        // Determine if the record matches the given type and ID
+            $isMatchingType = ($type === 'receive' && $d->payment_id == $paymentId) ||
+                            ($type === 'disbursement' && $d->disbursement_id == $paymentId);
+
+            if ($isMatchingType) {
+                // Update totals based on currency
+                if ($d->currency_code === 'USD') {
+                    $converter->total_usd += $d->amount;
+                } else {
+                    $converter->total_khr += $d->amount;
                 }
-            }else if($type == 'disbursement'){
-                if($d->disbursement_id == $paymentId){
-                    if($d->currency_code == 'USD'){
-                        $converter->total_usd += $d->amount;
-                    }else{
-                        $converter->total_khr += $d->amount;
+
+                // Update cash and bank details
+                if ($d->method === 'cash') {
+                    if ($d->currency_code === 'USD') {
+                        $converter->cash_usd += $d->amount; // Use += to sum amounts
+                    } else {
+                        $converter->cash_khr += $d->amount; // Sum for KHR
+                    }
+                } else {
+                    if ($d->currency_code === 'USD') {
+                        $converter->bank_usd += $d->amount; // Sum for USD bank
+                    } else {
+                        $converter->bank_khr += $d->amount; // Sum for KHR bank
                     }
                 }
             }
