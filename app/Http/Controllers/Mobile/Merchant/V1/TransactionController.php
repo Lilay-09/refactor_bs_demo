@@ -65,7 +65,7 @@ class TransactionController extends Controller
                 if($pmt) {
                     $pmt->payment_status = 'Paid';
                     $pmt->remarks = 'Disbursement';
-                    $total -= (float)$pmt->payable_amount;
+                    $total += (float)$pmt->payable_amount;
                     $packageInfo[] = $pmt;
                     $count -= $pmt->package_count;
                 }

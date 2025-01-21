@@ -23,23 +23,27 @@ use Log;
 class TransactionService
 {
     public function getDeliveryPackages(Request $req,$type,$user){
-        $fkKey = $type.'_payment_id,'.$type.'_disbursement_id';
+        $selectKey = $type.'_payment_id,'.$type.'_disbursement_id';
         $driverId = $req->driver_id;
         $merchantId = $req->merchant_id;
         $pmtStatusId = $req->payment_status_id;
         $startDate = $req->startDate;
         $endDate = $req->endDate;
         $search = $req->search;
+        $pmtKey = $type.'_payment_id';
+        $disKey = $type.'_disbursement_id';
         $qP = Package::fromRaw('packages as p')->where('p.company_id',$user->company_id)
         ->join('users as d','d.id','p.driver_id')
         ->join('tracking_statuses as ts','ts.id','p.status_id')
         ->join('users as m','m.id','p.merchant_id')
+        ->orderByRaw("p.{$pmtKey} IS NULL DESC, p.{$pmtKey}")
+        ->orderByRaw("p.{$disKey} IS NULL DESC, p.{$disKey}")
         // ->whereNull($type.'_payment_id')
         // ->whereNull($type.'_payment_id')
         // ->leftJoin('payments as dpmt','dpmt.id','p.'.$fkKey) //** if driver paid or unpaid */
         // ->leftJoin('payments as mpmt','mpmt.id','p.merchant_payment_id') //** if driver paid or unpaid */
         ->whereIn('p.status_id',[9,19]) //* delivered and failed with fee
-        ->selectRaw('p.extra_charge,p.additional_fee,p.remarks,p.cod,p.price,d.phone as driver_phone,p.taxi_fee,p.payer,p.delivery_fee,p.merchant_total,m.user_name as merchant_name,m.phone as merchant_phone,d.user_name as driver_name,p.status_id,p.id as package_id,d.id as driver_id,p.qr_code,ts.name as status_code,p.delivered_datetime,p.failed_datetime,p.zone_code,p.receiver_phone,p.delivery_type,'.$fkKey);
+        ->selectRaw('p.extra_charge,p.additional_fee,p.remarks,p.cod,p.price,d.phone as driver_phone,p.taxi_fee,p.payer,p.delivery_fee,p.merchant_total,m.user_name as merchant_name,m.phone as merchant_phone,d.user_name as driver_name,p.status_id,p.id as package_id,d.id as driver_id,p.qr_code,ts.name as status_code,p.delivered_datetime,p.failed_datetime,p.zone_code,p.receiver_phone,p.delivery_type,'.$selectKey);
         if($type == 'driver'){
             $qP->where(function ($q) use($type){
                 $q->whereNull($type.'_payment_id')->whereNull($type.'_disbursement_id');
@@ -962,6 +966,8 @@ class TransactionService
         $userId = $driverId ?? $merchantId;
         $startDate = $req->startDate ? Helper::dateYMD($req->startDate) : null;
         $endDate = $req->endDate ? Helper::dateYMD($req->endDate) : null;
+        $pmtKey = $type.'_payment_id';
+        $disKey = $type.'_disbursement_id';
         $qP = User::from('users as d')
             ->where('d.account_type',$type)
             ->where('d.is_deleted', 0)
@@ -969,6 +975,10 @@ class TransactionService
             ->join('packages as p', 'p.'.$type.'_id', '=', 'd.id')
             ->where('p.is_deleted',0)
             ->whereIn('p.status_id',[9,19])
+            ->where(function ($q) use($pmtKey,$disKey) {
+                $q->whereNull($pmtKey)
+                ->whereNull($disKey);
+            })
             ->orderByRaw('COALESCE(p.failed_datetime, p.delivered_datetime) DESC NULLS LAST')
             // ->join('payments as pmt','p.driver_payment_id','pmt.id')
             // ->where('pmt.is_settled',0)
@@ -1018,7 +1028,8 @@ class TransactionService
             $packageTotal = $group->count(); // Count items in the group (equivalent to summing 1 per item)
             $totalPrice = $group->where('cod',1)->where('status_id','!=',19)->sum('price');
             $representative = $group->first();
-            $fee = $group->where('payer','receiver')->sum('delivery_fee') + $group->sum('extra_charge') + $group->sum('additional_fee') - $group->sum('taxi_fee');
+            $taxiFee = $group->where('status_id','!=',19)->sum('taxi_fee');
+            $fee = $group->where('payer','receiver')->sum('delivery_fee') + $group->where('payer','receiver')->sum('extra_charge') + $group->sum('additional_fee') - $taxiFee;
             $amount = Helper::getNumber($totalPrice + $fee,2);
             $totalPackages += $packageTotal;
             $totalAmount += $amount;
@@ -1583,35 +1594,6 @@ class TransactionService
         $targeUId = $targetUser.'_id';
         $pUid = $targetUser.'_payment_id';
         $dUid = $targetUser.'_disbursement_id';
-        // $packageInfo = [];
-        $qP = Payment::where('payments.is_deleted',0)->where('payments.payer_id',$user->id)
-        ->join('users as c','c.id','payments.approved_uid')
-        ->selectRaw('payments.package_count,payments.id,payments.payable_amount,payments.breakdown_notes,c.user_name as cashier_name,payments.payment_datetime')
-        ->orderByDesc('payments.payment_datetime');
-        $qD = Disbursement::where('type','payment')->where('disbursements.is_deleted',0)->where('disbursements.payee_id',$user->id)
-        ->join('users as c','c.id','disbursements.receiptionist_uid')
-        ->selectRaw('disbursements.package_count,disbursements.id,disbursements.payable_amount,disbursements.breakdown_notes,c.user_name as cashier_name,disbursements.payment_datetime')
-        ->orderByDesc('disbursements.payment_datetime');
-        // if($startDate && $endDate){
-        //     $startDate = Helper::dateYMD($startDate);
-        //     $endDate = Helper::dateYMD($endDate);
-        //     $qP->where(function ($q) use ($startDate, $endDate){
-        //         $q->whereRaw('payments.payment_datetime::DATE >= ? AND payments.payment_datetime::DATE <= ?',[$startDate,$endDate]);
-        //     });
-        //     $qD->where(function ($q) use ($startDate, $endDate){
-        //         $q->whereRaw('disbursements.payment_datetime::DATE >= ? AND disbursements.payment_datetime::DATE <= ?',[$startDate,$endDate]);
-        //     });
-        // }
-        if($targetUser == 'driver') {
-            $qP->where('payments.approved',1);
-            $qD->where('disbursements.approved',1);
-        }
-        if($targetUser == 'merchant') {
-            $qP->where('payments.is_settled',1);
-            $qD->where('disbursements.is_settled',1);
-        }
-        $disbursements = $qD->get();
-        $payments = $qP->get();
 
         $packages = Package::where('is_deleted',0)
         ->where('created_at', '>=', Carbon::now()->subMonths(3))
@@ -1620,9 +1602,11 @@ class TransactionService
         ->where($targeUId,$user->id)
         ->orderBy($pUid,'desc')
         ->orderBy($dUid,'desc')
+        ->where(function ($q) use($pUid,$dUid) {
+            $q->whereNull($pUid)
+            ->whereNull($dUid);
+        })
         ->get();
-        $samePmtId = [];
-        $sameDisId = [];
         $opt = $operator[$targetUser] ?? null;
         foreach($packages as $p){
             $price = $p->price;
@@ -1631,33 +1615,35 @@ class TransactionService
                 $price = 0;
                 $taxiFee = 0;
             }
-            if(!isset($samePmtId[$p->{$pUid}]) && $p->{$pUid}){
-                $pmt = self::getTrxDetails($payments,$p->{$pUid});
-                if($pmt) {
-                    $pmt->payment_status = 'Paid';
-                    $pmt->remarks = 'Disbursement';
-                    $total -= $pmt->payable_amount;
-                    $count -= $pmt->package_count;
-                }
-                $samePmtId[$p->{$pUid}] = true;
-            }
+            $packageTotal = TransactionService::getPackageTotal($targetUser,$p->cod,$price,$taxiFee,$p->extra_charge,$p->additional_fee,$p->delivery_fee,$p->payer);
+            $total += $opt * $packageTotal;
+            // if(!isset($samePmtId[$p->{$pUid}]) && $p->{$pUid}){
+            //     $pmt = self::getTrxDetails($payments,$p->{$pUid});
+            //     if($pmt) {
+            //         $pmt->payment_status = 'Paid';
+            //         $pmt->remarks = 'Disbursement';
+            //         $total -= $opt * $pmt->payable_amount;
+            //         $count -= $pmt->package_count;
+            //     }
+            //     $samePmtId[$p->{$pUid}] = true;
+            // }
 
-            if(!isset($sameDisId[$p->{$dUid}]) && $p->{$dUid}){
-                $dis = self::getTrxDetails($disbursements,$p->{$dUid});
-                if($dis) {
-                    $dis->payment_status = 'Paid';
-                    $total -= $dis->payable_amount;
-                    $dis->remarks = 'Receive';
-                    $count -= $dis->package_count;
-                }
-                $sameDisId[$p->{$dUid}] = true;
-            }
+            // if(!isset($sameDisId[$p->{$dUid}]) && $p->{$dUid}){
+            //     $dis = self::getTrxDetails($disbursements,$p->{$dUid});
+            //     if($dis) {
+            //         $dis->payment_status = 'Paid';
+            //         $total -= $dis->payable_amount;
+            //         $dis->remarks = 'Receive';
+            //         $count -= $dis->package_count;
+            //     }
+            //     $sameDisId[$p->{$dUid}] = true;
+            // }
 
-            if($opt){
-                $packageTotal = TransactionService::getPackageTotal($targetUser,$p->cod,$price,$taxiFee,$p->extra_charge,$p->additional_fee,$p->delivery_fee,$p->payer);
-                $total += $opt * $packageTotal;
-            }
-            $count +=1;
+            // if($opt){
+            //     $packageTotal = TransactionService::getPackageTotal($targetUser,$p->cod,$price,$taxiFee,$p->extra_charge,$p->additional_fee,$p->delivery_fee,$p->payer);
+            //     $total += $opt * $packageTotal;
+            // }
+            // $count +=1;
         }
         return [
             'count' => $count,

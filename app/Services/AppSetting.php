@@ -347,17 +347,17 @@ class AppSetting
     private static function merchantPermissionCode(){
         return [
             'POST' => [
-                "api/admin/v1/{lang}/driver" => 246,
+                "api/admin/v1/{lang}/merchant" => 246,
                 "api/admin/v1/{lang}/{id}/setLock" => 249,
                 "api/admin/v1/{lang}/{id}/setPassword" => 250,
                 "api/admin/v1/{lang}/{id}/account" => 248,
             ],
             'PUT' => [
-                "api/admin/v1/{lang}/driver/{id}" => 247,
-                "api/admin/v1/{lang}/driver/{id}/priceList" => 303,
+                "api/admin/v1/{lang}/merchant/{id}" => 247,
+                "api/admin/v1/{lang}/merchant/{id}/priceList" => 303,
             ],
             'DELETE' => [
-                "api/admin/v1/{lang}/driver/{id}" => 251,
+                "api/admin/v1/{lang}/merchant/{id}" => 251,
             ]
         ];
     }
@@ -394,7 +394,7 @@ class AppSetting
                 $allowed = self::driverPermissionCode();
                 break;
             case 'merchant': //* Management
-                $allowed = self::driverPermissionCode();
+                $allowed = self::merchantPermissionCode();
                 break;
             case 'comany': //* Management
                 $allowed = self::simplePermissionCode('company',null,252);
