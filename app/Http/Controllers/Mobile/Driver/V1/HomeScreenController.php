@@ -17,6 +17,7 @@ use App\Models\PackageAttachment;
 use App\Services\CloudMessagingService;
 use App\Services\GeneralSettingService;
 use App\Services\PickupCenterService;
+use App\Services\TransactionService;
 use App\Services\UserService;
 use Helper;
 use Illuminate\Http\Request;
@@ -98,27 +99,29 @@ class HomeScreenController extends Controller
         $pickup_rate = $commissionInfo->normal_pickup_commission;
         $delivery_rate = $commissionInfo->normal_delivery_commission;
         $totalEarning = (float)Helper::getNumber($pickup_rate * $totalPickUpPackage + $delivery_rate * $totalDeliveredPackage,2);
-        $balanceDues = Package::from('packages as p')->where('p.driver_id', $user->id)
-        ->where('p.is_deleted', 0)
-        ->whereIn('p.status_id', [9, 19])
-        ->whereNull('p.driver_disbursement_id')
-        ->leftJoin('payments', 'p.driver_payment_id', '=', 'payments.id')
-        ->selectRaw('p.qr_code,p.id,p.driver_total,p.cod,p.price,p.extra_charge,p.delivery_fee,p.additional_fee,p.payer,p.status_id,p.taxi_fee')
-        ->where(function ($query) {
-            $query->whereNull('p.driver_payment_id') // Include rows without matching payments
-                ->orWhere('payments.approved', 0); // Include rows where payments.approved = 0
-        })
-        ->get();
-        $balanceDue = 0;
-        foreach($balanceDues as $b){
-            $totalPrice = ($b->cod && $b->status_id !=19) ? $b->price : 0;
-            $fee = PickupCenterService::getFees($b->payer,$b->delivery_fee,$b->additional_fee,$b->extra_charge);
-            $balanceDue += $totalPrice + $fee - $b->taxi_fee;
-        }
+        // $balanceDues = Package::from('packages as p')->where('p.driver_id', $user->id)
+        // ->where('p.is_deleted', 0)
+        // ->whereIn('p.status_id', [9, 19])
+        // ->whereNull('p.driver_disbursement_id')
+        // ->leftJoin('payments', 'p.driver_payment_id', '=', 'payments.id')
+        // ->selectRaw('p.qr_code,p.id,p.driver_total,p.cod,p.price,p.extra_charge,p.delivery_fee,p.additional_fee,p.payer,p.status_id,p.taxi_fee')
+        // ->where(function ($query) {
+        //     $query->whereNull('p.driver_payment_id') // Include rows without matching payments
+        //         ->orWhere('payments.approved', 0); // Include rows where payments.approved = 0
+        // })
+        // ->get();
+        // $balanceDue = 0;
+        // foreach($balanceDues as $b){
+        //     $totalPrice = ($b->cod && $b->status_id !=19) ? $b->price : 0;
+        //     $fee = PickupCenterService::getFees($b->payer,$b->delivery_fee,$b->additional_fee,$b->extra_charge);
+        //     $balanceDue += $totalPrice + $fee - $b->taxi_fee;
+        // }
+        $balanceDues = TransactionService::getMobileUserBalance($req,$user,'driver');
         // $totalSettledDisburment = Disbursement::where('payee_id',$user->id)->where('type','payment')->where('is_deleted',0)->where('is_settled',1)->sum('payable_amount');
         $obj = [
             'earning' => (float)Helper::getNumber($totalEarning),
-            'settlement' => (float)Helper::getNumber($balanceDue)
+            'settlement' => (float)Helper::getNumber($balanceDues['total']),
+            // 'settlement' => (float)Helper::getNumber($balanceDue)
         ];
         return ApiResponse::JsonResult($obj);
     }

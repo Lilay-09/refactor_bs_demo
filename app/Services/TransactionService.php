@@ -12,6 +12,7 @@ use App\Models\Package;
 use App\Models\Payment;
 use App\Models\PaymentDetail;
 use App\Models\User;
+use Carbon\Carbon;
 use DataResponse;
 use DB;
 use Exception;
@@ -106,7 +107,7 @@ class TransactionService
             if($payer == 'sender') {
                 $total += $baseFee + $extraCharge;
             }
-            if($taxiFee) $total += $taxiFee;
+            $total += $taxiFee;
         }
 
         return Helper::getNumber($total,2);
@@ -1570,6 +1571,108 @@ class TransactionService
             'delivered_count' => $deliveredCount,
             'failed_with_fee_count' => $deliveredCount,
         ];
+    }
+
+    public static function getMobileUserBalance($req,$user,$targetUser){
+        $count = 0;
+        $total = 0;
+        $operator = [
+            'merchant' => -1,
+            'driver' => 1,
+        ];
+        $targeUId = $targetUser.'_id';
+        $pUid = $targetUser.'_payment_id';
+        $dUid = $targetUser.'_disbursement_id';
+        // $packageInfo = [];
+        $qP = Payment::where('payments.is_deleted',0)->where('payments.payer_id',$user->id)->where('payments.approved',1)
+        ->join('users as c','c.id','payments.approved_uid')
+        ->selectRaw('payments.package_count,payments.id,payments.payable_amount,payments.breakdown_notes,c.user_name as cashier_name,payments.payment_datetime')
+        ->orderByDesc('payment_datetime');
+        $qD = Disbursement::where('type','payment')->where('disbursements.is_deleted',0)->where('disbursements.payee_id',$user->id)->where('disbursements.approved',1)
+        ->join('users as c','c.id','disbursements.receiptionist_uid')
+        ->selectRaw('disbursements.package_count,disbursements.id,disbursements.payable_amount,disbursements.breakdown_notes,c.user_name as cashier_name,disbursements.payment_datetime')
+        ->orderByDesc('payment_datetime');
+        // if($startDate && $endDate){
+        //     $startDate = Helper::dateYMD($startDate);
+        //     $endDate = Helper::dateYMD($endDate);
+        //     $qP->where(function ($q) use ($startDate, $endDate){
+        //         $q->whereRaw('payments.payment_datetime::DATE >= ? AND payments.payment_datetime::DATE <= ?',[$startDate,$endDate]);
+        //     });
+        //     $qD->where(function ($q) use ($startDate, $endDate){
+        //         $q->whereRaw('disbursements.payment_datetime::DATE >= ? AND disbursements.payment_datetime::DATE <= ?',[$startDate,$endDate]);
+        //     });
+        // }
+        $disbursements = $qD->get();
+        $payments = $qP->get();
+
+        $packages = Package::where('is_deleted',0)
+        ->where('created_at', '>=', Carbon::now()->subMonths(4))
+        ->whereIn('status_id',[9,19])
+        // ->selectRaw('*')
+        ->where($targeUId,$user->id)
+        ->orderBy($pUid,'desc')
+        ->orderBy($dUid,'desc')
+        ->get();
+        $samePmtId = [];
+        $sameDisId = [];
+        $opt = $operator[$targetUser] ?? null;
+        foreach($packages as $p){
+            $price = $p->price;
+            $taxiFee = $p->taxi_fee;
+            if($p->status_id == 19){
+                $price = 0;
+                $taxiFee = 0;
+            }
+            if(!isset($samePmtId[$p->{$pUid}]) && $p->{$pUid}){
+                $pmt = self::getTrxDetails($payments,$p->{$pUid});
+                if($pmt) {
+                    $pmt->payment_status = 'Paid';
+                    $pmt->remarks = 'Disbursement';
+                    $total -= $pmt->payable_amount;
+                    $count -= $pmt->package_count;
+                }
+                $samePmtId[$p->{$pUid}] = true;
+            }
+
+            if(!isset($sameDisId[$p->{$dUid}]) && $p->{$dUid}){
+                $dis = self::getTrxDetails($disbursements,$p->{$dUid});
+                if($dis) {
+                    $dis->payment_status = 'Paid';
+                    $total -= $dis->payable_amount;
+                    $dis->remarks = 'Receive';
+                    $count -= $dis->package_count;
+                }
+                $sameDisId[$p->{$dUid}] = true;
+            }
+
+            if($opt){
+                $packageTotal = TransactionService::getPackageTotal($targetUser,$p->cod,$price,$taxiFee,$p->extra_charge,$p->additional_fee,$p->delivery_fee,$p->payer);
+                $total += $opt * $packageTotal;
+            }
+            $count +=1;
+        }
+        return [
+            'count' => $count,
+            'total' => Helper::getNumber($total),
+        ];
+    }
+
+    static function getTrxDetails($rows,$pmtId){
+        foreach($rows as $row){
+            if($row->id == $pmtId){
+                $row->breakdown_notes = str_replace(
+                    ['|', 'USD '],
+                    [' & ', '$'],
+                    $row->breakdown_notes
+                );
+
+                $row->breakdown_notes = preg_replace('/KHR (\d+)/', '$1៛', $row->breakdown_notes);
+                $row->payment_date = Helper::dateDMY($row->payment_datetime);
+                $row->payment_time = Helper::formatCustomDateTime($row->payment_datetime,'h:i A');
+                return $row;
+            }
+        }
+        return null;
     }
 
 }

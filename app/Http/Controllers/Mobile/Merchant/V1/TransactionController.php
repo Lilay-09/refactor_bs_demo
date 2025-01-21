@@ -19,10 +19,6 @@ class TransactionController extends Controller
         $user = UserService::getAuthUser('merchant');
         $startDate = $req->startDate;
         $endDate = $req->endDate;
-        // $balanceInfo = Package::where('driver_id',$user->id)
-        // ->with(['driver_payment'])
-        // ->get();
-        // $balanceDue = Package::where('merchant_id',$user->id)->where('is_deleted',1)->whereIn('status_id',[9,19])->sum('merchant_total');
         $count = 0;
         $total = 0;
         $packageInfo = [];
@@ -48,9 +44,9 @@ class TransactionController extends Controller
         $payments = $qP->get();
 
         $packages = Package::where('is_deleted',0)
-        ->where('created_at', '>=', Carbon::now()->subMonths(2))
+        ->where('created_at', '>=', Carbon::now()->subMonths(4))
         ->whereIn('status_id',[9,19])
-        ->selectRaw('*')
+        // ->selectRaw('*')
         ->where('merchant_id',$user->id)
         ->orderBy('merchant_payment_id','desc')
         ->orderBy('merchant_disbursement_id','desc')
@@ -64,8 +60,8 @@ class TransactionController extends Controller
                 $price = 0;
                 $taxiFee = 0;
             }
-            if(!isset($samePmtId[$p->merchant_payment_id])){
-                $pmt = $this->getTrxDetails($payments,$p->merchant_payment_id);
+            if(!isset($samePmtId[$p->merchant_payment_id]) && $p->merchant_payment_id){
+                $pmt = TransactionService::getTrxDetails($payments,$p->merchant_payment_id);
                 if($pmt) {
                     $pmt->payment_status = 'Paid';
                     $pmt->remarks = 'Disbursement';
@@ -76,8 +72,8 @@ class TransactionController extends Controller
                 $samePmtId[$p->merchant_payment_id] = true;
             }
 
-            if(!isset($sameDisId[$p->merchant_disbursement_id])){
-                $dis = $this->getTrxDetails($disbursements,$p->merchant_disbursement_id);
+            if(!isset($sameDisId[$p->merchant_disbursement_id]) && $p->merchant_disbursement_id){
+                $dis = TransactionService::getTrxDetails($disbursements,$p->merchant_disbursement_id);
                 if($dis) {
                     $dis->payment_status = 'Paid';
                     $total -= (float)$dis->payable_amount;
@@ -91,8 +87,11 @@ class TransactionController extends Controller
             //     $total += Helper::getNumber(TransactionService::getPackageTotal('driver',$p->cod,$price,$taxiFee,$p->extra_charge,$p->additional_fee,$p->delivery_fee,$p->payer));
             //     $count +=1;
             // }
-            $total += Helper::getNumber(TransactionService::getPackageTotal('driver',$p->cod,$price,$taxiFee,$p->extra_charge,$p->additional_fee,$p->delivery_fee,$p->payer));
+
+
+            $total -= Helper::getNumber(TransactionService::getPackageTotal('merchant',$p->cod,$price,$taxiFee,$p->extra_charge,$p->additional_fee,$p->delivery_fee,$p->payer));
             $count +=1;
+
         }
         usort($packageInfo, function ($a, $b) {
             return strtotime($b['payment_datetime']) <=> strtotime($a['payment_datetime']);
@@ -110,17 +109,6 @@ class TransactionController extends Controller
         return ApiResponse::JsonResult($obj);
     }
 
-    private function getTrxDetails($rows,$pmtId){
-        foreach($rows as $row){
-            if($row->id == $pmtId){
-                $row->breakdown_notes = str_replace('|', '&', $row->breakdown_notes);
-                $row->payment_date = Helper::dateDMY($row->payment_datetime);
-                $row->payment_time = Helper::formatCustomDateTime($row->payment_datetime,'h:i A');
-                return $row;
-            }
-        }
-        return null;
-    }
 
     public function getPaymentMethods($details,$pmtId){
         $method = null;

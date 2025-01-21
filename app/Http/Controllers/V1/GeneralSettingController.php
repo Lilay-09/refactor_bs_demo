@@ -227,7 +227,7 @@ class GeneralSettingController extends Controller
         $obj = (object)[
             'delivery_type' => $this->gs::optionsDeliveryType(),
             'merchants' => $this->gs::optionsMerchant($user),
-            'statuses' => $this->gs::optionsTrackingStatus($user,[],[5,6,11,10,19]),
+            'statuses' => $this->gs::optionsTrackingStatus($user,[],[5,6,10,19]),
             'warehouses' => $this->gs::optionsWarehouse($user),
             'drivers' => $this->gs::optionsDriver($user),
             'zones' => $this->gs::optionsZone($user)

@@ -53,7 +53,7 @@ class TransactionController extends Controller
                 $taxiFee = 0;
             }
             if(!isset($samePmtId[$p->driver_payment_id])){
-                $pmt = $this->getTrxDetails($payments,$p->driver_payment_id);
+                $pmt = TransactionService::getTrxDetails($payments,$p->driver_payment_id);
                 if($pmt) {
                     $pmt->remarks = 'Disbursement';
                     $total -= (float)$pmt->payable_amount;
@@ -65,7 +65,7 @@ class TransactionController extends Controller
 
 
             if(!isset($sameDisId[$p->driver_disbursement_id])){
-                $dis = $this->getTrxDetails($disbursements,$p->driver_disbursement_id);
+                $dis = TransactionService::getTrxDetails($disbursements,$p->driver_disbursement_id);
                 if($dis) {
                     $total -= (float)$dis->payable_amount;
                     $dis->remarks = 'Receive';
@@ -97,43 +97,30 @@ class TransactionController extends Controller
         return ApiResponse::JsonResult($obj);
     }
 
-
-    private function getTrxDetails($rows,$pmtId){
-        foreach($rows as $row){
-            if($row->id == $pmtId){
-                $row->breakdown_notes = str_replace('|', '&', $row->breakdown_notes);
-                $row->payment_date = Helper::dateDMY($row->payment_datetime);
-                $row->payment_time = Helper::formatCustomDateTime($row->payment_datetime,'h:i A');
-                return $row;
-            }
-        }
-        return null;
-    }
-
-    public function getPaymentMethods($details,$pmtId){
-        $method = null;
-        foreach ($details as $d) {
-            // Ensure $d is an object before accessing its properties
-            if (is_object($d) && isset($d->payment_id) && $d->payment_id == $pmtId) {
-                if (!$method) {
-                    $pMtd = $d->method;
-                    if($d->currency_code == 'KHR'){
-                        $pMtd = $pMtd.':KHR';
-                    }
-                    $method = $pMtd;
-                } else {
-                    $pMtd = $d->method;
-                    if($d->currency_code == 'KHR'){
-                        $pMtd = $pMtd.':KHR';
-                    }
-                    $method .= '|' . $pMtd;
-                }
-            }
-        }
-        return (object)[
-            'method' => $method,
-        ];
-    }
+    // public function getPaymentMethods($details,$pmtId){
+    //     $method = null;
+    //     foreach ($details as $d) {
+    //         // Ensure $d is an object before accessing its properties
+    //         if (is_object($d) && isset($d->payment_id) && $d->payment_id == $pmtId) {
+    //             if (!$method) {
+    //                 $pMtd = $d->method;
+    //                 if($d->currency_code == 'KHR'){
+    //                     $pMtd = $pMtd.':KHR';
+    //                 }
+    //                 $method = $pMtd;
+    //             } else {
+    //                 $pMtd = $d->method;
+    //                 if($d->currency_code == 'KHR'){
+    //                     $pMtd = $pMtd.':KHR';
+    //                 }
+    //                 $method .= '|' . $pMtd;
+    //             }
+    //         }
+    //     }
+    //     return (object)[
+    //         'method' => $method,
+    //     ];
+    // }
 
 
 
