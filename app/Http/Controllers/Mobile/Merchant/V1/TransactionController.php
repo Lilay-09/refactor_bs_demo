@@ -7,16 +7,18 @@ use App\Http\Controllers\Controller;
 use App\Models\Disbursement;
 use App\Models\Package;
 use App\Models\Payment;
-use App\Models\PaymentDetail;
 use App\Services\TransactionService;
 use App\Services\UserService;
 use Carbon\Carbon;
 use Helper;
+use Illuminate\Http\Request;
 class TransactionController extends Controller
 {
     //
-    public function getTransaction(){
+    public function getTransaction(Request $req){
         $user = UserService::getAuthUser('merchant');
+        $startDate = $req->startDate;
+        $endDate = $req->endDate;
         // $balanceInfo = Package::where('driver_id',$user->id)
         // ->with(['driver_payment'])
         // ->get();
@@ -24,16 +26,27 @@ class TransactionController extends Controller
         $count = 0;
         $total = 0;
         $packageInfo = [];
-        $payments = Payment::where('payments.is_deleted',0)->where('payments.payer_id',$user->id)->where('payments.approved',1)
+        $qP = Payment::where('payments.is_deleted',0)->where('payments.payer_id',$user->id)->where('payments.approved',1)
         ->join('users as c','c.id','payments.approved_uid')
         ->selectRaw('payments.package_count,payments.id,payments.payable_amount,payments.breakdown_notes,c.user_name as cashier_name,payments.payment_datetime')
-        ->orderByDesc('payment_datetime')
-        ->get();
-        $disbursements = Disbursement::where('type','payment')->where('disbursements.is_deleted',0)->where('disbursements.payee_id',$user->id)->where('disbursements.approved',1)
+        ->orderByDesc('payment_datetime');
+        $qD = Disbursement::where('type','payment')->where('disbursements.is_deleted',0)->where('disbursements.payee_id',$user->id)->where('disbursements.approved',1)
         ->join('users as c','c.id','disbursements.receiptionist_uid')
         ->selectRaw('disbursements.package_count,disbursements.id,disbursements.payable_amount,disbursements.breakdown_notes,c.user_name as cashier_name,disbursements.payment_datetime')
-        ->orderByDesc('payment_datetime')
-        ->get();
+        ->orderByDesc('payment_datetime');
+        if($startDate && $endDate){
+            $startDate = Helper::dateYMD($startDate);
+            $endDate = Helper::dateYMD($endDate);
+            $qP->where(function ($q) use ($startDate, $endDate){
+                $q->whereRaw('payments.payment_datetime::DATE >= ? AND payments.payment_datetime::DATE <= ?',[$startDate,$endDate]);
+            });
+            $qD->where(function ($q) use ($startDate, $endDate){
+                $q->whereRaw('disbursements.payment_datetime::DATE >= ? AND disbursements.payment_datetime::DATE <= ?',[$startDate,$endDate]);
+            });
+        }
+        $disbursements = $qD->get();
+        $payments = $qP->get();
+
         $packages = Package::where('is_deleted',0)
         ->where('created_at', '>=', Carbon::now()->subMonths(2))
         ->whereIn('status_id',[9,19])
