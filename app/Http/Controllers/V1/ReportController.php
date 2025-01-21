@@ -188,25 +188,36 @@ class ReportController extends Controller
         $user = UserService::getAuthUser();
         $startDate = $req->startDate;
         $endDate = $req->endDate;
-        $qP = Payment::fromRaw('payments as p')->join('users as d','d.id','p.payer_id')
+        $qP = Payment::fromRaw('payments as p')
+        ->join('users as d','d.id','p.payer_id')
         ->where('p.is_deleted',0)
         ->where('p.approved',1)
-        ->join('users as ap','ap.id','p.approved_uid')
-        ->leftJoin('users as st','st.id','p.settled_uid')
-        ->selectRaw('p.payable_amount,p.id as payment_id,d.user_name as payer_name,p.approved_uid,p.exchange_rate,p.taxi_fee,p.approved,p.payment_datetime,ap.user_name as approved_user,p.is_settled,st.user_name as settlement_user,p.payer_id');
+        // ->join('users as ap','ap.id','p.approved_uid')
+        ->join('users as st','st.id','p.settled_uid')
+        ->selectRaw('p.payable_amount,p.id as payment_id,d.user_name as payer_name,p.exchange_rate,p.taxi_fee,p.approved,p.payment_datetime,p.is_settled,st.user_name as settlement_user,p.payer_id')
+        ->orderByDesc('payment_datetime');
+
+        if($startDate && $endDate){
+            $startDate = Helper::dateYMD($startDate);
+            $endDate = Helper::dateYMD($endDate);
+            $qP->where(function ($q) use ($startDate, $endDate) {
+                $q->whereRaw('payment_datetime::DATE >= ? AND payment_datetime::DATE <= ?',[$startDate,$endDate]);
+            });
+        }
+
         $payments = $qP->get();
         $paymentDetails = PaymentDetail::get();
         foreach($payments as $pmt){
             $pmt_details = TransactionService::preparePaymentPackageAmount($paymentDetails,$pmt->payment_id);
             $totalUSD = $pmt_details->total_usd;
             $totalKHR = $pmt_details->total_khr;
+            $totalKHR_to_USD = $totalKHR/$pmt->exchange_rate;
+            $totalKHR_to_USD = floor($totalKHR_to_USD * 100) / 100;
+            $pmt->total = Helper::displayMoney($totalUSD + $totalKHR_to_USD,'USD');
             $pmt->total_usd = Helper::displayMoney($totalUSD,'USD');
             $pmt->total_khr = Helper::displayMoney($totalKHR,'KHR');
             $pmt->payment_date = Helper::formatCustomDateTime($pmt->payment_datetime,'d-M-Y');
             $pmt->payment_time = Helper::formatCustomDateTime($pmt->payment_datetime,'h:i:s A');
-            $totalKHR_to_USD = $totalKHR/$pmt->exchange_rate;
-            $totalKHR_to_USD = floor($totalKHR_to_USD * 100) / 100;
-            $pmt->total = $totalUSD + $totalKHR_to_USD;
             $pmt->confirmed_user = $pmt->settlement_user ?? $pmt->approved_user;
             $pmt->status_code = $pmt->is_settled ? 'Completed':'Pending';
             unset($pmt->payment_datetime);

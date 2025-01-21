@@ -61,7 +61,7 @@ class MerchantTransactionController extends Controller
             ->where('d.account_type','merchant')
             ->with('bank_accounts:user_id,bank_name,bank_number,account_name,is_primary')
             ->where('d.is_deleted', 0)
-            ->where('d.company_id', $user->company_id) // Uncomment if needed
+            ->where('d.company_id', operator: $user->company_id) // Uncomment if needed
             ->join('packages as p', 'p.merchant_id', '=', 'd.id')
             ->where('p.is_deleted',0)
             ->whereIn('p.status_id',[9,19])
@@ -69,6 +69,10 @@ class MerchantTransactionController extends Controller
             // ->join('payments as pmt','p.driver_payment_id','pmt.id')
             // ->where('pmt.is_settled',0)
             ->selectRaw('p.taxi_fee,p.extra_charge,p.additional_fee,p.payer,p.delivery_fee,p.cod,p.price,p.delivered_datetime,p.failed_datetime,d.id as driver_id,d.id,d.user_name as merchant_name,d.code,p.status_id,p.updated_at');
+        $qP->where(function ($q) {
+            $q->whereNull('p.merchant_payment_id')
+            ->whereNull('p.merchant_disbursement_id');
+        });
             // ->groupBy(['d.id','pmt.payable_amount',DB::raw('DATE(p.delivered_datetime)'),DB::raw('DATE(p.failed_datetime)')]);
         if($userId){
             $qP->where('d.id',operator: $userId);
@@ -114,7 +118,7 @@ class MerchantTransactionController extends Controller
             $totalExtraCharge = $group->where('payer','sender')->sum('extra_charge');
             $totalDeliveryFee = $group->where('payer','sender')->sum('delivery_fee') + $totalExtraCharge;
             $representative = $group->first();
-            $totalAmount = $totalCod - ($totalDeliveryFee +  + $group->sum('additional_fee'));
+            $totalAmount = $totalCod - $totalDeliveryFee;
             $grandTotal += $totalAmount;
             $totalPackageCount += $packageTotal;
             // $representative->package_count = $packageTotal; // Add the summed total_package

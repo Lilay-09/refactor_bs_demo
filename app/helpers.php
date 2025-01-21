@@ -713,6 +713,7 @@ class Helper{
     }
 
     static function displayMoney($amount, $code = 'USD') {
+        $amount = (float) self::getNumber($amount);
         $symbols = [
             'USD' => '$',
             'KHR' => '៛'

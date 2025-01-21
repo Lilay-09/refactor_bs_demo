@@ -264,9 +264,9 @@ class PickupCenterService
     }
 
 
-    public static function getFees($payer,$deliveryFee,$additional_fee,$extra_charge){
+    public static function getFees($payer,$deliveryFee,$additional_fee,$extra_charge,$pair='receiver'){
         $total = 0;
-        if($payer == 'receiver') {
+        if($payer == $pair) {
             $total += $deliveryFee;
             $total += $extra_charge;
         }

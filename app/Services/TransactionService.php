@@ -12,6 +12,7 @@ use App\Models\Package;
 use App\Models\Payment;
 use App\Models\PaymentDetail;
 use App\Models\User;
+use Carbon\Carbon;
 use DataResponse;
 use DB;
 use Exception;
@@ -22,23 +23,27 @@ use Log;
 class TransactionService
 {
     public function getDeliveryPackages(Request $req,$type,$user){
-        $fkKey = $type.'_payment_id,'.$type.'_disbursement_id';
+        $selectKey = $type.'_payment_id,'.$type.'_disbursement_id';
         $driverId = $req->driver_id;
         $merchantId = $req->merchant_id;
         $pmtStatusId = $req->payment_status_id;
         $startDate = $req->startDate;
         $endDate = $req->endDate;
         $search = $req->search;
+        $pmtKey = $type.'_payment_id';
+        $disKey = $type.'_disbursement_id';
         $qP = Package::fromRaw('packages as p')->where('p.company_id',$user->company_id)
         ->join('users as d','d.id','p.driver_id')
         ->join('tracking_statuses as ts','ts.id','p.status_id')
         ->join('users as m','m.id','p.merchant_id')
+        ->orderByRaw("p.{$pmtKey} IS NULL DESC, p.{$pmtKey}")
+        ->orderByRaw("p.{$disKey} IS NULL DESC, p.{$disKey}")
         // ->whereNull($type.'_payment_id')
         // ->whereNull($type.'_payment_id')
         // ->leftJoin('payments as dpmt','dpmt.id','p.'.$fkKey) //** if driver paid or unpaid */
         // ->leftJoin('payments as mpmt','mpmt.id','p.merchant_payment_id') //** if driver paid or unpaid */
         ->whereIn('p.status_id',[9,19]) //* delivered and failed with fee
-        ->selectRaw('p.extra_charge,p.additional_fee,p.remarks,p.cod,p.price,d.phone as driver_phone,p.taxi_fee,p.payer,p.delivery_fee,p.merchant_total,m.user_name as merchant_name,m.phone as merchant_phone,d.user_name as driver_name,p.status_id,p.id as package_id,d.id as driver_id,p.qr_code,ts.name as status_code,p.delivered_datetime,p.failed_datetime,p.zone_code,p.receiver_phone,p.delivery_type,'.$fkKey);
+        ->selectRaw('p.extra_charge,p.additional_fee,p.remarks,p.cod,p.price,d.phone as driver_phone,p.taxi_fee,p.payer,p.delivery_fee,p.merchant_total,m.user_name as merchant_name,m.phone as merchant_phone,d.user_name as driver_name,p.status_id,p.id as package_id,d.id as driver_id,p.qr_code,ts.name as status_code,p.delivered_datetime,p.failed_datetime,p.zone_code,p.receiver_phone,p.delivery_type,'.$selectKey);
         if($type == 'driver'){
             $qP->where(function ($q) use($type){
                 $q->whereNull($type.'_payment_id')->whereNull($type.'_disbursement_id');
@@ -106,7 +111,7 @@ class TransactionService
             if($payer == 'sender') {
                 $total += $baseFee + $extraCharge;
             }
-            if($taxiFee) $total += $taxiFee;
+            $total += $taxiFee;
         }
 
         return Helper::getNumber($total,2);
@@ -527,6 +532,10 @@ class TransactionService
             $pmt_details = $this->preparePaymentPackageAmount($paymentDetails,$pmt->payment_id);
             $totalUSD = $pmt_details->total_usd;
             $totalKHR = $pmt_details->total_khr;
+            $cashUSD = $pmt_details->cash_usd;
+            $bankUSD = $pmt_details->bank_usd;
+            $cashKHR = $pmt_details->cash_khr;
+            $bankKHR = $pmt_details->bank_khr;
             if($isApproved){
                 $pmt->status_code = $pmt->is_settled ? 'Settled' : 'Pending';
             }
@@ -534,6 +543,10 @@ class TransactionService
             $pmt->payment_time = Helper::formatCustomDateTime($pmt->payment_datetime,'h:i:s A');
             $pmt->total_usd = Helper::displayMoney($totalUSD,'USD');
             $pmt->total_khr = Helper::displayMoney($totalKHR,'KHR');
+            $pmt->cash_usd = Helper::displayMoney($cashUSD,'USD');
+            $pmt->cash_khr = Helper::displayMoney($cashKHR,'KHR');
+            $pmt->bank_usd = Helper::displayMoney($bankUSD,'USD');
+            $pmt->bank_khr = Helper::displayMoney($bankKHR,'KHR');
             $totalKHR_to_USD = $totalKHR/$pmt->exchange_rate;
             $totalKHR_to_USD = floor($totalKHR_to_USD * 100) / 100;
             $pmt->total = $totalUSD + $totalKHR_to_USD;
@@ -811,23 +824,37 @@ class TransactionService
     public static function preparePaymentPackageAmount($paymentDetails,$paymentId,$type='receive'){
         $converter = (object)[
             'total_usd' => 0,
-            'total_khr' => 0
+            'total_khr' => 0,
+            'cash_usd' => 0,
+            'cash_khr' => 0,
+            'bank_usd' => 0,
+            'bank_khr' => 0,
         ];
-        foreach($paymentDetails as $d){
-            if($type == 'receive'){
-                if($d->payment_id == $paymentId){
-                    if($d->currency_code == 'USD'){
-                        $converter->total_usd += $d->amount;
-                    }else{
-                        $converter->total_khr += $d->amount;
-                    }
+        foreach ($paymentDetails as $d) {
+        // Determine if the record matches the given type and ID
+            $isMatchingType = ($type === 'receive' && $d->payment_id == $paymentId) ||
+                            ($type === 'disbursement' && $d->disbursement_id == $paymentId);
+
+            if ($isMatchingType) {
+                // Update totals based on currency
+                if ($d->currency_code === 'USD') {
+                    $converter->total_usd += $d->amount;
+                } else {
+                    $converter->total_khr += $d->amount;
                 }
-            }else if($type == 'disbursement'){
-                if($d->disbursement_id == $paymentId){
-                    if($d->currency_code == 'USD'){
-                        $converter->total_usd += $d->amount;
-                    }else{
-                        $converter->total_khr += $d->amount;
+
+                // Update cash and bank details
+                if ($d->method === 'cash') {
+                    if ($d->currency_code === 'USD') {
+                        $converter->cash_usd += $d->amount; // Use += to sum amounts
+                    } else {
+                        $converter->cash_khr += $d->amount; // Sum for KHR
+                    }
+                } else {
+                    if ($d->currency_code === 'USD') {
+                        $converter->bank_usd += $d->amount; // Sum for USD bank
+                    } else {
+                        $converter->bank_khr += $d->amount; // Sum for KHR bank
                     }
                 }
             }
@@ -939,6 +966,8 @@ class TransactionService
         $userId = $driverId ?? $merchantId;
         $startDate = $req->startDate ? Helper::dateYMD($req->startDate) : null;
         $endDate = $req->endDate ? Helper::dateYMD($req->endDate) : null;
+        $pmtKey = $type.'_payment_id';
+        $disKey = $type.'_disbursement_id';
         $qP = User::from('users as d')
             ->where('d.account_type',$type)
             ->where('d.is_deleted', 0)
@@ -946,6 +975,10 @@ class TransactionService
             ->join('packages as p', 'p.'.$type.'_id', '=', 'd.id')
             ->where('p.is_deleted',0)
             ->whereIn('p.status_id',[9,19])
+            ->where(function ($q) use($pmtKey,$disKey) {
+                $q->whereNull($pmtKey)
+                ->whereNull($disKey);
+            })
             ->orderByRaw('COALESCE(p.failed_datetime, p.delivered_datetime) DESC NULLS LAST')
             // ->join('payments as pmt','p.driver_payment_id','pmt.id')
             // ->where('pmt.is_settled',0)
@@ -995,7 +1028,8 @@ class TransactionService
             $packageTotal = $group->count(); // Count items in the group (equivalent to summing 1 per item)
             $totalPrice = $group->where('cod',1)->where('status_id','!=',19)->sum('price');
             $representative = $group->first();
-            $fee = $group->where('payer','receiver')->sum('delivery_fee') + $group->sum('extra_charge') + $group->sum('additional_fee') - $group->sum('taxi_fee');
+            $taxiFee = $group->where('status_id','!=',19)->sum('taxi_fee');
+            $fee = $group->where('payer','receiver')->sum('delivery_fee') + $group->where('payer','receiver')->sum('extra_charge') + $group->sum('additional_fee') - $taxiFee;
             $amount = Helper::getNumber($totalPrice + $fee,2);
             $totalPackages += $packageTotal;
             $totalAmount += $amount;
@@ -1548,6 +1582,91 @@ class TransactionService
             'delivered_count' => $deliveredCount,
             'failed_with_fee_count' => $deliveredCount,
         ];
+    }
+
+    public static function getMobileUserBalance($req,$user,$targetUser){
+        $count = 0;
+        $total = 0;
+        $operator = [
+            'merchant' => -1,
+            'driver' => 1,
+        ];
+        $targeUId = $targetUser.'_id';
+        $pUid = $targetUser.'_payment_id';
+        $dUid = $targetUser.'_disbursement_id';
+
+        $packages = Package::where('is_deleted',0)
+        ->where('created_at', '>=', Carbon::now()->subMonths(3))
+        ->whereIn('status_id',[9,19])
+        // ->selectRaw('*')
+        ->where($targeUId,$user->id)
+        ->orderBy($pUid,'desc')
+        ->orderBy($dUid,'desc')
+        ->where(function ($q) use($pUid,$dUid) {
+            $q->whereNull($pUid)
+            ->whereNull($dUid);
+        })
+        ->get();
+        $opt = $operator[$targetUser] ?? null;
+        foreach($packages as $p){
+            $price = $p->price;
+            $taxiFee = $p->taxi_fee;
+            if($p->status_id == 19){
+                $price = 0;
+                $taxiFee = 0;
+            }
+            $packageTotal = TransactionService::getPackageTotal($targetUser,$p->cod,$price,$taxiFee,$p->extra_charge,$p->additional_fee,$p->delivery_fee,$p->payer);
+            $total += $opt * $packageTotal;
+            // if(!isset($samePmtId[$p->{$pUid}]) && $p->{$pUid}){
+            //     $pmt = self::getTrxDetails($payments,$p->{$pUid});
+            //     if($pmt) {
+            //         $pmt->payment_status = 'Paid';
+            //         $pmt->remarks = 'Disbursement';
+            //         $total -= $opt * $pmt->payable_amount;
+            //         $count -= $pmt->package_count;
+            //     }
+            //     $samePmtId[$p->{$pUid}] = true;
+            // }
+
+            // if(!isset($sameDisId[$p->{$dUid}]) && $p->{$dUid}){
+            //     $dis = self::getTrxDetails($disbursements,$p->{$dUid});
+            //     if($dis) {
+            //         $dis->payment_status = 'Paid';
+            //         $total -= $dis->payable_amount;
+            //         $dis->remarks = 'Receive';
+            //         $count -= $dis->package_count;
+            //     }
+            //     $sameDisId[$p->{$dUid}] = true;
+            // }
+
+            // if($opt){
+            //     $packageTotal = TransactionService::getPackageTotal($targetUser,$p->cod,$price,$taxiFee,$p->extra_charge,$p->additional_fee,$p->delivery_fee,$p->payer);
+            //     $total += $opt * $packageTotal;
+            // }
+            // $count +=1;
+        }
+        return [
+            'count' => $count,
+            'total' => Helper::getNumber($total),
+        ];
+    }
+
+    static function getTrxDetails($rows,$pmtId){
+        foreach($rows as $row){
+            if($row->id == $pmtId){
+                $row->breakdown_notes = str_replace(
+                    ['|', 'USD '],
+                    [' & ', '$'],
+                    $row->breakdown_notes
+                );
+
+                $row->breakdown_notes = preg_replace('/KHR (\d+)/', '$1៛', $row->breakdown_notes);
+                $row->payment_date = Helper::dateDMY($row->payment_datetime);
+                $row->payment_time = Helper::formatCustomDateTime($row->payment_datetime,'h:i A');
+                return $row;
+            }
+        }
+        return null;
     }
 
 }

@@ -18,6 +18,7 @@ use App\Services\CompanyProfileService;
 use App\Services\GeneralSettingService;
 use App\Services\Mobile\ReusableService;
 use App\Services\PickupCenterService;
+use App\Services\TransactionService;
 use App\Services\UserService;
 use Cache;
 use Helper;
@@ -290,7 +291,7 @@ class HomeController extends Controller
     }
 
 
-    public function getHomeScreen($user){
+    public function getHomeScreen(Request $req,$user){
         $user = UserService::getAuthUser('merchant');
         $bannerImages = BrandImage::where('is_deleted',0)
         ->where('channel',$user->account_type)->pluck('photo_file_name')
@@ -298,12 +299,12 @@ class HomeController extends Controller
         ->toArray();
         $obj = [
             'banners' => $bannerImages,
-            'daily_summaries' => $this->daily_summaries($user),
+            'daily_summaries' => $this->daily_summaries($req,$user),
         ];
         return ApiResponse::JsonResult($obj);
     }
 
-    private function daily_summaries($user){
+    private function daily_summaries(Request $req,$user){
         $today = now();
         $dateaAgo = Helper::getDateDaysAgo(90);
         $successCount = Package::where('merchant_id',$user->id)->where('is_deleted',0)
@@ -324,25 +325,9 @@ class HomeController extends Controller
               ->whereBetween('returned_datetime', [$dateaAgo, $today]);
             });
         })->count();
-        $balanceDues = Package::from('packages as p')->where('p.merchant_id', $user->id)
-        ->where('p.is_deleted', 0)
-        ->whereIn('p.status_id', [9, 19])
-        ->whereNull('p.merchant_disbursement_id')
-        ->leftJoin('payments', 'p.merchant_payment_id', '=', 'payments.id')
-        ->selectRaw('p.qr_code,p.id,p.driver_total,p.cod,p.price,p.extra_charge,p.delivery_fee,p.additional_fee,p.payer,p.status_id,p.taxi_fee')
-        ->where(function ($query) {
-            $query->whereNull('payments.id') // Include rows without matching payments
-                ->orWhere('payments.approved', 0); // Include rows where payments.approved = 0
-        })
-        ->get();
-        $balanceDue = 0;
-        foreach($balanceDues as $b){
-            $totalPrice = (($b->cod && $b->status_id !=19) ? $b->price : 0) - $b->taxi_fee;
-            $fee = PickupCenterService::getFees($b->payer,$b->delivery_fee,$b->additional_fee,$b->extra_charge);
-            $balanceDue += $totalPrice + $fee;
-        }
+        $balanceDues = TransactionService::getMobileUserBalance($req,$user,'merchant');
         return [
-            'balance' => (float)Helper::getNumber($balanceDue),
+            'balance' => (float)Helper::getNumber($balanceDues['total']),
             'delivered' => $successCount,
             'failed' => $failCount,
             'returned' => $returnCount,
