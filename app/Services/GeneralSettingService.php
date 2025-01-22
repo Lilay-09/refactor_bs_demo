@@ -53,9 +53,12 @@ class GeneralSettingService
         'all' => 'ទាំងអស់'
     ];
 
-
     public static $statusCodeTrans = [
         0 => 'ទាំងអស់',
+        1 => 'មិនទាន់មានអ្នកប្រមូល',
+        2 => 'បានប្រមូល',
+        3 => 'ទទួលការប្រមូល',
+        4 => 'បានប្រមូលនិងបញ្ចូល',
         5 => 'ដល់ឃ្លាំង',
         6 => 'កំពុងដឹក',
         9 => 'ជេាគជ័យ',
@@ -240,11 +243,12 @@ public static function optionsRole($type=null){
     public static function optionsDriver($user,$vehicleType=null){
         $qD = User::where(function($q){
             $q->where('lock',0)->orWhere('is_deleted',0);
-        })->where('has_account',true)->where('company_id',$user->company_id)->where('account_type','driver')->selectRaw('id,user_name,phone');
+        })->where('has_account',true)->where('company_id',$user->company_id)->where('account_type','driver')->selectRaw('id,user_name,phone,name_km');
         if($vehicleType) $qD->where('vehicle_type','ilike',$vehicleType);
         $drivers = $qD->orderByDesc('id')->get();
         foreach($drivers as $d){
-            $d->user_name = $d->user_name . '(' .$d->phone. ')';
+            // $d->user_name = $d->user_name . '(' .$d->phone. ')';
+            $d->user_name = $d->user_name.($d->name_km ? (' - '.$d->name_km):'')." ($d->phone)";
         }
         return $drivers;
     }
@@ -295,9 +299,9 @@ public static function optionsRole($type=null){
     public static function optionsMerchant($user){
         $merchants = User::where(function($q){
             $q->where('lock',0)->orWhere('is_deleted',0);
-        })->where('company_id',$user->company_id)->where('account_type','merchant')->selectRaw('id,user_name,phone')->orderByDesc('id')->get();
+        })->where('company_id',$user->company_id)->where('account_type','merchant')->selectRaw('id,user_name,name_km,phone')->orderByDesc('id')->get();
         foreach($merchants as $m){
-            $m->user_name = $m->user_name."($m->phone)";
+            $m->user_name = $m->user_name.($m->name_km ? (' - '.$m->name_km):'')." ($m->phone)";
         }
         return $merchants;
     }
