@@ -10,6 +10,7 @@ use App\Models\Package;
 use App\Models\User;
 use App\Models\VehicleType;
 use App\Services\CloudMessagingService;
+use App\Services\CompanyProfileService;
 use App\Services\GeneralSettingService;
 use App\Services\PickupCenterService;
 use App\Services\UserService;
@@ -153,7 +154,7 @@ class PickUpCenterController extends Controller
             ->whereIn('status_id',[1,2,3,4,21])
             ->where('company_id',$user->company_id)
             ->orderByDesc('id')
-            ->selectRaw('booking_channel,id,merchant_id,status_id,order_datetime,driver_id,warehouse_id,vehicle_type,product_type,qty,pickup_address,code,created_at,create_uid');
+            ->selectRaw('booking_channel,id,merchant_id,status_id,order_datetime,driver_id,warehouse_id,vehicle_type,product_type,original_qty as qty,qty as actual_qty,pickup_address,code,created_at,create_uid');
         if($search){
             $query->where(function($q) use ($search){
                 $q->whereHas('merchant',function ($q) use ($search){
@@ -434,6 +435,54 @@ class PickUpCenterController extends Controller
         $packageId = $req->id;
         $update = $this->pkupService->createOrUpdatePackage($req,$user,$packageId,$orderId);
         return ApiResponse::flex($update);
+    }
+
+    public function printOrderPackages(Request $req){
+        $user = UserService::getAuthUser();
+        $id = $req->order_id;
+        $order = Order::where('is_deleted',0)->find($id);
+        if(!$order) return ApiResponse::NotFound();
+        // $orderByCase = collect($packageIds)
+        // ->map(function ($id, $index) {
+        //     return "WHEN id = " . (int)$id . " THEN " . (int)$index;
+        // })
+        // ->implode(' ');
+        $packages = Package::where('is_deleted',0)
+        ->with(['driver:id,user_name,phone','merchant:id,phone,user_name','updateUser:id,user_name'])
+        // ->whereNotIn('status_id',[]) // at warehouse
+        ->where('company_id',$user->company_id)
+        ->selectRaw('cod,delivery_fee,zone_name,zone_code,merchant_id,driver_id,receiver_phone,receiver_address,created_at,arrive_warehouse_datetime,qr_code,remarks,price,update_uid,payer')
+        ->where('order_id',$id)
+        // ->orderByRaw("CASE $orderByCase END")
+        ->get();
+        // if(!$package) return ApiResponse::NotFound(trans('messages.not_found',['info' => 'Package','khInfo' => 'កញ្ចប់​']));
+        $exchange = GeneralSettingService::getLatestXRate();
+        foreach($packages as $package){
+            $driver = $package->driver;
+            if($driver){
+                $package->driver_name = $driver->user_name;
+            }
+            $package->merchant_name = $package->merchant->user_name;
+            $package->merchant_phone = $package->merchant->phone;
+            $package->base_fee = $package->delivery_fee;
+            $package->delivery_fee = $package->delivery_fee + $package->taxi + $package->extra_charge;//($package->cod ? $package->price : 0);
+            $package->created_by = $package->updateUser->user_name;
+            $package->created_date = Helper::formatCustomDateTime($package->created_at,'d-M-Y');
+            $package->warehouse_at = Helper::dateDMY($package->arrive_warehouse_datetime);
+            $total = 0;
+            if($package->cod) $total += $package->price;
+            if($package->payer == 'receiver') $total += $package->delivery_fee;
+            $package->total = $total;
+            $package->total_khr = Helper::getNumber($total * $exchange->sell_rate);
+            unset($package->status,$package->driver,$package->merchant,$package->arrive_warehouse_datetime,$package->updateUser,$package->create_uid,$package->created_at);
+        }
+        $obj = (object)[
+            'company_info' => CompanyProfileService::profileInfo($user,true),
+            'packages' => $packages,
+            'notes' => 'រាល់ទំនិញខុសច្បាប់ ម្ចាស់ទំនិញត្រូវទទួលខុសត្រូវចំពោះមុខច្បាប់ដោយខ្លួនឯង ក្រុមហ៊ុនមិនទទួលខុសត្រូវឡេីយ។ អរគុណសម្រាប់ការប្រើប្រាស់សេវាកម្មដឹកជញ្ជូន JS Express របស់ខ្ញុំ។',
+            'redirect' => asset('api/redirect-store')
+        ];
+        return ApiResponse::JsonResult($obj,__('messages.info',['info' => 'Print Information']));
     }
 
     public function arriveWarehouse(Request $req){

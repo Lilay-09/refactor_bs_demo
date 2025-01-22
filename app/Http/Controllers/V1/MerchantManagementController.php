@@ -131,17 +131,18 @@ class MerchantManagementController extends Controller
         $user = UserService::getAuthUser();
         $id = $req->id;
         $priceListId = $req->price_list_id;
-        $zoneId = $req->zoneId;
+        $zoneId = $req->zone_id;
         if(!$priceListId) return ApiResponse::ValidateFail(__('messages.info',[
             'info' => 'Please choose a price list'
         ]));
-        $merchantPriceList = MerchantPriceList::where('merchant_id',$req->id)->first();
+        $merchantPriceList = MerchantPriceList::where('merchant_id',$id)->first();
         $insertOrUpdate = [
             'price_list_id' => $priceListId,
             'update_uid' => $user->id,
             'branch_id' => $user->id,
             'company_id' => $user->id
         ];
+
         if($zoneId) {
             $zone = Zone::where('is_deleted',0)->find($zoneId);
             if(!$zone) return ApiResponse::NotFound(__('messages.not_found',[
@@ -153,7 +154,7 @@ class MerchantManagementController extends Controller
         if($merchantPriceList){
             $merchantPriceList->update($insertOrUpdate);
         }else{
-            $insertOrUpdate['merchant_id'] = $req->id;
+            $insertOrUpdate['merchant_id'] = $id;
             MerchantPriceList::create($insertOrUpdate);
         }
         return ApiResponse::JsonResult(null,__('messages.updated'));

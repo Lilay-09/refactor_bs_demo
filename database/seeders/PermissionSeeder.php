@@ -61,6 +61,17 @@ class PermissionSeeder extends Seeder
                 'branch_id' => 1,
             ],
             [
+                'id' => 335,
+                'module_id' => 251,
+                'name' => 'Print',
+                'hidden' => 0,
+                'category' => 'special',
+                'create_uid' => 1,
+                'update_uid' => 1,
+                'company_id' => 1,
+                'branch_id' => 1,
+            ],
+            [
                 'id' => 204,
                 'module_id' => 251,
                 'name' => 'Change Driver',
