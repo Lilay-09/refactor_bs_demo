@@ -90,9 +90,9 @@ class HistoryController extends Controller
         ];
 
         $pdf = Pdf::loadView('pdf.package_history', $data);
-        $pdf->set_option('isHtml5ParserEnabled', true);  // Enable HTML5 parsing
-        $pdf->set_option('isPhpEnabled', true);         // Enable PHP functions if needed
-        $pdf->set_option('fontDir', public_path('fonts')); // Path to public/fonts directory
+        // $pdf->set_option('isHtml5ParserEnabled', true);  // Enable HTML5 parsing
+        // $pdf->set_option('isPhpEnabled', true);         // Enable PHP functions if needed
+        // $pdf->set_option('fontDir', public_path('fonts')); // Path to public/fonts directory
         $pdf->set_option('defaultFont', 'NotoSansKhmer');
 
         $fileName = 'history-packages-' . time() . '.pdf';

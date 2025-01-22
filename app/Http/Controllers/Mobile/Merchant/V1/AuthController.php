@@ -114,7 +114,7 @@ class AuthController extends Controller
         //     'khInfo' => 'លេខទូរស័ព្ទនេះបានប្រើរួច'
         // ]));
         $maxAttempts = 3; // Maximum allowed attempts
-        $lockoutTime = 3600; // Lockout duration in seconds (1 minute)
+        $lockoutTime = 3600; // Lockout duration in seconds (60 minute)
 
         // Check if the user is locked out
         if (Cache::has("login_attempts:locked:{$phone}")) {
@@ -159,7 +159,7 @@ class AuthController extends Controller
                 'khInfo' => 'លេខសំងាត់ '.$otp
         ]);
 
-        $smsInfo = AppSetting::sendSms("SMS Test",$phone,$message);
+        $smsInfo = AppSetting::sendSms("SMS Info",$phone,$message);
         if($smsInfo->status_code == 402) return ApiResponse::ValidateFail('Error sending SMS, Please try again later.');
         return ApiResponse::JsonResult([
             'phone' => $phone,
