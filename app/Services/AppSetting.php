@@ -210,9 +210,10 @@ class AppSetting
 
     private static function packagePermissionCode(){
         return [
-            // 'POST' => [
-            //     self::$baseUrl.'/order/{order_id}/package' => 206
-            // ],
+            'GET' => [
+                self::$baseUrl.'/package/{id}/print' => 214,
+                self::$baseUrl.'/package/list/print' => 214,
+            ],
             'PUT' => [
                 self::$baseUrl.'/package/{id}' => 215,
                 self::$baseUrl.'/package/{id}/driver/{driver_id}' => 210, //assign driver

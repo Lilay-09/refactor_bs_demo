@@ -141,6 +141,7 @@ class PickUpCenterController extends Controller
 
     public function getOrders(Request $req){
         $user = UserService::getAuthUser();
+        $lang = $req->lang;
         $search = $req->search;
         $startDate = $req->startDate;
         $endDate = $req->endDate;
@@ -192,8 +193,12 @@ class PickUpCenterController extends Controller
                 'code' => $order->merchant->merchantPriceList?->zone_code
             ];
             if(!$order->product_type) $order->product_type = 'Others';
-            $order->status_code = $order->tracking_status->name;
-            $order->status_code_kh = $order->tracking_status->name;
+
+            if($lang != 'en'){
+                $statusCode = GeneralSettingService::$statusCodeTrans[$order->status_id] ?? null;
+                $order->status_code = $statusCode;
+            }else $order->status_code = $order->tracking_status->name;
+            // $order->status_code_kh = $order->tracking_status->name;
             $order->driver_name = $order->driver?->user_name;
             $order->driver_code = $order->driver?->code;
             $order->package_count = $this->getPackageCountByOrder($packages,$order->id);
