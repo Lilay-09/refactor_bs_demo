@@ -24,6 +24,7 @@ class CompletedPackageController extends Controller
         $endDate = $req->endDate;
         $merchantId = $req->merchant_id;
         $driverId = $req->driver_id;
+        $statusId = $req->status_id;
         $warehouseId = $req->warehouse_id;
         $paymentStatusId = $req->payment_status_id;
         $search = $req->search;
@@ -69,6 +70,8 @@ class CompletedPackageController extends Controller
                 $q->where('p.qr_code',$search)->orWhere('p.receiver_phone','ilike','%'.$search.'%');
             });
         }
+
+        if($statusId) $qP->where('p.status_id',$statusId);
         if($driverId) $qP->where('p.driver_id',$driverId);
         if($merchantId) $qP->where('p.merchant_id',$merchantId);
         if($warehouseId) $qP->where('o.warehouse_id',$warehouseId);

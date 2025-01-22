@@ -69,10 +69,10 @@ class MerchantTransactionController extends Controller
             // ->join('payments as pmt','p.driver_payment_id','pmt.id')
             // ->where('pmt.is_settled',0)
             ->selectRaw('p.taxi_fee,p.extra_charge,p.additional_fee,p.payer,p.delivery_fee,p.cod,p.price,p.delivered_datetime,p.failed_datetime,d.id as driver_id,d.id,d.user_name as merchant_name,d.code,p.status_id,p.updated_at');
-        $qP->where(function ($q) {
-            $q->whereNull('p.merchant_payment_id')
-            ->whereNull('p.merchant_disbursement_id');
-        });
+            $qP->where(function ($q) {
+                $q->whereNull('p.merchant_payment_id')
+                ->whereNull('p.merchant_disbursement_id');
+            });
             // ->groupBy(['d.id','pmt.payable_amount',DB::raw('DATE(p.delivered_datetime)'),DB::raw('DATE(p.failed_datetime)')]);
         if($userId){
             $qP->where('d.id',operator: $userId);
@@ -111,20 +111,26 @@ class MerchantTransactionController extends Controller
 
             $packageTotal = $group->count(); // Count items in the group (equivalent to summing 1 per item)
             $totalCod = $group->where('cod',1)->where('status_id','!=',19)->sum('price');
-            if($transactionType == 'disbursement'){
-                if($totalCod < 0)  return;
-            }
+            // if($transactionType == 'disbursement'){
+            //     if($totalCod < 0)  return;
+            // }
             $totalTaxi = $group->where('status_id','!=',19)->sum('taxi_fee');
             $totalExtraCharge = $group->where('payer','sender')->sum('extra_charge');
             $totalDeliveryFee = $group->where('payer','sender')->sum('delivery_fee') + $totalExtraCharge;
             $representative = $group->first();
-            $totalAmount = $totalCod - $totalDeliveryFee;
-            $grandTotal += $totalAmount;
-            $totalPackageCount += $packageTotal;
+            $totalAmount = $totalCod - $totalDeliveryFee - $totalTaxi;
+
             // $representative->package_count = $packageTotal; // Add the summed total_package
             $bankInfo = $representative->bank_accounts->where('is_primary',1)->first();
             if(!$bankInfo) $bankInfo = $representative->bank_accounts->first();
             unset($representative->groupDate);
+            if ($transactionType == 'disbursement' && $totalAmount >= 0) {
+                return null; // Exclude this group
+            }else if ($transactionType == 'receive' && $totalAmount < 0) {
+                return null; // Exclude this group
+            }
+            $grandTotal += $totalAmount;
+            $totalPackageCount += $packageTotal;
             return [
                 'finished_date' => $date,
                 'driver_id' => $driver_id,
@@ -138,7 +144,7 @@ class MerchantTransactionController extends Controller
                 'amount' => Helper::getNumber($totalAmount,2),
                 'account_info' => $bankInfo
             ];
-        })->values();
+        })->filter()->values();
         return ApiResponse::Pagination($groupData,$req,null,[
             'total_package' => $totalPackageCount,
             'total_amount' => Helper::getNumber($grandTotal,2),

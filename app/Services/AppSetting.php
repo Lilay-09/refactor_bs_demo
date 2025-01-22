@@ -191,6 +191,9 @@ class AppSetting
 
     private static function orderPermissionCode(){
         return [
+            'GET' => [
+                self::$baseUrl.'/order/{order_id}/package/print' => 335
+            ],
             'POST' => [
                 self::$baseUrl.'/order' => 200,
                 self::$baseUrl.'/order/{order_id}/package' => 206
@@ -482,6 +485,7 @@ class AppSetting
         return [
             self::$baseUrl.'/package/{id}/print',
             self::$baseUrl.'/package/list/print',
+            self::$baseUrl.'/order/{order_id}/package/print',
         ];
     }
 

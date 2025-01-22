@@ -208,6 +208,7 @@ Route::middleware(['jwt','localize','userAccess:admin'])->prefix('admin/v1/{lang
         Route::put('{order_id}/driver/{driver_id}',[PickUpCenterController::class,'assignDriver']);
         Route::get('{order_id}/packages',[PickUpCenterController::class,'getPackagesByOrderId']);
         Route::post('{order_id}/package',[PickUpCenterController::class,'addPackage']);
+        Route::get('{order_id}/package/print',[PickUpCenterController::class,'printOrderPackages']);
         Route::post('{order_id}/image',[PickUpCenterController::class,'addOrderImage']);
         Route::get('{order_id}/image',[PickUpCenterController::class,'getOrderImages']);
         Route::get('package/{id}',[PickUpCenterController::class,'getOnePackageById']);
