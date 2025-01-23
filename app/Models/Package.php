@@ -19,11 +19,6 @@ class Package extends Model
     //     'base_fee' => 'float',
     //     'driver_total' => 'float',
     // ];
-    // protected $casts = [
-        // 'price' => 'float',
-        // 'delivery_fee' => 'float',
-        // 'extra_charge' => 'float',
-    // ];
     protected $fillable = [
         'id',
         'qr_code',
@@ -107,10 +102,10 @@ class Package extends Model
     //     return $this->formatDatetime($value);
     // }
 
-    // public function setPriceAttribute($value)
-    // {
-    //     // $this->attributes['price'] = Helper::getNumber($value);
-    // }
+    public function setPriceAttribute($value)
+    {
+        $this->attributes['price'] = Helper::getNumber($value);
+    }
 
     public function setDriverTotalAttribute($value)
     {
