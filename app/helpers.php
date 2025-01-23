@@ -330,6 +330,7 @@ class Helper{
                     'filename' => null
                 ];
             }
+
             $fileExtension = $ext ? $ext : $fileExtension;
             // Generate a unique file name
             // => company_id+YMdHis+uniqid+extension
