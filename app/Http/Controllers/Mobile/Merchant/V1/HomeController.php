@@ -183,12 +183,13 @@ class HomeController extends Controller
         ->selectRaw('id,merchant_id,receiver_phone,receiver_address,receiver_name,cod,price,delivery_fee,remarks,driver_id,arrive_warehouse_datetime')
         ->get();
         foreach($packages as $package){
+            $package->price = (float)$package->price;
             $package->cod_fee = $package->cod ? $package->price : 0;
             $package->status_code = 'On Delivery';
             $package->driver_phone = $package->driver->phone;
             $package->driver_name = $package->driver->user_name;
-            $package->total = $package->cod_fee + $package->delivery_fee;
-            $package->fee = $package->delivery_fee;
+            $package->total = (float)$package->cod_fee + $package->delivery_fee;
+            $package->fee = (float)$package->delivery_fee;
             unset($package->driver);
         }
         return ApiResponse::Pagination($packages,$req);
@@ -208,12 +209,13 @@ class HomeController extends Controller
         ->selectRaw('id,merchant_id,receiver_phone,receiver_address,receiver_name,cod,price,delivery_fee,remarks,driver_id,delivered_datetime,arrive_warehouse_datetime')
         ->get();
         foreach($packages as $package){
+            $package->price = (float)$package->price;
             $package->cod_fee = $package->cod ? $package->price : 0;
             $package->status_code = 'Delivered';
             $package->driver_phone = $package->driver->phone;
             $package->driver_name = $package->driver->user_name;
-            $package->total = $package->cod_fee + $package->delivery_fee;
-            $package->fee = $package->delivery_fee;
+            $package->total = (float)$package->cod_fee + $package->delivery_fee;
+            $package->fee = (float)$package->delivery_fee;
             unset($package->driver);
         }
         return ApiResponse::Pagination($packages,$req);
@@ -228,7 +230,8 @@ class HomeController extends Controller
         ->selectRaw('id,merchant_id,arrive_warehouse_datetime,receiver_phone,receiver_address,receiver_name,cod,price,delivery_fee,status_id,remarks,driver_id,failed_datetime')
         ->get();
         foreach($packages as $package){
-            $package->cod_fee = (float) ($package->cod ? $package->price : 0);
+            $package->price = (float)$package->price;
+            $package->cod_fee = $package->cod ? $package->price : 0;
             $package->status_code = $package->status->name;
             $package->driver_phone = $package->driver->phone;
             $package->driver_name = $package->driver->user_name;
@@ -247,12 +250,13 @@ class HomeController extends Controller
         ->selectRaw('id,merchant_id,arrive_warehouse_datetime,receiver_phone,receiver_address,receiver_name,cod,price,delivery_fee,status_id,remarks,driver_id,failed_datetime,returned_datetime,updated_at')
         ->get();
         foreach($packages as $package){
+            $package->price = (float)$package->price;
             $package->cod_fee = $package->cod ? $package->price : 0;
             $package->status_code = $package->status->name;
-            $package->driver_phone = $package->driver->phone;
-            $package->driver_name = $package->driver->user_name;
-            $package->total = $package->cod_fee + $package->delivery_fee;
-            $package->fee = $package->delivery_fee;
+            $package->driver_phone = $package->driver?->phone;
+            $package->driver_name = $package->driver?->user_name;
+            $package->total = (float) $package->cod_fee + $package->delivery_fee;
+            $package->fee = (float)$package->delivery_fee;
             $returnDate = $package->return_datetime ? $package->return_datetime : $package->updated_at;
             $package->returned_date = Helper::dateDMY($returnDate);
             $package->return_time = Helper::formatCustomDateTime($returnDate, 'h:i:s');
@@ -372,11 +376,12 @@ class HomeController extends Controller
         ->selectRaw('id,merchant_id,arrive_warehouse_datetime,receiver_phone,receiver_address,receiver_name,cod,price,delivery_fee,status_id,remarks,driver_id,failed_datetime')
         ->get();
         foreach($packages as $package){
+            $package->price = (float)$package->price;
             $package->cod_fee = $package->cod ? $package->price : 0;
             $package->status_code = $package->status->name;
             $package->driver_phone = $package->driver->phone;
             $package->driver_name = $package->driver->user_name;
-            $package->total = $package->cod_fee + $package->delivery_fee;
+            $package->total = (float)$package->cod_fee + $package->delivery_fee;
             unset($package->driver,$package->status);
         }
         return ApiResponse::Pagination($packages,$req);

@@ -91,6 +91,7 @@ class UserService
             'dob' => 'nullable',
             'photo' => 'nullable|string',
             'address' => 'nullable|string|max:500',
+            'register_channel' => 'nullable|string'
         ];
 
         $baseMsgs = [

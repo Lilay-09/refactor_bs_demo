@@ -48,7 +48,7 @@ class PackageTrailController extends Controller
         ->where(function($q){
             $q->whereNotIn('status_id',[9,11])->whereNull('returned_uid');
         })
-        ->selectRaw('merchant_id,order_id,id,taxi_fee,delivery_type,qr_code,price,driver_id,product_type,dim_z,dim_x,dim_y,status_id,failure_notes,payer,cod,delivery_fee,receiver_address,zone_code,zone_name,receiver_name,receiver_phone,delivered_datetime,assign_driver_datetime,arrive_warehouse_datetime,driver_total,merchant_total,billed_kg,actual_kg,created_at')
+        ->selectRaw('merchant_id,order_id,id,taxi_fee,delivery_type,qr_code,price,driver_id,product_type,dim_z,dim_x,dim_y,status_id,failed_datetime,failure_notes,payer,cod,delivery_fee,receiver_address,zone_code,zone_name,receiver_name,receiver_phone,delivered_datetime,assign_driver_datetime,arrive_warehouse_datetime,driver_total,merchant_total,billed_kg,actual_kg,created_at')
         ->orderByRaw('(status_id = ?) DESC', [5])
         ->orderBy('arrive_warehouse_datetime','desc')
         ->orderByRaw("
@@ -109,6 +109,7 @@ class PackageTrailController extends Controller
             $pkg->total = Helper::getNumber(abs($pkg->driver_total - $pkg->merchant_total),2);//PickupCenterService::getDriverTotal($cod,$pkg->payer,$pkg->price,$pkg->delivery_fee,$pkg->additional_fee,$pkg->excharge_fee);
             $pkg->warehouse_timeago = Helper::timeAgo($pkg->arrive_warehouse_datetime,false);
             $pkg->arrive_warehouse_datetime = Helper::formatCustomDateTime($pkg->arrive_warehouse_datetime);
+            if($pkg->status_id == 10 || $pkg->status_id == 19) $pkg->finished_date = Helper::formatDateTime($pkg->failed_datetime);
             unset($pkg->status,$pkg->merchant,$pkg->driver);
         }
         return ApiResponse::Pagination($packages,$req,__('messages.get_list',['info'=>'Package']));
@@ -481,11 +482,9 @@ class PackageTrailController extends Controller
                 $stillHasPackage = DeliveryPackage::where('delivery_id',$oneTrip->id)->where(function ($q){
                     $q->where('delay_count',0)->where('is_deleted',0);
                 })->where('status_id',6)->first();
-
                 if($stillHasPackage) $pendingTrip = $oneTrip ?? null;
             }
         }
-
 
         if(!$pendingTrip){
             $QuerylastPackage = DeliveryPackage::where('package_id',$packageId)->where(function ($q){
@@ -572,8 +571,6 @@ class PackageTrailController extends Controller
         }
 
         GeneralSettingService::updateTripStatus($deliveryId,$user);
-
-
         return DataResponse::JsonResult(null);
     }
 

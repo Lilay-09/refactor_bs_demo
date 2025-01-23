@@ -19,6 +19,11 @@ class Package extends Model
     //     'base_fee' => 'float',
     //     'driver_total' => 'float',
     // ];
+    protected $casts = [
+        'price' => 'float',
+        'delivery_fee' => 'float',
+        'extra_charge' => 'float',
+    ];
     protected $fillable = [
         'id',
         'qr_code',

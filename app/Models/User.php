@@ -62,6 +62,7 @@ class User extends Authenticatable implements JWTSubject
         'relative_address',
         'salary',
         'referrer_uid',
+        'register_channel',
         'register_status',
         'registered_datetime',
         'employee_type',

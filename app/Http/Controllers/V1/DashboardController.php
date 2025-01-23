@@ -6,6 +6,7 @@ use ApiResponse;
 use App\Http\Controllers\Controller;
 use App\Models\Package;
 use App\Models\Payment;
+use App\Models\User;
 use Carbon\Carbon;
 use DB;
 use Illuminate\Http\Request;
@@ -28,9 +29,26 @@ class DashboardController extends Controller
         $days = 90;
         $payments = Payment::where('is_deleted',0)
         ->where('payment_datetime', '>=', Carbon::now()->subDays($days))->get();
+        $deliveredCount = 0;
+        $returnedCount = 0;
+        $results = User::selectRaw("
+            SUM(CASE WHEN account_type = 'merchant' AND register_channel = 'mobile' THEN 1 ELSE 0 END) as register_count,
+            SUM(CASE WHEN is_deleted = FALSE AND account_type = 'driver' AND lock = FALSE AND has_account = TRUE THEN 1 ELSE 0 END) as total_active_driver,
+            SUM(CASE WHEN is_deleted = FALSE AND account_type = 'merchant' THEN 1 ELSE 0 END) as total_merchant
+        ")->first();
+
+        $registeredCount = $results->register_count;
+        $totalActiveDrivers = $results->total_active_driver;
+        $totalMerchant = $results->total_merchant;
+
         $packages = Package::where('is_deleted',0)
         ->where('outstanding',0)
+        ->selectRaw('id,status_id')
         ->where('updated_at', '>=', Carbon::now()->subDays($days))->get();
+        foreach ($packages as $p){
+            if($p->status_id == 9) $deliveredCount += 1;
+            if($p->status_id == 11) $returnedCount += 1;
+        }
         $data = [
             [
                 'title' => 'Total Earning',
@@ -42,27 +60,27 @@ class DashboardController extends Controller
             ],
             [
                 'title' => 'Total Packages',
-                'total' => ''
+                'total' => count($packages)
             ],
             [
                 'title' => 'Delivered Count',
-                'total' => ''
+                'total' => $deliveredCount
             ],
             [
                 'title' => 'Returned count',
-                'total' => ''
+                'total' => $returnedCount
             ],
             [
                 'title' => 'Total Registrations',
-                'total' => ''
+                'total' => $registeredCount
             ],
             [
                 'title' => 'Total Active Drivers',
-                'total' => ''
+                'total' => $totalActiveDrivers
             ],
             [
                 'title' => 'Total Merchants',
-                'total' => ''
+                'total' => $totalMerchant
             ]
         ];
 

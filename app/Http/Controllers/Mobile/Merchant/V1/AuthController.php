@@ -148,7 +148,8 @@ class AuthController extends Controller
             'address' => $inputs['address'] ?? null,
             'account_type' => 'merchant',
             'business_type' => $inputs['business_type'] ?? null,
-            'otp' => $otp
+            'otp' => $otp,
+            'register_channel' => 'mobile'
         ]);
 
         $authUser = User::where('system_admin',1)->selectRaw('id,company_id,branch_id')->first();
