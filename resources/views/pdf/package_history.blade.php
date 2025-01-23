@@ -5,21 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
     <title>{{ $title ?? 'History Packages' }}</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Battambang:wght@100;300;400;700;900&family=Bokor&family=Hanuman:wght@100;300;400;700;900&family=Khmer&family=Noto+Serif+Khmer:wght@100..900&family=Roboto:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
     <style>
-    * {
-        font-family: "NotoSansKhmer" sans-serif;
+    @font-face {
+        font-family: khmeros;
+        src: url("{{ public_path('fonts/khmeros.ttf') }}");
+    }
+    body {
+        font-family: "khmeros";
     }
 
-    /* Define the Battambang font */
-    @font-face {
-        font-weight: normal;
-        font-family: 'NotoSansKhmer';
-        src: url({{ public_path('fonts/NotoSansKhmer-Regular.ttf') }}) format('truetype');
-        font-style: normal;
-    }
 
     /*
         h1, p, td {

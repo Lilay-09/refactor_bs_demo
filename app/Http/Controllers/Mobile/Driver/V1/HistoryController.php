@@ -8,10 +8,10 @@ use App\Models\Delivery;
 use App\Services\GeneralSettingService;
 use App\Services\Mobile\ReusableService;
 use App\Services\UserService;
-use Barryvdh\DomPDF\Facade\Pdf;
 use Helper;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Mpdf\Mpdf;
 
 class HistoryController extends Controller
 {
@@ -89,17 +89,24 @@ class HistoryController extends Controller
             'date' => date('d-M-Y',strtotime($startDate)) .' to '. date('d-M-Y',strtotime($endDate)),
             'data' => $groupedPackages
         ];
+        $pdf = new Mpdf([
+            'default_font' => 'khmeros', // Ensure the font is correctly installed and loaded
+            'mode' => 'utf-8',           // Required for Unicode support
+            'format' => 'A4',            // Paper size
+        ]);
 
-        $pdf = Pdf::loadView('pdf.package_history', $data);
-        // $pdf->set_option('isHtml5ParserEnabled', true);  // Enable HTML5 parsing
-        // $pdf->set_option('isPhpEnabled', true);         // Enable PHP functions if needed
-        // $pdf->set_option('fontDir', public_path('fonts')); // Path to public/fonts directory
-        $pdf->set_option('defaultFont', 'NotoSansKhmer');
+        // Render the Blade template with data
+        $html = view('pdf.package_history', $data);
 
+        // Write the content to the PDF
+        $pdf->WriteHTML($html);
+
+        // Define the file name and path
         $fileName = 'history-packages-' . time() . '.pdf';
         $filePath = 'pdfs/' . $fileName;
 
-        Storage::disk('public')->put($filePath, $pdf->output());
+        // Save the PDF content to a file on the public disk
+        Storage::disk('public')->put($filePath, $pdf->Output($fileName, \Mpdf\Output\Destination::STRING_RETURN));
         // Generate the URL to the PDF
         $fileUrl = asset('storage/'.$filePath);
 

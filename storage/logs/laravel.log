@@ -1,68 +1,30 @@
-[2025-01-23 22:01:34] local.ERROR: Cannot declare class ApiResponse, because the name is already in use {"exception":"[object] (Symfony\\Component\\ErrorHandler\\Error\\FatalError(code: 0): Cannot declare class ApiResponse, because the name is already in use at D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\app\\helpers.php:4)
+[2025-01-23 22:49:25] local.ERROR: include(D:\Work\GTech\Projects\BACKEND\gtech_dms\vendor\composer/../barryvdh/laravel-dompdf/src/ServiceProvider.php): Failed to open stream: No such file or directory {"exception":"[object] (ErrorException(code: 0): include(D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\vendor\\composer/../barryvdh/laravel-dompdf/src/ServiceProvider.php): Failed to open stream: No such file or directory at D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\vendor\\composer\\ClassLoader.php:576)
+[stacktrace]
+#0 D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Bootstrap\\HandleExceptions.php(256): Illuminate\\Foundation\\Bootstrap\\HandleExceptions->handleError(2, 'include(D:\\\\Work...', 'D:\\\\Work\\\\GTech\\\\P...', 576)
+#1 D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\vendor\\composer\\ClassLoader.php(576): Illuminate\\Foundation\\Bootstrap\\HandleExceptions->Illuminate\\Foundation\\Bootstrap\\{closure}(2, 'include(D:\\\\Work...', 'D:\\\\Work\\\\GTech\\\\P...', 576)
+#2 D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\vendor\\composer\\ClassLoader.php(576): include('D:\\\\Work\\\\GTech\\\\P...')
+#3 D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\vendor\\composer\\ClassLoader.php(427): Composer\\Autoload\\{closure}('D:\\\\Work\\\\GTech\\\\P...')
+#4 D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Application.php(933): Composer\\Autoload\\ClassLoader->loadClass('Barryvdh\\\\DomPDF...')
+#5 D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Application.php(865): Illuminate\\Foundation\\Application->resolveProvider('Barryvdh\\\\DomPDF...')
+#6 D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\ProviderRepository.php(75): Illuminate\\Foundation\\Application->register('Barryvdh\\\\DomPDF...')
+#7 D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Application.php(843): Illuminate\\Foundation\\ProviderRepository->load(Array)
+#8 D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Bootstrap\\RegisterProviders.php(37): Illuminate\\Foundation\\Application->registerConfiguredProviders()
+#9 D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Application.php(316): Illuminate\\Foundation\\Bootstrap\\RegisterProviders->bootstrap(Object(Illuminate\\Foundation\\Application))
+#10 D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Http\\Kernel.php(187): Illuminate\\Foundation\\Application->bootstrapWith(Array)
+#11 D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Http\\Kernel.php(171): Illuminate\\Foundation\\Http\\Kernel->bootstrap()
+#12 D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Http\\Kernel.php(145): Illuminate\\Foundation\\Http\\Kernel->sendRequestThroughRouter(Object(Illuminate\\Http\\Request))
+#13 D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Application.php(1188): Illuminate\\Foundation\\Http\\Kernel->handle(Object(Illuminate\\Http\\Request))
+#14 D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\public\\index.php(17): Illuminate\\Foundation\\Application->handleRequest(Object(Illuminate\\Http\\Request))
+#15 D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\resources\\server.php(23): require_once('D:\\\\Work\\\\GTech\\\\P...')
+#16 {main}
+"} 
+[2025-01-23 22:49:35] local.ERROR: Cannot declare class ApiResponse, because the name is already in use {"exception":"[object] (Symfony\\Component\\ErrorHandler\\Error\\FatalError(code: 0): Cannot declare class ApiResponse, because the name is already in use at D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\app\\helpers.php:4)
 [stacktrace]
 #0 {main}
 "} 
-[2025-01-23 22:02:34] local.ERROR: Cannot declare class ApiResponse, because the name is already in use {"exception":"[object] (Symfony\\Component\\ErrorHandler\\Error\\FatalError(code: 0): Cannot declare class ApiResponse, because the name is already in use at D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\app\\helpers.php:4)
-[stacktrace]
-#0 {main}
-"} 
-[2025-01-23 22:03:35] local.ERROR: Cannot declare class ApiResponse, because the name is already in use {"exception":"[object] (Symfony\\Component\\ErrorHandler\\Error\\FatalError(code: 0): Cannot declare class ApiResponse, because the name is already in use at D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\app\\helpers.php:4)
-[stacktrace]
-#0 {main}
-"} 
-[2025-01-23 22:04:34] local.ERROR: Cannot declare class ApiResponse, because the name is already in use {"exception":"[object] (Symfony\\Component\\ErrorHandler\\Error\\FatalError(code: 0): Cannot declare class ApiResponse, because the name is already in use at D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\app\\helpers.php:4)
-[stacktrace]
-#0 {main}
-"} 
-[2025-01-23 22:05:34] local.ERROR: Cannot declare class ApiResponse, because the name is already in use {"exception":"[object] (Symfony\\Component\\ErrorHandler\\Error\\FatalError(code: 0): Cannot declare class ApiResponse, because the name is already in use at D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\app\\helpers.php:4)
-[stacktrace]
-#0 {main}
-"} 
-[2025-01-23 22:06:34] local.ERROR: Cannot declare class ApiResponse, because the name is already in use {"exception":"[object] (Symfony\\Component\\ErrorHandler\\Error\\FatalError(code: 0): Cannot declare class ApiResponse, because the name is already in use at D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\app\\helpers.php:4)
-[stacktrace]
-#0 {main}
-"} 
-[2025-01-23 22:07:34] local.ERROR: Cannot declare class ApiResponse, because the name is already in use {"exception":"[object] (Symfony\\Component\\ErrorHandler\\Error\\FatalError(code: 0): Cannot declare class ApiResponse, because the name is already in use at D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\app\\helpers.php:4)
-[stacktrace]
-#0 {main}
-"} 
-[2025-01-23 22:08:34] local.ERROR: Cannot declare class ApiResponse, because the name is already in use {"exception":"[object] (Symfony\\Component\\ErrorHandler\\Error\\FatalError(code: 0): Cannot declare class ApiResponse, because the name is already in use at D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\app\\helpers.php:4)
-[stacktrace]
-#0 {main}
-"} 
-[2025-01-23 22:09:34] local.ERROR: Cannot declare class ApiResponse, because the name is already in use {"exception":"[object] (Symfony\\Component\\ErrorHandler\\Error\\FatalError(code: 0): Cannot declare class ApiResponse, because the name is already in use at D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\app\\helpers.php:4)
-[stacktrace]
-#0 {main}
-"} 
-[2025-01-23 22:10:34] local.ERROR: Cannot declare class ApiResponse, because the name is already in use {"exception":"[object] (Symfony\\Component\\ErrorHandler\\Error\\FatalError(code: 0): Cannot declare class ApiResponse, because the name is already in use at D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\app\\helpers.php:4)
-[stacktrace]
-#0 {main}
-"} 
-[2025-01-23 22:11:34] local.ERROR: Cannot declare class ApiResponse, because the name is already in use {"exception":"[object] (Symfony\\Component\\ErrorHandler\\Error\\FatalError(code: 0): Cannot declare class ApiResponse, because the name is already in use at D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\app\\helpers.php:4)
-[stacktrace]
-#0 {main}
-"} 
-[2025-01-23 22:12:34] local.ERROR: Cannot declare class ApiResponse, because the name is already in use {"exception":"[object] (Symfony\\Component\\ErrorHandler\\Error\\FatalError(code: 0): Cannot declare class ApiResponse, because the name is already in use at D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\app\\helpers.php:4)
-[stacktrace]
-#0 {main}
-"} 
-[2025-01-23 22:13:34] local.ERROR: Cannot declare class ApiResponse, because the name is already in use {"exception":"[object] (Symfony\\Component\\ErrorHandler\\Error\\FatalError(code: 0): Cannot declare class ApiResponse, because the name is already in use at D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\app\\helpers.php:4)
-[stacktrace]
-#0 {main}
-"} 
-[2025-01-23 22:14:34] local.ERROR: Cannot declare class ApiResponse, because the name is already in use {"exception":"[object] (Symfony\\Component\\ErrorHandler\\Error\\FatalError(code: 0): Cannot declare class ApiResponse, because the name is already in use at D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\app\\helpers.php:4)
-[stacktrace]
-#0 {main}
-"} 
-[2025-01-23 22:15:34] local.ERROR: Cannot declare class ApiResponse, because the name is already in use {"exception":"[object] (Symfony\\Component\\ErrorHandler\\Error\\FatalError(code: 0): Cannot declare class ApiResponse, because the name is already in use at D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\app\\helpers.php:4)
-[stacktrace]
-#0 {main}
-"} 
-[2025-01-23 22:16:35] local.ERROR: Cannot declare class ApiResponse, because the name is already in use {"exception":"[object] (Symfony\\Component\\ErrorHandler\\Error\\FatalError(code: 0): Cannot declare class ApiResponse, because the name is already in use at D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\app\\helpers.php:4)
-[stacktrace]
-#0 {main}
-"} 
-[2025-01-23 22:17:34] local.ERROR: Cannot declare class ApiResponse, because the name is already in use {"exception":"[object] (Symfony\\Component\\ErrorHandler\\Error\\FatalError(code: 0): Cannot declare class ApiResponse, because the name is already in use at D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\app\\helpers.php:4)
+[2025-01-23 22:50:00] local.ERROR: []  
+[2025-01-23 22:50:19] local.ERROR: []  
+[2025-01-23 22:50:35] local.ERROR: Cannot declare class ApiResponse, because the name is already in use {"exception":"[object] (Symfony\\Component\\ErrorHandler\\Error\\FatalError(code: 0): Cannot declare class ApiResponse, because the name is already in use at D:\\Work\\GTech\\Projects\\BACKEND\\gtech_dms\\app\\helpers.php:4)
 [stacktrace]
 #0 {main}
 "} 
