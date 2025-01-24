@@ -29,7 +29,7 @@ class MerchantManagementController extends Controller
         $statusId = $req->status_id ?? null;
         $search = $req->search;
         $priceList = DB::table('price_list_names as n')
-        ->selectRaw('n.id,n.name,mpl.merchant_id')->join('merchant_price_list as mpl','mpl.price_list_id','n.id')
+        ->selectRaw('n.id,n.name,mpl.merchant_id,mpl.zone_code,mpl.zone_id')->join('merchant_price_list as mpl','mpl.price_list_id','n.id')
         ->get();
         $query = User::where('is_deleted',0)->where('company_id',$user->company_id)
         ->where('account_type',$this->userClass)
@@ -53,6 +53,7 @@ class MerchantManagementController extends Controller
             $m->referrer = null;
             $m->image_url = Helper::getImageUrl($m->photo_file_name,$user->company_id,'user_profile');
             $m->price_list_name = $merchantPriceList?->name;
+            $m->zone_id = $merchantPriceList?->zone_id;
             $m->client_type = $m->merchantType?->name;
             $m->create_by = ($m->create_uid == $m->id) ? 'Self': 'Admin';
             foreach($m->bank_accounts as $b){

@@ -5,19 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
     <title>{{ $title ?? 'History Packages' }}</title>
-
     <style>
-    * {
-        font-family: "NotoSansKhmer" sans-serif;
+    @font-face {
+        font-family: khmeros;
+        src: url("{{ public_path('fonts/khmeros.ttf') }}");
+    }
+    body {
+        font-family: "khmeros";
     }
 
-    /* Define the Battambang font */
-    @font-face {
-        font-weight: normal;
-        font-family: 'NotoSansKhmer';
-        src: url({{ public_path('fonts/NotoSansKhmer-Regular.ttf') }}) format('truetype');
-        font-style: normal;
-    }
 
     /*
         h1, p, td {

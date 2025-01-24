@@ -416,7 +416,7 @@ class ReportController extends Controller
             $total += 1;
         }
         $obj =(object)[
-            'title' => 'Daily Packages Summary',
+            'title' => 'Review And Feedback',
             'sub_title' => 'Arrivate Date:',
             'date' => Helper::dateDMY($startDate).' to '.Helper::dateDMY($endDate),
             'total' => $total,

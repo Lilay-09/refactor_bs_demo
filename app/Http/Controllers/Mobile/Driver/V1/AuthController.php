@@ -33,7 +33,7 @@ class AuthController extends Controller
         $password = $input['password'];
         date_default_timezone_set('Asia/Phnom_Penh');
         $today = date('Y-m-d H:i:s');
-        $user = User::where('account_type','driver')->where(function ($q) use ($account) {
+        $user = User::where('account_type','driver')->where('is_deleted',0)->where(function ($q) use ($account) {
             $q->where('email', $account)
             ->orWhere('phone', $account)
             ->orWhere('login_name', $account);

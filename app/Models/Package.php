@@ -102,10 +102,10 @@ class Package extends Model
     //     return $this->formatDatetime($value);
     // }
 
-    public function setPriceAttribute($value)
-    {
-        $this->attributes['price'] = Helper::getNumber($value);
-    }
+    // public function setPriceAttribute($value)
+    // {
+    //     $this->attributes['price'] = Helper::getNumber($value);
+    // }
 
     public function setDriverTotalAttribute($value)
     {

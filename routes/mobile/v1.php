@@ -9,6 +9,7 @@ use App\Http\Controllers\Mobile\Merchant\V1\HistoryController as MerchantHistory
 use App\Http\Controllers\Mobile\Driver\V1\HomeScreenController;
 use App\Http\Controllers\Mobile\Merchant\V1\HomeController;
 use App\Http\Controllers\Mobile\V1\GeneralSettingController;
+use App\Http\Controllers\Mobile\V1\ReportController;
 use App\Models\TrackingStatus;
 use Illuminate\Support\Facades\Route;
 
@@ -124,6 +125,9 @@ Route::middleware(['jwtMerchant','localize'])->prefix('merchant/v1/{lang}')->gro
             Route::get('return',[HomeController::class,'getReturnPackages']);
             Route::get('activity',[HomeController::class,'trackingActivitySummary']);
             Route::post('order/{id}/cancel',[HomeController::class,'cancelOrder']);
+        });
+        Route::prefix('report')->group(function(){
+            Route::get('dailyPackage',[ReportController::class,'merchantDailyPackages']);
         });
     });
 

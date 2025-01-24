@@ -39,7 +39,7 @@ class AuthController extends Controller
         $password = $input['password'];
         date_default_timezone_set('Asia/Phnom_Penh');
         $today = date('Y-m-d H:i:s');
-        $user = User::where('account_type','merchant')->where(function ($q) use ($account) {
+        $user = User::where('account_type','merchant')->where('is_deleted',0)->where(function ($q) use ($account) {
             $q->where('email', $account)
             ->orWhere('phone', $account)
             ->orWhere('login_name', $account);
@@ -148,7 +148,8 @@ class AuthController extends Controller
             'address' => $inputs['address'] ?? null,
             'account_type' => 'merchant',
             'business_type' => $inputs['business_type'] ?? null,
-            'otp' => $otp
+            'otp' => $otp,
+            'register_channel' => 'mobile'
         ]);
 
         $authUser = User::where('system_admin',1)->selectRaw('id,company_id,branch_id')->first();
@@ -159,7 +160,7 @@ class AuthController extends Controller
                 'khInfo' => 'លេខសំងាត់ '.$otp
         ]);
 
-        $smsInfo = AppSetting::sendSms("SMS Info",$phone,$message);
+        $smsInfo = AppSetting::sendSms("JS Express",$phone,$message);
         if($smsInfo->status_code == 402) return ApiResponse::ValidateFail('Error sending SMS, Please try again later.');
         return ApiResponse::JsonResult([
             'phone' => $phone,
