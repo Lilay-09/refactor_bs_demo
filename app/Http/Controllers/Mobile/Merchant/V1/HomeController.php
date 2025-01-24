@@ -215,7 +215,7 @@ class HomeController extends Controller
         ->where('is_deleted',0)
         ->selectRaw('id,merchant_id,receiver_phone,receiver_address,receiver_name,cod,price,delivery_fee,remarks,driver_id,delivered_datetime,arrive_warehouse_datetime')
         ->get()->map(function($package){
-            $package->price = (float)$package->price;
+            $package->price = (float) $package->price;
             $package->cod_fee = $package->cod ? $package->price : 0;
             $package->status_code = 'Delivered';
             $package->driver_phone = $package->driver->phone;

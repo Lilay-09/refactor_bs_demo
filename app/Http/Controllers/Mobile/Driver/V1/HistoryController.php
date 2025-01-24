@@ -103,6 +103,9 @@ class HistoryController extends Controller
 
         // Define the file name and path
         $fileName = 'history-packages-' . time() . '.pdf';
+        //** stream */
+        // $pdf->Output($fileName, 'i');
+
         $filePath = 'pdfs/' . $fileName;
 
         // Save the PDF content to a file on the public disk

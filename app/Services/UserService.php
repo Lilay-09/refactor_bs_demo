@@ -35,7 +35,7 @@ class UserService
     public static function getAuthUser($class='admin',$action='',$useSpecificClass=true){
         $user = JWTAuth::user();
         if($user){
-            $hasUser = User::where('id',$user->id)->selectRaw('id,user_name,phone,account_type,company_id,lock,branch_id,system_admin,vehicle_type,address,delete_account')->first();
+            $hasUser = User::where('id',$user->id)->where('is_deleted',0)->selectRaw('id,user_name,phone,account_type,company_id,lock,branch_id,system_admin,vehicle_type,address,delete_account')->first();
             if($hasUser){
                 if($class != $hasUser->account_type && $useSpecificClass) return DataResponse::Forbidden();
                 if($hasUser->delete_account || $hasUser->lock) return DataResponse::Unauthorized();

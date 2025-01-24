@@ -35,114 +35,154 @@ class HistoryController extends Controller
         }
 
         if(in_array($status,['All','On Delivery'])){
-            $packages = Package::where('merchant_id',$user->id)
+            Package::where('merchant_id', $user->id)
             ->with('driver')
-            ->where('status_id',6)
-            ->where('is_deleted',0)
+            ->where('status_id', 6)
+            ->where('is_deleted', 0)
             ->selectRaw('id,merchant_id,receiver_phone,receiver_address,receiver_name,cod,price,delivery_fee,remarks,driver_id,arrive_warehouse_datetime')
-            ->get();
-            foreach($packages as $package){
+            ->get()
+            ->map(function ($package) use (&$items) {
+                // Cast price to float manually
+                $package->price = (float) $package->price;
                 $package->cod_fee = $package->cod ? $package->price : 0;
                 $package->status_code = 'On Delivery';
-                $package->render_status = 'On Delivery';
-                $package->driver_phone = $package->driver->phone;
-                $package->driver_name = $package->driver->user_name;
-                $package->total = $package->cod_fee + $package->delivery_fee;
+                $package->driver_phone = $package->driver->phone ?? null; // Ensure driver relationship exists
+                $package->driver_name = $package->driver->user_name ?? null;
+                $package->total = (float) $package->cod_fee + $package->delivery_fee;
+                $package->delivery_fee = (float) $package->delivery_fee;
                 $package->fee = $package->delivery_fee;
+
+                // Remove the driver relationship if not needed in the response
                 unset($package->driver);
                 $items[] = $package;
-            }
+                return $package;
+            });
         }
 
 
         if(in_array($status,['All','Success'])){
-            $successPackages = Package::where('merchant_id',$user->id)
+            Package::where('merchant_id',$user->id)
             ->with('driver')
             ->where('status_id',9)
-            ->where('outstanding',0)
             ->where('is_deleted',0)
             ->selectRaw('id,merchant_id,receiver_phone,receiver_address,receiver_name,cod,price,delivery_fee,remarks,driver_id,delivered_datetime,arrive_warehouse_datetime')
-            ->get();
-            foreach($successPackages as $package){
-                $package->delivered_datetime = Helper::formatCustomDateTime($package->delivered_datetime,'d-M-Y h:i A');
-                $package->arrive_warehouse_datetime = Helper::formatCustomDateTime($package->arrive_warehouse_datetime,'d-M-Y h:i A');
+            ->get()->map(function($package) use(&$items){
+                $package->price = (float) $package->price;
                 $package->cod_fee = $package->cod ? $package->price : 0;
-                $package->status_code = 'Success';// 'Delivered';
-                $package->render_status = 'Success';
+                $package->status_code = 'Delivered';
                 $package->driver_phone = $package->driver->phone;
                 $package->driver_name = $package->driver->user_name;
-                $package->total = $package->cod_fee + $package->delivery_fee;
+                $package->total = (float)$package->cod_fee + $package->delivery_fee;
+                $package->delivery_fee = (float)$package->delivery_fee;
                 $package->fee = $package->delivery_fee;
                 unset($package->driver);
                 $items[] = $package;
-            }
+                // return $package;
+            });
+            // $successPackages = Package::where('merchant_id',$user->id)
+            // ->with('driver')
+            // ->where('status_id',9)
+            // ->where('outstanding',0)
+            // ->where('is_deleted',0)
+            // ->selectRaw('id,merchant_id,receiver_phone,receiver_address,receiver_name,cod,price,delivery_fee,remarks,driver_id,delivered_datetime,arrive_warehouse_datetime')
+            // ->get();
+            // foreach($successPackages as $package){
+            //     $package->delivered_datetime = Helper::formatCustomDateTime($package->delivered_datetime,'d-M-Y h:i A');
+            //     $package->arrive_warehouse_datetime = Helper::formatCustomDateTime($package->arrive_warehouse_datetime,'d-M-Y h:i A');
+            //     $package->cod_fee = $package->cod ? $package->price : 0;
+            //     $package->status_code = 'Success';// 'Delivered';
+            //     $package->render_status = 'Success';
+            //     $package->driver_phone = $package->driver->phone;
+            //     $package->driver_name = $package->driver->user_name;
+            //     $package->total = $package->cod_fee + $package->delivery_fee;
+            //     $package->fee = $package->delivery_fee;
+            //     unset($package->driver);
+            //     $items[] = $package;
+            // }
         }
 
         if(in_array($status,['All','Failed'])){
-            $packages = Package::where('merchant_id',$user->id)
+            Package::where('merchant_id',$user->id)
             ->with(['driver','status'])
-            ->where('outstanding',0)
-            ->where('status_id',10)
+            ->whereIn('status_id',[10])
             ->where('is_deleted',0)
             ->selectRaw('id,merchant_id,arrive_warehouse_datetime,receiver_phone,receiver_address,receiver_name,cod,price,delivery_fee,status_id,remarks,driver_id,failed_datetime')
-            ->get();
-            foreach($packages as $package){
-                $package->failed_datetime = Helper::formatCustomDateTime($package->failed_datetime,'d-M-Y h:i A');
+            ->get()
+            ->map(function($package) use(&$items){
+                $package->price = (float)$package->price;
                 $package->cod_fee = $package->cod ? $package->price : 0;
                 $package->status_code = $package->status->name;
-                $package->render_status = $package->status_code;
                 $package->driver_phone = $package->driver->phone;
                 $package->driver_name = $package->driver->user_name;
-                $package->total = $package->cod_fee + $package->delivery_fee;
-                $package->fee = $package->delivery_fee;
+                $package->total = (float)Helper::getNumber($package->cod_fee + $package->delivery_fee,2);
+                $package->fee = (float)$package->delivery_fee;
+                $package->delivery_fee = (float)$package->delivery_fee;
                 unset($package->driver,$package->status);
                 $items[] = $package;
-            }
+            });
+            // $packages = Package::where('merchant_id',$user->id)
+            // ->with(['driver','status'])
+            // ->where('outstanding',0)
+            // ->where('status_id',10)
+            // ->where('is_deleted',0)
+            // ->selectRaw('id,merchant_id,arrive_warehouse_datetime,receiver_phone,receiver_address,receiver_name,cod,price,delivery_fee,status_id,remarks,driver_id,failed_datetime')
+            // ->get();
+            // foreach($packages as $package){
+            //     $package->failed_datetime = Helper::formatCustomDateTime($package->failed_datetime,'d-M-Y h:i A');
+            //     $package->cod_fee = $package->cod ? $package->price : 0;
+            //     $package->status_code = $package->status->name;
+            //     $package->render_status = $package->status_code;
+            //     $package->driver_phone = $package->driver->phone;
+            //     $package->driver_name = $package->driver->user_name;
+            //     $package->total = $package->cod_fee + $package->delivery_fee;
+            //     $package->fee = $package->delivery_fee;
+            //     unset($package->driver,$package->status);
+            //     $items[] = $package;
+            // }
         }
 
         if(in_array($status,['All','Failed With Fee'])){
-            $packages = Package::where('merchant_id',$user->id)
+            Package::where('merchant_id',$user->id)
             ->with(['driver','status'])
-            ->where('outstanding',0)
-            ->where('status_id',19)
+            ->whereIn('status_id',[10])
             ->where('is_deleted',0)
             ->selectRaw('id,merchant_id,arrive_warehouse_datetime,receiver_phone,receiver_address,receiver_name,cod,price,delivery_fee,status_id,remarks,driver_id,failed_datetime')
-            ->get();
-            foreach($packages as $package){
-                $package->failed_datetime = Helper::formatCustomDateTime($package->failed_datetime,'d-M-Y h:i A');
+            ->get()
+            ->map(function($package) use(&$items){
+                $package->price = (float)$package->price;
                 $package->cod_fee = $package->cod ? $package->price : 0;
                 $package->status_code = $package->status->name;
-                $package->render_status = $package->status_code;
                 $package->driver_phone = $package->driver->phone;
                 $package->driver_name = $package->driver->user_name;
-                $package->total = $package->cod_fee + $package->delivery_fee;
-                $package->fee = $package->delivery_fee;
+                $package->total = (float)Helper::getNumber($package->cod_fee + $package->delivery_fee,2);
+                $package->fee = (float)$package->delivery_fee;
+                $package->delivery_fee = (float)$package->delivery_fee;
                 unset($package->driver,$package->status);
                 $items[] = $package;
-            }
+            });
         }
 
         if(in_array($status,['All','Return','Returned'])){
-            $packages = Package::where('merchant_id',$user->id)
+            Package::where('merchant_id',$user->id)
             ->with(['driver','status'])
-            ->where('outstanding',0)
             ->whereIn('status_id',[11])
             ->selectRaw('id,merchant_id,arrive_warehouse_datetime,receiver_phone,receiver_address,receiver_name,cod,price,delivery_fee,status_id,remarks,driver_id,failed_datetime,returned_datetime,updated_at')
-            ->get();
-            foreach($packages as $package){
+            ->get()
+            ->map(function($package) use(&$items){
+                $package->price = (float)$package->price;
                 $package->cod_fee = $package->cod ? $package->price : 0;
                 $package->status_code = $package->status->name;
-                $package->render_status = $package->status_code;
                 $package->driver_phone = $package->driver?->phone;
                 $package->driver_name = $package->driver?->user_name;
-                $package->total = $package->cod_fee + $package->delivery_fee;
+                $package->total = (float) $package->cod_fee + $package->delivery_fee;
+                $package->delivery_fee = (float)$package->delivery_fee;
                 $package->fee = $package->delivery_fee;
                 $returnDate = $package->return_datetime ? $package->return_datetime : $package->updated_at;
                 $package->returned_date = Helper::dateDMY($returnDate);
-                $package->arrive_warehouse_datetime = Helper::formatCustomDateTime($package->arrive_warehouse_datetime,'d-M-Y h:i A');
+                $package->return_time = Helper::formatCustomDateTime($returnDate, 'h:i:s');
                 unset($package->driver,$package->status);
                 $items[] = $package;
-            }
+            });
         }
         return ApiResponse::JsonResult($items);
     }
