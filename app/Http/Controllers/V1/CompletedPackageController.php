@@ -45,6 +45,7 @@ class CompletedPackageController extends Controller
             ELSE 'No Payment/Disbursement'
         END as merchant_status";
         $qP = Package::from('packages as p')->where('p.company_id',$user->company_id)
+        ->where('p.is_deleted',0)
         ->with('returnUser')
         ->leftJoin('users as d','d.id','p.driver_id')
         ->join('tracking_statuses as ts','ts.id','p.status_id')
