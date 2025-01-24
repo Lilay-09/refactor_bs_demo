@@ -530,7 +530,7 @@ class UserService
                 $package = Package::where('is_deleted',0)->where('driver_id',$id)->where('outstanding',0)
                 ->selectRaw('id,driver_id,'.$disKey.','.$pmtKey)
                 ->first();
-                if(!$package->{$disKey} && !$package->{$pmtKey}) return DataResponse::ValidateFail($type.' still has payment that is not paid.');
+                if($package) if(!$package->{$disKey} && !$package->{$pmtKey}) return DataResponse::ValidateFail($type.' still has payment that is not paid.');
                 $payment = Payment::where('is_deleted',0)->where('payer_id',$id)->where('approved',0)->first();
                 $disbursement = Disbursement::where('is_deleted',0)->where('payee_id',$id)->where('approved',0)->where('type','payment')->first();
                 if($payment || $disbursement) return DataResponse::ValidateFail('Found some payments that are not paid yet!');
