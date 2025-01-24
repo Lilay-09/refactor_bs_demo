@@ -48,6 +48,7 @@ class HistoryController extends Controller
                 $package->status_code = 'On Delivery';
                 $package->driver_phone = $package->driver->phone ?? null; // Ensure driver relationship exists
                 $package->driver_name = $package->driver->user_name ?? null;
+                $package->render_status = $package->status_code;
                 $package->total = (float) $package->cod_fee + $package->delivery_fee;
                 $package->delivery_fee = (float) $package->delivery_fee;
                 $package->fee = $package->delivery_fee;
@@ -75,6 +76,7 @@ class HistoryController extends Controller
                 $package->total = (float)$package->cod_fee + $package->delivery_fee;
                 $package->delivery_fee = (float)$package->delivery_fee;
                 $package->fee = $package->delivery_fee;
+                $package->render_status = 'Success';
                 unset($package->driver);
                 $items[] = $package;
                 // return $package;
@@ -113,6 +115,7 @@ class HistoryController extends Controller
                 $package->cod_fee = $package->cod ? $package->price : 0;
                 $package->status_code = $package->status->name;
                 $package->driver_phone = $package->driver->phone;
+                $package->render_status = $package->status_code;
                 $package->driver_name = $package->driver->user_name;
                 $package->total = (float)Helper::getNumber($package->cod_fee + $package->delivery_fee,2);
                 $package->fee = (float)$package->delivery_fee;
@@ -153,6 +156,7 @@ class HistoryController extends Controller
                 $package->cod_fee = $package->cod ? $package->price : 0;
                 $package->status_code = $package->status->name;
                 $package->driver_phone = $package->driver->phone;
+                $package->render_status = $package->status_code;
                 $package->driver_name = $package->driver->user_name;
                 $package->total = (float)Helper::getNumber($package->cod_fee + $package->delivery_fee,2);
                 $package->fee = (float)$package->delivery_fee;
@@ -174,6 +178,7 @@ class HistoryController extends Controller
                 $package->status_code = $package->status->name;
                 $package->driver_phone = $package->driver?->phone;
                 $package->driver_name = $package->driver?->user_name;
+                $package->render_status = $package->status_code;
                 $package->total = (float) $package->cod_fee + $package->delivery_fee;
                 $package->delivery_fee = (float)$package->delivery_fee;
                 $package->fee = $package->delivery_fee;
