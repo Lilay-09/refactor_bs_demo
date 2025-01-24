@@ -33,7 +33,7 @@ class TransactionService
         $pmtKey = $type.'_payment_id';
         $disKey = $type.'_disbursement_id';
         $qP = Package::fromRaw('packages as p')->where('p.company_id',$user->company_id)
-        ->where('is_deleted',0)
+        ->where('p.is_deleted',0)
         ->join('users as d','d.id','p.driver_id')
         ->join('tracking_statuses as ts','ts.id','p.status_id')
         ->join('users as m','m.id','p.merchant_id')
