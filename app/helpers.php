@@ -82,10 +82,10 @@ class ApiResponse
             'error' => false,
             'message'=> $message,
             'data' => $limitation->values(),
-            'per_page' => $perPage,
-            'total' => $count,
-            'total_page' => $total_page,
-            'page_no' => $currentPage,
+            'per_page' => (int)$perPage,
+            'total' => (int)$count,
+            'total_page' => (int)$total_page,
+            'page_no' => (int)$currentPage,
             'errors'=>[],
         ];
         foreach ((object)$additionalKey as $key => $value) {
@@ -830,10 +830,10 @@ class DataResponse //extends Model
             'error' => false,
             'message'=> $message,
             'data' => $limitation->values(),
-            'per_page' => $perPage,
-            'total' => $count,
-            'total_page' => $total_page,
-            'page_no' => $currentPage,
+            'per_page' => (int)$perPage,
+            'total' => (int)$count,
+            'total_page' => (int) $total_page,
+            'page_no' => (int) $currentPage,
             'errors'=>[],
         ];
         foreach ((object)$additionalKey as $key => $value) {

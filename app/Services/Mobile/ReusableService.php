@@ -30,7 +30,7 @@ class ReusableService
         ->leftJoin('payments as pmt','pmt.id','p.driver_payment_id')
         // ->leftJoin('payments as pmt','pmt.id','p.merchant_payment_id')
         ->join('tracking_statuses as trs','trs.id','p.status_id')
-        ->selectRaw('p.pickup_notes as notes,p.receiver_address,p.qr_code,p.status_id,trs.name as status_code,d.id as delivery_id,d.fleet_tracking_number,m.user_name as merchant_name,m.phone as merchant_phone,p.receiver_name,p.receiver_phone,p.delivery_fee,p.taxi_fee,p.remarks,p.id as package_id,p.product_type,p.driver_total as total,p.billed_kg,p.failed_datetime,p.delivered_datetime,p.arrive_warehouse_datetime,p.returned_datetime')
+        ->selectRaw('p.pickup_notes as notes,p.receiver_address,p.qr_code,p.status_id,trs.name as status_code,d.id as delivery_id,d.fleet_tracking_number,m.user_name as merchant_name,m.phone as merchant_phone,p.receiver_name,p.receiver_phone,p.delivery_fee,p.taxi_fee,p.remarks,p.id as package_id,p.product_type,p.driver_total,p.billed_kg,p.failed_datetime,p.delivered_datetime,p.arrive_warehouse_datetime,p.returned_datetime')
         ->whereIn('p.status_id',$statusIds)
         ->orderByRaw('
             CASE
@@ -101,9 +101,31 @@ class ReusableService
             ->orWhere('d.fleet_tracking_number', 'ilike', '%' . $search . '%');
         });
         $fleetPackages = $qFp->get();
+        // ->map(function ($f) use($isKm) {
+        //     $f->total = (float)$f->driver_total;
+        //     $warehouse_datetime = Helper::formatCustomDateTime($f->arrive_warehouse_datetime,'d-M-Y H:i A');
+        //     $finished_date = $f->delivered_datetime;
+        //     $statusId = $f->status_id;
+        //     $f->delivery_fee = (float)$f->delivery_fee;
+        //     $f->taxi_fee = (float)$f->taxi_fee;
+
+        //     if($statusId == 6) $finished_date = $f->arrive_warehouse_datetime;
+        //     if($statusId == 10) $finished_date = $f->failed_datetime;
+        //     if($statusId == 11) $finished_date = $f->returned_datetime;
+        //     if($statusId == 19) $finished_date = $f->failed_datetime;
+        //     if($isKm){
+        //         $f->status_code = GeneralSettingService::$statusCodeTrans[$statusId] ?? '';
+        //     }
+        //     $f->finished_datetime = Helper::formatCustomDateTime($finished_date,'d-M-Y h:i A');
+        //     $f->arrive_warehouse_datetime = $warehouse_datetime;
+        //     unset($f->failed_datetime,$f->returned_datetime,$f->delivered_datetime);
+        //     return $f;
+
+        // });
         foreach($fleetPackages as $f){
             $warehouse_datetime = Helper::formatCustomDateTime($f->arrive_warehouse_datetime,'d-M-Y H:i A');
             $finished_date = $f->delivered_datetime;
+            $f->total = $f->driver_total;
             $statusId = $f->status_id;
             if($statusId == 6) $finished_date = $f->arrive_warehouse_datetime;
             if($statusId == 10) $finished_date = $f->failed_datetime;
