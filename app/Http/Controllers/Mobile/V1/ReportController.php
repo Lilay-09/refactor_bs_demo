@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Mobile\V1;
 use ApiResponse;
 use App\Http\Controllers\Controller;
 use App\Models\Package;
+use App\Models\TrackingStatus;
 use App\Services\GeneralSettingService;
 use Helper;
 use Illuminate\Http\Request;
@@ -85,5 +86,10 @@ class ReportController extends Controller
         })->values();
 
         return ApiResponse::JsonResult($groupedPackages);
+    }
+
+    //** Options */
+    public function merchantDailyPackagesOption(){
+        $statuses = TrackingStatus::whereIn('id',[9,10,11,19])->get();
     }
 }
