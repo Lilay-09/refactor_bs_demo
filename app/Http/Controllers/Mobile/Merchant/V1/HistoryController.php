@@ -19,7 +19,7 @@ class HistoryController extends Controller
         $user = UserService::getAuthUser('merchant');
         $items =[];
         $status = $req->status ?? 'All';
-        $isKm = $req->lang != 'km';
+        $isKm = $req->lang != 'en';
         if(in_array($status,['All','Pick Up'])){
             $orders = Order::where('merchant_id',$user->id)
             ->with(['tracking_status','driver'])

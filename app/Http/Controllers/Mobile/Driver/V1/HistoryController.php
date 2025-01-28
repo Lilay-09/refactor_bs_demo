@@ -27,7 +27,6 @@ class HistoryController extends Controller
 
     public function getHistoryPdf(Request $req)
     {
-        \Log::error(json_encode($req->all()));
         $user = UserService::getAuthUser('driver');
         $startDate = $req->startDate;
         $endDate = $req->endDate;
