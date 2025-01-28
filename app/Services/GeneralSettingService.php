@@ -87,7 +87,7 @@ public static function optionsRole($type=null){
     }
 
     public static function optionsModule(){
-        return AppModule::selectRaw('id,name')->get();
+        return AppModule::selectRaw('id,native_name as name')->orderBy('display_order')->get();
     }
 
     public static function optionsPermission(){

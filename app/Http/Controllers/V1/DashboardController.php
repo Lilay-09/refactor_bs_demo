@@ -49,7 +49,7 @@ class DashboardController extends Controller
             if($p->status_id == 9) $deliveredCount += 1;
             if($p->status_id == 11) $returnedCount += 1;
         }
-        $data = [
+        $items = [
             [
                 'title' => 'Total Earning',
                 'total' => ''
@@ -84,7 +84,10 @@ class DashboardController extends Controller
             ]
         ];
 
-        return $data;
+        return [
+            'days' => $days,
+            'items' => $items
+        ];
     }
 
     private function getDaysEarning($rows){
@@ -115,7 +118,7 @@ class DashboardController extends Controller
         ->whereIn('p.status_id',[9,10,19])
         ->join('users as r', 'p.driver_id', '=', 'r.id')
         ->where('r.account_type','driver') // Updated column name
-        ->select('r.id', 'r.user_name', DB::raw('COUNT(p.id) as total_packages'))
+        ->select('r.id', 'r.user_name as driver_name', DB::raw('COUNT(p.id) as total_packages'))
         ->whereIn('p.driver_id', function ($query) {
             $query->select('driver_id')
                 ->from('packages')

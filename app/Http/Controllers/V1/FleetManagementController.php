@@ -583,25 +583,39 @@ class FleetManagementController extends Controller
         ]));
     }
 
-
     public function printTripPackages(Request $req){
         $user = UserService::getAuthUser();
         $tripId = $req->trip_id;
         $startDate = $req->start_date;
         $endDate = $req->end_date;
+        $status = $req->status ?? null;
+        $trip = Delivery::where('is_deleted',0)->find($tripId);
+        if(!$trip) return ApiResponse::JsonResult(null,'No trip found');
+        $driverInfo = User::where('account_type','driver')->selectRaw('user_name as driver_name,phone,email')
+        ->where('id',$trip->driver_id)->first();
+        $driverInfo->package_count = $trip->package_count;
+        $driverInfo->depart_datetime = $trip->depart_datetime;
+        $driverInfo->finished_datetime = $trip->finished_datetime;
+        $driverInfo->fleet_tracking_number = $trip->fleet_tracking_number;
         $companyInfo = CompanyProfileService::profileInfo($user);
         $qP = Package::fromRaw('packages as p')->join('delivery_packages as dp','p.id','dp.package_id')
+        ->join('tracking_statuses as ts','ts.id','p.status_id')
+        ->join('users as m','m.id','p.merchant_id')
         ->where('dp.delivery_id',$tripId)
         ->where('dp.delay_count',0)
-        ->selectRaw('p.id as package_id,dp.delivery_id,dp.delay_count,dp.status_id,p.driver_total');
+        ->selectRaw('p.qr_code,m.user_name as merchant_name,m.phone as merchant_phone,p.product_type,p.receiver_address,p.receiver_phone,p.zone_code,p.zone_name,p.id as package_id,dp.delivery_id,dp.delay_count,dp.status_id,p.driver_total,ts.name as status_code');
         if($startDate && $endDate){
             $startDate = date('Y-m-d H:i:s',strtotime($startDate));
             $endDate = date('Y-m-d H:i:s',strtotime($endDate));
             $qP->whereBetween('p.arrive_warehouse_datetime', [$startDate, $endDate]);
         }
+        if(!$status || $status !== 'All'){
+            $qP->whereIn('p.status_id',[9,19]);
+        }
         $packages = $qP->get();
         $obj = [
             'company_info' => $companyInfo,
+            'trip_info' => $driverInfo,
             'packages' => $packages
         ];
         return ApiResponse::JsonResult($obj);

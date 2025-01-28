@@ -189,6 +189,6 @@ class HistoryController extends Controller
                 $items[] = $package;
             });
         }
-        return ApiResponse::JsonResult($items);
+        return ApiResponse::Pagination(collect($items),$req);
     }
 }
