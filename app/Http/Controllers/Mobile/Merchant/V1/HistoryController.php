@@ -14,7 +14,6 @@ use Illuminate\Http\Request;
 class HistoryController extends Controller
 {
     //
-
     public function getAllHistories(Request $req){
         $user = UserService::getAuthUser('merchant');
         $items =[];
