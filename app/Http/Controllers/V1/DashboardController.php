@@ -26,6 +26,7 @@ class DashboardController extends Controller
             'unpaid_rider' => $this->unpaidRiders(),
             'merchant_payable' => $this->merchantPayable(),
             'driver_daily_collection' => $this->driverDailyCollection(),
+            'merchants_by_category' => $this->merchantsByCategory()
         ];
 
         return ApiResponse::JsonResult($obj);
@@ -49,24 +50,31 @@ class DashboardController extends Controller
 
         $packages = Package::where('is_deleted',0)
         ->where('outstanding',0)
-        ->selectRaw('id,status_id')
+        ->selectRaw('id,status_id,delivery_fee,extra_charge,failed_datetime,delivered_datetime')
         ->where('updated_at', '>=', Carbon::now()->subDays($days))->get();
         foreach ($packages as $p){
-            if($p->status_id == 9) $deliveredCount += 1;
+            if($p->status_id == 9) {
+                $deliveredCount += 1;
+                $p->finished_date = Helper::dateYMD($p->delivered_datetime);
+            }
+            if($p->status_id == 19) $p->finished_date = Helper::dateYMD($p->failed_datetime);
             if($p->status_id == 11) $returnedCount += 1;
         }
+        $earningData = $this->getEarning($packages);
         $items = [
             [
                 'title' => 'Total Earning',
-                'total' => ''
+                'total' => $earningData['total_earning'],
+                'currency' => 'USD'
             ],
             [
                 'title' => 'Average Daily Earning',
-                'total' => ''
+                'total' => $earningData['average_daily_earning'],
+                'currency' => 'USD'
             ],
             [
                 'title' => 'Total Packages',
-                'total' => count($packages)
+                'total' => count($packages),
             ],
             [
                 'title' => 'Delivered Count',
@@ -94,6 +102,21 @@ class DashboardController extends Controller
             'days' => $days,
             'items' => $items
         ];
+    }
+
+    private function merchantsByCategory(){
+        $packageCount = Package::where('is_deleted',0)->where('outstanding',0)
+        ->selectRaw('
+            SUM(CASE WHEN status_id = 5 THEN 1 ELSE 0 END) as at_warehouse_count,
+            SUM(CASE WHEN status_id = 6 THEN 1 ELSE 0 END) as on_delivery_count,
+            SUM(CASE WHEN status_id = 9 THEN 1 ELSE 0 END) as delivered_count,
+            SUM(CASE WHEN status_id = 11 THEN 1 ELSE 0 END) as returned_count,
+            SUM(CASE WHEN status_id = 10 THEN 1 ELSE 0 END) as failed_count,
+            SUM(CASE WHEN status_id = 19 THEN 1 ELSE 0 END) as failed_with_fee_count
+        ')
+        ->first();
+        return $packageCount;
+
     }
 
     private function driverDailyCollection(){
@@ -151,25 +174,40 @@ class DashboardController extends Controller
         ];
     }
 
-    private function getDaysEarning($rows){
-        $obj = [
-            'total_earning' => 0,
-            'average_daily_earning' => 0,
-        ];
-        foreach($rows as $p){
+    private function getEarning($rows)
+    {
+        // Ensure $rows is always an array
+        $rows = !is_array($rows) ? iterator_to_array($rows) : $rows;
 
-        }
+        // Calculate total earnings
+        $totalEarning = array_reduce($rows, function ($sum, $p) {
+            return $sum + $p->delivery_fee + $p->extra_charge;
+        }, 0);
+
+        $filteredRowsForDates = array_filter($rows, fn($p) => in_array($p->status_id, [9, 19]));
+        $uniqueDates = array_unique(array_map(fn($p) => date('Y-m-d', strtotime($p->finished_date)), $filteredRowsForDates));
+        $daysCount = count($uniqueDates) ?: 1; // Avoid division by zero
+
+        // Calculate average daily earning
+        $averageDailyEarning = $totalEarning / $daysCount;
+
+        return [
+            'total_earning' => (float) Helper::getNumber($totalEarning),
+            'average_daily_earning' => (float) Helper::getNumber($averageDailyEarning),
+        ];
     }
 
-    private function getDaysPackages($rows){
-        $obj = [
-            'total_earning' => 0,
-            'average_daily_earning' => 0,
-        ];
-        foreach($rows as $p){
 
-        }
-    }
+
+    // private function getDaysPackages($rows){
+    //     $obj = [
+    //         'total_earning' => 0,
+    //         'average_daily_earning' => 0,
+    //     ];
+    //     foreach($rows as $p){
+
+    //     }
+    // }
 
     private function topRiders($top=5){
         $currentMonth = Carbon::now()->month;
