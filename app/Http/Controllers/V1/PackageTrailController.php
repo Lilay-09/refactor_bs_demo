@@ -362,9 +362,9 @@ class PackageTrailController extends Controller
         if($package->status_id == 9) return ApiResponse::Duplicated(__('messages.error',['info' => 'This package is already delivered']));
         if($package->status_id == 19) return ApiResponse::Duplicated(__('messages.error',['info' => 'This package is already marked as failed with fee']));
         if($package->status_id == 11) return ApiResponse::Duplicated(__('messages.error',['info' => 'This package is already returned']));
-        // if($package->driver_id == $driver_id && $package->status_id != 10) return ApiResponse::Duplicated(__('messages.error',[
-        //     'info' => 'It seems like you are trying to assign this package to the same driver'
-        // ]));
+        if($package->driver_id == $driver_id && $package->status_id == 6) return ApiResponse::Duplicated(__('messages.error',[
+            'info' => 'It seems like you are trying to assign this package to the same driver'
+        ]));
 
         DB::beginTransaction();
         try{
@@ -393,10 +393,14 @@ class PackageTrailController extends Controller
                 })->orderByDesc('id')->first();
                 //** remove self pacakge */
                 if($selfTrip && $driver_id != $package->driver_id){
-                    $pkgCount = $selfTrip->package_count - 1;
-                    $upArr = [
-                        'package_count' => $pkgCount
-                    ];
+                    $toDelete = ($package->status_id == 6);
+                    $pkgCount = $selfTrip->package_count;
+                    $upArr = [];
+                    if($toDelete){
+                        $upArr = [
+                            'package_count' => $pkgCount - 1
+                        ];
+                    }
                     if($pkgCount == 0){
                         $upArr['is_deleted'] = 1;
                         $upArr['deleted_datetime'] = now();
@@ -405,14 +409,33 @@ class PackageTrailController extends Controller
                     }
                     $selfTrip->update($upArr);
                     DeliveryPackage::where('delivery_id',$selfTrip->id)
+                    ->where('is_deleted',0)
                     ->where('package_id',$package->id)
+                    ->where('delay_count',0)
                     ->update([
-                        'is_deleted' => true,
-                        'deleted_uid' => $user->id,
-                        'has_swap' => true,
+                        'is_deleted' => ($package->status_id == 6),
+                        'deleted_uid' => ($package->status_id == 6) ? $user->id : null,
+                        'has_swap' => $driver_id != $package->driver_id,
                         'delay_count' => 1,
-                        'deleted_datetime' => now(),
+                        'deleted_datetime' => ($package->status_id == 6) ? now():null,
                         'notes' => DB::raw('notes || \'| admin change driver\'')
+                    ]);
+                }else if($selfTrip && $driver_id == $package->driver_id){
+                    $pkgCount = $selfTrip->package_count - 1;
+                    $upArr = [
+                        'package_count' => $pkgCount
+                    ];
+                    $selfTrip->update($upArr);
+                    $toDelete = ($package->status_id == 10);
+                    DeliveryPackage::where('delivery_id',$selfTrip->id)
+                    ->where('package_id',$package->id)
+                    ->where('delay_count',0)
+                    ->update([
+                        'is_deleted' => $toDelete,
+                        'deleted_uid' => $toDelete ? $user->id : null,
+                        'delay_count' => 1,
+                        'deleted_datetime' => $toDelete ? now():null,
+                        // 'notes' => DB::raw('notes || \'| admin change driver\'')
                     ]);
                 }
             }
@@ -513,22 +536,28 @@ class PackageTrailController extends Controller
             $deliveryId = $pendingTrip->id;
             $newPackageCount = $pendingTrip->package_count;
             $delay = 1;
-            $existsPkg = DeliveryPackage::where('package_id',$packageId)->where('delivery_id',$deliveryId)->where(function ($q){
-                $q->where('delay_count',0)->where('is_deleted',0);
+            $existsPkg = DeliveryPackage::where('package_id',$packageId)->where('delivery_id',$deliveryId)->where('is_deleted',0)->where(function ($q){
+                $q->where('delay_count',0);
             })
             ->first();
             if($existsPkg) {
-                $isNewPkg = false;
-                $delay = 0;
-                if($statusId){
-                    $existsPkg->update([
-                        'status_id' => $statusId,
-                        'assign_uid' => $action == 'assign' ? $user->id : null
-                    ]);
-                }
-            }else {
-                $newPackageCount +=1;
-            }
+                if($driverId == $existsPkg->driver_id){
+                    // $isNewPkg = true;
+                    // if($existsPkg->status_id == 11) $delay = 1;
+                    // if($statusId){
+                        $toDelete = ($existsPkg->status_id == 6 || $existsPkg->status_id == 10);
+                        $existsPkg->update([
+                            'is_deleted' => $toDelete ? 1 : 0,
+                            'deleted_uid' => $toDelete ? $user->id:null,
+                            'deleted_datetime' => $toDelete ? now() : null,
+                            'delay_count' => $delay,
+                            // 'status_id' => $statusId,
+                            // 'assign_uid' => $action == 'assign' ? $user->id : null
+                        ]);
+                    // }
+                }else $newPackageCount +=1;
+            }else $newPackageCount +=1;
+
             $updateArr = [
                 'driver_id' => $driverId,
                 'delay_count' => $delay,

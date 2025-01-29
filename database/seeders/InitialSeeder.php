@@ -450,9 +450,10 @@ class InitialSeeder extends Seeder
 
         //** Add Default Zone  */
         $zoneId = DB::table('zones')->insertGetId([
+            'id' => 300,
             'zone_type' => 'local',
-            'zone_code' => 'C1',
-            'zone_name' => 'កោះពេជ្រ',
+            'zone_code' => 'Def',
+            'zone_name' => 'Default Zone',
             'district' => 'Chroy Changvar',
             'city' => 'Phnom Penh',
             'country_id' => $countryId,
@@ -464,6 +465,7 @@ class InitialSeeder extends Seeder
         ]);
 
         $priceListNameId = DB::table('price_list_names')->insertGetId([
+            'id' => 30,
             'name' => 'Default',
             'kg_marker' => 3,
             'create_uid' => $userId,
@@ -486,6 +488,7 @@ class InitialSeeder extends Seeder
         DB::table('price_list_zones')->insert([
             'price_list_id' => $priceListId,
             'zone_id' => $zoneId,
+            'identifier' => 007,
             'base_fee'=> 1.25
         ]);
 
