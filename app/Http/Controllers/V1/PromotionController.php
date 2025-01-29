@@ -62,7 +62,7 @@ class PromotionController extends Controller
         $user = UserService::getAuthUser();
         $id = $req->id;
         $promotion = Promotion::where('company_id',$user->company_id)->where('is_deleted',0)
-        ->selectRaw('id,title,photo_file_name,description,updated_at')
+        ->selectRaw('id,title,photo_file_name,description,updated_at,start_date,end_date')
         ->find($id);
         if(!$promotion) return ApiResponse::NotFound(__('messages.not_found',[
             'info' => 'Promotion'

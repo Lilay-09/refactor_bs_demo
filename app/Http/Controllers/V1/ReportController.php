@@ -1040,8 +1040,8 @@ class ReportController extends Controller
                 'date' => $date,
                 'details' => $group->toArray(),
                 'total' => [
-                    'cod' => $group->where('status_id','!=',19)->where('cod',1)->sum('price'),
-                    'taxi' => $group->where('status_id','!=',19)->sum('taxi_fee'),
+                    'cod' => Helper::getNumber($group->where('status_id','!=',19)->where('cod',1)->sum('price')),
+                    'taxi' => Helper::getNumber($group->where('status_id','!=',19)->sum('taxi_fee')),
                     'delivery_fee' => Helper::getNumber($totalDeliveryFee,2),
                     'grand' => Helper::getNumber($grand,2)
                 ],
@@ -1127,6 +1127,8 @@ class ReportController extends Controller
         if(isset($pkgInfo[11])) $pkgInfo[11]['total'] = Helper::getNumber($pkgInfo[11]['total'],2);
         if(isset($pkgInfo[19])) $pkgInfo[19]['total'] = Helper::getNumber($pkgInfo[19]['total'],2);
         if(isset($pkgInfo[5])) $pkgInfo[5]['total'] = Helper::getNumber($pkgInfo[5]['total'],2);
+        if(isset($pkgInfo[6])) $pkgInfo[6]['total'] = Helper::getNumber($pkgInfo[6]['total'],2);
+        if(isset($pkgInfo[10])) $pkgInfo[10]['total'] = Helper::getNumber($pkgInfo[10]['total'],2);
         if(isset($pkgInfo['5.1'])) $pkgInfo['5.1']['total'] = Helper::getNumber($pkgInfo['5.1']['total'],2);
         if(isset($pkgInfo['5.2'])) $pkgInfo['5.2']['total'] = Helper::getNumber($pkgInfo['5.2']['total'],2);
         return (object)[

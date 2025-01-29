@@ -27,7 +27,6 @@ class HistoryController extends Controller
 
     public function getHistoryPdf(Request $req)
     {
-        \Log::error(json_encode($req->all()));
         $user = UserService::getAuthUser('driver');
         $startDate = $req->startDate;
         $endDate = $req->endDate;
@@ -52,8 +51,26 @@ class HistoryController extends Controller
         if($startDate && $endDate){
             $startDate = Helper::dateYMD($startDate);
             $endDate = Helper::dateYMD($endDate);
-            $qFp->whereDate('d.depart_datetime', '>=', $startDate)
-            ->whereDate('d.depart_datetime', '<=', $endDate);
+            $qFp->where(function($q) use ($startDate, $endDate) {
+                $q->where(function($q) use ($startDate, $endDate) {
+                    // For status_id 10 or 19, query only failed_datetime
+                    $q->whereRaw('
+                        (p.failed_datetime::DATE >= ? AND p.failed_datetime::DATE <= ?)', [$startDate, $endDate])
+                        ->where('p.status_id',19);
+                })
+                ->orWhere(function($q) use ($startDate, $endDate) {
+                    // For status_id 9, query only delivered_datetime
+                    $q->whereRaw('
+                        (p.delivered_datetime::DATE >= ? AND p.delivered_datetime::DATE <= ?)', [$startDate, $endDate])
+                        ->where('p.status_id', 9);
+                })
+                ->orWhere(function($q) use ($startDate, $endDate) {
+                    // For status_id 11, query only returned_datetime
+                    $q->whereRaw('
+                        (p.returned_datetime::DATE >= ? AND p.returned_datetime::DATE <= ?)', [$startDate, $endDate])
+                        ->where('p.status_id', 11);
+                });
+            });
         }
 
         // else if($paymentStatus == 1) $qFp->where('pmt.approved',0);

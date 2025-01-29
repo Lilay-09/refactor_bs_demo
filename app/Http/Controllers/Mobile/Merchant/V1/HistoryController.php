@@ -6,6 +6,7 @@ use ApiResponse;
 use App\Http\Controllers\Controller;
 use App\Models\Order;
 use App\Models\Package;
+use App\Services\GeneralSettingService;
 use App\Services\UserService;
 use Helper;
 use Illuminate\Http\Request;
@@ -13,11 +14,11 @@ use Illuminate\Http\Request;
 class HistoryController extends Controller
 {
     //
-
     public function getAllHistories(Request $req){
         $user = UserService::getAuthUser('merchant');
         $items =[];
         $status = $req->status ?? 'All';
+        $isKm = $req->lang != 'en';
         if(in_array($status,['All','Pick Up'])){
             $orders = Order::where('merchant_id',$user->id)
             ->with(['tracking_status','driver'])
@@ -26,7 +27,9 @@ class HistoryController extends Controller
             ->whereIn('status_id',[2,3,4])->get();
             foreach($orders as $order){
                 $order->status_code = $order->tracking_status->name;
-                $order->render_status = 'Pick Up';
+                if($isKm){
+                    $order->render_status = GeneralSettingService::$statusCodeTrans[$order->status_id];
+                }else $order->render_status = 'Pick Up';
                 $order->driver_phone = $order->driver->phone;
                 $order->driver_name = $order->driver->user_name;
                 unset($order->tracking_status,$order->driver);
@@ -39,16 +42,18 @@ class HistoryController extends Controller
             ->with('driver')
             ->where('status_id', 6)
             ->where('is_deleted', 0)
-            ->selectRaw('id,merchant_id,receiver_phone,receiver_address,receiver_name,cod,price,delivery_fee,remarks,driver_id,arrive_warehouse_datetime')
+            ->selectRaw('id,status_id,merchant_id,receiver_phone,receiver_address,receiver_name,cod,price,delivery_fee,remarks,driver_id,arrive_warehouse_datetime')
             ->get()
-            ->map(function ($package) use (&$items) {
+            ->map(function ($package) use (&$items,$isKm) {
                 // Cast price to float manually
                 $package->price = (float) $package->price;
                 $package->cod_fee = $package->cod ? $package->price : 0;
                 $package->status_code = 'On Delivery';
                 $package->driver_phone = $package->driver->phone ?? null; // Ensure driver relationship exists
                 $package->driver_name = $package->driver->user_name ?? null;
-                $package->render_status = $package->status_code;
+                if($isKm){
+                    $package->render_status = GeneralSettingService::$statusCodeTrans[$package->status_id];
+                }else $package->render_status = $package->status_code;
                 $package->total = (float) $package->cod_fee + $package->delivery_fee;
                 $package->delivery_fee = (float) $package->delivery_fee;
                 $package->fee = $package->delivery_fee;
@@ -66,8 +71,8 @@ class HistoryController extends Controller
             ->with('driver')
             ->where('status_id',9)
             ->where('is_deleted',0)
-            ->selectRaw('id,merchant_id,receiver_phone,receiver_address,receiver_name,cod,price,delivery_fee,remarks,driver_id,delivered_datetime,arrive_warehouse_datetime')
-            ->get()->map(function($package) use(&$items){
+            ->selectRaw('id,status_id,merchant_id,receiver_phone,receiver_address,receiver_name,cod,price,delivery_fee,remarks,driver_id,delivered_datetime,arrive_warehouse_datetime')
+            ->get()->map(function($package) use(&$items,$isKm){
                 $package->price = (float) $package->price;
                 $package->cod_fee = $package->cod ? $package->price : 0;
                 $package->status_code = 'Delivered';
@@ -76,7 +81,9 @@ class HistoryController extends Controller
                 $package->total = (float)$package->cod_fee + $package->delivery_fee;
                 $package->delivery_fee = (float)$package->delivery_fee;
                 $package->fee = $package->delivery_fee;
-                $package->render_status = 'Success';
+                if($isKm){
+                    $package->render_status = GeneralSettingService::$statusCodeTrans[$package->status_id];
+                }else $package->render_status = 'Success';
                 unset($package->driver);
                 $items[] = $package;
                 // return $package;
@@ -110,12 +117,14 @@ class HistoryController extends Controller
             ->where('is_deleted',0)
             ->selectRaw('id,merchant_id,arrive_warehouse_datetime,receiver_phone,receiver_address,receiver_name,cod,price,delivery_fee,status_id,remarks,driver_id,failed_datetime')
             ->get()
-            ->map(function($package) use(&$items){
+            ->map(function($package) use(&$items,$isKm){
                 $package->price = (float)$package->price;
                 $package->cod_fee = $package->cod ? $package->price : 0;
                 $package->status_code = $package->status->name;
                 $package->driver_phone = $package->driver->phone;
-                $package->render_status = $package->status_code;
+                if($isKm){
+                    $package->render_status = GeneralSettingService::$statusCodeTrans[$package->status_id];
+                }else $package->render_status = $package->status_code;
                 $package->driver_name = $package->driver->user_name;
                 $package->total = (float)Helper::getNumber($package->cod_fee + $package->delivery_fee,2);
                 $package->fee = (float)$package->delivery_fee;
@@ -147,16 +156,18 @@ class HistoryController extends Controller
         if(in_array($status,['All','Failed With Fee'])){
             Package::where('merchant_id',$user->id)
             ->with(['driver','status'])
-            ->whereIn('status_id',[10])
+            ->whereIn('status_id',[19])
             ->where('is_deleted',0)
             ->selectRaw('id,merchant_id,arrive_warehouse_datetime,receiver_phone,receiver_address,receiver_name,cod,price,delivery_fee,status_id,remarks,driver_id,failed_datetime')
             ->get()
-            ->map(function($package) use(&$items){
+            ->map(function($package) use(&$items,$isKm){
                 $package->price = (float)$package->price;
                 $package->cod_fee = $package->cod ? $package->price : 0;
                 $package->status_code = $package->status->name;
                 $package->driver_phone = $package->driver->phone;
-                $package->render_status = $package->status_code;
+                if($isKm){
+                    $package->render_status = GeneralSettingService::$statusCodeTrans[$package->status_id];
+                }else $package->render_status = $package->status_code;
                 $package->driver_name = $package->driver->user_name;
                 $package->total = (float)Helper::getNumber($package->cod_fee + $package->delivery_fee,2);
                 $package->fee = (float)$package->delivery_fee;
@@ -172,13 +183,15 @@ class HistoryController extends Controller
             ->whereIn('status_id',[11])
             ->selectRaw('id,merchant_id,arrive_warehouse_datetime,receiver_phone,receiver_address,receiver_name,cod,price,delivery_fee,status_id,remarks,driver_id,failed_datetime,returned_datetime,updated_at')
             ->get()
-            ->map(function($package) use(&$items){
+            ->map(function($package) use(&$items,$isKm){
                 $package->price = (float)$package->price;
                 $package->cod_fee = $package->cod ? $package->price : 0;
                 $package->status_code = $package->status->name;
                 $package->driver_phone = $package->driver?->phone;
                 $package->driver_name = $package->driver?->user_name;
-                $package->render_status = $package->status_code;
+                if($isKm){
+                    $package->render_status = GeneralSettingService::$statusCodeTrans[$package->status_id];
+                }else $package->render_status = $package->status_code;
                 $package->total = (float) $package->cod_fee + $package->delivery_fee;
                 $package->delivery_fee = (float)$package->delivery_fee;
                 $package->fee = $package->delivery_fee;
@@ -189,6 +202,6 @@ class HistoryController extends Controller
                 $items[] = $package;
             });
         }
-        return ApiResponse::JsonResult($items);
+        return ApiResponse::Pagination(collect($items),$req);
     }
 }

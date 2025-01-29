@@ -232,10 +232,11 @@ class HomeController extends Controller
     }
 
     public function getFailPackages(Request $req){
+        $statusId = $req->status_id;
         $user = UserService::getAuthUser('merchant');
         $packages = Package::where('merchant_id',$user->id)
         ->with(['driver','status'])
-        ->whereIn('status_id',[10,19])
+        ->where('status_id',$statusId)
         ->where('is_deleted',0)
         ->selectRaw('id,merchant_id,arrive_warehouse_datetime,receiver_phone,receiver_address,receiver_name,cod,price,delivery_fee,status_id,remarks,driver_id,failed_datetime')
         ->get()

@@ -319,6 +319,19 @@ class TransactionService
         return DataResponse::JsonResult($driver);
     }
 
+    public static function amountToOneCurrency($currencyCode,$cashUSD,$cashKHR,$bankUSD,$bankKHR,$exchangeRate){
+        if($currencyCode == 'USD'){
+            $cashKHRToUSD = $cashKHR / $exchangeRate;
+            $bankKHRToUSD = $bankKHR / $exchangeRate;
+            return [
+                'total' => Helper::getNumber($cashUSD + $bankUSD + $cashKHRToUSD + $bankKHRToUSD),
+                'cash' => Helper::getNumber($cashUSD + $cashKHRToUSD),
+                'bank' => Helper::getNumber($bankUSD  + $bankKHRToUSD)
+            ];
+        }
+        return null;
+    }
+
     private function validPayment($cash,$cashKh,$bankAmount,$bankAmountKh,$bankId,$dueAmount,$exhangeRate){
         $bankName = null;
         if($bankAmount > 0 && !$bankId) return DataResponse::ValidateFail(__('messages.error',['info' => 'Please enter bank']));
