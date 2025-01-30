@@ -158,13 +158,19 @@ class FleetManagementController extends Controller
         $failure_notes = $req->failure_notes ?? null;
         $payer = $req->payer ?? null;
         $delivery = Delivery::where('is_deleted',0)->selectRaw('id')->find($trip_id);
-        $tripPackage = DeliveryPackage::where('package_id',$package_id)->where('delivery_id','!=',$trip_id)->where('delay_count',0)->orderByDesc('id')->first();
+        // $tripPackage = DeliveryPackage::where('package_id',$package_id)->where('delivery_id','>',$trip_id)->where('delay_count',0)->orderByDesc('id')->first();
         // if(!$tripPackage) return ApiResponse::NotFound(__('messages.not_found',[
         //     'info' => 'Package',
         //     'khInfo' => 'កញ្ចប់'
         // ]));
+        //** check if this package exists in latest trip */
+        $latestTripId = DeliveryPackage::where('is_deleted',0)->where('delay_count',0)->take(1)->orderByDesc('id')->value('delivery_id');
+        if($latestTripId && $latestTripId > $trip_id) {
+            $trackingNumber = Delivery::where('id',$latestTripId)->where('is_deleted',0)->take(1)->value('fleet_tracking_number');
+            if($trackingNumber) return ApiResponse::Duplicated('This package is not currently yours! someone has accepted for delivery ('.$trackingNumber.')');
+        }
         $delayMsg = '.';
-        if($tripPackage) $delayMsg = ', This package is delivered in trip number('.Delivery::where('id',$tripPackage->delivery_id)->value('fleet_tracking_number').')';
+        // if($tripPackage) $delayMsg = ', This package is delivered in trip number('.Delivery::where('id',$tripPackage->delivery_id)->value('fleet_tracking_number').')';
         if(!$delivery) return ApiResponse::NotFound(__('messages.not_found',['info' => 'Trip']));
         if(!$status_id || !in_array($status_id,[9,10,19])) return ApiResponse::ValidateFail(__('messages.not_found',['info' => 'Status']));
         $package = Package::where('company_id',$user->company_id)->where('is_deleted',0)
