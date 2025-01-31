@@ -574,7 +574,6 @@ class Helper{
 
         // Decode the JSON string
         $decodedJson = json_decode($correctedJson, $assoc);
-
         // Check for JSON decoding errors
         if (json_last_error() !== JSON_ERROR_NONE) {
             return (object)[

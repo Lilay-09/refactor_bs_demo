@@ -618,7 +618,8 @@ public static function optionsRole($type=null){
                 'update_uid' => $user->id,
                 'failed_count' => $failCount,
                 'status_id' => $status_id,
-                'delivered_count' => $deliveredCount
+                'delivered_count' => $deliveredCount,
+                'package_count' => $failCount + $deliveredCount,
             ];
             // Log::info($status_id);
             if($isCompleted) {

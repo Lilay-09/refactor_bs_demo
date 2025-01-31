@@ -19,6 +19,10 @@ use Kreait\Firebase\Database\Transaction;
 class DashboardController extends Controller
 {
     //
+    protected $days;
+    public function __construct(){
+        $this->days = 90;
+    }
     public function getDashboardSummary(Request $req){
         $obj = [
             'monthly' => $this->getMonthlyEarning(),
@@ -26,16 +30,17 @@ class DashboardController extends Controller
             'unpaid_rider' => $this->unpaidRiders(),
             'merchant_payable' => $this->merchantPayable(),
             'driver_daily_collection' => $this->driverDailyCollection(),
-            'merchants_by_category' => $this->merchantsByCategory()
+            'merchants_by_category' => $this->merchantsByCategory(),
+            'bar_charts' => $this->barChart()
         ];
 
         return ApiResponse::JsonResult($obj);
     }
 
     private function getMonthlyEarning(){
-        $days = 90;
+
         $payments = Payment::where('is_deleted',0)
-        ->where('payment_datetime', '>=', Carbon::now()->subDays($days))->get();
+        ->where('payment_datetime', '>=', Carbon::now()->subDays($this->days))->get();
         $deliveredCount = 0;
         $returnedCount = 0;
         $results = User::selectRaw("
@@ -51,7 +56,7 @@ class DashboardController extends Controller
         $packages = Package::where('is_deleted',0)
         ->where('outstanding',0)
         ->selectRaw('id,status_id,delivery_fee,extra_charge,failed_datetime,delivered_datetime')
-        ->where('updated_at', '>=', Carbon::now()->subDays($days))->get();
+        ->where('updated_at', '>=', Carbon::now()->subDays($this->days))->get();
         foreach ($packages as $p){
             if($p->status_id == 9) {
                 $deliveredCount += 1;
@@ -74,7 +79,7 @@ class DashboardController extends Controller
             ],
             [
                 'title' => 'Total Packages',
-                'total' => count($packages),
+                'total' => count($packages)
             ],
             [
                 'title' => 'Delivered Count',
@@ -99,13 +104,14 @@ class DashboardController extends Controller
         ];
 
         return [
-            'days' => $days,
+            'days' => $this->days,
             'items' => $items
         ];
     }
 
     private function merchantsByCategory(){
         $packageCount = Package::where('is_deleted',0)->where('outstanding',0)
+        ->where('updated_at', '>=', Carbon::now()->subDays($this->days))
         ->selectRaw('
             SUM(CASE WHEN status_id = 5 THEN 1 ELSE 0 END) as at_warehouse_count,
             SUM(CASE WHEN status_id = 6 THEN 1 ELSE 0 END) as on_delivery_count,
@@ -121,6 +127,7 @@ class DashboardController extends Controller
 
     private function driverDailyCollection(){
         $pkgPayments = Package::from('packages as p')->join('payments as pmt','pmt.id','p.driver_payment_id')->where('pmt.approved',1)
+        ->where('p.updated_at', '>=', Carbon::now()->subDays($this->days))
         ->selectRaw('pmt.exchange_rate,pmt.id as payment_id,DATE(payment_datetime) as payment_date,COUNT(DISTINCT(p.driver_id)) as total_driver,COUNT(DISTINCT(p.merchant_id)) as total_merchant')
         ->groupBy('payment_id')
         ->get();
@@ -214,6 +221,7 @@ class DashboardController extends Controller
         $currentYear = Carbon::now()->year;
         $topRiders = DB::table('packages as p')
         ->where('p.outstanding',0)
+        ->where('p.updated_at', '>=', Carbon::now()->subDays($this->days))
         ->whereIn('p.status_id',[9,10,19])
         ->join('users as r', 'p.driver_id', '=', 'r.id')
         ->where('r.account_type','driver') // Updated column name
@@ -257,6 +265,7 @@ class DashboardController extends Controller
         $balanceDues = Package::from('packages as p')
         ->join('users as d','d.id','p.driver_id')
         ->where('p.is_deleted', 0)
+        ->where('p.updated_at', '>=', Carbon::now()->subDays($this->days))
         ->whereIn('p.status_id', [9, 19])
         ->whereNull('p.driver_disbursement_id')
         ->leftJoin('payments', 'p.driver_payment_id', '=', 'payments.id')
@@ -275,38 +284,55 @@ class DashboardController extends Controller
         $totalAmount = 0;
         $dailyCollection = Package::fromRaw('packages as p')
         ->whereIn('p.status_id', [9, 19])
+        ->where('p.updated_at', '>=', Carbon::now()->subDays($this->days))
         ->join('tracking_statuses as ts', 'ts.id', '=', 'p.status_id')
         ->join('users as m', 'm.id', '=', 'p.merchant_id')
-        ->leftJoin('payments as pmt', 'p.driver_payment_id', '=', 'pmt.id')
-        ->leftJoin('disbursements as dis', 'p.merchant_disbursement_id', '=', 'dis.id')
+        ->leftJoin('payments as pmt', function ($join) {
+            $join->on('p.driver_payment_id', '=', 'pmt.id')
+                ->where('pmt.approved', '=', 1);
+        })
+        ->leftJoin('disbursements as dis', function ($join) {
+            $join->on('p.merchant_disbursement_id', '=', 'dis.id')
+                ->where('dis.approved', '=', 1);
+        })
         ->selectRaw('
-            m.user_name as merchant_name,
+        m.user_name as merchant_name,
+        CASE
+            WHEN p.status_id = 9 THEN p.delivered_datetime::DATE
+            ELSE p.failed_datetime::DATE
+        END AS finished_date,
+        SUM(
             CASE
-                WHEN p.status_id = 9 THEN p.delivered_datetime::DATE
-                ELSE p.failed_datetime::DATE
-            END AS finished_date,
-            SUM(
-                CASE
-                    WHEN p.cod = TRUE AND p.status_id != 19 THEN p.price
-                    ELSE 0
-                END
-            ) AS cod_amount,
-            SUM(
-                p.taxi_fee
-            ) AS taxi_fee,
-            SUM(
-                CASE
-                    WHEN p.payer = \'sender\' THEN p.delivery_fee + p.extra_charge
-                    ELSE 0
-                END
-            ) AS fees,
+                WHEN p.cod = TRUE AND p.status_id = 9 THEN p.price
+                ELSE 0
+            END
+        ) AS cod_amount,
+        SUM(
             CASE
-                WHEN p.merchant_payment_id IS NOT NULL AND pmt.approved = TRUE THEN \'paid\'
-                WHEN p.merchant_disbursement_id IS NOT NULL AND dis.approved = TRUE THEN \'paid\'
-                ELSE \'unpaid\'
-            END AS payment_status,
-            SUM(COALESCE(pmt.package_count, 0) + COALESCE(dis.package_count, 0)) AS package_count
-        ')
+                WHEN (p.merchant_payment_id IS NULL AND p.merchant_disbursement_id IS NULL AND p.payer = \'sender\')
+                THEN p.taxi_fee
+                ELSE 0
+            END
+        ) AS taxi_fee,
+        SUM(
+            CASE
+                WHEN (p.merchant_payment_id IS NULL AND p.merchant_disbursement_id IS NULL AND p.payer = \'sender\')
+                THEN p.delivery_fee + p.extra_charge
+                ELSE 0
+            END
+        ) AS fees,
+        CASE
+            WHEN p.merchant_payment_id IS NOT NULL AND pmt.approved = TRUE THEN \'paid\'
+            WHEN p.merchant_disbursement_id IS NOT NULL AND dis.approved = TRUE THEN \'paid\'
+            ELSE \'unpaid\'
+        END AS payment_status,
+        SUM(
+            CASE
+                WHEN (p.merchant_payment_id IS NULL AND p.merchant_disbursement_id IS NULL) THEN 1
+                ELSE 0
+            END
+        ) AS package_count
+    ')
         ->groupByRaw('
             m.id,
             CASE
@@ -329,4 +355,79 @@ class DashboardController extends Controller
             'list' => $dailyCollection
         ];
     }
+
+    private function barChart()
+    {
+        // Get merchant count by month
+        $merchantsByRegisterDate = User::where('account_type', 'merchant')
+        ->whereYear('created_at', now()->year)
+        ->selectRaw('EXTRACT(MONTH FROM created_at) AS month, COUNT(*) AS count')
+        ->groupByRaw('EXTRACT(MONTH FROM created_at)')
+        ->orderByRaw('month')
+        ->get()
+        ->pluck('count', 'month')
+        ->toArray();
+
+        // Fill missing months with 0 and ensure correct order
+        $merchantsByRegisterDate = array_replace(array_fill(1, 12, 0), $merchantsByRegisterDate);
+
+        $packagesByDate = Package::where('is_deleted', 0)
+            ->whereYear('created_at', now()->year)
+            ->selectRaw('EXTRACT(MONTH FROM created_at) AS month, COUNT(*) AS count')
+            ->groupByRaw('EXTRACT(MONTH FROM created_at)')
+            ->orderByRaw('month')
+            ->get()
+            ->pluck('count', 'month')
+            ->toArray();
+
+        // Fill missing months with 0 and ensure correct order
+        $packagesByDate = array_replace(array_fill(1, 12, 0), $packagesByDate);
+
+        $earningByDate = Package::where('is_deleted', 0)
+            ->whereYear('created_at', now()->year)
+            ->whereIn('status_id', [9, 19])
+            ->selectRaw('EXTRACT(MONTH FROM created_at) AS month, SUM(delivery_fee + extra_charge) AS total_fee')
+            ->groupByRaw('EXTRACT(MONTH FROM created_at)')
+            ->orderByRaw('month')
+            ->get()
+            ->pluck('total_fee', 'month')
+            ->map(function ($value) {
+                return (float) Helper::getNumber($value);  // Cast the total_fee to float
+            })
+            ->toArray();
+
+        // Fill missing months with 0 and ensure correct order
+        $earningByDate = array_replace(array_fill(1, 12, 0), $earningByDate);
+
+        return [
+            'merchants' => array_values($merchantsByRegisterDate),
+            'packages' => array_values($packagesByDate),
+            'earning' => array_values($earningByDate),
+        ];
+
+
+        // Ensure all months (1-12) are present with default values of 0
+        // $fullYearData = collect(range(1, 12))->map(function ($month) use ($merchantsByRegisterDate, $packagesByDate,$earningByDate) {
+        //     return [
+        //         'merchant_count' => $merchantsByRegisterDate[$month] ?? 0,
+        //         'package_count' => $packagesByDate[$month] ?? 0,
+        //         'earning' => (float) Helper::getNumber($earningByDate[$month] ?? 0),
+        //     ];
+        // });
+
+        // return $fullYearData;
+    }
+
+
+    private function fillMissingMonths($data)
+    {
+        $fullYear = collect(range(1, 12))->mapWithKeys(function ($month) use ($data) {
+            return [$month => $data[$month] ?? 0];
+        });
+
+        return $fullYear;
+    }
+
+
+
 }

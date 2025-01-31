@@ -199,6 +199,7 @@ class UserService
                 if(!$update) return DataResponse::Error(__('messages.error',['info' => 'Fail to update']));
                 $userId = $id;
             }else{
+                $inputs['registered_datetime'] = now();
                 if(!isset($inputs['password']) && $user_class == 'admin') return DataResponse::ValidateFail(__('messages.info',[
                     'info' => 'Password must be provided',
                 ]));

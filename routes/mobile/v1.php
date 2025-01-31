@@ -129,6 +129,7 @@ Route::middleware(['jwtMerchant','localize'])->prefix('merchant/v1/{lang}')->gro
         Route::prefix('report')->group(function(){
             Route::get('dailyPackage',[ReportController::class,'merchantDailyPackages']);
             Route::get('dailyPackage/option',[ReportController::class,'merchantDailyPackagesOption']);
+            Route::get('dailyPackage/export',[ReportController::class,'merchantDailyPackagesOption']);
         });
     });
 
