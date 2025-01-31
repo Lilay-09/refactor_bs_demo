@@ -25,19 +25,19 @@ class ReusableService
         if($reqSearch && !$search) return DataResponse::Pagination(new Collection(),$req);
         $qFp = Delivery::fromRaw('deliveries as d')
         ->join('delivery_packages as dp','d.id','dp.delivery_id')
-        ->join('packages as p','p.id','dp.package_id')->orderByDesc('d.id')
+        ->join('packages as p','p.id','dp.package_id')
         ->join('users as m','m.id','p.merchant_id')
         ->leftJoin('payments as pmt','pmt.id','p.driver_payment_id')
         // ->leftJoin('payments as pmt','pmt.id','p.merchant_payment_id')
-        ->join('tracking_statuses as trs','trs.id','p.status_id')
-        ->selectRaw('p.payer,p.extra_charge,p.price,p.pickup_notes as notes,p.merchant_total,p.receiver_address,p.qr_code,p.status_id,trs.name as status_code,d.id as delivery_id,d.fleet_tracking_number,m.user_name as merchant_name,m.phone as merchant_phone,p.receiver_name,p.receiver_phone,p.delivery_fee,p.taxi_fee,p.remarks,p.id as package_id,p.product_type,p.driver_total,p.billed_kg,p.failed_datetime,p.delivered_datetime,p.arrive_warehouse_datetime,p.returned_datetime')
-        ->whereIn('p.status_id',$statusIds)
+        ->join('tracking_statuses as trs','trs.id','dp.status_id')
+        ->selectRaw('p.payer,p.extra_charge,p.price,p.pickup_notes as notes,p.merchant_total,p.receiver_address,p.qr_code,dp.status_id,trs.name as status_code,d.id as delivery_id,d.fleet_tracking_number,m.user_name as merchant_name,m.phone as merchant_phone,p.receiver_name,p.receiver_phone,p.delivery_fee,p.taxi_fee,p.remarks,p.id as package_id,p.product_type,p.driver_total,p.billed_kg,p.failed_datetime,p.delivered_datetime,p.arrive_warehouse_datetime,p.returned_datetime')
+        ->whereIn('dp.status_id',$statusIds)
         ->orderByRaw('
             CASE
-                WHEN p.status_id = ? THEN 1
-                WHEN p.status_id = ? THEN 2
-                WHEN p.status_id = ? THEN 3
-                WHEN p.status_id = ? THEN 4
+                WHEN dp.status_id = ? THEN 1
+                WHEN dp.status_id = ? THEN 2
+                WHEN dp.status_id = ? THEN 3
+                WHEN dp.status_id = ? THEN 4
                 ELSE 7
             END DESC', [9,10,11,19]
         );

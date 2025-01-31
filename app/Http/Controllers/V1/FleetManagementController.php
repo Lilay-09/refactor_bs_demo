@@ -164,7 +164,7 @@ class FleetManagementController extends Controller
         //     'khInfo' => 'កញ្ចប់'
         // ]));
         //** check if this package exists in latest trip */
-        $latestTripId = DeliveryPackage::where('is_deleted',0)->where('delay_count',0)->take(1)->orderByDesc('id')->value('delivery_id');
+        $latestTripId = DeliveryPackage::where('is_deleted',0)->where('package_id',$package_id)->where('delay_count',0)->take(1)->orderByDesc('id')->value('delivery_id');
         if($latestTripId && $latestTripId > $trip_id) {
             $trackingNumber = Delivery::where('id',$latestTripId)->where('is_deleted',0)->take(1)->value('fleet_tracking_number');
             if($trackingNumber) return ApiResponse::Duplicated('This package is not currently yours! someone has accepted for delivery ('.$trackingNumber.')');
