@@ -28,7 +28,8 @@ class ReportController extends Controller
         $totalCount = 0;
         $qP = Package::where('is_deleted',0)
         ->whereIn('status_id',[9,10,19,11])
-        ->selectRaw('id,qr_code,extra_charge,price,status_id,failed_datetime,delivered_datetime,returned_datetime');
+        ->with('driver:id,user_name,phone')
+        ->selectRaw('id,driver_id,qr_code,extra_charge,price,status_id,failed_datetime,delivered_datetime,returned_datetime,receiver_phone,receiver_address,remarks');
         $qP->orderByRaw('
             CASE
                 WHEN status_id = ? THEN 1
@@ -57,6 +58,8 @@ class ReportController extends Controller
         })->groupBy('groupDate')
         ->map(function ($group, $date) use (&$grandTotal,&$totalCount,&$packageInfo,$isKm){
             $group->each(function ($item) use (&$grandTotal,&$totalCount,&$packageInfo,$isKm,&$totalDeliveryFee) {
+                $item->driver_name = $item->driver->user_name;
+                $item->driver_phone = $item->driver->phone;
                 $item->finished_date = $item->failed_datetime ? Helper::dateDMY($item->failed_datetime): Helper::dateDMY($item->delivered_datetime);
                 $finished_time = $item->failed_datetime ? Helper::formatCustomDateTime($item->failed_datetime,'h:i:s A'):Helper::formatCustomDateTime($item->delivered_datetime,'h:i:s A');
                 $item->finished_time = $finished_time;
@@ -101,7 +104,7 @@ class ReportController extends Controller
                     }
                     $item->status_code = $item->status->name;
                 }
-                unset($item->status,$item->groupDate,$item->failed_datetime,$item->delivered_datetime,$item->returned_datetime);
+                unset($item->driver,$item->status,$item->groupDate,$item->failed_datetime,$item->delivered_datetime,$item->returned_datetime);
             });
             return [
                 'date' => $date,
