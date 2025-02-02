@@ -230,7 +230,14 @@ class ReportController extends Controller
     }
 
     //** Options */
-    public function merchantDailyPackagesOption(){
-        $statuses = TrackingStatus::whereIn('id',[9,10,11,19])->get();
+    public function merchantDailyPackagesOption(Request $request){
+        $isKm = $request->lang != 'en';
+        $statuses = TrackingStatus::whereIn('id',[9,10,11,19])->selectRaw('id,name')->get();
+        foreach ($statuses as $status){
+            if($isKm){
+                $status->name = GeneralSettingService::$statusCodeTrans[$status->id] ?? '';
+            }
+        }
+        return ApiResponse::JsonResult($statuses);
     }
 }
