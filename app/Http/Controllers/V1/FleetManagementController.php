@@ -603,6 +603,7 @@ class FleetManagementController extends Controller
         $driverInfo->depart_datetime = $trip->depart_datetime;
         $driverInfo->finished_datetime = $trip->finished_datetime;
         $driverInfo->fleet_tracking_number = $trip->fleet_tracking_number;
+        $driverInfo->total = 0;
         $companyInfo = CompanyProfileService::profileInfo($user);
         $qP = Package::fromRaw('packages as p')->join('delivery_packages as dp','p.id','dp.package_id')
         ->join('tracking_statuses as ts','ts.id','p.status_id')
@@ -619,6 +620,9 @@ class FleetManagementController extends Controller
             $qP->whereIn('p.status_id',[9,19]);
         }
         $packages = $qP->get();
+        foreach($packages as $p){
+            $driverInfo->total += $p->driver_total;
+        }
         $obj = [
             'company_info' => $companyInfo,
             'trip_info' => $driverInfo,

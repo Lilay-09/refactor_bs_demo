@@ -558,6 +558,7 @@ public static function optionsRole($type=null){
         $qO = Order::where('is_deleted',0)
         ->where('merchant_id',$merchant_id)
         ->selectRaw('code,id,qty,order_datetime,is_deleted')
+        ->take(600)
         ->orderByDesc('order_datetime');
         if(!empty($statusIds)){
             $qO->whereIn('status_id',$statusIds);
@@ -584,6 +585,7 @@ public static function optionsRole($type=null){
             $deliveredCount = 0;
             $isCompleted = 1;
             $failCount = 0;
+            $OnDeliveryCount = 0;
             $stillOnDelivery = 0;
             $status_id = 16;
             $packages = $queryDeliveryPackage->get();
@@ -595,6 +597,7 @@ public static function optionsRole($type=null){
                 }
                 if($pck->status_id == 6){
                     $stillOnDelivery = 6;
+                    $OnDeliveryCount += 1;
                 }
             }
             if($trip->package_count == $failCount){
@@ -619,7 +622,7 @@ public static function optionsRole($type=null){
                 'failed_count' => $failCount,
                 'status_id' => $status_id,
                 'delivered_count' => $deliveredCount,
-                'package_count' => $failCount + $deliveredCount,
+                'package_count' => $failCount + $deliveredCount + $OnDeliveryCount,
             ];
             // Log::info($status_id);
             if($isCompleted) {
