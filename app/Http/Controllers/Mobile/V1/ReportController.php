@@ -18,9 +18,18 @@ class ReportController extends Controller
     //
     public function merchantDailyPackages(Request $req){
         $isKm = !($req->lang == 'en');
+        $grandTotal = 0;
+        $packageInfo = [
+            'delivered_count' => 0,
+            'failed_count' => 0,
+            'failed_with_fee_count' => 0,
+            'returned_count' => 0
+        ];
+        $totalCount = 0;
         $qP = Package::where('is_deleted',0)
         ->whereIn('status_id',[9,10,19,11])
-        ->selectRaw('id,qr_code,extra_charge,price,status_id,failed_datetime,delivered_datetime,returned_datetime');
+        ->with('driver:id,user_name,phone')
+        ->selectRaw('id,driver_id,qr_code,extra_charge,price,status_id,failed_datetime,delivered_datetime,returned_datetime,receiver_phone,receiver_address,remarks');
         $qP->orderByRaw('
             CASE
                 WHEN status_id = ? THEN 1
@@ -32,7 +41,7 @@ class ReportController extends Controller
         )->orderByRaw('DATE(failed_datetime) DESC,DATE(delivered_datetime) DESC');
         $packages = $qP->get();
         // return $packages;
-        $groupedPackages = collect($packages)->map(function ($item) use (&$grand) {
+        $groupedPackages = collect($packages)->map(function ($item) {
             $finishDate = $item->failed_datetime;
             if ($item->status_id == 9) $finishDate = $item->delivered_datetime;
             if ($item->status_id == 5) $finishDate = $item->arrive_warehouse_datetime;
@@ -47,8 +56,10 @@ class ReportController extends Controller
             // Return the modified object
             return $item;
         })->groupBy('groupDate')
-        ->map(function ($group, $date) use (&$grand,$isKm){
-            $group->each(function ($item) use (&$grand,$isKm,&$totalDeliveryFee) {
+        ->map(function ($group, $date) use (&$grandTotal,&$totalCount,&$packageInfo,$isKm){
+            $group->each(function ($item) use (&$grandTotal,&$totalCount,&$packageInfo,$isKm,&$totalDeliveryFee) {
+                $item->driver_name = $item->driver->user_name;
+                $item->driver_phone = $item->driver->phone;
                 $item->finished_date = $item->failed_datetime ? Helper::dateDMY($item->failed_datetime): Helper::dateDMY($item->delivered_datetime);
                 $finished_time = $item->failed_datetime ? Helper::formatCustomDateTime($item->failed_datetime,'h:i:s A'):Helper::formatCustomDateTime($item->delivered_datetime,'h:i:s A');
                 $item->finished_time = $finished_time;
@@ -57,12 +68,24 @@ class ReportController extends Controller
                 $item->extra_charge = (float)$item->extra_charge;
                 $total = $item->cod ? $item->price : 0;
                 if($item->payer == 'sender') {
-                    $item->delivery_fee = $isCal ? ($item->delivery_fee + $item->extra_charge) : 0;
+                    $item->delivery_fee = $isCal ? (float)Helper::getNumber(($item->delivery_fee + $item->extra_charge)) : 0;
                     $total -= $item->delivery_fee + $item->extra_charge + $item->taxi_fee;
                 }else $item->delivery_fee = 0;
                 $totalDeliveryFee += $item->delivery_fee;
-                $item->total = $isCal ? $total : 0;
-                if(in_array($item->status_id,[9,19])) $grand += Helper::getNumber($total,2);
+                $item->total = $isCal ? (float)Helper::getNumber($total) : 0;
+                if(in_array($item->status_id,[9,19])) {
+                    $grandTotal += Helper::getNumber($total,2);
+                }
+                if($item->status_id == 9){
+                    $packageInfo['delivered_count'] += 1;
+                }else if($item->status_id == 10){
+                    $packageInfo['failed'] += 1;
+                }else if ($item->status_id == 19){
+                    $packageInfo['failed_with_fee_count'] += 1;
+                }else if ($item->status_id == 11){
+                    $packageInfo['returned_count'] += 1;
+                }
+                $totalCount += 1;
                 if($isKm) {
                     $item->status_code = GeneralSettingService::$statusCodeTrans[$item->status_id] ?? '';
                     $item->payer = GeneralSettingService::$payerTrans[$item->payer] ?? '';
@@ -81,7 +104,7 @@ class ReportController extends Controller
                     }
                     $item->status_code = $item->status->name;
                 }
-                unset($item->status,$item->groupDate,$item->failed_datetime,$item->delivered_datetime,$item->returned_datetime);
+                unset($item->driver,$item->status,$item->groupDate,$item->failed_datetime,$item->delivered_datetime,$item->returned_datetime);
             });
             return [
                 'date' => $date,
@@ -89,7 +112,14 @@ class ReportController extends Controller
             ];
         })->values();
 
-        return ApiResponse::JsonResult($groupedPackages);
+        $data = [
+            'total'=> (float)Helper::getNumber($grandTotal),
+            'total_count'=>$totalCount,
+            'package_info' => $packageInfo,
+            'list' => $groupedPackages
+        ];
+
+        return ApiResponse::JsonResult($data);
     }
 
 
@@ -203,7 +233,14 @@ class ReportController extends Controller
     }
 
     //** Options */
-    public function merchantDailyPackagesOption(){
-        $statuses = TrackingStatus::whereIn('id',[9,10,11,19])->get();
+    public function merchantDailyPackagesOption(Request $request){
+        $isKm = $request->lang != 'en';
+        $statuses = TrackingStatus::whereIn('id',[9,10,11,19])->selectRaw('id,name')->get();
+        foreach ($statuses as $status){
+            if($isKm){
+                $status->name = GeneralSettingService::$statusCodeTrans[$status->id] ?? '';
+            }
+        }
+        return ApiResponse::JsonResult($statuses);
     }
 }
