@@ -18,6 +18,7 @@ class ReportController extends Controller
     //
     public function merchantDailyPackages(Request $req){
         $isKm = !($req->lang == 'en');
+        $statusId = $req->status_id;
         $grandTotal = 0;
         $packageInfo = [
             'delivered_count' => 0,
@@ -26,6 +27,8 @@ class ReportController extends Controller
             'returned_count' => 0
         ];
         $totalCount = 0;
+        $startDate = $req->startDate;
+        $endDate = $req->endDate;
         $qP = Package::where('is_deleted',0)
         ->whereIn('status_id',[9,10,19,11])
         ->with('driver:id,user_name,phone')
@@ -39,6 +42,31 @@ class ReportController extends Controller
                 ELSE 7
             END', [9, 19, 11,10]
         )->orderByRaw('DATE(failed_datetime) DESC,DATE(delivered_datetime) DESC');
+        if($statusId) $qP->where('status_id',$statusId);
+        if($startDate && $endDate){
+            $startDate = Helper::dateYMD($startDate);
+            $endDate = Helper::dateYMD($endDate);
+            $qP->where(function($q) use ($startDate, $endDate) {
+                $q->where(function($q) use ($startDate, $endDate) {
+                    // For status_id 10 or 19, query only failed_datetime
+                    $q->whereRaw('
+                        (failed_datetime::DATE >= ? AND failed_datetime::DATE <= ?)', [$startDate, $endDate])
+                        ->whereIn('status_id',[10,19]);
+                })
+                ->orWhere(function($q) use ($startDate, $endDate) {
+                    // For status_id 9, query only delivered_datetime
+                    $q->whereRaw('
+                        (delivered_datetime::DATE >= ? AND delivered_datetime::DATE <= ?)', [$startDate, $endDate])
+                        ->where('status_id', 9);
+                })
+                ->orWhere(function($q) use ($startDate, $endDate) {
+                    // For status_id 11, query only returned_datetime
+                    $q->whereRaw('
+                        (returned_datetime::DATE >= ? AND returned_datetime::DATE <= ?)', [$startDate, $endDate])
+                        ->where('status_id', 11);
+                });
+            });
+        }
         $packages = $qP->get();
         // return $packages;
         $groupedPackages = collect($packages)->map(function ($item) {
@@ -140,12 +168,11 @@ class ReportController extends Controller
         ->join('tracking_statuses as trs','trs.id','p.status_id')
         ->selectRaw('trs.id as status_id,trs.name as status_code,d.fleet_tracking_number,m.user_name as merchant_name,m.phone as merchant_phone,p.receiver_name,p.receiver_address,p.receiver_phone,p.driver_total as total')
         ->whereIn('p.status_id',[9,10,11,19])
-        ->where('d.merchant',$userId);
+        ->where('p.merchant_id',$userId);
 
         if($paymentStatus == 2){
             $qFp->where('pmt.approved',1);
         }
-
         if($startDate && $endDate){
             $startDate = Helper::dateYMD($startDate);
             $endDate = Helper::dateYMD($endDate);
@@ -233,14 +260,25 @@ class ReportController extends Controller
     }
 
     //** Options */
-    public function merchantDailyPackagesOption(Request $request){
+    public function merchantDailyPackagesOption(Request $request)
+    {
         $isKm = $request->lang != 'en';
-        $statuses = TrackingStatus::whereIn('id',[9,10,11,19])->selectRaw('id,name')->get();
-        foreach ($statuses as $status){
-            if($isKm){
-                $status->name = GeneralSettingService::$statusCodeTrans[$status->id] ?? '';
-            }
-        }
+
+        $statuses = TrackingStatus::whereIn('id', [9, 10, 11, 19])
+            ->selectRaw('id, name')
+            ->get()
+            ->map(function ($status) use ($isKm) {
+                return [
+                    'id' => $status->id,
+                    'name' => $isKm ? (GeneralSettingService::$statusCodeTrans[$status->id] ?? '') : $status->name
+                ];
+            })
+            ->toArray(); // Convert to array for array_unshift()
+
+        // Add translated "All" option at the beginning
+        array_unshift($statuses, ['id' => 0, 'name' => __('messages.all')]);
+
         return ApiResponse::JsonResult($statuses);
     }
+
 }

@@ -59,8 +59,7 @@ class JwtDriverMiddleware
             else {
                 $token = JWTAuth::parseToken()->authenticate();
             }
-            $hasUser = UserService::getAuthUser('driver');
-
+            $hasUser = UserService::getUserAuthAccess('driver');
             if(!$hasUser->error){
                 $payload = JWTAuth::getPayload($token);
                 $payloadArr = $payload->toArray();

@@ -20,6 +20,7 @@ return [
     'canceled' => 'Canceled',
     'saved' => ':info Saved',
     'returned' => ':info Returned',
-    'has already assigned' => ':info has already assigned'
+    'has already assigned' => ':info has already assigned',
+    'all' => 'All'
 ];
 

@@ -59,7 +59,7 @@ class JwtMerchantMiddleware
             else {
                 $token = JWTAuth::parseToken()->authenticate();
             }
-            $hasUser = UserService::getAuthUser('merchant');
+            $hasUser = UserService::getUserAuthAccess('merchant');
 
             if(!$hasUser->error){
                 $payload = JWTAuth::getPayload($token);

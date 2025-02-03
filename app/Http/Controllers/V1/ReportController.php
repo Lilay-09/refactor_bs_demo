@@ -1081,10 +1081,6 @@ class ReportController extends Controller
         ->whereIn('p.status_id',[5,6,10])
         ->selectRaw('p.id as package_id,p.order_id,p.qr_code,p.merchant_total')
         ->get();
-        // return $lastOrder;
-        // if(isset($lastOrder[0])){
-        //     $clonePkg->where('p.order_id','!=',$lastOrder[0]->order_id);
-        // }
         $packages = $clonePkg->get();
         $totalCount = 0;
         $pkgInfo = [

@@ -28,22 +28,22 @@ class CompletedPackageController extends Controller
         $warehouseId = $req->warehouse_id;
         $paymentStatusId = $req->payment_status_id;
         $search = $req->search;
-        $driverSettled = "
-            CASE
-                WHEN p.driver_payment_id IS NOT NULL AND dpmt.is_settled = true THEN 'Settled'
-                WHEN p.driver_payment_id IS NOT NULL AND dpmt.is_settled = false THEN 'Approved'
-                WHEN p.driver_disbursement_id IS NOT NULL AND dbur.is_settled = true THEN 'Settled'
-                WHEN p.driver_disbursement_id IS NOT NULL AND dbur.is_settled = false THEN 'Approved'
-                ELSE 'No Payment/Disbursement'
-            END as driver_status
-        ";
-        $merchantSettled = "CASE
-            WHEN p.merchant_payment_id IS NOT NULL AND dpmt.is_settled = true THEN 'Settled'
-            WHEN p.merchant_payment_id IS NOT NULL AND dpmt.is_settled = false THEN 'Approved'
-            WHEN p.merchant_disbursement_id IS NOT NULL AND dbur.is_settled = true THEN 'Settled'
-            WHEN p.merchant_disbursement_id IS NOT NULL AND dbur.is_settled = false THEN 'Approved'
-            ELSE 'No Payment/Disbursement'
-        END as merchant_status";
+        // $driverSettled = ",
+        //     CASE
+        //         WHEN p.driver_payment_id IS NOT NULL AND dpmt.is_settled = true THEN 'Settled'
+        //         WHEN p.driver_payment_id IS NOT NULL AND dpmt.is_settled = false THEN 'Approved'
+        //         WHEN p.driver_disbursement_id IS NOT NULL AND dbur.is_settled = true THEN 'Settled'
+        //         WHEN p.driver_disbursement_id IS NOT NULL AND dbur.is_settled = false THEN 'Approved'
+        //         ELSE 'No Payment/Disbursement'
+        //     END as driver_status
+        // ";
+        // $merchantSettled = ",CASE
+        //     WHEN p.merchant_payment_id IS NOT NULL AND dpmt.is_settled = true THEN 'Settled'
+        //     WHEN p.merchant_payment_id IS NOT NULL AND dpmt.is_settled = false THEN 'Approved'
+        //     WHEN p.merchant_disbursement_id IS NOT NULL AND dbur.is_settled = true THEN 'Settled'
+        //     WHEN p.merchant_disbursement_id IS NOT NULL AND dbur.is_settled = false THEN 'Approved'
+        //     ELSE 'No Payment/Disbursement'
+        // END as merchant_status";
         $qP = Package::from('packages as p')->where('p.company_id',$user->company_id)
         ->where('p.is_deleted',0)
         ->with('returnUser')
@@ -51,10 +51,10 @@ class CompletedPackageController extends Controller
         ->join('tracking_statuses as ts','ts.id','p.status_id')
         ->join('orders as o','o.id','p.order_id')
         ->join('users as m','m.id','p.merchant_id')
-        ->leftJoin('payments as dpmt','dpmt.id','p.driver_payment_id') //** if driver paid or unpaid */
-        ->leftJoin('payments as mpmt','mpmt.id','p.merchant_payment_id') //** if driver paid or unpaid */
-        ->leftJoin('disbursements as dbur','dbur.id','p.driver_disbursement_id') //** if driver paid or unpaid */
-        ->leftJoin('disbursements as mbur','mbur.id','p.merchant_disbursement_id') //** if driver paid or unpaid */
+        // ->leftJoin('payments as dpmt','dpmt.id','p.driver_payment_id') //** if driver paid or unpaid */
+        // ->leftJoin('payments as mpmt','mpmt.id','p.merchant_payment_id') //** if driver paid or unpaid */
+        // ->leftJoin('disbursements as dbur','dbur.id','p.driver_disbursement_id') //** if driver paid or unpaid */
+        // ->leftJoin('disbursements as mbur','mbur.id','p.merchant_disbursement_id') //** if driver paid or unpaid */
         ->orderByDesc('p.delivered_datetime')
         ->orderByDesc('p.failed_datetime')
         ->orderByDesc('p.returned_datetime')
@@ -64,7 +64,8 @@ class CompletedPackageController extends Controller
             $query->where('p.status_id', '!=', 19)    // Include 9 and 11 unconditionally
                     ->orWhereNotNull('p.returned_uid'); // Include 19 only if returned_uid is not null
         })
-        ->selectRaw('p.arrive_warehouse_datetime,p.returned_uid,p.receiver_address,p.driver_disbursement_id,p.driver_payment_id,p.delivered_datetime,m.user_name as merchant_name,m.phone as merchant_phone,d.user_name as driver_name,p.status_id,p.returned_datetime,p.id as package_id,d.id as driver_id,p.qr_code,p.price,ts.name as status_code,p.product_type,p.delivered_datetime,p.failed_datetime,p.taxi_fee,p.payer,p.cod,p.zone_code,p.zone_name,p.receiver_phone,p.delivery_type,p.delivery_fee,p.driver_total,p.merchant_total,'.$driverSettled.','.$merchantSettled);
+        // ->selectRaw('p.arrive_warehouse_datetime,p.returned_uid,p.receiver_address,p.driver_disbursement_id,p.driver_payment_id,p.delivered_datetime,m.user_name as merchant_name,m.phone as merchant_phone,d.user_name as driver_name,p.status_id,p.returned_datetime,p.id as package_id,d.id as driver_id,p.qr_code,p.price,ts.name as status_code,p.product_type,p.delivered_datetime,p.failed_datetime,p.taxi_fee,p.payer,p.cod,p.zone_code,p.zone_name,p.receiver_phone,p.delivery_type,p.delivery_fee,p.driver_total,p.merchant_total'.$driverSettled.$merchantSettled);
+        ->selectRaw('p.arrive_warehouse_datetime,p.returned_uid,p.receiver_address,p.driver_disbursement_id,p.driver_payment_id,p.delivered_datetime,m.user_name as merchant_name,m.phone as merchant_phone,d.user_name as driver_name,p.status_id,p.returned_datetime,p.id as package_id,d.id as driver_id,p.qr_code,p.price,ts.name as status_code,p.product_type,p.delivered_datetime,p.failed_datetime,p.taxi_fee,p.payer,p.cod,p.zone_code,p.zone_name,p.receiver_phone,p.delivery_type,p.delivery_fee,p.driver_total,p.merchant_total');
         //** Filter */
         if($search){
             $qP->where(function ($q) use ($search){
