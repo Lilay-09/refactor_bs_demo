@@ -94,6 +94,7 @@ class ZoneController extends Controller
         if($existZoneName) return ApiResponse::Duplicated(__('messages.error',[
             'info' => 'Zone name ('.$inputs['zone_name'].') is already exists.'
         ]));
+        // $zone
         $inputs['update_uid'] = $user->id;
         $inputs['branch_id'] = $user->branch_id;
         $inputs['company_id'] = $user->company_id;

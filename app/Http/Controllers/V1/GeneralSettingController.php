@@ -352,6 +352,7 @@ class GeneralSettingController extends Controller
             'delivery_types' => $this->gs::optionsDeliveryType(),
             'cod' => $this->gs::optionsCOD(),
             'payers' => $this->gs::optionsPayer(),
+            'zones' => $this->gs::optionsZone($user),
         ];
         return ApiResponse::JsonResult($obj);
     }

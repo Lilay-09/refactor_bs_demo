@@ -1119,6 +1119,7 @@ class TransactionService
             'price' => 'nullable|numeric',
             'payer' => 'required|in:receiver,sender',
             'taxi_fee' => 'nullable|numeric|min:0',
+            'zone_code' => 'required',
             'extra_charge' => 'nullable|numeric|min:0'
         ]);
         if($validate->fails()) return DataResponse::ValidateFail($validate->errors()->first());

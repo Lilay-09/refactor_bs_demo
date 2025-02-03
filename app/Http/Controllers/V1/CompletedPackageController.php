@@ -151,49 +151,49 @@ class CompletedPackageController extends Controller
         return ApiResponse::flex($trxService->updateDeliveryPackage($req,null,$user));
     }
 
-    public function createOrUpdatePackage(Request $req){
-        $validate = validator($req->all(),[
-            'driver_id' => 'required|int',
-            'barcode' => 'required|string',
-            'vehicle_type' => 'required|exists:vehicle_types,name',
-        ]);
-        if($validate->fails()) return ApiResponse::ValidateFail($validate->errors()->first());
-        $inputs = $validate->validated();
-        $driverid = $inputs['driver_id'];
-        $barcode = $inputs['barcode'];
-        $today = date('Y-m-d');
-        // $todayDelivery = Delivery::whereDate('depart_datetime',$today)->where('company_id',$user->company_id)->where('driver_id',$driverId)->first();
-        // if(!$todayDelivery){
-        //     $QuerylastPackage = DeliveryPackage::where('package_id',$packageId)->where('is_deleted',0);
-        //     $hasFailPackage = $QuerylastPackage->get();
-        //     if(isset($hasFailPackage[0])) $QuerylastPackage->update([
-        //         'delay_count' => 1,
-        //     ]);
-        //     $create = Delivery::create([
-        //         'driver_id' => $driverId,
-        //         'depart_datetime' => now(),
-        //         'package_count' => 1,
-        //         'status_id' => 14, //** On Delivery */
-        //         'warehouse_id' => 1,
-        //         'vehicle_type' => $vehicleType,
-        //         'branch_id' => $user->branch_id,
-        //         'company_id' => $user->company_id,
-        //         'update_uid' => $user->id,
-        //         'create_uid' => $user->id,
-        //     ]);
-        //     if(!$create) return DataResponse::Error(__('messages.error',['info' => 'Fail to add fleet']));
-        //     $deliveryId = $create->id;
-        //     Helper::setFleetNumber($user->branch_id,'fleet_code_controls','deliveries',$deliveryId,'fleet_tracking_number');
-        // }else{
-        //     $deliveryId = $todayDelivery->id;
-        //     $todayDelivery->update([
-        //         'driver_id' => $driverId,
-        //         'delay_count' => $todayDelivery->delay_count + 1,
-        //         'package_count' => $todayDelivery->package_count + 1,
-        //         'update_uid' => $user->id,
-        //         'branch_id' => $user->branch_id,
-        //         'company_id' => $user->company_id,
-        //     ]);
-        // }
-    }
+    // public function createOrUpdatePackage(Request $req){
+    //     $validate = validator($req->all(),[
+    //         'driver_id' => 'required|int',
+    //         'barcode' => 'required|string',
+    //         'vehicle_type' => 'required|exists:vehicle_types,name',
+    //     ]);
+    //     if($validate->fails()) return ApiResponse::ValidateFail($validate->errors()->first());
+    //     $inputs = $validate->validated();
+    //     $driverid = $inputs['driver_id'];
+    //     $barcode = $inputs['barcode'];
+    //     $today = date('Y-m-d');
+    //     // $todayDelivery = Delivery::whereDate('depart_datetime',$today)->where('company_id',$user->company_id)->where('driver_id',$driverId)->first();
+    //     // if(!$todayDelivery){
+    //     //     $QuerylastPackage = DeliveryPackage::where('package_id',$packageId)->where('is_deleted',0);
+    //     //     $hasFailPackage = $QuerylastPackage->get();
+    //     //     if(isset($hasFailPackage[0])) $QuerylastPackage->update([
+    //     //         'delay_count' => 1,
+    //     //     ]);
+    //     //     $create = Delivery::create([
+    //     //         'driver_id' => $driverId,
+    //     //         'depart_datetime' => now(),
+    //     //         'package_count' => 1,
+    //     //         'status_id' => 14, //** On Delivery */
+    //     //         'warehouse_id' => 1,
+    //     //         'vehicle_type' => $vehicleType,
+    //     //         'branch_id' => $user->branch_id,
+    //     //         'company_id' => $user->company_id,
+    //     //         'update_uid' => $user->id,
+    //     //         'create_uid' => $user->id,
+    //     //     ]);
+    //     //     if(!$create) return DataResponse::Error(__('messages.error',['info' => 'Fail to add fleet']));
+    //     //     $deliveryId = $create->id;
+    //     //     Helper::setFleetNumber($user->branch_id,'fleet_code_controls','deliveries',$deliveryId,'fleet_tracking_number');
+    //     // }else{
+    //     //     $deliveryId = $todayDelivery->id;
+    //     //     $todayDelivery->update([
+    //     //         'driver_id' => $driverId,
+    //     //         'delay_count' => $todayDelivery->delay_count + 1,
+    //     //         'package_count' => $todayDelivery->package_count + 1,
+    //     //         'update_uid' => $user->id,
+    //     //         'branch_id' => $user->branch_id,
+    //     //         'company_id' => $user->company_id,
+    //     //     ]);
+    //     // }
+    // }
 }
