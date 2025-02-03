@@ -270,6 +270,9 @@ public static function optionsRole($type=null){
     public static function getDriverById($id){
         return User::where('is_deleted',0)->where('delete_account',0)->where('account_type','driver')->orderByDesc('id')->find($id);
     }
+    public static function getMerchantById($id){
+        return User::where('is_deleted',0)->where('delete_account',0)->where('account_type','merchant')->orderByDesc('id')->find($id);
+    }
 
     public static function sumDeliveryFee($baseFee,$extraCharge,$taxi_fee,$payer){
         $total = 0;
@@ -502,7 +505,8 @@ public static function optionsRole($type=null){
 
     public static function calculatePackageFee($zone_code,$price,$billedKg,$actualKg,$payer,$cod,$extraCharge,$user,$taxi_fee=0,$merchant_id=null){
         // $priceList = GeneralSettingService::getZonePriceByCode($zone_code,$user);
-        $zoneId = Zone::where('zone_code',$zone_code)->take(1)->value('id');
+        Log::error($zone_code);
+        $zoneId = Zone::where('zone_code',$zone_code)->where('is_deleted',0)->take(1)->value('id');
         $priceList = GeneralSettingService::priceByZone($zoneId,$user,$merchant_id);
         if(!$priceList) return DataResponse::NotFound('Zone price not found');
         $baseFee = $priceList->price > 0 ? $priceList->price : $priceList->base_fee;

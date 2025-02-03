@@ -7,4 +7,5 @@ return [
     'created' => ':khInfo',
     'cancel' => 'បោះបង់',
     'assigned' => ':khInfo',
+    'all' => 'ទាំងអស់'
 ];

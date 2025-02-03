@@ -53,6 +53,7 @@ class MerchantManagementController extends Controller
             $m->referrer = null;
             $m->image_url = Helper::getImageUrl($m->photo_file_name,$user->company_id,'user_profile');
             $m->price_list_name = $merchantPriceList?->name;
+            $m->price_list_id = $merchantPriceList?->id;
             $m->zone_id = $merchantPriceList?->zone_id;
             $m->client_type = $m->merchantType?->name;
             $m->create_by = ($m->create_uid == $m->id) ? 'Self': 'Admin';
@@ -73,6 +74,7 @@ class MerchantManagementController extends Controller
         $merchant->cod = $merchant->cod ? 1:0;
         $merchant->zone_code = $merchant->merchantPriceList->zone_code;
         $merchant->zone_id = $merchant->merchantPriceList->zone_id;
+        $merchant->price_list_id = $merchant->merchantPriceList->price_list_id;
         unset($merchant->merchantPriceList);
         return ApiResponse::JsonResult($merchant);
     }
@@ -153,6 +155,7 @@ class MerchantManagementController extends Controller
             $insertOrUpdate['zone_id'] = $zoneId;
         }
         if($merchantPriceList){
+            \Log::info(json_encode($insertOrUpdate));
             $merchantPriceList->update($insertOrUpdate);
         }else{
             $insertOrUpdate['merchant_id'] = $id;

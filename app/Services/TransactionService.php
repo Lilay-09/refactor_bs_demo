@@ -1119,6 +1119,7 @@ class TransactionService
             'price' => 'nullable|numeric',
             'payer' => 'required|in:receiver,sender',
             'taxi_fee' => 'nullable|numeric|min:0',
+            'zone_code' => 'required',
             'extra_charge' => 'nullable|numeric|min:0'
         ]);
         if($validate->fails()) return DataResponse::ValidateFail($validate->errors()->first());
@@ -1145,7 +1146,8 @@ class TransactionService
             $price = 0;
             $taxi_fee = 0;
         }
-        $calFee = GeneralSettingService::calculatePackageFee($package->zone_code,$price,$package->billed_kg,$package->actual_kg,$payer,$cod,$extraCharge,$user,$taxi_fee,$package->merchant_id);
+        $zoneCode = $inputs['zone_code'] ?? $package->zone_code;
+        $calFee = GeneralSettingService::calculatePackageFee($zoneCode,$price,$package->billed_kg,$package->actual_kg,$payer,$cod,$extraCharge,$user,$taxi_fee,$package->merchant_id);
         if($calFee->error) return $calFee;
         $inputs['driver_total'] = $calFee->driver_total; //($package->status_id == 19 && $package->cod) ? abs($price - $calFee->driver_total):
         $inputs['merchant_total'] = $calFee->merchant_total;

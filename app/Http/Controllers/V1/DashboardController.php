@@ -287,64 +287,58 @@ class DashboardController extends Controller
         ->where('p.updated_at', '>=', Carbon::now()->subDays($this->days))
         ->join('tracking_statuses as ts', 'ts.id', '=', 'p.status_id')
         ->join('users as m', 'm.id', '=', 'p.merchant_id')
-        ->leftJoin('payments as pmt', function ($join) {
-            $join->on('p.driver_payment_id', '=', 'pmt.id')
-                ->where('pmt.approved', '=', 1);
-        })
-        ->leftJoin('disbursements as dis', function ($join) {
-            $join->on('p.merchant_disbursement_id', '=', 'dis.id')
-                ->where('dis.approved', '=', 1);
-        })
+        // ->leftJoin('payments as pmt', function ($join) {
+        //     $join->on('p.driver_payment_id', '=', 'pmt.id')
+        //         ->where('pmt.approved', '=', 1);
+        // })
+        // ->leftJoin('disbursements as dis', function ($join) {
+        //     $join->on('p.merchant_disbursement_id', '=', 'dis.id')
+        //         ->where('dis.approved', '=', 1);
+        // })
         ->selectRaw('
-        m.user_name as merchant_name,
-        CASE
-            WHEN p.status_id = 9 THEN p.delivered_datetime::DATE
-            ELSE p.failed_datetime::DATE
-        END AS finished_date,
-        SUM(
+            m.user_name as merchant_name,
             CASE
-                WHEN p.cod = TRUE AND p.status_id = 9 THEN p.price
-                ELSE 0
-            END
-        ) AS cod_amount,
-        SUM(
-            CASE
-                WHEN (p.merchant_payment_id IS NULL AND p.merchant_disbursement_id IS NULL AND p.payer = \'sender\')
-                THEN p.taxi_fee
-                ELSE 0
-            END
-        ) AS taxi_fee,
-        SUM(
-            CASE
-                WHEN (p.merchant_payment_id IS NULL AND p.merchant_disbursement_id IS NULL AND p.payer = \'sender\')
-                THEN p.delivery_fee + p.extra_charge
-                ELSE 0
-            END
-        ) AS fees,
-        CASE
-            WHEN p.merchant_payment_id IS NOT NULL AND pmt.approved = TRUE THEN \'paid\'
-            WHEN p.merchant_disbursement_id IS NOT NULL AND dis.approved = TRUE THEN \'paid\'
-            ELSE \'unpaid\'
-        END AS payment_status,
-        SUM(
-            CASE
-                WHEN (p.merchant_payment_id IS NULL AND p.merchant_disbursement_id IS NULL) THEN 1
-                ELSE 0
-            END
-        ) AS package_count
-    ')
+                WHEN p.status_id = 9 THEN p.delivered_datetime::DATE
+                ELSE p.failed_datetime::DATE
+            END AS finished_date,
+            SUM(
+                CASE
+                    WHEN p.cod = TRUE AND p.status_id = 9 THEN p.price
+                    ELSE 0
+                END
+            ) AS cod_amount,
+            SUM(
+                CASE
+                    WHEN (p.merchant_payment_id IS NULL AND p.merchant_disbursement_id IS NULL AND p.payer = \'sender\')
+                    THEN p.taxi_fee
+                    ELSE 0
+                END
+            ) AS taxi_fee,
+            SUM(
+                CASE
+                    WHEN (p.merchant_payment_id IS NULL AND p.merchant_disbursement_id IS NULL AND p.payer = \'sender\')
+                    THEN p.delivery_fee + p.extra_charge
+                    ELSE 0
+                END
+            ) AS fees,
+            \'unpaid\' AS payment_status,
+            SUM(
+                CASE
+                    WHEN (p.merchant_payment_id IS NULL AND p.merchant_disbursement_id IS NULL) THEN 1
+                    ELSE 0
+                END
+            ) AS package_count
+        ')
+        ->whereNull('p.merchant_payment_id')
+        ->whereNull('p.merchant_disbursement_id')
         ->groupByRaw('
             m.id,
             CASE
                 WHEN p.status_id = 9 THEN p.delivered_datetime::DATE
                 ELSE p.failed_datetime::DATE
-            END,
-            CASE
-                WHEN p.merchant_payment_id IS NOT NULL AND pmt.approved = TRUE THEN \'paid\'
-                WHEN p.merchant_disbursement_id IS NOT NULL AND dis.approved = TRUE THEN \'paid\'
-                ELSE \'unpaid\'
             END
         ')
+
         ->get();
         foreach($dailyCollection as $d){
             $d->amount = $d->cod_amount - $d->taxi_fee - $d->fees;
