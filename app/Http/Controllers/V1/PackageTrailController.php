@@ -30,6 +30,7 @@ class PackageTrailController extends Controller
         $user = UserService::getAuthUser();
         $search = $req->search??null;
         $orderId = $req->order_id??null;
+        $isKm = $req->lang == 'km';
         $warehouse_id = $req->warehouse_id ?? null;
         $statusId = $req->status_id??null;
         $merchantId = $req->merchant_id ?? null;
@@ -86,17 +87,12 @@ class PackageTrailController extends Controller
         if($startDate && $endDate){
             $startDate = Helper::dateYMD($startDate);
             $endDate = Helper::dateYMD($endDate);
-            $query->where(function ($q) use($startDate,$endDate){
-                $q->whereRaw('created_at::DATE >= ? AND created_at::DATE <= ? OR arrive_warehouse_datetime::DATE >= ? AND arrive_warehouse_datetime::DATE <= ? OR failed_datetime::DATE >= ? AND failed_datetime::DATE <= ?', [$startDate, $endDate,$startDate, $endDate,$startDate, $endDate]);
+            $query->where(function ($q) use ($startDate, $endDate) {
+                $q->whereBetween('created_at', ["$startDate 00:00:00", "$endDate 23:59:59"])
+                ->orWhereBetween('arrive_warehouse_datetime', ["$startDate 00:00:00", "$endDate 23:59:59"])
+                ->orWhereBetween('failed_datetime', ["$startDate 00:00:00", "$endDate 23:59:59"]);
             });
         }
-        // if($startFinishDate && $endFinishDate){
-        //     $startFinishDate = Helper::dateYMD($startFinishDate);
-        //     $endFinishDate = Helper::dateYMD($endFinishDate);
-        //     $query->where(function ($q) use($startFinishDate,$endFinishDate){
-        //         $q->whereRaw('failed_datetime::DATE >= ? AND failed_datetime::DATE <= ?', [$startFinishDate, $endFinishDate]);
-        //     });
-        // }
         $packages = $query->get();
         foreach($packages as $pkg){
             $cod = $pkg->cod;
@@ -104,7 +100,12 @@ class PackageTrailController extends Controller
             $pkg->merhcant_name = $pkg->merchant?->user_name;
             $pkg->merchant_phone = $pkg->merchant?->phone;
             $pkg->cod = $cod == true ? 1:0;
-            $pkg->status_code = $pkg->status->name;
+
+            if($isKm){
+                $pkg->status_code = GeneralSettingService::$statusCodeTrans[$pkg->status_id];
+            }else{
+                $pkg->status_code = $pkg->status->name;
+            }
             $pkg->has_image = PackageAttachment::where('hidden',0)->where('package_id',$pkg->id)->value('package_id') ? 1 : 0;
             $pkg->total = Helper::getNumber(abs($pkg->driver_total - $pkg->merchant_total),2);//PickupCenterService::getDriverTotal($cod,$pkg->payer,$pkg->price,$pkg->delivery_fee,$pkg->additional_fee,$pkg->excharge_fee);
             $pkg->warehouse_timeago = Helper::timeAgo($pkg->arrive_warehouse_datetime,false);

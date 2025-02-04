@@ -40,11 +40,14 @@ class DriverTransactionController extends Controller
             $endDate = Helper::dateYMD($endDate);
             $qP->whereRaw("
                 (
-                    (status_id = 19 AND failed_datetime::DATE >= ? AND failed_datetime::DATE <= ?)
+                    (status_id = 19 AND failed_datetime BETWEEN ? AND ?)
                     OR
-                    (status_id = 9 AND delivered_datetime::DATE >= ? AND delivered_datetime::DATE <= ?)
+                    (status_id = 9 AND delivered_datetime BETWEEN ? AND ?)
                 )
-            ", [$startDate, $endDate, $startDate, $endDate]);
+            ", [
+                "$startDate 00:00:00", "$endDate 23:59:59",
+                "$startDate 00:00:00", "$endDate 23:59:59"
+            ]);
         }
         if($driverId) $qP->where('driver_id',$driverId);
         $packages = $qP->get();
@@ -54,8 +57,7 @@ class DriverTransactionController extends Controller
             $startDate = date('Y-m-d',strtotime($startDate));
             $endDate = date('Y-m-d',strtotime($endDate));
             // $qO->whereRaw('DATE(order_datetime) >= ? AND DATE(order_datetime) <= ?', [$startDate,$endDate]);
-            $qO->whereDate('order_datetime', '>=', $startDate)
-            ->whereDate('order_datetime', '<=', $endDate);
+            $qO->whereBetween('order_datetime', [$startDate . ' 00:00:00', $endDate . ' 23:59:59']);
         }
         $orders = $qO->get();
         $qDc = DriverCommission::where('is_deleted',0)->selectRaw('id,driver_id,delivery_type,pickup_commission,delivery_commission');

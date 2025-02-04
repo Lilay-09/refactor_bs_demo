@@ -227,6 +227,9 @@ public static function optionsRole($type=null){
             $q->whereIn('id',$selectIds);
         }
         $statuses = $q->get();
+        foreach($statuses as $status){
+            if($lang == 'km') $status->name = self::$statusCodeTrans[$status->id] ?? null;
+        }
         return $statuses;
     }
 
@@ -567,7 +570,7 @@ public static function optionsRole($type=null){
             $qO->whereIn('status_id',$statusIds);
         }
         if($startDate && $endDate){
-            $qO->whereRaw('order_datetime::DATE >= ? && order_datetime::date <= ?',[$startDate,$endDate]);
+            $qO->whereRaw('order_datetime >= ? AND order_datetime <= ?', [$startDate . ' 00:00:00', $endDate . ' 23:59:59']);
         }
         $orders = $qO->get();
         foreach($orders as $order){

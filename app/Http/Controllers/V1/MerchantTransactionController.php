@@ -80,9 +80,26 @@ class MerchantTransactionController extends Controller
         if($startDate && $endDate){
             $startDate = Helper::dateYMD($startDate);
             $endDate = Helper::dateYMD($endDate);
-            $qP->whereRaw('(DATE(delivered_datetime) >= ? AND DATE(delivered_datetime) <= ? OR DATE(failed_datetime) >= ? AND DATE(failed_datetime) <= ?)',[
-                $startDate, $endDate, $startDate, $endDate
-            ]);
+            // $qP->whereRaw('
+            //     (delivered_datetime >= ? AND delivered_datetime < ? OR failed_datetime >= ? AND failed_datetime < ?)', [
+            //     "$startDate 00:00:00", "$endDate 23:59:59.999",
+            //     "$startDate 00:00:00", "$endDate 23:59:59.999"
+            // ]);
+            $qP->where(function ($q) use ($startDate, $endDate) {
+                // Check for status_id = 9, delivered_datetime should be within the date range
+                $q->where(function ($q) use ($startDate, $endDate) {
+                    $q->where('status_id', 9)
+                    ->whereRaw('delivered_datetime >= ? AND delivered_datetime <= ?', ["$startDate 00:00:00", "$endDate 23:59:59.999"]);
+                })
+                // Check for status_id = 19, failed_datetime should be within the date range
+                ->orWhere(function ($q) use ($startDate, $endDate) {
+                    $q->where('status_id', 19)
+                    ->whereRaw('failed_datetime >= ? AND failed_datetime <= ?', ["$startDate 00:00:00", "$endDate 23:59:59.999"]);
+                });
+            });
+
+
+
 
         }
         $merchants = $qP->get();

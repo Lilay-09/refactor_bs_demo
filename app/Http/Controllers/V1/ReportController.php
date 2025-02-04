@@ -200,9 +200,7 @@ class ReportController extends Controller
         if($startDate && $endDate){
             $startDate = Helper::dateYMD($startDate);
             $endDate = Helper::dateYMD($endDate);
-            $qP->where(function ($q) use ($startDate, $endDate) {
-                $q->whereRaw('payment_datetime::DATE >= ? AND payment_datetime::DATE <= ?',[$startDate,$endDate]);
-            });
+            $qP->whereBetween('payment_datetime', ["$startDate 00:00:00", "$endDate 23:59:59"]);
         }
 
         $payments = $qP->get();
@@ -337,7 +335,7 @@ class ReportController extends Controller
         $packages = $qP->get();
         $qO = Order::where('status_id',5)->where('is_deleted',0);
         if($startDate && $endDate){
-            $qO->whereRaw('pickup_datetime::DATE >= ? AND pickup_datetime::DATE <= ?', [$startDate, $endDate]);
+            $qO->whereBetween('pickup_datetime', ["$startDate 00:00:00", "$endDate 23:59:59"]);
         }
         $pickupCount = $qO->sum('qty');
         $merchantCount = 0;
@@ -505,22 +503,19 @@ class ReportController extends Controller
             $endDate = Helper::dateYMD($endDate);
             $qP->where(function($q) use ($startDate, $endDate) {
                 $q->where(function($q) use ($startDate, $endDate) {
-                    // For status_id 10 or 19, query only failed_datetime
-                    $q->whereRaw('
-                        (failed_datetime::DATE >= ? AND failed_datetime::DATE <= ?)', [$startDate, $endDate])
-                        ->where('status_id',19);
+                    // For status_id 19, query only failed_datetime
+                    $q->whereBetween('failed_datetime', ["$startDate 00:00:00", "$endDate 23:59:59"])
+                    ->where('status_id', 19);
                 })
                 ->orWhere(function($q) use ($startDate, $endDate) {
                     // For status_id 9, query only delivered_datetime
-                    $q->whereRaw('
-                        (delivered_datetime::DATE >= ? AND delivered_datetime::DATE <= ?)', [$startDate, $endDate])
-                        ->where('status_id', 9);
+                    $q->whereBetween('delivered_datetime', ["$startDate 00:00:00", "$endDate 23:59:59"])
+                    ->where('status_id', 9);
                 })
                 ->orWhere(function($q) use ($startDate, $endDate) {
                     // For status_id 11, query only returned_datetime
-                    $q->whereRaw('
-                        (returned_datetime::DATE >= ? AND returned_datetime::DATE <= ?)', [$startDate, $endDate])
-                        ->where('status_id', 11);
+                    $q->whereBetween('returned_datetime', ["$startDate 00:00:00", "$endDate 23:59:59"])
+                    ->where('status_id', 11);
                 });
             });
         }
@@ -530,10 +525,10 @@ class ReportController extends Controller
         if($startDate && $endDate){
             $startDate = Helper::dateYMD($startDate);
             $endDate = Helper::dateYMD($endDate);
-            $oD->whereRaw('updated_at::DATE >= ? AND updated_at::DATE <= ?', [$startDate, $endDate]);
+            // $oD->whereRaw('updated_at::DATE >= ? AND updated_at::DATE <= ?', [$startDate, $endDate]);
+            $oD->whereBetween('updated_at', ["$startDate 00:00:00", "$endDate 23:59:59"]);
         }
         $orders = $oD->get();
-
         $totalPickUpCount = 0;
         $totalDeliveredCount = 0;
         $totalFaileWithFeeCount = 0;
@@ -592,11 +587,12 @@ class ReportController extends Controller
         if($startDate && $endDate){
             $startDate = Helper::dateYMD($startDate);
             $endDate = Helper::dateYMD($endDate);
-            $qP->where(function($q) use($startDate,$endDate){
-                $q->whereRaw('payment_datetime::DATE >= ? AND payment_datetime::DATE <= ?',[$startDate,$endDate]);
+            $qP->where(function($q) use ($startDate, $endDate) {
+                $q->whereBetween('payment_datetime', ["$startDate 00:00:00", "$endDate 23:59:59"]);
             });
-            $qD->where(function($q) use($startDate,$endDate){
-                $q->whereRaw('payment_datetime::DATE >= ? AND payment_datetime::DATE <= ?',[$startDate,$endDate]);
+
+            $qD->where(function($q) use ($startDate, $endDate) {
+                $q->whereBetween('payment_datetime', ["$startDate 00:00:00", "$endDate 23:59:59"]);
             });
         }
         if($driverId){
@@ -662,39 +658,36 @@ class ReportController extends Controller
             $qP->where('driver_id',$driverId);
         }
         if($startDate && $endDate){
-            $qP->where(function($q) use ($startDate, $endDate) {
-                $q->where(function($q) use ($startDate, $endDate) {
+            $startDateTime = "$startDate 00:00:00";
+            $endDateTime = "$endDate 23:59:59";
+
+            $qP->where(function($q) use ($startDateTime, $endDateTime) {
+                $q->where(function($q) use ($startDateTime, $endDateTime) {
                     // For status_id 10 or 19, query only failed_datetime
-                    $q->whereRaw('
-                        (failed_datetime::DATE >= ? AND failed_datetime::DATE <= ?)', [$startDate, $endDate])
-                        ->whereIn('status_id', [10, 19]);
+                    $q->whereBetween('failed_datetime', [$startDateTime, $endDateTime])
+                    ->whereIn('status_id', [10, 19]);
                 })
-                ->orWhere(function($q) use ($startDate, $endDate) {
+                ->orWhere(function($q) use ($startDateTime, $endDateTime) {
                     // For status_id 9, query only delivered_datetime
-                    $q->whereRaw('
-                        (delivered_datetime::DATE >= ? AND delivered_datetime::DATE <= ?)', [$startDate, $endDate])
-                        ->where('status_id', 9);
+                    $q->whereBetween('delivered_datetime', [$startDateTime, $endDateTime])
+                    ->where('status_id', 9);
                 })
-                ->orWhere(function($q) use ($startDate, $endDate) {
+                ->orWhere(function($q) use ($startDateTime, $endDateTime) {
                     // For status_id 6, query only assign_driver_datetime
-                    $q->whereRaw('
-                        (assign_driver_datetime::DATE >= ? AND assign_driver_datetime::DATE <= ?)', [$startDate, $endDate])
-                        ->where('status_id', 6);
+                    $q->whereBetween('assign_driver_datetime', [$startDateTime, $endDateTime])
+                    ->where('status_id', 6);
                 })
-                ->orWhere(function($q) use ($startDate, $endDate) {
+                ->orWhere(function($q) use ($startDateTime, $endDateTime) {
                     // For status_id 5, query only arrive_warehouse_datetime
-                    $q->whereRaw('
-                        (arrive_warehouse_datetime::DATE >= ? AND arrive_warehouse_datetime::DATE <= ?)', [$startDate, $endDate])
-                        ->where('status_id', 5);
+                    $q->whereBetween('arrive_warehouse_datetime', [$startDateTime, $endDateTime])
+                    ->where('status_id', 5);
                 })
-                ->orWhere(function($q) use ($startDate, $endDate) {
+                ->orWhere(function($q) use ($startDateTime, $endDateTime) {
                     // For status_id 11, query only returned_datetime
-                    $q->whereRaw('
-                        (returned_datetime::DATE >= ? AND returned_datetime::DATE <= ?)', [$startDate, $endDate])
-                        ->where('status_id', 11);
+                    $q->whereBetween('returned_datetime', [$startDateTime, $endDateTime])
+                    ->where('status_id', 11);
                 });
             });
-
         }
         $uniqueDrivers = [];
         $distinctDriverCount = 0;
@@ -916,57 +909,41 @@ class ReportController extends Controller
         p.returned_datetime,p.arrive_warehouse_datetime,p.assign_driver_datetime,p.receiver_phone,p.receiver_name,p.receiver_address,p.delivery_remarks'.$pmtCase);
 
         if ($startDate && $endDate) {
-            $qP->where(function($q) use ($startDate, $endDate) {
-                $q->where(function($q) use ($startDate, $endDate) {
-                    // For status_id 10 or 19, query only failed_datetime
-                    $q->whereRaw('
-                        (p.failed_datetime::DATE >= ? AND p.failed_datetime::DATE <= ?)', [$startDate, $endDate])
-                        ->whereIn('p.status_id', [10, 19]);
+            // Concatenate start and end dates with the times
+            $startDateTime = "$startDate 00:00:00";
+            $endDateTime = "$endDate 23:59:59";
+
+            // Prepare your query
+            $qP->where(function($q) use ($startDateTime, $endDateTime) {
+                // Combine status checks into fewer OR clauses, grouped by datetime fields
+                $q->where(function($q) use ($startDateTime, $endDateTime) {
+                    // For status_id 10 or 19, query failed_datetime
+                    $q->whereIn('p.status_id', [10, 19])
+                    ->whereBetween('p.failed_datetime', [$startDateTime, $endDateTime]);
                 })
-                ->orWhere(function($q) use ($startDate, $endDate) {
-                    // For status_id 9, query only delivered_datetime
-                    $q->whereRaw('
-                        (p.delivered_datetime::DATE >= ? AND p.delivered_datetime::DATE <= ?)', [$startDate, $endDate])
-                        ->where('p.status_id', 9);
+                ->orWhere(function($q) use ($startDateTime, $endDateTime) {
+                    // For status_id 9, query delivered_datetime
+                    $q->where('p.status_id', 9)
+                    ->whereBetween('p.delivered_datetime', [$startDateTime, $endDateTime]);
                 })
-                ->orWhere(function($q) use ($startDate, $endDate) {
-                    // For status_id 6, query only assign_driver_datetime
-                    $q->whereRaw('
-                        (p.assign_driver_datetime::DATE >= ? AND p.assign_driver_datetime::DATE <= ?)', [$startDate, $endDate])
-                        ->where('p.status_id', 6);
+                ->orWhere(function($q) use ($startDateTime, $endDateTime) {
+                    // For status_id 6, query assign_driver_datetime
+                    $q->where('p.status_id', 6)
+                    ->whereBetween('p.assign_driver_datetime', [$startDateTime, $endDateTime]);
                 })
-                ->orWhere(function($q) use ($startDate, $endDate) {
-                    // For status_id 5, query only arrive_warehouse_datetime
-                    $q->whereRaw('
-                        (p.arrive_warehouse_datetime::DATE >= ? AND p.arrive_warehouse_datetime::DATE <= ?)', [$startDate, $endDate])
-                        ->where('p.status_id', 5);
+                ->orWhere(function($q) use ($startDateTime, $endDateTime) {
+                    // For status_id 5, query arrive_warehouse_datetime
+                    $q->where('p.status_id', 5)
+                    ->whereBetween('p.arrive_warehouse_datetime', [$startDateTime, $endDateTime]);
                 })
-                ->orWhere(function($q) use ($startDate, $endDate) {
-                    // For status_id 11, query only returned_datetime
-                    $q->whereRaw('
-                        (p.returned_datetime::DATE >= ? AND p.returned_datetime::DATE <= ?)', [$startDate, $endDate])
-                        ->where('p.status_id', 11);
+                ->orWhere(function($q) use ($startDateTime, $endDateTime) {
+                    // For status_id 11, query returned_datetime
+                    $q->where('p.status_id', 11)
+                    ->whereBetween('p.returned_datetime', [$startDateTime, $endDateTime]);
                 });
             });
-    }
-        // if($startDate && $endDate){
-        //     $qP->where(function($q) use ($startDate,$endDate){
-        //         $q->whereRaw('
-        //             (p.failed_datetime::DATE >= ? AND p.failed_datetime::DATE <= ?) OR
-        //             (p.delivered_datetime::DATE >= ? AND p.delivered_datetime::DATE <= ?) OR
-        //             (p.arrive_warehouse_datetime::DATE >= ? AND p.arrive_warehouse_datetime::DATE <= ?) OR
-        //             (p.assign_driver_datetime::DATE >= ? AND p.assign_driver_datetime::DATE <= ?) OR
-        //             (p.returned_datetime::DATE >= ? AND p.returned_datetime::DATE <= ?)',
-        //             [
-        //                 $startDate, $endDate, // failed_datetime
-        //                 $startDate, $endDate, // delivered_datetime
-        //                 $startDate, $endDate, // arrive_warehouse_datetime
-        //                 $startDate, $endDate, // assign_driver_datetime
-        //                 $startDate, $endDate, // returned_datetime
-        //             ]
-        //         );
-        //     });
-        // }
+
+        }
 
         $qP->orderByRaw('
             CASE
@@ -1041,8 +1018,8 @@ class ReportController extends Controller
                 'date' => $date,
                 'details' => $group->toArray(),
                 'total' => [
-                    'cod' => Helper::getNumber($group->where('status_id','!=',19)->where('cod',1)->sum('price')),
-                    'taxi' => Helper::getNumber($group->where('status_id','!=',19)->sum('taxi_fee')),
+                    'cod' => Helper::getNumber($group->where('status_id','=',9)->where('cod',1)->sum('price')),
+                    'taxi' => Helper::getNumber($group->where('status_id','=',9)->sum('taxi_fee')),
                     'delivery_fee' => Helper::getNumber($totalDeliveryFee,2),
                     'grand' => Helper::getNumber($grand,2)
                 ],
@@ -1060,6 +1037,7 @@ class ReportController extends Controller
         ];
         return ApiResponse::JsonResult($obj);
     }
+
     private function getMerchantSummaryHeader($clonePkg,$merchantId,$startDate,$endDate){
         $lastOrder = Package::from('packages as p')->where('p.is_deleted',0)
         ->whereRaw(
@@ -1069,7 +1047,7 @@ class ReportController extends Controller
             [$startDate, $endDate, $startDate, $endDate, $startDate, $endDate]
         )
         ->joinSub(
-    Order::select('id as order_id','code')
+        Order::select('id as order_id','code')
             ->where('merchant_id',$merchantId)
             ->where('status_id',5)
             ->orderByDesc('id') // Assuming 'id' defines the latest order
@@ -1245,6 +1223,10 @@ class ReportController extends Controller
         return ApiResponse::JsonResult($obj);
     }
 
+    public function getMerchantDailyPackage(){
+
+    }
+
     //** END MERCHANT REPORT */
     public function driverDeliverySummaryReportOption(){
         $user = UserService::getAuthUser();
@@ -1285,4 +1267,6 @@ class ReportController extends Controller
         $user = UserService::getAuthUser();
         return ApiResponse::JsonResult(GeneralSettingService::optionsWarehouse($user));
     }
+
+
 }

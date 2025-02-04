@@ -51,24 +51,21 @@ class HistoryController extends Controller
         if($startDate && $endDate){
             $startDate = Helper::dateYMD($startDate);
             $endDate = Helper::dateYMD($endDate);
-            $qFp->where(function($q) use ($startDate, $endDate) {
-                $q->where(function($q) use ($startDate, $endDate) {
-                    // For status_id 10 or 19, query only failed_datetime
-                    $q->whereRaw('
-                        (p.failed_datetime::DATE >= ? AND p.failed_datetime::DATE <= ?)', [$startDate, $endDate])
-                        ->where('p.status_id',19);
+            $qFp->where(function ($q) use ($startDate, $endDate) {
+                $q->where(function ($q) use ($startDate, $endDate) {
+                    // For status_id 19, query only failed_datetime
+                    $q->whereBetween('p.failed_datetime', ["$startDate 00:00:00", "$endDate 23:59:59"])
+                    ->where('p.status_id', 19);
                 })
-                ->orWhere(function($q) use ($startDate, $endDate) {
+                ->orWhere(function ($q) use ($startDate, $endDate) {
                     // For status_id 9, query only delivered_datetime
-                    $q->whereRaw('
-                        (p.delivered_datetime::DATE >= ? AND p.delivered_datetime::DATE <= ?)', [$startDate, $endDate])
-                        ->where('p.status_id', 9);
+                    $q->whereBetween('p.delivered_datetime', ["$startDate 00:00:00", "$endDate 23:59:59"])
+                    ->where('p.status_id', 9);
                 })
-                ->orWhere(function($q) use ($startDate, $endDate) {
+                ->orWhere(function ($q) use ($startDate, $endDate) {
                     // For status_id 11, query only returned_datetime
-                    $q->whereRaw('
-                        (p.returned_datetime::DATE >= ? AND p.returned_datetime::DATE <= ?)', [$startDate, $endDate])
-                        ->where('p.status_id', 11);
+                    $q->whereBetween('p.returned_datetime', ["$startDate 00:00:00", "$endDate 23:59:59"])
+                    ->where('p.status_id', 11);
                 });
             });
         }

@@ -55,11 +55,11 @@ class UserAccess
         return UserPermission::where('permission_id',$code)->where('user_id',$userId)->value('permission_id');
     }
 
-    private function checkGetRoute(){
+    // private function checkGetRoute(){
 
-    }
+    // }
 
-    private function checkModules(){
+    // private function checkModules(){
 
-    }
+    // }
 }

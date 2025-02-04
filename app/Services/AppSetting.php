@@ -8,7 +8,6 @@ use DataResponse;
 use Helper;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Http\Request;
-use Log;
 use Redirect;
 class AppSetting
 {
