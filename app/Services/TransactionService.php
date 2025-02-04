@@ -395,7 +395,7 @@ class TransactionService
             if(!($totalAmountKHR >= $roundSuggestionAmtDown && $totalAmountKHR <= $roundSuggestionAmtUp)) return DataResponse::ValidateFail(message: __('messages.info',[
                 'info' => 'Amount KHR must be around (KHR '.$roundSuggestionAmtUp .' & KHR '.$roundSuggestionAmtDown.'), base '.$totalSuggestionAmt_KH
             ]));
-            Log::error($totalAllAmt.'---'.$dueAmount);
+            // Log::error($totalAllAmt.'---'.$dueAmount.'--------'.$totalAmountKHR_to_USD.'------'.$totalAmountKHR);
             if($totalAllAmt != $dueAmount) return DataResponse::ValidateFail(__('messages.info',[
                 'info' => 'If USD amount($'.$totalAmountUSD.')'.' additional in KHR must be ('.$roundSuggestionAmtUp.' or '.$totalSuggestionAmt_KH.')'
             ]));
