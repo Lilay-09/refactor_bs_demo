@@ -64,11 +64,10 @@
 <body>
     <h3 class="header">{{ $title ?? 'History Packages' }}</h3>
     <p>Date: {{ $date ?? now()->format('Y-m-d') }}</p>
-    {{-- <p>Driver: {{ $merchant['user_name'] ?? 'N/A' }} ({{ $merchant['phone'] ?? '' }})</p> --}}
+    <p>Merchant: {{ $merchant['user_name'] ?? 'N/A' }} ({{ $merchant['phone'] ?? '' }})</p>
     <div class="content">
 
         @if(isset($data[0]))
-
             @foreach($data as $key => $tracking)
                 {{$tracking['date']}}
                 <table class="table">
@@ -83,18 +82,19 @@
                         </tr>
                     </thead>
                     <tbody>
-                        @if(isset($tracking['list'][0]))
+                        @if(isset($tracking['list']))
                             @foreach($tracking['list'] as $idx => $item)
                                 <tr>
                                     <td>{{ $idx + 1 }}</td>
                                     <td>
-                                        <span>{{ $item->driver_name ?? '' }}</span>
-                                        <small>({{ $item->driver_phone ?? '' }})</small>
+                                        {{-- {{$item}} --}}
+                                        <span>{{ $item['driver_name'] ?? '' }}</span>
+                                        <small>({{ $item['driver_phone'] ?? '' }})</small>
                                     </td>
-                                    <td>{{ $item->receiver_phone ?? '' }}</td>
-                                    <td>{{ $item->receiver_address ?? '' }}</td>
-                                    <td>{{ $item->status_code ?? '' }}</td>
-                                    <td>${{ number_format($item->total ?? 0, 2) }}</td>
+                                    <td>{{ $item['receiver_phone'] ?? '' }}</td>
+                                    <td>{{ $item['receiver_address'] ?? '' }}</td>
+                                    <td>{{ $item['status_code'] ?? '' }}</td>
+                                    <td>${{ number_format($item['total'] ?? 0, 2) }}</td>
                                 </tr>
                             @endforeach
                         @else

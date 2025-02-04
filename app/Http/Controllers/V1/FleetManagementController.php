@@ -129,8 +129,8 @@ class FleetManagementController extends Controller
         ->whereIn('p.status_id',[6,9,10,19])
         // ->where('dp.delay_count',0)
         ->where('dp.delivery_id',$trip_id)
-        ->leftJoin('users as m','m.id','p.merchant_id')
-        ->leftJoin('users as d','d.id','p.driver_id')
+        ->join('users as m','m.id','p.merchant_id')
+        ->join('users as d','d.id','p.driver_id')
         ->where(function($q){
             $q->where('dp.is_deleted',0);
         })
@@ -140,7 +140,6 @@ class FleetManagementController extends Controller
         if ($search && str_starts_with($search, 'JPK')) {
             $qP->where('p.qr_code',$search);
         }
-
 
         $packages = $qP->get();
         foreach($packages as $package){
@@ -620,8 +619,10 @@ class FleetManagementController extends Controller
             $qP->whereIn('p.status_id',[9,19]);
         }
         $packages = $qP->get();
+        $xRate = GeneralSettingService::getLatestXRate();
         foreach($packages as $p){
             $driverInfo->total += $p->driver_total;
+            $p->total_kh = (float)Helper::getNumber($p->driver_total / $xRate->sell_rate);
         }
         $obj = [
             'company_info' => $companyInfo,

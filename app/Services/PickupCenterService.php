@@ -168,23 +168,24 @@ class PickupCenterService
                 'target_uid' => $merchantId
             ]);
             $clmsg->sendNotificationByTopic($clmsgReq,$user);
-            // if($driverId){
+            if($driverId){
                 $notif = new CloudMessagingService();
                 $topics = GeneralSettingService::getGeneralTopics($user->company_id,'driver',$driverId);
-                $notifBody = "$validMerchant->user_name: ".$inputs['qty']."PCS, \nPickup Address:".Str::limit($pickupAddress, 25, '...');
-                $notifTitle = 'New Order Available';
-                if($driverId) {
+                // $notifBody = "$validMerchant->user_name: ".$inputs['qty']."PCS, \nPickup Address:".Str::limit($pickupAddress, 25, '...');
+                // $notifTitle = 'New Order Available';
+                // if($driverId) {
                     $notifBody = 'You have been assigned to deliver the order('.$code.') has '.$inputs['qty'].' package(s).';
                     $notifTitle = 'Assigned Order';
-                }
+                // }
                 $notifReq = new Request([
-                    'topic' => $driverId ? $topics->private:$topics->public,
-                    'type' => $driverId ? 'private':'public',
+                    'topic' => $topics->private,//$driverId ? $topics->private:$topics->public,
+                    'type' =>  'private',//$driverId ? 'private':'public',
                     'target_uid' => $driverId,
                     'title' => $notifTitle,
                     'body' => $notifBody
                 ]);
                 $notif->sendNotificationByTopic($notifReq,$user);
+            }
             DB::commit();
             return DataResponse::JsonResult(null,false,__('messages.info',[
                 'info' => 'Order created ('.$code.')',
