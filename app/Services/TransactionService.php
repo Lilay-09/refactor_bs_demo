@@ -12,6 +12,7 @@ use App\Models\Package;
 use App\Models\Payment;
 use App\Models\PaymentDetail;
 use App\Models\User;
+use App\Models\Zone;
 use Carbon\Carbon;
 use DataResponse;
 use DB;
@@ -60,10 +61,22 @@ class TransactionService
         if($startDate && $endDate){
             $startDate = Helper::dateYMD($startDate);
             $endDate = Helper::dateYMD($endDate);
-            $qP->where(function ($q) use ($startDate,$endDate){
-                $q->whereRaw('delivered_datetime::DATE >= ? AND delivered_datetime::DATE <= ?', [$startDate, $endDate])
-                ->orWhereRaw('failed_datetime::DATE >= ? AND failed_datetime::DATE <= ?', [$startDate, $endDate]);
+            $qP->where(function ($q) use ($startDate, $endDate) {
+                $startDateTime = $startDate . ' 00:00:00';
+                $endDateTime = $endDate . ' 23:59:59';
+
+                // Check for status_id = 9, delivered_datetime should be within the date range
+                $q->where(function ($q) use ($startDateTime, $endDateTime) {
+                    $q->where('status_id', 9)
+                    ->whereRaw('delivered_datetime >= ? AND delivered_datetime <= ?', [$startDateTime, $endDateTime]);
+                })
+                // Check for status_id = 19, failed_datetime should be within the date range
+                ->orWhere(function ($q) use ($startDateTime, $endDateTime) {
+                    $q->where('status_id', 19)
+                    ->whereRaw('failed_datetime >= ? AND failed_datetime <= ?', [$startDateTime, $endDateTime]);
+                });
             });
+
         }
         // Log::error(json_encode($req->all()));
         if($type == 'merchant' && $pmtStatusId == 2){
@@ -133,7 +146,6 @@ class TransactionService
 
     //* type must be one of driver or merchant
     public function receivePaymentService(Request $req,$user,$type){
-        Log::info($req->all());
         $validType = $this->validType($type);
         if($validType->error) return $validType;
         $validate = self::receivePaymentValidation($req,$type);
@@ -538,7 +550,9 @@ class TransactionService
             $startDate = Helper::dateYMD($startDate);
             $endDate = Helper::dateYMD($endDate);
             $qP->where(function($q) use($startDate,$endDate){
-                $q->whereRaw('payment_datetime::DATE >= ? AND payment_datetime::DATE <= ?', [$startDate, $endDate]);
+                // $q->whereRaw('payment_datetime::DATE >= ? AND payment_datetime::DATE <= ?', [$startDate, $endDate]);
+                $q->whereRaw('payment_datetime >= ? AND payment_datetime <= ?', [$startDate . ' 00:00:00', $endDate . ' 23:59:59']);
+
             });
         }
 
@@ -621,7 +635,7 @@ class TransactionService
                 $startDate = Helper::dateYMD($startDate);
                 $endDate = Helper::dateYMD($endDate);
                 $qP->where(function($q) use($startDate,$endDate){
-                    $q->whereRaw('payment_datetime::DATE >= ? AND payment_datetime::DATE <= ?', [$startDate, $endDate]);
+                    $q->whereRaw('payment_datetime >= ? AND payment_datetime <= ?', [$startDate . ' 00:00:00', $endDate . ' 23:59:59']);
                 });
             }
             $payments = $qP->get();
@@ -1005,13 +1019,26 @@ class TransactionService
         }
         if ($startDate && $endDate) {
             $qP->where(function ($q) use ($startDate, $endDate) {
-                $q->whereRaw(
-                    "(p.failed_datetime::DATE >= ? AND p.failed_datetime::DATE <= ?)
-                    OR
-                    (p.delivered_datetime::DATE >= ? AND p.delivered_datetime::DATE <= ?)",
-                    [$startDate, $endDate, $startDate, $endDate]
-                );
+                // Check for status_id = 9, delivered_datetime should be within the date range
+                $q->where(function ($q) use ($startDate, $endDate) {
+                    $q->where('status_id', 9)
+                    ->whereRaw('delivered_datetime >= ? AND delivered_datetime <= ?', ["$startDate 00:00:00", "$endDate 23:59:59.999"]);
+                })
+                // Check for status_id = 19, failed_datetime should be within the date range
+                ->orWhere(function ($q) use ($startDate, $endDate) {
+                    $q->where('status_id', 19)
+                    ->whereRaw('failed_datetime >= ? AND failed_datetime <= ?', ["$startDate 00:00:00", "$endDate 23:59:59.999"]);
+                });
             });
+
+            // $qP->where(function ($q) use ($startDatetime, $endDatetime) {
+            //     $q->whereRaw(
+            //         "(p.failed_datetime >= ? AND p.failed_datetime <= ?)
+            //         OR
+            //         (p.delivered_datetime >= ? AND p.delivered_datetime <= ?)",
+            //         [$startDatetime, $endDatetime, $startDatetime, $endDatetime]
+            //     );
+            // });
         }
 
 
@@ -1124,10 +1151,11 @@ class TransactionService
         ]);
         if($validate->fails()) return DataResponse::ValidateFail($validate->errors()->first());
         $inputs = $validate->validated();
-        $package = Package::fromRaw('packages as p')->where('p.company_id',$user->company_id)
-        // ->leftJoin('payments as dpmt',$joinCallback)
-        ->selectRaw('p.status_id,p.extra_charge,p.id,p.taxi_fee,p.cod,p.payer,p.zone_code,p.price,p.billed_kg,p.actual_kg,p.driver_payment_id,p.merchant_payment_id,p.merchant_disbursement_id,p.driver_disbursement_id')
-        ->where('p.id',$id)->first();
+        // $package = Package::fromRaw('packages as p')->where('p.company_id',$user->company_id)
+        // // ->leftJoin('payments as dpmt',$joinCallback)
+        // ->selectRaw('p.status_id,p.p.extra_charge,p.id,p.taxi_fee,p.cod,p.payer,p.zone_code,p.price,p.billed_kg,p.actual_kg,p.driver_payment_id,p.merchant_payment_id,p.merchant_disbursement_id,p.driver_disbursement_id')
+        // ->where('p.id',$id)->first();
+        $package = Package::where('is_deleted',0)->find($id);
         if(!$package) return DataResponse::NotFound(__('messages.not_found',[
             'info' => 'Package'
         ]));
@@ -1147,8 +1175,15 @@ class TransactionService
             $taxi_fee = 0;
         }
         $zoneCode = $inputs['zone_code'] ?? $package->zone_code;
+        $zone = Zone::where('is_deleted',0)->selectRaw('id,zone_name')->where('zone_code',$zoneCode)->first();
+        if(!$zone) return DataResponse::NotFound(__('messages.not_found',[
+            'info' => 'Zone',
+            'khInfo' => 'ទីតាំង'
+        ]));
+        $inputs['zone_name'] = $zone->zone_name;
         $calFee = GeneralSettingService::calculatePackageFee($zoneCode,$price,$package->billed_kg,$package->actual_kg,$payer,$cod,$extraCharge,$user,$taxi_fee,$package->merchant_id);
         if($calFee->error) return $calFee;
+        $inputs['delivery_fee'] = $calFee->delivery_fee;
         $inputs['driver_total'] = $calFee->driver_total; //($package->status_id == 19 && $package->cod) ? abs($price - $calFee->driver_total):
         $inputs['merchant_total'] = $calFee->merchant_total;
         $package->update($inputs);

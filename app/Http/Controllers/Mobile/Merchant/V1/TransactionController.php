@@ -33,12 +33,13 @@ class TransactionController extends Controller
         if($startDate && $endDate){
             $startDate = Helper::dateYMD($startDate);
             $endDate = Helper::dateYMD($endDate);
-            $qP->where(function ($q) use ($startDate, $endDate){
-                $q->whereRaw('payments.payment_datetime::DATE >= ? AND payments.payment_datetime::DATE <= ?',[$startDate,$endDate]);
+            $qP->where(function ($q) use ($startDate, $endDate) {
+                $q->whereBetween('payments.payment_datetime', ["$startDate 00:00:00", "$endDate 23:59:59"]);
             });
-            $qD->where(function ($q) use ($startDate, $endDate){
-                $q->whereRaw('disbursements.payment_datetime::DATE >= ? AND disbursements.payment_datetime::DATE <= ?',[$startDate,$endDate]);
+            $qD->where(function ($q) use ($startDate, $endDate) {
+                $q->whereBetween('disbursements.payment_datetime', ["$startDate 00:00:00", "$endDate 23:59:59"]);
             });
+
         }
         $disbursements = $qD->get();
         $payments = $qP->get();

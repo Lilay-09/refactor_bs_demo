@@ -341,7 +341,7 @@ class DashboardController extends Controller
 
         ->get();
         foreach($dailyCollection as $d){
-            $d->amount = $d->cod_amount - $d->taxi_fee - $d->fees;
+            $d->amount = Helper::getNumber($d->cod_amount - $d->taxi_fee - $d->fees);
             $totalAmount += $d->amount;
         }
         return [

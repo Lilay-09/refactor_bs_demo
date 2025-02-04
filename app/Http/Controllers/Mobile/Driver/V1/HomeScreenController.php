@@ -557,13 +557,13 @@ class HomeScreenController extends Controller
     public function getOptionsStatus(Request $req){
         $user = UserService::getAuthUser('driver');
         $orderId = $req->order_id;
-        $statuses = GeneralSettingService::optionsTrackingStatus($user,[1,3,20],'pick');
+        $statuses = GeneralSettingService::optionsTrackingStatus($user,[1,3,20],'pick',null,null,$req->lang);
         return ApiResponse::JsonResult($statuses);
     }
 
     public function setArriveWarehouse(Request $req){
         $user = UserService::getAuthUser('driver');
-        $statuses = GeneralSettingService::optionsTrackingStatus($user,[1,3,20],'pick');
+        $statuses = GeneralSettingService::optionsTrackingStatus($user,[1,3,20],'pick',null,null,$req->lang);
         return ApiResponse::JsonResult($statuses);
     }
 

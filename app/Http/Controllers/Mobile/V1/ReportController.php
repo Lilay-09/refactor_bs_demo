@@ -48,24 +48,21 @@ class ReportController extends Controller
         if($startDate && $endDate){
             $startDate = Helper::dateYMD($startDate);
             $endDate = Helper::dateYMD($endDate);
-            $qP->where(function($q) use ($startDate, $endDate) {
-                $q->where(function($q) use ($startDate, $endDate) {
+            $qP->where(function ($q) use ($startDate, $endDate) {
+                $q->where(function ($q) use ($startDate, $endDate) {
                     // For status_id 10 or 19, query only failed_datetime
-                    $q->whereRaw('
-                        (failed_datetime::DATE >= ? AND failed_datetime::DATE <= ?)', [$startDate, $endDate])
-                        ->whereIn('status_id',[10,19]);
+                    $q->whereBetween('failed_datetime', ["$startDate 00:00:00", "$endDate 23:59:59"])
+                    ->whereIn('status_id', [10, 19]);
                 })
-                ->orWhere(function($q) use ($startDate, $endDate) {
+                ->orWhere(function ($q) use ($startDate, $endDate) {
                     // For status_id 9, query only delivered_datetime
-                    $q->whereRaw('
-                        (delivered_datetime::DATE >= ? AND delivered_datetime::DATE <= ?)', [$startDate, $endDate])
-                        ->where('status_id', 9);
+                    $q->whereBetween('delivered_datetime', ["$startDate 00:00:00", "$endDate 23:59:59"])
+                    ->where('status_id', 9);
                 })
-                ->orWhere(function($q) use ($startDate, $endDate) {
+                ->orWhere(function ($q) use ($startDate, $endDate) {
                     // For status_id 11, query only returned_datetime
-                    $q->whereRaw('
-                        (returned_datetime::DATE >= ? AND returned_datetime::DATE <= ?)', [$startDate, $endDate])
-                        ->where('status_id', 11);
+                    $q->whereBetween('returned_datetime', ["$startDate 00:00:00", "$endDate 23:59:59"])
+                    ->where('status_id', 11);
                 });
             });
         }
@@ -186,29 +183,25 @@ class ReportController extends Controller
         if($startDate && $endDate){
             $startDate = Helper::dateYMD($startDate);
             $endDate = Helper::dateYMD($endDate);
-            $qP->where(function($q) use ($startDate, $endDate) {
-                $q->where(function($q) use ($startDate, $endDate) {
+            $qP->where(function ($q) use ($startDate, $endDate) {
+                $q->where(function ($q) use ($startDate, $endDate) {
                     // For status_id 10 or 19, query only failed_datetime
-                    $q->whereRaw('
-                        (failed_datetime::DATE >= ? AND failed_datetime::DATE <= ?)', [$startDate, $endDate])
-                        ->whereIn('status_id',[10,19]);
+                    $q->whereBetween('failed_datetime', ["$startDate 00:00:00", "$endDate 23:59:59"])
+                    ->whereIn('status_id', [10, 19]);
                 })
-                ->orWhere(function($q) use ($startDate, $endDate) {
+                ->orWhere(function ($q) use ($startDate, $endDate) {
                     // For status_id 9, query only delivered_datetime
-                    $q->whereRaw('
-                        (delivered_datetime::DATE >= ? AND delivered_datetime::DATE <= ?)', [$startDate, $endDate])
-                        ->where('status_id', 9);
+                    $q->whereBetween('delivered_datetime', ["$startDate 00:00:00", "$endDate 23:59:59"])
+                    ->where('status_id', 9);
                 })
-                ->orWhere(function($q) use ($startDate, $endDate) {
+                ->orWhere(function ($q) use ($startDate, $endDate) {
                     // For status_id 11, query only returned_datetime
-                    $q->whereRaw('
-                        (returned_datetime::DATE >= ? AND returned_datetime::DATE <= ?)', [$startDate, $endDate])
-                        ->where('status_id', 11);
+                    $q->whereBetween('returned_datetime', ["$startDate 00:00:00", "$endDate 23:59:59"])
+                    ->where('status_id', 11);
                 });
             });
         }
         $packages = $qP->get();
-        // return $packages;
         $groupedPackages = collect($packages)->map(function ($item) {
             $finishDate = $item->failed_datetime;
             if ($item->status_id == 9) $finishDate = $item->delivered_datetime;
@@ -224,8 +217,8 @@ class ReportController extends Controller
             // Return the modified object
             return $item;
         })->groupBy('groupDate')
-        ->map(function ($group, $date) use (&$grandTotal,&$totalCount,&$packageInfo,$isKm){
-            $group->each(function ($item) use (&$grandTotal,&$totalCount,&$packageInfo,$isKm,&$totalDeliveryFee) {
+        ->map(function ($group, $date) use ($isKm){
+            $group->each(function ($item) use ($isKm,&$totalDeliveryFee) {
                 $item->driver_name = $item->driver?->user_name;
                 $item->driver_phone = $item->driver?->phone;
                 if(!$item->driver) {
@@ -245,19 +238,6 @@ class ReportController extends Controller
                 }else $item->delivery_fee = 0;
                 $totalDeliveryFee += $item->delivery_fee;
                 $item->total = $isCal ? (float)Helper::getNumber($total) : 0;
-                if(in_array($item->status_id,[9,19])) {
-                    $grandTotal += Helper::getNumber($total,2);
-                }
-                // if($item->status_id == 9){
-                //     $packageInfo['delivered_count'] += 1;
-                // }else if($item->status_id == 10){
-                //     $packageInfo['failed_count'] += 1;
-                // }else if ($item->status_id == 19){
-                //     $packageInfo['failed_with_fee_count'] += 1;
-                // }else if ($item->status_id == 11){
-                //     $packageInfo['returned_count'] += 1;
-                // }
-                $totalCount += 1;
                 if($isKm) {
                     $item->status_code = GeneralSettingService::$statusCodeTrans[$item->status_id] ?? '';
                     $item->payer = GeneralSettingService::$payerTrans[$item->payer] ?? '';
@@ -286,68 +266,6 @@ class ReportController extends Controller
                 ],
             ];
         })->values();
-
-        // $qFp = Delivery::fromRaw('deliveries as d')->join('delivery_packages as dp','d.id','dp.delivery_id')
-        // ->join('packages as p','p.id','dp.package_id')->orderByDesc('d.id')
-        // ->join('users as m','m.id','p.merchant_id')
-        // ->leftJoin('users as dv','dv.id','d.driver_id')
-        // // ->leftJoin('payments as pmt','pmt.id','p.driver_payment_id')
-        // ->join('tracking_statuses as trs','trs.id','p.status_id')
-        // ->selectRaw('trs.id as status_id,trs.name as status_code,d.fleet_tracking_number,m.user_name as merchant_name,m.phone as merchant_phone,p.receiver_name,p.receiver_address,p.receiver_phone,p.driver_total as total')
-        // ->whereIn('p.status_id',[9,10,11,19])
-        // ->where('p.merchant_id',$userId);
-
-        // // if($paymentStatus == 2){
-        // //     $qFp->where('pmt.approved',1);
-        // // }
-        // if($startDate && $endDate){
-        //     $startDate = Helper::dateYMD($startDate);
-        //     $endDate = Helper::dateYMD($endDate);
-        //     $qFp->where(function($q) use ($startDate, $endDate) {
-        //         $q->where(function($q) use ($startDate, $endDate) {
-        //             // For status_id 10 or 19, query only failed_datetime
-        //             $q->whereRaw('
-        //                 (p.failed_datetime::DATE >= ? AND p.failed_datetime::DATE <= ?)', [$startDate, $endDate])
-        //                 ->where('p.status_id',19);
-        //         })
-        //         ->orWhere(function($q) use ($startDate, $endDate) {
-        //             // For status_id 9, query only delivered_datetime
-        //             $q->whereRaw('
-        //                 (p.delivered_datetime::DATE >= ? AND p.delivered_datetime::DATE <= ?)', [$startDate, $endDate])
-        //                 ->where('p.status_id', 9);
-        //         })
-        //         ->orWhere(function($q) use ($startDate, $endDate) {
-        //             // For status_id 11, query only returned_datetime
-        //             $q->whereRaw('
-        //                 (p.returned_datetime::DATE >= ? AND p.returned_datetime::DATE <= ?)', [$startDate, $endDate])
-        //                 ->where('p.status_id', 11);
-        //         });
-        //     });
-        // }
-
-        // // else if($paymentStatus == 1) $qFp->where('pmt.approved',0);
-        // if($statusId) $qFp->where('p.status_id',$statusId);
-        // if($search) $qFp->where('p.receiver_phone', 'ilike', '%' . $search . '%')
-        // ->orWhere('m.phone', 'ilike', '%' . $search . '%')
-        // ->orWhere('d.fleet_tracking_number', 'ilike', '%' . $search . '%');
-        // $fleetPackages = $qFp->get();
-        // $groupedPackages = collect($fleetPackages)->map(function ($pkg) {
-        //     $pkg->groupKey = $pkg->fleet_tracking_number;
-        //     return $pkg;
-        // })
-        // ->groupBy('groupKey')
-        // ->map(function ($group, $fleetNumber) {
-        //     $group->each(function ($item) use ($group) {
-        //         unset($item->delivery_id,$item->fleet_tracking_number,$item->groupKey);
-        //     });
-        //     return [
-        //         // 'fleet_number' => $fleetNumber,
-        //         'details' => $group,
-                // 'total' => [
-                //     'grand' => $group->sum('total')
-                // ],
-        //     ];
-        // })->values();
 
         // Example data for the PDF
         if(!isset($groupedPackages[0])) return ApiResponse::NotFound('No data available!');

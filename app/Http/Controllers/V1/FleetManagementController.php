@@ -56,9 +56,10 @@ class FleetManagementController extends Controller
         if($startDate && $endDate){
             $startDate = date('Y-m-d',strtotime($startDate));
             $endDate = date('Y-m-d',strtotime($endDate));
-            $query->where(function ($q) use ($startDate,$endDate){
-                $q->whereRaw('depart_datetime::DATE >= ? AND depart_datetime::DATE <= ?', [$startDate, $endDate]);
+            $query->where(function ($q) use ($startDate, $endDate) {
+                $q->whereBetween('depart_datetime', ["$startDate 00:00:00", "$endDate 23:59:59"]);
             });
+
         }else{
             $query->whereDate('depart_datetime',now());
         }
@@ -427,7 +428,7 @@ class FleetManagementController extends Controller
     }
 
     public function createOrUpdateTripService(Request $req,$user,$allowedPkgStatuses=[5]){
-        $today = date('Y-m-d');
+        // $today = date('Y-m-d');
         $validate = validator($req->all(),[
             'packages' => 'required|array',
             'depart_datetime' => 'required',

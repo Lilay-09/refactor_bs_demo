@@ -83,10 +83,26 @@ class CompletedPackageController extends Controller
         if($startDate && $endDate){
             $startDate = Helper::dateYMD($startDate);
             $endDate = Helper::dateYMD($endDate);
-            $qP->where(function ($q) use($startDate,$endDate){
-                $q->whereRaw('delivered_datetime::DATE >= ? AND delivered_datetime::DATE <= ?', [$startDate, $endDate])
-                ->orWhereRaw('failed_datetime::DATE >= ? AND failed_datetime::DATE <= ?', [$startDate, $endDate]);
+            $qP->where(function ($q) use ($startDate, $endDate) {
+                $startDateTime = "$startDate 00:00:00";
+                $endDateTime = "$endDate 23:59:59";
+                // Check for status_id = 9, delivered_datetime should be within the date range
+                $q->where(function ($q) use ($startDateTime, $endDateTime) {
+                    $q->where('p.status_id', 9)
+                    ->whereBetween('p.delivered_datetime', [$startDateTime, $endDateTime]);
+                })
+                // Check for status_id = 19, failed_datetime should be within the date range
+                ->orWhere(function ($q) use ($startDateTime, $endDateTime) {
+                    $q->where('p.status_id', 19)
+                    ->whereBetween('p.failed_datetime', [$startDateTime, $endDateTime]);
+                });
             });
+
+            // $qP->where(function ($q) use ($startDate, $endDate) {
+            //     $q->whereBetween('delivered_datetime', ["$startDate 00:00:00", "$endDate 23:59:59"])
+            //     ->orWhereBetween('failed_datetime', ["$startDate 00:00:00", "$endDate 23:59:59"]);
+            // });
+
         }
         //** --------- */
         $packages = $qP->get();
