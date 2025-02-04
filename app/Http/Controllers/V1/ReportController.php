@@ -993,8 +993,8 @@ class ReportController extends Controller
                     $total -= $item->delivery_fee + $item->extra_charge + $item->taxi_fee;
                 }else $item->delivery_fee = 0;
                 $totalDeliveryFee += $item->delivery_fee;
-                $item->total = $isCal ? $total : 0;
-                if(in_array($item->status_id,[9,19])) $grand += Helper::getNumber($total,2);
+                $item->total = $isCal ? (float)Helper::getNumber($total) : 0;
+                if(in_array($item->status_id,[9,19])) $grand += $total;
                 if($isKm) {
                     $item->status_code = GeneralSettingService::$statusCodeTrans[$item->status_id] ?? '';
                     $item->payer = GeneralSettingService::$payerTrans[$item->payer] ?? '';
