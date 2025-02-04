@@ -133,6 +133,7 @@ class TransactionService
 
     //* type must be one of driver or merchant
     public function receivePaymentService(Request $req,$user,$type){
+        Log::info($req->all());
         $validType = $this->validType($type);
         if($validType->error) return $validType;
         $validate = self::receivePaymentValidation($req,$type);
@@ -260,7 +261,6 @@ class TransactionService
             ]);
             $notif->sendNotificationByTopic($notifReq,$user);
             DB::commit();
-
             // return Package::whereIn('id',$packageIds)->get();
             return DataResponse::JsonResult(null,false,__('messages.created',[
                 'info' => 'Payment'
@@ -392,11 +392,11 @@ class TransactionService
             if($cashKh) $originalCashKh += $suggestionAmtCashKh; //** keep original amount */
             $roundSuggestionAmtUp = ceil($totalSuggestionAmt_KH / 100) * 100;
             $roundSuggestionAmtDown = floor($totalSuggestionAmt_KH / 100) * 100;
-            if(!($totalAmountKHR >= $roundSuggestionAmtDown && $totalAmountKHR <=$roundSuggestionAmtUp)) return DataResponse::ValidateFail(message: __('messages.info',[
+            if(!($totalAmountKHR >= $roundSuggestionAmtDown && $totalAmountKHR <= $roundSuggestionAmtUp)) return DataResponse::ValidateFail(message: __('messages.info',[
                 'info' => 'Amount KHR must be around (KHR '.$roundSuggestionAmtUp .' & KHR '.$roundSuggestionAmtDown.'), base '.$totalSuggestionAmt_KH
             ]));
-
-            if(($totalAmountUSD + $totalAmountKHR_to_USD) < $dueAmount) return DataResponse::ValidateFail(__('messages.info',[
+            Log::error($totalAllAmt.'---'.$dueAmount);
+            if($totalAllAmt != $dueAmount) return DataResponse::ValidateFail(__('messages.info',[
                 'info' => 'If USD amount($'.$totalAmountUSD.')'.' additional in KHR must be ('.$roundSuggestionAmtUp.' or '.$totalSuggestionAmt_KH.')'
             ]));
         }
