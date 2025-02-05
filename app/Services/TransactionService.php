@@ -720,7 +720,7 @@ class TransactionService
             $pmt->total_khr = $totalKHR;
             $totalKHR_to_USD = $totalKHR/$pmt->exchange_rate;
             $totalKHR_to_USD = floor($totalKHR_to_USD * 100) / 100;
-            $pmt->total = $totalUSD + $totalKHR_to_USD;
+            $pmt->total = (float)Helper::getNumber($totalUSD + $totalKHR_to_USD);
             $pmt->status_code = $pmt->is_settled ? 'Settled' : 'Pending';
             unset($pmt->payment_datetime);
         }
