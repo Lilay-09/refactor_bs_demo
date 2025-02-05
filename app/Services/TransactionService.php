@@ -579,7 +579,7 @@ class TransactionService
             $pmt->bank_khr = Helper::displayMoney($bankKHR,'KHR');
             $totalKHR_to_USD = $totalKHR/$pmt->exchange_rate;
             $totalKHR_to_USD = floor($totalKHR_to_USD * 100) / 100;
-            $pmt->total = $totalUSD + $totalKHR_to_USD;
+            $pmt->total = (float)Helper::getNumber($totalUSD + $totalKHR_to_USD);
             $pmt->payment_type = 'receive';
             $allPayments[] = $pmt;
         }
