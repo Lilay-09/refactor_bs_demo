@@ -97,10 +97,6 @@ class MerchantTransactionController extends Controller
                     ->whereRaw('failed_datetime >= ? AND failed_datetime <= ?', ["$startDate 00:00:00", "$endDate 23:59:59.999"]);
                 });
             });
-
-
-
-
         }
         $merchants = $qP->get();
         $grandTotal = 0;

@@ -27,6 +27,7 @@ class FleetManagementController extends Controller
         $search = $req->search ?? null;
         $driverId = $req->driver_id;
         $startDate = $req->startDate;
+        $isKm = $req->lang == 'km';
         $endDate = $req->endDate;
         $statusId = $req->status_id;
         $packages = Package::fromRaw('packages as p')->join('delivery_packages as dp','p.id','dp.package_id')
@@ -65,7 +66,9 @@ class FleetManagementController extends Controller
         }
         $deliveries = $query->get();
         foreach($deliveries as $delivery){
-            $delivery->status_code = $delivery->status->name;
+            if($isKm){
+                $delivery->status_code = GeneralSettingService::$statusCodeTrans[$delivery->status_id] ?? '';
+            } else $delivery->status_code = $delivery->status->name;
             $delivery->driver_name = $delivery->driver->user_name;
             $delivery->driver_phone = $delivery->driver->phone;
             $details = $this->getTripDetails($packages,$delivery->id);
@@ -125,6 +128,7 @@ class FleetManagementController extends Controller
 
     public function getTripPackages(Request $req){
         $trip_id = $req->trip_id;
+        $isKm = $req->lang == 'km';
         $search = $req->search;
         $qP = Package::fromRaw('packages as p')->join('delivery_packages as dp','p.id','dp.package_id')
         ->whereIn('p.status_id',[6,9,10,19])
@@ -145,6 +149,7 @@ class FleetManagementController extends Controller
         $packages = $qP->get();
         foreach($packages as $package){
             $package->delivery_fee = $package->base_fee + $package->extra_charge;
+            if($isKm) $package->status_code = GeneralSettingService::$statusCodeTrans[$package->status_id] ?? '';
             unset($package->status);
         }
         return ApiResponse::Pagination($packages,$req,__('messages.get_list',['info' => 'Package']));
