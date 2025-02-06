@@ -105,6 +105,7 @@ class MerchantTransactionController extends Controller
         $merchants = $qP->get();
         $grandTotal = 0;
         $totalPackageCount = 0;
+        $totalCod = 0;
         $groupData = collect($merchants)->map(function ($item) {
             // Set groupDate based on status
             if ($item->status_id == 9) {
@@ -120,22 +121,21 @@ class MerchantTransactionController extends Controller
         })->groupBy(function ($item) {
             // Group by both groupDate and driver_id
             return $item->groupDate . '|' . $item->driver_id;
-        })->map(function ($group, $key) use(&$grandTotal,&$totalPackageCount,$transactionType) {
+        })->map(function ($group, $key) use(&$grandTotal,&$totalPackageCount,&$totalCod,$transactionType) {
             // Extract date and driver_id from the key
             [$date, $driver_id] = explode('|', $key);
 
             // Sum the package counts for this group
-
             $packageTotal = $group->count(); // Count items in the group (equivalent to summing 1 per item)
-            $totalCod = $group->where('cod',1)->where('status_id','!=',19)->sum('price');
+            $rowCod = $group->where('cod',1)->where('status_id','=',9)->sum('price');
             // if($transactionType == 'disbursement'){
-            //     if($totalCod < 0)  return;
+            //     if($rowCod < 0)  return;
             // }
-            $totalTaxi = $group->where('status_id','!=',19)->sum('taxi_fee');
+            $totalTaxi = $group->where('status_id','=',9)->sum('taxi_fee');
             $totalExtraCharge = $group->where('payer','sender')->sum('extra_charge');
             $totalDeliveryFee = $group->where('payer','sender')->sum('delivery_fee') + $totalExtraCharge;
             $representative = $group->first();
-            $totalAmount = $totalCod - $totalDeliveryFee - $totalTaxi;
+            $totalAmount = $rowCod - $totalDeliveryFee - $totalTaxi;
 
             // $representative->package_count = $packageTotal; // Add the summed total_package
             $bankInfo = $representative->bank_accounts->where('is_primary',1)->first();
@@ -147,6 +147,7 @@ class MerchantTransactionController extends Controller
                 return null; // Exclude this group
             }
             $grandTotal += $totalAmount;
+            $totalCod += $rowCod;
             $totalPackageCount += $packageTotal;
             return [
                 'finished_date' => $date,
@@ -154,7 +155,7 @@ class MerchantTransactionController extends Controller
                 'merchant_name' => $representative->merchant_name,
                 'code' => $representative->code,
                 'package_count' => $packageTotal,
-                'cod_amount' => Helper::getNumber($totalCod,2),
+                'cod_amount' => Helper::getNumber($rowCod,2),
                 'fee' => Helper::getNumber($totalDeliveryFee,2),
                 'taxi_fee' => $totalTaxi,
                 'status_id' => $representative->status_id,
@@ -164,7 +165,8 @@ class MerchantTransactionController extends Controller
         })->filter()->values();
         return ApiResponse::Pagination($groupData,$req,null,[
             'total_package' => $totalPackageCount,
-            'total_amount' => Helper::getNumber($grandTotal,2),
+            'total_cod' => (float)Helper::getNumber($totalCod,2),
+            'total_amount' => (float)Helper::getNumber($grandTotal,2),
         ]);
     }
 

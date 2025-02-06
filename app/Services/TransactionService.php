@@ -1045,6 +1045,7 @@ class TransactionService
         $drivers = $qP->get();
         $totalPackages = 0;
         $totalAmount = 0;
+        $totalCod = 0;
 
         $groupData = collect($drivers)->map(function ($item) {
             // Set groupDate based on status
@@ -1062,23 +1063,23 @@ class TransactionService
         })->groupBy(function ($item) {
             // Group by both groupDate and driver_id
             return $item->groupDate . '|' . $item->driver_id;
-        })->map(function ($group, $key) use(&$totalPackages,&$totalAmount) {
+        })->map(function ($group, $key) use(&$totalPackages,&$totalAmount,&$totalCod) {
             // Extract date and driver_id from the key
             [$date, $driver_id] = explode('|', $key);
 
             // Sum the package counts for this group
 
             $packageTotal = $group->count(); // Count items in the group (equivalent to summing 1 per item)
-            $totalPrice = $group->where('cod',1)->where('status_id','!=',19)->sum('price');
+            $totalPrice = $group->where('cod',1)->where('status_id','=',9)->sum('price');
             $representative = $group->first();
-            $taxiFee = $group->where('status_id','!=',19)->sum('taxi_fee');
+            $taxiFee = $group->where('status_id','=',9)->sum('taxi_fee');
             $fee = $group->where('payer','receiver')->sum('delivery_fee') + $group->where('payer','receiver')->sum('extra_charge') + $group->sum('additional_fee') - $taxiFee;
             $amount = Helper::getNumber($totalPrice + $fee,2);
             $totalPackages += $packageTotal;
             $totalAmount += $amount;
+            $totalCod += $totalPrice;
             // $representative->package_count = $packageTotal; // Add the summed total_package
             unset($representative->groupDate);
-
             return [
                 'finished_date' => $date,
                 'driver_id' => $driver_id,
@@ -1089,10 +1090,10 @@ class TransactionService
                 'package_count' => $packageTotal,
             ];
         })->values();
-
         return DataResponse::Pagination(collect($groupData),$req,__('messages.Get List'),[
             'total_packages' => $totalPackages,
-            'total_amount' => Helper::getNumber($totalAmount,2)
+            'total_cod' => (float)Helper::getNumber($totalCod),
+            'total_amount' => (float)Helper::getNumber($totalAmount,2)
         ]);
     }
 
