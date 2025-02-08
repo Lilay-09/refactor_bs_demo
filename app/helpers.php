@@ -559,6 +559,66 @@ class Helper{
         return false;
     }
 
+
+    static function getAnalyzDiffDate($startDate, $endDate) {
+        $start = new DateTime($startDate);
+        $end = new DateTime($endDate);
+
+        // Calculate the difference
+        $interval = $start->diff($end);
+
+        // Helper function to pluralize units
+        $pluralize = function ($value, $singular) {
+            return $value . ' ' . $singular . ($value > 1 ? 's' : '');
+        };
+
+        // Get total days in the months
+        $daysInMonthStart = $start->format('t'); // Get the number of days in the start month
+        $daysInMonthEnd = $end->format('t'); // Get the number of days in the end month
+
+        // Convert total hours to days and remaining hours
+        $totalHours = ($interval->days * 24) + $interval->h;
+        $days = floor($totalHours / 24);
+        $remainingHours = $totalHours % 24;
+        $minutes = $interval->i;
+
+        // Adjust for months by checking the number of days in each month
+        if ($days >= $daysInMonthStart) {
+            $months = floor($days / $daysInMonthStart); // Treat each full month as 1 month
+            $remainingDays = $days % $daysInMonthStart;
+        } else {
+            $months = 0;
+            $remainingDays = $days;
+        }
+
+        // If the difference is more than 1 month, return months, days, hours, and minutes
+        if ($months >= 1) {
+            return trim(($months > 0 ? $pluralize($months, 'month') . ' ' : '') .
+                        ($remainingDays > 0 ? $pluralize($remainingDays, 'day') . ' ' : '') .
+                        ($remainingHours > 0 ? $pluralize($remainingHours, 'hour') . ' ' : '') .
+                        ($minutes > 0 ? $pluralize($minutes, 'minute') : ''));
+        }
+
+        // If less than 1 month but more than 1 day, return days, hours, and minutes
+        if ($remainingDays >= 1) {
+            return trim(($remainingDays > 0 ? $pluralize($remainingDays, 'day') . ' ' : '') .
+                        ($remainingHours > 0 ? $pluralize($remainingHours, 'hour') . ' ' : '') .
+                        ($minutes > 0 ? $pluralize($minutes, 'minute') : ''));
+        }
+
+        // If less than 1 day but more than 1 hour, return hours and minutes
+        if ($totalHours > 0) {
+            return trim(($totalHours > 0 ? $pluralize($totalHours, 'hour') . ' ' : '') .
+                        ($minutes > 0 ? $pluralize($minutes, 'minute') : ''));
+        }
+
+        // If less than 1 hour, return only minutes
+        return $pluralize($minutes, 'minute');
+    }
+
+
+
+
     static function  getDateDifference($startDate, $endDate, $unit='days,months,years') {
         $start = new DateTime($startDate);
         $end = new DateTime($endDate);
@@ -574,8 +634,11 @@ class Helper{
                 return $interval->m + ($interval->y * 12); // Total number of months
             case 'years':
                 return $interval->y; // Total number of years
+            case ($interval->h > 0 || $interval->days > 0): // Convert days to hours
+                $hours = $interval->h + ($interval->days * 24);
+                return $hours . ' hours';
             default:
-                throw new InvalidArgumentException('Invalid unit specified. Use "days", "months", or "years".');
+                return $interval->i . ' minutes';
         }
     }
 

@@ -294,10 +294,11 @@ class HomeController extends Controller
         ->where('channel','merchant')
         ->whereRaw('DATE(start_date) >= ? AND DATE(end_date) <= ?',[$today,$today])
         ->orWhereDate('start_date','>=',$today)
+        ->orderByDesc('start_date')
         ->get();
         foreach($promotions as $promotion){
-            $xDays = Helper::getDateDifference($promotion->start_date,$promotion->end_date,'days');
-            $promotion->expires_at = $xDays. ($xDays > 0 ? ' days' : ' day');
+            $xDays = Helper::getAnalyzDiffDate($promotion->start_date,$promotion->end_date,'days');
+            $promotion->expires_at = $xDays;
             $promotion->time_ago = Helper::timeAgo($promotion->start_date,false);
             $promotion->image_url = Helper::getImageUrl($promotion->photo_file_name,$user->company_id,'promotion');
         }
