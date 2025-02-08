@@ -442,10 +442,10 @@ class HomeController extends Controller
         ]));
         $packages = Package::where('merchant_id',$user->id)
         ->with(['driver','status'])
-        ->whereIn('status_id',[10,19,9,6])
+        ->whereIn('status_id',[10,11,19,9,6])
         ->where('is_deleted',0)
         ->where('receiver_phone',$phone)
-        ->selectRaw('id,merchant_id,arrive_warehouse_datetime,receiver_phone,receiver_address,receiver_name,cod,price,delivery_fee,status_id,remarks,driver_id,failed_datetime')
+        ->selectRaw('id,delivered_datetime,merchant_id,arrive_warehouse_datetime,receiver_phone,receiver_address,receiver_name,cod,price,delivery_fee,status_id,remarks,driver_id,failed_datetime,returned_datetime')
         ->get();
         foreach($packages as $package){
             $package->price = (float)$package->price;
@@ -454,6 +454,13 @@ class HomeController extends Controller
             $package->driver_phone = $package->driver->phone;
             $package->driver_name = $package->driver->user_name;
             $package->total = (float)$package->cod_fee + $package->delivery_fee;
+            $statusId = $package->status_id;
+            $finished_date = null;
+            if($statusId == 6) $finished_date = $package->arrive_warehouse_datetime;
+            if($statusId == 11) $finished_date = $package->returned_datetime;
+            if($statusId == 19 || $statusId == 10) $finished_date = $package->failed_datetime;
+            if($statusId == 9) $finished_date = $package->delivered_datetime;
+            $package->finished_datetime = Helper::formatCustomDateTime($finished_date,'d-M-Y h:i A');
             unset($package->driver,$package->status);
         }
         return ApiResponse::Pagination($packages,$req);
