@@ -54,6 +54,7 @@ class HistoryController extends Controller
                 if($isKm){
                     $package->render_status = GeneralSettingService::$statusCodeTrans[$package->status_id];
                 }else $package->render_status = $package->status_code;
+                $package->arrive_warehouse_datetime = Helper::formatCustomDateTime($package->arrive_warehouse_datetime);
                 $package->total = (float) $package->cod_fee + $package->delivery_fee;
                 $package->delivery_fee = (float) $package->delivery_fee;
                 $package->fee = $package->delivery_fee;
@@ -81,6 +82,8 @@ class HistoryController extends Controller
                 $package->total = (float)$package->cod_fee + $package->delivery_fee;
                 $package->delivery_fee = (float)$package->delivery_fee;
                 $package->fee = $package->delivery_fee;
+                $package->arrive_warehouse_datetime = Helper::formatCustomDateTime($package->arrive_warehouse_datetime);
+                $package->delivered_datetime = Helper::formatCustomDateTime($package->delivered_datetime);
                 if($isKm){
                     $package->render_status = GeneralSettingService::$statusCodeTrans[$package->status_id];
                 }else $package->render_status = 'Success';
@@ -126,6 +129,8 @@ class HistoryController extends Controller
                     $package->render_status = GeneralSettingService::$statusCodeTrans[$package->status_id];
                 }else $package->render_status = $package->status_code;
                 $package->driver_name = $package->driver->user_name;
+                $package->arrive_warehouse_datetime = Helper::formatCustomDateTime($package->arrive_warehouse_datetime);
+                $package->failed_datetime = Helper::formatCustomDateTime($package->failed_datetime);
                 $package->total = (float)Helper::getNumber($package->cod_fee + $package->delivery_fee,2);
                 $package->fee = (float)$package->delivery_fee;
                 $package->delivery_fee = (float)$package->delivery_fee;
@@ -169,6 +174,8 @@ class HistoryController extends Controller
                     $package->render_status = GeneralSettingService::$statusCodeTrans[$package->status_id];
                 }else $package->render_status = $package->status_code;
                 $package->driver_name = $package->driver->user_name;
+                $package->arrive_warehouse_datetime = Helper::formatCustomDateTime($package->arrive_warehouse_datetime);
+                $package->failed_datetime = Helper::formatCustomDateTime($package->failed_datetime);
                 $package->total = (float)Helper::getNumber($package->cod_fee + $package->delivery_fee,2);
                 $package->fee = (float)$package->delivery_fee;
                 $package->delivery_fee = (float)$package->delivery_fee;
@@ -198,6 +205,7 @@ class HistoryController extends Controller
                 $returnDate = $package->return_datetime ? $package->return_datetime : $package->updated_at;
                 $package->returned_date = Helper::dateDMY($returnDate);
                 $package->return_time = Helper::formatCustomDateTime($returnDate, 'h:i:s');
+                $package-> arrive_warehouse_datetime= Helper::formatCustomDateTime($package->arrive_warehouse_datetime);
                 unset($package->driver,$package->status);
                 $items[] = $package;
             });

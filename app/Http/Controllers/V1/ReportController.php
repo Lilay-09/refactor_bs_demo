@@ -74,10 +74,39 @@ class ReportController extends Controller
         $user = UserService::getAuthUser();
         $startDate = $req->startDate;
         $endDate = $req->endDate;
+        $lang = $req->lang;
         $qP = Package::where('is_deleted',0)
         ->with(['status','driver','merchant'])
         ->where('outstanding',0)
         ->selectRaw('qr_code,merchant_id,driver_id,payer,product_type,receiver_address,remarks,receiver_phone,cod,price,delivery_fee,additional_fee,driver_total,merchant_total,status_id,remarks,arrive_warehouse_datetime,assign_driver_datetime,updated_at,failed_datetime,delivered_datetime,extra_charge,created_at');
+
+        if($startDate && $endDate){
+            $startDate = Helper::dateYMD($startDate);
+            $endDate = Helper::dateYMD($endDate);
+            $qP->where(function($q) use ($startDate, $endDate) {
+                $q->where(function($q) use ($startDate, $endDate) {
+                    // For status_id 19, query only failed_datetime
+                    $q->whereBetween('failed_datetime', ["$startDate 00:00:00", "$endDate 23:59:59"])
+                    ->where('status_id', 10);
+                })
+                ->orWhere(function($q) use ($startDate, $endDate) {
+                    // For status_id 9, query only delivered_datetime
+                    $q->whereBetween('delivered_datetime', ["$startDate 00:00:00", "$endDate 23:59:59"])
+                    ->where('status_id', 9);
+                })
+                ->orWhere(function($q) use ($startDate, $endDate) {
+                    // For status_id 9, query only delivered_datetime
+                    $q->whereBetween('arrive_warehouse_datetime', ["$startDate 00:00:00", "$endDate 23:59:59"])
+                    ->where('status_id', 5);
+                })
+                ->orWhere(function($q) use ($startDate, $endDate) {
+                    // For status_id 11, query only returned_datetime
+                    $q->whereBetween('returned_datetime', ["$startDate 00:00:00", "$endDate 23:59:59"])
+                    ->where('status_id', 11);
+                });
+            });
+        }
+
         $packages = $qP->orderByDesc('created_at')->get();
         $groupedPackages = collect($packages)->map(function ($pkg) {
             $actionDate = Helper::formatCustomDateTime($pkg->created_at);
@@ -91,9 +120,11 @@ class ReportController extends Controller
             $pkg->actionDate = $actionDate;
             return $pkg;
         })->groupBy('groupDate')
-        ->map(function ($group, $date) {
-            $group->each(function ($item) {
-                $item->status_code = $item->status->name;
+        ->map(function ($group, $date) use ($lang) {
+            $group->each(function ($item) use ($lang) {
+                if($lang == 'km'){
+                    $item->status_code = GeneralSettingService::$statusCodeTrans[$item->status_id] ?? '';
+                }else $item->status_code = $item->status->name;
                 $item->merchant_name = $item->merchant->user_name;
                 $item->merchant_phone = $item->merchant->phone;
                 $item->driver_name = $item->driver?->user_name;
@@ -994,7 +1025,7 @@ class ReportController extends Controller
                 $total = $item->cod ? $item->price : 0;
                 if($item->payer == 'sender') {
                     $item->delivery_fee = $isCal ? ($item->delivery_fee + $item->extra_charge) : 0;
-                    $total -= $item->delivery_fee + $item->extra_charge + $item->taxi_fee;
+                    $total -= $item->delivery_fee + $item->taxi_fee;
                 }else $item->delivery_fee = 0;
                 $totalDeliveryFee += $item->delivery_fee;
                 $item->total = $isCal ? (float)Helper::getNumber($total) : 0;

@@ -25,7 +25,7 @@ class CompletedPackageController extends Controller
         $merchantId = $req->merchant_id;
         $driverId = $req->driver_id;
         $statusId = $req->status_id;
-        $isKm = $req->lang == 'km';
+        $lang = $req->lang;
         $warehouseId = $req->warehouse_id;
         $paymentStatusId = $req->payment_status_id;
         $search = $req->search;
@@ -98,27 +98,21 @@ class CompletedPackageController extends Controller
                     ->whereBetween('p.failed_datetime', [$startDateTime, $endDateTime]);
                 });
             });
-
-            // $qP->where(function ($q) use ($startDate, $endDate) {
-            //     $q->whereBetween('delivered_datetime', ["$startDate 00:00:00", "$endDate 23:59:59"])
-            //     ->orWhereBetween('failed_datetime', ["$startDate 00:00:00", "$endDate 23:59:59"]);
-            // });
-
         }
         //** --------- */
         $packages = $qP->get();
         foreach($packages as $pkg){
-            $pkg->arrive_warehouse_datetime = Helper::formatCustomDateTime($pkg->arrive_warehouse_datetime);
+            $pkg->arrive_warehouse_datetime = Helper::formatCustomDateTime($pkg->arrive_warehouse_datetime,null,false,$lang);
             $pkg->has_image = PackageAttachment::where('hidden',0)->where('package_id',$pkg->package_id)->value('package_id') ? 1 : 0;
             if($pkg->returnUser){
                 $pkg->driver_name = 'return by '. $pkg->returnUser->user_name;
             }
-            if($isKm){
+            if($lang == 'km'){
                 $pkg->status_code = GeneralSettingService::$statusCodeTrans[$pkg->status_id] ?? '';
             }
-            if($pkg->status_id == 9) $pkg->finished_date = Helper::formatCustomDateTime($pkg->delivered_datetime);
-            if($pkg->status_id == 11) $pkg->finished_date = Helper::formatCustomDateTime($pkg->returned_datetime);
-            if($pkg->status_id == 19) $pkg->finished_date = Helper::formatCustomDateTime($pkg->failed_datetime);
+            if($pkg->status_id == 9) $pkg->finished_date = Helper::formatCustomDateTime($pkg->delivered_datetime,null,false,$lang);
+            if($pkg->status_id == 11) $pkg->finished_date = Helper::formatCustomDateTime($pkg->returned_datetime,null,false,$lang);
+            if($pkg->status_id == 19) $pkg->finished_date = Helper::formatCustomDateTime($pkg->failed_datetime,null,false,$lang);
             $pkg->total = Helper::getNumber(abs($pkg->driver_total - $pkg->merchant_total),2);
             unset($pkg->returnUser);
         }

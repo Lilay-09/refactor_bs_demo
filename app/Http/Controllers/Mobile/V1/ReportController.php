@@ -34,7 +34,7 @@ class ReportController extends Controller
         ->whereIn('status_id',[9,10,19,11])
         ->where('merchant_id',$user->id)
         ->with(['driver:id,user_name,phone','returnUser:id,user_name,phone'])
-        ->selectRaw('id,driver_id,qr_code,extra_charge,price,status_id,failed_datetime,delivered_datetime,returned_datetime,receiver_phone,receiver_address,remarks');
+        ->selectRaw('id,payer,driver_id,qr_code,extra_charge,delivery_fee,extra_charge,price,status_id,failed_datetime,delivered_datetime,returned_datetime,receiver_phone,receiver_address,remarks');
         $qP->orderByRaw('
             CASE
                 WHEN status_id = ? THEN 1
@@ -95,7 +95,7 @@ class ReportController extends Controller
                 $finished_time = $item->failed_datetime ? Helper::formatCustomDateTime($item->failed_datetime,'h:i:s A'):Helper::formatCustomDateTime($item->delivered_datetime,'h:i:s A');
                 $item->finished_time = $finished_time;
                 $isCal = in_array($item->status_id,[9,19]);
-                $item->price = $item->cod ? $item->price:0;
+                $item->price = ($item->cod && $item->status_i == 9) ? $item->price:0;
                 $item->extra_charge = (float)$item->extra_charge;
                 $total = $item->cod ? $item->price : 0;
                 if($item->payer == 'sender') {
@@ -144,8 +144,8 @@ class ReportController extends Controller
         })->values();
 
         $data = [
-            'total'=> (float)Helper::getNumber($grandTotal),
-            'total_count'=>$totalCount,
+            'total'=> (string)Helper::getNumber($grandTotal),
+            'total_count'=> (string) $totalCount,
             'package_info' => $packageInfo,
             'list' => $groupedPackages
         ];
@@ -169,7 +169,7 @@ class ReportController extends Controller
         ->whereIn('status_id',[9,10,19,11])
         ->where('merchant_id',$userId)
         ->with(['driver:id,user_name,phone','returnUser:id,user_name,phone'])
-        ->selectRaw('id,driver_id,qr_code,extra_charge,price,status_id,failed_datetime,delivered_datetime,returned_datetime,receiver_phone,receiver_address,remarks,merchant_total as total');
+        ->selectRaw('id,payer,driver_id,qr_code,extra_charge,delivery_fee,extra_charge,price,status_id,failed_datetime,delivered_datetime,returned_datetime,receiver_phone,receiver_address,remarks');
         $qP->orderByRaw('
             CASE
                 WHEN status_id = ? THEN 1
@@ -231,13 +231,14 @@ class ReportController extends Controller
                 $isCal = in_array($item->status_id,[9,19]);
                 $item->price = $item->cod ? $item->price:0;
                 $item->extra_charge = (float)$item->extra_charge;
-                $total = $item->cod ? $item->price : 0;
+                $total = ($item->cod && $item->status_id == 9) ? $item->price : 0;
                 if($item->payer == 'sender') {
                     $item->delivery_fee = $isCal ? (float)Helper::getNumber(($item->delivery_fee + $item->extra_charge)) : 0;
                     $total -= $item->delivery_fee + $item->extra_charge + $item->taxi_fee;
                 }else $item->delivery_fee = 0;
                 $totalDeliveryFee += $item->delivery_fee;
                 $item->total = $isCal ? (float)Helper::getNumber($total) : 0;
+                // $total += $item->total;
                 if($isKm) {
                     $item->status_code = GeneralSettingService::$statusCodeTrans[$item->status_id] ?? '';
                     $item->payer = GeneralSettingService::$payerTrans[$item->payer] ?? '';

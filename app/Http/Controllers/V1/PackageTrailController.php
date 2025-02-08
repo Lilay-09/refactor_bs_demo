@@ -30,7 +30,7 @@ class PackageTrailController extends Controller
         $user = UserService::getAuthUser();
         $search = $req->search??null;
         $orderId = $req->order_id??null;
-        $isKm = $req->lang == 'km';
+        $lang = $req->lang;
         $warehouse_id = $req->warehouse_id ?? null;
         $statusId = $req->status_id??null;
         $merchantId = $req->merchant_id ?? null;
@@ -101,7 +101,7 @@ class PackageTrailController extends Controller
             $pkg->merchant_phone = $pkg->merchant?->phone;
             $pkg->cod = $cod == true ? 1:0;
 
-            if($isKm){
+            if($lang == 'km'){
                 $pkg->status_code = GeneralSettingService::$statusCodeTrans[$pkg->status_id];
             }else{
                 $pkg->status_code = $pkg->status->name;
@@ -109,7 +109,7 @@ class PackageTrailController extends Controller
             $pkg->has_image = PackageAttachment::where('hidden',0)->where('package_id',$pkg->id)->value('package_id') ? 1 : 0;
             $pkg->total = Helper::getNumber(abs($pkg->driver_total - $pkg->merchant_total),2);//PickupCenterService::getDriverTotal($cod,$pkg->payer,$pkg->price,$pkg->delivery_fee,$pkg->additional_fee,$pkg->excharge_fee);
             $pkg->warehouse_timeago = Helper::timeAgo($pkg->arrive_warehouse_datetime,false);
-            $pkg->arrive_warehouse_datetime = Helper::formatCustomDateTime($pkg->arrive_warehouse_datetime);
+            $pkg->arrive_warehouse_datetime = Helper::formatCustomDateTime($pkg->arrive_warehouse_datetime,null,false,$lang);
             if($pkg->status_id == 10 || $pkg->status_id == 19) $pkg->finished_date = Helper::formatCustomDateTime($pkg->failed_datetime);
             unset($pkg->status,$pkg->merchant,$pkg->driver);
         }
@@ -119,6 +119,7 @@ class PackageTrailController extends Controller
     public function getOnePackage(Request $req){
         $user = UserService::getAuthUser();
         $id = $req->id;
+        $isKm = $req->lang == 'km';
         $package = Package::where('is_deleted',0)
         ->with(['status','driver'])
         ->where('outstanding',0)
@@ -134,6 +135,7 @@ class PackageTrailController extends Controller
         if($driver){
             $package->driver_name = $driver->user_name;
         }
+        if($isKm) $package->payer = GeneralSettingService::$payerTrans[$package->payer] ?? '';
         $package->base_fee = $package->delivery_fee;
         $package->delivery_fee = $package->delivery_fee + $package->extra_charge + $package->taxi_fee;
         $package->warehouse_timeago = Helper::timeAgo($package->arrive_warehouse_datetime,false);
@@ -370,9 +372,7 @@ class PackageTrailController extends Controller
         DB::beginTransaction();
         try{
             if($package->driver_id){
-                $deliveryPackage = DeliveryPackage::where('package_id',$id)->where(function($q){
-                    $q->where('is_deleted',0)->orWhere('delay_count',0);
-                })->first();
+                $deliveryPackage = DeliveryPackage::where('package_id',$id)->where('is_deleted',0)->where('delay_count',0)->first();
                 if($deliveryPackage){
                     if(!$user->system_admin && $deliveryPackage->status_id !== 10 && !in_array($package->status_id,[5,10,19]) ) return ApiResponse::Duplicated(__('messages.has already assigned',['info' => 'Package']));
                     // $fleet = new FleetManagementController();

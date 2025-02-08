@@ -51,7 +51,7 @@ class PromotionController extends Controller
         ->get();
         foreach($promotions as $promotion){
             $promotion->image_url = Helper::getImageUrl($promotion->photo_file_name,$user->company_id,$this->imgDir);
-            $promotion->expires_days = Helper::getDateDifference($promotion->start_date,$promotion->end_date,'days');
+            $promotion->expires_in = Helper::getAnalyzDiffDate($promotion->start_date,$promotion->end_date);
         }
         return ApiResponse::Pagination($promotions,__('messages.Get List',[
             'info' => 'Promotion'

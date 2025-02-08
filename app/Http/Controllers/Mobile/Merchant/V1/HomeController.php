@@ -62,13 +62,27 @@ class HomeController extends Controller
     }
 
     public function trackingActivitySummary(Request $req){
+        $today = now();
+        $dateaAgo = Helper::getDateDaysAgo(0);
         $user = UserService::getAuthUser('merchant');
-        $pendingCount = Order::where('merchant_id',$user->id)->where('is_deleted',0)->where('status_id',1)->count();
-        $pickCount = Order::where('merchant_id',$user->id)->where('is_deleted',0)->whereIn('status_id',[2,3,4])->count();
-        $onDeliveryCount = Package::where('merchant_id',$user->id)->where('is_deleted',0)->where('status_id',6)->count();
-        $successCount = Package::where('merchant_id',$user->id)->where('is_deleted',0)->where('status_id',9)->count();
-        $failCount = Package::where('merchant_id',$user->id)->where('is_deleted',0)->whereIn('status_id',[10,19])->count();
-        $returnCount = Package::where('merchant_id',$user->id)->where('is_deleted',0)->where('status_id',11)->count();
+        $pendingCount = Order::where('merchant_id',$user->id)->where('is_deleted',0)
+        ->whereBetween('order_datetime',[$dateaAgo,$today])
+        ->where('status_id',1)->count();
+        $pickCount = Order::where('merchant_id',$user->id)->where('is_deleted',0)
+        ->whereBetween('pickup_datetime',[$dateaAgo,$today])
+        ->whereIn('status_id',[2,3,4])->count();
+        $onDeliveryCount = Package::where('merchant_id',$user->id)->where('is_deleted',0)
+        ->whereBetween('assign_driver_datetime',[$dateaAgo,$today])
+        ->where('status_id',6)->count();
+        $successCount = Package::where('merchant_id',$user->id)->where('is_deleted',0)
+        ->whereBetween('delivered_datetime',[$dateaAgo,$today])
+        ->where('status_id',9)->count();
+        $failCount = Package::where('merchant_id',$user->id)->where('is_deleted',0)
+        ->whereBetween('failed_datetime',[$dateaAgo,$today])
+        ->whereIn('status_id',[10,19])->count();
+        $returnCount = Package::where('merchant_id',$user->id)->where('is_deleted',0)
+        ->whereBetween('returned_datetime',values: [$dateaAgo,$today])
+        ->where('status_id',11)->count();
         $totalCount = $pendingCount + $pickCount + $onDeliveryCount + $successCount + $failCount + $returnCount;
         $obj = [
             'pending' => $pendingCount,
@@ -147,51 +161,75 @@ class HomeController extends Controller
     }
 
     public function getPendingOrders(Request $req){
+        $today = now();
+        $dateaAgo = Helper::getDateDaysAgo(0);
+        $lang = $req->lang;
         $user = UserService::getAuthUser('merchant');
-        $orders = Order::where('merchant_id',$user->id)
+        $qO = Order::where('merchant_id',$user->id)
         ->where('is_deleted',0)
         ->with('driver')
-        ->selectRaw('id,code,qty,product_type,vehicle_type,order_datetime,status_id')->where('status_id',1)->get();
+        ->selectRaw('id,code,qty,product_type,vehicle_type,order_datetime,status_id')->where('status_id',1);
+        $qO->where(function ($q) use ($dateaAgo, $today) {
+            $q->whereBetween('order_datetime', [$dateaAgo, $today]);
+        });
+        $orders = $qO->get();
         foreach($orders as $order){
-            $order->status_code = 'Pending';
+            if($lang == 'km') $order->status_code = 'រង់ចាំ';
+            else $order->status_code = 'Pending';
+            $order->order_datetime = Helper::formatCustomDateTime($order->order_datetime);
             $order->driver_name = $order->driver?->user_name;
         }
         return ApiResponse::Pagination($orders,$req);
     }
 
     public function getPickOrders(Request $req){
+        $today = now();
+        $dateaAgo = Helper::getDateDaysAgo(0);
         $user = UserService::getAuthUser('merchant');
-        $orders = Order::where('merchant_id',$user->id)
+        $lang = $req->lang;
+        $qO = Order::where('merchant_id',$user->id)
         ->with(['tracking_status','driver'])
         ->where('is_deleted',0)
-        ->selectRaw('id,code,qty,product_type,vehicle_type,order_datetime,status_id,driver_id')->whereIn('status_id',[2,3,4])->get();
+        ->selectRaw('id,code,qty,product_type,vehicle_type,order_datetime,status_id,driver_id')->whereIn('status_id',[2,3,4]);
+        $qO->where(function ($q) use ($dateaAgo, $today) {
+            $q->whereBetween('order_datetime', [$dateaAgo, $today]);
+        });
+        $orders = $qO->get();
         foreach($orders as $order){
-            $order->status_code = $order->tracking_status->name;
+            if($lang == 'km') $order->status_code = GeneralSettingService::$statusCodeTrans[$order->status_id];
+            else $order->status_code = $order->tracking_status->name;
             $order->driver_phone = $order->driver->phone;
             $order->driver_name = $order->driver->user_name;
+            $order->order_datetime = Helper::formatCustomDateTime($order->order_datetime);
             unset($order->tracking_status,$order->driver);
         }
         return ApiResponse::Pagination($orders,$req);
     }
 
     public function getOnDeliveryPackages(Request $req){
+        $today = now();
+        $dateaAgo = Helper::getDateDaysAgo(0);
+        $lang = $req->lang;
         $user = UserService::getAuthUser('merchant');
-        $packages = Package::where('merchant_id', $user->id)
+        $qP = Package::where('merchant_id', $user->id)
         ->with('driver')
         ->where('status_id', 6)
         ->where('is_deleted', 0)
-        ->selectRaw('id,merchant_id,receiver_phone,receiver_address,receiver_name,cod,price,delivery_fee,remarks,driver_id,arrive_warehouse_datetime')
-        ->get()
-        ->map(function ($package) {
+        ->selectRaw('id,merchant_id,receiver_phone,receiver_address,receiver_name,cod,price,delivery_fee,remarks,driver_id,arrive_warehouse_datetime');
+        $qP->whereBetween('arrive_warehouse_datetime',[$dateaAgo,$today]);
+        $packages = $qP->get()
+        ->map(function ($package) use($lang) {
             // Cast price to float manually
             $package->price = (float) $package->price;
             $package->cod_fee = $package->cod ? $package->price : 0;
-            $package->status_code = 'On Delivery';
+            if($lang == 'km') $package->status_code = GeneralSettingService::$statusCodeTrans[6];
+            else $package->status_code = 'On Delivery';
             $package->driver_phone = $package->driver->phone ?? null; // Ensure driver relationship exists
             $package->driver_name = $package->driver->user_name ?? null;
             $package->total = (float) $package->cod_fee + $package->delivery_fee;
             $package->delivery_fee = (float) $package->delivery_fee;
             $package->fee = $package->delivery_fee;
+            $package->arrive_warehouse_datetime = Helper::formatCustomDateTime($package->arrive_warehouse_datetime);
 
             // Remove the driver relationship if not needed in the response
             unset($package->driver);
@@ -208,20 +246,27 @@ class HomeController extends Controller
     }
 
     public function getSuccessPackages(Request $req){
+        $today = now();
+        $dateaAgo = Helper::getDateDaysAgo(0);
+        $lang = $req->lang;
         $user = UserService::getAuthUser('merchant');
         $packages = Package::where('merchant_id',$user->id)
         ->with('driver')
         ->where('status_id',9)
         ->where('is_deleted',0)
+        ->whereBetween('delivered_datetime',[$dateaAgo,$today])
         ->selectRaw('id,merchant_id,receiver_phone,receiver_address,receiver_name,cod,price,delivery_fee,remarks,driver_id,delivered_datetime,arrive_warehouse_datetime')
-        ->get()->map(function($package){
+        ->get()->map(function($package) use ($lang){
             $package->price = (float) $package->price;
             $package->cod_fee = $package->cod ? $package->price : 0;
-            $package->status_code = 'Delivered';
+            if($lang == 'km') $package->status_code = GeneralSettingService::$statusCodeTrans[9];
+            else $package->status_code = 'Delivered';
             $package->driver_phone = $package->driver->phone;
             $package->driver_name = $package->driver->user_name;
             $package->total = (float)$package->cod_fee + $package->delivery_fee;
             $package->delivery_fee = (float)$package->delivery_fee;
+            $package->arrive_warehouse_datetime = Helper::formatCustomDateTime($package->arrive_warehouse_datetime);
+            $package->delivered_datetime = Helper::formatCustomDateTime($package->delivered_datetime);
             $package->fee = $package->delivery_fee;
             unset($package->driver);
             return $package;
@@ -232,23 +277,30 @@ class HomeController extends Controller
     }
 
     public function getFailPackages(Request $req){
+        $today = now();
+        $dateaAgo = Helper::getDateDaysAgo(0);
+        $lang = $req->lang;
         $statusId = $req->status_id;
         $user = UserService::getAuthUser('merchant');
         $packages = Package::where('merchant_id',$user->id)
         ->with(['driver','status'])
         ->where('status_id',$statusId)
         ->where('is_deleted',0)
+        ->whereBetween('failed_datetime',[$dateaAgo,$today])
         ->selectRaw('id,merchant_id,arrive_warehouse_datetime,receiver_phone,receiver_address,receiver_name,cod,price,delivery_fee,status_id,remarks,driver_id,failed_datetime')
         ->get()
-        ->map(function($package){
+        ->map(function($package) use($lang){
             $package->price = (float)$package->price;
             $package->cod_fee = $package->cod ? $package->price : 0;
-            $package->status_code = $package->status->name;
+            if($lang == 'km') $package->status_code = GeneralSettingService::$statusCodeTrans[$package->status_id];
+            else $package->status_code = $package->status->name;
             $package->driver_phone = $package->driver->phone;
             $package->driver_name = $package->driver->user_name;
             $package->total = (float)Helper::getNumber($package->cod_fee + $package->delivery_fee,2);
             $package->fee = (float)$package->delivery_fee;
             $package->delivery_fee = (float)$package->delivery_fee;
+            $package->arrive_warehouse_datetime = Helper::formatCustomDateTime($package->arrive_warehouse_datetime);
+            $package->failed_datetime = Helper::formatCustomDateTime($package->failed_datetime);
             unset($package->driver,$package->status);
             return $package;
         });
@@ -256,16 +308,21 @@ class HomeController extends Controller
     }
 
     public function getReturnPackages(Request $req){
+        $today = now();
+        $dateaAgo = Helper::getDateDaysAgo(0);
+        $lang = $req->lang;
         $user = UserService::getAuthUser('merchant');
         $packages = Package::where('merchant_id',$user->id)
         ->with(['driver','status'])
         ->whereIn('status_id',[11])
+        ->whereBetween('returned_datetime',[$dateaAgo,$today])
         ->selectRaw('id,merchant_id,arrive_warehouse_datetime,receiver_phone,receiver_address,receiver_name,cod,price,delivery_fee,status_id,remarks,driver_id,failed_datetime,returned_datetime,updated_at')
         ->get()
-        ->map(function($package){
+        ->map(function($package) use($lang){
             $package->price = (float)$package->price;
             $package->cod_fee = $package->cod ? $package->price : 0;
-            $package->status_code = $package->status->name;
+            if($lang == 'km') $package->status_code = GeneralSettingService::$statusCodeTrans[$package->status_id];
+            else $package->status_code = $package->status->name;
             $package->driver_phone = $package->driver?->phone;
             $package->driver_name = $package->driver?->user_name;
             $package->total = (float) $package->cod_fee + $package->delivery_fee;
@@ -287,14 +344,14 @@ class HomeController extends Controller
         ->where('channel','merchant')
         ->whereRaw('DATE(start_date) >= ? AND DATE(end_date) <= ?',[$today,$today])
         ->orWhereDate('start_date','>=',$today)
+        ->orderByDesc('start_date')
         ->get();
         foreach($promotions as $promotion){
-            $xDays = Helper::getDateDifference($promotion->start_date,$promotion->end_date,'days');
-            $promotion->expires_at = $xDays. ($xDays > 0 ? ' days' : ' day');
+            $xDays = Helper::getAnalyzDiffDate($promotion->start_date,$promotion->end_date);
+            $promotion->expires_at = $xDays;
             $promotion->time_ago = Helper::timeAgo($promotion->start_date,false);
             $promotion->image_url = Helper::getImageUrl($promotion->photo_file_name,$user->company_id,'promotion');
         }
-
         return ApiResponse::Pagination($promotions,$req);
     }
 
@@ -325,7 +382,7 @@ class HomeController extends Controller
 
     private function daily_summaries(Request $req,$user){
         $today = now();
-        $dateaAgo = Helper::getDateDaysAgo(90);
+        $dateaAgo = Helper::getDateDaysAgo(0);
         $successCount = Package::where('merchant_id',$user->id)->where('is_deleted',0)
         ->where('status_id',9)
         ->whereBetween('delivered_datetime',[$dateaAgo,$today])->count();
@@ -385,10 +442,10 @@ class HomeController extends Controller
         ]));
         $packages = Package::where('merchant_id',$user->id)
         ->with(['driver','status'])
-        ->whereIn('status_id',[10,19,9,6])
+        ->whereIn('status_id',[10,11,19,9,6])
         ->where('is_deleted',0)
         ->where('receiver_phone',$phone)
-        ->selectRaw('id,merchant_id,arrive_warehouse_datetime,receiver_phone,receiver_address,receiver_name,cod,price,delivery_fee,status_id,remarks,driver_id,failed_datetime')
+        ->selectRaw('id,delivered_datetime,merchant_id,arrive_warehouse_datetime,receiver_phone,receiver_address,receiver_name,cod,price,delivery_fee,status_id,remarks,driver_id,failed_datetime,returned_datetime')
         ->get();
         foreach($packages as $package){
             $package->price = (float)$package->price;
@@ -397,6 +454,13 @@ class HomeController extends Controller
             $package->driver_phone = $package->driver->phone;
             $package->driver_name = $package->driver->user_name;
             $package->total = (float)$package->cod_fee + $package->delivery_fee;
+            $statusId = $package->status_id;
+            $finished_date = null;
+            if($statusId == 6) $finished_date = $package->arrive_warehouse_datetime;
+            if($statusId == 11) $finished_date = $package->returned_datetime;
+            if($statusId == 19 || $statusId == 10) $finished_date = $package->failed_datetime;
+            if($statusId == 9) $finished_date = $package->delivered_datetime;
+            $package->finished_datetime = Helper::formatCustomDateTime($finished_date,'d-M-Y h:i A');
             unset($package->driver,$package->status);
         }
         return ApiResponse::Pagination($packages,$req);
