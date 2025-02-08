@@ -45,8 +45,8 @@ class GeneralSettingController extends Controller
         return ApiResponse::JsonResult($this->gs::optionsOperator($user));
     }
 
-    public function getOptionsPayer(){
-        return ApiResponse::JsonResult($this->gs::optionsPayer());
+    public function getOptionsPayer(Request $req){
+        return ApiResponse::JsonResult($this->gs::optionsPayer($req->lang));
     }
 
     public function getFormZone(){
@@ -346,12 +346,12 @@ class GeneralSettingController extends Controller
         ];
         return ApiResponse::JsonResult($obj);
     }
-    public function getFormUpdateFinishedPackage(){
+    public function getFormUpdateFinishedPackage(Request $req){
         $user = UserService::getAuthUser();
         $obj = (object)[
             'delivery_types' => $this->gs::optionsDeliveryType(),
             'cod' => $this->gs::optionsCOD(),
-            'payers' => $this->gs::optionsPayer(),
+            'payers' => $this->gs::optionsPayer($req->lang),
             'zones' => $this->gs::optionsZone($user),
         ];
         return ApiResponse::JsonResult($obj);
