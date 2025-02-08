@@ -112,6 +112,21 @@ class ApiResponse
 }
 
 class Helper{
+
+    protected static $khmerMonths = [
+                'Jan' => 'មករា',
+                'Feb' => 'កុម្ភៈ',
+                'Mar' => 'មីនា',
+                'Apr' => 'មេសា',
+                'May' => 'ឧសភា',
+                'Jun' => 'មិថុនា',
+                'Jul' => 'កក្កដា',
+                'Aug' => 'សីហា',
+                'Sep' => 'កញ្ញា',
+                'Oct' => 'តុលា',
+                'Nov' => 'វិច្ឆិកា',
+                'Dec' => 'ធ្នូ'
+            ];
     static function isValidStartAndEndDate($startDate,$endDate):bool{
         $sd = date('Y-m-d',strtotime($startDate));
         $ed = date('Y-m-d',strtotime($endDate));
@@ -179,9 +194,9 @@ class Helper{
         }
     }
 
-    static function formatCustomDateTime($datetime, $outputFormat = 'd-M-Y h:i:s A', $useMeridiem = false) {
+    static function formatCustomDateTime($datetime, $outputFormat = 'd-M-Y h:i:s A', $useMeridiem = false, $lang='en') {
         if (!$datetime) return null;
-
+        if(!$outputFormat) $outputFormat = 'd-M-Y h:i:s A';
         // Default timezone
         $timezone = new DateTimeZone(date_default_timezone_get());
 
@@ -204,9 +219,48 @@ class Helper{
             $outputFormat = str_replace('H', 'h', $outputFormat);  // Change 24-hour format to 12-hour format
         }
 
+        // Formatting date
+        $formattedDate = $date->format($outputFormat);
+
+        // Translate month names to Khmer if $translateToKhmer is true
+        if ($lang == 'km') {
+            // Replace English month names with Khmer names
+            $formattedDate = str_replace(array_keys(self::$khmerMonths), array_values(self::$khmerMonths), $formattedDate);
+        }
+
         // Return the formatted datetime string
-        return $date->format($outputFormat);
+        return $formattedDate;
     }
+
+
+    // static function formatCustomDateTime($datetime, $outputFormat = 'd-M-Y h:i:s A', $useMeridiem = false) {
+    //     if (!$datetime) return null;
+
+    //     // Default timezone
+    //     $timezone = new DateTimeZone(date_default_timezone_get());
+
+    //     // Check for Indochina Time
+    //     if (strpos($datetime, 'Indochina Time') !== false) {
+    //         $datetime = str_replace('Indochina Time', '', $datetime);  // Remove the timezone text
+    //         $timezone = new DateTimeZone(config('app.timezone'));  // Set the timezone
+    //     }
+
+    //     // Parse the datetime
+    //     try {
+    //         $date = new DateTime(trim($datetime), $timezone);
+    //     } catch (Exception $e) {
+    //         return "Invalid datetime format";  // Return error if parsing fails
+    //     }
+
+    //     // If using meridiem (AM/PM), adjust the output format
+    //     if ($useMeridiem) {
+    //         // If it's 24-hour format, we need to convert it to 12-hour format
+    //         $outputFormat = str_replace('H', 'h', $outputFormat);  // Change 24-hour format to 12-hour format
+    //     }
+
+    //     // Return the formatted datetime string
+    //     return $date->format($outputFormat);
+    // }
 
 
 
@@ -565,8 +619,8 @@ class Helper{
 
     }
 
-    static function getNumber($value,$decimalPoint=2){
-        return number_format((float)$value,$decimalPoint,'.','');
+    static function getNumber($value,$decimalPoint=2,$useThousandSep=false){
+        return number_format((float)$value,$decimalPoint,'.',($useThousandSep ? ',':''));
     }
 
     static function convertJsonTextToJson($jsonString,$assoc=true) {

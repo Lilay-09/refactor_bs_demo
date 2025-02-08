@@ -199,8 +199,8 @@ class DashboardController extends Controller
         $averageDailyEarning = $totalEarning / $daysCount;
 
         return [
-            'total_earning' => (float) Helper::getNumber($totalEarning),
-            'average_daily_earning' => (float) Helper::getNumber($averageDailyEarning),
+            'total_earning' => Helper::getNumber($totalEarning,2,true),
+            'average_daily_earning' => Helper::getNumber($averageDailyEarning,2,true),
         ];
     }
 
@@ -345,7 +345,7 @@ class DashboardController extends Controller
             $totalAmount += $d->amount;
         }
         return [
-            'total_amount' => Helper::getNumber($totalAmount),
+            'total_amount' => Helper::getNumber($totalAmount,2,true),
             'list' => $dailyCollection
         ];
     }

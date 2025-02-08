@@ -437,7 +437,19 @@ public static function optionsRole($type=null){
         return ClientType::where('is_deleted',0)->selectRaw('id,name')->get();
     }
 
-    public static function optionsPayer(){
+    public static function optionsPayer($lang){
+        if($lang == 'km') {
+            return [
+                [
+                    'value' => 'sender',
+                    'label' => 'អ្នកផ្ញើ'
+                ],
+                [
+                    'value' => 'receiver',
+                    'label' => 'អ្នកទទួល'
+                ],
+            ];
+        }
         return [
             [
                 'value' => 'sender',

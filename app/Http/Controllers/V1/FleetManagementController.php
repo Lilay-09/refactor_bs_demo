@@ -27,7 +27,7 @@ class FleetManagementController extends Controller
         $search = $req->search ?? null;
         $driverId = $req->driver_id;
         $startDate = $req->startDate;
-        $isKm = $req->lang == 'km';
+        $lang = $req->lang;
         $endDate = $req->endDate;
         $statusId = $req->status_id;
         $packages = Package::fromRaw('packages as p')->join('delivery_packages as dp','p.id','dp.package_id')
@@ -66,7 +66,7 @@ class FleetManagementController extends Controller
         }
         $deliveries = $query->get();
         foreach($deliveries as $delivery){
-            if($isKm){
+            if($lang == 'km'){
                 $delivery->status_code = GeneralSettingService::$statusCodeTrans[$delivery->status_id] ?? '';
             } else $delivery->status_code = $delivery->status->name;
             $delivery->driver_name = $delivery->driver->user_name;
@@ -77,8 +77,8 @@ class FleetManagementController extends Controller
             $delivery->failed_count = $details->failed_count;
             $delivery->delivery_count = $details->delivery_count;
             $delivery->failed_with_fee_count = $details->failed_with_fee_count;
-            $delivery->depart_time = Helper::formatCustomDateTime($delivery->depart_datetime,'h:i:s');
-            $delivery->depart_date = Helper::formatCustomDateTime($delivery->depart_datetime,'d-M-Y',false);
+            $delivery->depart_time = Helper::formatCustomDateTime($delivery->depart_datetime,'h:i:s A');
+            $delivery->depart_date = Helper::formatCustomDateTime($delivery->depart_datetime,'d-M-Y',false,$lang);
             unset($delivery->status,$delivery->driver);
         }
         return ApiResponse::Pagination($deliveries,$req);
@@ -113,7 +113,7 @@ class FleetManagementController extends Controller
                     $failedWithFeeCount +=1;
                     $totalFailedWithFee += $pkg->driver_total;
                 }
-                if($pkg->status_id == 6) $deliveryCount +=1;
+                if($pkg->status_id == 6 && $pkg->delay_count == 0) $deliveryCount +=1;
             }
         }
         return (object)[
@@ -131,21 +131,24 @@ class FleetManagementController extends Controller
         $isKm = $req->lang == 'km';
         $search = $req->search;
         $qP = Package::fromRaw('packages as p')->join('delivery_packages as dp','p.id','dp.package_id')
-        ->whereIn('p.status_id',[6,9,10,19])
+        ->whereIn('dp.status_id',[6,9,10,19])
+        ->where(function ($q) {
+        $q->where('dp.status_id', '!=', 6) // Allow other statuses freely
+            ->orWhere(function ($q) {
+                $q->where('dp.status_id', 6)->where('dp.delay_count', 0);
+            });
+        })
         // ->where('dp.delay_count',0)
         ->where('dp.delivery_id',$trip_id)
         ->join('users as m','m.id','p.merchant_id')
         ->join('users as d','d.id','p.driver_id')
-        ->where(function($q){
-            $q->where('dp.is_deleted',0);
-        })
+
         ->join('tracking_statuses as ts','ts.id','dp.status_id')
         ->selectRaw('p.qr_code,p.price,p.cod,p.receiver_name,p.receiver_phone,p.zone_code,p.zone_name,ts.name as status_code,d.user_name as driver_name,d.phone as driver_phone,m.user_name as merchant_name,m.phone as merchant_phone,p.id as package_id,dp.delivery_id,p.zone_code,p.zone_name,p.delivery_fee as base_fee,p.driver_total,p.taxi_fee,p.product_type,dp.status_id,p.payer')
         ->orderByRaw('(dp.status_id = ?) DESC', [6]);
         if ($search && str_starts_with($search, 'JPK')) {
             $qP->where('p.qr_code',$search);
         }
-
         $packages = $qP->get();
         foreach($packages as $package){
             $package->delivery_fee = $package->base_fee + $package->extra_charge;
@@ -284,7 +287,7 @@ class FleetManagementController extends Controller
                 'delay_count' => 1,
                 'kick_uid' => $user->id,
                 'kick_reason' => $kickReason,
-                'kick_notes' => $package->kick_notes."|[$user->id]$user->user_name remove package from Driver($driverName) at ($todayDT) on fleet number $fleetNumber",
+                'kick_notes' => "|[$user->id]$user->user_name remove package from Driver($driverName) at ($todayDT) on fleet number $fleetNumber",
                 'notes' => $deliveryPackage->notes."|[$user->id]-Admin('.$user->user_name) remove package from Driver($driverName) at ($todayDT) on fleet number $fleetNumber"
             ]);
 
