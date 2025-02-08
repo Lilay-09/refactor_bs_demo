@@ -1649,7 +1649,7 @@ class TransactionService
         $pUid = $targetUser.'_payment_id';
         $dUid = $targetUser.'_disbursement_id';
 
-        $packages = Package::where('is_deleted',0)
+        $qP = Package::where('is_deleted',0)
         ->where('created_at', '>=', Carbon::now()->subMonths(3))
         ->whereIn('status_id',[9,19])
         // ->selectRaw('*')
@@ -1659,8 +1659,18 @@ class TransactionService
         ->where(function ($q) use($pUid,$dUid) {
             $q->whereNull($pUid)
             ->whereNull($dUid);
-        })
-        ->get();
+        });
+        if($targetUser == 'merchant'){
+            $qP->where(function($query) {
+            $query->where('status_id', 9)
+                    ->whereDate('delivered_datetime', Carbon::today());
+            })
+            ->orWhere(function($query) {
+                $query->where('status_id', 19)
+                    ->whereDate('failed_datetime', Carbon::today());
+            });
+        }
+        $packages = $qP->get();
         $opt = $operator[$targetUser] ?? null;
         foreach($packages as $p){
             $price = $p->price;
