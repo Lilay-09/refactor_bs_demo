@@ -84,11 +84,6 @@ class TransactionController extends Controller
                 }
                 $sameDisId[$p->merchant_disbursement_id] = true;
             }
-            // else {
-            //     $total += Helper::getNumber(TransactionService::getPackageTotal('driver',$p->cod,$price,$taxiFee,$p->extra_charge,$p->additional_fee,$p->delivery_fee,$p->payer));
-            //     $count +=1;
-            // }
-
 
             $total -= Helper::getNumber(TransactionService::getPackageTotal('merchant',$p->cod,$price,$taxiFee,$p->extra_charge,$p->additional_fee,$p->delivery_fee,$p->payer));
             $count +=1;

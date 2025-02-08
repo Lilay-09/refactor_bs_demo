@@ -154,6 +154,7 @@ class HomeController extends Controller
         ->selectRaw('id,code,qty,product_type,vehicle_type,order_datetime,status_id')->where('status_id',1)->get();
         foreach($orders as $order){
             $order->status_code = 'Pending';
+            $order->order_datetime = Helper::formatCustomDateTime($order->order_datetime);
             $order->driver_name = $order->driver?->user_name;
         }
         return ApiResponse::Pagination($orders,$req);
@@ -169,6 +170,7 @@ class HomeController extends Controller
             $order->status_code = $order->tracking_status->name;
             $order->driver_phone = $order->driver->phone;
             $order->driver_name = $order->driver->user_name;
+            $order->order_datetime = Helper::formatCustomDateTime($order->order_datetime);
             unset($order->tracking_status,$order->driver);
         }
         return ApiResponse::Pagination($orders,$req);
@@ -192,6 +194,7 @@ class HomeController extends Controller
             $package->total = (float) $package->cod_fee + $package->delivery_fee;
             $package->delivery_fee = (float) $package->delivery_fee;
             $package->fee = $package->delivery_fee;
+            $package->arrive_warehouse_datetime = Helper::formatCustomDateTime($package->arrive_warehouse_datetime);
 
             // Remove the driver relationship if not needed in the response
             unset($package->driver);
@@ -222,6 +225,8 @@ class HomeController extends Controller
             $package->driver_name = $package->driver->user_name;
             $package->total = (float)$package->cod_fee + $package->delivery_fee;
             $package->delivery_fee = (float)$package->delivery_fee;
+            $package->arrive_warehouse_datetime = Helper::formatCustomDateTime($package->arrive_warehouse_datetime);
+            $package->delivered_datetime = Helper::formatCustomDateTime($package->delivered_datetime);
             $package->fee = $package->delivery_fee;
             unset($package->driver);
             return $package;
@@ -249,6 +254,8 @@ class HomeController extends Controller
             $package->total = (float)Helper::getNumber($package->cod_fee + $package->delivery_fee,2);
             $package->fee = (float)$package->delivery_fee;
             $package->delivery_fee = (float)$package->delivery_fee;
+            $package->arrive_warehouse_datetime = Helper::formatCustomDateTime($package->arrive_warehouse_datetime);
+            $package->failed_datetime = Helper::formatCustomDateTime($package->failed_datetime);
             unset($package->driver,$package->status);
             return $package;
         });
