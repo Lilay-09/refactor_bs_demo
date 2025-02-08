@@ -144,8 +144,8 @@ class ReportController extends Controller
         })->values();
 
         $data = [
-            'total'=> (float)Helper::getNumber($grandTotal),
-            'total_count'=>$totalCount,
+            'total'=> (string)Helper::getNumber($grandTotal),
+            'total_count'=> (string) $totalCount,
             'package_info' => $packageInfo,
             'list' => $groupedPackages
         ];
