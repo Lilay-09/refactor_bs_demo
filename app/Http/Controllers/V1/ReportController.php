@@ -1025,7 +1025,7 @@ class ReportController extends Controller
                 $total = $item->cod ? $item->price : 0;
                 if($item->payer == 'sender') {
                     $item->delivery_fee = $isCal ? ($item->delivery_fee + $item->extra_charge) : 0;
-                    $total -= $item->delivery_fee + $item->extra_charge + $item->taxi_fee;
+                    $total -= $item->delivery_fee + $item->taxi_fee;
                 }else $item->delivery_fee = 0;
                 $totalDeliveryFee += $item->delivery_fee;
                 $item->total = $isCal ? (float)Helper::getNumber($total) : 0;
