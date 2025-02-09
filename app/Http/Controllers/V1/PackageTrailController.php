@@ -374,7 +374,7 @@ class PackageTrailController extends Controller
             if($package->driver_id){
                 $deliveryPackage = DeliveryPackage::where('package_id',$id)->where('is_deleted',0)->where('delay_count',0)->first();
                 if($deliveryPackage){
-                    if(!$user->system_admin && $deliveryPackage->status_id !== 10 && !in_array($package->status_id,[5,10,19]) ) return ApiResponse::Duplicated(__('messages.has already assigned',['info' => 'Package']));
+                    if($deliveryPackage->status_id !== 10 && !in_array($package->status_id,[5,10,19]) ) return ApiResponse::Duplicated(__('messages.has already assigned',['info' => 'Package']));
                     // $fleet = new FleetManagementController();
                     // $fleetArr = new Request([
                     // 'packages' => [
@@ -432,11 +432,11 @@ class PackageTrailController extends Controller
                     ->where('package_id',$package->id)
                     ->where('delay_count',0)
                     ->update([
-                        'is_deleted' => $toDelete,
-                        'deleted_uid' => $toDelete ? $user->id : null,
+                        // 'is_deleted' => $toDelete,
+                        // 'deleted_uid' => $toDelete ? $user->id : null,
                         'delay_count' => 1,
-                        'deleted_datetime' => $toDelete ? now():null,
-                        // 'notes' => DB::raw('notes || \'| admin change driver\'')
+                        // 'deleted_datetime' => $toDelete ? now():null,
+                        'notes' => DB::raw('notes || \'| admin re-assign driver\'')
                     ]);
                 }
             }
