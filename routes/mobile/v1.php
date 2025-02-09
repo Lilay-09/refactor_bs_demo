@@ -115,7 +115,7 @@ Route::middleware(['jwtMerchant','localize'])->prefix('merchant/v1/{lang}')->gro
         Route::get('',[HomeController::class,'getHomeScreen']);
         Route::post('booking',[HomeController::class,'createBooking']);
         Route::get('promotion',[HomeController::class,'getPromotions']);
-        Route::get('find/package/{phone?}',[HomeController::class,'findPackage']);
+        Route::get('find/package/{phone}',[HomeController::class,'findPackage']);
         Route::prefix('tracking')->group(function(){
             Route::get('pending',[HomeController::class,'getPendingOrders']);
             Route::get('pick',[HomeController::class,'getPickOrders']);
