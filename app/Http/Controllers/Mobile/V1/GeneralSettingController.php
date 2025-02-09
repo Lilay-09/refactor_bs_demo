@@ -137,9 +137,14 @@ class GeneralSettingController extends Controller
         $markContact = $req->mark_contact ?? 0;
         $confirmDelivery = $req->confirm_delivery ?? 0;
         $cms = new CloudMessagingService();
-        $package = Package::where('qr_code',$item_ref)->where('is_deleted',0)->with('driver')->first();
+        $package = Package::where('qr_code',$item_ref)->where('is_deleted',0)
+        ->with('driver')->first();
         if(!$package) $package = Package::where('is_deleted',0)->find($item_ref);
         if(!$package) return ApiResponse::NotFound();
+        if($package->outstanding == 1) return ApiResponse::ValidateFail(__('messages.info',[
+            'info' => 'Please ensure that the package has marked as arrived before scan',
+            'khInfo' => 'កញ្ចប់ត្រូវតែបញ្ចាក់ថាមកដល់ឃ្លាំងមុនចេញដឹក'
+        ]));
         if($package->status_id == 9) return ApiResponse::Duplicated(__('messages.arrived',[
             'info' => 'Package'
         ]));
@@ -274,12 +279,15 @@ class GeneralSettingController extends Controller
             ]);
             DeliveryPackage::where('delivery_id',$selfTrip->id)
             ->where('package_id',$package->id)
+            ->where('is_deleted',0)
+            ->where('delay_count',0)
+            ->where('has_swap',0)
             ->update([
-                'is_deleted' => true,
-                'deleted_uid' => $user->id,
+                // 'is_deleted' => true,
+                // 'deleted_uid' => $user->id,
                 'has_swap' => true,
-                'delay_count' => 0,
-                'deleted_datetime' => now(),
+                'delay_count' => 1,
+                // 'deleted_datetime' => now(),
                 'notes' => DB::raw('notes || \'| confirm to change swap package\'')
             ]);
             $currTrip = Delivery::where('id',$selfTrip->id)->selectRaw('id,package_count,tracking_notes,delivered_count,failed_count,is_deleted,deleted_datetime,deleted_uid,finished,finished_datetime,status_id')->first();
