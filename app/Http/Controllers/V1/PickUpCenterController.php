@@ -150,7 +150,7 @@ class PickUpCenterController extends Controller
         $driverId = $req->driver_id;
         $merchantId = $req->merchant_id;
         $warehouseId = $req->warehouse_id;
-        $query = Order::with(['merchant','tracking_status','driver','createdBy'])->where('is_deleted',0)
+        $query = Order::query()->with(['merchant','tracking_status','driver','createdBy'])->where('is_deleted',0)
             ->whereIn('status_id',[1,2,3,4,21])
             ->where('company_id',$user->company_id)
             ->orderByDesc('id')
@@ -181,8 +181,8 @@ class PickUpCenterController extends Controller
 
         }
         $packages = Package::where('outstanding',1)->where('is_deleted',0)->get();
-        $orders = $query->get();
-        foreach($orders as $order){
+        // $orders = $query->get();
+        $callbackMapper = function($order) use($lang,$packages){
             $order->created_user = $order->createdBy?->user_name;
             $order->order_date = Helper::dateDMY($order->order_datetime);
             // $order->created_at = Helper::formatCustomDateTime($order->created_at);
@@ -205,8 +205,33 @@ class PickUpCenterController extends Controller
             $order->driver_code = $order->driver?->code;
             $order->package_count = $this->getPackageCountByOrder($packages,$order->id);
             unset($order->merchant,$order->driver,$order->tracking_status,$order->createdBy);
-        }
-        return ApiResponse::Pagination($orders,$req,__('messages.Get Orders'));
+            return $order;
+        };
+        // foreach($orders as $order){
+        //     $order->created_user = $order->createdBy?->user_name;
+        //     $order->order_date = Helper::dateDMY($order->order_datetime);
+        //     // $order->created_at = Helper::formatCustomDateTime($order->created_at);
+        //     $order->order_time = Helper::formatCustomDateTime($order->order_datetime,'h:i:s A');
+        //     $order->merchant_name = $order->merchant->user_name;
+        //     $order->merchant_code = $order->merchant->code;
+        //     $order->merchant_code = $order->merchant->code;
+        //     $order->default = [
+        //         'cod' => $order->merchant->cod ? 1:0,
+        //         'code' => $order->merchant->merchantPriceList?->zone_code
+        //     ];
+        //     if(!$order->product_type) $order->product_type = 'Others';
+
+        //     if($lang != 'en'){
+        //         $statusCode = GeneralSettingService::$statusCodeTrans[$order->status_id] ?? null;
+        //         $order->status_code = $statusCode;
+        //     }else $order->status_code = $order->tracking_status->name;
+        //     // $order->status_code_kh = $order->tracking_status->name;
+        //     $order->driver_name = $order->driver?->user_name;
+        //     $order->driver_code = $order->driver?->code;
+        //     $order->package_count = $this->getPackageCountByOrder($packages,$order->id);
+        //     unset($order->merchant,$order->driver,$order->tracking_status,$order->createdBy);
+        // }
+        return ApiResponse::PaginationV1($query,$req,__('messages.Get Orders'),[],1000,$callbackMapper);
     }
 
     private function getPackageCountByOrder($packages,$oderId){
