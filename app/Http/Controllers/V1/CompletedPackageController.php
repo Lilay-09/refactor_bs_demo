@@ -45,7 +45,8 @@ class CompletedPackageController extends Controller
         //     WHEN p.merchant_disbursement_id IS NOT NULL AND dbur.is_settled = false THEN 'Approved'
         //     ELSE 'No Payment/Disbursement'
         // END as merchant_status";
-        $qP = Package::from('packages as p')->where('p.company_id',$user->company_id)
+        $qP = Package::query()->from('packages as p')
+        ->where('p.company_id',$user->company_id)
         ->where('p.is_deleted',0)
         ->with('returnUser')
         ->leftJoin('users as d','d.id','p.driver_id')
@@ -100,23 +101,25 @@ class CompletedPackageController extends Controller
             });
         }
         //** --------- */
-        $packages = $qP->get();
-        foreach($packages as $pkg){
-            $pkg->arrive_warehouse_datetime = Helper::formatCustomDateTime($pkg->arrive_warehouse_datetime,null,false,$lang);
-            $pkg->has_image = PackageAttachment::where('hidden',0)->where('package_id',$pkg->package_id)->value('package_id') ? 1 : 0;
-            if($pkg->returnUser){
-                $pkg->driver_name = 'return by '. $pkg->returnUser->user_name;
+        // $packages = $qP->get();
+        $callbackMapper = function ($qP) use ($lang){
+            $qP->arrive_warehouse_datetime = Helper::formatCustomDateTime($qP->arrive_warehouse_datetime,null,false,$lang);
+            $qP->has_image = PackageAttachment::where('hidden',0)->where('package_id',$qP->package_id)->value('package_id') ? 1 : 0;
+            if($qP->returnUser){
+                $qP->driver_name = 'return by '. $qP->returnUser->user_name;
             }
             if($lang == 'km'){
-                $pkg->status_code = GeneralSettingService::$statusCodeTrans[$pkg->status_id] ?? '';
+                $qP->status_code = GeneralSettingService::$statusCodeTrans[$qP->status_id] ?? '';
             }
-            if($pkg->status_id == 9) $pkg->finished_date = Helper::formatCustomDateTime($pkg->delivered_datetime,null,false,$lang);
-            if($pkg->status_id == 11) $pkg->finished_date = Helper::formatCustomDateTime($pkg->returned_datetime,null,false,$lang);
-            if($pkg->status_id == 19) $pkg->finished_date = Helper::formatCustomDateTime($pkg->failed_datetime,null,false,$lang);
-            $pkg->total = Helper::getNumber(abs($pkg->driver_total - $pkg->merchant_total),2);
-            unset($pkg->returnUser);
-        }
-        return ApiResponse::Pagination($packages,$req,null,[]);
+            if($qP->status_id == 9) $qP->finished_date = Helper::formatCustomDateTime($qP->delivered_datetime,null,false,$lang);
+            if($qP->status_id == 11) $qP->finished_date = Helper::formatCustomDateTime($qP->returned_datetime,null,false,$lang);
+            if($qP->status_id == 19) $qP->finished_date = Helper::formatCustomDateTime($qP->failed_datetime,null,false,$lang);
+            $qP->total = Helper::getNumber(abs($qP->driver_total - $qP->merchant_total),2);
+            unset($qP->returnUser);
+            return $qP;
+        };
+
+        return ApiResponse::PaginationV1($qP,$req,null,[],1000,$callbackMapper);
     }
 
     private function finishPackagePaymentStatus($query,$driverId,$merchantId,$paymentStatusId){
