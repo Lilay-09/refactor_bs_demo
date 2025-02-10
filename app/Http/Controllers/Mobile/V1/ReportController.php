@@ -78,7 +78,7 @@ class ReportController extends Controller
             }
             if ($item->status_id == 10 || $item->status_id == 19) $finishDate = $item->failed_datetime;
             if ($item->status_id == 11) $finishDate = $item->returned_datetime;
-
+            $item->price = (float) ($item->cod ? $item->price:0);
             $item->groupDate = Helper::dateDMY($finishDate);
             // Return the modified object
             return $item;
@@ -212,7 +212,6 @@ class ReportController extends Controller
             }
             if ($item->status_id == 10 || $item->status_id == 19) $finishDate = $item->failed_datetime;
             if ($item->status_id == 11) $finishDate = $item->returned_datetime;
-
             $item->groupDate = Helper::dateDMY($finishDate);
             // Return the modified object
             return $item;
@@ -229,7 +228,7 @@ class ReportController extends Controller
                 $finished_time = $item->failed_datetime ? Helper::formatCustomDateTime($item->failed_datetime,'h:i:s A'):Helper::formatCustomDateTime($item->delivered_datetime,'h:i:s A');
                 $item->finished_time = $finished_time;
                 $isCal = in_array($item->status_id,[9,19]);
-                $item->price = $item->cod ? $item->price:0;
+                $item->price = $item->cod ? (float)$item->price:0;
                 $item->extra_charge = (float)$item->extra_charge;
                 $total = ($item->cod && $item->status_id == 9) ? $item->price : 0;
                 if($item->payer == 'sender') {
