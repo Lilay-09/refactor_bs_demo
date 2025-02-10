@@ -277,19 +277,20 @@ class GeneralSettingController extends Controller
             $selfTrip->update([
                 'package_count' => $selfTrip->package_count - 1
             ]);
-            DeliveryPackage::where('delivery_id',$selfTrip->id)
+            $dP = DeliveryPackage::where('delivery_id',$selfTrip->id)
             ->where('package_id',$package->id)
             ->where('is_deleted',0)
             ->where('delay_count',0)
             ->where('has_swap',0)
-            ->update([
-                // 'is_deleted' => true,
-                // 'deleted_uid' => $user->id,
-                'has_swap' => true,
-                'delay_count' => 1,
-                // 'deleted_datetime' => now(),
-                'notes' => DB::raw('notes || \'| confirm to change swap package\'')
-            ]);
+            ->orderByDesc('id')
+            ->first();
+            if($dP) {
+                $dP->update([
+                    'has_swap' => true,
+                    'delay_count' => 1,
+                    'notes' => DB::raw('notes || \'| confirm to change swap package\'')
+                ]);
+            }
             $currTrip = Delivery::where('id',$selfTrip->id)->selectRaw('id,package_count,tracking_notes,delivered_count,failed_count,is_deleted,deleted_datetime,deleted_uid,finished,finished_datetime,status_id')->first();
             if($currTrip->package_count == 0) {
                 $currTrip->update([
