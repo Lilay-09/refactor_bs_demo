@@ -135,10 +135,8 @@ class FleetManagementController extends Controller
         // ->where('dp.delay_count', 0)
         ->whereIn('dp.status_id',[6,9,10,19])
         ->where(function ($q) {
-        $q->where('dp.status_id', '!=', 6) // Allow other statuses freely
-            ->orWhere(function ($q) {
-                $q->where('dp.status_id', 6)->where('dp.has_swap', 0);
-            });
+            $q->where('dp.status_id', '!=', 6) // Allow other statuses freely
+            ->orWhere('dp.has_swap', 0); // Only allow status_id = 6 if has_swap = 0
         })
         // ->where('dp.delay_count',0)
         ->where('dp.delivery_id',$trip_id)
