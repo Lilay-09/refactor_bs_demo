@@ -31,9 +31,9 @@ class FleetManagementController extends Controller
         $endDate = $req->endDate;
         $statusId = $req->status_id;
         $packages = Package::fromRaw('packages as p')->join('delivery_packages as dp','p.id','dp.package_id')
-        ->selectRaw('p.id as package_id,dp.delivery_id,dp.delay_count,dp.status_id,p.driver_total')
+        ->selectRaw('p.id as package_id,dp.delivery_id,dp.delay_count,dp.has_swap,dp.status_id,p.driver_total')
         ->where('dp.is_deleted',0)
-        // ->where('dp.delay_count',0)
+        ->where('dp.has_swap',0)
         // ->groupBy('p.id','dp.delivery_id','dp.delay_count')
         ->get();
         $query = Delivery::with(['status','driver'])->where('is_deleted',0)->where('company_id',$user->company_id)
@@ -113,7 +113,7 @@ class FleetManagementController extends Controller
                     $failedWithFeeCount +=1;
                     $totalFailedWithFee += $pkg->driver_total;
                 }
-                if($pkg->status_id == 6 && $pkg->delay_count == 0) $deliveryCount +=1;
+                if($pkg->status_id == 6 && $pkg->has_swap == 0) $deliveryCount +=1;
             }
         }
         return (object)[
@@ -131,12 +131,12 @@ class FleetManagementController extends Controller
         $isKm = $req->lang == 'km';
         $search = $req->search;
         $qP = Package::fromRaw('packages as p')->join('delivery_packages as dp','p.id','dp.package_id')
+        ->where('dp.is_deleted',0)
+        // ->where('dp.delay_count', 0)
         ->whereIn('dp.status_id',[6,9,10,19])
         ->where(function ($q) {
-        $q->where('dp.status_id', '!=', 6) // Allow other statuses freely
-            ->orWhere(function ($q) {
-                $q->where('dp.status_id', 6)->where('dp.delay_count', 0);
-            });
+            $q->where('dp.status_id', '!=', 6) // Allow other statuses freely
+            ->orWhere('dp.has_swap', 0); // Only allow status_id = 6 if has_swap = 0
         })
         // ->where('dp.delay_count',0)
         ->where('dp.delivery_id',$trip_id)
@@ -144,7 +144,7 @@ class FleetManagementController extends Controller
         ->join('users as d','d.id','p.driver_id')
 
         ->join('tracking_statuses as ts','ts.id','dp.status_id')
-        ->selectRaw('p.qr_code,p.price,p.cod,p.receiver_name,p.receiver_phone,p.zone_code,p.zone_name,ts.name as status_code,d.user_name as driver_name,d.phone as driver_phone,m.user_name as merchant_name,m.phone as merchant_phone,p.id as package_id,dp.delivery_id,p.zone_code,p.zone_name,p.delivery_fee as base_fee,p.driver_total,p.taxi_fee,p.product_type,dp.status_id,p.payer')
+        ->selectRaw('dp.has_swap,p.qr_code,p.price,p.cod,p.receiver_name,p.receiver_phone,p.zone_code,p.zone_name,ts.name as status_code,d.user_name as driver_name,d.phone as driver_phone,m.user_name as merchant_name,m.phone as merchant_phone,p.id as package_id,dp.delivery_id,p.zone_code,p.zone_name,p.delivery_fee as base_fee,p.driver_total,p.taxi_fee,p.product_type,dp.status_id,p.payer')
         ->orderByRaw('(dp.status_id = ?) DESC', [6]);
         if ($search && str_starts_with($search, 'JPK')) {
             $qP->where('p.qr_code',$search);

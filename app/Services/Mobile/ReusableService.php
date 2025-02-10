@@ -25,6 +25,9 @@ class ReusableService
         if($reqSearch && !$search) return DataResponse::Pagination(new Collection(),$req);
         $qFp = Delivery::fromRaw('deliveries as d')
         ->join('delivery_packages as dp','d.id','dp.delivery_id')
+        ->where(function($q){
+            $q->where('dp.delay_count',0)->where('dp.is_deleted',0);
+        })
         ->join('packages as p','p.id','dp.package_id')
         ->join('users as m','m.id','p.merchant_id')
         ->leftJoin('payments as pmt','pmt.id','p.driver_payment_id')

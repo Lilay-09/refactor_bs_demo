@@ -437,16 +437,57 @@ class HomeController extends Controller
     public function findPackage(Request $req){
         $user = UserService::getAuthUser('merchant');
         $phone = $req->phone;
+        $startDate = $req->startDate;
+        $endDate = $req->endDate;
+        $statusId = $req->status_id;
         if(!$phone) return ApiResponse::ValidateFail(__('messages.info',[
             'info' => 'Enter your customer phone number to continue'
         ]));
-        $packages = Package::where('merchant_id',$user->id)
+        $qP = Package::where('merchant_id',$user->id)
         ->with(['driver','status'])
         ->whereIn('status_id',[10,11,19,9,6])
         ->where('is_deleted',0)
         ->where('receiver_phone',$phone)
-        ->selectRaw('id,delivered_datetime,merchant_id,arrive_warehouse_datetime,receiver_phone,receiver_address,receiver_name,cod,price,delivery_fee,status_id,remarks,driver_id,failed_datetime,returned_datetime')
-        ->get();
+        ->selectRaw('id,delivered_datetime,merchant_id,arrive_warehouse_datetime,receiver_phone,receiver_address,receiver_name,cod,price,delivery_fee,status_id,remarks,driver_id,failed_datetime,returned_datetime');
+
+        if($startDate && $endDate){
+            $startDate = Helper::dateYMD($startDate);
+            $endDate = Helper::dateYMD($endDate);
+            // $qFp->whereRaw('p.failed_datetime::DATE >= ? AND p.failed_datetime::DATE <= ? OR p.delivered_datetime::DATE >= ? AND p.delivered_datetime::DATE <= ? OR p.returned_datetime::DATE >= ? AND p.returned_datetime::DATE <= ?', [
+            //     $startDate, $endDate,
+            //     $startDate, $endDate,
+            //     $startDate, $endDate,
+            // ]);
+             $qP->where(function($q) use ($startDate, $endDate) {
+                $q->where(function($q) use ($startDate, $endDate) {
+                    // For status_id 10 or 19, query only failed_datetime
+                    $q->whereRaw('
+                        (failed_datetime::DATE >= ? AND failed_datetime::DATE <= ?)', [$startDate, $endDate])
+                        ->whereIn('status_id', [10, 19]);
+                })
+                ->orWhere(function($q) use ($startDate, $endDate) {
+                    // For status_id 9, query only delivered_datetime
+                    $q->whereRaw('
+                        (delivered_datetime::DATE >= ? AND delivered_datetime::DATE <= ?)', [$startDate, $endDate])
+                        ->where('status_id', 9);
+                })
+                ->orWhere(function($q) use ($startDate, $endDate) {
+                    // For status_id 6, query only assign_driver_datetime
+                    $q->whereRaw('
+                        (assign_driver_datetime::DATE >= ? AND assign_driver_datetime::DATE <= ?)', [$startDate, $endDate])
+                        ->where('status_id', 6);
+                })
+                ->orWhere(function($q) use ($startDate, $endDate) {
+                    // For status_id 11, query only returned_datetime
+                    $q->whereRaw('
+                        (returned_datetime::DATE >= ? AND returned_datetime::DATE <= ?)', [$startDate, $endDate])
+                        ->where('status_id', 11);
+                });
+            });
+        }
+        if($statusId) $qP->where('status_id', $statusId);
+
+        $packages = $qP->get();
         foreach($packages as $package){
             $package->price = (float)$package->price;
             $package->cod_fee = $package->cod ? $package->price : 0;
@@ -454,12 +495,12 @@ class HomeController extends Controller
             $package->driver_phone = $package->driver->phone;
             $package->driver_name = $package->driver->user_name;
             $package->total = (float)$package->cod_fee + $package->delivery_fee;
-            $statusId = $package->status_id;
+            $rowStatusId = $package->status_id;
             $finished_date = null;
-            if($statusId == 6) $finished_date = $package->arrive_warehouse_datetime;
-            if($statusId == 11) $finished_date = $package->returned_datetime;
-            if($statusId == 19 || $statusId == 10) $finished_date = $package->failed_datetime;
-            if($statusId == 9) $finished_date = $package->delivered_datetime;
+            if($rowStatusId == 6) $finished_date = $package->arrive_warehouse_datetime;
+            if($rowStatusId == 11) $finished_date = $package->returned_datetime;
+            if($rowStatusId == 19 || $rowStatusId == 10) $finished_date = $package->failed_datetime;
+            if($rowStatusId == 9) $finished_date = $package->delivered_datetime;
             $package->finished_datetime = Helper::formatCustomDateTime($finished_date,'d-M-Y h:i A');
             unset($package->driver,$package->status);
         }

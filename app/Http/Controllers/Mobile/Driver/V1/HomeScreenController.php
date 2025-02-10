@@ -451,7 +451,10 @@ class HomeScreenController extends Controller
         }
 
         $package->update($inputs);
-        $dp = DeliveryPackage::where('package_id',$id)->where('driver_id',$user->id)->orderByDesc('id')->where('delay_count',0)->first();
+        $dp = DeliveryPackage::where('package_id',$id)->where('driver_id',$user->id)
+        ->where('is_deleted',0)
+        ->where('has_swap',0)
+        ->orderByDesc('id')->where('delay_count',0)->first();
         $dp->update([
             'notes' => $inputs['tracking_notes'],
             'status_id' => $status_id
