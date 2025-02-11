@@ -275,7 +275,8 @@ class TransactionService
             DB::commit();
             // return Package::whereIn('id',$packageIds)->get();
             return DataResponse::JsonResult(null,false,__('messages.created',[
-                'info' => 'Payment'
+                'info' => 'Payment',
+                'khInfo' => 'ទទួលការបង់ប្រាក់'
             ]));
         }catch(Exception $e){
             Log::error($e->getMessage());
@@ -379,16 +380,21 @@ class TransactionService
 
     public function paymentSuggestion($cash,$cashKh,$bankAmount,$bankAmountKh,$dueAmount,$exchangeRate){
         $dueAmount = Helper::getNumber($dueAmount,2);
-        $totalAmountUSD = $cash + $bankAmount;
-        $totalAmountKHR = $cashKh + $bankAmountKh;
+        $totalAmountUSD = Helper::getNumber($cash + $bankAmount);
+        $totalAmountKHR = Helper::getNumber($cashKh + $bankAmountKh);
         $hasMoreThanTwoDecimals = function ($amount) {
-            $amount = (float)$amount;
-            $decimalPart = explode('.', (string)$amount);
-            return isset($decimalPart[1]) && strlen($decimalPart[1]) > 2;
+            $amountStr = (string)$amount;
+            if (strpos($amountStr, '.') !== false) {
+                $decimalPart = explode('.', $amountStr)[1]; // Get the decimal part
+                return strlen($decimalPart) > 2; // Check if there are more than 2 digits after the decimal point
+            }
+            return false; // No decimal part, so no need to check
         };
-
         if ($hasMoreThanTwoDecimals($cash) || $hasMoreThanTwoDecimals($cashKh) || $hasMoreThanTwoDecimals($bankAmount) || $hasMoreThanTwoDecimals($bankAmountKh) || $hasMoreThanTwoDecimals($dueAmount)) {
-            return DataResponse::ValidateFail('Your input amount includes more than two decimal digits');
+            return DataResponse::ValidateFail(__('messages.info',[
+                'info' =>  'Your input amount includes more than two decimal digits',
+                'khInfo' => 'សូមបញ្ចូលទឹកប្រាក់ដែល​មានទសភាគមិនលើសពីពីរខ្ទង់'
+            ]));
         }
         $originalCashKh = 0;
         $originalBankAmtKh = 0;
@@ -409,23 +415,29 @@ class TransactionService
             ]));
             // Log::error($totalAllAmt.'---'.$dueAmount.'--------'.$totalAmountKHR_to_USD.'------'.$totalAmountKHR);
             if($totalAllAmt != $dueAmount) return DataResponse::ValidateFail(__('messages.info',[
-                'info' => 'If USD amount($'.$totalAmountUSD.')'.' additional in KHR must be ('.$roundSuggestionAmtUp.' or '.$totalSuggestionAmt_KH.')'
+                'info' => 'If USD amount($'.$totalAmountUSD.')'.' additional in KHR must be ('.$roundSuggestionAmtUp.' or '.$totalSuggestionAmt_KH.')',
+                'khInfo' => 'If USD amount($'.$totalAmountUSD.')'.' additional in KHR must be ('.$roundSuggestionAmtUp.' or '.$totalSuggestionAmt_KH.')'
             ]));
         }
 
         if($totalAmountUSD && !$totalAmountKHR){
             if($cash && $bankAmount){
-                $additionalSuggestion = abs($dueAmount - $cash);
-                if($additionalSuggestion != $bankAmount)
-                return DataResponse::ValidateFail(__('messages.info',[
-                        'info' => 'If Cash Amount USD '.Helper::getNumber($cash,2).',so bank amount must be USD '.Helper::getNumber($additionalSuggestion,2)
+                $additionalSuggestion = Helper::getNumber(abs($dueAmount - $cash));
+                $misMatch = $additionalSuggestion !== $bankAmount;
+                if ($misMatch) {
+                    return DataResponse::ValidateFail(__('messages.info', [
+                        'info' => 'If Cash Amount USD ' . Helper::getNumber($cash, 2) . ', so bank amount must be USD ' . Helper::getNumber($additionalSuggestion, 2),
+                        'khInfo' => 'លុយដុល្លា ' . Helper::getNumber($cash, 2) . ', ដូច្នេះលុយទូរទាត់តាមធនាគារត្រូវតែ ' . Helper::getNumber($additionalSuggestion, 2),
                     ]));
+                }
             }
             if($totalAmountUSD < $dueAmount) return DataResponse::ValidateFail(__('messages.info',[
                 'info' => 'Payment amount must be $'.$dueAmount.' remaining amount ($'.$dueAmount - $totalAmountUSD.')'
             ]));
-
-            if($totalAmountUSD > $dueAmount) return DataResponse::ValidateFail('You amount is exceeding the expected, amount is only $'.$dueAmount.' in total');
+            $totalAmountUSD = (float) $totalAmountUSD; // Ensures it's a float
+            $dueAmount = (float) $dueAmount; // Casts dueAmount to float
+            $misMatchTotal = abs($totalAmountUSD - $dueAmount) > 0;
+            if($misMatchTotal) return DataResponse::ValidateFail('You amount is exceeding the expected, amount is only $'.$dueAmount.' in total');
         }
 
         if($totalAmountKHR && !$totalAmountUSD){
@@ -934,7 +946,8 @@ class TransactionService
             }
             DB::commit();
             return DataResponse::JsonResult(null,false,__('messages.info',[
-                'info' => 'Approved'
+                'info' => 'Approved',
+                'khInfo' => 'ឯកភាព'
             ]));
         }catch(Exception $e){
             DB::rollBack();
@@ -980,7 +993,8 @@ class TransactionService
             }
             DB::commit();
             return DataResponse::JsonResult(null,false,__('messages.info',[
-                'info' => 'Settled'
+                'info' => 'Settled',
+                'khInfo' => 'បញ្ជាក់ការទូរទាត់'
             ]));
         }catch(Exception $e){
             DB::rollBack();
