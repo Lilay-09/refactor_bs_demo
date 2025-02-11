@@ -1,6 +1,7 @@
 <?php
 
 namespace App\Services;
+use App\Jobs\SendNotificationJob;
 use App\Models\Order;
 use App\Models\OrderImage;
 use App\Models\Package;
@@ -168,8 +169,9 @@ class PickupCenterService
                 'target_uid' => $merchantId
             ]);
             $clmsg->sendNotificationByTopic($clmsgReq,$user);
+            // SendNotificationJob::dispatch($clmsgReq, $user);
             if($driverId){
-                $notif = new CloudMessagingService();
+                // $notif = new CloudMessagingService();
                 $topics = GeneralSettingService::getGeneralTopics($user->company_id,'driver',$driverId);
                 // $notifBody = "$validMerchant->user_name: ".$inputs['qty']."PCS, \nPickup Address:".Str::limit($pickupAddress, 25, '...');
                 // $notifTitle = 'New Order Available';
@@ -184,7 +186,8 @@ class PickupCenterService
                     'title' => $notifTitle,
                     'body' => $notifBody
                 ]);
-                $notif->sendNotificationByTopic($notifReq,$user);
+                $clmsg->sendNotificationByTopic($notifReq,$user);
+                // SendNotificationJob::dispatch($notifReq, $user);
             }
             DB::commit();
             return DataResponse::JsonResult(null,false,__('messages.info',[

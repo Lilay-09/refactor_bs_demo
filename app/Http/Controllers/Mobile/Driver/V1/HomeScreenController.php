@@ -551,6 +551,7 @@ class HomeScreenController extends Controller
             'body' => 'Driver contacted receiver '.$package->receiver_phone
         ]);
         $notif->sendNotificationByTopic($notifReq,$user);
+        // SendNotificationJob::dispatch($notifReq, $user);
         return ApiResponse::JsonResult(null,__('messages.info',[
             'info' => 'Marked as contact',
         ]));

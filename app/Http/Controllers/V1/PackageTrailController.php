@@ -41,7 +41,7 @@ class PackageTrailController extends Controller
         // $startFinishDate = $req->startFinishDate ?? null;
         // $endFinishDate = $req->endFinishDate ?? null;
         // Log::error(json_encode($req->all()));
-        $query = Package::where('is_deleted',0)
+        $query = Package::query()->where('is_deleted',0)
         ->with(['status','merchant','driver'])
         ->where('outstanding',0)
         // ->whereNotIn('status_id',[]) // at warehouse
@@ -93,8 +93,7 @@ class PackageTrailController extends Controller
                 ->orWhereBetween('failed_datetime', ["$startDate 00:00:00", "$endDate 23:59:59"]);
             });
         }
-        $packages = $query->get();
-        foreach($packages as $pkg){
+        $callbackMapper = function($pkg) use ($lang){
             $cod = $pkg->cod;
             $pkg->driver_name = $pkg->driver?->user_name;
             $pkg->merhcant_name = $pkg->merchant?->user_name;
@@ -112,8 +111,29 @@ class PackageTrailController extends Controller
             $pkg->arrive_warehouse_datetime = Helper::formatCustomDateTime($pkg->arrive_warehouse_datetime,null,false,$lang);
             if($pkg->status_id == 10 || $pkg->status_id == 19) $pkg->finished_date = Helper::formatCustomDateTime($pkg->failed_datetime);
             unset($pkg->status,$pkg->merchant,$pkg->driver);
-        }
-        return ApiResponse::Pagination($packages,$req,__('messages.get_list',['info'=>'Package']));
+            return $pkg;
+        };
+        // $packages = $query->get();
+        // foreach($packages as $pkg){
+        //     $cod = $pkg->cod;
+        //     $pkg->driver_name = $pkg->driver?->user_name;
+        //     $pkg->merhcant_name = $pkg->merchant?->user_name;
+        //     $pkg->merchant_phone = $pkg->merchant?->phone;
+        //     $pkg->cod = $cod == true ? 1:0;
+
+        //     if($lang == 'km'){
+        //         $pkg->status_code = GeneralSettingService::$statusCodeTrans[$pkg->status_id];
+        //     }else{
+        //         $pkg->status_code = $pkg->status->name;
+        //     }
+        //     $pkg->has_image = PackageAttachment::where('hidden',0)->where('package_id',$pkg->id)->value('package_id') ? 1 : 0;
+        //     $pkg->total = Helper::getNumber(abs($pkg->driver_total - $pkg->merchant_total),2);//PickupCenterService::getDriverTotal($cod,$pkg->payer,$pkg->price,$pkg->delivery_fee,$pkg->additional_fee,$pkg->excharge_fee);
+        //     $pkg->warehouse_timeago = Helper::timeAgo($pkg->arrive_warehouse_datetime,false);
+        //     $pkg->arrive_warehouse_datetime = Helper::formatCustomDateTime($pkg->arrive_warehouse_datetime,null,false,$lang);
+        //     if($pkg->status_id == 10 || $pkg->status_id == 19) $pkg->finished_date = Helper::formatCustomDateTime($pkg->failed_datetime);
+        //     unset($pkg->status,$pkg->merchant,$pkg->driver);
+        // }
+        return ApiResponse::PaginationV1($query,$req,__('messages.get_list',['info'=>'Package']),[],1000,$callbackMapper);
     }
 
     public function getOnePackage(Request $req){

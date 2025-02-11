@@ -94,6 +94,41 @@ class ApiResponse
         return response()->json($obj,200);
     }
 
+    static function PaginationV1($query, $filter = null, $message = null, $additionalKey = [], $limit = 1000, callable $transformCallback = null)
+    {
+        $filter = (object)$filter;
+        $perPage = isset($filter->per_page) ? ($filter->per_page == 0 ? 1 : $filter->per_page) : 10;
+        $currentPage = isset($filter->page_no) ? $filter->page_no : 1;
+
+        // Execute pagination on the query
+        $data = $query->paginate($perPage, ['*'], 'page', $currentPage);
+
+        // Apply transformation if provided
+        if ($transformCallback) {
+            $data->getCollection()->transform($transformCallback);
+        }
+
+        // Build response object
+        $obj = [
+            'status' => "OK",
+            'error' => false,
+            'message' => $message,
+            'data' => $data->items(),
+            'per_page' => (int) $data->perPage(),
+            'total' => (int) $data->total(),
+            'total_page' => (int) $data->lastPage(),
+            'page_no' => (int) $data->currentPage(),
+            'errors' => [],
+        ];
+
+        foreach ((array) $additionalKey as $key => $value) {
+            $obj[$key] = $value;
+        }
+        return response()->json($obj, 200);
+    }
+
+
+
     static function Forbidden($message='Has no permmision to access')
     {
         return response()->json([
