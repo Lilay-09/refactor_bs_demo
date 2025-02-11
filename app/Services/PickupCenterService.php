@@ -159,7 +159,7 @@ class PickupCenterService
                     ]);
                 }
             }
-            // $clmsg = new CloudMessagingService();
+            $clmsg = new CloudMessagingService();
             $topics = GeneralSettingService::getGeneralTopics($user->company_id,'merchant',$merchantId);
             $clmsgReq = new Request([
                 'topic' => $topics->private,
@@ -168,8 +168,8 @@ class PickupCenterService
                 'type' => 'private',
                 'target_uid' => $merchantId
             ]);
-            // $clmsg->sendNotificationByTopic($clmsgReq,$user);
-            SendNotificationJob::dispatch($clmsgReq, $user);
+            $clmsg->sendNotificationByTopic($clmsgReq,$user);
+            // SendNotificationJob::dispatch($clmsgReq, $user);
             if($driverId){
                 // $notif = new CloudMessagingService();
                 $topics = GeneralSettingService::getGeneralTopics($user->company_id,'driver',$driverId);
@@ -186,8 +186,8 @@ class PickupCenterService
                     'title' => $notifTitle,
                     'body' => $notifBody
                 ]);
-                // $notif->sendNotificationByTopic($notifReq,$user);
-                SendNotificationJob::dispatch($notifReq, $user);
+                $clmsg->sendNotificationByTopic($notifReq,$user);
+                // SendNotificationJob::dispatch($notifReq, $user);
             }
             DB::commit();
             return DataResponse::JsonResult(null,false,__('messages.info',[

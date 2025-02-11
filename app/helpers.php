@@ -124,7 +124,6 @@ class ApiResponse
         foreach ((array) $additionalKey as $key => $value) {
             $obj[$key] = $value;
         }
-
         return response()->json($obj, 200);
     }
 

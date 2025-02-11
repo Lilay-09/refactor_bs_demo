@@ -54,7 +54,6 @@ Route::middleware(['jwtDriver','localize'])->prefix('driver/v1/{lang}')->group(f
         Route::post('accepted/delivery/package/{package_id}',[HomeScreenController::class,'submitDeliveryPackage']);
     });
 
-
     Route::get('history',[HistoryController::class,'getHistoryPackages']);
     Route::get('history/pdf',[HistoryController::class,'getHistoryPdf']);
 
