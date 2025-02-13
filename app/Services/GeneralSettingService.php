@@ -615,9 +615,10 @@ public static function optionsRole($type=null){
                 }else if($pck->status_id == 10 || $pck->status_id == 19){
                     $failCount += 1;
                 }
-                if($pck->status_id == 6){
+                if($pck->status_id == 6 && $pck->has_swap == false){
                     $stillOnDelivery = 6;
                     $OnDeliveryCount += 1;
+                    // Log::error('test');
                 }
             }
             if($trip->package_count == $failCount){
@@ -647,6 +648,7 @@ public static function optionsRole($type=null){
             // Log::info($status_id);
             if($isCompleted) {
                 $updateArr['finished_datetime'] = now();
+                $updateArr['finished_uid'] = $user->id;
                 // Log::error($isCompleted);
             }
             // Delivery::find($id)->update($updateArr);

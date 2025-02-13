@@ -394,7 +394,7 @@ class PackageTrailController extends Controller
             if($package->driver_id){
                 $deliveryPackage = DeliveryPackage::where('package_id',$id)->where('is_deleted',0)->where('delay_count',0)->first();
                 if($deliveryPackage){
-                    if($deliveryPackage->status_id !== 10 && !in_array($package->status_id,[5,10,19]) ) return ApiResponse::Duplicated(__('messages.has already assigned',['info' => 'Package']));
+                    if(!in_array($package->status_id,[6,5,10,19]) ) return ApiResponse::Duplicated(__('messages.has already assigned',['info' => 'Package']));
                     // $fleet = new FleetManagementController();
                     // $fleetArr = new Request([
                     // 'packages' => [
@@ -418,8 +418,9 @@ class PackageTrailController extends Controller
                     $pkgCount = $selfTrip->package_count;
                     $upArr = [];
                     if($toDelete){
+                        $pkgCount -=1;
                         $upArr = [
-                            'package_count' => $pkgCount - 1
+                            'package_count' => $pkgCount
                         ];
                     }
                     if($pkgCount == 0){
@@ -427,6 +428,11 @@ class PackageTrailController extends Controller
                         $upArr['deleted_datetime'] = now();
                         $upArr['deleted_uid'] = $user->id;
                         $upArr['tracking_notes'] = $selfTrip->tracking_notes.'|All packages were removed so trip is deleted';
+                    }
+                    if($pkgCount == ($selfTrip->failed_count + $selfTrip->delivered_count)) {
+                        $upArr['finished'] = 1;
+                        $upArr['is_completed'] = 1;
+                        $upArr['status_id'] = 16;
                     }
                     $selfTrip->update($upArr);
                     DeliveryPackage::where('delivery_id',$selfTrip->id)
@@ -535,9 +541,12 @@ class PackageTrailController extends Controller
                 $q->where('delay_count',0)->where('is_deleted',0);
             });
             $hasFailPackage = $QuerylastPackage->orderByDesc('id')->get();
-            if(isset($hasFailPackage[0])) $QuerylastPackage->update([
-                'delay_count' => 1,
-            ]);
+            if(isset($hasFailPackage[0])) {
+                $isSwap = $hasFailPackage[0]->status_id == 6;
+                $upFailArr = $isSwap? ['has_swap' => 1] : ['delay_count' => 1];
+
+                $QuerylastPackage->update($upFailArr);
+            }
             $create = Delivery::create([
                 'driver_id' => $driverId,
                 'depart_datetime' => now(),

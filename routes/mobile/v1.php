@@ -110,6 +110,7 @@ Route::middleware(['jwtMerchant','localize'])->prefix('merchant/v1/{lang}')->gro
     Route::get('history/packages',[MerchantHistoryController::class,'getAllHistories']);
     Route::get('search/packages',[HomeController::class,'getSearchPackages']);
     Route::get('transaction',[MerchantTransactionController::class,'getTransaction']);
+    Route::get('package/{package_id}/images',[GeneralSettingController::class,'getPackageImages']);
     Route::prefix('home')->group(function(){
         Route::get('',[HomeController::class,'getHomeScreen']);
         Route::post('booking',[HomeController::class,'createBooking']);

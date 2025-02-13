@@ -10,6 +10,7 @@ use App\Models\Delivery;
 use App\Models\DeliveryPackage;
 use App\Models\Notification;
 use App\Models\Package;
+use App\Models\PackageAttachment;
 use App\Services\CloudMessagingService;
 use App\Services\GeneralSettingService;
 use App\Services\PickupCenterService;
@@ -57,6 +58,18 @@ class GeneralSettingController extends Controller
             'statuses' =>$results
         ];
         return ApiResponse::JsonResult($obj);
+    }
+
+    public function getPackageImages(Request $req){
+        $packageId = $req->query('package_id');
+        $user = UserService::getAuthUser();
+        $images = PackageAttachment::where('package_id', $packageId)
+        ->take(2)  // Limit to the 2 most recent images
+        ->where('hidden',0)
+        ->pluck('file_name')
+        ->toArray();
+        $imageUrls = array_map(fn($img) => Helper::getImageUrl($img, $user->company_id, 'submit_package'), $images);
+        return ApiResponse::JsonResult($imageUrls);
     }
 
     public function getFormBooking(){

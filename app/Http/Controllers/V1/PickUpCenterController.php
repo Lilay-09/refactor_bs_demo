@@ -382,7 +382,6 @@ class PickUpCenterController extends Controller
             $img->image_url = Helper::getImageUrl($img->photo_file_name,$user->company_id,'order_image');
         }
         return ApiResponse::JsonResult($orderImages);
-
     }
 
     public function getOnePackageById(Request $req){

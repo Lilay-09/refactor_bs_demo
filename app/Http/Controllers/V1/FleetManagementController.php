@@ -394,7 +394,7 @@ class FleetManagementController extends Controller
         $packages = $qP->get();
         $deliveredCount = 0;
         foreach($packages as $pkg){
-            $updatable = DeliveryPackage::where('status_id',6)->find($pkg->dp_id); //** on delivery to package trail
+            $updatable = DeliveryPackage::where('status_id',6)->where('delivery_id',$tripId)->where('has_swap',0)->find($pkg->dp_id); //** on delivery to package trail
             if($updatable){
                 $deliveredCount +=1;
                 $updatable->update([
@@ -412,6 +412,7 @@ class FleetManagementController extends Controller
                 ]);
             }
         }
+        Log::error($deliveredCount);
 
         $trip->update([
             'finished' => 1,
@@ -419,6 +420,7 @@ class FleetManagementController extends Controller
             'status_id' => 16,
             'finished_uid' => $user->id,
             'delivered_count' => $deliveredCount + $trip->delivered_count,
+            'package_count' => $deliveredCount + $trip->delivered_count + $trip->failed_count,
             'finished_reason' => $reason,
             'finished_datetime' => now()
         ]);
