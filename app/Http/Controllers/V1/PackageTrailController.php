@@ -418,8 +418,9 @@ class PackageTrailController extends Controller
                     $pkgCount = $selfTrip->package_count;
                     $upArr = [];
                     if($toDelete){
+                        $pkgCount -=1;
                         $upArr = [
-                            'package_count' => $pkgCount - 1
+                            'package_count' => $pkgCount
                         ];
                     }
                     if($pkgCount == 0){
@@ -427,6 +428,11 @@ class PackageTrailController extends Controller
                         $upArr['deleted_datetime'] = now();
                         $upArr['deleted_uid'] = $user->id;
                         $upArr['tracking_notes'] = $selfTrip->tracking_notes.'|All packages were removed so trip is deleted';
+                    }
+                    if($pkgCount == ($selfTrip->failed_count + $selfTrip->delivered_count)) {
+                        $upArr['finished'] = 1;
+                        $upArr['is_completed'] = 1;
+                        $upArr['status_id'] = 16;
                     }
                     $selfTrip->update($upArr);
                     DeliveryPackage::where('delivery_id',$selfTrip->id)
@@ -482,7 +488,7 @@ class PackageTrailController extends Controller
                 'body' => 'You have been assigned to deliver the package('.$package->qr_code.').'
             ]);
             $notif->sendNotificationByTopic($notifReq,$user);
-            DB::commit();
+            // DB::commit();
             return ApiResponse::JsonResult(null,__('messages.assigned',['info' => '']));
         }catch(Exception $e){
             DB::rollBack();
