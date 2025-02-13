@@ -34,7 +34,7 @@ class ReportController extends Controller
         ->whereIn('status_id',[9,10,19,11])
         ->where('merchant_id',$user->id)
         ->with(['driver:id,user_name,phone','returnUser:id,user_name,phone'])
-        ->selectRaw('id,payer,cod,driver_id,qr_code,extra_charge,delivery_fee,extra_charge,price,status_id,failed_datetime,delivered_datetime,returned_datetime,receiver_phone,receiver_address,remarks');
+        ->selectRaw('id,payer,cod,driver_id,qr_code,extra_charge,delivery_fee,extra_charge,price,status_id,failed_datetime,delivered_datetime,returned_datetime,receiver_phone,receiver_address,remarks,delivery_remarks as notes');
         $qP->orderByRaw('
             CASE
                 WHEN status_id = ? THEN 1
