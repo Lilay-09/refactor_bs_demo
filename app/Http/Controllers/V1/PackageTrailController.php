@@ -394,7 +394,7 @@ class PackageTrailController extends Controller
             if($package->driver_id){
                 $deliveryPackage = DeliveryPackage::where('package_id',$id)->where('is_deleted',0)->where('delay_count',0)->first();
                 if($deliveryPackage){
-                    if($deliveryPackage->status_id !== 10 && !in_array($package->status_id,[5,10,19]) ) return ApiResponse::Duplicated(__('messages.has already assigned',['info' => 'Package']));
+                    if($deliveryPackage->status_id !== 10 && !in_array($package->status_id,[10,19]) ) return ApiResponse::Duplicated(__('messages.has already assigned',['info' => 'Package']));
                     // $fleet = new FleetManagementController();
                     // $fleetArr = new Request([
                     // 'packages' => [
