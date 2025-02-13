@@ -535,9 +535,12 @@ class PackageTrailController extends Controller
                 $q->where('delay_count',0)->where('is_deleted',0);
             });
             $hasFailPackage = $QuerylastPackage->orderByDesc('id')->get();
-            if(isset($hasFailPackage[0])) $QuerylastPackage->update([
-                'delay_count' => 1,
-            ]);
+            if(isset($hasFailPackage[0])) {
+                $isSwap = $hasFailPackage[0]->status_id == 6;
+                $upFailArr = $isSwap? ['has_swap' => 1] : ['delay_count' => 1];
+
+                $QuerylastPackage->update($upFailArr);
+            }
             $create = Delivery::create([
                 'driver_id' => $driverId,
                 'depart_datetime' => now(),
