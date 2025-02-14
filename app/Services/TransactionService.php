@@ -647,7 +647,7 @@ class TransactionService
                 $startDate = Helper::dateYMD($startDate);
                 $endDate = Helper::dateYMD($endDate);
                 $qP->where(function($q) use($startDate,$endDate){
-                    $q->whereRaw('payment_datetime >= ? AND payment_datetime <= ?', [$startDate . ' 00:00:00', $endDate . ' 23:59:59']);
+                    $q->whereRaw('p.payment_datetime >= ? AND p.payment_datetime <= ?', [$startDate . ' 00:00:00', $endDate . ' 23:59:59']);
                 });
             }
             $payments = $qP->get();
@@ -670,15 +670,22 @@ class TransactionService
 
         if($transactionType == 'disbursement' || !$transactionType){
             $paymentDetails = DisbursementDetails::get();
-            $disbursements = Disbursement::fromRaw('disbursements as dis')
+            $qD = Disbursement::fromRaw('disbursements as dis')
             ->where('dis.is_deleted',0)
             ->where('dis.type','payment')
             ->join('users as d','d.id','dis.payee_id')
             ->join('users as ap','ap.id','dis.receiptionist_uid')
             ->where('payee_type',$type)
             ->selectRaw('dis.is_settled,dis.payment_datetime,dis.package_count,dis.cod_amount,dis.delivery_fee,ap.user_name as booked_user,dis.payable_amount,dis.id as payment_id,d.user_name as merchant_name,dis.exchange_rate,dis.taxi_fee,dis.approved,dis.breakdown_notes,dis.remarks')
-            ->orderByDesc('dis.payment_datetime')
-            ->get();
+            ->orderByDesc('dis.payment_datetime');
+            if($startDate && $endDate){
+                $startDate = Helper::dateYMD($startDate);
+                $endDate = Helper::dateYMD($endDate);
+                $qP->where(function($q) use($startDate,$endDate){
+                    $q->whereRaw('dis.payment_datetime >= ? AND dis.payment_datetime <= ?', [$startDate . ' 00:00:00', $endDate . ' 23:59:59']);
+                });
+            }
+            $disbursements = $qD->get();
             foreach($disbursements as $d){
                 $pmt_details = $this->preparePaymentPackageAmount($paymentDetails,$d->payment_id);
                 $totalUSD = $pmt_details->total_usd;
