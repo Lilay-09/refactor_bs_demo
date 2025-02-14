@@ -90,11 +90,11 @@ class GeneralSettingController extends Controller
         if(!$package) return ApiResponse::NotFound();
         if($package->status_id == 9) return ApiResponse::Duplicated(__('messages.info',[
             'info' => 'Package is already delivered.',
-            'khInfo' => 'កញ្ចប់បានដឹកហើយ'
+            'khInfo' => 'កញ្ចប់បានដឹករួចហើយ'
         ]));
         if($package->status_id == 11) return ApiResponse::Duplicated(__('messages.info',[
             'info' => 'Package has returned.',
-            'khInfo' => 'កញ្ចប់បានដឹកហើយ'
+            'khInfo' => 'កញ្ចប់បានយកត្រឡប់ទៅហាងរួចហើយ'
         ]));
         if($package->status_id == 19) return ApiResponse::Duplicated(__('messages.info',[
             'info' => 'Package is already failed with fee.',
