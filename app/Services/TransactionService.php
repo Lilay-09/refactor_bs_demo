@@ -635,6 +635,7 @@ class TransactionService
         $endDate = $req->endDate;
         $transactionType = $req->transaction_type ?? null;
         $allPayments = [];
+        Log::info($req->all());
         if(!$transactionType || $transactionType == 'receive'){
             $qP = Payment::fromRaw('payments as p')->join('users as d','d.id','p.payer_id')
             ->where('p.is_deleted',0)
@@ -681,7 +682,7 @@ class TransactionService
             if($startDate && $endDate){
                 $startDate = Helper::dateYMD($startDate);
                 $endDate = Helper::dateYMD($endDate);
-                $qP->where(function($q) use($startDate,$endDate){
+                $qD->where(function($q) use($startDate,$endDate){
                     $q->whereRaw('dis.payment_datetime >= ? AND dis.payment_datetime <= ?', [$startDate . ' 00:00:00', $endDate . ' 23:59:59']);
                 });
             }
