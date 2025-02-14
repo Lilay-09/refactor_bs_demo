@@ -165,6 +165,16 @@ class GeneralSettingController extends Controller
         if($package->status_id == 9) return ApiResponse::Duplicated(__('messages.arrived',[
             'info' => 'Package'
         ]));
+
+        if($package->status_id == 19) return ApiResponse::Duplicated(__('messages.info',[
+            'info' => 'Package is already failed with fee.',
+            'khInfo' => 'កញ្ចប់ធ្លាប់បរាជ័យគិតសេវា'
+        ]));
+
+        if($package->status_id == 11)  return ApiResponse::Duplicated(__('messages.info',[
+            'info' => 'Package has returned.',
+            'khInfo' => 'កញ្ចប់បានយកត្រឡប់ទៅហាងរួចហើយ'
+        ]));
         // $statusId = $package->status_id;
         $driver = $package->driver;
         $updateArr = [];
