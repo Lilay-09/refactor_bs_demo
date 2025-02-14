@@ -412,7 +412,6 @@ class FleetManagementController extends Controller
                 ]);
             }
         }
-        Log::error($deliveredCount);
 
         $trip->update([
             'finished' => 1,

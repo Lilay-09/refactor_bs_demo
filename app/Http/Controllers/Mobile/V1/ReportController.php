@@ -6,6 +6,7 @@ use ApiResponse;
 use App\Http\Controllers\Controller;
 use App\Models\Delivery;
 use App\Models\Package;
+use App\Models\PackageAttachment;
 use App\Models\TrackingStatus;
 use App\Services\GeneralSettingService;
 use App\Services\UserService;
@@ -45,6 +46,8 @@ class ReportController extends Controller
             END', [9, 19, 11,10]
         )->orderByRaw('DATE(failed_datetime) DESC,DATE(delivered_datetime) DESC');
         if(is_numeric($statusId)) $qP->where('status_id',$statusId);
+        $qAt = PackageAttachment::where('hidden', 0)
+        ->limit(700);
         if($startDate && $endDate){
             $startDate = Helper::dateYMD($startDate);
             $endDate = Helper::dateYMD($endDate);
@@ -65,11 +68,16 @@ class ReportController extends Controller
                     ->where('status_id', 11);
                 });
             });
+            $qAt->whereBetween('updated_at', ["$startDate 00:00:00", "$endDate 23:59:59"]);
         }
         $packages = $qP->get();
+        $attachments = $qAt->pluck('package_id')
+        ->toArray();
+        $attachmentsLookup = array_flip($attachments);
         // return $packages;
-        $groupedPackages = collect($packages)->map(function ($item) {
+        $groupedPackages = collect($packages)->map(function ($item) use($attachmentsLookup) {
             $finishDate = $item->failed_datetime;
+            $item->has_img = isset($attachmentsLookup[$item->id]);
             if ($item->status_id == 9) $finishDate = $item->delivered_datetime;
             if ($item->status_id == 5) $finishDate = $item->arrive_warehouse_datetime;
             if ($item->status_id == 6) {
