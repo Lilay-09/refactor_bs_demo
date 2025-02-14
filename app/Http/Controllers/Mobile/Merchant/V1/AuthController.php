@@ -65,13 +65,13 @@ class AuthController extends Controller
         else if($user->phone == $account) $credentials['phone'] = $account;
         else if($user->login_name == $account) $credentials['login_name'] = $account;
         try {
-            $ttl = (int)env('MERCHANT_JWT_TTL');
-            JWTAuth::factory()->setTTL($ttl);
+            $ttl = time() + (int)env('MERCHANT_JWT_TTL');
             if(!$token = JWTAuth::attempt($credentials)) {
                 return ApiResponse::Unauthorized('invalid_credentials');
             }
-            $token = JWTAuth::customClaims(['system_admin' => $user->system_admin,'roles'=>$user->roles,'type'=>'access','account_type' => $user->account_type])->fromUser($user);
+            $token = JWTAuth::customClaims(['exp' => $ttl,'system_admin' => $user->system_admin,'roles'=>$user->roles,'type'=>'access','account_type' => $user->account_type])->fromUser($user);
         } catch (JWTException $e) {
+            Log::error($e->getTraceAsString());
             return ApiResponse::Unauthorized();
         }
         // $refreshTokenFactory = JWTFactory::customClaims([

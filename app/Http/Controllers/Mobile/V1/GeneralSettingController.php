@@ -92,6 +92,10 @@ class GeneralSettingController extends Controller
             'info' => 'Package is already delivered.',
             'khInfo' => 'កញ្ចប់បានដឹកហើយ'
         ]));
+        if($package->status_id == 11) return ApiResponse::Duplicated(__('messages.info',[
+            'info' => 'Package has returned.',
+            'khInfo' => 'កញ្ចប់បានដឹកហើយ'
+        ]));
         if($package->status_id == 19) return ApiResponse::Duplicated(__('messages.info',[
             'info' => 'Package is already failed with fee.',
             'khInfo' => 'កញ្ចប់ធ្លាប់បរាជ័យគិតសេវា'
