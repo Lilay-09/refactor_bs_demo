@@ -11,6 +11,7 @@ use App\Models\FeedBack;
 use App\Models\Notification;
 use App\Models\Order;
 use App\Models\Package;
+use App\Models\PackageAttachment;
 use App\Models\Promotion;
 use App\Models\SocialMedia;
 use App\Models\UserBank;
@@ -250,15 +251,22 @@ class HomeController extends Controller
         $dateaAgo = Helper::getDateDaysAgo(0);
         $lang = $req->lang;
         $user = UserService::getAuthUser('merchant');
+        $attachments = PackageAttachment::where('hidden', 0)
+        ->whereBetween('updated_at', [$dateaAgo, $today])
+        ->limit(700)
+        ->pluck('package_id')
+        ->toArray();
+        $attachmentsLookup = array_flip($attachments);
         $packages = Package::where('merchant_id',$user->id)
         ->with('driver')
         ->where('status_id',9)
         ->where('is_deleted',0)
         ->whereBetween('delivered_datetime',[$dateaAgo,$today])
         ->selectRaw('id,merchant_id,receiver_phone,receiver_address,receiver_name,cod,price,delivery_fee,remarks,driver_id,delivered_datetime,arrive_warehouse_datetime')
-        ->get()->map(function($package) use ($lang){
+        ->get()->map(function($package) use ($lang,$attachmentsLookup){
             $package->price = (float) $package->price;
             $package->cod_fee = $package->cod ? $package->price : 0;
+            $package->has_img = isset($attachmentsLookup[$package->id]);
             if($lang == 'km') $package->status_code = GeneralSettingService::$statusCodeTrans[9];
             else $package->status_code = 'Delivered';
             $package->driver_phone = $package->driver->phone;

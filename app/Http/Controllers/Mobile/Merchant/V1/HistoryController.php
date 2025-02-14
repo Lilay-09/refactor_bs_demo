@@ -6,6 +6,7 @@ use ApiResponse;
 use App\Http\Controllers\Controller;
 use App\Models\Order;
 use App\Models\Package;
+use App\Models\PackageAttachment;
 use App\Services\GeneralSettingService;
 use App\Services\UserService;
 use Helper;
@@ -72,7 +73,7 @@ class HistoryController extends Controller
             ->with('driver')
             ->where('status_id',9)
             ->where('is_deleted',0)
-            ->selectRaw('id,status_id,merchant_id,receiver_phone,receiver_address,receiver_name,cod,price,delivery_fee,remarks,driver_id,delivered_datetime,arrive_warehouse_datetime')
+            ->selectRaw('id,status_id,merchant_id,receiver_phone,receiver_address,receiver_name,cod,price,delivery_fee,remarks,driver_id,delivered_datetime,arrive_warehouse_datetime,delivery_remarks as notes')
             ->get()->map(function($package) use(&$items,$isKm){
                 $package->price = (float) $package->price;
                 $package->cod_fee = $package->cod ? $package->price : 0;
@@ -118,7 +119,7 @@ class HistoryController extends Controller
             ->with(['driver','status'])
             ->whereIn('status_id',[10])
             ->where('is_deleted',0)
-            ->selectRaw('id,merchant_id,arrive_warehouse_datetime,receiver_phone,receiver_address,receiver_name,cod,price,delivery_fee,status_id,remarks,driver_id,failed_datetime')
+            ->selectRaw('id,merchant_id,arrive_warehouse_datetime,receiver_phone,receiver_address,receiver_name,cod,price,delivery_fee,status_id,remarks,driver_id,failed_datetime,delivery_remarks as notes')
             ->get()
             ->map(function($package) use(&$items,$isKm){
                 $package->price = (float)$package->price;
@@ -163,7 +164,7 @@ class HistoryController extends Controller
             ->with(['driver','status'])
             ->whereIn('status_id',[19])
             ->where('is_deleted',0)
-            ->selectRaw('id,merchant_id,arrive_warehouse_datetime,receiver_phone,receiver_address,receiver_name,cod,price,delivery_fee,status_id,remarks,driver_id,failed_datetime')
+            ->selectRaw('id,merchant_id,arrive_warehouse_datetime,receiver_phone,receiver_address,receiver_name,cod,price,delivery_fee,status_id,remarks,driver_id,failed_datetime,delivery_remarks as notes')
             ->get()
             ->map(function($package) use(&$items,$isKm){
                 $package->price = (float)$package->price;
@@ -188,7 +189,7 @@ class HistoryController extends Controller
             Package::where('merchant_id',$user->id)
             ->with(['driver','status'])
             ->whereIn('status_id',[11])
-            ->selectRaw('id,merchant_id,arrive_warehouse_datetime,receiver_phone,receiver_address,receiver_name,cod,price,delivery_fee,status_id,remarks,driver_id,failed_datetime,returned_datetime,updated_at')
+            ->selectRaw('id,merchant_id,arrive_warehouse_datetime,receiver_phone,receiver_address,receiver_name,cod,price,delivery_fee,status_id,remarks,driver_id,failed_datetime,returned_datetime,updated_at,delivery_remarks as notes')
             ->get()
             ->map(function($package) use(&$items,$isKm){
                 $package->price = (float)$package->price;
