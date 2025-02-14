@@ -599,9 +599,11 @@ public static function optionsRole($type=null){
         if($trip){
             $queryDeliveryPackage = DeliveryPackage::where('delivery_id',$id)
             ->where('has_swap',0)
-            ->where(function ($q){
-                $q->where('is_deleted',0)->orWhere('delay_count',0);
-            });
+            ->where('is_deleted',0)
+            ->where('delay_count',0);
+            // ->where(function ($q){
+            //     $q->where('is_deleted',0)->orWhere('delay_count',0);
+            // });
             $deliveredCount = 0;
             $isCompleted = 1;
             $failCount = 0;

@@ -620,6 +620,7 @@ class FleetManagementController extends Controller
         ->join('users as m','m.id','p.merchant_id')
         ->where('dp.delivery_id',$tripId)
         ->where('dp.delay_count',0)
+        ->where('dp.is_deleted',0)
         ->selectRaw('p.qr_code,m.user_name as merchant_name,m.phone as merchant_phone,p.product_type,p.receiver_address,p.receiver_phone,p.zone_code,p.zone_name,p.id as package_id,dp.delivery_id,dp.delay_count,dp.status_id,p.driver_total,ts.name as status_code');
         if($startDate && $endDate){
             $startDate = date('Y-m-d H:i:s',strtotime($startDate));
