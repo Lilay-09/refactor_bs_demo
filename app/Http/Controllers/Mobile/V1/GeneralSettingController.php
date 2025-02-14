@@ -172,7 +172,7 @@ class GeneralSettingController extends Controller
         ]));
 
         if($package->status_id == 11)  return ApiResponse::Duplicated(__('messages.info',[
-            'info' => 'Package has returned.',
+            'info' => 'Package has been returned.',
             'khInfo' => 'កញ្ចប់បានយកត្រឡប់ទៅហាងរួចហើយ'
         ]));
         // $statusId = $package->status_id;

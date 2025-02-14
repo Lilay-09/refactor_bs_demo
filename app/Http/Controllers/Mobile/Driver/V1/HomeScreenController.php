@@ -399,6 +399,23 @@ class HomeScreenController extends Controller
             'info' => 'Package'
         ]));
 
+        if($package->status_id == 9) return ApiResponse::Duplicated(__('messages.info',[
+            'info' => 'This package has already been delivered!',
+            'khInfo' => 'កញ្ចប់​បានដឹករួចហើយ'
+        ]));
+
+        if($package->status_id == 11)  return ApiResponse::Duplicated(__('messages.info',[
+            'info' => 'Package has already been returned.',
+            'khInfo' => 'កញ្ចប់បានយកត្រឡប់ទៅហាងរួចហើយ'
+        ]));
+
+        if($package->driver_id !== $user->id) return ApiResponse::Duplicated(__('messages.info',[
+            'info' => 'Please submit package that belongs to you'
+        ]));
+        if($package->status_id == 19) return ApiResponse::Duplicated(__('messages.info',[
+            'info' => 'Package is already failed with fee.',
+            'khInfo' => 'កញ្ចប់ធ្លាប់បរាជ័យគិតសេវា'
+        ]));
         PackageAttachment::where('package_id',$id)->update([
             'hidden' => 1
         ]);
@@ -415,11 +432,7 @@ class HomeScreenController extends Controller
             }
         }
 
-        if($package->status_id == 9) return ApiResponse::Duplicated('This package has already been delivered!');
-        if($package->status_id == 11) return ApiResponse::Duplicated('This package has already been returned!');
-        if($package->driver_id !== $user->id) return ApiResponse::Duplicated(__('messages.info',[
-            'info' => 'Please submit package that belongs to you'
-        ]));
+
         $todayDt = Helper::getDateTime();
         $driverName = $user->user_name;
         $statusCode = $status_id == 9 ? 'Delivered' : ($status_id == 10 ? 'Failed':($status_id == 19 ? 'Failed with fee':''));
