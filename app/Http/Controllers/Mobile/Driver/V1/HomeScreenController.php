@@ -404,15 +404,20 @@ class HomeScreenController extends Controller
             'khInfo' => 'កញ្ចប់​បានដឹករួចហើយ'
         ]));
 
-        if($package->status_id == 11)  return ApiResponse::Duplicated(__('messages.info',[
+        else if($package->status_id == 10) return ApiResponse::Duplicated(__('messages.info',[
+            'info' => 'This package has summitted as failed, Only On Delivery can be summitted!',
+            'khInfo' => 'កញ្ចប់​បរាជ័យ, មានតែកញ្ចប់​ដែលកំពុងដឹកទើបប្រតិបត្តិបាន'
+        ]));
+
+        else if($package->status_id == 11)  return ApiResponse::Duplicated(__('messages.info',[
             'info' => 'Package has already been returned.',
             'khInfo' => 'កញ្ចប់បានយកត្រឡប់ទៅហាងរួចហើយ'
         ]));
 
-        if($package->driver_id !== $user->id) return ApiResponse::Duplicated(__('messages.info',[
+        else if($package->driver_id !== $user->id) return ApiResponse::Duplicated(__('messages.info',[
             'info' => 'Please submit package that belongs to you'
         ]));
-        if($package->status_id == 19) return ApiResponse::Duplicated(__('messages.info',[
+        else if($package->status_id == 19) return ApiResponse::Duplicated(__('messages.info',[
             'info' => 'Package is already failed with fee.',
             'khInfo' => 'កញ្ចប់ធ្លាប់បរាជ័យគិតសេវា'
         ]));
