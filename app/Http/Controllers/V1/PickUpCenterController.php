@@ -477,7 +477,7 @@ class PickUpCenterController extends Controller
         ->with(['driver:id,user_name,phone','merchant:id,phone,user_name','updateUser:id,user_name'])
         // ->whereNotIn('status_id',[]) // at warehouse
         ->where('company_id',$user->company_id)
-        ->selectRaw('cod,delivery_fee,zone_name,zone_code,merchant_id,driver_id,receiver_phone,receiver_address,created_at,arrive_warehouse_datetime,qr_code,remarks,price,update_uid,payer')
+        ->selectRaw('cod,extra_charge,taxi_fee,delivery_fee,zone_name,zone_code,merchant_id,driver_id,receiver_phone,receiver_address,created_at,arrive_warehouse_datetime,qr_code,remarks,price,update_uid,payer')
         ->where('order_id',$id)
         // ->orderByRaw("CASE $orderByCase END")
         ->get();
@@ -490,7 +490,7 @@ class PickUpCenterController extends Controller
             }
             $package->merchant_name = $package->merchant->user_name;
             $package->merchant_phone = $package->merchant->phone;
-            $package->delivery_fee = $package->delivery_fee + $package->taxi + $package->extra_charge;//($package->cod ? $package->price : 0);
+            $package->delivery_fee = $package->delivery_fee + $package->taxi_fee + $package->extra_charge;//($package->cod ? $package->price : 0);
             $package->base_fee = $package->delivery_fee;
             $package->created_by = $package->updateUser->user_name;
             $package->created_date = Helper::formatCustomDateTime($package->created_at,'d-M-Y');
