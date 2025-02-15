@@ -117,6 +117,7 @@ class PickupCenterService
         $pickupAddress = $inputs['pickup_address'] ?? null;
         $pickup_address_google_map = $inputs['pickup_address_google_map'] ?? $inputs['pin_address'] ?? null;
         $latLng = Helper::getLatLongFromGoogleMapsUrl($pickup_address_google_map);
+        $lang = $req->lang;
         $inputs['loc_lat'] = $inputs['loc_lat'] ?? $latLng->latitude;
         $inputs['loc_lng'] = $inputs['loc_lng'] ?? $latLng->longitude;
         if(!$pickupAddress) $inputs['pickup_address'] = $latLng->address;
@@ -159,12 +160,13 @@ class PickupCenterService
                     ]);
                 }
             }
+            $inputQty = $inputs['qty'];
             // $clmsg = new CloudMessagingService();
             $topics = GeneralSettingService::getGeneralTopics($user->company_id,'merchant',$merchantId);
             $clmsgReq = new Request([
                 'topic' => $topics->private,
                 'title' => 'Create Order',
-                'body' => ucfirst($user->account_type).' has created an order for you.',
+                'body' => $lang == 'km' ? ucfirst($user->account_type).' បានបង្កើតការកម្មង់ឲ្យ​អ្នកចំនួន'.$inputQty.'កញ្ចប់' : ucfirst($user->account_type).' has created an order for you.',
                 'type' => 'private',
                 'target_uid' => $merchantId
             ]);
@@ -176,8 +178,8 @@ class PickupCenterService
                 // $notifBody = "$validMerchant->user_name: ".$inputs['qty']."PCS, \nPickup Address:".Str::limit($pickupAddress, 25, '...');
                 // $notifTitle = 'New Order Available';
                 // if($driverId) {
-                    $notifBody = 'You have been assigned to deliver the order('.$code.') has '.$inputs['qty'].' package(s).';
-                    $notifTitle = 'Assigned Order';
+                    $notifBody = $lang == 'km' ? 'អ្នកត្រូវបានចាត់តាំងទៅយកការកម្មង់​លេខ('.$code.') ចំនួន​('.$inputQty.')កញ្ចប់':'You have been assigned to pick the order('.$code.') has '.$inputQty.' package(s).';
+                    $notifTitle = $lang == 'km' ? 'ចាត់តាំងទៅយកការកម្មង់​' : 'Assigned Order';
                 // }
                 $notifReq = new Request([
                     'topic' => $topics->private,//$driverId ? $topics->private:$topics->public,
@@ -192,7 +194,7 @@ class PickupCenterService
             DB::commit();
             return DataResponse::JsonResult(null,false,__('messages.info',[
                 'info' => 'Order created ('.$code.')',
-                'khInfo' => 'បានបង្កើត ('.$code.')'
+                'khInfo' => 'បានបង្កើតការកម្មង់លេខ ('.$code.')'
             ]));
         }catch(Exception $e){
             Log::error($e->getTraceAsString());
