@@ -163,6 +163,7 @@ class PickupCenterService
             $inputQty = $inputs['qty'];
             // $clmsg = new CloudMessagingService();
             $topics = GeneralSettingService::getGeneralTopics($user->company_id,'merchant',$merchantId);
+            Log::error(json_encode($topics));
             $clmsgReq = new Request([
                 'topic' => $topics->private,
                 'title' => 'Create Order',

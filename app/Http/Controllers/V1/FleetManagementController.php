@@ -202,6 +202,8 @@ class FleetManagementController extends Controller
             $updateArr = [
                 'update_uid' => $user->id,
                 'failure_notes' => $status_id == 10 ? $failure_notes:null,
+                'last_submit_uid' => $status_id == 10 ? $user->id:null,
+                'last_remark_user' => $status_id == 10 ? 'admin':null,
                 'failed_datetime' => $failDatetime,
                 'delivered_datetime' => $deliveredDatetime,
                 'status_id' => $status_id
