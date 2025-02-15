@@ -3,6 +3,7 @@
 namespace App\Services\Mobile;
 
 use App\Models\Delivery;
+use App\Models\PackageAttachment;
 use App\Services\GeneralSettingService;
 use DataResponse;
 use DB;
@@ -23,7 +24,7 @@ class ReusableService
         $statusIds = [9,10,11,19];
         if($reqSearch) $statusIds[] = 6;
         if($reqSearch && !$search) return DataResponse::Pagination(new Collection(),$req);
-        $qFp = Delivery::fromRaw('deliveries as d')
+        $qFp = Delivery::query()->fromRaw('deliveries as d')
         ->join('delivery_packages as dp','d.id','dp.delivery_id')
         ->where(function($q){
             $q->where('dp.delay_count',0)->where('dp.is_deleted',0);
@@ -53,6 +54,9 @@ class ReusableService
         }else if($user && $userClass=='merchant'){
             $qFp->where('p.merchant_id',$user->id);
         }
+
+        $qAt = PackageAttachment::where('hidden', 0);
+
         if($startDate && $endDate){
             $startDate = Helper::dateYMD($startDate);
             $endDate = Helper::dateYMD($endDate);
@@ -93,7 +97,12 @@ class ReusableService
                         ->where('p.status_id', 11);
                 });
             });
+            $qAt->whereBetween('updated_at', ["$startDate 00:00:00", "$endDate 23:59:59"]);
         }
+        $attachments = $qAt->limit(700)
+        ->pluck('package_id')
+        ->toArray();
+        $attachmentsLookup = array_flip($attachments);
         // else if($paymentStatus == 1) $qFp->where('pmt.approved',0);
         if($statusId) $qFp->where('p.status_id',$statusId);
         if($search) $qFp->where(function ($q) use ($search){
@@ -103,29 +112,8 @@ class ReusableService
             ->orWhere('p.qr_code', 'ilike', '%' . $search . '%')
             ->orWhere('d.fleet_tracking_number', 'ilike', '%' . $search . '%');
         });
-        $fleetPackages = $qFp->get();
-        // ->map(function ($f) use($isKm) {
-        //     $f->total = (float)$f->driver_total;
-        //     $warehouse_datetime = Helper::formatCustomDateTime($f->arrive_warehouse_datetime,'d-M-Y H:i A');
-        //     $finished_date = $f->delivered_datetime;
-        //     $statusId = $f->status_id;
-        //     $f->delivery_fee = (float)$f->delivery_fee;
-        //     $f->taxi_fee = (float)$f->taxi_fee;
-
-        //     if($statusId == 6) $finished_date = $f->arrive_warehouse_datetime;
-        //     if($statusId == 10) $finished_date = $f->failed_datetime;
-        //     if($statusId == 11) $finished_date = $f->returned_datetime;
-        //     if($statusId == 19) $finished_date = $f->failed_datetime;
-        //     if($isKm){
-        //         $f->status_code = GeneralSettingService::$statusCodeTrans[$statusId] ?? '';
-        //     }
-        //     $f->finished_datetime = Helper::formatCustomDateTime($finished_date,'d-M-Y h:i A');
-        //     $f->arrive_warehouse_datetime = $warehouse_datetime;
-        //     unset($f->failed_datetime,$f->returned_datetime,$f->delivered_datetime);
-        //     return $f;
-
-        // });
-        foreach($fleetPackages as $f){
+        // $fleetPackages = $qFp->get();
+        $callbackMapper = function ($f) use($isKm,$userClass,$attachmentsLookup){
             $warehouse_datetime = Helper::formatCustomDateTime($f->arrive_warehouse_datetime,'d-M-Y H:i A');
             $finished_date = $f->delivered_datetime;
             $f->total = $userClass == 'merchant' ? $f->merchant_total:$f->driver_total;
@@ -134,6 +122,7 @@ class ReusableService
             if($statusId == 10) $finished_date = $f->failed_datetime;
             if($statusId == 11) $finished_date = $f->returned_datetime;
             if($statusId == 19) $finished_date = $f->failed_datetime;
+            $f->has_img = isset($attachmentsLookup[$f->package_id]);
             if($isKm){
                 $f->status_code = GeneralSettingService::$statusCodeTrans[$statusId] ?? '';
             }
@@ -145,7 +134,9 @@ class ReusableService
             $f->finished_datetime = Helper::formatCustomDateTime($finished_date,'d-M-Y h:i A');
             $f->arrive_warehouse_datetime = $warehouse_datetime;
             unset($f->failed_datetime,$f->returned_datetime,$f->delivered_datetime);
-        }
-        return DataResponse::Pagination($fleetPackages,$req);
+            return $f;
+        };
+
+        return DataResponse::PaginationV1($qFp,$req,null,[],500,$callbackMapper);
     }
 }

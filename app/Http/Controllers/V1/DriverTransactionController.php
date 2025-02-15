@@ -28,13 +28,14 @@ class DriverTransactionController extends Controller
         $driverId = $req->driver_id;
         $startDate = $req->startDate;
         $endDate = $req->endDate;
-        $qD = User::selectRaw('code,id,user_name as driver_name,phone as driver_phone')->where('account_type','driver');
+        $qD = User::query()->selectRaw('code,id,user_name as driver_name,phone as driver_phone')->where('account_type','driver');
         if($driverId) $qD->where('id',$driverId);
-        $driverInfo = $qD->get();
-        $qP = Package::selectRaw('status_id,driver_id')
+        // $driverInfo = $qD->get();
+        $qP = Package::query()->selectRaw('status_id,driver_id')
         ->whereIn('status_id',[9,19])
         ->where('is_deleted',0)
         ->whereNull('driver_commission_id');
+        $qO = Order::query()->where('is_deleted',0)->whereNull('driver_commission_id')->where('status_id',5);
         if($startDate && $endDate){
             $startDate = Helper::dateYMD($startDate);
             $endDate = Helper::dateYMD($endDate);
@@ -48,22 +49,20 @@ class DriverTransactionController extends Controller
                 "$startDate 00:00:00", "$endDate 23:59:59",
                 "$startDate 00:00:00", "$endDate 23:59:59"
             ]);
-        }
-        if($driverId) $qP->where('driver_id',$driverId);
-        $packages = $qP->get();
-        $qO = Order::where('is_deleted',0)->whereNull('driver_commission_id')->where('status_id',5);
-        if($driverId) $qO->where('driver_id',$driverId);
-        if($startDate && $endDate){
-            $startDate = date('Y-m-d',strtotime($startDate));
-            $endDate = date('Y-m-d',strtotime($endDate));
-            // $qO->whereRaw('DATE(order_datetime) >= ? AND DATE(order_datetime) <= ?', [$startDate,$endDate]);
+
             $qO->whereBetween('order_datetime', [$startDate . ' 00:00:00', $endDate . ' 23:59:59']);
         }
+        $qDc = DriverCommission::query()->where('is_deleted',0)->selectRaw('id,driver_id,delivery_type,pickup_commission,delivery_commission');
+        if($driverId) {
+            $qP->where('driver_id',$driverId);
+            $qO->where('driver_id',$driverId);
+            $qDc->where('driver_id',$driverId);
+        }
+        $packages = $qP->get();
         $orders = $qO->get();
-        $qDc = DriverCommission::where('is_deleted',0)->selectRaw('id,driver_id,delivery_type,pickup_commission,delivery_commission');
-        if($driverId) $qDc->where('driver_id',$driverId);
+        // if($driverId)
         $driverCommissions = $qDc->get();
-        foreach($driverInfo as $driver){
+        $clbMapper = function ($driver) use($driverCommissions,$orders,$packages) {
             $commissionInfo = $this->getDriverCommissionInfo($driverCommissions,$driver->id);
             $driver->pickup_rate = $commissionInfo->normal_pickup_commission;
             $driver->delivery_rate = $commissionInfo->normal_delivery_commission;
@@ -81,8 +80,10 @@ class DriverTransactionController extends Controller
                 if(!$b->bank_account) $driver->bank_account = GeneralSettingService::concatBankInfo($b->bank_name,$b->bank_number,$b->account_name);
             }
             unset($driver->bank_accounts);
-        }
-        return ApiResponse::Pagination($driverInfo,$req);
+            return $driver;
+        };
+        return ApiResponse::PaginationV1($qD,$req,null,[],200,$clbMapper);
+        // return ApiResponse::Pagination($driverInfo,$req);
     }
 
     public function getDriverCommissionTrx(Request $req){

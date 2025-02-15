@@ -279,8 +279,6 @@ class HomeController extends Controller
             unset($package->driver);
             return $package;
         });
-
-
         return ApiResponse::Pagination($packages,$req);
     }
 
@@ -451,13 +449,13 @@ class HomeController extends Controller
         if(!$phone) return ApiResponse::ValidateFail(__('messages.info',[
             'info' => 'Enter your customer phone number to continue'
         ]));
-        $qP = Package::where('merchant_id',$user->id)
+        $qP = Package::query()->where('merchant_id',$user->id)
         ->with(['driver','status'])
         ->whereIn('status_id',[10,11,19,9,6])
         ->where('is_deleted',0)
         ->where('receiver_phone',$phone)
         ->selectRaw('id,delivered_datetime,merchant_id,arrive_warehouse_datetime,receiver_phone,receiver_address,receiver_name,cod,price,delivery_fee,status_id,remarks,driver_id,failed_datetime,returned_datetime');
-
+         $qAt = PackageAttachment::where('hidden', 0);
         if($startDate && $endDate){
             $startDate = Helper::dateYMD($startDate);
             $endDate = Helper::dateYMD($endDate);
@@ -492,12 +490,16 @@ class HomeController extends Controller
                         ->where('status_id', 11);
                 });
             });
+            $qAt->whereBetween('updated_at', ["$startDate 00:00:00", "$endDate 23:59:59"]);
         }
         if($statusId) $qP->where('status_id', $statusId);
-
-        $packages = $qP->get();
-        foreach($packages as $package){
+        $attachments = $qAt->limit(700)
+        ->pluck('package_id')
+        ->toArray();
+        $attachmentsLookup = array_flip($attachments);
+        $callbackMapper = function($package) use($attachmentsLookup){
             $package->price = (float)$package->price;
+            $package->has_img = isset($attachmentsLookup[$package->package_id]);
             $package->cod_fee = $package->cod ? $package->price : 0;
             $package->status_code = $package->status->name;
             $package->driver_phone = $package->driver->phone;
@@ -511,8 +513,10 @@ class HomeController extends Controller
             if($rowStatusId == 9) $finished_date = $package->delivered_datetime;
             $package->finished_datetime = Helper::formatCustomDateTime($finished_date,'d-M-Y h:i A');
             unset($package->driver,$package->status);
-        }
-        return ApiResponse::Pagination($packages,$req);
+            return $package;
+        };
+
+        return ApiResponse::PaginationV1($qP,$req,[],500,$callbackMapper);
     }
 
     public function getSearchPackages(Request $req){

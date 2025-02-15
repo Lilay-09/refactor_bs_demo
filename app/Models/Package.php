@@ -22,6 +22,8 @@ class Package extends Model
     protected $fillable = [
         'id',
         'qr_code',
+        'last_submit_uid',
+        'last_remark_user',
         'package_name',
         'product_type',
         'returned_uid',

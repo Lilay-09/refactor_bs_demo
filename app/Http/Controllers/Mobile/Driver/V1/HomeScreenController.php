@@ -382,6 +382,7 @@ class HomeScreenController extends Controller
         if($validate->fails()) return ApiResponse::ValidateFail($validate->errors()->first());
         $inputs = $validate->validated();
         $status_id = $inputs['status_id'];
+        $inputs['last_submit_uid'] = $user->id;
         // $amount = $inputs['amount'] ?? 0;
         // $inputs['price'] = $amount;
         // $inputs['cod'] = $amount > 0 ? true:false;

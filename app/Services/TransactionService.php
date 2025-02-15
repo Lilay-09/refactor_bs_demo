@@ -33,7 +33,7 @@ class TransactionService
         $search = $req->search;
         $pmtKey = $type.'_payment_id';
         $disKey = $type.'_disbursement_id';
-        $qP = Package::fromRaw('packages as p')->where('p.company_id',$user->company_id)
+        $qP = Package::query()->fromRaw('packages as p')->where('p.company_id',$user->company_id)
         ->where('p.is_deleted',0)
         ->join('users as d','d.id','p.driver_id')
         ->join('tracking_statuses as ts','ts.id','p.status_id')
@@ -88,9 +88,12 @@ class TransactionService
                 $q->whereNull('p.merchant_payment_id')->whereNull('p.merchant_disbursement_id');
             });
         }
-        $packages = $qP->get();
+        // $packages = $qP->get();
         $statusKey = $type.'_payment_status';
-        foreach($packages as $package){
+        // foreach($packages as $package){
+
+        // }
+        $clbMapper = function($package) use($statusKey,$type){
             $cod = $package->cod;
             $package->cod = $cod ? 'Yes' : 'No';
             $package->{$statusKey} = (!$package->{$type.'_payment_id'} && !$package->{$type.'_disbursement_id'}) ? 'Unpaid':'Paid';
@@ -104,10 +107,10 @@ class TransactionService
                     $package->total = $package->payer == 'sender' ? -self::getPackageTotal($type,$cod,0,0,$package->extra_charge,$package->additional_fee,$package->delivery_fee,$package->payer):0;
                 }else $package->{$type.'_total'} = $package->payer == 'receiver' ? $package->delivery_fee + $package->extra_charge : 0;
             }
-
             $package->fee = Helper::getNumber($package->delivery_fee + $package->extra_charge + $package->additional_fee,2);
-        }
-        return DataResponse::Pagination($packages,$req);
+            return $package;
+        };
+        return DataResponse::PaginationV1($qP,$req,null,[],1000,$clbMapper);
     }
 
     public static function getPackageTotal($type,$cod,$price,$taxiFee,$extraCharge,$additionalFee,$baseFee,$payer){
@@ -635,6 +638,7 @@ class TransactionService
         $endDate = $req->endDate;
         $transactionType = $req->transaction_type ?? null;
         $allPayments = [];
+        Log::info($req->all());
         if(!$transactionType || $transactionType == 'receive'){
             $qP = Payment::fromRaw('payments as p')->join('users as d','d.id','p.payer_id')
             ->where('p.is_deleted',0)
@@ -647,7 +651,7 @@ class TransactionService
                 $startDate = Helper::dateYMD($startDate);
                 $endDate = Helper::dateYMD($endDate);
                 $qP->where(function($q) use($startDate,$endDate){
-                    $q->whereRaw('payment_datetime >= ? AND payment_datetime <= ?', [$startDate . ' 00:00:00', $endDate . ' 23:59:59']);
+                    $q->whereRaw('p.payment_datetime >= ? AND p.payment_datetime <= ?', [$startDate . ' 00:00:00', $endDate . ' 23:59:59']);
                 });
             }
             $payments = $qP->get();
@@ -670,15 +674,22 @@ class TransactionService
 
         if($transactionType == 'disbursement' || !$transactionType){
             $paymentDetails = DisbursementDetails::get();
-            $disbursements = Disbursement::fromRaw('disbursements as dis')
+            $qD = Disbursement::fromRaw('disbursements as dis')
             ->where('dis.is_deleted',0)
             ->where('dis.type','payment')
             ->join('users as d','d.id','dis.payee_id')
             ->join('users as ap','ap.id','dis.receiptionist_uid')
             ->where('payee_type',$type)
             ->selectRaw('dis.is_settled,dis.payment_datetime,dis.package_count,dis.cod_amount,dis.delivery_fee,ap.user_name as booked_user,dis.payable_amount,dis.id as payment_id,d.user_name as merchant_name,dis.exchange_rate,dis.taxi_fee,dis.approved,dis.breakdown_notes,dis.remarks')
-            ->orderByDesc('dis.payment_datetime')
-            ->get();
+            ->orderByDesc('dis.payment_datetime');
+            if($startDate && $endDate){
+                $startDate = Helper::dateYMD($startDate);
+                $endDate = Helper::dateYMD($endDate);
+                $qD->where(function($q) use($startDate,$endDate){
+                    $q->whereRaw('dis.payment_datetime >= ? AND dis.payment_datetime <= ?', [$startDate . ' 00:00:00', $endDate . ' 23:59:59']);
+                });
+            }
+            $disbursements = $qD->get();
             foreach($disbursements as $d){
                 $pmt_details = $this->preparePaymentPackageAmount($paymentDetails,$d->payment_id);
                 $totalUSD = $pmt_details->total_usd;
@@ -1104,6 +1115,7 @@ class TransactionService
                 'package_count' => $packageTotal,
             ];
         })->values();
+
         return DataResponse::Pagination(collect($groupData),$req,__('messages.Get List'),[
             'total_packages' => $totalPackages,
             'total_cod' => (float)Helper::getNumber($totalCod),

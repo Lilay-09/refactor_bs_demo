@@ -61,9 +61,9 @@ class GeneralSettingController extends Controller
     }
 
     public function getPackageImages(Request $req){
-        $packageId = $req->query('package_id');
+        $id = $req->package_id;
         $user = UserService::getAuthUser();
-        $images = PackageAttachment::where('package_id', $packageId)
+        $images = PackageAttachment::where('package_id', $id)
         ->take(2)  // Limit to the 2 most recent images
         ->where('hidden',0)
         ->pluck('file_name')

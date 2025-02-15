@@ -6,6 +6,7 @@ use ApiResponse;
 use App\Http\Controllers\Controller;
 use App\Models\Delivery;
 use App\Models\Package;
+use App\Models\PackageAttachment;
 use App\Models\TrackingStatus;
 use App\Services\GeneralSettingService;
 use App\Services\UserService;
@@ -45,6 +46,8 @@ class ReportController extends Controller
             END', [9, 19, 11,10]
         )->orderByRaw('DATE(failed_datetime) DESC,DATE(delivered_datetime) DESC');
         if(is_numeric($statusId)) $qP->where('status_id',$statusId);
+        $qAt = PackageAttachment::where('hidden', 0)
+        ->limit(700);
         if($startDate && $endDate){
             $startDate = Helper::dateYMD($startDate);
             $endDate = Helper::dateYMD($endDate);
@@ -65,11 +68,16 @@ class ReportController extends Controller
                     ->where('status_id', 11);
                 });
             });
+            $qAt->whereBetween('updated_at', ["$startDate 00:00:00", "$endDate 23:59:59"]);
         }
         $packages = $qP->get();
+        $attachments = $qAt->pluck('package_id')
+        ->toArray();
+        $attachmentsLookup = array_flip($attachments);
         // return $packages;
-        $groupedPackages = collect($packages)->map(function ($item) {
+        $groupedPackages = collect($packages)->map(function ($item) use($attachmentsLookup) {
             $finishDate = $item->failed_datetime;
+            $item->has_img = isset($attachmentsLookup[$item->id]);
             if ($item->status_id == 9) $finishDate = $item->delivered_datetime;
             if ($item->status_id == 5) $finishDate = $item->arrive_warehouse_datetime;
             if ($item->status_id == 6) {
@@ -161,15 +169,16 @@ class ReportController extends Controller
         $endDate = $req->endDate;
         $userId = $user->id;
         $isKm = $req->lang != 'en';
-        $paymentStatus = $req->payment_status_id ?? null;
+        // $paymentStatus = $req->payment_status_id ?? null;
         $statusId = $req->status_id ?? null;
-        $search = $req->search ?? null;
+        // $search = $req->search ?? null;
         $merchantInfo = GeneralSettingService::getMerchantById($userId);
         $qP = Package::where('is_deleted',0)
         ->whereIn('status_id',[9,10,19,11])
         ->where('merchant_id',$userId)
-        ->with(['driver:id,user_name,phone','returnUser:id,user_name,phone'])
-        ->selectRaw('id,payer,cod,driver_id,qr_code,extra_charge,delivery_fee,extra_charge,price,status_id,failed_datetime,delivered_datetime,returned_datetime,receiver_phone,receiver_address,remarks');
+        // ->with(['driver:id,user_name,phone','returnUser:id,user_name,phone'])
+        // ->selectRaw('id,payer,cod,driver_id,qr_code,extra_charge,delivery_fee,extra_charge,price,status_id,failed_datetime,delivered_datetime,returned_datetime,receiver_phone,receiver_address,remarks');
+        ->selectRaw('id,payer,cod,driver_id,qr_code,extra_charge,delivery_fee,extra_charge,price,status_id,failed_datetime,delivered_datetime,returned_datetime,receiver_phone,receiver_address');
         $qP->orderByRaw('
             CASE
                 WHEN status_id = ? THEN 1
@@ -217,9 +226,11 @@ class ReportController extends Controller
             return $item;
         })->groupBy('groupDate')
         ->map(function ($group, $date) use ($isKm){
-            $group->each(function ($item) use ($isKm,&$totalDeliveryFee) {
-                $item->driver_name = $item->driver?->user_name;
-                $item->driver_phone = $item->driver?->phone;
+            $totalPrice = 0;
+            $totalFees = 0;
+            $group->each(function ($item) use ($isKm,&$totalDeliveryFee,&$totalPrice,&$totalFees) {
+                // $item->driver_name = $item->driver?->user_name;
+                // $item->driver_phone = $item->driver?->phone;
                 if(!$item->driver) {
                     $item->driver_name = $item->returnUser?->user_name;
                     $item->driver_phone = $item->returnUser?->phone;
@@ -229,12 +240,15 @@ class ReportController extends Controller
                 $item->finished_time = $finished_time;
                 $isCal = in_array($item->status_id,[9,19]);
                 $item->price = $item->cod ? (float)$item->price:0;
+
+                $totalPrice += $item->price;
                 $item->extra_charge = (float)$item->extra_charge;
                 $total = ($item->cod && $item->status_id == 9) ? $item->price : 0;
                 if($item->payer == 'sender') {
                     $item->delivery_fee = $isCal ? (float)Helper::getNumber(($item->delivery_fee + $item->extra_charge)) : 0;
                     $total -= $item->delivery_fee + $item->extra_charge + $item->taxi_fee;
                 }else $item->delivery_fee = 0;
+                $totalFees += $item->delivery_fee;
                 $totalDeliveryFee += $item->delivery_fee;
                 $item->total = $isCal ? (float)Helper::getNumber($total) : 0;
                 // $total += $item->total;
@@ -262,7 +276,10 @@ class ReportController extends Controller
                 'date' => $date,
                 'list' => $group->toArray(),
                 'total' => [
-                    'grand' => $group->sum('total')
+                    'grand' => $group->sum('total'),
+                    'price' => $totalPrice,
+                    'fees' => $totalFees
+
                 ],
             ];
         })->values();
