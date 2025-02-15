@@ -33,7 +33,7 @@ class TransactionService
         $search = $req->search;
         $pmtKey = $type.'_payment_id';
         $disKey = $type.'_disbursement_id';
-        $qP = Package::fromRaw('packages as p')->where('p.company_id',$user->company_id)
+        $qP = Package::query()->fromRaw('packages as p')->where('p.company_id',$user->company_id)
         ->where('p.is_deleted',0)
         ->join('users as d','d.id','p.driver_id')
         ->join('tracking_statuses as ts','ts.id','p.status_id')
@@ -88,9 +88,12 @@ class TransactionService
                 $q->whereNull('p.merchant_payment_id')->whereNull('p.merchant_disbursement_id');
             });
         }
-        $packages = $qP->get();
+        // $packages = $qP->get();
         $statusKey = $type.'_payment_status';
-        foreach($packages as $package){
+        // foreach($packages as $package){
+
+        // }
+        $clbMapper = function($package) use($statusKey,$type){
             $cod = $package->cod;
             $package->cod = $cod ? 'Yes' : 'No';
             $package->{$statusKey} = (!$package->{$type.'_payment_id'} && !$package->{$type.'_disbursement_id'}) ? 'Unpaid':'Paid';
@@ -104,10 +107,10 @@ class TransactionService
                     $package->total = $package->payer == 'sender' ? -self::getPackageTotal($type,$cod,0,0,$package->extra_charge,$package->additional_fee,$package->delivery_fee,$package->payer):0;
                 }else $package->{$type.'_total'} = $package->payer == 'receiver' ? $package->delivery_fee + $package->extra_charge : 0;
             }
-
             $package->fee = Helper::getNumber($package->delivery_fee + $package->extra_charge + $package->additional_fee,2);
-        }
-        return DataResponse::Pagination($packages,$req);
+            return $package;
+        };
+        return DataResponse::PaginationV1($qP,$req,null,[],1000,$clbMapper);
     }
 
     public static function getPackageTotal($type,$cod,$price,$taxiFee,$extraCharge,$additionalFee,$baseFee,$payer){
@@ -1112,6 +1115,7 @@ class TransactionService
                 'package_count' => $packageTotal,
             ];
         })->values();
+
         return DataResponse::Pagination(collect($groupData),$req,__('messages.Get List'),[
             'total_packages' => $totalPackages,
             'total_cod' => (float)Helper::getNumber($totalCod),

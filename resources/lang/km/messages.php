@@ -1,11 +1,12 @@
 <?php
 return [
-    'get_price_list' => 'តេស្ត',
+    // 'get_price_list' => 'តេស្ត',
     'not_found' => 'រក:khInfoមិនឃើញ',
     'error' => ':khInfo',
     'info' => ':khInfo',
     'created' => ':khInfo',
     'cancel' => 'បោះបង់',
     'assigned' => ':khInfo',
-    'all' => 'ទាំងអស់'
+    'all' => 'ទាំងអស់',
+    'saved' => 'បានរក្សាទុក',
 ];

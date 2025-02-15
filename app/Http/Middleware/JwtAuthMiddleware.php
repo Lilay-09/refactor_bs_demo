@@ -36,7 +36,7 @@ class JwtAuthMiddleware
             else {
                 $token = JWTAuth::parseToken()->authenticate();
             }
-            $hasUser = UserService::getAuthUser();
+            $hasUser = UserService::getUserAuthAccess();
 
             if(!$hasUser->error){
                 $payload = JWTAuth::getPayload($token);
@@ -49,7 +49,7 @@ class JwtAuthMiddleware
                     'errors' => []
                 ],403);
             }else{
-                return ApiResponse::Unauthorized($hasUser->message.'33');
+                return ApiResponse::Unauthorized($hasUser->message);
             }
             $checkDeleteAndSuperAdmin = new ProtectedRoute($hasUser);
 

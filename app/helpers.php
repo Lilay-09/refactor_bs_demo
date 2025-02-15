@@ -97,9 +97,10 @@ class ApiResponse
     static function PaginationV1($query, $filter = null, $message = null, $additionalKey = [], $limit = 1000, callable $transformCallback = null)
     {
         $filter = (object)$filter;
-        $perPage = isset($filter->per_page) ? ($filter->per_page == 0 ? 1 : $filter->per_page) : 10;
+        $perPage = isset($filter->per_page) ? ($filter->per_page == 0 ? 1 : min($filter->per_page, $limit)) : min(10, $limit);
         $currentPage = isset($filter->page_no) ? $filter->page_no : 1;
 
+        $query->take($limit);
         // Execute pagination on the query
         $data = $query->paginate($perPage, ['*'], 'page', $currentPage);
 
@@ -1007,8 +1008,10 @@ class DataResponse //extends Model
     static function PaginationV1($query, $filter = null, $message = null, $additionalKey = [], $limit = 1000, callable $transformCallback = null)
     {
         $filter = (object)$filter;
-        $perPage = isset($filter->per_page) ? ($filter->per_page == 0 ? 1 : $filter->per_page) : 10;
+        $perPage = isset($filter->per_page) ? ($filter->per_page == 0 ? 1 : min($filter->per_page, $limit)) : min(10, $limit);
         $currentPage = isset($filter->page_no) ? $filter->page_no : 1;
+
+        $query->take($limit);
 
         // Execute pagination on the query
         $data = $query->paginate($perPage, ['*'], 'page', $currentPage);

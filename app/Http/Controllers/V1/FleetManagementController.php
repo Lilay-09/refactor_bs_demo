@@ -130,7 +130,7 @@ class FleetManagementController extends Controller
         $trip_id = $req->trip_id;
         $isKm = $req->lang == 'km';
         $search = $req->search;
-        $qP = Package::fromRaw('packages as p')->join('delivery_packages as dp','p.id','dp.package_id')
+        $qP = Package::query()->fromRaw('packages as p')->join('delivery_packages as dp','p.id','dp.package_id')
         ->where('dp.is_deleted',0)
         // ->where('dp.delay_count', 0)
         ->whereIn('dp.status_id',[6,9,10,19])
@@ -149,13 +149,16 @@ class FleetManagementController extends Controller
         if ($search && str_starts_with($search, 'JPK')) {
             $qP->where('p.qr_code',$search);
         }
-        $packages = $qP->get();
-        foreach($packages as $package){
+        // $packages = $qP->get();
+        $clbMapper = function ($package) use($isKm){
             $package->delivery_fee = $package->base_fee + $package->extra_charge;
             if($isKm) $package->status_code = GeneralSettingService::$statusCodeTrans[$package->status_id] ?? '';
             unset($package->status);
-        }
-        return ApiResponse::Pagination($packages,$req,__('messages.get_list',['info' => 'Package']));
+            return $package;
+        };
+
+        return ApiResponse::PaginationV1($qP,$req,null,[],200,$clbMapper);
+        // return ApiResponse::Pagination($packages,$req,__('messages.get_list',['info' => 'Package']));
     }
 
     public function setPackageStatus(Request $req){

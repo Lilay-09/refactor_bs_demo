@@ -397,20 +397,21 @@ class PickUpCenterController extends Controller
     public function getPackagesByOrderId(Request $req){
         $user = UserService::getAuthUser();
         $orderId = $req->order_id;
-        $qP = Package::where('order_id',$orderId)->whereIn('status_id',[1,3,7])->with(['status'])->where('company_id',$user->company_id)
+        $qP = Package::query()->where('order_id',$orderId)->whereIn('status_id',[1,3,7])->with(['status'])->where('company_id',$user->company_id)
                 ->selectRaw('merchant_id,order_id,id,id as package_id,taxi_fee,delivery_type,qr_code,price,driver_id,product_type,dim_z,dim_x,dim_y,status_id,failure_notes,payer,cod,delivery_fee,receiver_address,zone_code,zone_name,receiver_name,receiver_phone,delivered_datetime,assign_driver_datetime,arrive_warehouse_datetime,driver_total,merchant_total,extra_charge,additional_fee,remarks,billed_kg,actual_kg,pickup_notes')
                 ->orderBy('id')
         ->where('is_deleted',0);
         $count = $qP->count();
-        $packages = $qP->get();
-        foreach ($packages as $pkg){
+        // $packages = $qP->get();
+        $clbMapper = function ($pkg){
             $pkg->cod = $pkg->cod? 1:0;
             $pkg->total = $pkg->driver_total;//PickupCenterService::getDriverTotal($pkg->cod,$pkg->payer,$pkg->price,$pkg->delivery_fee,$pkg->additional_fee,$pkg->extra_charge);
             $pkg->fee = ($pkg->payer == 'receiver' ? $pkg->delivery_fee : 0) + $pkg->extra_charge + $pkg->additional_fee;
             unset($pkg->status);
-        }
+            return $pkg;
+        };
         $req->per_page = $count;
-        return ApiResponse::Pagination($packages,$req);
+        return ApiResponse::PaginationV1($qP,$req,null,[],250,$clbMapper);
         // $qI = OrderImage::where('order_id',$orderId)->selectRaw('id as photo_id,photo_file_name');
         // $pkgCount = $qP->count();
         // $imgCount = $qI->count();
