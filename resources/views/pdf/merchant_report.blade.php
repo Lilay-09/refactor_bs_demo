@@ -116,13 +116,14 @@
                             <td colspan="3" style="border: none;"></td>
                             <td>{{$tracking['total']['price'] ?? ''}}</td>
                             <td>{{$tracking['total']['fees'] ?? ''}}</td>
+                            <td colspan="2">Total: ${{ number_format($tracking['total']['grand'] ?? 0, 2) }}</td>
                         </tr>
                     </tbody>
                 </table>
 
-                <div class="footer">
+                {{-- <div class="footer">
                     Grand Total: ${{ number_format($tracking['total']['grand'] ?? 0, 2) }}
-                </div>
+                </div> --}}
             @endforeach
         @else
             <p class="no-data">No data available</p>
