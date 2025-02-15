@@ -74,26 +74,36 @@
                     <thead>
                         <tr>
                             <th>#</th>
-                            <th>Driver</th>
-                            <th>Receiver Phone</th>
                             <th>Receiver Address</th>
+                            <th>Receiver Phone</th>
+                            <th>COD</th>
+                            <th>Fees</th>
                             <th>Status</th>
                             <th>Total</th>
                         </tr>
                     </thead>
                     <tbody>
                         @if(isset($tracking['list']))
+                            @php
+                                $colorCode = [
+                                    10 => '#e64349',
+                                    9  => '#2fbb66',
+                                    19 => '#cf4bdf',
+                                    11 => '#808080'
+                                ];
+                            @endphp
                             @foreach($tracking['list'] as $idx => $item)
                                 <tr>
                                     <td>{{ $idx + 1 }}</td>
-                                    <td>
-                                        {{-- {{$item}} --}}
+                                    <td>{{ $item['receiver_address'] ?? '' }}</td>
+                                    {{-- <td>
                                         <span>{{ $item['driver_name'] ?? '' }}</span>
                                         <small>({{ $item['driver_phone'] ?? '' }})</small>
-                                    </td>
+                                    </td> --}}
                                     <td>{{ $item['receiver_phone'] ?? '' }}</td>
-                                    <td>{{ $item['receiver_address'] ?? '' }}</td>
-                                    <td>{{ $item['status_code'] ?? '' }}</td>
+                                    <td>{{ $item['price'] ?? '' }}</td>
+                                    <td>{{ $item['delivery_fee'] ?? '' }}</td>
+                                    <td style="color:{{$colorCode[$item['status_id']] ?? ''}}">{{ $item['status_code'] ?? '' }}</td>
                                     <td>${{ number_format($item['total'] ?? 0, 2) }}</td>
                                 </tr>
                             @endforeach

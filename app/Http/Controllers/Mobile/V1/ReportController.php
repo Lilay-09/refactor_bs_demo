@@ -169,15 +169,16 @@ class ReportController extends Controller
         $endDate = $req->endDate;
         $userId = $user->id;
         $isKm = $req->lang != 'en';
-        $paymentStatus = $req->payment_status_id ?? null;
+        // $paymentStatus = $req->payment_status_id ?? null;
         $statusId = $req->status_id ?? null;
-        $search = $req->search ?? null;
+        // $search = $req->search ?? null;
         $merchantInfo = GeneralSettingService::getMerchantById($userId);
         $qP = Package::where('is_deleted',0)
         ->whereIn('status_id',[9,10,19,11])
         ->where('merchant_id',$userId)
-        ->with(['driver:id,user_name,phone','returnUser:id,user_name,phone'])
-        ->selectRaw('id,payer,cod,driver_id,qr_code,extra_charge,delivery_fee,extra_charge,price,status_id,failed_datetime,delivered_datetime,returned_datetime,receiver_phone,receiver_address,remarks');
+        // ->with(['driver:id,user_name,phone','returnUser:id,user_name,phone'])
+        // ->selectRaw('id,payer,cod,driver_id,qr_code,extra_charge,delivery_fee,extra_charge,price,status_id,failed_datetime,delivered_datetime,returned_datetime,receiver_phone,receiver_address,remarks');
+        ->selectRaw('id,payer,cod,driver_id,qr_code,extra_charge,delivery_fee,extra_charge,price,status_id,failed_datetime,delivered_datetime,returned_datetime,receiver_phone,receiver_address');
         $qP->orderByRaw('
             CASE
                 WHEN status_id = ? THEN 1
@@ -226,8 +227,8 @@ class ReportController extends Controller
         })->groupBy('groupDate')
         ->map(function ($group, $date) use ($isKm){
             $group->each(function ($item) use ($isKm,&$totalDeliveryFee) {
-                $item->driver_name = $item->driver?->user_name;
-                $item->driver_phone = $item->driver?->phone;
+                // $item->driver_name = $item->driver?->user_name;
+                // $item->driver_phone = $item->driver?->phone;
                 if(!$item->driver) {
                     $item->driver_name = $item->returnUser?->user_name;
                     $item->driver_phone = $item->returnUser?->phone;
