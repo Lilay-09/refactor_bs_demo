@@ -304,8 +304,8 @@ class PackageTrailController extends Controller
         }
         $package->merchant_name = $package->merchant->user_name;
         $package->merchant_phone = $package->merchant->phone;
-        $package->base_fee = $package->delivery_fee;
         $package->delivery_fee = $package->delivery_fee + $package->taxi + $package->extra_charge;//($package->cod ? $package->price : 0);
+        $package->base_fee = $package->delivery_fee;
         $package->created_by = $package->updateUser->user_name;
         $package->created_date = Helper::formatCustomDateTime($package->created_at,'d-M-Y');
         $package->warehouse_at = Helper::dateDMY($package->arrive_warehouse_datetime);
@@ -352,8 +352,8 @@ class PackageTrailController extends Controller
             }
             $package->merchant_name = $package->merchant->user_name;
             $package->merchant_phone = $package->merchant->phone;
-            $package->base_fee = $package->delivery_fee;
             $package->delivery_fee = $package->delivery_fee + $package->taxi + $package->extra_charge;//($package->cod ? $package->price : 0);
+            $package->base_fee = $package->delivery_fee;
             $package->created_by = $package->updateUser->user_name;
             $package->created_date = Helper::formatCustomDateTime($package->created_at,'d-M-Y');
             $package->warehouse_at = Helper::dateDMY($package->arrive_warehouse_datetime);
