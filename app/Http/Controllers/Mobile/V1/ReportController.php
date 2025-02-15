@@ -226,7 +226,9 @@ class ReportController extends Controller
             return $item;
         })->groupBy('groupDate')
         ->map(function ($group, $date) use ($isKm){
-            $group->each(function ($item) use ($isKm,&$totalDeliveryFee) {
+            $totalPrice = 0;
+            $totalFees = 0;
+            $group->each(function ($item) use ($isKm,&$totalDeliveryFee,&$totalPrice,&$totalFees) {
                 // $item->driver_name = $item->driver?->user_name;
                 // $item->driver_phone = $item->driver?->phone;
                 if(!$item->driver) {
@@ -238,12 +240,15 @@ class ReportController extends Controller
                 $item->finished_time = $finished_time;
                 $isCal = in_array($item->status_id,[9,19]);
                 $item->price = $item->cod ? (float)$item->price:0;
+
+                $totalPrice += $item->price;
                 $item->extra_charge = (float)$item->extra_charge;
                 $total = ($item->cod && $item->status_id == 9) ? $item->price : 0;
                 if($item->payer == 'sender') {
                     $item->delivery_fee = $isCal ? (float)Helper::getNumber(($item->delivery_fee + $item->extra_charge)) : 0;
                     $total -= $item->delivery_fee + $item->extra_charge + $item->taxi_fee;
                 }else $item->delivery_fee = 0;
+                $totalFees += $item->delivery_fee;
                 $totalDeliveryFee += $item->delivery_fee;
                 $item->total = $isCal ? (float)Helper::getNumber($total) : 0;
                 // $total += $item->total;
@@ -271,7 +276,10 @@ class ReportController extends Controller
                 'date' => $date,
                 'list' => $group->toArray(),
                 'total' => [
-                    'grand' => $group->sum('total')
+                    'grand' => $group->sum('total'),
+                    'price' => $totalPrice,
+                    'fees' => $totalFees
+
                 ],
             ];
         })->values();

@@ -112,8 +112,14 @@
                                 <td colspan="6" class="no-data">No details available</td>
                             </tr>
                         @endif
+                        <tr>
+                            <td colspan="3" style="border: none;"></td>
+                            <td>{{$tracking['total']['price'] ?? ''}}</td>
+                            <td>{{$tracking['total']['fees'] ?? ''}}</td>
+                        </tr>
                     </tbody>
                 </table>
+
                 <div class="footer">
                     Grand Total: ${{ number_format($tracking['total']['grand'] ?? 0, 2) }}
                 </div>
