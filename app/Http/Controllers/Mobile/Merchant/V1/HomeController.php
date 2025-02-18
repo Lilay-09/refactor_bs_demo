@@ -227,7 +227,7 @@ class HomeController extends Controller
             else $package->status_code = 'On Delivery';
             $package->driver_phone = $package->driver->phone ?? null; // Ensure driver relationship exists
             $package->driver_name = $package->driver->user_name ?? null;
-            $package->total = (float) $package->cod_fee + $package->delivery_fee;
+            $package->total = (float) $package->cod_fee;
             $package->delivery_fee = (float) $package->delivery_fee;
             $package->fee = $package->delivery_fee;
             $package->arrive_warehouse_datetime = Helper::formatCustomDateTime($package->arrive_warehouse_datetime);
@@ -271,7 +271,7 @@ class HomeController extends Controller
             else $package->status_code = 'Delivered';
             $package->driver_phone = $package->driver->phone;
             $package->driver_name = $package->driver->user_name;
-            $package->total = (float)$package->cod_fee + $package->delivery_fee;
+            $package->total = (float)$package->cod_fee;
             $package->delivery_fee = (float)$package->delivery_fee;
             $package->arrive_warehouse_datetime = Helper::formatCustomDateTime($package->arrive_warehouse_datetime);
             $package->delivered_datetime = Helper::formatCustomDateTime($package->delivered_datetime);
@@ -309,7 +309,7 @@ class HomeController extends Controller
             else $package->status_code = $package->status->name;
             $package->driver_phone = $package->driver->phone;
             $package->driver_name = $package->driver->user_name;
-            $package->total = (float)Helper::getNumber($package->cod_fee + $package->delivery_fee,2);
+            $package->total = (float)$package->code_fee;
             $package->fee = (float)$package->delivery_fee;
             $package->delivery_fee = (float)$package->delivery_fee;
             $package->arrive_warehouse_datetime = Helper::formatCustomDateTime($package->arrive_warehouse_datetime);
@@ -327,7 +327,7 @@ class HomeController extends Controller
         $user = UserService::getAuthUser('merchant');
         $packages = Package::where('merchant_id',$user->id)
         ->with(['driver','status'])
-        ->whereIn('status_id',[11])
+        ->where('status_id',11)
         ->whereBetween('returned_datetime',[$dateaAgo,$today])
         ->selectRaw('id,merchant_id,arrive_warehouse_datetime,receiver_phone,receiver_address,receiver_name,cod,price,delivery_fee,status_id,remarks,driver_id,failed_datetime,returned_datetime,updated_at')
         ->get()
@@ -338,7 +338,7 @@ class HomeController extends Controller
             else $package->status_code = $package->status->name;
             $package->driver_phone = $package->driver?->phone;
             $package->driver_name = $package->driver?->user_name;
-            $package->total = (float) $package->cod_fee + $package->delivery_fee;
+            $package->total = (float)$package->code_fee;
             $package->delivery_fee = (float)$package->delivery_fee;
             $package->fee = $package->delivery_fee;
             $returnDate = $package->return_datetime ? $package->return_datetime : $package->updated_at;
