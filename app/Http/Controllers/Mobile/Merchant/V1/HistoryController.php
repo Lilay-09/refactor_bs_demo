@@ -16,6 +16,14 @@ class HistoryController extends Controller
 {
     //
     public function getAllHistories(Request $req){
+        $today = now();
+        $dateaAgo = Helper::getDateDaysAgo(2);
+        $qAt = PackageAttachment::where('hidden',0);
+        $attachments = $qAt->limit(1000)
+        ->whereBetween('updated_at',[$dateaAgo,$today])
+        ->pluck('package_id')
+        ->toArray();
+        $attachmentsLookup = array_flip($attachments);
         $user = UserService::getAuthUser('merchant');
         $items =[];
         $status = $req->status ?? 'All';
@@ -56,10 +64,9 @@ class HistoryController extends Controller
                     $package->render_status = GeneralSettingService::$statusCodeTrans[$package->status_id];
                 }else $package->render_status = $package->status_code;
                 $package->arrive_warehouse_datetime = Helper::formatCustomDateTime($package->arrive_warehouse_datetime);
-                $package->total = (float) $package->cod_fee + $package->delivery_fee;
+                $package->total = (float) $package->cod_fee;
                 $package->delivery_fee = (float) $package->delivery_fee;
                 $package->fee = $package->delivery_fee;
-
                 // Remove the driver relationship if not needed in the response
                 unset($package->driver);
                 $items[] = $package;
@@ -74,13 +81,14 @@ class HistoryController extends Controller
             ->where('status_id',9)
             ->where('is_deleted',0)
             ->selectRaw('id,status_id,merchant_id,receiver_phone,receiver_address,receiver_name,cod,price,delivery_fee,remarks,driver_id,delivered_datetime,arrive_warehouse_datetime,delivery_remarks as notes')
-            ->get()->map(function($package) use(&$items,$isKm){
+            ->get()->map(function($package) use(&$items,$isKm,$attachmentsLookup){
                 $package->price = (float) $package->price;
+                $package->has_img = isset($attachmentsLookup[$package->package_id]);
                 $package->cod_fee = $package->cod ? $package->price : 0;
                 $package->status_code = 'Delivered';
                 $package->driver_phone = $package->driver->phone;
                 $package->driver_name = $package->driver->user_name;
-                $package->total = (float)$package->cod_fee + $package->delivery_fee;
+                $package->total = (float) $package->cod_fee;
                 $package->delivery_fee = (float)$package->delivery_fee;
                 $package->fee = $package->delivery_fee;
                 $package->arrive_warehouse_datetime = Helper::formatCustomDateTime($package->arrive_warehouse_datetime);
@@ -92,36 +100,17 @@ class HistoryController extends Controller
                 $items[] = $package;
                 // return $package;
             });
-            // $successPackages = Package::where('merchant_id',$user->id)
-            // ->with('driver')
-            // ->where('status_id',9)
-            // ->where('outstanding',0)
-            // ->where('is_deleted',0)
-            // ->selectRaw('id,merchant_id,receiver_phone,receiver_address,receiver_name,cod,price,delivery_fee,remarks,driver_id,delivered_datetime,arrive_warehouse_datetime')
-            // ->get();
-            // foreach($successPackages as $package){
-            //     $package->delivered_datetime = Helper::formatCustomDateTime($package->delivered_datetime,'d-M-Y h:i A');
-            //     $package->arrive_warehouse_datetime = Helper::formatCustomDateTime($package->arrive_warehouse_datetime,'d-M-Y h:i A');
-            //     $package->cod_fee = $package->cod ? $package->price : 0;
-            //     $package->status_code = 'Success';// 'Delivered';
-            //     $package->render_status = 'Success';
-            //     $package->driver_phone = $package->driver->phone;
-            //     $package->driver_name = $package->driver->user_name;
-            //     $package->total = $package->cod_fee + $package->delivery_fee;
-            //     $package->fee = $package->delivery_fee;
-            //     unset($package->driver);
-            //     $items[] = $package;
-            // }
         }
 
         if(in_array($status,['All','Failed'])){
             Package::where('merchant_id',$user->id)
             ->with(['driver','status'])
-            ->whereIn('status_id',[10])
+            ->where('status_id',10)
             ->where('is_deleted',0)
             ->selectRaw('id,merchant_id,arrive_warehouse_datetime,receiver_phone,receiver_address,receiver_name,cod,price,delivery_fee,status_id,remarks,driver_id,failed_datetime,delivery_remarks as notes')
             ->get()
-            ->map(function($package) use(&$items,$isKm){
+            ->map(function($package) use(&$items,$isKm,$attachmentsLookup){
+                $package->has_img = isset($attachmentsLookup[$package->package_id]);
                 $package->price = (float)$package->price;
                 $package->cod_fee = $package->cod ? $package->price : 0;
                 $package->status_code = $package->status->name;
@@ -132,37 +121,18 @@ class HistoryController extends Controller
                 $package->driver_name = $package->driver->user_name;
                 $package->arrive_warehouse_datetime = Helper::formatCustomDateTime($package->arrive_warehouse_datetime);
                 $package->failed_datetime = Helper::formatCustomDateTime($package->failed_datetime);
-                $package->total = (float)Helper::getNumber($package->cod_fee + $package->delivery_fee,2);
+                $package->total = (float) $package->cod_fee;
                 $package->fee = (float)$package->delivery_fee;
                 $package->delivery_fee = (float)$package->delivery_fee;
                 unset($package->driver,$package->status);
                 $items[] = $package;
             });
-            // $packages = Package::where('merchant_id',$user->id)
-            // ->with(['driver','status'])
-            // ->where('outstanding',0)
-            // ->where('status_id',10)
-            // ->where('is_deleted',0)
-            // ->selectRaw('id,merchant_id,arrive_warehouse_datetime,receiver_phone,receiver_address,receiver_name,cod,price,delivery_fee,status_id,remarks,driver_id,failed_datetime')
-            // ->get();
-            // foreach($packages as $package){
-            //     $package->failed_datetime = Helper::formatCustomDateTime($package->failed_datetime,'d-M-Y h:i A');
-            //     $package->cod_fee = $package->cod ? $package->price : 0;
-            //     $package->status_code = $package->status->name;
-            //     $package->render_status = $package->status_code;
-            //     $package->driver_phone = $package->driver->phone;
-            //     $package->driver_name = $package->driver->user_name;
-            //     $package->total = $package->cod_fee + $package->delivery_fee;
-            //     $package->fee = $package->delivery_fee;
-            //     unset($package->driver,$package->status);
-            //     $items[] = $package;
-            // }
         }
 
         if(in_array($status,['All','Failed With Fee'])){
             Package::where('merchant_id',$user->id)
             ->with(['driver','status'])
-            ->whereIn('status_id',[19])
+            ->where('status_id',19)
             ->where('is_deleted',0)
             ->selectRaw('id,merchant_id,arrive_warehouse_datetime,receiver_phone,receiver_address,receiver_name,cod,price,delivery_fee,status_id,remarks,driver_id,failed_datetime,delivery_remarks as notes')
             ->get()
@@ -177,7 +147,7 @@ class HistoryController extends Controller
                 $package->driver_name = $package->driver->user_name;
                 $package->arrive_warehouse_datetime = Helper::formatCustomDateTime($package->arrive_warehouse_datetime);
                 $package->failed_datetime = Helper::formatCustomDateTime($package->failed_datetime);
-                $package->total = (float)Helper::getNumber($package->cod_fee + $package->delivery_fee,2);
+                $package->total = (float) $package->cod_fee;
                 $package->fee = (float)$package->delivery_fee;
                 $package->delivery_fee = (float)$package->delivery_fee;
                 unset($package->driver,$package->status);
@@ -188,7 +158,7 @@ class HistoryController extends Controller
         if(in_array($status,['All','Return','Returned'])){
             Package::where('merchant_id',$user->id)
             ->with(['driver','status'])
-            ->whereIn('status_id',[11])
+            ->where('status_id',11)
             ->selectRaw('id,merchant_id,arrive_warehouse_datetime,receiver_phone,receiver_address,receiver_name,cod,price,delivery_fee,status_id,remarks,driver_id,failed_datetime,returned_datetime,updated_at,delivery_remarks as notes')
             ->get()
             ->map(function($package) use(&$items,$isKm){
@@ -200,7 +170,7 @@ class HistoryController extends Controller
                 if($isKm){
                     $package->render_status = GeneralSettingService::$statusCodeTrans[$package->status_id];
                 }else $package->render_status = $package->status_code;
-                $package->total = (float) $package->cod_fee + $package->delivery_fee;
+                $package->total = (float) $package->cod_fee;
                 $package->delivery_fee = (float)$package->delivery_fee;
                 $package->fee = $package->delivery_fee;
                 $returnDate = $package->return_datetime ? $package->return_datetime : $package->updated_at;
@@ -212,5 +182,9 @@ class HistoryController extends Controller
             });
         }
         return ApiResponse::Pagination(collect($items),$req);
+    }
+
+    private function getHistoryPackage($merchantId,$packageIds){
+
     }
 }

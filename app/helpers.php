@@ -822,6 +822,37 @@ class Helper{
         return preg_replace('/[^a-zA-Z0-9\s]/', '', $str);
     }
 
+    public static function sanitizeInput(array $data, array $excludeFields = [],$retrieveAs = "array"): array | object
+    {
+        $sanitizedData = [];
+
+        foreach ($data as $key => $value) {
+            // Exclude specific fields from sanitization
+            if (in_array($key, $excludeFields, true)) {
+                $sanitizedData[$key] = $value;
+                continue;
+            }
+
+            // Sanitize only string values
+            if (is_string($value)) {
+                // Remove special characters like `/*\`
+                $cleanValue = trim(strip_tags($value));
+                $cleanValue = preg_replace('/[^A-Za-z0-9\s\-_.]/', '', $cleanValue); // Allow letters, numbers, space, dash, underscore, dot
+
+                $sanitizedData[$key] = $cleanValue;
+            } else {
+                $sanitizedData[$key] = $value;
+            }
+
+        }
+         if ($retrieveAs === 'object') {
+            return (object) $sanitizedData;  // Return as object
+        }
+
+        return $sanitizedData;
+    }
+
+
     static function timeAgo($datetime,$useSecond=true) {
         // Convert the datetime string into a timestamp
         $datetime = str_replace(" PM", "", $datetime);

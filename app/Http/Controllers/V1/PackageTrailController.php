@@ -28,8 +28,8 @@ class PackageTrailController extends Controller
     //
     public function getPackages(Request $req){
         $user = UserService::getAuthUser();
-        $search = $req->search??null;
-        $orderId = $req->order_id??null;
+        $search = $req->search ?? null;
+        $orderId = $req->order_id ?? null;
         $lang = $req->lang;
         $warehouse_id = $req->warehouse_id ?? null;
         $statusId = $req->status_id??null;
@@ -162,7 +162,6 @@ class PackageTrailController extends Controller
         unset($package->status,$package->driver);
         return ApiResponse::JsonResult($package);
     }
-
     public function getPackageImages(Request $req){
         $id = $req->id;
         $user = UserService::getAuthUser();

@@ -288,6 +288,12 @@ class HomeController extends Controller
         $lang = $req->lang;
         $statusId = $req->status_id;
         $user = UserService::getAuthUser('merchant');
+        $attachments = PackageAttachment::where('hidden', 0)
+        ->whereBetween('updated_at', [$dateaAgo, $today])
+        ->limit(700)
+        ->pluck('package_id')
+        ->toArray();
+        $attachmentsLookup = array_flip($attachments);
         $packages = Package::where('merchant_id',$user->id)
         ->with(['driver','status'])
         ->where('status_id',$statusId)
@@ -295,9 +301,10 @@ class HomeController extends Controller
         ->whereBetween('failed_datetime',[$dateaAgo,$today])
         ->selectRaw('id,merchant_id,arrive_warehouse_datetime,receiver_phone,receiver_address,receiver_name,cod,price,delivery_fee,status_id,remarks,driver_id,failed_datetime')
         ->get()
-        ->map(function($package) use($lang){
+        ->map(function($package) use($lang,$attachmentsLookup){
             $package->price = (float)$package->price;
             $package->cod_fee = $package->cod ? $package->price : 0;
+            $package->has_img = isset($attachmentsLookup[$package->package_id]);
             if($lang == 'km') $package->status_code = GeneralSettingService::$statusCodeTrans[$package->status_id];
             else $package->status_code = $package->status->name;
             $package->driver_phone = $package->driver->phone;
