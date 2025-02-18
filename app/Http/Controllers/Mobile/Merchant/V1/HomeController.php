@@ -304,7 +304,7 @@ class HomeController extends Controller
         ->map(function($package) use($lang,$attachmentsLookup){
             $package->price = (float)$package->price;
             $package->cod_fee = $package->cod ? $package->price : 0;
-            $package->has_img = isset($attachmentsLookup[$package->package_id]);
+            $package->has_img = isset($attachmentsLookup[$package->id]);
             if($lang == 'km') $package->status_code = GeneralSettingService::$statusCodeTrans[$package->status_id];
             else $package->status_code = $package->status->name;
             $package->driver_phone = $package->driver->phone;
