@@ -51,21 +51,28 @@ class HistoryController extends Controller
         if($startDate && $endDate){
             $startDate = Helper::dateYMD($startDate);
             $endDate = Helper::dateYMD($endDate);
-            $qFp->where(function ($q) use ($startDate, $endDate) {
-                $q->where(function ($q) use ($startDate, $endDate) {
-                    // For status_id 19, query only failed_datetime
-                    $q->whereBetween('p.failed_datetime', ["$startDate 00:00:00", "$endDate 23:59:59"])
-                    ->where('p.status_id', 19);
+            $startDateTime = $startDate . ' 00:00:00';
+            $endDateTime = $endDate . ' 23:59:59';
+            $qFp->where(function($q) use ($startDateTime, $endDateTime) {
+                $q->where(function ($q) use ($startDateTime, $endDateTime) {
+                    $q->whereBetween('p.failed_datetime', [$startDateTime, $endDateTime])
+                        ->whereIn('p.status_id', [10, 19]);
                 })
-                ->orWhere(function ($q) use ($startDate, $endDate) {
-                    // For status_id 9, query only delivered_datetime
-                    $q->whereBetween('p.delivered_datetime', ["$startDate 00:00:00", "$endDate 23:59:59"])
-                    ->where('p.status_id', 9);
+                ->orWhere(function ($q) use ($startDateTime, $endDateTime) {
+                    $q->whereBetween('p.delivered_datetime', [$startDateTime, $endDateTime])
+                        ->where('p.status_id', 9);
                 })
-                ->orWhere(function ($q) use ($startDate, $endDate) {
-                    // For status_id 11, query only returned_datetime
-                    $q->whereBetween('p.returned_datetime', ["$startDate 00:00:00", "$endDate 23:59:59"])
-                    ->where('p.status_id', 11);
+                // ->orWhere(function ($q) use ($startDateTime, $endDateTime) {
+                //     $q->whereBetween('p.assign_driver_datetime', [$startDateTime, $endDateTime])
+                //         ->where('p.status_id', 6);
+                // })
+                // ->orWhere(function ($q) use ($startDateTime, $endDateTime) {
+                //     $q->whereBetween('p.arrive_warehouse_datetime', [$startDateTime, $endDateTime])
+                //         ->where('p.status_id', 5);
+                // })
+                ->orWhere(function ($q) use ($startDateTime, $endDateTime) {
+                    $q->whereBetween('p.returned_datetime', [$startDateTime, $endDateTime])
+                        ->where('p.status_id', 11);
                 });
             });
         }

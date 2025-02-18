@@ -60,44 +60,63 @@ class ReusableService
         if($startDate && $endDate){
             $startDate = Helper::dateYMD($startDate);
             $endDate = Helper::dateYMD($endDate);
-            // $qFp->whereRaw('p.failed_datetime::DATE >= ? AND p.failed_datetime::DATE <= ? OR p.delivered_datetime::DATE >= ? AND p.delivered_datetime::DATE <= ? OR p.returned_datetime::DATE >= ? AND p.returned_datetime::DATE <= ?', [
-            //     $startDate, $endDate,
-            //     $startDate, $endDate,
-            //     $startDate, $endDate,
-            // ]);
-             $qFp->where(function($q) use ($startDate, $endDate) {
-                $q->where(function($q) use ($startDate, $endDate) {
-                    // For status_id 10 or 19, query only failed_datetime
-                    $q->whereRaw('
-                        (p.failed_datetime::DATE >= ? AND p.failed_datetime::DATE <= ?)', [$startDate, $endDate])
+            $startDateTime = $startDate . ' 00:00:00';
+            $endDateTime = $endDate . ' 23:59:59';
+            $qFp->where(function($q) use ($startDateTime, $endDateTime) {
+                $q->where(function ($q) use ($startDateTime, $endDateTime) {
+                    $q->whereBetween('p.failed_datetime', [$startDateTime, $endDateTime])
                         ->whereIn('p.status_id', [10, 19]);
                 })
-                ->orWhere(function($q) use ($startDate, $endDate) {
-                    // For status_id 9, query only delivered_datetime
-                    $q->whereRaw('
-                        (p.delivered_datetime::DATE >= ? AND p.delivered_datetime::DATE <= ?)', [$startDate, $endDate])
+                ->orWhere(function ($q) use ($startDateTime, $endDateTime) {
+                    $q->whereBetween('p.delivered_datetime', [$startDateTime, $endDateTime])
                         ->where('p.status_id', 9);
                 })
-                ->orWhere(function($q) use ($startDate, $endDate) {
-                    // For status_id 6, query only assign_driver_datetime
-                    $q->whereRaw('
-                        (p.assign_driver_datetime::DATE >= ? AND p.assign_driver_datetime::DATE <= ?)', [$startDate, $endDate])
+                ->orWhere(function ($q) use ($startDateTime, $endDateTime) {
+                    $q->whereBetween('p.assign_driver_datetime', [$startDateTime, $endDateTime])
                         ->where('p.status_id', 6);
                 })
-                ->orWhere(function($q) use ($startDate, $endDate) {
-                    // For status_id 5, query only arrive_warehouse_datetime
-                    $q->whereRaw('
-                        (p.arrive_warehouse_datetime::DATE >= ? AND p.arrive_warehouse_datetime::DATE <= ?)', [$startDate, $endDate])
+                ->orWhere(function ($q) use ($startDateTime, $endDateTime) {
+                    $q->whereBetween('p.arrive_warehouse_datetime', [$startDateTime, $endDateTime])
                         ->where('p.status_id', 5);
                 })
-                ->orWhere(function($q) use ($startDate, $endDate) {
-                    // For status_id 11, query only returned_datetime
-                    $q->whereRaw('
-                        (p.returned_datetime::DATE >= ? AND p.returned_datetime::DATE <= ?)', [$startDate, $endDate])
+                ->orWhere(function ($q) use ($startDateTime, $endDateTime) {
+                    $q->whereBetween('p.returned_datetime', [$startDateTime, $endDateTime])
                         ->where('p.status_id', 11);
                 });
             });
-            $qAt->whereBetween('updated_at', ["$startDate 00:00:00", "$endDate 23:59:59"]);
+            //  $qFp->where(function($q) use ($startDate, $endDate) {
+            //     $q->where(function($q) use ($startDate, $endDate) {
+            //         // For status_id 10 or 19, query only failed_datetime
+            //         $q->whereRaw('
+            //             (p.failed_datetime::DATE >= ? AND p.failed_datetime::DATE <= ?)', [$startDate, $endDate])
+            //             ->whereIn('p.status_id', [10, 19]);
+            //     })
+            //     ->orWhere(function($q) use ($startDate, $endDate) {
+            //         // For status_id 9, query only delivered_datetime
+            //         $q->whereRaw('
+            //             (p.delivered_datetime::DATE >= ? AND p.delivered_datetime::DATE <= ?)', [$startDate, $endDate])
+            //             ->where('p.status_id', 9);
+            //     })
+            //     ->orWhere(function($q) use ($startDate, $endDate) {
+            //         // For status_id 6, query only assign_driver_datetime
+            //         $q->whereRaw('
+            //             (p.assign_driver_datetime::DATE >= ? AND p.assign_driver_datetime::DATE <= ?)', [$startDate, $endDate])
+            //             ->where('p.status_id', 6);
+            //     })
+            //     ->orWhere(function($q) use ($startDate, $endDate) {
+            //         // For status_id 5, query only arrive_warehouse_datetime
+            //         $q->whereRaw('
+            //             (p.arrive_warehouse_datetime::DATE >= ? AND p.arrive_warehouse_datetime::DATE <= ?)', [$startDate, $endDate])
+            //             ->where('p.status_id', 5);
+            //     })
+            //     ->orWhere(function($q) use ($startDate, $endDate) {
+            //         // For status_id 11, query only returned_datetime
+            //         $q->whereRaw('
+            //             (p.returned_datetime::DATE >= ? AND p.returned_datetime::DATE <= ?)', [$startDate, $endDate])
+            //             ->where('p.status_id', 11);
+            //     });
+            // });
+            $qAt->whereBetween('updated_at', [$startDateTime, $endDateTime]);
         }
         $attachments = $qAt->limit(700)
         ->pluck('package_id')
