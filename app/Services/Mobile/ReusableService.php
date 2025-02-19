@@ -131,12 +131,12 @@ class ReusableService
         $attachmentsLookup = array_flip($attachments);
         // else if($paymentStatus == 1) $qFp->where('pmt.approved',0);
         if($statusId) $qFp->where('p.status_id',$statusId);
-        if($search) $qFp->where(function ($q) use ($search){
+        if($search) $qFp->where(function ($q) use ($search,$userClass){
             $search = str_replace(' ', '', $search);
             $q->where('p.receiver_phone', 'ilike', '%' . $search . '%')
-            ->orWhere('m.phone', 'ilike', '%' . $search . '%')
             ->orWhere('p.qr_code', 'ilike', '%' . $search . '%')
             ->orWhere('d.fleet_tracking_number', 'ilike', '%' . $search . '%');
+            if($userClass == 'driver') $q->orWhere('m.phone', 'ilike', '%' . $search . '%');
         });
         // $fleetPackages = $qFp->get();
         $callbackMapper = function ($f) use($isKm,$userClass,$attachmentsLookup){

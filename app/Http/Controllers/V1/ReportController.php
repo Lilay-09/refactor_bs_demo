@@ -22,6 +22,7 @@ use App\Services\UserService;
 use DB;
 use Helper;
 use Illuminate\Http\Request;
+use Log;
 
 class ReportController extends Controller
 {
@@ -1157,6 +1158,19 @@ class ReportController extends Controller
         ->where('payer_type','merchant')
         ->join('users as b','payments.settled_uid','b.id')
         ->selectRaw('payments.id,payments.package_count,payments.payable_amount,payments.breakdown_notes,b.user_name as booked_user,payments.remarks,payments.payment_datetime,payer_id');
+        $dQ = Disbursement::where('disbursements.is_deleted',0)->where('disbursements.is_settled',1)
+        ->with(['merchant'])
+        ->where('payee_type','merchant')
+        ->join('users as b','disbursements.settled_uid','b.id')
+        ->selectRaw('disbursements.id,disbursements.package_count,disbursements.payable_amount,disbursements.breakdown_notes,b.user_name as booked_user,disbursements.remarks,disbursements.payment_datetime,payee_id');
+
+        if($startDate && $endDate){
+            $startDateTime = Helper::dateYMD($startDate).' 00:00:00';
+            $endDateTime = Helper::dateYMD($endDate).' 23:59:59';
+            $dQ->whereBetween('payment_datetime',[$startDateTime,$endDateTime]);
+            $pQ->whereBetween('payment_datetime',[$startDateTime,$endDateTime]);
+        }
+
         $payments = $pQ->get();
         $bankAccounts = UserBank::get();
         foreach($payments as $p){
@@ -1167,11 +1181,7 @@ class ReportController extends Controller
             unset($p->merchant);
             $allPayments[] = $p;
         }
-        $dQ = Disbursement::where('disbursements.is_deleted',0)->where('disbursements.is_settled',1)
-        ->with(['merchant'])
-        ->where('payee_type','merchant')
-        ->join('users as b','disbursements.settled_uid','b.id')
-        ->selectRaw('disbursements.id,disbursements.package_count,disbursements.payable_amount,disbursements.breakdown_notes,b.user_name as booked_user,disbursements.remarks,disbursements.payment_datetime,payee_id');
+
         $disbursements = $dQ->get();
         foreach($disbursements as $p){
             $p->bank_account = $this->userBankAccount($bankAccounts,$p->payee_id);
