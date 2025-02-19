@@ -558,7 +558,7 @@ class TransactionService
         ->where('p.approved',$isApproved)
         ->join('users as ap','ap.id','p.receiver_uid')
         ->where('payer_type',$type)
-        ->selectRaw('p.is_settled,p.payment_datetime,p.package_count,ap.user_name as booked_user,p.payable_amount,p.id as payment_id,d.user_name as driver_name,p.exchange_rate,ap.user_name as receiver_name,p.taxi_fee,p.approved,p.breakdown_notes')
+        ->selectRaw('p.is_settled,p.payment_datetime,p.package_count,ap.user_name as booked_user,ap.user_name as payer_name,p.payable_amount,p.id as payment_id,d.user_name as driver_name,p.exchange_rate,ap.user_name as receiver_name,p.taxi_fee,p.approved,p.breakdown_notes')
         ->orderByDesc('p.payment_datetime');
         // if(!$isApproved) $qP->join('users as d','d.id','p.payer_id');
 

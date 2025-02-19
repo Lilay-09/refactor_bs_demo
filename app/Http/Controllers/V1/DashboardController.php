@@ -193,7 +193,7 @@ class DashboardController extends Controller
 
         $filteredRowsForDates = array_filter($rows, fn($p) => in_array($p->status_id, [9, 19]));
         $uniqueDates = array_unique(array_map(fn($p) => date('Y-m-d', strtotime($p->finished_date)), $filteredRowsForDates));
-        $daysCount = count($uniqueDates) ?: 1; // Avoid division by zero
+        $daysCount = count($uniqueDates) ?: 1; // ADvoid division by zero
 
         // Calculate average daily earning
         $averageDailyEarning = $totalEarning / $daysCount;
@@ -352,30 +352,22 @@ class DashboardController extends Controller
 
     private function barChart()
     {
-        // Get merchant count by month
-        $merchantsByRegisterDate = User::where('account_type', 'merchant')
-        ->whereYear('created_at', now()->year)
-        ->selectRaw('EXTRACT(MONTH FROM created_at) AS month, COUNT(*) AS count')
-        ->groupByRaw('EXTRACT(MONTH FROM created_at)')
-        ->orderByRaw('month')
-        ->get()
-        ->pluck('count', 'month')
-        ->toArray();
 
-        // Fill missing months with 0 and ensure correct order
-        $merchantsByRegisterDate = array_replace(array_fill(1, 12, 0), $merchantsByRegisterDate);
-
-        $packagesByDate = Package::where('is_deleted', 0)
+        $packagesData = Package::where('is_deleted', 0)
+            ->where('is_deleted', 0)
             ->whereYear('created_at', now()->year)
-            ->selectRaw('EXTRACT(MONTH FROM created_at) AS month, COUNT(*) AS count')
+            ->selectRaw('EXTRACT(MONTH FROM created_at) AS month, COUNT(*) AS count, COUNT(DISTINCT merchant_id) AS merchant_count')
             ->groupByRaw('EXTRACT(MONTH FROM created_at)')
             ->orderByRaw('month')
-            ->get()
-            ->pluck('count', 'month')
-            ->toArray();
+            ->get();
 
-        // Fill missing months with 0 and ensure correct order
+        // Extract counts separately
+        $packagesByDate = $packagesData->pluck('count', 'month')->toArray();
+        $merchantsByDate = $packagesData->pluck('merchant_count', 'month')->toArray();
+
+        // Fill missing months with 0
         $packagesByDate = array_replace(array_fill(1, 12, 0), $packagesByDate);
+        $merchantsByDate = array_replace(array_fill(1, 12, 0), $merchantsByDate);
 
         $earningByDate = Package::where('is_deleted', 0)
             ->whereYear('created_at', now()->year)
@@ -394,7 +386,7 @@ class DashboardController extends Controller
         $earningByDate = array_replace(array_fill(1, 12, 0), $earningByDate);
 
         return [
-            'merchants' => array_values($merchantsByRegisterDate),
+            'merchants' => array_values($merchantsByDate),
             'packages' => array_values($packagesByDate),
             'earning' => array_values($earningByDate),
         ];

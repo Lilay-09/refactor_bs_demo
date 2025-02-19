@@ -102,6 +102,7 @@ class MerchantTransactionController extends Controller
         $grandTotal = 0;
         $totalPackageCount = 0;
         $totalCod = 0;
+        $totalFee = 0;
         $groupData = collect($merchants)->map(function ($item) {
             // Set groupDate based on status
             if ($item->status_id == 9) {
@@ -117,7 +118,7 @@ class MerchantTransactionController extends Controller
         })->groupBy(function ($item) {
             // Group by both groupDate and driver_id
             return $item->groupDate . '|' . $item->driver_id;
-        })->map(function ($group, $key) use(&$grandTotal,&$totalPackageCount,&$totalCod,$transactionType) {
+        })->map(function ($group, $key) use(&$grandTotal,&$totalPackageCount,&$totalCod,&$totalFee,$transactionType) {
             // Extract date and driver_id from the key
             [$date, $driver_id] = explode('|', $key);
 
@@ -132,6 +133,7 @@ class MerchantTransactionController extends Controller
             $totalDeliveryFee = $group->where('payer','sender')->sum('delivery_fee') + $totalExtraCharge;
             $representative = $group->first();
             $totalAmount = $rowCod - $totalDeliveryFee - $totalTaxi;
+            $totalFee += $group->sum('delivery_fee') + $totalExtraCharge;
 
             // $representative->package_count = $packageTotal; // Add the summed total_package
             $bankInfo = $representative->bank_accounts->where('is_primary',1)->first();
@@ -163,6 +165,7 @@ class MerchantTransactionController extends Controller
             'total_package' => $totalPackageCount,
             'total_cod' => (float)Helper::getNumber($totalCod,2),
             'total_amount' => (float)Helper::getNumber($grandTotal,2),
+            'total_fee' => (float)Helper::getNumber($totalFee,2),
         ]);
     }
 

@@ -468,15 +468,10 @@ class PickUpCenterController extends Controller
         $id = $req->order_id;
         $order = Order::where('is_deleted',0)->find($id);
         if(!$order) return ApiResponse::NotFound();
-        // $orderByCase = collect($packageIds)
-        // ->map(function ($id, $index) {
-        //     return "WHEN id = " . (int)$id . " THEN " . (int)$index;
-        // })
-        // ->implode(' ');
         $packages = Package::where('is_deleted',0)
         ->with(['driver:id,user_name,phone','merchant:id,phone,user_name','updateUser:id,user_name'])
         // ->whereNotIn('status_id',[]) // at warehouse
-        ->where('company_id',$user->company_id)
+        // ->where('company_id',$user->company_id)
         ->selectRaw('cod,extra_charge,taxi_fee,delivery_fee,zone_name,zone_code,merchant_id,driver_id,receiver_phone,receiver_address,created_at,arrive_warehouse_datetime,qr_code,remarks,price,update_uid,payer')
         ->where('order_id',$id)
         // ->orderByRaw("CASE $orderByCase END")

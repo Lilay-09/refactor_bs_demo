@@ -231,7 +231,6 @@ class HomeController extends Controller
             $package->delivery_fee = (float) $package->delivery_fee;
             $package->fee = $package->delivery_fee;
             $package->arrive_warehouse_datetime = Helper::formatCustomDateTime($package->arrive_warehouse_datetime);
-
             // Remove the driver relationship if not needed in the response
             unset($package->driver);
 
