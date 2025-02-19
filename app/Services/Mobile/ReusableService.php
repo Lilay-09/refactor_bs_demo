@@ -32,7 +32,7 @@ class ReusableService
         ->leftJoin('payments as pmt','pmt.id','p.driver_payment_id')
         // ->leftJoin('payments as pmt','pmt.id','p.merchant_payment_id')
         ->join('tracking_statuses as trs','trs.id','dp.status_id')
-        ->selectRaw('p.payer,p.extra_charge,p.price,p.pickup_notes as notes,p.merchant_total,p.receiver_address,p.qr_code,dp.status_id,trs.name as status_code,d.id as delivery_id,d.fleet_tracking_number,m.user_name as merchant_name,m.phone as merchant_phone,p.receiver_name,p.receiver_phone,p.delivery_fee,p.taxi_fee,p.remarks,p.id as package_id,p.product_type,p.driver_total,p.billed_kg,p.failed_datetime,p.delivered_datetime,p.arrive_warehouse_datetime,p.returned_datetime')
+        ->selectRaw('p.payer,p.extra_charge,p.cod,p.price,p.pickup_notes as notes,p.merchant_total,p.receiver_address,p.qr_code,dp.status_id,trs.name as status_code,d.id as delivery_id,d.fleet_tracking_number,m.user_name as merchant_name,m.phone as merchant_phone,p.receiver_name,p.receiver_phone,p.delivery_fee,p.taxi_fee,p.remarks,p.id as package_id,p.product_type,p.driver_total,p.billed_kg,p.failed_datetime,p.delivered_datetime,p.arrive_warehouse_datetime,p.returned_datetime')
         ->whereIn('dp.status_id',$statusIds)
         ->orderByRaw('dp.status_id = ? ASC',[6])
         ->orderByRaw('
@@ -110,7 +110,7 @@ class ReusableService
         $callbackMapper = function ($f) use($isKm,$userClass,$attachmentsLookup){
             $warehouse_datetime = Helper::formatCustomDateTime($f->arrive_warehouse_datetime,'d-M-Y H:i A');
             $finished_date = $f->delivered_datetime;
-            $f->total = $userClass == 'merchant' ? ($f->cod ? $f->price:0):$f->driver_total;
+            $f->total = $userClass == 'merchant' ? ($f->cod ? $f->price:"0"):$f->driver_total;
             $statusId = $f->status_id;
             if($statusId == 6) $finished_date = $f->arrive_warehouse_datetime;
             if($statusId == 10) $finished_date = $f->failed_datetime;
