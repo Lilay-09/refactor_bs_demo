@@ -522,7 +522,7 @@ class HomeController extends Controller
             return $package;
         };
 
-        return ApiResponse::PaginationV1($qP,$req,[],500,$callbackMapper);
+        return ApiResponse::PaginationV1($qP,$req,'get packages',[],500,$callbackMapper);
     }
 
     public function getSearchPackages(Request $req){
