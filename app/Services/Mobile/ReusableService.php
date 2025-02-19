@@ -91,38 +91,6 @@ class ReusableService
                         ->where('p.status_id', 11);
                 });
             });
-            //  $qFp->where(function($q) use ($startDate, $endDate) {
-            //     $q->where(function($q) use ($startDate, $endDate) {
-            //         // For status_id 10 or 19, query only failed_datetime
-            //         $q->whereRaw('
-            //             (p.failed_datetime::DATE >= ? AND p.failed_datetime::DATE <= ?)', [$startDate, $endDate])
-            //             ->whereIn('p.status_id', [10, 19]);
-            //     })
-            //     ->orWhere(function($q) use ($startDate, $endDate) {
-            //         // For status_id 9, query only delivered_datetime
-            //         $q->whereRaw('
-            //             (p.delivered_datetime::DATE >= ? AND p.delivered_datetime::DATE <= ?)', [$startDate, $endDate])
-            //             ->where('p.status_id', 9);
-            //     })
-            //     ->orWhere(function($q) use ($startDate, $endDate) {
-            //         // For status_id 6, query only assign_driver_datetime
-            //         $q->whereRaw('
-            //             (p.assign_driver_datetime::DATE >= ? AND p.assign_driver_datetime::DATE <= ?)', [$startDate, $endDate])
-            //             ->where('p.status_id', 6);
-            //     })
-            //     ->orWhere(function($q) use ($startDate, $endDate) {
-            //         // For status_id 5, query only arrive_warehouse_datetime
-            //         $q->whereRaw('
-            //             (p.arrive_warehouse_datetime::DATE >= ? AND p.arrive_warehouse_datetime::DATE <= ?)', [$startDate, $endDate])
-            //             ->where('p.status_id', 5);
-            //     })
-            //     ->orWhere(function($q) use ($startDate, $endDate) {
-            //         // For status_id 11, query only returned_datetime
-            //         $q->whereRaw('
-            //             (p.returned_datetime::DATE >= ? AND p.returned_datetime::DATE <= ?)', [$startDate, $endDate])
-            //             ->where('p.status_id', 11);
-            //     });
-            // });
             $qAt->whereBetween('updated_at', [$startDateTime, $endDateTime]);
         }
         $attachments = $qAt->limit(700)
@@ -142,7 +110,7 @@ class ReusableService
         $callbackMapper = function ($f) use($isKm,$userClass,$attachmentsLookup){
             $warehouse_datetime = Helper::formatCustomDateTime($f->arrive_warehouse_datetime,'d-M-Y H:i A');
             $finished_date = $f->delivered_datetime;
-            $f->total = $userClass == 'merchant' ? $f->merchant_total:$f->driver_total;
+            $f->total = $userClass == 'merchant' ? ($f->cod ? $f->price:0):$f->driver_total;
             $statusId = $f->status_id;
             if($statusId == 6) $finished_date = $f->arrive_warehouse_datetime;
             if($statusId == 10) $finished_date = $f->failed_datetime;
