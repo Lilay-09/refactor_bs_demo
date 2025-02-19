@@ -508,8 +508,8 @@ class HomeController extends Controller
             $package->has_img = isset($attachmentsLookup[$package->package_id]);
             $package->cod_fee = $package->cod ? $package->price : 0;
             $package->status_code = $package->status->name;
-            $package->driver_phone = $package->driver->phone;
-            $package->driver_name = $package->driver->user_name;
+            $package->driver_phone = $package->driver?->phone;
+            $package->driver_name = $package->driver?->user_name;
             $package->total = (float)$package->cod_fee + $package->delivery_fee;
             $rowStatusId = $package->status_id;
             $finished_date = null;
