@@ -500,7 +500,7 @@ class PickUpCenterController extends Controller
         $obj = (object)[
             'company_info' => CompanyProfileService::profileInfo($user,true),
             'packages' => $packages,
-            'notes' => 'រាល់ទំនិញខុសច្បាប់ ម្ចាស់ទំនិញត្រូវទទួលខុសត្រូវចំពោះមុខច្បាប់ដោយខ្លួនឯង ក្រុមហ៊ុនមិនទទួលខុសត្រូវឡេីយ។ អរគុណសម្រាប់ការប្រើប្រាស់សេវាកម្មដឹកជញ្ជូន JS Express របស់ខ្ញុំ។',
+            'notes' => GeneralSettingService::printNoteLabel(),//'រាល់ទំនិញខុសច្បាប់ ម្ចាស់ទំនិញត្រូវទទួលខុសត្រូវចំពោះមុខច្បាប់ដោយខ្លួនឯង ក្រុមហ៊ុនមិនទទួលខុសត្រូវឡេីយ។ សូមអរគុណសម្រាប់ការប្រើប្រាស់សេវាកម្មដឹកជញ្ជូន JS Express របស់ខ្ញុំ។',
             'redirect' => asset('api/redirect-store')
         ];
         return ApiResponse::JsonResult($obj,__('messages.info',['info' => 'Print Information']));
