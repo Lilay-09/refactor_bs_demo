@@ -393,14 +393,14 @@ class ReportController extends Controller
         if($startDate && $endDate){
             $qO->whereBetween('pickup_datetime', ["$startDate 00:00:00", "$endDate 23:59:59"]);
             $qP->whereRaw(
-            "(p.status_id = 5 AND p.arrive_warehouse_datetime BETWEEN ? AND ?)
-            OR (p.status_id IN (2,3,4) AND p.pickup_datetime BETWEEN ? AND ?)
-            OR (p.status_id = 6 AND p.assign_driver_datetime BETWEEN ? AND ?)
-            OR (p.status_id = 10 AND p.failed_datetime BETWEEN ? AND ?)
-            OR (p.status_id = 19 AND p.failed_datetime BETWEEN ? AND ?)
-            OR (p.status_id = 9 AND p.delivered_datetime BETWEEN ? AND ?)
-            OR (p.status_id = 11 AND p.returned_datetime BETWEEN ? AND ?)",
-            [$startDate, $endDate, $startDate, $endDate, $startDate, $endDate]
+            "(status_id = 5 AND arrive_warehouse_datetime BETWEEN ? AND ?)
+            OR (status_id IN (2,3,4) AND pickup_datetime BETWEEN ? AND ?)
+            OR (status_id = 6 AND assign_driver_datetime BETWEEN ? AND ?)
+            OR (status_id = 10 AND failed_datetime BETWEEN ? AND ?)
+            OR (status_id = 19 AND failed_datetime BETWEEN ? AND ?)
+            OR (status_id = 9 AND delivered_datetime BETWEEN ? AND ?)
+            OR (status_id = 11 AND returned_datetime BETWEEN ? AND ?)",
+            [$startDate, $endDate, $startDate, $endDate, $startDate, $endDate, $startDate, $endDate, $startDate, $endDate, $startDate, $endDate, $startDate, $endDate]
             );
         }
 
