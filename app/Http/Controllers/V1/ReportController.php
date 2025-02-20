@@ -298,35 +298,9 @@ class ReportController extends Controller
         $user = UserService::getAuthUser();
         $startDate = $req->startDate;
         $endDate = $req->endDate;
-        $operationSummary = $this->getOperationSummary($startDate, $endDate);
-        $financialSummary = [
-            [
-                'title' => 'Total collective money \'All Merchants\'',
-                'amount' => 0,
-                'amount_kh' => 0
-            ],
-            [
-                'title' => 'Total Fees',
-                'amount' => 0,
-                'amount_kh' => 0
-            ],
-            [
-                'title' => 'Total Fees owned by \'Merchants\'' ,
-                'amount' => 0,
-                'amount_kh' => 0
-            ],
-            [
-                'title' => 'Total money to pay back merchants',
-                'amount' => 0,
-                'amount_kh' => 0
-            ],
-            [
-                'title' => 'Total received fees',
-                'amount' => 0,
-                'amount_kh' => 0
-            ],
-
-        ];
+        $summary = $this->getOperationSummary($startDate, $endDate);
+        $operationSummary = $summary->operation;
+        $financialSummary = $summary->financial;
 
         $qPmt = Payment::from('payments as pmt')->where('pmt.is_deleted',0)->where('pmt.is_settled',1)->join('payment_details as pd','pmt.id','pd.payment_id')->selectRaw('SUM(pd.amount) as total,pd.currency_code,CASE WHEN pd.method != \'cash\' THEN \'bank\' ELSE pd.method END as method_group')->groupBy(DB::raw("CASE WHEN pd.method != 'cash' THEN 'bank' ELSE pd.method END"),'pd.currency_code');
         if($startDate && $endDate){
@@ -386,83 +360,149 @@ class ReportController extends Controller
         $startDate = $startDate ? Helper::dateYMD($startDate):null;
         $endDate = $endDate ? Helper::dateYMD($endDate):null;
         $qP = Package::where('is_deleted',0)
-        ->where('outstanding',0)
-        ->selectRaw('id,merchant_id,driver_id,status_id');
+        ->where('outstanding',0);
+        $clonePkg = clone $qP;
+        $clonePkg->whereIn('status_id',[9,19]);
 
         $qO = Order::where('status_id',5)->where('is_deleted',0);
         if($startDate && $endDate){
             $qO->whereBetween('pickup_datetime', ["$startDate 00:00:00", "$endDate 23:59:59"]);
             $qP->whereRaw(
-            "(status_id = 5 AND arrive_warehouse_datetime BETWEEN ? AND ?)
-            OR (status_id IN (2,3,4) AND pickup_datetime BETWEEN ? AND ?)
-            OR (status_id = 6 AND assign_driver_datetime BETWEEN ? AND ?)
-            OR (status_id = 10 AND failed_datetime BETWEEN ? AND ?)
-            OR (status_id = 19 AND failed_datetime BETWEEN ? AND ?)
-            OR (status_id = 9 AND delivered_datetime BETWEEN ? AND ?)
-            OR (status_id = 11 AND returned_datetime BETWEEN ? AND ?)",
-            [$startDate, $endDate, $startDate, $endDate, $startDate, $endDate, $startDate, $endDate, $startDate, $endDate, $startDate, $endDate, $startDate, $endDate]
+                "(status_id = 5 AND arrive_warehouse_datetime BETWEEN ? AND ?)
+                OR (status_id IN (2,3,4) AND pickup_datetime BETWEEN ? AND ?)
+                OR (status_id = 6 AND assign_driver_datetime BETWEEN ? AND ?)
+                OR (status_id = 10 AND failed_datetime BETWEEN ? AND ?)
+                OR (status_id = 19 AND failed_datetime BETWEEN ? AND ?)
+                OR (status_id = 9 AND delivered_datetime BETWEEN ? AND ?)
+                OR (status_id = 11 AND returned_datetime BETWEEN ? AND ?)",
+                [$startDate, $endDate, $startDate, $endDate, $startDate, $endDate, $startDate, $endDate, $startDate, $endDate, $startDate, $endDate, $startDate, $endDate]
+            );
+
+            $clonePkg->whereRaw(
+                "(status_id = 9 AND delivered_datetime BETWEEN ? AND ?)
+                OR (status_id = 19 AND failed_datetime BETWEEN ? AND ?)",
+                [$startDate, $endDate, $startDate, $endDate]
             );
         }
 
 
-        $packages = $qP->get();
+        $packages = $qP->selectRaw('id,merchant_id,driver_id,status_id')->get();
         $pickupCount = $qO->sum('qty');
-        $merchantCount = 0;
-        $deliveredCount = 0;
-        $atWarehouseCount = 0;
-        $onDeliveryCount = 0;
-        $failedCount = 0;
-        $returnedCount = 0;
-        $faileWithFeeCount = 0;
+        $operationSum = [
+            'merchantCount' => 0,
+            'deliveredCount' => 0,
+            'atWarehouseCount' => 0,
+            'onDeliveryCount' => 0,
+            'failedCount' => 0,
+            'returnedCount' => 0,
+            'failedWithFeeCount' => 0,
+        ];
+
+        $operationSum = [
+            'merchantCount' => 0,
+            'deliveredCount' => 0,
+            'atWarehouseCount' => 0,
+            'onDeliveryCount' => 0,
+            'failedCount' => 0,
+            'returnedCount' => 0,
+            'failedWithFeeCount' => 0,
+        ];
+
         $seenMerchants = [];
-        foreach($packages as $p){
+
+        foreach ($packages as $p) {
             if (!isset($seenMerchants[$p->merchant_id])) {
                 $seenMerchants[$p->merchant_id] = true;
-                $merchantCount++;
+                $operationSum['merchantCount']++;
             }
-            if($p->status_id == 9) $deliveredCount += 1;
-            if($p->status_id == 6) $onDeliveryCount += 1;
-            if($p->status_id == 5) $atWarehouseCount += 1;
-            if($p->status_id == 10) $failedCount += 1;
-            if($p->status_id == 11) $returnedCount +=1;
-            if($p->status_id == 19) $faileWithFeeCount +=1;
+
+            switch ($p->status_id) {
+                case 9:
+                    $operationSum['deliveredCount']+=1;
+                    break;
+                case 6:
+                    $operationSum['onDeliveryCount']++;
+                    break;
+                case 5:
+                    $operationSum['atWarehouseCount']++;
+                    break;
+                case 10:
+                    $operationSum['failedCount']++;
+                    break;
+                case 11:
+                    $operationSum['returnedCount']++;
+                    break;
+                case 19:
+                    $operationSum['failedWithFeeCount']++;
+                    break;
+            }
         }
 
-        return [
-            [
-                'title' => 'Count merchants',
-                'count' => $merchantCount
+        $obj = (object)[
+            'operation' => [
+                [
+                    'title' => 'Count merchants',
+                    'count' => $operationSum['merchantCount']
+                ],
+                [
+                    'title' => 'Total pacakge \'Pickup\'',
+                    'count' => $pickupCount
+                ],
+                [
+                    'title' => 'Total package \'At Warehouse\'',
+                    'count' => $operationSum['atWarehouseCount']
+                ],
+                [
+                    'title' => 'Total package \'On Delivery\'',
+                    'count' => $operationSum['onDeliveryCount']
+                ],
+                [
+                    'title' => 'Total Package \'Delivered\'',
+                    'count' => $operationSum['deliveredCount']
+                ],
+                [
+                    'title' => 'Total Package \'Failed\'',
+                    'count' => $operationSum['failedCount']
+                ],
+                [
+                    'title' => 'Total Package \'Fail With Fee\'',
+                    'count' => $operationSum['failedWithFeeCount']
+                ],
+                [
+                    'title' => 'Total Package \'Returned\'',
+                    'count' => $operationSum['returnedCount']
+                ]
             ],
-            [
-                'title' => 'Total pacakge \'Pickup\'',
-                'count' => $pickupCount
-            ],
-            [
-                'title' => 'Total package \'At Warehouse\'',
-                'count' => $atWarehouseCount
-            ],
-            [
-                'title' => 'Total package \'On Delivery\'',
-                'count' => $onDeliveryCount
-            ],
-            [
-                'title' => 'Total Package \'Delivered\'',
-                'count' => $deliveredCount
-            ],
-            [
-                'title' => 'Total Package \'Failed\'',
-                'count' => $failedCount
-            ],
-            [
-                'title' => 'Total Package \'Fail With Fee\'',
-                'count' => $faileWithFeeCount
-            ],
-            [
-                'title' => 'Total Package \'Returned\'',
-                'count' => $returnedCount
+            'financial' => [
+                [
+                    'title' => 'Total collective COD',
+                    'amount' => 0,
+                    'amount_kh' => 0
+                ],
+                [
+                    'title' => 'Total Fees',
+                    'amount' => 0,
+                    'amount_kh' => 0
+                ],
+                [
+                    'title' => 'Total Fees owned by \'Merchants\'' ,
+                    'amount' => 0,
+                    'amount_kh' => 0
+                ],
+                [
+                    'title' => 'Total money to pay back merchants',
+                    'amount' => 0,
+                    'amount_kh' => 0
+                ],
+                [
+                    'title' => 'Total received fees',
+                    'amount' => 0,
+                    'amount_kh' => 0
+                ],
             ]
         ];
 
+        return $obj;
     }
 
 

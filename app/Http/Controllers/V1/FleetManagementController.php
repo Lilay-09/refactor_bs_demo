@@ -193,6 +193,21 @@ class FleetManagementController extends Controller
                 'info' => 'Package has link to payment you cannot make change!',
                 'khInfo' => 'កញ្ចប់មានការទូរទាត់ មិនអាចផ្លាស់ប្ដូរបានទេ!'
             ]));
+
+        if($package->status_id == $status_id) {
+            if($status_id == 9) return ApiResponse::Duplicated(__('messages.submitDuplicatedPackage',[
+                'info' => 'Delivered',
+                'khInfo' => 'ជោគជ័យ'
+            ]));
+            else if($status_id == 10) return ApiResponse::Duplicated(__('messages.submitDuplicatedPackage',[
+                'info' => 'Failed',
+                'khInfo' => 'បរាជ័យ'
+            ]));
+            else if($status_id == 19) return ApiResponse::Duplicated(__('messages.submitDuplicatedPackage',[
+                'info' => 'Failed with fee',
+                'khInfo' => 'បរាជ័យគិតសេវា'
+            ]));
+        }
         // if($package->status_id == 9) return ApiResponse::Duplicated(__('messages.info',[
         //     'info' => 'Package has already been delivered'
         // ]));
