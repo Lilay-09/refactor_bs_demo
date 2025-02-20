@@ -327,6 +327,14 @@ class ReportController extends Controller
             ],
 
         ];
+
+        $qPmt = Payment::from('payments as pmt')->where('pmt.is_deleted',0)->where('pmt.is_settled',1)->join('payment_details as pd','pmt.id','pd.payment_id')->selectRaw('SUM(pd.amount) as total,pd.currency_code,CASE WHEN pd.method != \'cash\' THEN \'bank\' ELSE pd.method END as method_group')->groupBy(DB::raw("CASE WHEN pd.method != 'cash' THEN 'bank' ELSE pd.method END"),'pd.currency_code');
+        if($startDate && $endDate){
+            $startDatetime = Helper::dateYMD($startDate). ' 00:00:00'; //
+            $endDatetime = Helper::dateYMD($endDate). ' 23:59:59';
+            $qPmt->whereBetween('payment_datetime',[$startDatetime,$endDatetime]);
+        }
+        $payments = $qPmt->get();
         $closedFinancialSummary = [
             [
                 'title' => 'Total collective payment by Bank(USD)',
@@ -345,6 +353,21 @@ class ReportController extends Controller
                 'amount' => 0
             ],
         ];
+        foreach ($payments as $payment) {
+            if ($payment->method_group == 'bank') {
+                if ($payment->currency_code == 'USD') {
+                    $closedFinancialSummary[0]['amount'] += $payment->total;  // Bank USD
+                } elseif ($payment->currency_code == 'KHR') {
+                    $closedFinancialSummary[1]['amount'] += $payment->total;  // Bank KHR
+                }
+            } elseif ($payment->method_group == 'cash') {
+                if ($payment->currency_code == 'USD') {
+                    $closedFinancialSummary[2]['amount'] += $payment->total;  // Cash USD
+                } elseif ($payment->currency_code == 'KHR') {
+                    $closedFinancialSummary[3]['amount'] += $payment->total;  // Cash KHR
+                }
+            }
+        }
         $obj =(object)[
             'title' => 'Summary Report',
             'sub_title' => 'Arrivate Date:',
@@ -362,14 +385,27 @@ class ReportController extends Controller
     private function getOperationSummary($startDate,$endDate){
         $startDate = $startDate ? Helper::dateYMD($startDate):null;
         $endDate = $endDate ? Helper::dateYMD($endDate):null;
-        $qP =Package::where('is_deleted',0)
+        $qP = Package::where('is_deleted',0)
         ->where('outstanding',0)
         ->selectRaw('id,merchant_id,driver_id,status_id');
-        $packages = $qP->get();
+
         $qO = Order::where('status_id',5)->where('is_deleted',0);
         if($startDate && $endDate){
             $qO->whereBetween('pickup_datetime', ["$startDate 00:00:00", "$endDate 23:59:59"]);
+            $qP->whereRaw(
+            "(p.status_id = 5 AND p.arrive_warehouse_datetime BETWEEN ? AND ?)
+            OR (p.status_id IN (2,3,4) AND p.pickup_datetime BETWEEN ? AND ?)
+            OR (p.status_id = 6 AND p.assign_driver_datetime BETWEEN ? AND ?)
+            OR (p.status_id = 10 AND p.failed_datetime BETWEEN ? AND ?)
+            OR (p.status_id = 19 AND p.failed_datetime BETWEEN ? AND ?)
+            OR (p.status_id = 9 AND p.delivered_datetime BETWEEN ? AND ?)
+            OR (p.status_id = 11 AND p.returned_datetime BETWEEN ? AND ?)",
+            [$startDate, $endDate, $startDate, $endDate, $startDate, $endDate]
+            );
         }
+
+
+        $packages = $qP->get();
         $pickupCount = $qO->sum('qty');
         $merchantCount = 0;
         $deliveredCount = 0;
@@ -437,7 +473,7 @@ class ReportController extends Controller
         $qP = FeedBack::where('is_deleted',0)
         ->selectRaw('id,create_uid,rate,created_at,comments')
         ->with('merchant');
-        $feedBack = $qP->get();
+        $feedBack = $qP->orderByDesc('id')->get();
         $total = 0;
         foreach($feedBack as $fd){
             $fd->name = $fd->merchant->user_name;

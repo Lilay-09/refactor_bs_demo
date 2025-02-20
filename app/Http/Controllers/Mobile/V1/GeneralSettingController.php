@@ -188,7 +188,7 @@ class GeneralSettingController extends Controller
             $updateArr['status_id'] = 6;
             $updateArr['driver_id'] = $user->id;
             $updateArr['assign_driver_datetime'] = now();
-            $notes = $package->tracking_notes."|[$user->id]Driver ($user->user_name) scan on delivery (".Helper::getDateTime()."";
+            $notes = $package->tracking_notes."|[$user->id]Driver ($user->user_name) scan on delivery (".Helper::getDateTime().")";
             // $notifRequpdateArr['tracking_notes'] = $notes;
             $pckTl = new PackageTrailController();
             // DB::beginTransaction();
@@ -204,14 +204,14 @@ class GeneralSettingController extends Controller
             'info' => 'You cannot mark contact on package which is not on delivery'
         ])); else {
             $updateArr['is_contact'] = true;
-            $topics = GeneralSettingService::getGeneralTopics($user->company_id,'merchant',$package->merchant_id);
-            $notifReq = new Request([
-                'topic' => $topics->private,
-                'title' => 'Contact',
-                'body' => 'Driver has contacted your customer ('.$package->receiver_phone.')',
-            ]);
+            // $topics = GeneralSettingService::getGeneralTopics($user->company_id,'merchant',$package->merchant_id);
+            // $notifReq = new Request([
+            //     'topic' => $topics->private,
+            //     'title' => 'Contact',
+            //     'body' => 'Driver has contacted your customer ('.$package->receiver_phone.')',
+            // ]);
 
-            $cms->sendNotificationByTopic($notifReq,$user);
+            // $cms->sendNotificationByTopic($notifReq,$user);
         }
 
         if($changeDriver){

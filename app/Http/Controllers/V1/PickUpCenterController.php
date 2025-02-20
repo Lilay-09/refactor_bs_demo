@@ -497,7 +497,7 @@ class PickUpCenterController extends Controller
             $package->total_khr = Helper::getNumber($total * $exchange->sell_rate);
             unset($package->status,$package->driver,$package->merchant,$package->arrive_warehouse_datetime,$package->updateUser,$package->create_uid,$package->created_at);
         }
-        $obj = (object)[
+        $obj = [
             'company_info' => CompanyProfileService::profileInfo($user,true),
             'packages' => $packages,
             'notes' => GeneralSettingService::printNoteLabel(),//'រាល់ទំនិញខុសច្បាប់ ម្ចាស់ទំនិញត្រូវទទួលខុសត្រូវចំពោះមុខច្បាប់ដោយខ្លួនឯង ក្រុមហ៊ុនមិនទទួលខុសត្រូវឡេីយ។ សូមអរគុណសម្រាប់ការប្រើប្រាស់សេវាកម្មដឹកជញ្ជូន JS Express របស់ខ្ញុំ។',
