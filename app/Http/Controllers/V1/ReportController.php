@@ -1281,6 +1281,10 @@ class ReportController extends Controller
             $allPayments[] = $p;
         }
 
+        usort($allPayments, function ($a, $b) {
+            return strtotime($b['payment_datetime']) <=> strtotime($a['payment_datetime']);
+        });
+
         $obj =(object)[
             'title' => 'Merchant Payment',
             'status' => 'All Merchant',
