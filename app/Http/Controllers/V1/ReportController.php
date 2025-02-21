@@ -1112,7 +1112,7 @@ class ReportController extends Controller
                 $item->finished_time = $finished_time;
                 $isCal = in_array($item->status_id,[9,19]);
                 $item->price = $item->cod ? $item->price:0;
-                $total = $item->cod ? $item->price : 0;
+                $total = $item->cod && $item->status_id == 9 ? $item->price : 0;
                 if($item->payer == 'sender') {
                     $item->delivery_fee = $isCal ? ($item->delivery_fee + $item->extra_charge) : 0;
                     $total -= $item->delivery_fee + $item->taxi_fee;

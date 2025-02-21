@@ -376,7 +376,7 @@ class HomeScreenController extends Controller
             'status_id' => 'required|in:9,10,19',
             'delivery_remarks' => 'nullable|string',
             'images' => 'nullable',
-            'amount' => 'nullable|numeric',
+            // 'amount' => 'nullable|numeric',
             'payer' => 'nullable|in:sender,receiver'
         ]);
         if($validate->fails()) return ApiResponse::ValidateFail($validate->errors()->first());
