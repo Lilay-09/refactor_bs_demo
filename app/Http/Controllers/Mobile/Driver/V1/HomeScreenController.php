@@ -460,7 +460,7 @@ class HomeScreenController extends Controller
         if($status_id == 19) {
             $inputs['failed_datetime'] = now();
             $inputs['failure_notes'] = $deliveryRemarks;
-            $package->price = 0;
+            // $package->price = 0;
         }
 
         if($payer){
