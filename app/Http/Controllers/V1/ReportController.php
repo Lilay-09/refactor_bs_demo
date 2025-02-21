@@ -1011,7 +1011,7 @@ class ReportController extends Controller
         }
 
         $merchantInfo->exchange_rate = $xRate;
-        $pmtCase = ',CASE WHEN p.merchant_disbursement_id IS NOT NULL THEN dis.approved WHEN p.merchant_payment_id IS NOT NULL THEN pmt.approved ELSE FALSE END AS approved';
+        $pmtCase = ',CASE WHEN p.merchant_disbursement_id IS NOT NULL THEN dis.is_settled WHEN p.merchant_payment_id IS NOT NULL THEN pmt.is_settled ELSE FALSE END AS approved';
         $qP = Package::from('packages as p')->where('p.is_deleted',0)
         ->where('p.merchant_id',$merchantId)
         ->whereIn('p.status_id',[5,6,9,10,11,19])
@@ -1027,7 +1027,7 @@ class ReportController extends Controller
                 ->where('dis.payee_type', '=', 'merchant')->where('dis.type','payment'); // Add merchant filter
         })
         ->selectRaw('p.order_id,p.merchant_total,p.merchant_id,p.remarks,p.delivery_remarks,p.status_id,p.id,p.qr_code,p.delivered_datetime,p.failed_datetime,p.delivery_remarks,p.remarks,p.taxi_fee,p.extra_charge,p.delivery_fee,p.cod,p.price,p.payer,
-        p.returned_datetime,p.arrive_warehouse_datetime,p.assign_driver_datetime,p.receiver_phone,p.receiver_name,p.receiver_address,p.delivery_remarks'.$pmtCase);
+        p.returned_datetime,p.arrive_warehouse_datetime,p.assign_driver_datetime,p.receiver_phone,p.receiver_name,p.receiver_address,p.delivery_remarks,p.merchant_disbursement_id,p.merchant_payment_id'.$pmtCase);
 
         if ($startDate && $endDate) {
             // Concatenate start and end dates with the times
@@ -1079,6 +1079,7 @@ class ReportController extends Controller
         )->orderByRaw('DATE(p.failed_datetime) DESC,DATE(p.delivered_datetime) DESC');
         $clonePkg = clone $qP;
         $packages = $qP->get();
+        // return $packages;
         // foreach($packages as $p){
 
         // }

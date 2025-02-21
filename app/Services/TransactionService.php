@@ -206,6 +206,7 @@ class TransactionService
                 'branch_id' => $user->branch_id
             ];
             if($type == 'merchant'){
+                $pmtArr['is_approved'] = 1;
                 $pmtArr['is_settled'] = 1;
                 $pmtArr['settled_uid'] = $user->id;
                 $pmtArr['approved_uid'] = $user->id;
