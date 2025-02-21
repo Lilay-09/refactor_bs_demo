@@ -390,7 +390,7 @@ class HomeScreenController extends Controller
         // $inputs['cod_changed'] = $codChange;
         $photos = $inputs['images'] ?? null;
         $deliveryRemarks = $inputs['delivery_remarks'] ?? null;
-        $payer = $inputs['payer'] ?? null;
+
         // if($codChange){
         //     $inputs['driver_total'] = $amount;
         // }
@@ -399,6 +399,8 @@ class HomeScreenController extends Controller
         if(!$package) return ApiResponse::NotFound(__('messages.not_found',[
             'info' => 'Package'
         ]));
+
+        $payer = $inputs['payer'] ?? $package->payer;
 
         if($package->status_id == 9) return ApiResponse::Duplicated(__('messages.info',[
             'info' => 'This package has already been delivered!',
