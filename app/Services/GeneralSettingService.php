@@ -524,7 +524,7 @@ public static function optionsRole($type=null){
         return $info;
     }
 
-    public static function calculatePackageFee($zone_code,$price,$billedKg,$actualKg,$payer,$cod,$extraCharge,$user,$taxi_fee=0,$merchant_id=null){
+    public static function calculatePackageFee($zone_code,$price,$billedKg,$actualKg,$payer,$cod,$extraCharge,$user,$taxi_fee=0,$merchant_id=null,$status_id=null){
         // $priceList = GeneralSettingService::getZonePriceByCode($zone_code,$user);
         $zoneId = Zone::where('zone_code',$zone_code)->where('is_deleted',0)->take(1)->value('id');
         $priceList = GeneralSettingService::priceByZone($zoneId,$user,$merchant_id);
@@ -542,6 +542,7 @@ public static function optionsRole($type=null){
         }
         $driverTotal = 0;
         if($cod) $driverTotal += $price;
+        if($status_id == 19) $driverTotal = 0;
         $merchant_total += $additionalPrice;
         $total = $price + $additionalPrice;
         if($payer == 'receiver'){
