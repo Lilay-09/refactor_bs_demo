@@ -466,7 +466,7 @@ class HomeScreenController extends Controller
         }
 
         if($payer){
-            $calucalteFee = GeneralSettingService::calculatePackageFee($package->zone_code,$package->price,$package->billed_kg,$package->actual_kg,$payer,$package->cod,$package->extra_charge,$user,$package->taxi_fee,$package->merchant_id);
+            $calucalteFee = GeneralSettingService::calculatePackageFee($package->zone_code,$package->price,$package->billed_kg,$package->actual_kg,$payer,$package->cod,$package->extra_charge,$user,$package->taxi_fee,$package->merchant_id,$status_id);
             $inputs['merchant_total'] = $calucalteFee->merchant_total;
             $inputs['driver_total'] = $calucalteFee->driver_total;
         }
