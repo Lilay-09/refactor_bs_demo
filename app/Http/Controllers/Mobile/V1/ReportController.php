@@ -38,13 +38,21 @@ class ReportController extends Controller
         ->selectRaw('id,payer,cod,driver_id,qr_code,extra_charge,delivery_fee,extra_charge,price,status_id,failed_datetime,delivered_datetime,returned_datetime,receiver_phone,receiver_address,remarks,delivery_remarks as notes');
         $qP->orderByRaw('
             CASE
-                WHEN status_id = ? THEN 1
-                WHEN status_id = ? THEN 2
-                WHEN status_id = ? THEN 3
-                WHEN status_id = ? THEN 4
-                ELSE 7
-            END', [9, 19, 11,10]
-        )->orderByRaw('DATE(failed_datetime) DESC,DATE(delivered_datetime) DESC');
+                WHEN status_id = 9 THEN delivered_datetime
+                WHEN status_id = 10 THEN failed_datetime
+                WHEN status_id = 19 THEN failed_datetime
+                WHEN status_id = 11 THEN returned_datetime
+            END DESC
+        ');
+        // $qP->orderByRaw('
+        //     CASE
+        //         WHEN status_id = ? THEN 1
+        //         WHEN status_id = ? THEN 2
+        //         WHEN status_id = ? THEN 3
+        //         WHEN status_id = ? THEN 4
+        //         ELSE 7
+        //     END', [9, 19, 11,10]
+        // )->orderByRaw('DATE(failed_datetime) DESC,DATE(delivered_datetime) DESC');
         if(is_numeric($statusId)) $qP->where('status_id',$statusId);
         $qAt = PackageAttachment::where('hidden', 0)
         ->limit(700);
@@ -181,13 +189,21 @@ class ReportController extends Controller
         ->selectRaw('id,payer,cod,driver_id,qr_code,extra_charge,delivery_fee,extra_charge,price,status_id,failed_datetime,delivered_datetime,returned_datetime,receiver_phone,receiver_address');
         $qP->orderByRaw('
             CASE
-                WHEN status_id = ? THEN 1
-                WHEN status_id = ? THEN 2
-                WHEN status_id = ? THEN 3
-                WHEN status_id = ? THEN 4
-                ELSE 7
-            END', [9, 19, 11,10]
-        )->orderByRaw('DATE(failed_datetime) DESC,DATE(delivered_datetime) DESC');
+                WHEN status_id = 9 THEN delivered_datetime
+                WHEN status_id = 10 THEN failed_datetime
+                WHEN status_id = 19 THEN failed_datetime
+                WHEN status_id = 11 THEN returned_datetime
+            END DESC
+        ');
+        // $qP->orderByRaw('
+        //     CASE
+        //         WHEN status_id = ? THEN 1
+        //         WHEN status_id = ? THEN 2
+        //         WHEN status_id = ? THEN 3
+        //         WHEN status_id = ? THEN 4
+        //         ELSE 7
+        //     END', [9, 19, 11,10]
+        // )->orderByRaw('DATE(failed_datetime) DESC,DATE(delivered_datetime) DESC');
         if(is_numeric($statusId)) $qP->where('status_id',$statusId);
         if($startDate && $endDate){
             $startDate = Helper::dateYMD($startDate);
