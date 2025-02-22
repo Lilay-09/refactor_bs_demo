@@ -700,6 +700,7 @@ class ReportController extends Controller
         $amount = 0;
         $amountKh = 0;
         $total = 0;
+        $xRate = GeneralSettingService::getLatestXRate()->buy_rate;
         $qP = Payment::with(['driver:id,user_name,code','cashier:id,user_name'])->where('is_deleted',0)->where('payer_type','driver')->selectRaw('id,payer_id,payment_datetime,breakdown_notes,exchange_rate,payable_amount as amount,approved_uid');
         $qD = Disbursement::with(['driver:id,user_name,code','cashier:id,user_name'])->where('is_deleted',0)->where('payee_type','driver')->where('type','payment')->selectRaw('id,payee_id,payment_datetime,breakdown_notes,exchange_rate,payable_amount as amount,approved_uid');
         if($startDate && $endDate){
@@ -728,8 +729,10 @@ class ReportController extends Controller
             $pmtDetails = $this->getPaymentDetails($paymentDetails,$p->id);
             $p->amount_usd = Helper::getNumber($pmtDetails->amount_usd,2);
             $p->amount_khr = Helper::getNumber($pmtDetails->amount_khr,2);
+            $amtKhrToUsd = $p->amount_khr / $xRate;
             $amount += $pmtDetails->amount_usd;
             $amountKh += $pmtDetails->amount_khr;
+            $total += $p->amount_usd + $amtKhrToUsd;
             $p->payment_type = 'receive';
             unset($p->driver,$p->cashier);
             $allPayments[] = $p;
@@ -741,8 +744,10 @@ class ReportController extends Controller
             $pmtDetails = $this->getPaymentDetails($paymentDetails,$p->id);
             $p->amount_usd = Helper::getNumber($pmtDetails->amount_usd,2);
             $p->amount_khr = Helper::getNumber($pmtDetails->amount_khr,2);
-            $amount += $p->amount_usd;
-            $amountKh += $p->amount_khr;
+            $amtKhrToUsd = $p->amount_khr / $xRate;
+            $amount += $pmtDetails->amount_usd;
+            $amountKh += $pmtDetails->amount_khr;
+            $total += $p->amount_usd + $amtKhrToUsd;
             $p->payment_type = 'disbursement';
             unset($p->driver,$p->cashier);
             $allPayments[] = $p;
