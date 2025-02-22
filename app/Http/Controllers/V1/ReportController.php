@@ -76,11 +76,13 @@ class ReportController extends Controller
         $startDate = $req->startDate;
         $endDate = $req->endDate;
         $lang = $req->lang;
+        $statusId = $req->status_id;
         $qP = Package::where('is_deleted',0)
         ->with(['status','driver','merchant'])
         ->where('outstanding',0)
         ->selectRaw('qr_code,merchant_id,driver_id,payer,product_type,receiver_address,remarks,receiver_phone,cod,price,delivery_fee,additional_fee,driver_total,merchant_total,status_id,remarks,arrive_warehouse_datetime,assign_driver_datetime,updated_at,failed_datetime,delivered_datetime,extra_charge,created_at');
 
+        if($statusId) $qP->where('status_id',$statusId);
         if($startDate && $endDate){
             $startDate = Helper::dateYMD($startDate);
             $endDate = Helper::dateYMD($endDate);
@@ -553,7 +555,7 @@ class ReportController extends Controller
     public function getDailyPackageReportOption(Request $req){
         $user = UserService::getAuthUser();
         $obj =(object)[
-            'statuses' => GeneralSettingService::optionsTrackingStatus($user,[],[]),
+            'statuses' => GeneralSettingService::optionsTrackingStatus($user,[],[5,6,9,10,11,19]),
         ];
         return ApiResponse::JsonResult($obj);
     }
