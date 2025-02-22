@@ -141,8 +141,9 @@ class DashboardController extends Controller
         $paymentList = [];
         foreach($pkgPayments as $pmt){
             $pmtDetails = $this->getPaymentDetails($pmt->payment_id,$paymentDetails);
-            // \Log::info($paymentDetails);
+
             if($pmtDetails){
+                // \Log::info($paymentDetails[0]);
                 $amountConverted = TransactionService::amountToOneCurrency('USD',$pmtDetails['cash_usd'],$pmtDetails['cash_khr'],$pmtDetails['bank_usd'],$pmtDetails['bank_khr'],$pmt->exchange_rate);
                 $pmt->cash = $amountConverted['cash'];
                 $pmt->bank_amount = $amountConverted['bank'];
@@ -162,15 +163,16 @@ class DashboardController extends Controller
         $cashUsd = 0;
         foreach($rows as $row) {
             if($row->payment_id == $paymentId){
+                // \Log::info($row);
                 // return $row;
                 if($row->method == 'cash' && $row->currency_code == 'KHR'){
-                    $cashKhr = $row->amount;
+                    $cashKhr += $row->amount;
                 }else if($row->method == 'cash' && $row->currency_code == 'USD'){
-                    $cashUsd = $row->amount;
-                }else if($row->method == 'bank' && $row->currency_code == 'KHR'){
-                    $bankKhr = $row->amount;
-                }else if($row->method == 'bank' && $row->currency_code == 'USD'){
-                    $bankUsd = $row->amount;
+                    $cashUsd += $row->amount;
+                }else if($row->method !== 'cash' && $row->currency_code == 'KHR'){
+                    $bankKhr += $row->amount;
+                }else if($row->method !== 'cash' && $row->currency_code == 'USD'){
+                    $bankUsd += $row->amount;
                 }
             }
         }
