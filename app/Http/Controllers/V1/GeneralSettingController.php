@@ -266,6 +266,7 @@ class GeneralSettingController extends Controller
 
     public function getFormFleetStatus(Request $req){
         $user = UserService::getAuthUser();
+        $statusId = $req->status_id;
         $statuses = $this->gs::optionsTrackingStatus($user,[],[9,10,19],null,null,$req->lang);
         return ApiResponse::JsonResult($statuses);
     }

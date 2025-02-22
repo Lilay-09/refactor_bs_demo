@@ -759,10 +759,11 @@ class ReportController extends Controller
         $startDate = $req->startDate ? Helper::dateYMD($req->startDate) : null;
         $endDate = $req->endDate ? Helper::dateYMD($req->endDate) : null;
         $driverId = $req->driver_id;
+        $isKm = $req->lang == 'km';
         $qP = Package::where('is_deleted',0)->where('outstanding',0)
         ->with(['merchant:id,user_name','status:id,name'])
         ->orderByDesc('id')
-        ->selectRaw('status_id,qr_code,merchant_id,receiver_phone,receiver_name,cod,delivery_fee,taxi_fee,driver_total,remarks,zone_code,zone_name,payer,driver_id,price');
+        ->selectRaw('status_id,qr_code,merchant_id,receiver_phone,receiver_name,receiver_address,cod,delivery_fee,taxi_fee,driver_total,remarks,zone_code,zone_name,payer,driver_id,price');
         if($driverId){
             $qP->where('driver_id',$driverId);
         }
@@ -806,6 +807,7 @@ class ReportController extends Controller
             $p->merchant_phone = $p->merchant->phone;
             $p->status_code = $p->status->name;
             $cod = $p->cod;
+            if($isKm) $p->payer = GeneralSettingService::$payerTrans[$p->payer] ?? '';
             $p->price = $cod ? $p->price:0;
             $p->base_fee = $p->delivery_fee;
             if ($p->driver_id !== null && empty($uniqueDrivers[$p->driver_id])) {
