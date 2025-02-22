@@ -84,27 +84,27 @@ class ReportController extends Controller
 
         if($statusId) $qP->where('status_id',$statusId);
         if($startDate && $endDate){
-            $startDate = Helper::dateYMD($startDate);
-            $endDate = Helper::dateYMD($endDate);
-            $qP->where(function($q) use ($startDate, $endDate) {
-                $q->where(function($q) use ($startDate, $endDate) {
+            $startDatetime = Helper::dateYMD($startDate). '00:00:00';
+            $endDatetime = Helper::dateYMD($endDate). ' 23:59:59';
+            $qP->where(function($q) use ($startDatetime, $endDatetime) {
+                $q->where(function($q) use ($startDatetime, $endDatetime) {
                     // For status_id 19, query only failed_datetime
-                    $q->whereBetween('failed_datetime', ["$startDate 00:00:00", "$endDate 23:59:59"])
+                    $q->whereBetween('failed_datetime', [$startDatetime, $endDatetime])
                     ->where('status_id', 10);
                 })
-                ->orWhere(function($q) use ($startDate, $endDate) {
+                ->orWhere(function($q) use ($startDatetime, $endDatetime) {
                     // For status_id 9, query only delivered_datetime
-                    $q->whereBetween('delivered_datetime', ["$startDate 00:00:00", "$endDate 23:59:59"])
+                    $q->whereBetween('delivered_datetime', [$startDatetime, $endDatetime])
                     ->where('status_id', 9);
                 })
-                ->orWhere(function($q) use ($startDate, $endDate) {
+                ->orWhere(function($q) use ($startDatetime, $endDatetime) {
                     // For status_id 9, query only delivered_datetime
-                    $q->whereBetween('arrive_warehouse_datetime', ["$startDate 00:00:00", "$endDate 23:59:59"])
+                    $q->whereBetween('arrive_warehouse_datetime', [$startDatetime, $endDatetime])
                     ->where('status_id', 5);
                 })
-                ->orWhere(function($q) use ($startDate, $endDate) {
+                ->orWhere(function($q) use ($startDatetime, $endDatetime) {
                     // For status_id 11, query only returned_datetime
-                    $q->whereBetween('returned_datetime', ["$startDate 00:00:00", "$endDate 23:59:59"])
+                    $q->whereBetween('returned_datetime', [$startDatetime, $endDatetime])
                     ->where('status_id', 11);
                 });
             });
