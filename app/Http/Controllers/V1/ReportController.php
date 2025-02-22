@@ -513,6 +513,13 @@ class ReportController extends Controller
         $qP = FeedBack::where('is_deleted',0)
         ->selectRaw('id,create_uid,rate,created_at,comments')
         ->with('merchant');
+
+        if($startDate && $endDate){
+            $startDatetime = Helper::dateYMD($startDate). ' 00:00:00';
+            $endDatetime = Helper::dateYMD($endDate). ' 23:59:59';
+            $qP->whereBetween('created_at',[$startDatetime,$endDatetime]);
+        }
+
         $feedBack = $qP->orderByDesc('id')->get();
         $total = 0;
         foreach($feedBack as $fd){

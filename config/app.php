@@ -18,8 +18,8 @@ return [
     'admin_app_id' => env('ADMIN_APPID'),
     'merchant_app_id' => env('MERCHANT_APPID'),
     'driver_app_id' => env('DRIVER_APPID'),
-    'driver_jwt_ttl' => env('DRIVER_JWT_TTL',64800),
-    'merchant_jwt_ttl' => env('MERCHANT_JWT_TTL',63072000),
+    'driver_jwt_ttl' => env('DRIVER_JWT_TTL',31536000),
+    'merchant_jwt_ttl' => env('MERCHANT_JWT_TTL',78840000),
 
     /*
     |--------------------------------------------------------------------------

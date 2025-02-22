@@ -77,6 +77,7 @@ class DriverManagementController extends Controller
 
     private function driverCommissionValidation(Request $req){
         return validator($req->all(),[
+            'salary' => 'nullable|numeric',
             'normal_pickup_commission' => 'nullable|numeric',
             'normal_delivery_commission' => 'nullable|numeric',
             'fast_pickup_commission' => 'nullable|numeric',
@@ -128,6 +129,9 @@ class DriverManagementController extends Controller
                 $success = 1;
             }
         }
+        User::find($driver_id)->update([
+            'salary' => $inputs['salary'] ?? 0
+        ]);
         if($success) return ApiResponse::JsonResult(null,__('messages.saved'));
         return ApiResponse::Error(__('messages.error',['info' => 'Fail to save commission']));
     }
