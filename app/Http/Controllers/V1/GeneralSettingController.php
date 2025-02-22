@@ -357,6 +357,7 @@ class GeneralSettingController extends Controller
         ];
         return ApiResponse::JsonResult($obj);
     }
+
     // public function getFormUser(){
     //     $user = UserService::getAuthUser();
     //     $obj = (object)[

@@ -65,7 +65,7 @@ class AuthController extends Controller
         else if($user->phone == $account) $credentials['phone'] = $account;
         else if($user->login_name == $account) $credentials['login_name'] = $account;
         try {
-            $ttl = time() + (int)env('MERCHANT_JWT_TTL');
+            $ttl = time() + (int)config('app.merchant_jwt_ttl');
             if(!$token = JWTAuth::attempt($credentials)) {
                 return ApiResponse::Unauthorized('invalid_credentials');
             }
