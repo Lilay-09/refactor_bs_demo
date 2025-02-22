@@ -130,6 +130,7 @@ class DashboardController extends Controller
         ->where('p.updated_at', '>=', Carbon::now()->subDays($this->days))
         ->selectRaw('pmt.exchange_rate,pmt.id as payment_id,DATE(payment_datetime) as payment_date,COUNT(DISTINCT(p.driver_id)) as total_driver,COUNT(DISTINCT(p.merchant_id)) as total_merchant')
         ->groupBy('payment_id')
+        // ->orderByDesc('payment_datetime')
         ->get();
         // $payments = Payment::where('is_deleted',0)
         // ->selectRaw('id as payment_id,DATE(payment_datetime) as payment_date,COUNT(payer_id) as total_driver')
@@ -140,6 +141,7 @@ class DashboardController extends Controller
         $paymentList = [];
         foreach($pkgPayments as $pmt){
             $pmtDetails = $this->getPaymentDetails($pmt->payment_id,$paymentDetails);
+            // \Log::info($paymentDetails);
             if($pmtDetails){
                 $amountConverted = TransactionService::amountToOneCurrency('USD',$pmtDetails['cash_usd'],$pmtDetails['cash_khr'],$pmtDetails['bank_usd'],$pmtDetails['bank_khr'],$pmt->exchange_rate);
                 $pmt->cash = $amountConverted['cash'];
