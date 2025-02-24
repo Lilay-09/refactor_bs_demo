@@ -42,12 +42,12 @@ class JwtAuthMiddleware
                 $payload = JWTAuth::getPayload($token);
                 $payloadArr = $payload->toArray();
                 if($payloadArr['type'] == 'refresh') return ApiResponse::Unauthorized('Invalid Token');
-                if($payloadArr['system_admin'] === 0) return response()->json([
-                    'status_code' => 403,
-                    'status' => 'Invalid Token',
-                    'error_message' => 'Access Denied',
-                    'errors' => []
-                ],403);
+                // if($payloadArr['system_admin'] === 0) return response()->json([
+                //     'status_code' => 403,
+                //     'status' => 'Invalid Token',
+                //     'error_message' => 'Access Denied',
+                //     'errors' => []
+                // ],403);
             }else{
                 return ApiResponse::Unauthorized($hasUser->message);
             }

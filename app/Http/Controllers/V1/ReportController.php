@@ -1475,6 +1475,4 @@ class ReportController extends Controller
         $user = UserService::getAuthUser();
         return ApiResponse::JsonResult(GeneralSettingService::optionsWarehouse($user));
     }
-
-
 }
