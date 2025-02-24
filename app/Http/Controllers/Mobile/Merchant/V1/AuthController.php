@@ -69,7 +69,7 @@ class AuthController extends Controller
             if(!$token = JWTAuth::attempt($credentials)) {
                 return ApiResponse::Unauthorized('invalid_credentials');
             }
-            $token = JWTAuth::customClaims(['exp' => $ttl,'system_admin' => $user->system_admin,'roles'=>$user->roles,'type'=>'access','account_type' => $user->account_type])->fromUser($user);
+            $token = JWTAuth::customClaims(['exp' => $ttl,'type'=>'access','iss' => ''])->fromUser($user);
         } catch (JWTException $e) {
             Log::error($e->getTraceAsString());
             return ApiResponse::Unauthorized();
