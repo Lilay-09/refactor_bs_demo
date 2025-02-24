@@ -388,7 +388,7 @@ class Helper{
      * @return string
      * Note* folder structure => public/uploads/images/companyId/dirname
      */
-    static function base64ToImageFile($base64String, $companyId, $dirName,$ext=null): object
+    static function base64ToImageFile($base64String, $companyId, $dirName,$subDir=null,$ext=null): object
     {
         $base64String = self::ensureBase64Prefix($base64String);
 
@@ -397,6 +397,9 @@ class Helper{
         ];
         // Construct the base directory path
         $baseFolder = public_path('uploads/images/' . $companyId . '/' . $dirName);
+        if ($subDir) {
+            $baseFolder .= '/' . $subDir;
+        }
 
         // Check if the directory exists, if not, create it
         if (!file_exists($baseFolder)) {
@@ -514,23 +517,30 @@ class Helper{
         return false;
     }
 
-    static function getImageUrl($fileName, $companyId, $dirName)
+    static function getImageUrl($fileName, $companyId, $dirName, $subDir = null)
     {
-        // Construct the relative file path for the URL
+        // Primary file path
         $relativeFilePath = 'uploads/images/' . $companyId . '/' . $dirName . '/' . $fileName;
-        // var_dump($relativeFilePath);
-
-        // Construct the full file path on the server
         $filePath = public_path($relativeFilePath);
 
-        // Check if the file exists
+        // Check if the file exists in the main directory
         if (file_exists($filePath) && $fileName) {
-            // File exists, return the public URL
             return asset($relativeFilePath);
         }
-        // File does not exist, return a default placeholder URL or null
-        return null; // Adjust with your placeholder image path
+
+        // If not found and a subdirectory is provided, check there
+        if ($subDir) {
+            $relativeFilePath = 'uploads/images/' . $companyId . '/' . $subDir . '/' . $fileName;
+            $filePath = public_path($relativeFilePath);
+
+            if (file_exists($filePath)) {
+                return asset($relativeFilePath);
+            }
+        }
+
+        return null; // Adjust with a default placeholder if needed
     }
+
 
     static function getFileUrl($fileName, $companyId, $dirName, $type = 'image')
     {

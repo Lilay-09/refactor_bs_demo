@@ -162,15 +162,20 @@ class PackageTrailController extends Controller
         unset($package->status,$package->driver);
         return ApiResponse::JsonResult($package);
     }
+
     public function getPackageImages(Request $req){
         $id = $req->id;
         $user = UserService::getAuthUser();
         $images = PackageAttachment::where('package_id', $id)
-        ->take(2)  // Limit to the 2 most recent images
-        ->where('hidden',0)
-        ->pluck('file_name')
-        ->toArray();
-        $imageUrls = array_map(fn($img) => Helper::getImageUrl($img, $user->company_id, 'submit_package'), $images);
+        ->where('hidden', 0)
+        ->orderBy('created_at', 'desc') // Ensure most recent images are fetched
+        ->take(2) // Limit to 2 images
+        ->selectRaw('file_name, DATE(created_at) as date') // Correct usage of DATE()
+        ->get();
+        // ->toArray();
+        // $imageUrls = array_map(fn($img) => Helper::getImageUrl($img, $user->company_id, 'submit_package'), $images);
+        $imageUrls = $images->map(fn($img) => Helper::getImageUrl($img->file_name, $user->company_id, 'submit_package',$img->date))
+                    ->toArray();
         return ApiResponse::JsonResult($imageUrls);
     }
 

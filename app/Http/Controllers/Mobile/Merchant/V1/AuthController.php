@@ -203,6 +203,12 @@ class AuthController extends Controller
 
     }
 
+    public function resendOtp(Request $req){
+        $validPhone = Helper::formatPhoneNumber($req->phone);
+        // return $validPhone;
+        return ApiResponse::flex(AppSetting::sendSms('PlasGateUAT',$validPhone,'merchant'));
+    }
+
     public function subscribeTopics(Request $req){
         $user = UserService::getAuthUser($this->userClass);
         $cldMsgService = new CloudMessagingService();

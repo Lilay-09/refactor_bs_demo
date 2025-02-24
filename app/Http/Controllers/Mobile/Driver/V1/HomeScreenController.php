@@ -429,7 +429,8 @@ class HomeScreenController extends Controller
         ]);
         if(isset($photos[0])) {
             foreach($photos as $p){
-                $fileName = Helper::saveImageFileOrBase64($p,$user->company_id,'submit_package')->filename;
+                $dirName = 'submit_package';
+                $fileName = Helper::saveImageFileOrBase64($p,$user->company_id,$dirName)->filename;
                 if($fileName){
                     PackageAttachment::create([
                         'package_id' => $id,
