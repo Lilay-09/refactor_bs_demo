@@ -449,18 +449,18 @@ class Helper{
         }
     }
 
-    public static function saveImageFileOrBase64($imageOrBase64, $companyId, $dirName = 'images'){
+    public static function saveImageFileOrBase64($imageOrBase64, $companyId, $dirName = 'images',$subDir=null){
         if (self::isValidBase64Image($imageOrBase64)) {
-            return self::base64ToImageFile($imageOrBase64, $companyId, $dirName);
+            return self::base64ToImageFile($imageOrBase64, $companyId, $dirName,$subDir);
         } elseif ($imageOrBase64 instanceof UploadedFile) {
-            return self::saveImageFile($imageOrBase64, $companyId, $dirName);
+            return self::saveImageFile($imageOrBase64, $companyId, $dirName,$subDir);
         } else {
             throw new \Exception("Invalid image format.");
         }
     }
 
 
-    public static function saveImageFile(UploadedFile $image, $companyId, $dirName = 'images')
+    public static function saveImageFile(UploadedFile $image, $companyId, $dirName = 'images',$subDir=null)
     {
         // Validate the image type
         $validMimeTypes = ['image/jpeg', 'image/png', 'image/jpg', 'image/gif', 'image/heic', 'image/heif', 'image/webp','application/octet-stream'];
@@ -478,7 +478,7 @@ class Helper{
 
         // Define the base folder path
         $baseFolder = public_path('uploads/images/' . $companyId . '/' . $dirName);
-
+        if($subDir) $baseFolder .= '/'.$subDir;
         // Create the directory if it does not exist
         if (!is_dir($baseFolder)) {
             mkdir($baseFolder, 0755, true); // Create the directory with the appropriate permissions
