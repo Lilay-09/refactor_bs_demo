@@ -22,7 +22,6 @@ use App\Services\UserService;
 use DB;
 use Helper;
 use Illuminate\Http\Request;
-use Log;
 
 class ReportController extends Controller
 {

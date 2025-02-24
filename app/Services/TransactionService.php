@@ -641,7 +641,7 @@ class TransactionService
         $endDate = $req->endDate;
         $transactionType = $req->transaction_type ?? null;
         $allPayments = [];
-        Log::info($req->all());
+        // Log::info($req->all());
         if(!$transactionType || $transactionType == 'receive'){
             $qP = Payment::fromRaw('payments as p')->join('users as d','d.id','p.payer_id')
             ->where('p.is_deleted',0)

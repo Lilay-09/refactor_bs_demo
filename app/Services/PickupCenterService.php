@@ -15,7 +15,6 @@ use Exception;
 use Helper;
 use Illuminate\Http\Request;
 use Log;
-use Str;
 
 class PickupCenterService
 {
