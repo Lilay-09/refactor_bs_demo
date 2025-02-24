@@ -79,7 +79,7 @@ class ReportController extends Controller
         $qP = Package::where('is_deleted',0)
         ->with(['status','driver','merchant'])
         ->where('outstanding',0)
-        ->selectRaw('qr_code,merchant_id,driver_id,payer,product_type,receiver_address,remarks,receiver_phone,cod,price,delivery_fee,additional_fee,driver_total,merchant_total,status_id,remarks,arrive_warehouse_datetime,assign_driver_datetime,updated_at,failed_datetime,delivered_datetime,extra_charge,created_at');
+        ->selectRaw('qr_code,merchant_id,driver_id,payer,product_type,receiver_address,remarks,receiver_phone,cod,price,delivery_fee,additional_fee,driver_total,merchant_total,status_id,remarks,arrive_warehouse_datetime,assign_driver_datetime,updated_at,failed_datetime,returned_datetime,delivered_datetime,extra_charge,created_at');
 
         if($statusId) $qP->where('status_id',$statusId);
         if($startDate && $endDate){
