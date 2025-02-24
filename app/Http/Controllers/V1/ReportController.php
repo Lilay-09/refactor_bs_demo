@@ -166,9 +166,26 @@ class ReportController extends Controller
         $user = UserService::getAuthUser();
         $startDate = $req->startDate ? Helper::dateDMY($req->startDate) : null;
         $endDate = $req->endDate ? Helper::dateDMY($req->endDate) : null;
+        $merchantId = $req->merchant_id;
         $qP = Package::where('is_deleted',0)
         ->where('outstanding',0)
         ->with(['merchant']);
+        if($merchantId) $qP->where('merchant_id',$merchantId);
+        if($startDate && $endDate){
+            $startDatetime = Helper::dateYMD($startDate).' 00:00:00';
+            $endDatetime = Helper::dateYMD($endDate).' 23:59:59';
+            $qP->where(function ($q) use ($startDatetime,$endDatetime){
+                $q->whereRaw(
+                    "(status_id = 5 AND arrive_warehouse_datetime BETWEEN ? AND ?)
+                    OR (status_id = 6 AND assign_driver_datetime BETWEEN ? AND ?)
+                    OR (status_id = 10 AND failed_datetime BETWEEN ? AND ?)
+                    OR (status_id = 19 AND failed_datetime BETWEEN ? AND ?)
+                    OR (status_id = 9 AND delivered_datetime BETWEEN ? AND ?)
+                    OR (status_id = 11 AND returned_datetime BETWEEN ? AND ?)",
+                    [$startDatetime, $endDatetime, $startDatetime, $endDatetime, $startDatetime, $endDatetime, $startDatetime, $endDatetime, $startDatetime, $endDatetime, $startDatetime, $endDatetime, $startDatetime, $endDatetime]
+                );
+            });
+        }
         $packages = $qP->selectRaw('DATE(created_at) as created_date,merchant_id,status_id,delivery_fee,cod')
         ->whereIn('status_id',[5,6,9,10,11,19])
         ->orderByDesc('created_date')
@@ -367,7 +384,9 @@ class ReportController extends Controller
 
         $qO = Order::where('status_id',5)->where('is_deleted',0);
         if($startDate && $endDate){
-            $qO->whereBetween('pickup_datetime', ["$startDate 00:00:00", "$endDate 23:59:59"]);
+            $startDatetime = Helper::dateYMD($startDate) . ' 00:00:00';
+            $endDatetime = Helper::dateYMD($endDate) . ' 23:59:59';
+            $qO->whereBetween('pickup_datetime', [$startDatetime,$endDatetime]);
             $qP->whereRaw(
                 "(status_id = 5 AND arrive_warehouse_datetime BETWEEN ? AND ?)
                 OR (status_id IN (2,3,4) AND pickup_datetime BETWEEN ? AND ?)
@@ -376,13 +395,12 @@ class ReportController extends Controller
                 OR (status_id = 19 AND failed_datetime BETWEEN ? AND ?)
                 OR (status_id = 9 AND delivered_datetime BETWEEN ? AND ?)
                 OR (status_id = 11 AND returned_datetime BETWEEN ? AND ?)",
-                [$startDate, $endDate, $startDate, $endDate, $startDate, $endDate, $startDate, $endDate, $startDate, $endDate, $startDate, $endDate, $startDate, $endDate]
+                [$startDatetime, $endDatetime, $startDatetime, $endDatetime, $startDatetime, $endDatetime, $startDatetime, $endDatetime, $startDatetime, $endDatetime, $startDatetime, $endDatetime, $startDatetime, $endDatetime]
             );
-
             $clonePkg->whereRaw(
                 "(status_id = 9 AND delivered_datetime BETWEEN ? AND ?)
                 OR (status_id = 19 AND failed_datetime BETWEEN ? AND ?)",
-                [$startDate, $endDate, $startDate, $endDate]
+                [$startDatetime, $endDatetime, $startDatetime, $endDatetime]
             );
         }
 
