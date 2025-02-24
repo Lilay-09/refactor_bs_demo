@@ -102,6 +102,11 @@ class ReportController extends Controller
                     ->where('status_id', 5);
                 })
                 ->orWhere(function($q) use ($startDatetime, $endDatetime) {
+                    // For status_id 9, query only delivered_datetime
+                    $q->whereBetween('assign_driver_datetime', [$startDatetime, $endDatetime])
+                    ->where('status_id', 6);
+                })
+                ->orWhere(function($q) use ($startDatetime, $endDatetime) {
                     // For status_id 11, query only returned_datetime
                     $q->whereBetween('returned_datetime', [$startDatetime, $endDatetime])
                     ->where('status_id', 11);
@@ -112,16 +117,17 @@ class ReportController extends Controller
         $packages = $qP->orderByDesc('created_at')->get();
         $groupedPackages = collect($packages)->map(function ($pkg) {
             $actionDate = Helper::formatCustomDateTime($pkg->created_at);
-            if ($pkg->status_id == 5) $actionDate = Helper::formatCustomDateTime($pkg->arrive_warehouse_datetime);
-            if ($pkg->status_id == 6) $actionDate = Helper::formatCustomDateTime($pkg->assign_driver_datetime);
-            if ($pkg->status_id == 10) $actionDate = Helper::formatCustomDateTime($pkg->failed_datetime);
-            if ($pkg->status_id == 9) $actionDate = Helper::formatCustomDateTime($pkg->delivered_datetime);
-
+            if ($pkg->status_id == 5) $actionDate = Helper::formatCustomDateTime($pkg->arrive_warehouse_datetime,'d-M-Y');
+            if ($pkg->status_id == 6) $actionDate = Helper::formatCustomDateTime($pkg->assign_driver_datetime,'d-M-Y');
+            if ($pkg->status_id == 10) $actionDate = Helper::formatCustomDateTime($pkg->failed_datetime,'d-M-Y');
+            if ($pkg->status_id == 9) $actionDate = Helper::formatCustomDateTime($pkg->delivered_datetime,'d-M-Y');
+            if ($pkg->status_id == 19) $actionDate = Helper::formatCustomDateTime($pkg->failed_datetime,'d-M-Y');
+            if ($pkg->status_id == 11) $actionDate = Helper::formatCustomDateTime($pkg->returned_datetime,'d-M-Y');
             // Return the modified package with the actionDate
-            $pkg->groupDate = date('d-M-Y',strtotime($pkg->created_at));
+            // $pkg->groupDate = date('d-M-Y',strtotime($pkg->created_at));
             $pkg->actionDate = $actionDate;
             return $pkg;
-        })->groupBy('groupDate')
+        })->groupBy('actionDate')
         ->map(function ($group, $date) use ($lang) {
             $group->each(function ($item) use ($lang) {
                 if($lang == 'km'){
@@ -131,8 +137,8 @@ class ReportController extends Controller
                 $item->merchant_phone = $item->merchant->phone;
                 $item->driver_name = $item->driver?->user_name;
                 $item->driver_phone = $item->driver?->phone;
-                $item->cod_fee = $item->cod ? $item->delivery_fee : 0;
-                $item->fee = PickupCenterService::getFees($item->cod,$item->delivery_fee,$item->additional_fee,$item->extra_charge);
+                $item->cod_fee = $item->price;
+                $item->fee = $item->delivery_fee + $item->extra_charge;//PickupCenterService::getFees($item->cod,$item->delivery_fee,$item->additional_fee,$item->extra_charge);
                 unset(
                     $item->status,$item->cod,$item->merchant,$item->driver,$item->driver_id,
                     $item->merchant_id,$item->arrive_warehouse_datetime,$item->assign_driver_datetime,
@@ -417,15 +423,15 @@ class ReportController extends Controller
             'failedWithFeeCount' => 0,
         ];
 
-        $operationSum = [
-            'merchantCount' => 0,
-            'deliveredCount' => 0,
-            'atWarehouseCount' => 0,
-            'onDeliveryCount' => 0,
-            'failedCount' => 0,
-            'returnedCount' => 0,
-            'failedWithFeeCount' => 0,
-        ];
+        // $operationSum = [
+        //     'merchantCount' => 0,
+        //     'deliveredCount' => 0,
+        //     'atWarehouseCount' => 0,
+        //     'onDeliveryCount' => 0,
+        //     'failedCount' => 0,
+        //     'returnedCount' => 0,
+        //     'failedWithFeeCount' => 0,
+        // ];
 
         $seenMerchants = [];
 
