@@ -182,7 +182,7 @@ class ReportController extends Controller
                     OR (status_id = 19 AND failed_datetime BETWEEN ? AND ?)
                     OR (status_id = 9 AND delivered_datetime BETWEEN ? AND ?)
                     OR (status_id = 11 AND returned_datetime BETWEEN ? AND ?)",
-                    [$startDatetime, $endDatetime, $startDatetime, $endDatetime, $startDatetime, $endDatetime, $startDatetime, $endDatetime, $startDatetime, $endDatetime, $startDatetime, $endDatetime, $startDatetime, $endDatetime]
+                    [$startDatetime, $endDatetime, $startDatetime, $endDatetime, $startDatetime, $endDatetime, $startDatetime, $endDatetime, $startDatetime, $endDatetime, $startDatetime, $endDatetime]
                 );
             });
         }
