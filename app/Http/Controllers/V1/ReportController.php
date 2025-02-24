@@ -89,7 +89,7 @@ class ReportController extends Controller
                 $q->where(function($q) use ($startDatetime, $endDatetime) {
                     // For status_id 19, query only failed_datetime
                     $q->whereBetween('failed_datetime', [$startDatetime, $endDatetime])
-                    ->where('status_id', 10);
+                    ->whereIn('status_id', [10,19]);
                 })
                 ->orWhere(function($q) use ($startDatetime, $endDatetime) {
                     // For status_id 9, query only delivered_datetime
@@ -106,6 +106,7 @@ class ReportController extends Controller
                     $q->whereBetween('assign_driver_datetime', [$startDatetime, $endDatetime])
                     ->where('status_id', 6);
                 })
+
                 ->orWhere(function($q) use ($startDatetime, $endDatetime) {
                     // For status_id 11, query only returned_datetime
                     $q->whereBetween('returned_datetime', [$startDatetime, $endDatetime])
