@@ -69,7 +69,6 @@ class GeneralSettingController extends Controller
         ->take(2) // Limit to 2 images
         ->selectRaw("file_name, TO_CHAR(created_at, 'YYYY-MM-DD') as date") // Correct usage of DATE()
         ->get();
-        Log::error(json_encode($images));
         // ->toArray();
         // $imageUrls = array_map(fn($img) => Helper::getImageUrl($img, $user->company_id, 'submit_package'), $images);
         $imageUrls = $images->map(fn($img) => Helper::getImageUrl($img->file_name, $user->company_id, 'submit_package',$img->date))

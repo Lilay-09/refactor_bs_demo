@@ -84,7 +84,7 @@ class ReportController extends Controller
 
         if($statusId) $qP->where('status_id',$statusId);
         if($startDate && $endDate){
-            $startDatetime = Helper::dateYMD($startDate). '00:00:00';
+            $startDatetime = Helper::dateYMD($startDate). ' 00:00:00';
             $endDatetime = Helper::dateYMD($endDate). ' 23:59:59';
             $qP->where(function($q) use ($startDatetime, $endDatetime) {
                 $q->where(function($q) use ($startDatetime, $endDatetime) {

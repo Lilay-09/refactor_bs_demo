@@ -530,9 +530,8 @@ class Helper{
 
         // If not found and a subdirectory is provided, check there
         if ($subDir) {
-            $relativeFilePath = 'uploads/images/' . $companyId . '/' . $subDir . '/' . $fileName;
+            $relativeFilePath = 'uploads/images/' . $companyId . '/' .$dirName.'/'. $subDir . '/' . $fileName;
             $filePath = public_path($relativeFilePath);
-
             if (file_exists($filePath)) {
                 return asset($relativeFilePath);
             }
