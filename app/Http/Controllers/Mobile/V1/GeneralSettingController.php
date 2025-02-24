@@ -67,8 +67,9 @@ class GeneralSettingController extends Controller
         ->where('hidden', 0)
         ->orderBy('created_at', 'desc') // Ensure most recent images are fetched
         ->take(2) // Limit to 2 images
-        ->selectRaw('file_name, DATE(created_at) as date') // Correct usage of DATE()
+        ->selectRaw("file_name, TO_CHAR(created_at, 'YYYY-MM-DD') as date") // Correct usage of DATE()
         ->get();
+        Log::error(json_encode($images));
         // ->toArray();
         // $imageUrls = array_map(fn($img) => Helper::getImageUrl($img, $user->company_id, 'submit_package'), $images);
         $imageUrls = $images->map(fn($img) => Helper::getImageUrl($img->file_name, $user->company_id, 'submit_package',$img->date))
