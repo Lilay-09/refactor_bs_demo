@@ -21,10 +21,16 @@ class CompanyProfileService
     }
 
     public static function profileInfo($user,$includeSocialMedias=false){
-        $info = CompanyProfile::selectRaw('id,name,address,email,phone,description,photo_file_name,cp_phone')->where('id',$user->company_id)->first();
+        $info = CompanyProfile::selectRaw('id,name,address,email,phone,description,photo_file_name,cp_phone,disclaimer')->where('id',$user->company_id)->first();
         if($info){
             $info->image_url = Helper::getImageUrl($info->photo_file_name,$user->company_id,'company');
-            if($includeSocialMedias) $info->social_medias = SocialMedia::where('is_deleted',0)->where('company_id',$info->id)->selectRaw('name,account_name')->get();
+            if($includeSocialMedias) {
+                $socialMedia = SocialMedia::where('is_deleted',0)->where('company_id',$info->id)->selectRaw('name,account_name,photo_file_name')->get();
+                foreach($socialMedia as $social){
+                    $social->image_url = Helper::getImageUrl($social->photo_file_name,$user->company_id,'social_media');
+                }
+                $info->social_medias = $socialMedia;
+            }
         }
         return $info;
     }

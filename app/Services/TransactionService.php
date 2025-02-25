@@ -206,6 +206,7 @@ class TransactionService
                 'branch_id' => $user->branch_id
             ];
             if($type == 'merchant'){
+                $pmtArr['is_approved'] = 1;
                 $pmtArr['is_settled'] = 1;
                 $pmtArr['settled_uid'] = $user->id;
                 $pmtArr['approved_uid'] = $user->id;
@@ -552,13 +553,15 @@ class TransactionService
         $startDate = $req->startDate;
         $endDate = $req->endDate;
         $allPayments = [];
-        $qP = Payment::fromRaw('payments as p')->join('users as d','d.id','p.payer_id')
+        $qP = Payment::fromRaw('payments as p')
+        ->join('users as d','d.id','p.payer_id')
         ->where('p.is_deleted',0)
         ->where('p.approved',$isApproved)
         ->join('users as ap','ap.id','p.receiver_uid')
         ->where('payer_type',$type)
-        ->selectRaw('p.is_settled,p.payment_datetime,p.package_count,ap.user_name as booked_user,p.payable_amount,p.id as payment_id,d.user_name as driver_name,p.exchange_rate,ap.user_name as receiver_name,p.taxi_fee,p.approved,p.breakdown_notes')
+        ->selectRaw('p.is_settled,p.payment_datetime,p.package_count,ap.user_name as booked_user,ap.user_name as payer_name,p.payable_amount,p.id as payment_id,d.user_name as driver_name,p.exchange_rate,ap.user_name as receiver_name,p.taxi_fee,p.approved,p.breakdown_notes')
         ->orderByDesc('p.payment_datetime');
+        // if(!$isApproved) $qP->join('users as d','d.id','p.payer_id');
 
         if($payeeOrPayerId) $qP->where('p.payer_id',$payeeOrPayerId);
         if($startDate && $endDate){
@@ -638,7 +641,7 @@ class TransactionService
         $endDate = $req->endDate;
         $transactionType = $req->transaction_type ?? null;
         $allPayments = [];
-        Log::info($req->all());
+        // Log::info($req->all());
         if(!$transactionType || $transactionType == 'receive'){
             $qP = Payment::fromRaw('payments as p')->join('users as d','d.id','p.payer_id')
             ->where('p.is_deleted',0)

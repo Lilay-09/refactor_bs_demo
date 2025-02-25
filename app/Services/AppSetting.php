@@ -133,7 +133,7 @@ class AppSetting
         ]));
     }
 
-    public static function sendSms($sender='SMS Test', $to, $content) {
+    public static function sendSms($sender='JS Express', $to, $content) {
         $privateKey = env('PLASGATE_PRIVATE_KEY') ?? '';
         $secret = env('PLASGATE_SECRET') ?? '';
 
@@ -156,11 +156,11 @@ class AppSetting
         if ($response->successful()) {
             if ($response->status() === 402) {
                 // Handle 402 Payment Required
-                return DataResponse::JsonResult(null,false,'Payment required', [],402);
+                \Log::info('Payment Required');
+                return DataResponse::JsonResult(null,false,'Try again later', [],402);
             }
             if ($response->status() === 403) {
-                // Handle 402 Payment Required
-                return DataResponse::JsonResult(null,false,'Failed', [],402);
+                return DataResponse::JsonResult(null,false,'Failed', [],403);
             }
             return DataResponse::JsonResult($response);
         }

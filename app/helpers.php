@@ -388,7 +388,7 @@ class Helper{
      * @return string
      * Note* folder structure => public/uploads/images/companyId/dirname
      */
-    static function base64ToImageFile($base64String, $companyId, $dirName,$ext=null): object
+    static function base64ToImageFile($base64String, $companyId, $dirName,$subDir=null,$ext=null): object
     {
         $base64String = self::ensureBase64Prefix($base64String);
 
@@ -397,6 +397,9 @@ class Helper{
         ];
         // Construct the base directory path
         $baseFolder = public_path('uploads/images/' . $companyId . '/' . $dirName);
+        if ($subDir) {
+            $baseFolder .= '/' . $subDir;
+        }
 
         // Check if the directory exists, if not, create it
         if (!file_exists($baseFolder)) {
@@ -446,18 +449,18 @@ class Helper{
         }
     }
 
-    public static function saveImageFileOrBase64($imageOrBase64, $companyId, $dirName = 'images'){
+    public static function saveImageFileOrBase64($imageOrBase64, $companyId, $dirName = 'images',$subDir=null){
         if (self::isValidBase64Image($imageOrBase64)) {
-            return self::base64ToImageFile($imageOrBase64, $companyId, $dirName);
+            return self::base64ToImageFile($imageOrBase64, $companyId, $dirName,$subDir);
         } elseif ($imageOrBase64 instanceof UploadedFile) {
-            return self::saveImageFile($imageOrBase64, $companyId, $dirName);
+            return self::saveImageFile($imageOrBase64, $companyId, $dirName,$subDir);
         } else {
             throw new \Exception("Invalid image format.");
         }
     }
 
 
-    public static function saveImageFile(UploadedFile $image, $companyId, $dirName = 'images')
+    public static function saveImageFile(UploadedFile $image, $companyId, $dirName = 'images',$subDir=null)
     {
         // Validate the image type
         $validMimeTypes = ['image/jpeg', 'image/png', 'image/jpg', 'image/gif', 'image/heic', 'image/heif', 'image/webp','application/octet-stream'];
@@ -475,7 +478,7 @@ class Helper{
 
         // Define the base folder path
         $baseFolder = public_path('uploads/images/' . $companyId . '/' . $dirName);
-
+        if($subDir) $baseFolder .= '/'.$subDir;
         // Create the directory if it does not exist
         if (!is_dir($baseFolder)) {
             mkdir($baseFolder, 0755, true); // Create the directory with the appropriate permissions
@@ -514,23 +517,29 @@ class Helper{
         return false;
     }
 
-    static function getImageUrl($fileName, $companyId, $dirName)
+    static function getImageUrl($fileName, $companyId, $dirName, $subDir = null)
     {
-        // Construct the relative file path for the URL
+        // Primary file path
         $relativeFilePath = 'uploads/images/' . $companyId . '/' . $dirName . '/' . $fileName;
-        // var_dump($relativeFilePath);
-
-        // Construct the full file path on the server
         $filePath = public_path($relativeFilePath);
 
-        // Check if the file exists
+        // Check if the file exists in the main directory
         if (file_exists($filePath) && $fileName) {
-            // File exists, return the public URL
             return asset($relativeFilePath);
         }
-        // File does not exist, return a default placeholder URL or null
-        return null; // Adjust with your placeholder image path
+
+        // If not found and a subdirectory is provided, check there
+        if ($subDir) {
+            $relativeFilePath = 'uploads/images/' . $companyId . '/' .$dirName.'/'. $subDir . '/' . $fileName;
+            $filePath = public_path($relativeFilePath);
+            if (file_exists($filePath)) {
+                return asset($relativeFilePath);
+            }
+        }
+
+        return null; // Adjust with a default placeholder if needed
     }
+
 
     static function getFileUrl($fileName, $companyId, $dirName, $type = 'image')
     {
@@ -821,6 +830,37 @@ class Helper{
         // This regex will match any character that is not a letter (a-z, A-Z), a digit (0-9), or a space
         return preg_replace('/[^a-zA-Z0-9\s]/', '', $str);
     }
+
+    public static function sanitizeInput(array $data, array $excludeFields = [],$retrieveAs = "array"): array | object
+    {
+        $sanitizedData = [];
+
+        foreach ($data as $key => $value) {
+            // Exclude specific fields from sanitization
+            if (in_array($key, $excludeFields, true)) {
+                $sanitizedData[$key] = $value;
+                continue;
+            }
+
+            // Sanitize only string values
+            if (is_string($value)) {
+                // Remove special characters like `/*\`
+                $cleanValue = trim(strip_tags($value));
+                $cleanValue = preg_replace('/[^A-Za-z0-9\s\-_.]/', '', $cleanValue); // Allow letters, numbers, space, dash, underscore, dot
+
+                $sanitizedData[$key] = $cleanValue;
+            } else {
+                $sanitizedData[$key] = $value;
+            }
+
+        }
+         if ($retrieveAs === 'object') {
+            return (object) $sanitizedData;  // Return as object
+        }
+
+        return $sanitizedData;
+    }
+
 
     static function timeAgo($datetime,$useSecond=true) {
         // Convert the datetime string into a timestamp

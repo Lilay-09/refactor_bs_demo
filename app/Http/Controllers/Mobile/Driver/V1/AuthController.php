@@ -53,6 +53,7 @@ class AuthController extends Controller
         User::find($user->id)->update([
             'last_login' => $today
         ]);
+
         $credentials = [
             'password' => $password,
             'account_type' => $user->account_type,
@@ -62,11 +63,11 @@ class AuthController extends Controller
         else if($user->phone == $account) $credentials['phone'] = $account;
         else if($user->login_name == $account) $credentials['login_name'] = $account;
         try {
-            $ttl = time() + (int)env('DRIVER_JWT_TTL');
+            $ttl = time() + (int)config('app.driver_jwt_ttl');
             if(!$token = JWTAuth::attempt($credentials)) {
                 return ApiResponse::Unauthorized('Invalid Username or Password');
             }
-            $token = JWTAuth::customClaims(['exp'=>$ttl,'system_admin' => $user->system_admin,'roles'=>$user->roles,'type'=>'access','account_type' => $user->account_type])->fromUser($user);
+            $token = JWTAuth::customClaims(['exp'=>$ttl,'type'=>'access','iss' => ''])->fromUser($user);
         } catch (JWTException $e) {
             return ApiResponse::Unauthorized();
         }

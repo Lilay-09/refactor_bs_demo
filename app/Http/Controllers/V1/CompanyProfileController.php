@@ -20,6 +20,7 @@ class CompanyProfileController extends Controller
             'email' => 'nullable|email|max:100',
             'phone' => 'nullable|string|max:25',
             'description' => 'nullable|string|max:250',
+            'disclaimer' => 'nullable|string|max:800',
             'photo' => 'nullable|string',
             'address_kh' => 'nullable|string|max:250',
             'website' => 'nullable|string|max:300',

@@ -65,11 +65,11 @@ class AuthController extends Controller
         else if($user->phone == $account) $credentials['phone'] = $account;
         else if($user->login_name == $account) $credentials['login_name'] = $account;
         try {
-            $ttl = time() + (int)env('MERCHANT_JWT_TTL');
+            $ttl = time() + (int)config('app.merchant_jwt_ttl');
             if(!$token = JWTAuth::attempt($credentials)) {
                 return ApiResponse::Unauthorized('invalid_credentials');
             }
-            $token = JWTAuth::customClaims(['exp' => $ttl,'system_admin' => $user->system_admin,'roles'=>$user->roles,'type'=>'access','account_type' => $user->account_type])->fromUser($user);
+            $token = JWTAuth::customClaims(['exp' => $ttl,'type'=>'access','iss' => ''])->fromUser($user);
         } catch (JWTException $e) {
             Log::error($e->getTraceAsString());
             return ApiResponse::Unauthorized();
@@ -201,6 +201,12 @@ class AuthController extends Controller
     public function verifyOTP(Request $req){
         return ApiResponse::flex(UserService::verifyOTP($req,'merchant'));
 
+    }
+
+    public function resendOtp(Request $req){
+        $validPhone = Helper::formatPhoneNumber($req->phone);
+        // return $validPhone;
+        return ApiResponse::flex(AppSetting::sendSms('PlasGateUAT',$validPhone,'merchant'));
     }
 
     public function subscribeTopics(Request $req){

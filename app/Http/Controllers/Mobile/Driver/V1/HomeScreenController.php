@@ -376,7 +376,7 @@ class HomeScreenController extends Controller
             'status_id' => 'required|in:9,10,19',
             'delivery_remarks' => 'nullable|string',
             'images' => 'nullable',
-            'amount' => 'nullable|numeric',
+            // 'amount' => 'nullable|numeric',
             'payer' => 'nullable|in:sender,receiver'
         ]);
         if($validate->fails()) return ApiResponse::ValidateFail($validate->errors()->first());
@@ -390,7 +390,7 @@ class HomeScreenController extends Controller
         // $inputs['cod_changed'] = $codChange;
         $photos = $inputs['images'] ?? null;
         $deliveryRemarks = $inputs['delivery_remarks'] ?? null;
-        $payer = $inputs['payer'] ?? null;
+
         // if($codChange){
         //     $inputs['driver_total'] = $amount;
         // }
@@ -399,6 +399,8 @@ class HomeScreenController extends Controller
         if(!$package) return ApiResponse::NotFound(__('messages.not_found',[
             'info' => 'Package'
         ]));
+
+        $payer = $inputs['payer'] ?? $package->payer;
 
         if($package->status_id == 9) return ApiResponse::Duplicated(__('messages.info',[
             'info' => 'This package has already been delivered!',
@@ -427,7 +429,9 @@ class HomeScreenController extends Controller
         ]);
         if(isset($photos[0])) {
             foreach($photos as $p){
-                $fileName = Helper::saveImageFileOrBase64($p,$user->company_id,'submit_package')->filename;
+                $dirName = 'submit_package';
+                $today = date('Y-m-d');
+                $fileName = Helper::saveImageFileOrBase64($p,$user->company_id,$dirName,$today)->filename;
                 if($fileName){
                     PackageAttachment::create([
                         'package_id' => $id,
@@ -460,11 +464,11 @@ class HomeScreenController extends Controller
         if($status_id == 19) {
             $inputs['failed_datetime'] = now();
             $inputs['failure_notes'] = $deliveryRemarks;
-            $package->price = 0;
+            // $package->price = 0;
         }
 
         if($payer){
-            $calucalteFee = GeneralSettingService::calculatePackageFee($package->zone_code,$package->price,$package->billed_kg,$package->actual_kg,$payer,$package->cod,$package->extra_charge,$user,$package->taxi_fee,$package->merchant_id);
+            $calucalteFee = GeneralSettingService::calculatePackageFee($package->zone_code,$package->price,$package->billed_kg,$package->actual_kg,$payer,$package->cod,$package->extra_charge,$user,$package->taxi_fee,$package->merchant_id,$status_id);
             $inputs['merchant_total'] = $calucalteFee->merchant_total;
             $inputs['driver_total'] = $calucalteFee->driver_total;
         }

@@ -28,8 +28,8 @@ class PackageTrailController extends Controller
     //
     public function getPackages(Request $req){
         $user = UserService::getAuthUser();
-        $search = $req->search??null;
-        $orderId = $req->order_id??null;
+        $search = $req->search ?? null;
+        $orderId = $req->order_id ?? null;
         $lang = $req->lang;
         $warehouse_id = $req->warehouse_id ?? null;
         $statusId = $req->status_id??null;
@@ -167,11 +167,15 @@ class PackageTrailController extends Controller
         $id = $req->id;
         $user = UserService::getAuthUser();
         $images = PackageAttachment::where('package_id', $id)
-        ->take(2)  // Limit to the 2 most recent images
-        ->where('hidden',0)
-        ->pluck('file_name')
-        ->toArray();
-        $imageUrls = array_map(fn($img) => Helper::getImageUrl($img, $user->company_id, 'submit_package'), $images);
+        ->where('hidden', 0)
+        ->orderBy('created_at', 'desc') // Ensure most recent images are fetched
+        ->take(2) // Limit to 2 images
+        ->selectRaw('file_name, DATE(created_at) as date') // Correct usage of DATE()
+        ->get();
+        // ->toArray();
+        // $imageUrls = array_map(fn($img) => Helper::getImageUrl($img, $user->company_id, 'submit_package'), $images);
+        $imageUrls = $images->map(fn($img) => Helper::getImageUrl($img->file_name, $user->company_id, 'submit_package',$img->date))
+                    ->toArray();
         return ApiResponse::JsonResult($imageUrls);
     }
 
@@ -317,10 +321,12 @@ class PackageTrailController extends Controller
         $package->total = $total;
         $package->total_khr = Helper::getNumber($total * $exchange->sell_rate);
         unset($package->status,$package->driver,$package->merchant,$package->arrive_warehouse_datetime,$package->updateUser,$package->create_uid,$package->created_at);
+
+        $companyInfo = CompanyProfileService::profileInfo($user,true);
         $obj = (object)[
-            'company_info' => CompanyProfileService::profileInfo($user,true),
+            'company_info' => $companyInfo,
             'package' => $package,
-            'notes' => 'រាល់ទំនិញខុសច្បាប់ ម្ចាស់ទំនិញត្រូវទទួលខុសត្រូវចំពោះមុខច្បាប់ដោយខ្លួនឯង ក្រុមហ៊ុនមិនទទួលខុសត្រូវឡេីយ។ អរគុណសម្រាប់ការប្រើប្រាស់សេវាកម្មដឹកជញ្ជូន JS Express របស់ខ្ញុំ។',
+            'notes' => GeneralSettingService::disclaimerText($companyInfo?->disclaimer),//'រាល់ទំនិញខុសច្បាប់ ម្ចាស់ទំនិញត្រូវទទួលខុសត្រូវចំពោះមុខច្បាប់ដោយខ្លួនឯង ក្រុមហ៊ុនមិនទទួលខុសត្រូវឡេីយ។ អរគុណសម្រាប់ការប្រើប្រាស់សេវាកម្មដឹកជញ្ជូន JS Express របស់ខ្ញុំ។',
             'redirect' => asset('api/redirect-store')
         ];
         return ApiResponse::JsonResult($obj,__('messages.info',['info' => 'Print Information']));
@@ -353,7 +359,7 @@ class PackageTrailController extends Controller
             $package->merchant_name = $package->merchant->user_name;
             $package->merchant_phone = $package->merchant->phone;
             $package->delivery_fee = $package->delivery_fee + $package->taxi_fee + $package->extra_charge;//($package->cod ? $package->price : 0);
-            $package->base_fee = $packages->payer == 'receiver' ? $package->delivery_fee:0;
+            $package->base_fee = $package->payer == 'receiver' ? $package->delivery_fee:0;
             $package->created_by = $package->updateUser->user_name;
             $package->created_date = Helper::formatCustomDateTime($package->created_at,'d-M-Y');
             $package->warehouse_at = Helper::dateDMY($package->arrive_warehouse_datetime);
@@ -364,10 +370,11 @@ class PackageTrailController extends Controller
             $package->total_khr = Helper::getNumber($total * $exchange->sell_rate);
             unset($package->status,$package->driver,$package->merchant,$package->arrive_warehouse_datetime,$package->updateUser,$package->create_uid,$package->created_at);
         }
+        $companyInfo = CompanyProfileService::profileInfo($user,true);
         $obj = (object)[
-            'company_info' => CompanyProfileService::profileInfo($user,true),
+            'company_info' => $companyInfo,
             'packages' => $packages,
-            'notes' => 'រាល់ទំនិញខុសច្បាប់ ម្ចាស់ទំនិញត្រូវទទួលខុសត្រូវចំពោះមុខច្បាប់ដោយខ្លួនឯង ក្រុមហ៊ុនមិនទទួលខុសត្រូវឡេីយ។ អរគុណសម្រាប់ការប្រើប្រាស់សេវាកម្មដឹកជញ្ជូន JS Express របស់ខ្ញុំ។',
+            'notes' => GeneralSettingService::disclaimerText($companyInfo?->disclaimer),//'រាល់ទំនិញខុសច្បាប់ ម្ចាស់ទំនិញត្រូវទទួលខុសត្រូវចំពោះមុខច្បាប់ដោយខ្លួនឯង ក្រុមហ៊ុនមិនទទួលខុសត្រូវឡេីយ។ អរគុណសម្រាប់ការប្រើប្រាស់សេវាកម្មដឹកជញ្ជូន JS Express របស់ខ្ញុំ។',
             'redirect' => asset('api/redirect-store')
         ];
         return ApiResponse::JsonResult($obj,__('messages.info',['info' => 'Print Information']));

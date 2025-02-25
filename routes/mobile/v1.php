@@ -86,6 +86,7 @@ Route::prefix('merchant/v1/{lang}/auth')->middleware('localize')->group(function
     Route::post('login',[AuthMerchantController::class,'login']);
     Route::post('registration',[AuthMerchantController::class,'merchantRegistration']);
     Route::post('verifyOtp',[AuthMerchantController::class,'verifyOtp']);
+    Route::post('otp/resend',[AuthMerchantController::class,'resendOtp']);
     Route::post('registration/password',[AuthMerchantController::class,'registrationPassword']);
     Route::middleware('jwtMerchant')->group(function(){
         Route::delete('account',[AuthMerchantController::class,'deleteAccount']);

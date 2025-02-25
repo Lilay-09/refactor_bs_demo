@@ -130,6 +130,7 @@ class DashboardController extends Controller
         ->where('p.updated_at', '>=', Carbon::now()->subDays($this->days))
         ->selectRaw('pmt.exchange_rate,pmt.id as payment_id,DATE(payment_datetime) as payment_date,COUNT(DISTINCT(p.driver_id)) as total_driver,COUNT(DISTINCT(p.merchant_id)) as total_merchant')
         ->groupBy('payment_id')
+        ->orderByDesc('payment_datetime')
         ->get();
         // $payments = Payment::where('is_deleted',0)
         // ->selectRaw('id as payment_id,DATE(payment_datetime) as payment_date,COUNT(payer_id) as total_driver')
@@ -140,7 +141,9 @@ class DashboardController extends Controller
         $paymentList = [];
         foreach($pkgPayments as $pmt){
             $pmtDetails = $this->getPaymentDetails($pmt->payment_id,$paymentDetails);
+
             if($pmtDetails){
+                // \Log::info($paymentDetails[0]);
                 $amountConverted = TransactionService::amountToOneCurrency('USD',$pmtDetails['cash_usd'],$pmtDetails['cash_khr'],$pmtDetails['bank_usd'],$pmtDetails['bank_khr'],$pmt->exchange_rate);
                 $pmt->cash = $amountConverted['cash'];
                 $pmt->bank_amount = $amountConverted['bank'];
@@ -160,15 +163,16 @@ class DashboardController extends Controller
         $cashUsd = 0;
         foreach($rows as $row) {
             if($row->payment_id == $paymentId){
+                // \Log::info($row);
                 // return $row;
                 if($row->method == 'cash' && $row->currency_code == 'KHR'){
-                    $cashKhr = $row->amount;
+                    $cashKhr += $row->amount;
                 }else if($row->method == 'cash' && $row->currency_code == 'USD'){
-                    $cashUsd = $row->amount;
-                }else if($row->method == 'bank' && $row->currency_code == 'KHR'){
-                    $bankKhr = $row->amount;
-                }else if($row->method == 'bank' && $row->currency_code == 'USD'){
-                    $bankUsd = $row->amount;
+                    $cashUsd += $row->amount;
+                }else if($row->method !== 'cash' && $row->currency_code == 'KHR'){
+                    $bankKhr += $row->amount;
+                }else if($row->method !== 'cash' && $row->currency_code == 'USD'){
+                    $bankUsd += $row->amount;
                 }
             }
         }
@@ -193,7 +197,7 @@ class DashboardController extends Controller
 
         $filteredRowsForDates = array_filter($rows, fn($p) => in_array($p->status_id, [9, 19]));
         $uniqueDates = array_unique(array_map(fn($p) => date('Y-m-d', strtotime($p->finished_date)), $filteredRowsForDates));
-        $daysCount = count($uniqueDates) ?: 1; // Avoid division by zero
+        $daysCount = count($uniqueDates) ?: 1; // ADvoid division by zero
 
         // Calculate average daily earning
         $averageDailyEarning = $totalEarning / $daysCount;
@@ -352,30 +356,22 @@ class DashboardController extends Controller
 
     private function barChart()
     {
-        // Get merchant count by month
-        $merchantsByRegisterDate = User::where('account_type', 'merchant')
-        ->whereYear('created_at', now()->year)
-        ->selectRaw('EXTRACT(MONTH FROM created_at) AS month, COUNT(*) AS count')
-        ->groupByRaw('EXTRACT(MONTH FROM created_at)')
-        ->orderByRaw('month')
-        ->get()
-        ->pluck('count', 'month')
-        ->toArray();
 
-        // Fill missing months with 0 and ensure correct order
-        $merchantsByRegisterDate = array_replace(array_fill(1, 12, 0), $merchantsByRegisterDate);
-
-        $packagesByDate = Package::where('is_deleted', 0)
+        $packagesData = Package::where('is_deleted', 0)
+            ->where('is_deleted', 0)
             ->whereYear('created_at', now()->year)
-            ->selectRaw('EXTRACT(MONTH FROM created_at) AS month, COUNT(*) AS count')
+            ->selectRaw('EXTRACT(MONTH FROM created_at) AS month, COUNT(*) AS count, COUNT(DISTINCT merchant_id) AS merchant_count')
             ->groupByRaw('EXTRACT(MONTH FROM created_at)')
             ->orderByRaw('month')
-            ->get()
-            ->pluck('count', 'month')
-            ->toArray();
+            ->get();
 
-        // Fill missing months with 0 and ensure correct order
+        // Extract counts separately
+        $packagesByDate = $packagesData->pluck('count', 'month')->toArray();
+        $merchantsByDate = $packagesData->pluck('merchant_count', 'month')->toArray();
+
+        // Fill missing months with 0
         $packagesByDate = array_replace(array_fill(1, 12, 0), $packagesByDate);
+        $merchantsByDate = array_replace(array_fill(1, 12, 0), $merchantsByDate);
 
         $earningByDate = Package::where('is_deleted', 0)
             ->whereYear('created_at', now()->year)
@@ -394,7 +390,7 @@ class DashboardController extends Controller
         $earningByDate = array_replace(array_fill(1, 12, 0), $earningByDate);
 
         return [
-            'merchants' => array_values($merchantsByRegisterDate),
+            'merchants' => array_values($merchantsByDate),
             'packages' => array_values($packagesByDate),
             'earning' => array_values($earningByDate),
         ];

@@ -468,15 +468,10 @@ class PickUpCenterController extends Controller
         $id = $req->order_id;
         $order = Order::where('is_deleted',0)->find($id);
         if(!$order) return ApiResponse::NotFound();
-        // $orderByCase = collect($packageIds)
-        // ->map(function ($id, $index) {
-        //     return "WHEN id = " . (int)$id . " THEN " . (int)$index;
-        // })
-        // ->implode(' ');
         $packages = Package::where('is_deleted',0)
         ->with(['driver:id,user_name,phone','merchant:id,phone,user_name','updateUser:id,user_name'])
         // ->whereNotIn('status_id',[]) // at warehouse
-        ->where('company_id',$user->company_id)
+        // ->where('company_id',$user->company_id)
         ->selectRaw('cod,extra_charge,taxi_fee,delivery_fee,zone_name,zone_code,merchant_id,driver_id,receiver_phone,receiver_address,created_at,arrive_warehouse_datetime,qr_code,remarks,price,update_uid,payer')
         ->where('order_id',$id)
         // ->orderByRaw("CASE $orderByCase END")
@@ -502,10 +497,11 @@ class PickUpCenterController extends Controller
             $package->total_khr = Helper::getNumber($total * $exchange->sell_rate);
             unset($package->status,$package->driver,$package->merchant,$package->arrive_warehouse_datetime,$package->updateUser,$package->create_uid,$package->created_at);
         }
-        $obj = (object)[
-            'company_info' => CompanyProfileService::profileInfo($user,true),
+        $companyInfo = CompanyProfileService::profileInfo($user,true);
+        $obj = [
+            'company_info' => $companyInfo,
             'packages' => $packages,
-            'notes' => 'រាល់ទំនិញខុសច្បាប់ ម្ចាស់ទំនិញត្រូវទទួលខុសត្រូវចំពោះមុខច្បាប់ដោយខ្លួនឯង ក្រុមហ៊ុនមិនទទួលខុសត្រូវឡេីយ។ អរគុណសម្រាប់ការប្រើប្រាស់សេវាកម្មដឹកជញ្ជូន JS Express របស់ខ្ញុំ។',
+            'notes' => GeneralSettingService::disclaimerText($companyInfo?->disclaimer),//'រាល់ទំនិញខុសច្បាប់ ម្ចាស់ទំនិញត្រូវទទួលខុសត្រូវចំពោះមុខច្បាប់ដោយខ្លួនឯង ក្រុមហ៊ុនមិនទទួលខុសត្រូវឡេីយ។ សូមអរគុណសម្រាប់ការប្រើប្រាស់សេវាកម្មដឹកជញ្ជូន JS Express របស់ខ្ញុំ។',
             'redirect' => asset('api/redirect-store')
         ];
         return ApiResponse::JsonResult($obj,__('messages.info',['info' => 'Print Information']));

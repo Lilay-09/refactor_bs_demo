@@ -227,11 +227,10 @@ class HomeController extends Controller
             else $package->status_code = 'On Delivery';
             $package->driver_phone = $package->driver->phone ?? null; // Ensure driver relationship exists
             $package->driver_name = $package->driver->user_name ?? null;
-            $package->total = (float) $package->cod_fee + $package->delivery_fee;
+            $package->total = (float) $package->cod_fee;
             $package->delivery_fee = (float) $package->delivery_fee;
             $package->fee = $package->delivery_fee;
             $package->arrive_warehouse_datetime = Helper::formatCustomDateTime($package->arrive_warehouse_datetime);
-
             // Remove the driver relationship if not needed in the response
             unset($package->driver);
 
@@ -271,7 +270,7 @@ class HomeController extends Controller
             else $package->status_code = 'Delivered';
             $package->driver_phone = $package->driver->phone;
             $package->driver_name = $package->driver->user_name;
-            $package->total = (float)$package->cod_fee + $package->delivery_fee;
+            $package->total = (float)$package->cod_fee;
             $package->delivery_fee = (float)$package->delivery_fee;
             $package->arrive_warehouse_datetime = Helper::formatCustomDateTime($package->arrive_warehouse_datetime);
             $package->delivered_datetime = Helper::formatCustomDateTime($package->delivered_datetime);
@@ -288,6 +287,12 @@ class HomeController extends Controller
         $lang = $req->lang;
         $statusId = $req->status_id;
         $user = UserService::getAuthUser('merchant');
+        $attachments = PackageAttachment::where('hidden', 0)
+        ->whereBetween('updated_at', [$dateaAgo, $today])
+        ->limit(700)
+        ->pluck('package_id')
+        ->toArray();
+        $attachmentsLookup = array_flip($attachments);
         $packages = Package::where('merchant_id',$user->id)
         ->with(['driver','status'])
         ->where('status_id',$statusId)
@@ -295,14 +300,15 @@ class HomeController extends Controller
         ->whereBetween('failed_datetime',[$dateaAgo,$today])
         ->selectRaw('id,merchant_id,arrive_warehouse_datetime,receiver_phone,receiver_address,receiver_name,cod,price,delivery_fee,status_id,remarks,driver_id,failed_datetime')
         ->get()
-        ->map(function($package) use($lang){
+        ->map(function($package) use($lang,$attachmentsLookup){
             $package->price = (float)$package->price;
             $package->cod_fee = $package->cod ? $package->price : 0;
+            $package->has_img = isset($attachmentsLookup[$package->id]);
             if($lang == 'km') $package->status_code = GeneralSettingService::$statusCodeTrans[$package->status_id];
             else $package->status_code = $package->status->name;
             $package->driver_phone = $package->driver->phone;
             $package->driver_name = $package->driver->user_name;
-            $package->total = (float)Helper::getNumber($package->cod_fee + $package->delivery_fee,2);
+            $package->total = (float)$package->code_fee;
             $package->fee = (float)$package->delivery_fee;
             $package->delivery_fee = (float)$package->delivery_fee;
             $package->arrive_warehouse_datetime = Helper::formatCustomDateTime($package->arrive_warehouse_datetime);
@@ -320,7 +326,7 @@ class HomeController extends Controller
         $user = UserService::getAuthUser('merchant');
         $packages = Package::where('merchant_id',$user->id)
         ->with(['driver','status'])
-        ->whereIn('status_id',[11])
+        ->where('status_id',11)
         ->whereBetween('returned_datetime',[$dateaAgo,$today])
         ->selectRaw('id,merchant_id,arrive_warehouse_datetime,receiver_phone,receiver_address,receiver_name,cod,price,delivery_fee,status_id,remarks,driver_id,failed_datetime,returned_datetime,updated_at')
         ->get()
@@ -331,7 +337,7 @@ class HomeController extends Controller
             else $package->status_code = $package->status->name;
             $package->driver_phone = $package->driver?->phone;
             $package->driver_name = $package->driver?->user_name;
-            $package->total = (float) $package->cod_fee + $package->delivery_fee;
+            $package->total = (float)$package->code_fee;
             $package->delivery_fee = (float)$package->delivery_fee;
             $package->fee = $package->delivery_fee;
             $returnDate = $package->return_datetime ? $package->return_datetime : $package->updated_at;
@@ -502,8 +508,8 @@ class HomeController extends Controller
             $package->has_img = isset($attachmentsLookup[$package->package_id]);
             $package->cod_fee = $package->cod ? $package->price : 0;
             $package->status_code = $package->status->name;
-            $package->driver_phone = $package->driver->phone;
-            $package->driver_name = $package->driver->user_name;
+            $package->driver_phone = $package->driver?->phone;
+            $package->driver_name = $package->driver?->user_name;
             $package->total = (float)$package->cod_fee + $package->delivery_fee;
             $rowStatusId = $package->status_id;
             $finished_date = null;
@@ -516,7 +522,7 @@ class HomeController extends Controller
             return $package;
         };
 
-        return ApiResponse::PaginationV1($qP,$req,[],500,$callbackMapper);
+        return ApiResponse::PaginationV1($qP,$req,'get packages',[],500,$callbackMapper);
     }
 
     public function getSearchPackages(Request $req){

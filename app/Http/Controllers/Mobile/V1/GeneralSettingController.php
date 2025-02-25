@@ -64,11 +64,21 @@ class GeneralSettingController extends Controller
         $id = $req->package_id;
         $user = UserService::getAuthUser();
         $images = PackageAttachment::where('package_id', $id)
-        ->take(2)  // Limit to the 2 most recent images
-        ->where('hidden',0)
-        ->pluck('file_name')
-        ->toArray();
-        $imageUrls = array_map(fn($img) => Helper::getImageUrl($img, $user->company_id, 'submit_package'), $images);
+        ->where('hidden', 0)
+        ->orderBy('created_at', 'desc') // Ensure most recent images are fetched
+        ->take(2) // Limit to 2 images
+        ->selectRaw("file_name, TO_CHAR(created_at, 'YYYY-MM-DD') as date") // Correct usage of DATE()
+        ->get();
+        // ->toArray();
+        // $imageUrls = array_map(fn($img) => Helper::getImageUrl($img, $user->company_id, 'submit_package'), $images);
+        $imageUrls = $images->map(fn($img) => Helper::getImageUrl($img->file_name, $user->company_id, 'submit_package',$img->date))
+                    ->toArray();
+        // $images = PackageAttachment::where('package_id', $id)
+        // ->take(2)  // Limit to the 2 most recent images
+        // ->where('hidden',0)
+        // ->pluck('file_name')
+        // ->toArray();
+        // $imageUrls = array_map(fn($img) => Helper::getImageUrl($img, $user->company_id, 'submit_package'), $images);
         return ApiResponse::JsonResult($imageUrls);
     }
 
@@ -188,7 +198,7 @@ class GeneralSettingController extends Controller
             $updateArr['status_id'] = 6;
             $updateArr['driver_id'] = $user->id;
             $updateArr['assign_driver_datetime'] = now();
-            $notes = $package->tracking_notes."|[$user->id]Driver ($user->user_name) scan on delivery (".Helper::getDateTime()."";
+            $notes = $package->tracking_notes."|[$user->id]Driver ($user->user_name) scan on delivery (".Helper::getDateTime().")";
             // $notifRequpdateArr['tracking_notes'] = $notes;
             $pckTl = new PackageTrailController();
             // DB::beginTransaction();
@@ -204,14 +214,14 @@ class GeneralSettingController extends Controller
             'info' => 'You cannot mark contact on package which is not on delivery'
         ])); else {
             $updateArr['is_contact'] = true;
-            $topics = GeneralSettingService::getGeneralTopics($user->company_id,'merchant',$package->merchant_id);
-            $notifReq = new Request([
-                'topic' => $topics->private,
-                'title' => 'Contact',
-                'body' => 'Driver has contacted your customer ('.$package->receiver_phone.')',
-            ]);
+            // $topics = GeneralSettingService::getGeneralTopics($user->company_id,'merchant',$package->merchant_id);
+            // $notifReq = new Request([
+            //     'topic' => $topics->private,
+            //     'title' => 'Contact',
+            //     'body' => 'Driver has contacted your customer ('.$package->receiver_phone.')',
+            // ]);
 
-            $cms->sendNotificationByTopic($notifReq,$user);
+            // $cms->sendNotificationByTopic($notifReq,$user);
         }
 
         if($changeDriver){

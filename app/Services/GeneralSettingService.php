@@ -64,7 +64,7 @@ class GeneralSettingService
         9 => 'ជេាគជ័យ',
         10 => 'បរាជ័យ',
         11 => 'ត្រឡប់ទៅហាង',
-        19 => 'បរាជ័យមានសេវា',
+        19 => 'បរាជ័យគិតសេវា',
         16 => 'រូចរាល់​',
         14 => 'កំពុងដឹក'
     ];
@@ -111,6 +111,10 @@ public static function optionsRole($type=null){
                 'value' => 'fail with fee'
             ]
         ];
+    }
+
+    static function disclaimerText($text=null){
+        return $text ? $text : 'សូមអរគុណសម្រាប់ការប្រើប្រាស់សេវាកម្មដឹកជញ្ជូន JS Express របស់ខ្ញុំ។';
     }
     static function optionsGender(){
         return [
@@ -520,7 +524,7 @@ public static function optionsRole($type=null){
         return $info;
     }
 
-    public static function calculatePackageFee($zone_code,$price,$billedKg,$actualKg,$payer,$cod,$extraCharge,$user,$taxi_fee=0,$merchant_id=null){
+    public static function calculatePackageFee($zone_code,$price,$billedKg,$actualKg,$payer,$cod,$extraCharge,$user,$taxi_fee=0,$merchant_id=null,$status_id=null){
         // $priceList = GeneralSettingService::getZonePriceByCode($zone_code,$user);
         $zoneId = Zone::where('zone_code',$zone_code)->where('is_deleted',0)->take(1)->value('id');
         $priceList = GeneralSettingService::priceByZone($zoneId,$user,$merchant_id);
@@ -538,6 +542,7 @@ public static function optionsRole($type=null){
         }
         $driverTotal = 0;
         if($cod) $driverTotal += $price;
+        if($status_id == 19) $driverTotal = 0;
         $merchant_total += $additionalPrice;
         $total = $price + $additionalPrice;
         if($payer == 'receiver'){

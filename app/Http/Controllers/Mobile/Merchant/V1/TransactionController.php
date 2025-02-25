@@ -25,11 +25,11 @@ class TransactionController extends Controller
         $qP = Payment::where('payments.is_deleted',0)->where('payments.payer_id',$user->id)->where('payments.is_settled',1)
         ->join('users as c','c.id','payments.approved_uid')
         ->selectRaw('payments.package_count,payments.id,payments.payable_amount,payments.breakdown_notes,c.user_name as cashier_name,payments.payment_datetime')
-        ->orderByDesc('payment_datetime');
-        $qD = Disbursement::where('type','payment')->where('disbursements.is_deleted',0)->where('disbursements.payee_id',$user->id)->where('disbursements.is_settled',1)
+        ->orderByDesc('payments.payment_datetime');
+        $qD = Disbursement::where('disbursements.type','payment')->where('disbursements.is_deleted',0)->where('disbursements.payee_id',$user->id)->where('disbursements.is_settled',1)
         ->join('users as c','c.id','disbursements.receiptionist_uid')
         ->selectRaw('disbursements.package_count,disbursements.id,disbursements.payable_amount,disbursements.breakdown_notes,c.user_name as cashier_name,disbursements.payment_datetime')
-        ->orderByDesc('payment_datetime');
+        ->orderByDesc('disbursements.payment_datetime');
         if($startDate && $endDate){
             $startDate = Helper::dateYMD($startDate);
             $endDate = Helper::dateYMD($endDate);
@@ -39,13 +39,12 @@ class TransactionController extends Controller
             $qD->where(function ($q) use ($startDate, $endDate) {
                 $q->whereBetween('disbursements.payment_datetime', ["$startDate 00:00:00", "$endDate 23:59:59"]);
             });
-
         }
         $disbursements = $qD->get();
         $payments = $qP->get();
 
         $packages = Package::where('is_deleted',0)
-        ->where('created_at', '>=', Carbon::now()->subMonths(4))
+        ->where('created_at', '>=', Carbon::now()->subMonths(3))
         ->whereIn('status_id',[9,19])
         // ->selectRaw('*')
         ->where('merchant_id',$user->id)
@@ -54,7 +53,7 @@ class TransactionController extends Controller
         ->get();
         $samePmtId = [];
         $sameDisId = [];
-        foreach($packages as $p){
+        foreach($packages as $key => $p){
             $price = $p->price;
             $taxiFee = $p->taxi_fee;
             if($p->status_id == 19){
@@ -66,9 +65,9 @@ class TransactionController extends Controller
                 if($pmt) {
                     $pmt->payment_status = 'Paid';
                     $pmt->remarks = 'Disbursement';
-                    $total += (float)$pmt->payable_amount;
+                    $total += ($count > 0 && $key == 0) ?(float)$pmt->payable_amount : 0;
                     $packageInfo[] = $pmt;
-                    $count -= $pmt->package_count;
+                    $count -= ($count > 0 && $key == 0) ? $pmt->package_count : 0;
                 }
                 $samePmtId[$p->merchant_payment_id] = true;
             }
@@ -77,16 +76,20 @@ class TransactionController extends Controller
                 $dis = TransactionService::getTrxDetails($disbursements,$p->merchant_disbursement_id);
                 if($dis) {
                     $dis->payment_status = 'Paid';
-                    $total -= (float)$dis->payable_amount;
+                    // \Log::error($total);
+                    $total -= ($count > 0 && $key == 0) ? (float)$dis->payable_amount : 0;
                     $dis->remarks = 'Receive';
                     $packageInfo[] = $dis;
-                    $count -= $dis->package_count;
+                    // $count -= $dis->package_count;
+                    $count -= ($count > 0 && $key == 0) ? $dis->package_count : 0;
                 }
                 $sameDisId[$p->merchant_disbursement_id] = true;
             }
 
-            $total -= Helper::getNumber(TransactionService::getPackageTotal('merchant',$p->cod,$price,$taxiFee,$p->extra_charge,$p->additional_fee,$p->delivery_fee,$p->payer));
-            $count +=1;
+            if(!$p->merchant_disbursement_id && !$p->merchant_payment_id){
+                $total -= Helper::getNumber(TransactionService::getPackageTotal('merchant',$p->cod,$price,$taxiFee,$p->extra_charge,$p->additional_fee,$p->delivery_fee,$p->payer));
+                $count +=1;
+            }
 
         }
         usort($packageInfo, function ($a, $b) {

@@ -38,13 +38,21 @@ class ReportController extends Controller
         ->selectRaw('id,payer,cod,driver_id,qr_code,extra_charge,delivery_fee,extra_charge,price,status_id,failed_datetime,delivered_datetime,returned_datetime,receiver_phone,receiver_address,remarks,delivery_remarks as notes');
         $qP->orderByRaw('
             CASE
-                WHEN status_id = ? THEN 1
-                WHEN status_id = ? THEN 2
-                WHEN status_id = ? THEN 3
-                WHEN status_id = ? THEN 4
-                ELSE 7
-            END', [9, 19, 11,10]
-        )->orderByRaw('DATE(failed_datetime) DESC,DATE(delivered_datetime) DESC');
+                WHEN status_id = 9 THEN delivered_datetime
+                WHEN status_id = 10 THEN failed_datetime
+                WHEN status_id = 19 THEN failed_datetime
+                WHEN status_id = 11 THEN returned_datetime
+            END DESC
+        ');
+        // $qP->orderByRaw('
+        //     CASE
+        //         WHEN status_id = ? THEN 1
+        //         WHEN status_id = ? THEN 2
+        //         WHEN status_id = ? THEN 3
+        //         WHEN status_id = ? THEN 4
+        //         ELSE 7
+        //     END', [9, 19, 11,10]
+        // )->orderByRaw('DATE(failed_datetime) DESC,DATE(delivered_datetime) DESC');
         if(is_numeric($statusId)) $qP->where('status_id',$statusId);
         $qAt = PackageAttachment::where('hidden', 0)
         ->limit(700);
@@ -108,7 +116,7 @@ class ReportController extends Controller
                 $total = $item->cod ? $item->price : 0;
                 if($item->payer == 'sender') {
                     $item->delivery_fee = $isCal ? (float)Helper::getNumber(($item->delivery_fee + $item->extra_charge)) : 0;
-                    $total -= $item->delivery_fee + $item->extra_charge + $item->taxi_fee;
+                    $total -= $item->delivery_fee + $item->taxi_fee;
                 }else $item->delivery_fee = 0;
                 $totalDeliveryFee += $item->delivery_fee;
                 $item->total = $isCal ? (float)Helper::getNumber($total) : 0;
@@ -181,13 +189,21 @@ class ReportController extends Controller
         ->selectRaw('id,payer,cod,driver_id,qr_code,extra_charge,delivery_fee,extra_charge,price,status_id,failed_datetime,delivered_datetime,returned_datetime,receiver_phone,receiver_address');
         $qP->orderByRaw('
             CASE
-                WHEN status_id = ? THEN 1
-                WHEN status_id = ? THEN 2
-                WHEN status_id = ? THEN 3
-                WHEN status_id = ? THEN 4
-                ELSE 7
-            END', [9, 19, 11,10]
-        )->orderByRaw('DATE(failed_datetime) DESC,DATE(delivered_datetime) DESC');
+                WHEN status_id = 9 THEN delivered_datetime
+                WHEN status_id = 10 THEN failed_datetime
+                WHEN status_id = 19 THEN failed_datetime
+                WHEN status_id = 11 THEN returned_datetime
+            END DESC
+        ');
+        // $qP->orderByRaw('
+        //     CASE
+        //         WHEN status_id = ? THEN 1
+        //         WHEN status_id = ? THEN 2
+        //         WHEN status_id = ? THEN 3
+        //         WHEN status_id = ? THEN 4
+        //         ELSE 7
+        //     END', [9, 19, 11,10]
+        // )->orderByRaw('DATE(failed_datetime) DESC,DATE(delivered_datetime) DESC');
         if(is_numeric($statusId)) $qP->where('status_id',$statusId);
         if($startDate && $endDate){
             $startDate = Helper::dateYMD($startDate);
@@ -246,7 +262,7 @@ class ReportController extends Controller
                 $total = ($item->cod && $item->status_id == 9) ? $item->price : 0;
                 if($item->payer == 'sender') {
                     $item->delivery_fee = $isCal ? (float)Helper::getNumber(($item->delivery_fee + $item->extra_charge)) : 0;
-                    $total -= $item->delivery_fee + $item->extra_charge + $item->taxi_fee;
+                    $total -= $item->delivery_fee + $item->taxi_fee;
                 }else $item->delivery_fee = 0;
                 $totalFees += $item->delivery_fee;
                 $totalDeliveryFee += $item->delivery_fee;
