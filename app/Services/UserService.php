@@ -651,4 +651,16 @@ class UserService
         return $total > 0;
     }
 
+
+    public function compareOtp(Request $req){
+        $validator = validator($req->all(),[
+            'otp' => 'required|string|min:6|max:6',
+            'phone' => 'required|string:min:9|max:13'
+        ]);
+        if($validator->fails()) return ApiResponse::ValidateFail($validator->errors()->first());
+        $inputs = $validator->validated();
+        $otp = $inputs['otp'];
+        $phone = $inputs['phone'];
+    }
+
 }

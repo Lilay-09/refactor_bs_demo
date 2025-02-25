@@ -113,8 +113,8 @@ public static function optionsRole($type=null){
         ];
     }
 
-    static function printNoteLabel(){
-        return 'សូមអរគុណសម្រាប់ការប្រើប្រាស់សេវាកម្មដឹកជញ្ជូន JS Express របស់ខ្ញុំ។';
+    static function disclaimerText($text=null){
+        return $text ? $text : 'សូមអរគុណសម្រាប់ការប្រើប្រាស់សេវាកម្មដឹកជញ្ជូន JS Express របស់ខ្ញុំ។';
     }
     static function optionsGender(){
         return [

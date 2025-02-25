@@ -14,6 +14,7 @@ class CompanyProfile extends Model
         'name',
         'name_km',
         'address',
+        'disclaimer',
         'email',
         'company_type',
         'phone',
