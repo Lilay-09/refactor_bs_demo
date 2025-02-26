@@ -155,7 +155,7 @@ class PackageTrailController extends Controller
         if($driver){
             $package->driver_name = $driver->user_name;
         }
-        if($isKm) $package->payer = GeneralSettingService::$payerTrans[$package->payer] ?? '';
+        // if($isKm) $package->payer = GeneralSettingService::$payerTrans[$package->payer] ?? '';
         $package->base_fee = $package->delivery_fee;
         $package->delivery_fee = $package->delivery_fee + $package->extra_charge + $package->taxi_fee;
         $package->warehouse_timeago = Helper::timeAgo($package->arrive_warehouse_datetime,false);
