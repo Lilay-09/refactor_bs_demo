@@ -43,6 +43,7 @@ class DashboardController extends Controller
         // ->where('payment_datetime', '>=', Carbon::now()->subDays($this->days))->get();
         $deliveredCount = 0;
         $returnedCount = 0;
+        $failedWithFeeCount = 0;
         $results = User::selectRaw("
             SUM(CASE WHEN account_type = 'merchant' AND register_channel = 'mobile' THEN 1 ELSE 0 END) as register_count,
             SUM(CASE WHEN is_deleted = FALSE AND account_type = 'driver' AND lock = FALSE AND has_account = TRUE THEN 1 ELSE 0 END) as total_active_driver,
@@ -62,7 +63,10 @@ class DashboardController extends Controller
                 $deliveredCount += 1;
                 $p->finished_date = Helper::dateYMD($p->delivered_datetime);
             }
-            if($p->status_id == 19) $p->finished_date = Helper::dateYMD($p->failed_datetime);
+            if($p->status_id == 19) {
+                $p->finished_date = Helper::dateYMD($p->failed_datetime);
+                $failedWithFeeCount += 1;
+            }
             if($p->status_id == 11) $returnedCount += 1;
         }
         $earningData = $this->getEarning($packages);
@@ -82,8 +86,8 @@ class DashboardController extends Controller
                 'total' => count($packages)
             ],
             [
-                'title' => 'Delivered Count',
-                'total' => $deliveredCount
+                'title' => 'Delivered / Failed with fee count',
+                'total' => $deliveredCount.'/'.$failedWithFeeCount
             ],
             [
                 'title' => 'Returned count',
