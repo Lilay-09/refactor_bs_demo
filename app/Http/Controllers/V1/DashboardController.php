@@ -91,8 +91,8 @@ class DashboardController extends Controller
                 'currency' => 'USD'
             ],
             [
-                'title' => 'Today Earning',
-                'total' => $deliveredCount.' | '.$failedWithFeeCount
+                'title' => 'Daily Earning',
+                'total' => $todayEarning
             ],
             [
                 'title' => 'Total Packages',
