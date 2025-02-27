@@ -86,8 +86,8 @@ class DashboardController extends Controller
                 'total' => count($packages)
             ],
             [
-                'title' => 'Delivered / Failed with fee count',
-                'total' => $deliveredCount.'/'.$failedWithFeeCount
+                'title' => 'Delivered | Failed with fee count',
+                'total' => $deliveredCount.' | '.$failedWithFeeCount
             ],
             [
                 'title' => 'Returned count',
