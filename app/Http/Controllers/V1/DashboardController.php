@@ -92,7 +92,8 @@ class DashboardController extends Controller
             ],
             [
                 'title' => 'Daily Earning',
-                'total' => $todayEarning
+                'total' => Helper::getNumber($todayEarning),
+                'currency' => 'USD'
             ],
             [
                 'title' => 'Total Packages',
