@@ -53,12 +53,21 @@ class DashboardController extends Controller
         $registeredCount = $results->register_count;
         $totalActiveDrivers = $results->total_active_driver;
         $totalMerchant = $results->total_merchant;
-
+        $todayEarning = 0;
         $packages = Package::where('is_deleted',0)
         // ->where('outstanding',0)
         ->selectRaw('id,status_id,delivery_fee,extra_charge,failed_datetime,delivered_datetime')
         ->where('updated_at', '>=', Carbon::now()->subDays($this->days))->get();
         foreach ($packages as $p){
+            $isDeliveredToday = $p->status_id == 9 && Carbon::parse($p->delivered_datetime)->isToday();
+            $isFailedToday = $p->status_id == 19 && Carbon::parse($p->failed_datetime)->isToday();
+            if ($isDeliveredToday) {
+                $todayEarning += $p->delivery_fee + $p->extra_charge; // Add earnings for delivered packages
+            }
+
+            if ($isFailedToday) {
+                $todayEarning += $p->delivery_fee + $p->extra_charge; // Add earnings for failed packages
+            }
             if($p->status_id == 9) {
                 $deliveredCount += 1;
                 $p->finished_date = Helper::dateYMD($p->delivered_datetime);
@@ -80,6 +89,10 @@ class DashboardController extends Controller
                 'title' => 'Average Daily Earning',
                 'total' => $earningData['average_daily_earning'],
                 'currency' => 'USD'
+            ],
+            [
+                'title' => 'Today Earning',
+                'total' => $deliveredCount.' | '.$failedWithFeeCount
             ],
             [
                 'title' => 'Total Packages',
