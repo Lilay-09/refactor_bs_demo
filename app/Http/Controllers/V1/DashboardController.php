@@ -39,8 +39,8 @@ class DashboardController extends Controller
 
     private function getMonthlyEarning(){
 
-        $payments = Payment::where('is_deleted',0)
-        ->where('payment_datetime', '>=', Carbon::now()->subDays($this->days))->get();
+        // $payments = Payment::where('is_deleted',0)
+        // ->where('payment_datetime', '>=', Carbon::now()->subDays($this->days))->get();
         $deliveredCount = 0;
         $returnedCount = 0;
         $results = User::selectRaw("
@@ -190,9 +190,12 @@ class DashboardController extends Controller
         // Ensure $rows is always an array
         $rows = !is_array($rows) ? iterator_to_array($rows) : $rows;
 
-        // Calculate total earnings
         $totalEarning = array_reduce($rows, function ($sum, $p) {
-            return $sum + $p->delivery_fee + $p->extra_charge;
+            // Only include rows where status_id is 9 or 19
+            if (in_array($p->status_id, [9, 19])) {
+                return $sum + $p->delivery_fee + $p->extra_charge;
+            }
+            return $sum; // If status_id is not 9 or 19, don't add anything
         }, 0);
 
         $filteredRowsForDates = array_filter($rows, fn($p) => in_array($p->status_id, [9, 19]));

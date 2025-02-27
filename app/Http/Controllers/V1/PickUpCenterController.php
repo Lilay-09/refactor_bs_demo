@@ -349,7 +349,7 @@ class PickUpCenterController extends Controller
         try{
             DB::beginTransaction();
             foreach($photos as $photo){
-                $img = Helper::saveImageFile($photo,$companyId,'order_image');
+                $img = Helper::saveImageFile($photo,$companyId,'order_image',date('Y-m-d'));
                 $deleteImgs[] = $img->filename;
                 OrderImage::create([
                     'order_id' => $orderId,

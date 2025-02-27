@@ -147,7 +147,7 @@ class PickupCenterService
 
             if(isset($images[0])){
                 foreach($images as $photo){
-                    $img = Helper::saveImageFile($photo,$companyId,'order_image');
+                    $img = Helper::saveImageFile($photo,$companyId,'order_image',date('Y-m-d'));
                     $deleteImgs[] = $img->filename;
                     OrderImage::create([
                         'order_id' => $orderId,
