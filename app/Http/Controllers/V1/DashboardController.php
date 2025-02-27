@@ -54,7 +54,7 @@ class DashboardController extends Controller
         $totalMerchant = $results->total_merchant;
 
         $packages = Package::where('is_deleted',0)
-        ->where('outstanding',0)
+        // ->where('outstanding',0)
         ->selectRaw('id,status_id,delivery_fee,extra_charge,failed_datetime,delivered_datetime')
         ->where('updated_at', '>=', Carbon::now()->subDays($this->days))->get();
         foreach ($packages as $p){
