@@ -15,7 +15,6 @@ class AppServiceProvider extends ServiceProvider
     {
         //
         $this->app->singleton(ExceptionHandlerContract::class, Handler::class);
-
     }
 
     /**

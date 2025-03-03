@@ -436,6 +436,7 @@ Route::middleware(['jwt','localize','userAccess:admin'])->prefix('admin/v1/{lang
             Route::get('xrate',[GeneralSettingController::class,'getOptionsLatestXRate']);
             Route::get('userStatus',[GeneralSettingController::class,'getOptionsUserStatus']);
             Route::get('payer',[GeneralSettingController::class,'getOptionsPayer']);
+            Route::get('dailyMerchant',[GeneralSettingController::class,'getOptionsDailyActiveMerchant']);
         });
 
         Route::prefix('filter')->group(function(){
