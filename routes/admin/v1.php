@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\V1\BannerController;
 use App\Http\Controllers\V1\DashboardController;
+use App\Http\Controllers\V1\DefaultAddressController;
 use App\Http\Controllers\V1\ReportController;
 use App\Http\Controllers\V1\AppSettingController;
 use App\Http\Controllers\V1\AuthController;
@@ -343,6 +344,15 @@ Route::middleware(['jwt','localize','userAccess:admin'])->prefix('admin/v1/{lang
         });
     });
 
+    Route::prefix('defaultAddress')->group(function(){
+        Route::post('',[DefaultAddressController::class,'createDefaultAddress']);
+        Route::get('',[DefaultAddressController::class,'getDefaultAddresses']);
+        Route::get('/{id}',[DefaultAddressController::class,'getOneDefaultAddress']);
+        Route::put('/{id}',[DefaultAddressController::class,'updateDefaultAddress']);
+        Route::delete('/{id}',[DefaultAddressController::class,'deleteDefaultAddress']);
+        Route::put('/toggleHidden/{id}',[DefaultAddressController::class,'toggleHiddenDefaultAddress']);
+    });
+
     Route::prefix('brandImage')->group(function(){
         Route::post('',[BrandImageController::class,'createBrandImage']);
         Route::get('',[BrandImageController::class,'getBrandImages']);
@@ -463,7 +473,6 @@ Route::middleware(['jwt','localize','userAccess:admin'])->prefix('admin/v1/{lang
             Route::get('finished/package',[GeneralSettingController::class,'getFormUpdateFinishedPackage']);
         });
     });
-
 
     Route::prefix('report')->group(function(){
         Route::get('/option/warehouse',[ReportController::class,'optionsWarehouse']);

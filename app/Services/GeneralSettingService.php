@@ -324,9 +324,7 @@ public static function optionsRole($type=null){
         ->where('packages.outstanding',0)
         ->where('users.company_id', $user->company_id)
         ->where('users.account_type', 'merchant')
-        ->where(function ($q) {
-            $q->where('users.lock', 0)->orWhere('users.is_deleted', 0);
-        })
+        ->where('users.is_deleted',0)
         ->selectRaw('DISTINCT users.id, users.user_name, users.name_km, users.phone')
         ->orderByDesc('users.id');
         if($startDate && $endDate){

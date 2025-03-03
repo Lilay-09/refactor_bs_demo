@@ -1449,7 +1449,7 @@ class ReportController extends Controller
         $user = UserService::getAuthUser();
         $obj = [
             'warehouses' => GeneralSettingService::optionsWarehouse($user),
-            'merchants' => GeneralSettingService::optionsMerchant($user)
+            // 'merchants' => GeneralSettingService::optionsMerchant($user)
         ];
         return ApiResponse::JsonResult($obj);
     }
