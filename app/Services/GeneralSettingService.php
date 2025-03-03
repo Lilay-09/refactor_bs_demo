@@ -319,6 +319,7 @@ public static function optionsRole($type=null){
     }
 
     public static function optionsDailyActiveMerchant($user,$startDate=null,$endDate=null){
+        Log::error($startDate.'---'.$endDate);
         $query = User::join('packages', 'users.id', '=', 'packages.merchant_id')
         ->where('packages.is_deleted',0)
         ->where('packages.outstanding',0)
