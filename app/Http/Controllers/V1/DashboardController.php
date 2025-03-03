@@ -39,10 +39,11 @@ class DashboardController extends Controller
 
     private function getMonthlyEarning(){
 
-        $payments = Payment::where('is_deleted',0)
-        ->where('payment_datetime', '>=', Carbon::now()->subDays($this->days))->get();
+        // $payments = Payment::where('is_deleted',0)
+        // ->where('payment_datetime', '>=', Carbon::now()->subDays($this->days))->get();
         $deliveredCount = 0;
         $returnedCount = 0;
+        $failedWithFeeCount = 0;
         $results = User::selectRaw("
             SUM(CASE WHEN account_type = 'merchant' AND register_channel = 'mobile' THEN 1 ELSE 0 END) as register_count,
             SUM(CASE WHEN is_deleted = FALSE AND account_type = 'driver' AND lock = FALSE AND has_account = TRUE THEN 1 ELSE 0 END) as total_active_driver,
@@ -52,17 +53,29 @@ class DashboardController extends Controller
         $registeredCount = $results->register_count;
         $totalActiveDrivers = $results->total_active_driver;
         $totalMerchant = $results->total_merchant;
-
+        $todayEarning = 0;
         $packages = Package::where('is_deleted',0)
-        ->where('outstanding',0)
+        // ->where('outstanding',0)
         ->selectRaw('id,status_id,delivery_fee,extra_charge,failed_datetime,delivered_datetime')
         ->where('updated_at', '>=', Carbon::now()->subDays($this->days))->get();
         foreach ($packages as $p){
+            $isDeliveredToday = $p->status_id == 9 && Carbon::parse($p->delivered_datetime)->isToday();
+            $isFailedToday = $p->status_id == 19 && Carbon::parse($p->failed_datetime)->isToday();
+            if ($isDeliveredToday) {
+                $todayEarning += $p->delivery_fee + $p->extra_charge; // Add earnings for delivered packages
+            }
+
+            if ($isFailedToday) {
+                $todayEarning += $p->delivery_fee + $p->extra_charge; // Add earnings for failed packages
+            }
             if($p->status_id == 9) {
                 $deliveredCount += 1;
                 $p->finished_date = Helper::dateYMD($p->delivered_datetime);
             }
-            if($p->status_id == 19) $p->finished_date = Helper::dateYMD($p->failed_datetime);
+            if($p->status_id == 19) {
+                $p->finished_date = Helper::dateYMD($p->failed_datetime);
+                $failedWithFeeCount += 1;
+            }
             if($p->status_id == 11) $returnedCount += 1;
         }
         $earningData = $this->getEarning($packages);
@@ -78,12 +91,17 @@ class DashboardController extends Controller
                 'currency' => 'USD'
             ],
             [
+                'title' => 'Daily Earning',
+                'total' => Helper::getNumber($todayEarning),
+                'currency' => 'USD'
+            ],
+            [
                 'title' => 'Total Packages',
                 'total' => count($packages)
             ],
             [
-                'title' => 'Delivered Count',
-                'total' => $deliveredCount
+                'title' => 'Delivered | Failed with fee count',
+                'total' => $deliveredCount.' | '.$failedWithFeeCount
             ],
             [
                 'title' => 'Returned count',
@@ -190,9 +208,12 @@ class DashboardController extends Controller
         // Ensure $rows is always an array
         $rows = !is_array($rows) ? iterator_to_array($rows) : $rows;
 
-        // Calculate total earnings
         $totalEarning = array_reduce($rows, function ($sum, $p) {
-            return $sum + $p->delivery_fee + $p->extra_charge;
+            // Only include rows where status_id is 9 or 19
+            if (in_array($p->status_id, [9, 19])) {
+                return $sum + $p->delivery_fee + $p->extra_charge;
+            }
+            return $sum; // If status_id is not 9 or 19, don't add anything
         }, 0);
 
         $filteredRowsForDates = array_filter($rows, fn($p) => in_array($p->status_id, [9, 19]));

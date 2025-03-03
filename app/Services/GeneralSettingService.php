@@ -318,6 +318,62 @@ public static function optionsRole($type=null){
         return $merchants;
     }
 
+    public static function optionsDailyActiveMerchant($user,$startDate=null,$endDate=null){
+        // Log::error($startDate.'---'.$endDate);
+        $query = User::join('packages', 'users.id', '=', 'packages.merchant_id')
+        ->where('packages.is_deleted',0)
+        ->where('packages.outstanding',0)
+        ->where('users.company_id', $user->company_id)
+        ->where('users.account_type', 'merchant')
+        ->where('users.is_deleted',0)
+        ->selectRaw('DISTINCT users.id, users.user_name, users.name_km, users.phone')
+        ->orderByDesc('users.id');
+        if($startDate && $endDate){
+            $startDatetime = Helper::dateYMD($startDate).' 00:00:00';
+            $endDatetime = Helper::dateYMD($endDate).' 23:59:59';
+            $query->where(function ($q) use ($startDatetime, $endDatetime) {
+                $q->whereRaw(
+                    '(packages.status_id = 5 AND packages.arrive_warehouse_datetime BETWEEN ? AND ?)
+                    OR (packages.status_id = 6 AND packages.assign_driver_datetime BETWEEN ? AND ?)
+                    OR (packages.status_id = 10 AND packages.failed_datetime BETWEEN ? AND ?)
+                    OR (packages.status_id = 19 AND packages.failed_datetime BETWEEN ? AND ?)
+                    OR (packages.status_id = 9 AND packages.delivered_datetime BETWEEN ? AND ?)
+                    OR (packages.status_id = 11 AND packages.returned_datetime BETWEEN ? AND ?)',
+                    [$startDatetime, $endDatetime, $startDatetime, $endDatetime, $startDatetime, $endDatetime, $startDatetime, $endDatetime, $startDatetime, $endDatetime, $startDatetime, $endDatetime]
+                );
+            });
+        }
+        $merchants = $query->get();
+
+        // $query = User::where(function($q){
+        //     $q->where('lock',0)->orWhere('is_deleted',0);
+        // })->where('company_id',$user->company_id)
+        // ->where('account_type','merchant')
+        // ->selectRaw('id,user_name,name_km,phone')->orderByDesc('id');
+
+        // if($startDate && $endDate){
+        //     $startDatetime = Helper::dateYMD($startDate).' 00:00:00';
+        //     $endDatetime = Helper::dateYMD($endDate).' 23:59:59';
+        //     $query->whereHas('merchantPackages', function ($q) use($startDatetime, $endDatetime) {
+        //         $q->whereRaw(
+        //             '(status_id = 5 AND arrive_warehouse_datetime BETWEEN ? AND ?)
+        //             OR (status_id = 6 AND assign_driver_datetime BETWEEN ? AND ?)
+        //             OR (status_id = 10 AND failed_datetime BETWEEN ? AND ?)
+        //             OR (status_id = 19 AND failed_datetime BETWEEN ? AND ?)
+        //             OR (status_id = 9 AND delivered_datetime BETWEEN ? AND ?)
+        //             OR (status_id = 11 AND returned_datetime BETWEEN ? AND ?)',
+        //             [$startDatetime, $endDatetime, $startDatetime, $endDatetime, $startDatetime, $endDatetime, $startDatetime, $endDatetime, $startDatetime, $endDatetime, $startDatetime, $endDatetime]
+        //         );
+        //     });
+        // }
+
+        // $merchants = $query->get();
+        foreach($merchants as $m){
+            $m->user_name = $m->user_name.($m->name_km ? (' - '.$m->name_km):'')." ($m->phone)";
+        }
+        return $merchants;
+    }
+
     public static function optionsVehicleType($user){
 
         $vT = VehicleType::where('company_id',$user->company_id)->where('is_deleted',0)

@@ -1,0 +1,69 @@
+<?php
+
+namespace {{ namespace }};
+use Illuminate\Http\Request;
+use App\Services\UserService;
+use App\Models\{{ model }};
+use ApiResponse;
+
+class {{ class }}
+{
+    public function {{ method }}Validation(Request $req){
+        return validator($req->all(),{{ rule }});
+    }
+    // Your service methods go here
+    public function create{{ method }}(Request $req){
+        $user = UserService::getAuthUser();
+        $validate = $this->{{ method }}Validation($req);
+        if($validate->fails()) return ApiResponse::ValidateFail($validate->errors()->first());
+        $inputs = $validate->validated();
+        $inputs['create_uid'] = $user->id;
+        $inputs['update_uid'] = $user->id;
+        $inputs['company_id'] = $user->company_id;
+        $inputs['branch_id'] = $user->branch_id;
+        {{ model }}::create($inputs);
+        return ApiResponse::JsonResult(null,"Created");
+    }
+
+    public function update{{ method }} (Request $req){
+        $user = UserService::getAuthUser();
+        $id = $req->id;
+        ${{ model }} = {{ model }}::where('is_deleted',0)->find($id);
+        if(!${{ model }}) return ApiResponse::NotFound("${{ model }} not found");
+        $validate = $this->{{ method }}Validation($req);
+        if($validate->fails()) return ApiResponse::ValidateFail($validate->errors()->first());
+        $inputs = $validate->validated();
+        $inputs['update_uid'] = $user->id;
+        $inputs['company_id'] = $user->company_id;
+        $inputs['branch_id'] = $user->branch_id;
+        ${{ model }}->update($inputs);
+        return ApiResponse::JsonResult(null,"Updated");
+    }
+
+    public function get{{ method }}(Request $req){
+        // $user = UserService::getAuthUser();
+        ${{ model }} = {{ model }}::query()->where('is_deleted',0);
+        return ApiResponse::PaginationV1(${{ model }},$req);
+    }
+
+    public function getOne{{ method }}(Request $req){
+        // $user = UserService::getAuthUser();
+        $id = $req->id;
+        ${{ model }} = {{ model }}::where('is_deleted',0)->find($id);
+        if(!${{ model }}) return ApiResponse::NotFound("${{ model }} not found");
+        return ApiResponse::JsonResult(${{ model }},"get one ${{ model }}");
+    }
+
+    public function delete{{ method }}(Request $req){
+        $user = UserService::getAuthUser();
+        $id = $req->id;
+        ${{ model }} = {{ model }}::where('is_deleted',0)->find($id);
+        if(!${{ model }}) return ApiResponse::NotFound("${{ model }} not found");
+        ${{ model }}->update([
+            'is_deleted' => 1,
+            'deleted_uid' => $user->id,
+            'deleted_datetime'=> now()
+        ]);
+        return ApiResponse::JsonResult(null,"Deleted");
+    }
+}

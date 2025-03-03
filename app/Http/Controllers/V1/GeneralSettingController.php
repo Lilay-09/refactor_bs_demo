@@ -35,6 +35,11 @@ class GeneralSettingController extends Controller
         return ApiResponse::JsonResult($this->gs::optionsCity($user));
     }
 
+    public function getOptionsDailyActiveMerchant(Request $req){
+        $user = UserService::getAuthUser();
+        return ApiResponse::JsonResult($this->gs::optionsDailyActiveMerchant($user,$req->startDate,$req->endDate));
+    }
+
     public function getOptionsDistrict(Request $req){
         $user = UserService::getAuthUser();
         return ApiResponse::JsonResult($this->gs::optionsDistrict($user));
