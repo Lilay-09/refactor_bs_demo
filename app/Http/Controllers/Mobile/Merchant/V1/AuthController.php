@@ -178,7 +178,7 @@ class AuthController extends Controller
         $phone = $inputs['phone'];
         $pwd = $inputs['password'];
         $cfPwd = $inputs['confirm_password'];
-        $found = User::where('phone',$phone)->where('account_type','merchant')->first();
+        $found = User::where('is_deleted',0)->where('phone',$phone)->where('account_type','merchant')->first();
         if(!$found) return ApiResponse::NotFound();
         if($pwd !== $cfPwd) return ApiResponse::ValidateFail(__('messages.error',['info' => 'Password not match !','khInfo' => 'លេខសំងាត់មិនត្រូវគ្នា']));
         $hpwd = \Hash::make($pwd);

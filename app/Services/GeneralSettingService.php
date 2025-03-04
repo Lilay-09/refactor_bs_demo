@@ -238,7 +238,6 @@ public static function optionsRole($type=null){
         }
         return $statuses;
     }
-
     public static function optionsWarehouse($user){
         return Warehouse::where('is_deleted',0)->where('company_id',$user->company_id)->selectRaw('name,id')->orderByDesc('id')->get();
     }
