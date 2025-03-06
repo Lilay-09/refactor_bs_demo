@@ -20,6 +20,7 @@ class ReusableService
         $search = $req->search ?? null;
         $startDate = $req->startDate;
         $endDate = $req->endDate;
+        $userId = $user?->id;
         $isKm = in_array($req->lang,['kh','km']);
         $statusIds = [9,10,11,19];
         if($reqSearch) $statusIds[] = 6;
@@ -57,9 +58,9 @@ class ReusableService
             $qFp->where('pmt.approved',1);
         }
         if($user && $userClass=='driver'){
-            $qFp->where('p.driver_id',$user->id);
+            $qFp->where('p.driver_id',$userId);
         }else if($user && $userClass=='merchant'){
-            $qFp->where('p.merchant_id',$user->id);
+            $qFp->where('p.merchant_id',$userId);
         }
 
         $qAt = PackageAttachment::where('hidden', 0);
@@ -69,7 +70,7 @@ class ReusableService
             $endDate = Helper::dateYMD($endDate);
             $startDateTime = $startDate . ' 00:00:00';
             $endDateTime = $endDate . ' 23:59:59';
-            $qFp->where(function($q) use ($startDateTime, $endDateTime) {
+            $qFp->where(function($q) use ($startDateTime, $endDateTime,$userId) {
                 $q->where(function ($q) use ($startDateTime, $endDateTime) {
                     $q->whereBetween('p.failed_datetime', [$startDateTime, $endDateTime])
                         ->whereIn('p.status_id', [10, 19]);
@@ -86,8 +87,9 @@ class ReusableService
                     $q->whereBetween('p.arrive_warehouse_datetime', [$startDateTime, $endDateTime])
                         ->where('p.status_id', 5);
                 })
-                ->orWhere(function ($q) use ($startDateTime, $endDateTime) {
+                ->orWhere(function ($q) use ($startDateTime, $endDateTime,$userId) {
                     $q->whereBetween('p.returned_datetime', [$startDateTime, $endDateTime])
+                        ->where('p.returned_uid',$userId)
                         ->where('p.status_id', 11);
                 });
             });
