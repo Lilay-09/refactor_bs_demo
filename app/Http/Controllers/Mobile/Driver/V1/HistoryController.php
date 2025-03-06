@@ -38,9 +38,11 @@ class HistoryController extends Controller
         $qFp = Delivery::fromRaw('deliveries as d')->join('delivery_packages as dp','d.id','dp.delivery_id')
         ->join('packages as p','p.id','dp.package_id')->orderByDesc('d.id')
         ->join('users as m','m.id','p.merchant_id')
+        ->where('dp.delay_count',0)->where('dp.is_deleted',0)
+        ->where('dp.has_swap',0)
         ->leftJoin('payments as pmt','pmt.id','p.driver_payment_id')
         ->join('tracking_statuses as trs','trs.id','p.status_id')
-        ->selectRaw('trs.id as status_id,trs.name as status_code,d.fleet_tracking_number,m.user_name as merchant_name,m.phone as merchant_phone,p.receiver_name,p.receiver_address,p.receiver_phone,p.driver_total as total')
+        ->selectRaw('p.qr_code,trs.id as status_id,trs.name as status_code,d.fleet_tracking_number,m.user_name as merchant_name,m.phone as merchant_phone,p.returned_datetime,p.failed_datetime,p.receiver_name,p.delivered_datetime,p.receiver_address,p.receiver_phone,p.driver_total as total')
         ->whereIn('p.status_id',[9,10,11,19])
         ->where('p.driver_id',$userId)
         ->where('d.driver_id',$userId);
@@ -54,6 +56,7 @@ class HistoryController extends Controller
             $endDate = Helper::dateYMD($endDate);
             $startDateTime = $startDate . ' 00:00:00';
             $endDateTime = $endDate . ' 23:59:59';
+            $qFp->whereBetween('d.depart_datetime',[$startDateTime,$endDateTime]);
             $qFp->where(function($q) use ($startDateTime, $endDateTime,$userId) {
                 $q->where(function ($q) use ($startDateTime, $endDateTime) {
                     $q->whereBetween('p.failed_datetime', [$startDateTime, $endDateTime])
@@ -104,6 +107,7 @@ class HistoryController extends Controller
             ];
         })->values();
 
+        // return $groupedPackages;
         // Example data for the PDF
         if(!isset($groupedPackages[0])) return ApiResponse::NotFound('No data available!');
         $data = [
