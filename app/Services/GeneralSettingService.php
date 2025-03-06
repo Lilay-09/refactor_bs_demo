@@ -623,7 +623,6 @@ public static function optionsRole($type=null){
         ->orderByDesc('x_date') // Resolve ties by picking the latest
         ->selectRaw('buy_rate, sell_rate')
         ->first();
-
         if(!$xRate) $xRate = (object)[
             'buy_rate' => 4000,
             'sell_rate' => 4000

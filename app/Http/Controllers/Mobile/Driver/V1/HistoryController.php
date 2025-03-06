@@ -42,6 +42,7 @@ class HistoryController extends Controller
         ->join('tracking_statuses as trs','trs.id','p.status_id')
         ->selectRaw('trs.id as status_id,trs.name as status_code,d.fleet_tracking_number,m.user_name as merchant_name,m.phone as merchant_phone,p.receiver_name,p.receiver_address,p.receiver_phone,p.driver_total as total')
         ->whereIn('p.status_id',[9,10,11,19])
+        ->where('p.driver_id',$userId)
         ->where('d.driver_id',$userId);
 
         if($paymentStatus == 2){
@@ -53,7 +54,7 @@ class HistoryController extends Controller
             $endDate = Helper::dateYMD($endDate);
             $startDateTime = $startDate . ' 00:00:00';
             $endDateTime = $endDate . ' 23:59:59';
-            $qFp->where(function($q) use ($startDateTime, $endDateTime) {
+            $qFp->where(function($q) use ($startDateTime, $endDateTime,$userId) {
                 $q->where(function ($q) use ($startDateTime, $endDateTime) {
                     $q->whereBetween('p.failed_datetime', [$startDateTime, $endDateTime])
                         ->whereIn('p.status_id', [10, 19]);
@@ -70,8 +71,9 @@ class HistoryController extends Controller
                 //     $q->whereBetween('p.arrive_warehouse_datetime', [$startDateTime, $endDateTime])
                 //         ->where('p.status_id', 5);
                 // })
-                ->orWhere(function ($q) use ($startDateTime, $endDateTime) {
+                ->orWhere(function ($q) use ($startDateTime, $endDateTime,$userId) {
                     $q->whereBetween('p.returned_datetime', [$startDateTime, $endDateTime])
+                        ->where('p.returned_uid',$userId)
                         ->where('p.status_id', 11);
                 });
             });

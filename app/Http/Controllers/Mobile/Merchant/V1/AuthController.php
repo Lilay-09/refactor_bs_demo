@@ -133,7 +133,7 @@ class AuthController extends Controller
         }
 
         // If the user exceeds max attempts, lock them out
-        if ($attempts > $maxAttempts) {
+        if ($attempts >= $maxAttempts) {
             Cache::put("login_attempts:locked:{$phone}", true, $lockoutTime);
              return ApiResponse::ValidateFail(__('messages.info',[
                 'info' => 'too many login attempts. Please try again later'
@@ -200,7 +200,6 @@ class AuthController extends Controller
 
     public function verifyOTP(Request $req){
         return ApiResponse::flex(UserService::verifyOTP($req,'merchant'));
-
     }
 
     public function resendOtp(Request $req){
