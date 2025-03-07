@@ -8,9 +8,11 @@ use App\Models\Delivery;
 use App\Services\GeneralSettingService;
 use App\Services\Mobile\ReusableService;
 use App\Services\UserService;
+use DB;
 use Helper;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Log;
 use Mpdf\Mpdf;
 
 class HistoryController extends Controller
@@ -34,18 +36,32 @@ class HistoryController extends Controller
         $paymentStatus = $req->payment_status_id ?? null;
         $statusId = $req->status_id ?? null;
         $search = $req->search ?? null;
+        $latestPackages = DB::table('delivery_packages as dp1')
+        ->selectRaw('DISTINCT ON (dp1.package_id) dp1.*')
+        ->orderBy('dp1.package_id')
+        ->orderByDesc('dp1.id');
 
-        $qFp = Delivery::fromRaw('deliveries as d')->join('delivery_packages as dp','d.id','dp.delivery_id')
-        ->join('packages as p','p.id','dp.package_id')
+        $qFp = Delivery::fromRaw('deliveries as d')
+        ->joinSub($latestPackages, 'dp', 'd.id', 'dp.delivery_id')
+        ->join('packages as p', 'p.id', 'dp.package_id')
         ->join('users as m','m.id','p.merchant_id')
-        ->where('dp.delay_count',0)->where('dp.is_deleted',0)
-        ->where('dp.has_swap',0)
+        // ->where('dp.delay_count',0)->where('dp.is_deleted',0)
+        // ->where('dp.has_swap',0)
         ->leftJoin('payments as pmt','pmt.id','p.driver_payment_id')
         ->join('tracking_statuses as trs','trs.id','p.status_id')
-        ->selectRaw('p.qr_code,p.status_id,trs.name as status_code,d.fleet_tracking_number,m.user_name as merchant_name,m.phone as merchant_phone,p.returned_datetime,p.failed_datetime,p.receiver_name,p.delivered_datetime,p.receiver_address,p.receiver_phone,p.driver_total as total')
+        ->selectRaw('p.driver_id,p.qr_code,p.status_id,trs.name as status_code,d.fleet_tracking_number,m.user_name as merchant_name,m.phone as merchant_phone,p.returned_datetime,p.failed_datetime,p.receiver_name,p.delivered_datetime,p.receiver_address,p.receiver_phone,p.driver_total as total')
         ->whereIn('p.status_id',[9,10,11,19])
-        ->where('p.driver_id',$userId)
-        ->where('d.driver_id',$userId)
+        ->where([
+            ['dp.delay_count', 0],
+            ['dp.is_deleted', 0],
+            ['dp.has_swap', 0],
+            ['p.driver_id', $userId],
+            ['d.driver_id', $userId],
+            ['dp.driver_id', $userId]
+        ])
+        // ->where('p.driver_id',$userId)
+        // ->where('d.driver_id',$userId)
+        // ->where('dp.driver_id',$userId)
         ->orderByRaw("CASE WHEN p.status_id = 11 THEN d.id END DESC, d.id DESC");
 
         if($paymentStatus == 2){
@@ -57,24 +73,16 @@ class HistoryController extends Controller
             $endDate = Helper::dateYMD($endDate);
             $startDateTime = $startDate . ' 00:00:00';
             $endDateTime = $endDate . ' 23:59:59';
-            $qFp->whereBetween('d.depart_datetime',[$startDateTime,$endDateTime]);
-            $qFp->where(function($q) use ($startDateTime, $endDateTime,$userId) {
+            $qFp->whereBetween('d.depart_datetime',[$startDateTime,$endDateTime])
+            ->where(function($q) use ($startDateTime, $endDateTime,$userId) {
                 $q->where(function ($q) use ($startDateTime, $endDateTime) {
                     $q->whereBetween('p.failed_datetime', [$startDateTime, $endDateTime])
-                        ->whereIn('p.status_id', [10, 19]);
+                        ->whereIn('dp.status_id', [10, 19]);
                 })
                 ->orWhere(function ($q) use ($startDateTime, $endDateTime) {
                     $q->whereBetween('p.delivered_datetime', [$startDateTime, $endDateTime])
-                        ->where('p.status_id', 9);
+                        ->where('dp.status_id', 9);
                 })
-                // ->orWhere(function ($q) use ($startDateTime, $endDateTime) {
-                //     $q->whereBetween('p.assign_driver_datetime', [$startDateTime, $endDateTime])
-                //         ->where('p.status_id', 6);
-                // })
-                // ->orWhere(function ($q) use ($startDateTime, $endDateTime) {
-                //     $q->whereBetween('p.arrive_warehouse_datetime', [$startDateTime, $endDateTime])
-                //         ->where('p.status_id', 5);
-                // })
                 ->orWhere(function ($q) use ($startDateTime, $endDateTime,$userId) {
                     $q->whereBetween('p.returned_datetime', [$startDateTime, $endDateTime])
                         ->where('p.returned_uid',$userId)
@@ -89,34 +97,43 @@ class HistoryController extends Controller
         ->orWhere('m.phone', 'ilike', '%' . $search . '%')
         ->orWhere('d.fleet_tracking_number', 'ilike', '%' . $search . '%');
         $fleetPackages = $qFp->get();
+        $totalDeliveredCount = 0;
+        $failedWithFeeCount = 0;
+        $grandTotal = 0;
         $driverInfo = GeneralSettingService::getDriverById($userId);
-        $groupedPackages = collect($fleetPackages)->map(function ($pkg) {
+        $groupedPackages = collect($fleetPackages)->map(function ($pkg) use(&$totalDeliveredCount,&$failedWithFeeCount) {
             $pkg->groupKey = $pkg->fleet_tracking_number;
+            if($pkg->status_id == 9) $totalDeliveredCount +=1;
+            if($pkg->status_id == 19) $failedWithFeeCount +=1;
             return $pkg;
         })
+
         ->groupBy('groupKey')
-        ->map(function ($group, $fleetNumber) {
-            $group->each(function ($item) use ($group) {
+        ->map(function ($group, $fleetNumber) use(&$grandTotal) {
+            $group->each(function ($item) {
                 // if($item->status_id == 9 || $item->status_id == 19){
                 //     $grandTotal = $item->total;
                 // }
                 unset($item->delivery_id,$item->fleet_tracking_number,$item->groupKey);
             });
+            $rowGrand = $group->whereIn('status_id',[9,19])->sum('total');
+            $grandTotal += $rowGrand;
             return [
                 'fleet_number' => $fleetNumber,
                 'details' => $group,
                 'total' => [
-                    'grand' => $group->whereIn('status_id',[9,19])->sum('total')
+                    'grand' => $rowGrand//$group->whereIn('status_id',[9,19])->sum('total')
                 ],
             ];
         })->values();
-
-        // return $groupedPackages;
         // Example data for the PDF
         if(!isset($groupedPackages[0])) return ApiResponse::NotFound('No data available!');
         $data = [
             'title' => 'History Packages',
             'driver' => $driverInfo,
+            'deliveredCount' => $totalDeliveredCount,
+            'failedWithFeeCount' => $failedWithFeeCount,
+            'grandTotal' => Helper::getNumber($grandTotal),
             'date' => date('d-M-Y',strtotime($startDate)) .' to '. date('d-M-Y',strtotime($endDate)),
             'data' => $groupedPackages
         ];

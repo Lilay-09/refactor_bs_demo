@@ -72,6 +72,7 @@ class DriverTransactionController extends Controller
             $deliverdInfo = $this->getDeliveredDetails($packages,$driver->id);
             $totalDelivered = $deliverdInfo->delivered_count;
             $driver->total_delivered = $totalDelivered;
+            $driver->total_commission_packages = $deliverdInfo->total_commission_pkg;
             $driver->total = Helper::getNumber($driver->pickup_rate * $totalPickUp + $driver->delivery_rate * $totalDelivered,2);
             $driver->bank_account = null;
             $driver->status_code = 'Pending';
@@ -82,7 +83,7 @@ class DriverTransactionController extends Controller
             unset($driver->bank_accounts);
             return $driver;
         };
-        return ApiResponse::PaginationV1($qD,$req,null,[],200,$clbMapper);
+        return ApiResponse::PaginationV1($qD,$req,null,[],1000,$clbMapper);
         // return ApiResponse::Pagination($driverInfo,$req);
     }
 
@@ -123,11 +124,12 @@ class DriverTransactionController extends Controller
         $totalPkg = 0;
         $failedWithFeeCount = 0;
         $deliveredCount = 0;
+        $totalCommissionPkg = 0;
         foreach($packages as $pkg){
             if($pkg->driver_id == $driverId){
                 $totalPkg += 1;
-                if($pkg->status_id == 9) $deliveredCount +=1;
-                else if($pkg->status_id == 19) $failedWithFeeCount +=1;
+                if($pkg->status_id == 9) {$deliveredCount +=1; $totalCommissionPkg +=1;}
+                if($pkg->status_id == 19) {$failedWithFeeCount +=1; $totalCommissionPkg +=1;}
             }
         }
 
@@ -135,6 +137,7 @@ class DriverTransactionController extends Controller
             'total_package' => $totalPkg,
             'delivered_count' => $deliveredCount,
             'failed_with_fee_count' => $deliveredCount,
+            'total_commission_pkg' => $totalCommissionPkg
         ];
     }
 

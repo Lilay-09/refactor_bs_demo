@@ -33,21 +33,31 @@ class HomeScreenController extends Controller
     }
     public function getAvailableOrders(Request $req){
         $user = UserService::getAuthUser('driver');
-        $orders = Order::where('is_deleted',0)
+        $query = Order::query()->where('is_deleted',0)
         ->with(['merchant','warehouse'])
         ->where('status_id',1)
         ->where('company_id',$user->company_id)
         ->orderByDesc('id')
-        ->selectRaw('id,order_datetime,merchant_id,warehouse_id,qty,code,pickup_address,pickup_address_google_map,vehicle_type,delivery_type')
-        ->get();
-        foreach($orders as $order){
+        ->selectRaw('id,order_datetime,merchant_id,warehouse_id,qty,code,pickup_address,pickup_address_google_map,vehicle_type,delivery_type');
+        // ->get();
+        $callback = function ($order){
             $order->merchant_name = $order->merchant->user_name;
             $order->merchant_code = $order->merchant->code;
             $order->merchant_phone = $order->merchant->phone;
             $order->warehouse_address = $order->warehouse->address;
             unset($order->merchant,$order->warehouse);
-        }
-        return ApiResponse::Pagination($orders,$req);
+            return $order;
+        };
+
+        // foreach($orders as $order){
+        //     $order->merchant_name = $order->merchant->user_name;
+        //     $order->merchant_code = $order->merchant->code;
+        //     $order->merchant_phone = $order->merchant->phone;
+        //     $order->warehouse_address = $order->warehouse->address;
+        //     unset($order->merchant,$order->warehouse);
+        // }
+        return ApiResponse::PaginationV1($query,$req,'',[],1000,$callback);
+        // return ApiResponse::Pagination($orders,$req);
     }
 
     public function getAcceptedPickup(Request $req){
@@ -99,29 +109,11 @@ class HomeScreenController extends Controller
         $pickup_rate = $commissionInfo->normal_pickup_commission;
         $delivery_rate = $commissionInfo->normal_delivery_commission;
         $totalEarning = (float)Helper::getNumber($pickup_rate * $totalPickUpPackage + $delivery_rate * $totalDeliveredPackage,2);
-        // $balanceDues = Package::from('packages as p')->where('p.driver_id', $user->id)
-        // ->where('p.is_deleted', 0)
-        // ->whereIn('p.status_id', [9, 19])
-        // ->whereNull('p.driver_disbursement_id')
-        // ->leftJoin('payments', 'p.driver_payment_id', '=', 'payments.id')
-        // ->selectRaw('p.qr_code,p.id,p.driver_total,p.cod,p.price,p.extra_charge,p.delivery_fee,p.additional_fee,p.payer,p.status_id,p.taxi_fee')
-        // ->where(function ($query) {
-        //     $query->whereNull('p.driver_payment_id') // Include rows without matching payments
-        //         ->orWhere('payments.approved', 0); // Include rows where payments.approved = 0
-        // })
-        // ->get();
-        // $balanceDue = 0;
-        // foreach($balanceDues as $b){
-        //     $totalPrice = ($b->cod && $b->status_id !=19) ? $b->price : 0;
-        //     $fee = PickupCenterService::getFees($b->payer,$b->delivery_fee,$b->additional_fee,$b->extra_charge);
-        //     $balanceDue += $totalPrice + $fee - $b->taxi_fee;
-        // }
         $balanceDues = TransactionService::getMobileUserBalance($req,$user,'driver');
         // $totalSettledDisburment = Disbursement::where('payee_id',$user->id)->where('type','payment')->where('is_deleted',0)->where('is_settled',1)->sum('payable_amount');
         $obj = [
-            'earning' => (float)Helper::getNumber($totalEarning),
-            'settlement' => (int)100,//(float)Helper::getNumber($balanceDues['total']),
-            // 'settlement' => (float)Helper::getNumber($balanceDue)
+            'earning' => (float)$totalEarning,
+            'settlement' => (float)Helper::getNumber($balanceDues['total']),
         ];
         return ApiResponse::JsonResult($obj);
     }

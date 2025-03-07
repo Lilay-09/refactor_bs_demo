@@ -636,40 +636,48 @@ class ReportController extends Controller
         $qP = Package::where('is_deleted',0)->whereIn('status_id',[9,10,19]);
         $qD = User::where('account_type','driver')
         ->selectRaw('id,code,user_name,gender,shift_type,phone,address,vehicle_type,plate_number,lock');
+        $oD = Order::where('status_id',5)->where('is_deleted',0)->selectRaw('qty,driver_id');
         if($driverId){
             $qP->where('driver_id',$driverId); // Package
             $qD->where('id',$driverId);
+            $oD->where('driver_id',$driverId);
         }
+
         if($startDate && $endDate){
             $startDate = Helper::dateYMD($startDate);
             $endDate = Helper::dateYMD($endDate);
-            $qP->where(function($q) use ($startDate, $endDate) {
-                $q->where(function($q) use ($startDate, $endDate) {
+            $startDatetime = $startDate.' 00:00:00';
+            $endDatetime = $endDate.' 23:59:59';
+            $qP->where(function($q) use ($startDatetime, $endDatetime) {
+                $q->where(function($q) use ($startDatetime, $endDatetime) {
                     // For status_id 19, query only failed_datetime
-                    $q->whereBetween('failed_datetime', ["$startDate 00:00:00", "$endDate 23:59:59"])
-                    ->where('status_id', 19);
+                    $q->whereBetween('failed_datetime', [$startDatetime, $endDatetime])
+                    ->whereIn('status_id', [19,10]);
                 })
-                ->orWhere(function($q) use ($startDate, $endDate) {
+                ->orWhere(function($q) use ($startDatetime, $endDatetime) {
                     // For status_id 9, query only delivered_datetime
-                    $q->whereBetween('delivered_datetime', ["$startDate 00:00:00", "$endDate 23:59:59"])
+                    $q->whereBetween('delivered_datetime', [$startDatetime, $endDatetime])
                     ->where('status_id', 9);
                 })
-                ->orWhere(function($q) use ($startDate, $endDate) {
+                ->orWhere(function($q) use ($startDatetime, $endDatetime) {
                     // For status_id 11, query only returned_datetime
-                    $q->whereBetween('returned_datetime', ["$startDate 00:00:00", "$endDate 23:59:59"])
+                    $q->whereBetween('returned_datetime', [$startDatetime, $endDatetime])
                     ->where('status_id', 11);
                 });
             });
+
+            // $oD->whereRaw('updated_at::DATE >= ? AND updated_at::DATE <= ?', [$startDate, $endDate]);
+            $oD->whereBetween('updated_at', [$startDatetime, $endDatetime]);
         }
         $drivers = $qD->get();
         $packages = $qP->get();
-        $oD = Order::where('status_id',5)->where('is_deleted',0)->selectRaw('qty,driver_id');
-        if($startDate && $endDate){
-            $startDate = Helper::dateYMD($startDate);
-            $endDate = Helper::dateYMD($endDate);
-            // $oD->whereRaw('updated_at::DATE >= ? AND updated_at::DATE <= ?', [$startDate, $endDate]);
-            $oD->whereBetween('updated_at', ["$startDate 00:00:00", "$endDate 23:59:59"]);
-        }
+
+        // if($startDate && $endDate){
+        //     $startDate = Helper::dateYMD($startDate);
+        //     $endDate = Helper::dateYMD($endDate);
+        //     // $oD->whereRaw('updated_at::DATE >= ? AND updated_at::DATE <= ?', [$startDate, $endDate]);
+        //     $oD->whereBetween('updated_at', ["$startDate 00:00:00", "$endDate 23:59:59"]);
+        // }
         $orders = $oD->get();
         $totalPickUpCount = 0;
         $totalDeliveredCount = 0;
