@@ -120,7 +120,7 @@ class HomeScreenController extends Controller
         // $totalSettledDisburment = Disbursement::where('payee_id',$user->id)->where('type','payment')->where('is_deleted',0)->where('is_settled',1)->sum('payable_amount');
         $obj = [
             'earning' => (float)Helper::getNumber($totalEarning),
-            'settlement' => (float)Helper::getNumber($balanceDues['total']),
+            'settlement' => (int)100,//(float)Helper::getNumber($balanceDues['total']),
             // 'settlement' => (float)Helper::getNumber($balanceDue)
         ];
         return ApiResponse::JsonResult($obj);
