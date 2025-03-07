@@ -36,16 +36,17 @@ class HistoryController extends Controller
         $search = $req->search ?? null;
 
         $qFp = Delivery::fromRaw('deliveries as d')->join('delivery_packages as dp','d.id','dp.delivery_id')
-        ->join('packages as p','p.id','dp.package_id')->orderByDesc('d.id')
+        ->join('packages as p','p.id','dp.package_id')
         ->join('users as m','m.id','p.merchant_id')
         ->where('dp.delay_count',0)->where('dp.is_deleted',0)
         ->where('dp.has_swap',0)
         ->leftJoin('payments as pmt','pmt.id','p.driver_payment_id')
         ->join('tracking_statuses as trs','trs.id','p.status_id')
-        ->selectRaw('p.qr_code,trs.id as status_id,trs.name as status_code,d.fleet_tracking_number,m.user_name as merchant_name,m.phone as merchant_phone,p.returned_datetime,p.failed_datetime,p.receiver_name,p.delivered_datetime,p.receiver_address,p.receiver_phone,p.driver_total as total')
+        ->selectRaw('p.qr_code,p.status_id,trs.name as status_code,d.fleet_tracking_number,m.user_name as merchant_name,m.phone as merchant_phone,p.returned_datetime,p.failed_datetime,p.receiver_name,p.delivered_datetime,p.receiver_address,p.receiver_phone,p.driver_total as total')
         ->whereIn('p.status_id',[9,10,11,19])
         ->where('p.driver_id',$userId)
-        ->where('d.driver_id',$userId);
+        ->where('d.driver_id',$userId)
+        ->orderByRaw("CASE WHEN p.status_id = 11 THEN d.id END DESC, d.id DESC");
 
         if($paymentStatus == 2){
             $qFp->where('pmt.approved',1);
@@ -96,13 +97,16 @@ class HistoryController extends Controller
         ->groupBy('groupKey')
         ->map(function ($group, $fleetNumber) {
             $group->each(function ($item) use ($group) {
+                // if($item->status_id == 9 || $item->status_id == 19){
+                //     $grandTotal = $item->total;
+                // }
                 unset($item->delivery_id,$item->fleet_tracking_number,$item->groupKey);
             });
             return [
                 'fleet_number' => $fleetNumber,
                 'details' => $group,
                 'total' => [
-                    'grand' => $group->sum('total')
+                    'grand' => $group->whereIn('status_id',[9,19])->sum('total')
                 ],
             ];
         })->values();
