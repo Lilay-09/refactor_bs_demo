@@ -85,12 +85,14 @@ class HistoryController extends Controller
             $endDateTime = $endDate . ' 23:59:59';
             $qFp->whereBetween('d.depart_datetime',[$startDateTime,$endDateTime])
             ->orWhere(function($q) use ($startDateTime, $endDateTime,$userId) {
-                $q->where(function ($q) use ($startDateTime, $endDateTime) {
+                $q->where(function ($q) use ($startDateTime, $endDateTime,$userId) {
                     $q->whereBetween('p.failed_datetime', [$startDateTime, $endDateTime])
+                        ->where('p.driver_id',$userId)
                         ->whereIn('p.status_id', [10, 19]);
                 })
-                ->orWhere(function ($q) use ($startDateTime, $endDateTime) {
+                ->orWhere(function ($q) use ($startDateTime, $endDateTime,$userId) {
                     $q->whereBetween('p.delivered_datetime', [$startDateTime, $endDateTime])
+                        ->where('p.driver_id',$userId)
                         ->where('p.status_id', 9);
                 })
                 ->orWhere(function ($q) use ($startDateTime, $endDateTime,$userId) {
