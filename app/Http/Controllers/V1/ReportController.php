@@ -639,7 +639,18 @@ class ReportController extends Controller
         ->selectRaw('id,code,user_name,gender,shift_type,phone,address,vehicle_type,plate_number,lock');
         $oD = Order::where('status_id',5)->where('is_deleted',0)->selectRaw('qty,driver_id');
         if($driverId){
-            $qP->where('driver_id',$driverId);
+            // $qP->where('driver_id',$driverId);
+            if ($driverId) {
+                $qP->where(function ($query) use ($driverId) {
+                    $query->where(function ($subQuery) use ($driverId) {
+                        $subQuery->where('status_id', '!=', 11)
+                                ->where('driver_id', $driverId);
+                    })->orWhere(function ($subQuery) use ($driverId) {
+                        $subQuery->where('status_id', 11)
+                                ->where('returned_uid', $driverId);
+                    });
+                });
+            }
             $qD->where('id',$driverId);
             $oD->where('driver_id',$driverId);
         }
