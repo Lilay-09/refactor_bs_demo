@@ -49,7 +49,16 @@ class CompletedPackageController extends Controller
         ->where('p.company_id',$user->company_id)
         ->where('p.is_deleted',0)
         ->with('returnUser')
-        ->leftJoin('users as d','d.id','p.driver_id')
+        // ->leftJoin('users as d','d.id','p.driver_id')
+        ->join('users as d', function ($join) use($statusId) {
+            if ($statusId == 11) {
+                // When status_id is 11, join on returned_uid
+                $join->on('d.id', '=', 'p.returned_uid');
+            } else {
+                // Otherwise, join on driver_id
+                $join->on('d.id', '=', 'p.driver_id');
+            }
+        })
         ->join('tracking_statuses as ts','ts.id','p.status_id')
         ->join('orders as o','o.id','p.order_id')
         ->join('users as m','m.id','p.merchant_id')
@@ -65,9 +74,6 @@ class CompletedPackageController extends Controller
             ) DESC
         ")
         ->orderByDesc('p.id')
-        // ->orderByDesc('p.delivered_datetime')
-        // ->orderByDesc('p.failed_datetime')
-        // ->orderByDesc('p.returned_datetime')
 
         ->whereIn('p.status_id',[9,11,19]) //* delivered and failed with fee
         ->where(function ($query) {
@@ -93,7 +99,7 @@ class CompletedPackageController extends Controller
         if($startDate && $endDate){
             $startDate = Helper::dateYMD($startDate);
             $endDate = Helper::dateYMD($endDate);
-            $qP->where(function ($q) use ($startDate, $endDate) {
+            $qP->where(function ($q) use ($startDate, $endDate,$driverId) {
                 $startDateTime = "$startDate 00:00:00";
                 $endDateTime = "$endDate 23:59:59";
                 // Check for status_id = 9, delivered_datetime should be within the date range
@@ -106,9 +112,10 @@ class CompletedPackageController extends Controller
                     $q->where('p.status_id', 19)
                     ->whereBetween('p.failed_datetime', [$startDateTime, $endDateTime]);
                 })
-                ->orWhere(function ($q) use ($startDateTime, $endDateTime) {
+                ->orWhere(function ($q) use ($startDateTime, $endDateTime,$driverId) {
                     $q->where('p.status_id', 11)
                     ->whereBetween('p.returned_datetime', [$startDateTime, $endDateTime]);
+                    if($driverId) $q->where('p.returned_uid',$driverId);
                 });
             });
         }
