@@ -25,16 +25,34 @@ class ReusableService
         $statusIds = [9,10,11,19];
         if($reqSearch) $statusIds[] = 6;
         if($reqSearch && !$search) return DataResponse::Pagination(new Collection(),$req);
+
+        $latestPackages = DB::table('delivery_packages as dp1')
+        ->selectRaw('DISTINCT ON (dp1.package_id) dp1.*')
+        ->orderBy('dp1.package_id')
+        ->orderByDesc('dp1.id');
+
         $qFp = Delivery::query()->fromRaw('deliveries as d')
-        ->join('delivery_packages as dp','d.id','dp.delivery_id')
-        ->where('dp.delay_count',0)->where('dp.is_deleted',0)->where('dp.has_swap',0)
+        ->joinSub($latestPackages, 'dp', 'd.id', 'dp.delivery_id')
+        // ->join('delivery_packages as dp','d.id','dp.delivery_id')
+        // ->where('dp.delay_count',0)->where('dp.is_deleted',0)->where('dp.has_swap',0)
+        ->where([
+            ['dp.delay_count', 0],
+            ['dp.is_deleted', 0],
+            ['dp.has_swap', 0],
+        ])
         ->join('packages as p','p.id','dp.package_id')
         ->join('users as m','m.id','p.merchant_id')
         ->leftJoin('payments as pmt','pmt.id','p.driver_payment_id')
         // ->leftJoin('payments as pmt','pmt.id','p.merchant_payment_id')
         ->join('tracking_statuses as trs','trs.id','dp.status_id')
         ->selectRaw('p.payer,p.extra_charge,p.cod,p.price,p.pickup_notes as notes,p.merchant_total,p.receiver_address,p.qr_code,dp.status_id,trs.name as status_code,d.id as delivery_id,d.fleet_tracking_number,m.user_name as merchant_name,m.phone as merchant_phone,p.receiver_name,p.receiver_phone,p.delivery_fee,p.taxi_fee,p.remarks,p.id as package_id,p.product_type,p.driver_total,p.billed_kg,p.failed_datetime,p.delivered_datetime,p.arrive_warehouse_datetime,p.returned_datetime')
-        ->whereIn('dp.status_id',$statusIds)
+        // ->whereIn('dp.status_id',$statusIds)
+        ->where(function ($q) use ($userId,$statusIds) {
+            $q->whereIn('p.status_id', $statusIds)
+            ->orWhere(function ($subQuery) use ($userId) {
+                $subQuery->where('p.status_id', 11)->where('p.returned_uid', $userId);
+            });
+        })
         ->orderByRaw('dp.status_id = ? ASC',[6])
         ->orderByRaw('
             CASE
@@ -54,11 +72,15 @@ class ReusableService
         //     END DESC', [9,10,11,19]
         // );
 
-        if($paymentStatus == 2){
+        if($paymentStatus == 2 && $userClass=='driver'){
             $qFp->where('pmt.approved',1);
         }
         if($user && $userClass=='driver'){
-            $qFp->where('p.driver_id',$userId);
+            $qFp->where([
+            ['p.driver_id', $userId],
+            ['d.driver_id', $userId],
+            ['dp.driver_id', $userId]
+            ]);
         }else if($user && $userClass=='merchant'){
             $qFp->where('p.merchant_id',$userId);
         }
