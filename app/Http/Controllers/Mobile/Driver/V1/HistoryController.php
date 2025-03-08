@@ -83,7 +83,7 @@ class HistoryController extends Controller
             $startDateTime = $startDate . ' 00:00:00';
             $endDateTime = $endDate . ' 23:59:59';
             $qFp->whereBetween('d.depart_datetime',[$startDateTime,$endDateTime])
-            ->where(function($q) use ($startDateTime, $endDateTime,$userId) {
+            ->orWhere(function($q) use ($startDateTime, $endDateTime,$userId) {
                 $q->where(function ($q) use ($startDateTime, $endDateTime) {
                     $q->whereBetween('p.failed_datetime', [$startDateTime, $endDateTime])
                         ->whereIn('dp.status_id', [10, 19]);

@@ -45,12 +45,13 @@ class ReusableService
         ->leftJoin('payments as pmt','pmt.id','p.driver_payment_id')
         // ->leftJoin('payments as pmt','pmt.id','p.merchant_payment_id')
         ->join('tracking_statuses as trs','trs.id','dp.status_id')
-        ->selectRaw('p.payer,p.extra_charge,p.cod,p.price,p.pickup_notes as notes,p.merchant_total,p.receiver_address,p.qr_code,dp.status_id,trs.name as status_code,d.id as delivery_id,d.fleet_tracking_number,m.user_name as merchant_name,m.phone as merchant_phone,p.receiver_name,p.receiver_phone,p.delivery_fee,p.taxi_fee,p.remarks,p.id as package_id,p.product_type,p.driver_total,p.billed_kg,p.failed_datetime,p.delivered_datetime,p.arrive_warehouse_datetime,p.returned_datetime')
+        ->selectRaw('p.payer,p.extra_charge,p.cod,p.price,p.pickup_notes as notes,p.merchant_total,p.receiver_address,p.qr_code,p.status_id,trs.name as status_code,d.id as delivery_id,d.fleet_tracking_number,m.user_name as merchant_name,m.phone as merchant_phone,p.receiver_name,p.receiver_phone,p.delivery_fee,p.taxi_fee,p.remarks,p.id as package_id,p.product_type,p.driver_total,p.billed_kg,p.failed_datetime,p.delivered_datetime,p.arrive_warehouse_datetime,p.returned_datetime')
         // ->whereIn('dp.status_id',$statusIds)
-        ->where(function ($q) use ($userId,$statusIds) {
+        ->where(function ($q) use ($userId,$statusIds,$userClass) {
             $q->whereIn('p.status_id', $statusIds)
-            ->orWhere(function ($subQuery) use ($userId) {
-                $subQuery->where('p.status_id', 11)->where('p.returned_uid', $userId);
+            ->orWhere(function ($subQuery) use ($userId,$userClass) {
+                $subQuery->where('p.status_id', 11);
+                if($userClass == 'driver') $subQuery->where('p.returned_uid', $userId);
             });
         })
         ->orderByRaw('dp.status_id = ? ASC',[6])
@@ -59,7 +60,7 @@ class ReusableService
                 WHEN dp.status_id = 9 THEN p.delivered_datetime
                 WHEN dp.status_id = 10 THEN p.failed_datetime
                 WHEN dp.status_id = 19 THEN p.failed_datetime
-                WHEN dp.status_id = 11 THEN p.returned_datetime
+                WHEN p.status_id = 11 THEN p.returned_datetime
             END DESC
         ');
         // ->orderByRaw('

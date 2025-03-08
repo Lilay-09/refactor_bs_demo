@@ -57,10 +57,18 @@ class CompletedPackageController extends Controller
         // ->leftJoin('payments as mpmt','mpmt.id','p.merchant_payment_id') //** if driver paid or unpaid */
         // ->leftJoin('disbursements as dbur','dbur.id','p.driver_disbursement_id') //** if driver paid or unpaid */
         // ->leftJoin('disbursements as mbur','mbur.id','p.merchant_disbursement_id') //** if driver paid or unpaid */
-        ->orderByDesc('p.delivered_datetime')
-        ->orderByDesc('p.failed_datetime')
-        ->orderByDesc('p.returned_datetime')
+        ->orderByRaw("
+            GREATEST(
+                COALESCE(p.delivered_datetime, '1970-01-01'),
+                COALESCE(p.failed_datetime, '1970-01-01'),
+                COALESCE(p.returned_datetime, '1970-01-01')
+            ) DESC
+        ")
         ->orderByDesc('p.id')
+        // ->orderByDesc('p.delivered_datetime')
+        // ->orderByDesc('p.failed_datetime')
+        // ->orderByDesc('p.returned_datetime')
+
         ->whereIn('p.status_id',[9,11,19]) //* delivered and failed with fee
         ->where(function ($query) {
             $query->where('p.status_id', '!=', 19)    // Include 9 and 11 unconditionally
@@ -97,6 +105,10 @@ class CompletedPackageController extends Controller
                 ->orWhere(function ($q) use ($startDateTime, $endDateTime) {
                     $q->where('p.status_id', 19)
                     ->whereBetween('p.failed_datetime', [$startDateTime, $endDateTime]);
+                })
+                ->orWhere(function ($q) use ($startDateTime, $endDateTime) {
+                    $q->where('p.status_id', 11)
+                    ->whereBetween('p.returned_datetime', [$startDateTime, $endDateTime]);
                 });
             });
         }
