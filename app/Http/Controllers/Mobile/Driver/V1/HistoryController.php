@@ -49,11 +49,12 @@ class HistoryController extends Controller
         // ->where('dp.has_swap',0)
         ->leftJoin('payments as pmt','pmt.id','p.driver_payment_id')
         ->join('tracking_statuses as trs','trs.id','p.status_id')
-        ->selectRaw('p.driver_id,p.qr_code,p.status_id,trs.name as status_code,d.fleet_tracking_number,m.user_name as merchant_name,m.phone as merchant_phone,p.returned_datetime,p.failed_datetime,p.receiver_name,p.delivered_datetime,p.receiver_address,p.receiver_phone,p.driver_total as total')
+        ->selectRaw('p.returned_uid,p.driver_id,p.qr_code,p.status_id,trs.name as status_code,d.fleet_tracking_number,m.user_name as merchant_name,m.phone as merchant_phone,p.returned_datetime,p.failed_datetime,p.receiver_name,p.delivered_datetime,p.receiver_address,p.receiver_phone,p.driver_total as total')
         ->where(function ($q) use ($userId) {
             $q->whereIn('p.status_id', [9, 10, 19])
             ->orWhere(function ($subQuery) use ($userId) {
-                $subQuery->where('p.status_id', 11)->where('p.returned_uid', $userId);
+                $subQuery->where('p.status_id', 11)
+                ->where('p.returned_uid', $userId);
             });
         })
         // ->whereIn('p.status_id',[9,10,19])
@@ -86,15 +87,15 @@ class HistoryController extends Controller
             ->orWhere(function($q) use ($startDateTime, $endDateTime,$userId) {
                 $q->where(function ($q) use ($startDateTime, $endDateTime) {
                     $q->whereBetween('p.failed_datetime', [$startDateTime, $endDateTime])
-                        ->whereIn('dp.status_id', [10, 19]);
+                        ->whereIn('p.status_id', [10, 19]);
                 })
                 ->orWhere(function ($q) use ($startDateTime, $endDateTime) {
                     $q->whereBetween('p.delivered_datetime', [$startDateTime, $endDateTime])
-                        ->where('dp.status_id', 9);
+                        ->where('p.status_id', 9);
                 })
                 ->orWhere(function ($q) use ($startDateTime, $endDateTime,$userId) {
                     $q->whereBetween('p.returned_datetime', [$startDateTime, $endDateTime])
-                        // ->where('p.returned_uid',$userId)
+                        ->where('p.returned_uid',$userId)
                         ->where('p.status_id', 11);
                 });
             });
@@ -136,9 +137,9 @@ class HistoryController extends Controller
             ];
         })->values();
 
-        Log::error(count($groupedPackages));
+        // Log::error(count($groupedPackages));
 
-        // return $groupedPackages;
+        return $groupedPackages;
         // Example data for the PDF
         if(!isset($groupedPackages[0])) return ApiResponse::NotFound('No data available!');
         $data = [
