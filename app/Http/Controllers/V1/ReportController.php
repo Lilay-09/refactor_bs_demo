@@ -633,12 +633,24 @@ class ReportController extends Controller
         $startDate = $req->startDate;
         $endDate = $req->endDate;
         $driverId = $req->driver_id;
-        $qP = Package::where('is_deleted',0)->whereIn('status_id',[9,10,19]);
+        $qP = Package::where('is_deleted',0)
+        ->whereIn('status_id',[9,10,11,19]);
         $qD = User::where('account_type','driver')
         ->selectRaw('id,code,user_name,gender,shift_type,phone,address,vehicle_type,plate_number,lock');
         $oD = Order::where('status_id',5)->where('is_deleted',0)->selectRaw('qty,driver_id');
         if($driverId){
-            $qP->where('driver_id',$driverId); // Package
+            // $qP->where('driver_id',$driverId);
+            if ($driverId) {
+                $qP->where(function ($query) use ($driverId) {
+                    $query->where(function ($subQuery) use ($driverId) {
+                        $subQuery->where('status_id', '!=', 11)
+                                ->where('driver_id', $driverId);
+                    })->orWhere(function ($subQuery) use ($driverId) {
+                        $subQuery->where('status_id', 11)
+                                ->where('returned_uid', $driverId);
+                    });
+                });
+            }
             $qD->where('id',$driverId);
             $oD->where('driver_id',$driverId);
         }
@@ -648,7 +660,7 @@ class ReportController extends Controller
             $endDate = Helper::dateYMD($endDate);
             $startDatetime = $startDate.' 00:00:00';
             $endDatetime = $endDate.' 23:59:59';
-            $qP->where(function($q) use ($startDatetime, $endDatetime) {
+            $qP->where(function($q) use ($startDatetime, $endDatetime,$driverId) {
                 $q->where(function($q) use ($startDatetime, $endDatetime) {
                     // For status_id 19, query only failed_datetime
                     $q->whereBetween('failed_datetime', [$startDatetime, $endDatetime])
@@ -659,10 +671,11 @@ class ReportController extends Controller
                     $q->whereBetween('delivered_datetime', [$startDatetime, $endDatetime])
                     ->where('status_id', 9);
                 })
-                ->orWhere(function($q) use ($startDatetime, $endDatetime) {
+                ->orWhere(function($q) use ($startDatetime, $endDatetime,$driverId) {
                     // For status_id 11, query only returned_datetime
                     $q->whereBetween('returned_datetime', [$startDatetime, $endDatetime])
                     ->where('status_id', 11);
+                    if($driverId) $q->where('returned_uid',$driverId);
                 });
             });
 
@@ -671,13 +684,6 @@ class ReportController extends Controller
         }
         $drivers = $qD->get();
         $packages = $qP->get();
-
-        // if($startDate && $endDate){
-        //     $startDate = Helper::dateYMD($startDate);
-        //     $endDate = Helper::dateYMD($endDate);
-        //     // $oD->whereRaw('updated_at::DATE >= ? AND updated_at::DATE <= ?', [$startDate, $endDate]);
-        //     $oD->whereBetween('updated_at', ["$startDate 00:00:00", "$endDate 23:59:59"]);
-        // }
         $orders = $oD->get();
         $totalPickUpCount = 0;
         $totalDeliveredCount = 0;
@@ -953,8 +959,8 @@ class ReportController extends Controller
             if($c->driver_id == $driverId){
                 if($c->status_id == 9) $delivered_count +=1;
                 if($c->status_id == 19) $failed_with_fee_count +=1;
-                if($c->status_id == 11) $returned_count +=1;
             }
+            if($c->returned_uid == $driverId) $returned_count +=1;
             $i++;
         }while($c);
 

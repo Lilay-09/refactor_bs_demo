@@ -12,6 +12,7 @@ use App\Services\GeneralSettingService;
 use App\Services\PickupCenterService;
 use App\Services\TransactionService;
 use App\Services\UserService;
+use DB;
 use Helper;
 use Illuminate\Http\Request;
 
@@ -49,7 +50,24 @@ class CompletedPackageController extends Controller
         ->where('p.company_id',$user->company_id)
         ->where('p.is_deleted',0)
         ->with('returnUser')
-        ->leftJoin('users as d','d.id','p.driver_id')
+        ->join('users as d', function ($join) {
+            $join->on('d.id', '=', DB::raw("CASE
+                WHEN p.status_id = 11 THEN p.returned_uid
+                ELSE p.driver_id
+            END"));
+        })
+
+        // ->leftJoin('users as d','d.id','p.driver_id')
+        // ->join('users as d', function ($join) use($statusId) {
+        //     if ($statusId == 11) {
+        //         // When status_id is 11, join on returned_uid
+        //         $join->on('d.id', '=', 'p.returned_uid');
+        //     } else {
+        //         // Otherwise, join on driver_id
+        //         $join->on('d.id', '=', 'p.driver_id');
+        //     }
+        // })
+
         ->join('tracking_statuses as ts','ts.id','p.status_id')
         ->join('orders as o','o.id','p.order_id')
         ->join('users as m','m.id','p.merchant_id')
@@ -57,17 +75,22 @@ class CompletedPackageController extends Controller
         // ->leftJoin('payments as mpmt','mpmt.id','p.merchant_payment_id') //** if driver paid or unpaid */
         // ->leftJoin('disbursements as dbur','dbur.id','p.driver_disbursement_id') //** if driver paid or unpaid */
         // ->leftJoin('disbursements as mbur','mbur.id','p.merchant_disbursement_id') //** if driver paid or unpaid */
-        ->orderByDesc('p.delivered_datetime')
-        ->orderByDesc('p.failed_datetime')
-        ->orderByDesc('p.returned_datetime')
+        ->orderByRaw("
+            GREATEST(
+                COALESCE(p.delivered_datetime, '1970-01-01'),
+                COALESCE(p.failed_datetime, '1970-01-01'),
+                COALESCE(p.returned_datetime, '1970-01-01')
+            ) DESC
+        ")
         ->orderByDesc('p.id')
+
         ->whereIn('p.status_id',[9,11,19]) //* delivered and failed with fee
         ->where(function ($query) {
             $query->where('p.status_id', '!=', 19)    // Include 9 and 11 unconditionally
                     ->orWhereNotNull('p.returned_uid'); // Include 19 only if returned_uid is not null
         })
         // ->selectRaw('p.arrive_warehouse_datetime,p.returned_uid,p.receiver_address,p.driver_disbursement_id,p.driver_payment_id,p.delivered_datetime,m.user_name as merchant_name,m.phone as merchant_phone,d.user_name as driver_name,p.status_id,p.returned_datetime,p.id as package_id,d.id as driver_id,p.qr_code,p.price,ts.name as status_code,p.product_type,p.delivered_datetime,p.failed_datetime,p.taxi_fee,p.payer,p.cod,p.zone_code,p.zone_name,p.receiver_phone,p.delivery_type,p.delivery_fee,p.driver_total,p.merchant_total'.$driverSettled.$merchantSettled);
-        ->selectRaw('p.arrive_warehouse_datetime,p.returned_uid,p.receiver_address,p.driver_disbursement_id,p.driver_payment_id,p.delivered_datetime,m.user_name as merchant_name,m.phone as merchant_phone,d.user_name as driver_name,p.status_id,p.returned_datetime,p.id as package_id,d.id as driver_id,p.qr_code,p.price,ts.name as status_code,p.product_type,p.delivered_datetime,p.failed_datetime,p.taxi_fee,p.payer,p.cod,p.zone_code,p.zone_name,p.receiver_phone,p.delivery_type,p.delivery_fee,p.driver_total,p.merchant_total');
+        ->selectRaw('p.driver_id,p.arrive_warehouse_datetime,p.returned_uid,p.receiver_address,p.driver_disbursement_id,p.driver_payment_id,p.delivered_datetime,m.user_name as merchant_name,m.phone as merchant_phone,d.user_name as driver_name,p.status_id,p.returned_datetime,p.id as package_id,d.id as driver_id,p.qr_code,p.price,ts.name as status_code,p.product_type,p.delivered_datetime,p.failed_datetime,p.taxi_fee,p.payer,p.cod,p.zone_code,p.zone_name,p.receiver_phone,p.delivery_type,p.delivery_fee,p.driver_total,p.merchant_total');
         //** Filter */
         if($search){
             $qP->where(function ($q) use ($search){
@@ -76,7 +99,19 @@ class CompletedPackageController extends Controller
         }
 
         if($statusId) $qP->where('p.status_id',$statusId);
-        if($driverId) $qP->where('p.driver_id',$driverId);
+        // if($driverId) $qP->where('p.driver_id',$driverId);
+        if ($driverId) {
+            $qP->where(function ($query) use ($driverId) {
+                $query->where(function ($subQuery) use ($driverId) {
+                    $subQuery->where('p.status_id', '!=', 11)
+                            ->where('p.driver_id', $driverId);
+                })->orWhere(function ($subQuery) use ($driverId) {
+                    $subQuery->where('p.status_id', 11)
+                            ->where('p.returned_uid', $driverId);
+                });
+            });
+        }
+
         if($merchantId) $qP->where('p.merchant_id',$merchantId);
         if($warehouseId) $qP->where('o.warehouse_id',$warehouseId);
 
@@ -85,7 +120,7 @@ class CompletedPackageController extends Controller
         if($startDate && $endDate){
             $startDate = Helper::dateYMD($startDate);
             $endDate = Helper::dateYMD($endDate);
-            $qP->where(function ($q) use ($startDate, $endDate) {
+            $qP->where(function ($q) use ($startDate, $endDate,$driverId) {
                 $startDateTime = "$startDate 00:00:00";
                 $endDateTime = "$endDate 23:59:59";
                 // Check for status_id = 9, delivered_datetime should be within the date range
@@ -97,6 +132,11 @@ class CompletedPackageController extends Controller
                 ->orWhere(function ($q) use ($startDateTime, $endDateTime) {
                     $q->where('p.status_id', 19)
                     ->whereBetween('p.failed_datetime', [$startDateTime, $endDateTime]);
+                })
+                ->orWhere(function ($q) use ($startDateTime, $endDateTime,$driverId) {
+                    $q->where('p.status_id', 11)
+                    ->whereBetween('p.returned_datetime', [$startDateTime, $endDateTime]);
+                    if($driverId) $q->where('p.returned_uid',$driverId);
                 });
             });
         }

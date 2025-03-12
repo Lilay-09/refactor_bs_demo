@@ -14,6 +14,8 @@ class DriverCommission extends Model
         'delivery_type',
         'pickup_commission',
         'delivery_commission',
+        'start_pickup_commission_date',
+        'start_delivery_commission_date',
         'create_uid',
         'update_uid',
         'branch_id',

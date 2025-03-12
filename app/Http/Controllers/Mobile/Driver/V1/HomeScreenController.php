@@ -112,8 +112,8 @@ class HomeScreenController extends Controller
         $balanceDues = TransactionService::getMobileUserBalance($req,$user,'driver');
         // $totalSettledDisburment = Disbursement::where('payee_id',$user->id)->where('type','payment')->where('is_deleted',0)->where('is_settled',1)->sum('payable_amount');
         $obj = [
-            'earning' => (float)$totalEarning,
-            'settlement' => (float)Helper::getNumber($balanceDues['total']),
+            'earning' => (string)0,
+            'settlement' => (string)Helper::getNumber($balanceDues['total']),
         ];
         return ApiResponse::JsonResult($obj);
     }
