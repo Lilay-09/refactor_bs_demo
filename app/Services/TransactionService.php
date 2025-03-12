@@ -1190,10 +1190,12 @@ class TransactionService
             'info' => 'Package'
         ]));
         if($package->driver_payment_id || $package->driver_disbursement_id) return DataResponse::Duplicated(__('messages.info',[
-            'info' => 'It seems like you try to update package which is on payment pending or paid with driver'
+            'info' => 'It seems like you try to update package which is on payment pending or paid with driver',
+            'khInfo' => 'មិនអាចកែកញ្ចប់បានទេ, កញ្ចប់ជាក់ទូរទាត់ជាមួយអ្នកដឹក'
         ]));
         if($package->merchant_payment_id || $package->merchant_disbursement_id) return DataResponse::Duplicated(__('messages.info',[
-            'info' => 'It seems like you try to update package which is on payment pending or paid with merchant'
+            'info' => 'It seems like you try to update package which is on payment pending or paid with merchant',
+            'khInfo' => 'មិនអាចកែកញ្ចប់បានទេ, កញ្ចប់ជាក់ទូរទាត់ជាមួយអ្នកផ្ញើ (Merchant)'
         ]));
         $cod = $inputs['cod'] ?? $package->cod;
         $payer = $inputs['payer'] ?? $package->payer;
