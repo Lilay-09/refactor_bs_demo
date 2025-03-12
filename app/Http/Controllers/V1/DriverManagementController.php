@@ -79,9 +79,13 @@ class DriverManagementController extends Controller
         return validator($req->all(),[
             'salary' => 'nullable|numeric',
             'normal_pickup_commission' => 'nullable|numeric',
+            'normal_pickup_commission_start_date' => 'nullable',
             'normal_delivery_commission' => 'nullable|numeric',
+            'normal_delivery_commission_start_date' => 'nullable',
             'fast_pickup_commission' => 'nullable|numeric',
-            'fast_delivery_commission' => 'nullable|numeric'
+            'fast_pickup_commission_start_date' => 'nullable',
+            'fast_delivery_commission' => 'nullable|numeric',
+            'fast_delivery_commission_start_date' => 'nullable'
         ]);
     }
 
@@ -97,18 +101,27 @@ class DriverManagementController extends Controller
         $normal_delivery_commission = $inputs['normal_delivery_commission'] ?? 0;
         $fast_pickup_commission = $inputs['fast_pickup_commission'] ?? 0;
         $fast_delivery_commission = $inputs['fast_delivery_commission'] ?? 0;
+
+        $normal_pickup_commissionStartDate = $inputs['normal_pickup_commission_start_date'] ?? null;
+        $normal_delivery_commissionStartDate = $inputs['normal_delivery_commission_start_date'] ?? null;
+        $fast_pickup_commissionStartDate = $inputs['fast_pickup_commission_start_date'] ?? null;
+        $fast_delivery_commissionStartDate = $inputs['fast_delivery_commission_start_date'] ?? null;
         $commissionArr = [
             [
                 'driver_id' => $driver_id,
                 'delivery_type' => 'normal',
                 'pickup_commission' =>  $normal_pickup_commission,
-                'delivery_commission' => $normal_delivery_commission
+                'start_pickup_commission_date' => $normal_pickup_commissionStartDate,
+                'delivery_commission' => $normal_delivery_commission,
+                'start_delivery_commission_date' => $normal_delivery_commissionStartDate
             ],
             [
                 'driver_id' => $driver_id,
                 'delivery_type' => 'fast',
                 'pickup_commission' =>  $fast_pickup_commission,
-                'delivery_commission' => $fast_delivery_commission
+                'start_pickup_commission_date' => $fast_pickup_commissionStartDate,
+                'delivery_commission' => $fast_delivery_commission,
+                'start_delivery_commission_date' => $fast_delivery_commissionStartDate
             ],
         ];
         if($driverCommissions){
