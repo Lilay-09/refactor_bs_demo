@@ -308,7 +308,12 @@ public static function optionsRole($type=null){
     }
 
     public static function optionsMerchant($user){
-        $merchants = User::where('lock',0)->where('register_status','!=','in-progress')->where('is_deleted',0)->where('company_id',$user->company_id)->where('account_type','merchant')->selectRaw('id,user_name,name_km,phone')->orderByDesc('id')->get();
+        $merchants = User::where('lock',0)->where('is_deleted',0)
+        ->where(function ($q) {
+            $q->whereNull('register_status')
+            ->orWhere('register_status', '!=', 'in-progress');
+        })
+        ->where('company_id',$user->company_id)->where('account_type','merchant')->selectRaw('id,user_name,name_km,phone')->orderByDesc('id')->get();
         foreach($merchants as $m){
             $m->user_name = $m->user_name.($m->name_km ? (' - '.$m->name_km):'')." ($m->phone)";
         }
