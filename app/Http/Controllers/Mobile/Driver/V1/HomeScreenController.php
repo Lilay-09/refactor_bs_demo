@@ -207,6 +207,7 @@ class HomeScreenController extends Controller
         $packages = $this->tripPackageInfo($tripId,$driverId);
         foreach($packages as $package){
             $package->status_code = $package->status->name;
+            $package->telegram_url = Helper::generateTelegramLink($package->merchant_phone);
             unset($package->status);
         }
         return ApiResponse::JsonResult($packages);

@@ -31,6 +31,8 @@ class ReusableService
         ->orderBy('dp1.package_id')
         ->orderByDesc('dp1.id');
 
+        $driverInfo = '';
+
         $qFp = Delivery::query()->fromRaw('deliveries as d')
         ->joinSub($latestPackages, 'dp', 'd.id', 'dp.delivery_id')
         // ->join('delivery_packages as dp','d.id','dp.delivery_id')
@@ -39,13 +41,18 @@ class ReusableService
             ['dp.delay_count', 0],
             ['dp.is_deleted', 0],
             ['dp.has_swap', 0],
-        ])
-        ->join('packages as p','p.id','dp.package_id')
+        ]);
+        if($userClass == 'merchant'){
+            $qFp->join('users as dv','dv.id','d.driver_id');
+            $driverInfo = ',dv.phone as driver_phone';
+        }
+
+        $qFp->join('packages as p','p.id','dp.package_id')
         ->join('users as m','m.id','p.merchant_id')
         ->leftJoin('payments as pmt','pmt.id','p.driver_payment_id')
         // ->leftJoin('payments as pmt','pmt.id','p.merchant_payment_id')
         ->join('tracking_statuses as trs','trs.id','p.status_id')
-        ->selectRaw('p.driver_id,p.returned_uid,p.payer,p.extra_charge,p.cod,p.price,p.pickup_notes as notes,p.merchant_total,p.receiver_address,p.qr_code,p.status_id,trs.name as status_code,d.id as delivery_id,d.fleet_tracking_number,m.user_name as merchant_name,m.phone as merchant_phone,p.receiver_name,p.receiver_phone,p.delivery_fee,p.taxi_fee,p.remarks,p.id as package_id,p.product_type,p.driver_total,p.billed_kg,p.failed_datetime,p.delivered_datetime,p.arrive_warehouse_datetime,p.returned_datetime')
+        ->selectRaw('p.driver_id,p.returned_uid,p.payer,p.extra_charge,p.cod,p.price,p.pickup_notes as notes,p.merchant_total,p.receiver_address,p.qr_code,p.status_id,trs.name as status_code,d.id as delivery_id,d.fleet_tracking_number,m.user_name as merchant_name,m.phone as merchant_phone,p.receiver_name,p.receiver_phone,p.delivery_fee,p.taxi_fee,p.remarks,p.id as package_id,p.product_type,p.driver_total,p.billed_kg,p.failed_datetime,p.delivered_datetime,p.arrive_warehouse_datetime,p.returned_datetime'.$driverInfo)
         // ->whereIn('dp.status_id',$statusIds)
         ->where(function ($q) use ($userId,$statusIds,$userClass) {
             $q->whereIn('p.status_id', $statusIds)
@@ -151,10 +158,11 @@ class ReusableService
                 $f->status_code = GeneralSettingService::$statusCodeTrans[$statusId] ?? '';
             }
             if($userClass == 'merchant'){
+                $f->telegram_url = Helper::generateTelegramLink($f->driver_phone);
                 if($f->payer == 'sender'){
                     $f->delivery_fee = Helper::getNumber($f->delivery_fee + $f->extra_charge);
                 }
-            }
+            }else $f->telegram_url = Helper::generateTelegramLink($f->merchant_phone);
             $f->finished_datetime = Helper::formatCustomDateTime($finished_date,'d-M-Y h:i A');
             $f->arrive_warehouse_datetime = $warehouse_datetime;
             unset($f->failed_datetime,$f->returned_datetime,$f->delivered_datetime);

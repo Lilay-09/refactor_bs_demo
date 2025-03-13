@@ -65,7 +65,6 @@ class TransactionController extends Controller
                 $samePmtId[$p->driver_payment_id] = true;
             }
 
-
             if(!isset($sameDisId[$p->driver_disbursement_id]) && $p->driver_disbursement_id){
                 $dis = TransactionService::getTrxDetails($disbursements,$p->driver_disbursement_id);
                 if($dis) {
@@ -76,6 +75,7 @@ class TransactionController extends Controller
                 }
                 $sameDisId[$p->driver_disbursement_id] = true;
             }
+
             // else {
             //     $total += Helper::getNumber(TransactionService::getPackageTotal('driver',$p->cod,$price,$taxiFee,$p->extra_charge,$p->additional_fee,$p->delivery_fee,$p->payer));
             //     $count +=1;

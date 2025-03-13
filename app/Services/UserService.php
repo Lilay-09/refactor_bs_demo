@@ -151,7 +151,8 @@ class UserService
             'dob' => 'nullable',
             'photo' => 'nullable|string',
             'address' => 'nullable|string|max:500',
-            'register_channel' => 'nullable|string'
+            'register_channel' => 'nullable|string',
+            'login_name' => 'nullable|string|max:20',
         ];
 
         $baseMsgs = [
@@ -238,7 +239,7 @@ class UserService
                 unset($inputs['password']);
                 $updateUser = User::where('account_type',$user_class)->where('is_deleted',0)->find($id);
                 if(!$updateUser) return DataResponse::NotFound(__('messages.not_found',['info' => 'User']));
-                if($updateUser->phone) unset($inputs['phone']);
+                // if($updateUser->phone) unset($inputs['phone']);
                 $existsEmail = User::where('account_type',$user_class)->where('is_deleted',0)->where('id','!=',$id)->whereNotNull('email')->where('email',$email)->first();
                 $existsPhone = User::where('account_type',$user_class)->where('is_deleted',0)->where('id','!=',$id)->where('phone',$phone)->first();
                 $existsNationalId = User::where('account_type',$user_class)->where('is_deleted',0)->where('id','!=',$id)->whereNotNull('national_id')->where('national_id',$nationalId)->first();
@@ -262,19 +263,23 @@ class UserService
                 $inputs['registered_datetime'] = now();
                 if(!isset($inputs['password']) && $user_class == 'admin') return DataResponse::ValidateFail(__('messages.info',[
                     'info' => 'Password must be provided',
+                    'khInfo' => 'សូមបញ្ចូលលេខសំងាត់',
                 ]));
                 $inputs['create_uid'] = $user->id;
                 $existsEmail = User::where('account_type',$user_class)->where('is_deleted',0)->whereNotNull('email')->where('email',$email)->first();
                 $existsPhone = User::where('account_type',$user_class)->where('is_deleted',0)->where('phone',$phone)->first();
                 $existsNationalId = User::where('account_type',$user_class)->where('is_deleted',0)->whereNotNull('national_id')->where('national_id',$nationalId)->first();
                 if($existsEmail) return DataResponse::Duplicated(__('messages.error',[
-                    'info' => 'Email has already taken.'
+                    'info' => 'Email has already taken.',
+                    'khInfo' => 'អ៊ីម៉ែលមានរូចហើយ'
                 ]));
                 if($existsNationalId) return DataResponse::Duplicated(__('messages.error',[
-                    'info' => 'National ID is already exists.'
+                    'info' => 'National ID is already exists.',
+                    'khInfo' => 'អត្តសញ្ញាណជាតិជាន់គ្នា'
                 ]));
                 if($existsPhone) return DataResponse::Duplicated(__('messages.error',[
-                    'info' => 'Phone number('.$phone.') has already taken.'
+                    'info' => 'Phone number('.$phone.') has already taken.',
+                    'khInfo' => 'លេខ('.$phone.') មានរូចហើយ.'
                 ]));
                 $inputs['photo_file_name'] = Helper::base64ToImageFile($photo,$user->company_id,'user_profile')->filename;
                 $create = User::create($inputs);
@@ -289,7 +294,10 @@ class UserService
             if($user_class == 'merchant' && $priceListId) self::saveMerchantPriceList($userId,$priceListId,$zoneId,$user);
             self::assignRolesUser($userId,$roleIds,$user_class);
             DB::commit();
-            return DataResponse::JsonResult(null,false,__('messages.saved'));
+            return DataResponse::JsonResult(null,false,__('messages.saved',[
+                'info' => 'Merchant',
+                'khInfo' => 'អតិថិជន'
+            ]));
         }catch(Exception $e){
             DB::rollBack();
             Log::error($e->getMessage());
