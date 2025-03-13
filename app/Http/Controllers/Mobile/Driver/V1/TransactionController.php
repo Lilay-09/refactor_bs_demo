@@ -25,12 +25,14 @@ class TransactionController extends Controller
         $count = 0;
         $total = 0;
         $paidTrx = [];
-        $payments = Payment::where('payments.is_deleted',0)->where('payments.payer_id',$user->id)->where('payments.approved',1)
-        ->join('users as c','c.id','payments.approved_uid')
+        $payments = Payment::where('payments.is_deleted',0)->where('payments.payer_id',$user->id)
+        // ->where('payments.approved',1)
+        ->join('users as c','c.id','payments.receiver_uid')
         ->selectRaw('payments.package_count,payments.id,payments.payable_amount,payments.breakdown_notes,c.user_name as cashier_name,payments.payment_datetime')
         ->orderByDesc('payment_datetime')
         ->get();
-        $disbursements = Disbursement::where('type','payment')->where('disbursements.is_deleted',0)->where('disbursements.payee_id',$user->id)->where('disbursements.approved',1)
+        $disbursements = Disbursement::where('type','payment')->where('disbursements.is_deleted',0)->where('disbursements.payee_id',$user->id)
+        // ->where('disbursements.approved',1)
         ->join('users as c','c.id','disbursements.receiptionist_uid')
         ->selectRaw('disbursements.package_count,disbursements.id,disbursements.payable_amount,disbursements.breakdown_notes,c.user_name as cashier_name,disbursements.payment_datetime')
         ->orderByDesc('payment_datetime')
@@ -52,25 +54,25 @@ class TransactionController extends Controller
                 $price = 0;
                 $taxiFee = 0;
             }
-            if(!isset($samePmtId[$p->driver_payment_id])){
+            if(!isset($samePmtId[$p->driver_payment_id]) && $p->driver_payment_id){
                 $pmt = TransactionService::getTrxDetails($payments,$p->driver_payment_id);
                 if($pmt) {
                     $pmt->remarks = 'Disbursement';
-                    $total -= (float)$pmt->payable_amount;
+                    // $total -= (float)$pmt->payable_amount;
                     $paidTrx[] = $pmt;
-                    $count -= $pmt->package_count;
+                    // $count -= $pmt->package_count;
                 }
                 $samePmtId[$p->driver_payment_id] = true;
             }
 
 
-            if(!isset($sameDisId[$p->driver_disbursement_id])){
+            if(!isset($sameDisId[$p->driver_disbursement_id]) && $p->driver_disbursement_id){
                 $dis = TransactionService::getTrxDetails($disbursements,$p->driver_disbursement_id);
                 if($dis) {
-                    $total -= (float)$dis->payable_amount;
+                    // $total -= (float)$dis->payable_amount;
                     $dis->remarks = 'Receive';
                     $paidTrx[] = $dis;
-                    $count -= $dis->package_count;
+                    // $count -= $dis->package_count;
                 }
                 $sameDisId[$p->driver_disbursement_id] = true;
             }
@@ -78,8 +80,12 @@ class TransactionController extends Controller
             //     $total += Helper::getNumber(TransactionService::getPackageTotal('driver',$p->cod,$price,$taxiFee,$p->extra_charge,$p->additional_fee,$p->delivery_fee,$p->payer));
             //     $count +=1;
             // }
-            $total += Helper::getNumber(TransactionService::getPackageTotal('driver',$p->cod,$price,$taxiFee,$p->extra_charge,$p->additional_fee,$p->delivery_fee,$p->payer));
-            $count +=1;
+            if(!$p->driver_payment_id && !$p->driver_disbursement_id) {
+                $count += 1;
+                $total += Helper::getNumber(TransactionService::getPackageTotal('driver',$p->cod,$price,$taxiFee,$p->extra_charge,$p->additional_fee,$p->delivery_fee,$p->payer));
+            }
+
+
         }
         usort($paidTrx, function ($a, $b) {
             return strtotime($b['payment_datetime']) <=> strtotime($a['payment_datetime']);

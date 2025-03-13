@@ -36,6 +36,8 @@ class HistoryController extends Controller
         $paymentStatus = $req->payment_status_id ?? null;
         $statusId = $req->status_id ?? null;
         $search = $req->search ?? null;
+        $statuses = [9, 10, 19];
+        if($statusId) $statuses = [$statusId];
         $latestPackages = DB::table('delivery_packages as dp1')
         ->selectRaw('DISTINCT ON (dp1.package_id) dp1.*')
         ->orderBy('dp1.package_id')
@@ -50,8 +52,8 @@ class HistoryController extends Controller
         ->leftJoin('payments as pmt','pmt.id','p.driver_payment_id')
         ->join('tracking_statuses as trs','trs.id','p.status_id')
         ->selectRaw('p.returned_uid,p.driver_id,p.qr_code,p.status_id,trs.name as status_code,d.fleet_tracking_number,m.user_name as merchant_name,m.phone as merchant_phone,p.returned_datetime,p.failed_datetime,p.receiver_name,p.delivered_datetime,p.receiver_address,p.receiver_phone,p.driver_total as total')
-        ->where(function ($q) use ($userId) {
-            $q->whereIn('p.status_id', [9, 10, 19])
+        ->where(function ($q) use ($userId,$statuses) {
+            $q->whereIn('p.status_id', $statuses)
             ->orWhere(function ($subQuery) use ($userId) {
                 $subQuery->where('p.status_id', 11)
                 ->where('p.returned_uid', $userId);
