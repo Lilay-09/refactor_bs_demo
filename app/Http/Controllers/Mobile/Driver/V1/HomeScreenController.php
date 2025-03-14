@@ -88,10 +88,10 @@ class HomeScreenController extends Controller
     public function getDriverBalance(Request $req){
         $user = UserService::getAuthUser('driver');
         $driverCommissions = DriverCommission::where('driver_id',$user->id)->where('is_deleted',0)
-        ->selectRaw('id,driver_id,delivery_type,pickup_commission,delivery_commission,delivery_commission_start_date,pickup_commission_start_date')
+        ->selectRaw('id,driver_id,delivery_type,pickup_commission,delivery_commission,delivery_commission_start_date,pickup_commission_start_date,DATE(updated_at) as updated_date')
         ->get();
         // $totalEarning = (float)Disbursement::where('payee_id',$user->id)->where('type','commission')->where('is_deleted',0)->sum('payable_amount');
-        $commissionInfo = DriverTransactionController::getDriverCommissionInfo($driverCommissions,$user->id);
+        $commissionInfo = TransactionService::getDriverCommissionInfo($driverCommissions,$user->id);
         $deliveryCommStartDate = $commissionInfo->normal_delivery_commission_start_date;
         // $pickupCommStartDate = $commissionInfo->normal_pickup_commission_start_date;
         $qP = Package::selectRaw('status_id,driver_id')
@@ -115,8 +115,9 @@ class HomeScreenController extends Controller
                     ->where('status_id', 9);
                 });
             });
-        }
-        $deliveredPkg = $qP->count();
+            $deliveredPkg = $qP->count();
+        }else  $deliveredPkg = 0;
+
         // $packages = $qP->get();
         // $qO = Order::where('is_deleted',0)->whereNull('driver_commission_id')->where('status_id',5)
         // ->where('driver_id',$user->id);

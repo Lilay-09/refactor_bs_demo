@@ -135,8 +135,11 @@ class TransactionController extends Controller
         $driverId = $user->id;
         $startDate = $req->startDate;
         $endDate = $req->endDate;
+        $driverCommissions = DriverCommission::where('is_deleted',0)->where('driver_id',$driverId)->get();
+        $driverCommissionInfo = TransactionService::getDriverCommissionInfo($driverCommissions,$driverId);
+        $deliveryCommStartDate = $driverCommissionInfo->normal_delivery_commission_start_date;
         $qP = Package::selectRaw('status_id,driver_id')
-        ->whereIn('status_id',[9,19])
+        ->whereIn('status_id',[9])
         ->where('driver_id',$driverId);
         // ->where('driver_disbursement_id',$driverId);
         if($startDate && $endDate){
@@ -144,7 +147,12 @@ class TransactionController extends Controller
             $endDate = date('Y-m-d',strtotime($endDate));
             $qP->whereBetween('delivered_datetime', ["$startDate 00:00:00", "$endDate 23:59:59"]);
         }
-        $deliveredCount = $qP->count();
+        if($deliveryCommStartDate){
+            $commDatetime = Helper::dateYMD($deliveryCommStartDate). ' 00:00:00';
+            $qP->where('delivered_datetime','>=',$commDatetime);
+            $deliveredCount = $qP->count();
+        } else $deliveredCount = 0;
+
         $qO = Order::where('is_deleted',0)->where('status_id',5)
         // ->where('driver_disbursement_id',$driverId)
         ->where('driver_id',$driverId);
@@ -155,8 +163,7 @@ class TransactionController extends Controller
             ->where('order_datetime', '<=', "$endDate 23:59:59");
         }
         $pickUpCount = $qO->sum('qty');
-        $driverCommissions = DriverCommission::where('is_deleted',0)->where('driver_id',$driverId)->get();
-        $driverCommissionInfo = TransactionService::getDriverCommissionInfo($driverCommissions,$driverId);
+
         $pickUpRate = $driverCommissionInfo->normal_pickup_commission;
         $deliveryRate = $driverCommissionInfo->normal_delivery_commission;
         $total = $pickUpCount * $pickUpRate + $deliveredCount * $deliveryRate;

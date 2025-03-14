@@ -63,7 +63,7 @@ class DriverTransactionController extends Controller
         // if($driverId)
         $driverCommissions = $qDc->get();
         $clbMapper = function ($driver) use($driverCommissions,$orders,$packages) {
-            $commissionInfo = $this->getDriverCommissionInfo($driverCommissions,$driver->id);
+            $commissionInfo = TransactionService::getDriverCommissionInfo($driverCommissions,$driver->id);
             $driver->pickup_rate = $commissionInfo->normal_pickup_commission;
             $driver->delivery_rate = $commissionInfo->normal_delivery_commission;
             $pickUpInfo = $this->getPickUpDetails($orders,$driver->id);
