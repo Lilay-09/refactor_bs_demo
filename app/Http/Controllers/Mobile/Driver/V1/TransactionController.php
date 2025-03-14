@@ -149,6 +149,12 @@ class TransactionController extends Controller
         if($startDate && $endDate){
             $startDate = date('Y-m-d',strtotime($startDate));
             $endDate = date('Y-m-d',strtotime($endDate));
+            if ($deliveryCommStartDate) {
+                $deliveryCommStartDate = date('Y-m-d', strtotime($deliveryCommStartDate));
+                if ($startDate < $deliveryCommStartDate) {
+                    $startDate = $deliveryCommStartDate;
+                }
+            }
             $qP->whereBetween('delivered_datetime', ["$startDate 00:00:00", "$endDate 23:59:59"]);
 
             if($deliveryCommStartDate) $qP->where('delivered_datetime', '>=', $delCommDatetime);
