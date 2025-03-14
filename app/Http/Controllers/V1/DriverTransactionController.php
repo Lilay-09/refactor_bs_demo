@@ -141,37 +141,37 @@ class DriverTransactionController extends Controller
         ];
     }
 
-    public static function getDriverCommissionInfo($driverCommissions,$driverId){
-        $dc = (object)[
-            'normal_pickup_commission' => 0,
-            'normal_pickup_commission_start_date' => null,
-            'normal_delivery_commission' => 0,
-            'normal_delivery_commission_start_date' => null,
-            'fast_pickup_commission' => 0,
-            'fast_pickup_commission_start_date' => null,
-            'fast_delivery_commission' => 0,
-            'fast_delivery_commission_start_date' => null,
+    // public static function getDriverCommissionInfo($driverCommissions,$driverId){
+    //     $dc = (object)[
+    //         'normal_pickup_commission' => 0,
+    //         'normal_pickup_commission_start_date' => null,
+    //         'normal_delivery_commission' => 0,
+    //         'normal_delivery_commission_start_date' => null,
+    //         'fast_pickup_commission' => 0,
+    //         'fast_pickup_commission_start_date' => null,
+    //         'fast_delivery_commission' => 0,
+    //         'fast_delivery_commission_start_date' => null,
 
-        ];
-        foreach($driverCommissions as $driverComm){
-            if($driverComm->driver_id == $driverId){
-                    if($driverComm->delivery_type == 'fast'){
-                    $dc->fast_pickup_commission = $driverComm->pickup_commission;
-                    $dc->fast_pickup_commission_start_date = $driverComm->pickup_commission_start_date;
-                    $dc->fast_delivery_commission = $driverComm->delivery_commission;
-                    $dc->fast_delivery_commission_start_date = $driverComm->delivery_commission_start_date;
-                }
-                if($driverComm->delivery_type == 'normal'){
-                    $dc->normal_pickup_commission = $driverComm->pickup_commission;
-                    $dc->normal_pickup_commission_start_date = $driverComm->pickup_commission_start_date;
-                    $dc->normal_delivery_commission = $driverComm->delivery_commission;
-                    $dc->normal_delivery_commission_start_date = $driverComm->delivery_commission_start_date;
-                }
-            }
-        }
+    //     ];
+    //     foreach($driverCommissions as $driverComm){
+    //         if($driverComm->driver_id == $driverId){
+    //                 if($driverComm->delivery_type == 'fast'){
+    //                 $dc->fast_pickup_commission = $driverComm->pickup_commission;
+    //                 $dc->fast_pickup_commission_start_date = $driverComm->pickup_commission_start_date;
+    //                 $dc->fast_delivery_commission = $driverComm->delivery_commission;
+    //                 $dc->fast_delivery_commission_start_date = $driverComm->delivery_commission_start_date;
+    //             }
+    //             if($driverComm->delivery_type == 'normal'){
+    //                 $dc->normal_pickup_commission = $driverComm->pickup_commission;
+    //                 $dc->normal_pickup_commission_start_date = $driverComm->pickup_commission_start_date;
+    //                 $dc->normal_delivery_commission = $driverComm->delivery_commission;
+    //                 $dc->normal_delivery_commission_start_date = $driverComm->delivery_commission_start_date;
+    //             }
+    //         }
+    //     }
 
-        return $dc;
-    }
+    //     return $dc;
+    // }
 
     public function getDriverBalance(Request $req){
         $user = UserService::getAuthUser();

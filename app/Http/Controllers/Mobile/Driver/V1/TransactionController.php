@@ -135,7 +135,9 @@ class TransactionController extends Controller
         $driverId = $user->id;
         $startDate = $req->startDate;
         $endDate = $req->endDate;
-        $driverCommissions = DriverCommission::where('is_deleted',0)->where('driver_id',$driverId)->get();
+        $driverCommissions = DriverCommission::where('is_deleted',0)->where('driver_id',$driverId)
+        ->selectRaw('id,driver_id,delivery_type,pickup_commission,delivery_commission,delivery_commission_start_date,pickup_commission_start_date,DATE(updated_at) as updated_date')
+        ->get();
         $driverCommissionInfo = TransactionService::getDriverCommissionInfo($driverCommissions,$driverId);
         $deliveryCommStartDate = $driverCommissionInfo->normal_delivery_commission_start_date;
         $qP = Package::selectRaw('status_id,driver_id')

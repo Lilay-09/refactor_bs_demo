@@ -645,12 +645,12 @@ class UserService
         ->where('driver_id',$driverId)
         ->get();
         $qDc = DriverCommission::where('is_deleted',0)
-        ->selectRaw('id,driver_id,delivery_type,pickup_commission,delivery_commission')
+        ->selectRaw('id,driver_id,delivery_type,pickup_commission,delivery_commission,delivery_commission_start_date,pickup_commission_start_date,DATE(updated_at) as updated_date')
         ->where('driver_id',$driverId);
         $driverCommissions = $qDc->get();
         $pkp = TransactionService::getPickUpDetails($orders,$driverId);
         $delPkg = TransactionService::getDeliveredDetails($packages,$driverId);
-        $comm = DriverTransactionController::getDriverCommissionInfo($driverCommissions,$driverId);
+        $comm = TransactionService::getDriverCommissionInfo($driverCommissions,$driverId);
         $pickupRate = $comm->normal_pickup_commission;
         $deliveryRate = $comm->normal_delivery_commission;
         $totalDelivered = $delPkg->delivered_count;
