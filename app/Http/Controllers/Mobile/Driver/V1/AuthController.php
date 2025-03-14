@@ -11,10 +11,8 @@ use App\Services\UserService;
 use Helper;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
-use Log;
 use Tymon\JWTAuth\Exceptions\JWTException;
 use Tymon\JWTAuth\Facades\JWTAuth;
-use Tymon\JWTAuth\Facades\JWTFactory;
 
 class AuthController extends Controller
 {
