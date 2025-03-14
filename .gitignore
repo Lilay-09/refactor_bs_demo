@@ -24,3 +24,6 @@ yarn-error.log
 /.fleet
 /.idea
 /.vscode
+update.sh
+chmod.sh
+
