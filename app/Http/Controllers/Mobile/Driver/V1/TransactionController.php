@@ -141,7 +141,7 @@ class TransactionController extends Controller
         $driverCommissionInfo = TransactionService::getDriverCommissionInfo($driverCommissions,$driverId);
         $deliveryCommStartDate = $driverCommissionInfo->normal_delivery_commission_start_date;
         $delCommDatetime = Helper::dateYMD($deliveryCommStartDate). ' 00:00:00';
-        $qP = Package::selectRaw('status_id,driver_id')
+        $qP = Package::selectRaw('status_id,driver_id,driver_disbursement_id')
         ->whereIn('status_id',[9])
         ->where('driver_id',$driverId)
         ->where('is_deleted',0)
@@ -156,13 +156,14 @@ class TransactionController extends Controller
                     $startDate = $deliveryCommStartDate;
                 }
             }
+            \Log::error($startDate.'--'.$endDate);
             $qP->whereBetween('delivered_datetime', ["$startDate 00:00:00", "$endDate 23:59:59"]);
         }
         if($deliveryCommStartDate){
             $qP->where('delivered_datetime','>=',$delCommDatetime);
             $deliveredCount = $qP->count();
         } else $deliveredCount = 0;
-        // \Log::error($delCommDatetime);
+        \Log::error(json_encode($qP->get()));
 
         $qO = Order::where('is_deleted',0)->where('status_id',5)
         // ->where('driver_disbursement_id',$driverId)
