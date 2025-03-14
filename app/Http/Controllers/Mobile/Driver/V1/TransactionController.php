@@ -143,8 +143,9 @@ class TransactionController extends Controller
         $delCommDatetime = Helper::dateYMD($deliveryCommStartDate). ' 00:00:00';
         $qP = Package::selectRaw('status_id,driver_id')
         ->whereIn('status_id',[9])
-        ->where('driver_id',$driverId);
+        ->where('driver_id',$driverId)
         // ->where('driver_disbursement_id',$driverId);
+        ->whereNull('driver_disbursement_id');
         if($startDate && $endDate){
             $startDate = date('Y-m-d',strtotime($startDate));
             $endDate = date('Y-m-d',strtotime($endDate));
