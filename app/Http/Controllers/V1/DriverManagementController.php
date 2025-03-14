@@ -30,7 +30,7 @@ class DriverManagementController extends Controller
         $query = User::where('is_deleted',0)->where('company_id',$user->company_id)
         ->where('account_type','driver')
         ->with('createUser:id,user_name')
-        ->selectRaw('id,code,address,name_km,name_km as name_kh,user_name,email,gender,shift_type,vehicle_type,plate_number,phone,has_account,lock,photo_file_name,shift_type,employment_date,employee_type,dob,relative_name,national_id,create_uid');
+        ->selectRaw('id,code,address,name_km,name_km as name_kh,user_name,email,gender,shift_type,vehicle_type,plate_number,phone,has_account,lock,photo_file_name,shift_type,employment_date,employee_type,dob,relative_name,national_id,create_uid,login_name');
         if($employeeType){
             $query->where('employee_type',$employeeType);
         }
@@ -167,20 +167,22 @@ class DriverManagementController extends Controller
             'fast_pickup_commission_start_date' => 0,
             'fast_delivery_commission_start_date' => 0
         ];
-        $driverCommissions = DriverCommission::where('driver_id',$id)->where('is_deleted',0)->orderByDesc('id')
+        $driverCommissions = DriverCommission::where('driver_id',$id)->where('is_deleted',0)
+        ->selectRaw('*,DATE(updated_at) as updated_at')
+        ->orderByDesc('id')
         ->get();
         foreach($driverCommissions as $driverComm){
             if($driverComm->delivery_type == 'fast'){
                 $dc->fast_pickup_commission = $driverComm->pickup_commission;
                 $dc->fast_delivery_commission = $driverComm->delivery_commission;
-                $dc->fast_pickup_commission_start_date = Helper::dateDMY($driverComm->pickup_commission_start_date);
-                $dc->fast_delivery_commission_start_date = Helper::dateDMY($driverComm->delivery_commission_start_date);
+                $dc->fast_pickup_commission_start_date = Helper::dateDMY($driverComm->pickup_commission_start_date) ?? $driverComm->updated_at;
+                $dc->fast_delivery_commission_start_date = Helper::dateDMY($driverComm->delivery_commission_start_date) ?? $driverComm->updated_at;
             }
             if($driverComm->delivery_type == 'normal'){
                 $dc->normal_pickup_commission = $driverComm->pickup_commission;
                 $dc->normal_delivery_commission = $driverComm->delivery_commission;
-                $dc->normal_pickup_commission_start_date = Helper::dateDMY($driverComm->pickup_commission_start_date);
-                $dc->normal_delivery_commission_start_date = Helper::dateDMY($driverComm->delivery_commission_start_date);
+                $dc->normal_pickup_commission_start_date = Helper::dateDMY($driverComm->pickup_commission_start_date) ?? $driverComm->updated_at;
+                $dc->normal_delivery_commission_start_date = Helper::dateDMY($driverComm->delivery_commission_start_date) ?? $driverComm->updated_at;
             }
         }
         foreach($dc as $key=>$d){

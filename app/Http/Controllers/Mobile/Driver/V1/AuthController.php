@@ -35,7 +35,7 @@ class AuthController extends Controller
         $today = date('Y-m-d H:i:s');
         $user = User::where('account_type','driver')->where('is_deleted',0)->where(function ($q) use ($account) {
             $q->where('email', $account)
-            ->orWhere('phone', $account)
+            // ->orWhere('phone', $account)
             ->orWhere('login_name', $account);
         })->selectRaw('photo_file_name,email,phone,id,system_admin,lock,company_id,account_type,login_name,delete_account')->first();
         $systemAdmin = $user->system_admin ?? false;
