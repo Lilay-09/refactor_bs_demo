@@ -200,6 +200,7 @@ class HomeController extends Controller
             if($lang == 'km') $order->status_code = GeneralSettingService::$statusCodeTrans[$order->status_id];
             else $order->status_code = $order->tracking_status->name;
             $order->driver_phone = $order->driver->phone;
+            $order->telegram_url = Helper::generateTelegramLink($order->driver->phone);
             $order->driver_name = $order->driver->user_name;
             $order->order_datetime = Helper::formatCustomDateTime($order->order_datetime);
             unset($order->tracking_status,$order->driver);
@@ -226,6 +227,7 @@ class HomeController extends Controller
             if($lang == 'km') $package->status_code = GeneralSettingService::$statusCodeTrans[6];
             else $package->status_code = 'On Delivery';
             $package->driver_phone = $package->driver->phone ?? null; // Ensure driver relationship exists
+            $package->telegram_url = Helper::generateTelegramLink($package->driver->phone);
             $package->driver_name = $package->driver->user_name ?? null;
             $package->total = (float) $package->cod_fee;
             $package->delivery_fee = (float) $package->delivery_fee;
@@ -233,11 +235,10 @@ class HomeController extends Controller
             $package->arrive_warehouse_datetime = Helper::formatCustomDateTime($package->arrive_warehouse_datetime);
             // Remove the driver relationship if not needed in the response
             unset($package->driver);
-
             return $package;
         });
 
-    return ApiResponse::Pagination($packages, $req);
+        return ApiResponse::Pagination($packages, $req);
     }
 
     public function getTermConditions(Request $req){
@@ -271,6 +272,7 @@ class HomeController extends Controller
             $package->driver_phone = $package->driver->phone;
             $package->driver_name = $package->driver->user_name;
             $package->total = (float)$package->cod_fee;
+            $package->telegram_url = Helper::generateTelegramLink($package->driver->phone);
             $package->delivery_fee = (float)$package->delivery_fee;
             $package->arrive_warehouse_datetime = Helper::formatCustomDateTime($package->arrive_warehouse_datetime);
             $package->delivered_datetime = Helper::formatCustomDateTime($package->delivered_datetime);
@@ -308,6 +310,7 @@ class HomeController extends Controller
             else $package->status_code = $package->status->name;
             $package->driver_phone = $package->driver->phone;
             $package->driver_name = $package->driver->user_name;
+            $package->telegram_url = Helper::generateTelegramLink($package->driver->phone);
             $package->total = (float)$package->code_fee;
             $package->fee = (float)$package->delivery_fee;
             $package->delivery_fee = (float)$package->delivery_fee;
@@ -325,25 +328,26 @@ class HomeController extends Controller
         $lang = $req->lang;
         $user = UserService::getAuthUser('merchant');
         $packages = Package::where('merchant_id',$user->id)
-        ->with(['driver','status'])
+        ->with(['returnUser:id,phone,user_name','status'])
         ->where('status_id',11)
         ->whereBetween('returned_datetime',[$dateaAgo,$today])
-        ->selectRaw('id,merchant_id,arrive_warehouse_datetime,receiver_phone,receiver_address,receiver_name,cod,price,delivery_fee,status_id,remarks,driver_id,failed_datetime,returned_datetime,updated_at')
+        ->selectRaw('id,merchant_id,arrive_warehouse_datetime,receiver_phone,receiver_address,receiver_name,cod,price,delivery_fee,status_id,remarks,returned_uid,failed_datetime,returned_datetime,updated_at')
         ->get()
         ->map(function($package) use($lang){
             $package->price = (float)$package->price;
             $package->cod_fee = $package->cod ? $package->price : 0;
             if($lang == 'km') $package->status_code = GeneralSettingService::$statusCodeTrans[$package->status_id];
             else $package->status_code = $package->status->name;
-            $package->driver_phone = $package->driver?->phone;
-            $package->driver_name = $package->driver?->user_name;
+            $package->driver_phone = $package->returnUser?->phone;
+            $package->driver_name = $package->returnUser?->user_name;
+            $package->telegram_url = Helper::generateTelegramLink($package->returnUser->phone);
             $package->total = (float)$package->code_fee;
             $package->delivery_fee = (float)$package->delivery_fee;
             $package->fee = $package->delivery_fee;
             $returnDate = $package->return_datetime ? $package->return_datetime : $package->updated_at;
             $package->returned_date = Helper::dateDMY($returnDate);
             $package->return_time = Helper::formatCustomDateTime($returnDate, 'h:i:s');
-            unset($package->driver,$package->status);
+            unset($package->returnUser,$package->status);
             return $package;
         });
         return ApiResponse::Pagination($packages,$req);
@@ -456,11 +460,11 @@ class HomeController extends Controller
             'info' => 'Enter your customer phone number to continue'
         ]));
         $qP = Package::query()->where('merchant_id',$user->id)
-        ->with(['driver','status'])
+        ->with(['driver','returnUser','status'])
         ->whereIn('status_id',[10,11,19,9,6])
         ->where('is_deleted',0)
         ->where('receiver_phone',$phone)
-        ->selectRaw('id,delivered_datetime,merchant_id,arrive_warehouse_datetime,receiver_phone,receiver_address,receiver_name,cod,price,delivery_fee,status_id,remarks,driver_id,failed_datetime,returned_datetime');
+        ->selectRaw('id,delivered_datetime,merchant_id,returned_uid,arrive_warehouse_datetime,receiver_phone,receiver_address,receiver_name,cod,price,delivery_fee,status_id,remarks,driver_id,failed_datetime,returned_datetime');
          $qAt = PackageAttachment::where('hidden', 0);
         if($startDate && $endDate){
             $startDate = Helper::dateYMD($startDate);
@@ -509,6 +513,9 @@ class HomeController extends Controller
             $package->cod_fee = $package->cod ? $package->price : 0;
             $package->status_code = $package->status->name;
             $package->driver_phone = $package->driver?->phone;
+            if($package->status_id != 11){
+                $package->telegram_url = Helper::generateTelegramLink($package->driver?->phone);
+            }else $package->telegram_url = Helper::generateTelegramLink($package->returnUser?->phone);
             $package->driver_name = $package->driver?->user_name;
             $package->total = (float)$package->cod_fee + $package->delivery_fee;
             $rowStatusId = $package->status_id;
@@ -518,7 +525,7 @@ class HomeController extends Controller
             if($rowStatusId == 19 || $rowStatusId == 10) $finished_date = $package->failed_datetime;
             if($rowStatusId == 9) $finished_date = $package->delivered_datetime;
             $package->finished_datetime = Helper::formatCustomDateTime($finished_date,'d-M-Y h:i A');
-            unset($package->driver,$package->status);
+            unset($package->driver,$package->status,$package->returnUser);
             return $package;
         };
 

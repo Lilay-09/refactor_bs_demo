@@ -169,6 +169,41 @@ class Helper{
         return true;
     }
 
+    static function addCountryCode($phoneNumber, $countryCode = '+855') {
+        // Remove all non-numeric characters except '+'
+        $cleanNumber = preg_replace('/[^\d+]/', '', $phoneNumber);
+        // Check if the number already starts with the country code
+        if (strpos($cleanNumber, ltrim($countryCode, '+')) === 0) {
+            return '+' . $cleanNumber; // Ensure it has a '+' prefix
+        }
+
+        // Check if the number starts with a '+', indicating an existing country code
+        if (strpos($cleanNumber, '+') === 0) {
+            return $cleanNumber; // Return as it is
+        }
+
+        // Add the country code
+        return $countryCode . $cleanNumber;
+    }
+
+    static function generateTelegramLink($phoneNumber, $countryCode = '+855') {
+        // Remove all non-numeric characters except '+'
+        $cleanNumber = preg_replace('/[^\d+]/', '', $phoneNumber);
+
+        // Ensure the number starts with the country code
+        if (strpos($cleanNumber, ltrim($countryCode, '+')) !== 0) {
+            // Remove leading zero if present
+            $cleanNumber = ltrim($cleanNumber, '0');
+            $cleanNumber = ltrim($countryCode, '+') . $cleanNumber;
+        } else {
+            // Ensure the country code is included
+            $cleanNumber = ltrim($cleanNumber, '+');
+        }
+
+        // Return the Telegram link with the correct format
+        return 'https://t.me/+' . $cleanNumber;
+    }
+
     static function getDateDaysAgo($days): string
     {
         $date = new DateTime();

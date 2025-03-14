@@ -5,7 +5,6 @@ namespace App\Http\Controllers\V1;
 use ApiResponse;
 use App\Http\Controllers\Controller;
 use App\Models\MerchantPriceList;
-use App\Models\PriceList;
 use App\Models\User;
 use App\Models\Zone;
 use App\Services\GeneralSettingService;
@@ -47,8 +46,27 @@ class MerchantManagementController extends Controller
                 ->orWhere('phone','ilike','%'.$search.'%');
             });
         }
-        $merhcants = $query->orderByDesc('id')->get();
-        foreach($merhcants as $m){
+        $query->orderByDesc('id');
+
+        // foreach($merhcants as $m){
+
+        //     $merchantPriceList = $this->getMerchantPriceList($priceList,$m->id);
+        //     $m->referrer = null;
+        //     $m->image_url = Helper::getImageUrl($m->photo_file_name,$user->company_id,'user_profile');
+        //     $m->price_list_name = $merchantPriceList?->name;
+        //     $m->price_list_id = $merchantPriceList?->id;
+        //     $m->zone_id = $merchantPriceList?->zone_id;
+        //     $m->client_type = $m->merchantType?->name;
+        //     $m->login_name = $m->login_name ?? $m->phone;
+        //     $m->create_by = ($m->create_uid == $m->id) ? 'Self': 'Admin';
+        //     foreach($m->bank_accounts as $b){
+        //         if($b->is_primary) $m->bank_account = GeneralSettingService::concatBankInfo($b->bank_name,$b->bank_number,$b->account_name);
+        //         if(!$b->bank_account) $m->bank_account = GeneralSettingService::concatBankInfo($b->bank_name,$b->bank_number,$b->account_name);
+        //     }
+        //     $m->image_url = Helper::getImageUrl($m->photo_file_name,$user->company_id,'user_profile');
+        //     unset($m->merchantType,$m->bank_accounts,$m->photo_file_name);
+        // }
+        $callback = function($m) use($priceList,$user){
             $merchantPriceList = $this->getMerchantPriceList($priceList,$m->id);
             $m->referrer = null;
             $m->image_url = Helper::getImageUrl($m->photo_file_name,$user->company_id,'user_profile');
@@ -56,6 +74,7 @@ class MerchantManagementController extends Controller
             $m->price_list_id = $merchantPriceList?->id;
             $m->zone_id = $merchantPriceList?->zone_id;
             $m->client_type = $m->merchantType?->name;
+            $m->login_name = $m->login_name ?? $m->phone;
             $m->create_by = ($m->create_uid == $m->id) ? 'Self': 'Admin';
             foreach($m->bank_accounts as $b){
                 if($b->is_primary) $m->bank_account = GeneralSettingService::concatBankInfo($b->bank_name,$b->bank_number,$b->account_name);
@@ -63,8 +82,9 @@ class MerchantManagementController extends Controller
             }
             $m->image_url = Helper::getImageUrl($m->photo_file_name,$user->company_id,'user_profile');
             unset($m->merchantType,$m->bank_accounts,$m->photo_file_name);
-        }
-        return ApiResponse::Pagination($merhcants,$req);
+            return $m;
+        };
+        return ApiResponse::PaginationV1($query,$req,'',[],1000,$callback);
     }
 
     public function getDefaultOptions(Request $req){
@@ -90,13 +110,14 @@ class MerchantManagementController extends Controller
         $merchant = User::where('is_deleted',0)->where('company_id',$user->company_id)
         ->where('account_type',$this->userClass)
         ->with(['bank_accounts:id,bank_name,bank_number,account_name,user_id,is_primary'])
-        ->selectRaw('id,cod_fee,code,name_km,user_name,email,gender,photo_file_name,business_type,phone,client_type_id,address,referrer_uid,cod,pin_address')
+        ->selectRaw('id,cod_fee,code,name_km,user_name,email,gender,photo_file_name,business_type,phone,client_type_id,address,referrer_uid,cod,pin_address,login_name')
         ->find($id);
         $priceList = DB::table('price_list_names as n')
         ->selectRaw('n.id,n.name,mpl.merchant_id')->join('merchant_price_list as mpl','mpl.price_list_id','n.id')
         ->where('mpl.merchant_id',$id)->first();
         if(!$merchant) return ApiResponse::NotFound(__('messages.not_found',['info' => 'Merchant']));
         $merchant->image_url = Helper::getImageUrl($merchant->photo_file_name,$user->company_id,'user_profile');
+        $merchant->login_name = $merchant->login_name ?? $merchant->phone;
         if($priceList){
             $merchant->price_list_id = $priceList->id;
             $cod = $merchant->cod;
