@@ -95,7 +95,7 @@ class HomeScreenController extends Controller
         $deliveryCommStartDate = $commissionInfo->normal_delivery_commission_start_date;
         // $pickupCommStartDate = $commissionInfo->normal_pickup_commission_start_date;
         $qP = Package::selectRaw('status_id,driver_id')
-        ->whereIn('status_id',[9])
+        ->where('status_id',9)
         ->where('is_deleted',0)
         ->whereNull('driver_commission_id')
         ->where('driver_id',$user->id);

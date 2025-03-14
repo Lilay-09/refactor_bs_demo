@@ -135,18 +135,18 @@ class TransactionController extends Controller
         $driverId = $user->id;
         $startDate = $req->startDate;
         $endDate = $req->endDate;
-        $driverCommissions = DriverCommission::where('is_deleted',0)->where('driver_id',$driverId)
+        $driverCommissions = DriverCommission::where('driver_id',$user->id)->where('is_deleted',0)
         ->selectRaw('id,driver_id,delivery_type,pickup_commission,delivery_commission,delivery_commission_start_date,pickup_commission_start_date,DATE(updated_at) as updated_date')
         ->get();
         $driverCommissionInfo = TransactionService::getDriverCommissionInfo($driverCommissions,$driverId);
         $deliveryCommStartDate = $driverCommissionInfo->normal_delivery_commission_start_date;
         $delCommDatetime = Helper::dateYMD($deliveryCommStartDate). ' 00:00:00';
-        $qP = Package::selectRaw('status_id,driver_id,driver_disbursement_id')
+        $qP = Package::selectRaw('id,status_id,driver_id,driver_disbursement_id')
         ->whereIn('status_id',[9])
         ->where('driver_id',$driverId)
         ->where('is_deleted',0)
         // ->where('driver_disbursement_id',$driverId);
-        ->whereNull('driver_disbursement_id');
+        ->whereNull('driver_commission_id');
         if($startDate && $endDate){
             $startDate = date('Y-m-d',strtotime($startDate));
             $endDate = date('Y-m-d',strtotime($endDate));
@@ -156,15 +156,14 @@ class TransactionController extends Controller
                     $startDate = $deliveryCommStartDate;
                 }
             }
-            \Log::error($startDate.'--'.$endDate);
+            // \Log::error($startDate.'--'.$endDate);
             $qP->whereBetween('delivered_datetime', ["$startDate 00:00:00", "$endDate 23:59:59"]);
+            // $qP->where('delivered_datetime','>=',$delCommDatetime);
         }
         if($deliveryCommStartDate){
-            $qP->where('delivered_datetime','>=',$delCommDatetime);
+            // $qP->where('delivered_datetime','>=',$delCommDatetime);
             $deliveredCount = $qP->count();
         } else $deliveredCount = 0;
-        \Log::error(json_encode($qP->get()));
-
         $qO = Order::where('is_deleted',0)->where('status_id',5)
         // ->where('driver_disbursement_id',$driverId)
         ->where('driver_id',$driverId);
