@@ -157,8 +157,6 @@ class TransactionController extends Controller
                 }
             }
             $qP->whereBetween('delivered_datetime', ["$startDate 00:00:00", "$endDate 23:59:59"]);
-
-            if($deliveryCommStartDate) $qP->where('delivered_datetime', '>=', $delCommDatetime);
         }
         if($deliveryCommStartDate){
             $qP->where('delivered_datetime','>=',$delCommDatetime);
