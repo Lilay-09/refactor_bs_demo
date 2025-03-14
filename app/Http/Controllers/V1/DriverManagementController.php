@@ -168,21 +168,21 @@ class DriverManagementController extends Controller
             'fast_delivery_commission_start_date' => 0
         ];
         $driverCommissions = DriverCommission::where('driver_id',$id)->where('is_deleted',0)
-        ->selectRaw('*,DATE(updated_at) as updated_at')
+        ->selectRaw('*,DATE(updated_at) as updated_date')
         ->orderByDesc('id')
         ->get();
         foreach($driverCommissions as $driverComm){
             if($driverComm->delivery_type == 'fast'){
                 $dc->fast_pickup_commission = $driverComm->pickup_commission;
                 $dc->fast_delivery_commission = $driverComm->delivery_commission;
-                $dc->fast_pickup_commission_start_date = Helper::dateDMY($driverComm->pickup_commission_start_date) ?? $driverComm->updated_at;
-                $dc->fast_delivery_commission_start_date = Helper::dateDMY($driverComm->delivery_commission_start_date) ?? $driverComm->updated_at;
+                $dc->fast_pickup_commission_start_date = Helper::dateDMY($driverComm->pickup_commission_start_date) ?? $driverComm->updated_date;
+                $dc->fast_delivery_commission_start_date = Helper::dateDMY($driverComm->delivery_commission_start_date) ?? $driverComm->updated_date;
             }
             if($driverComm->delivery_type == 'normal'){
                 $dc->normal_pickup_commission = $driverComm->pickup_commission;
                 $dc->normal_delivery_commission = $driverComm->delivery_commission;
-                $dc->normal_pickup_commission_start_date = Helper::dateDMY($driverComm->pickup_commission_start_date) ?? $driverComm->updated_at;
-                $dc->normal_delivery_commission_start_date = Helper::dateDMY($driverComm->delivery_commission_start_date) ?? $driverComm->updated_at;
+                $dc->normal_pickup_commission_start_date = Helper::dateDMY($driverComm->pickup_commission_start_date) ?? $driverComm->updated_date;
+                $dc->normal_delivery_commission_start_date = Helper::dateDMY($driverComm->delivery_commission_start_date) ?? $driverComm->updated_date;
             }
         }
         foreach($dc as $key=>$d){

@@ -144,6 +144,7 @@ class TransactionController extends Controller
         $qP = Package::selectRaw('status_id,driver_id')
         ->whereIn('status_id',[9])
         ->where('driver_id',$driverId)
+        ->where('is_deleted',0)
         // ->where('driver_disbursement_id',$driverId);
         ->whereNull('driver_disbursement_id');
         if($startDate && $endDate){
