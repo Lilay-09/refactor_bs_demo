@@ -162,7 +162,7 @@ class TransactionController extends Controller
             $qP->where('delivered_datetime','>=',$delCommDatetime);
             $deliveredCount = $qP->count();
         } else $deliveredCount = 0;
-        \Log::error($delCommDatetime);
+        // \Log::error($delCommDatetime);
 
         $qO = Order::where('is_deleted',0)->where('status_id',5)
         // ->where('driver_disbursement_id',$driverId)
