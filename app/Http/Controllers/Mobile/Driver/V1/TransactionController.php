@@ -164,16 +164,17 @@ class TransactionController extends Controller
             // $qP->where('delivered_datetime','>=',$delCommDatetime);
             $deliveredCount = $qP->count();
         } else $deliveredCount = 0;
-        $qO = Order::where('is_deleted',0)->where('status_id',5)
-        // ->where('driver_disbursement_id',$driverId)
-        ->where('driver_id',$driverId);
-        if($startDate && $endDate){
-            $startDate = date('Y-m-d',strtotime($startDate));
-            $endDate = date('Y-m-d',strtotime($endDate));
-            $qP->where('order_datetime', '>=', "$startDate 00:00:00")
-            ->where('order_datetime', '<=', "$endDate 23:59:59");
-        }
-        $pickUpCount = $qO->sum('qty');
+        // $qO = Order::where('is_deleted',0)->where('status_id',5)
+        // ->whereNull('driver_commission_id')
+        // // ->where('driver_disbursement_id',$driverId)
+        // ->where('driver_id',$driverId);
+        // if($startDate && $endDate){
+        //     $startDate = date('Y-m-d',strtotime($startDate));
+        //     $endDate = date('Y-m-d',strtotime($endDate));
+        //     $qP->where('order_datetime', '>=', "$startDate 00:00:00")
+        //     ->where('order_datetime', '<=', "$endDate 23:59:59");
+        // }
+        $pickUpCount = 0;//$qO->sum('qty');
 
         $pickUpRate = $driverCommissionInfo->normal_pickup_commission;
         $deliveryRate = $driverCommissionInfo->normal_delivery_commission;
