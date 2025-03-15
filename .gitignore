@@ -26,4 +26,4 @@ yarn-error.log
 /.vscode
 update.sh
 chmod.sh
-
+updatearrdev.sh
