@@ -307,9 +307,9 @@ class GeneralSettingController extends Controller
             // }catch(Exception $e){
             //     DB::rollBack();
             // }
-            $selfTrip = Delivery::where('driver_id',$package->driver_id)->where(function($q){
-                $q->where('is_deleted',0)->where('finished',0);
-            })->selectRaw('package_count,id')->orderByDesc('id')->first();
+            $selfTrip = Delivery::where('driver_id',$package->driver_id)
+            ->where('is_deleted',0)->where('finished',0)
+            ->selectRaw('package_count,id')->orderByDesc('id')->first();
             //** remove self pacakge */
             $selfTrip->update([
                 'package_count' => $selfTrip->package_count - 1

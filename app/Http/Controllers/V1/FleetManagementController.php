@@ -36,10 +36,9 @@ class FleetManagementController extends Controller
         ->where('dp.has_swap',0)
         // ->groupBy('p.id','dp.delivery_id','dp.delay_count')
         ->get();
-        $query = Delivery::with(['status','driver'])->where('is_deleted',0)->where('company_id',$user->company_id)
+        $query = Delivery::query()->with(['status','driver'])->where('is_deleted',0)->where('company_id',$user->company_id)
         ->orderBy('status_id')
         ->orderByDesc('id')
-
         ->selectRaw('id,fleet_tracking_number,status_id,driver_id,depart_datetime,remarks,package_count,delivered_count,failed_count,warehouse_id,vehicle_type,driver_id,is_completed,finished');
         if($search){
             $query->whereHas('packages.package',function($q) use ($search){
@@ -64,8 +63,8 @@ class FleetManagementController extends Controller
         }else{
             $query->whereDate('depart_datetime',now());
         }
-        $deliveries = $query->get();
-        foreach($deliveries as $delivery){
+        // $deliveries = $query;
+        $callback = function($delivery) use($lang,$packages){
             if($lang == 'km'){
                 $delivery->status_code = GeneralSettingService::$statusCodeTrans[$delivery->status_id] ?? '';
             } else $delivery->status_code = $delivery->status->name;
@@ -80,8 +79,9 @@ class FleetManagementController extends Controller
             $delivery->depart_time = Helper::formatCustomDateTime($delivery->depart_datetime,'h:i:s A');
             $delivery->depart_date = Helper::formatCustomDateTime($delivery->depart_datetime,'d-M-Y',false,$lang);
             unset($delivery->status,$delivery->driver);
-        }
-        return ApiResponse::Pagination($deliveries,$req);
+            return $delivery;
+        };
+        return ApiResponse::PaginationV1($query,$req,'',[],1000,$callback);
     }
 
     public function updateTripCount(Request $req){
@@ -130,6 +130,12 @@ class FleetManagementController extends Controller
         $trip_id = $req->trip_id;
         $isKm = $req->lang == 'km';
         $search = $req->search;
+
+        $caseHistory = 'CASE
+            WHEN p.status_id != dp.status_id THEN true
+            ELSE false
+        END AS is_history';
+
         $qP = Package::query()->fromRaw('packages as p')->join('delivery_packages as dp','p.id','dp.package_id')
         ->where('dp.is_deleted',0)
         // ->where('dp.delay_count', 0)
@@ -144,7 +150,7 @@ class FleetManagementController extends Controller
         ->join('users as d','d.id','p.driver_id')
 
         ->join('tracking_statuses as ts','ts.id','dp.status_id')
-        ->selectRaw('dp.has_swap,p.qr_code,p.price,p.cod,p.receiver_name,p.receiver_phone,p.zone_code,p.zone_name,ts.name as status_code,d.user_name as driver_name,d.phone as driver_phone,m.user_name as merchant_name,m.phone as merchant_phone,p.id as package_id,dp.delivery_id,p.zone_code,p.zone_name,p.delivery_fee as base_fee,p.driver_total,p.taxi_fee,p.product_type,dp.status_id,p.payer')
+        ->selectRaw('dp.has_swap,p.qr_code,p.price,p.cod,p.receiver_name,p.receiver_phone,p.zone_code,p.zone_name,ts.name as status_code,d.user_name as driver_name,d.phone as driver_phone,m.user_name as merchant_name,m.phone as merchant_phone,p.id as package_id,dp.delivery_id,p.zone_code,p.zone_name,p.delivery_fee as base_fee,p.driver_total,p.taxi_fee,p.product_type,dp.status_id,p.payer,'.$caseHistory)
         ->orderByRaw('(dp.status_id = ?) DESC', [6]);
         if ($search && str_starts_with($search, 'JPK')) {
             $qP->where('p.qr_code',$search);
@@ -208,6 +214,7 @@ class FleetManagementController extends Controller
                 'khInfo' => 'បរាជ័យគិតសេវា'
             ]));
         }
+
         // if($package->status_id == 9) return ApiResponse::Duplicated(__('messages.info',[
         //     'info' => 'Package has already been delivered'
         // ]));
@@ -626,9 +633,13 @@ class FleetManagementController extends Controller
     public function printTripPackages(Request $req){
         $user = UserService::getAuthUser();
         $tripId = $req->trip_id;
-        $startDate = $req->start_date;
-        $endDate = $req->end_date;
+        $startDate = $req->startDate;
+        $endDate = $req->endDate;
+        $startTime = $req->startTime;
+        $endTime = $req->endTime;
         $status = $req->status ?? null;
+        $statusIds = $req->statusIds;
+        // Log::info($statusIds);
         $trip = Delivery::where('is_deleted',0)->find($tripId);
         if(!$trip) return ApiResponse::JsonResult(null,'No trip found');
         $driverInfo = User::where('account_type','driver')->selectRaw('user_name as driver_name,phone,email')
@@ -646,14 +657,33 @@ class FleetManagementController extends Controller
         ->where('dp.delay_count',0)
         ->where('dp.is_deleted',0)
         ->selectRaw('p.qr_code,m.user_name as merchant_name,m.phone as merchant_phone,p.product_type,p.receiver_address,p.receiver_phone,p.zone_code,p.zone_name,p.id as package_id,dp.delivery_id,dp.delay_count,dp.status_id,p.driver_total,ts.name as status_code');
-        if($startDate && $endDate){
-            $startDate = date('Y-m-d H:i:s',strtotime($startDate));
-            $endDate = date('Y-m-d H:i:s',strtotime($endDate));
-            $qP->whereBetween('p.arrive_warehouse_datetime', [$startDate, $endDate]);
+        // if($startDate && $endDate){
+        //     $startDate = date('Y-m-d H:i:s',strtotime($startDate));
+        //     $endDate = date('Y-m-d H:i:s',strtotime($endDate));
+        //     $qP->whereBetween('p.arrive_warehouse_datetime', [$startDate, $endDate]);
+        // }
+
+        if ($startTime && $endTime) {
+            $tripDate = Helper::dateYMD($trip->depart_datetime); // Assuming this gives 'YYYY-MM-DD'
+            $startDatetime = $tripDate . ' ' . $startTime;
+            // Fetch the latest assign_driver_datetime for the given trip
+            $lastDeliveryAssignDate = DeliveryPackage::from('delivery_packages as dp')->where('dp.delivery_id', $tripId)
+            ->join('packages as p', 'dp.package_id', '=', 'p.id')
+            ->orderBy('p.assign_driver_datetime', 'desc')
+            ->take(1)->value('p.assign_driver_datetime');
+            // If there is a last package, use its assign_driver_datetime as the end datetime
+            $endDatetime = Helper::dateYMD($lastDeliveryAssignDate) . ' ' . $endTime;
+            // Apply the time range condition only once
+            $qP->where(function($q) use ($startDatetime, $endDatetime) {
+                $q->whereBetween('p.assign_driver_datetime', [$startDatetime, $endDatetime]);
+            });
         }
-        if(!$status || $status !== 'All'){
+
+        if(!empty($statusIds)) $qP->whereIn('p.status_id',$statusIds);
+        else if((!$status || $status !== 'All') && !($startTime && $endTime)){
             $qP->whereIn('p.status_id',[9,19]);
         }
+
         $packages = $qP->get();
         $xRate = GeneralSettingService::getLatestXRate();
         foreach($packages as $p){

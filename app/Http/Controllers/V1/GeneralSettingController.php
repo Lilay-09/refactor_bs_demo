@@ -90,6 +90,10 @@ class GeneralSettingController extends Controller
         return ApiResponse::JsonResult($this->gs::optionsPermission());
     }
 
+    public function getOptionsFleetPackageTrackingStatus(){
+        $user = UserService::getAuthUser();
+        return ApiResponse::JsonResult($this->gs::optionsTrackingStatus($user,[],[9,6,10,19]));
+    }
 
     public function getDriverFilterOptions(){
         $user = UserService::getAuthUser();
