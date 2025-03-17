@@ -10,6 +10,7 @@ use App\Models\Tax;
 use App\Models\User;
 use App\Services\GeneralSettingService;
 use App\Services\UserService;
+use Helper;
 use Illuminate\Http\Request;
 
 class GeneralSettingController extends Controller
@@ -113,8 +114,8 @@ class GeneralSettingController extends Controller
 
         return ApiResponse::JsonResult([
             'statuses' => $this->gs::optionsTrackingStatus($user,[],[9,6,10,19]),
-            'start_time' => $firstAssignDate,
-            'end_time' => $lastAssignDate
+            'start_time' => Helper::formatCustomDateTime($firstAssignDate,'H:i:s'),
+            'end_time' => Helper::formatCustomDateTime($lastAssignDate,'H:i:s')
         ]);
 
     }
