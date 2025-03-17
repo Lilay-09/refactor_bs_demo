@@ -148,9 +148,8 @@ class FleetManagementController extends Controller
         ->where('dp.delivery_id',$trip_id)
         ->join('users as m','m.id','p.merchant_id')
         ->join('users as d','d.id','p.driver_id')
-
         ->join('tracking_statuses as ts','ts.id','dp.status_id')
-        ->selectRaw('dp.has_swap,p.qr_code,p.price,p.cod,p.receiver_name,p.receiver_phone,p.zone_code,p.zone_name,ts.name as status_code,d.user_name as driver_name,d.phone as driver_phone,m.user_name as merchant_name,m.phone as merchant_phone,p.id as package_id,dp.delivery_id,p.zone_code,p.zone_name,p.delivery_fee as base_fee,p.driver_total,p.taxi_fee,p.product_type,dp.status_id,p.payer,'.$caseHistory)
+        ->selectRaw('p.assign_driver_datetime,dp.has_swap,p.qr_code,p.price,p.cod,p.receiver_name,p.receiver_phone,p.zone_code,p.zone_name,ts.name as status_code,d.user_name as driver_name,d.phone as driver_phone,m.user_name as merchant_name,m.phone as merchant_phone,p.id as package_id,dp.delivery_id,p.zone_code,p.zone_name,p.delivery_fee as base_fee,p.driver_total,p.taxi_fee,p.product_type,dp.status_id,p.payer,'.$caseHistory)
         ->orderByRaw('(dp.status_id = ?) DESC', [6]);
         if ($search && str_starts_with($search, 'JPK')) {
             $qP->where('p.qr_code',$search);
@@ -633,8 +632,8 @@ class FleetManagementController extends Controller
     public function printTripPackages(Request $req){
         $user = UserService::getAuthUser();
         $tripId = $req->trip_id;
-        $startDate = $req->startDate;
-        $endDate = $req->endDate;
+        // $startDate = $req->startDate;
+        // $endDate = $req->endDate;
         $startTime = $req->startTime;
         $endTime = $req->endTime;
         $status = $req->status ?? null;

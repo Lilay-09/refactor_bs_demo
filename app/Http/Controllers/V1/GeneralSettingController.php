@@ -4,6 +4,7 @@ namespace App\Http\Controllers\V1;
 
 use ApiResponse;
 use App\Http\Controllers\Controller;
+use App\Models\DeliveryPackage;
 use App\Models\StockLocation;
 use App\Models\Tax;
 use App\Models\User;
@@ -93,6 +94,29 @@ class GeneralSettingController extends Controller
     public function getOptionsFleetPackageTrackingStatus(){
         $user = UserService::getAuthUser();
         return ApiResponse::JsonResult($this->gs::optionsTrackingStatus($user,[],[9,6,10,19]));
+    }
+
+    public function getFormOptionsFleetPackageTrackingStatus(Request $req){
+        $user = UserService::getAuthUser();
+        $tripId = $req->trip_id;
+        $dates = DeliveryPackage::from('delivery_packages as dp')
+        ->where('dp.delivery_id', $tripId)
+        ->join('packages as p', 'dp.package_id', '=', 'p.id')
+        ->where('p.status_id', 6)
+        ->whereColumn('dp.driver_id', 'p.driver_id') // Ensure driver_id matches
+        ->orderBy('p.assign_driver_datetime', 'asc') // Order by earliest first
+        ->pluck('p.assign_driver_datetime');
+
+
+        $firstAssignDate = $dates->first(); // Earliest assign_driver_datetime
+        $lastAssignDate = $dates->last();   // Latest assign_driver_datetime
+
+        return ApiResponse::JsonResult([
+            'statuses' => $this->gs::optionsTrackingStatus($user,[],[9,6,10,19]),
+            'start_time' => $firstAssignDate,
+            'end_time' => $lastAssignDate
+        ]);
+
     }
 
     public function getDriverFilterOptions(){
