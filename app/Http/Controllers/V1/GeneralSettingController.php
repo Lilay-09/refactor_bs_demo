@@ -107,8 +107,6 @@ class GeneralSettingController extends Controller
         ->whereColumn('dp.driver_id', 'p.driver_id') // Ensure driver_id matches
         ->orderBy('p.assign_driver_datetime', 'asc') // Order by earliest first
         ->pluck('p.assign_driver_datetime');
-
-
         $firstAssignDate = $dates->first(); // Earliest assign_driver_datetime
         $lastAssignDate = $dates->last();   // Latest assign_driver_datetime
 
