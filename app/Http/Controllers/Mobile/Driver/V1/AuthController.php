@@ -55,7 +55,6 @@ class AuthController extends Controller
         $credentials = [
             'password' => $password,
             'account_type' => $user->account_type,
-
         ];
         if($user->email == $account) $credentials['email'] = $account;
         else if($user->phone == $account) $credentials['phone'] = $account;

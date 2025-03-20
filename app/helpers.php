@@ -529,14 +529,15 @@ class Helper{
     }
 
 
-    static function deleteImageFile($fileName, $companyId, $dirName)
+    static function deleteImageFile($fileName, $companyId, $dirName,$subDir=null)
     {
         // Construct the base directory path
         $baseFolder = public_path('uploads/images/' . $companyId . '/' . $dirName);
-
+        if ($subDir) {
+            $baseFolder .= '/' . $subDir;
+        }
         // Construct the full file path
         $filePath = $baseFolder . '/' . $fileName;
-
         // Check if the file exists
         if (file_exists($filePath) && $fileName) {
             // Attempt to delete the file

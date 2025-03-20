@@ -525,10 +525,6 @@ class FleetManagementController extends Controller
             }
             // $duplicatedPkgs = [];
             foreach($packageIds as $pkg){
-                // $newPackageCount = $pendingTrip->package_count;
-                // $delay = 1;
-                // $isNewPkg = true;
-
                 $packageId = $pkg['package_id'] ?? null;
                 if(!$packageId) return DataResponse::ValidateFail('Please provide package identity');
                 $allowablePkg = Package::where('outstanding',0)->find($packageId);

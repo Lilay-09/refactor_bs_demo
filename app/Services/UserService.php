@@ -444,7 +444,7 @@ class UserService
         $loginName = $inputs['login_name'];
         $pwd = $inputs['password'];
         $cfPwd = $inputs['confirm_password'];
-        $existLoginName = User::where('company_id',$authUser->company_id)->where('login_name',$loginName)->where('is_deleted',0)->where('account_type',$userClass)->first();
+        $existLoginName = User::where('company_id',$authUser->company_id)->where('id','!=',$userId)->where('login_name',$loginName)->where('is_deleted',0)->where('account_type',$userClass)->first();
         if($existLoginName) return DataResponse::Duplicated('Please use another login name!, this one is already taken.');
         if($pwd !== $cfPwd) return DataResponse::ValidateFail(__('messages.error',['info' => 'Password not match !']));
         $hpwd = Hash::make($pwd);

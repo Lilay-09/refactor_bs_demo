@@ -8,6 +8,7 @@ use App\Models\City;
 use App\Models\ClientType;
 use App\Models\Commune;
 use App\Models\Country;
+use App\Models\DefaultAddress;
 use App\Models\DefaultRemark;
 use App\Models\Delivery;
 use App\Models\DeliveryPackage;
@@ -162,6 +163,10 @@ public static function optionsRole($type=null){
                 'value' => 'night shift'
             ]
         ];
+    }
+
+    static function optionsDefaultAddress(){
+        return DefaultAddress::where('is_deleted',0)->select('name')->get();
     }
 
     public static function optionsPriceList($user){

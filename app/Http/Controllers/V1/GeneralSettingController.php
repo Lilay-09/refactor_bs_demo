@@ -242,7 +242,8 @@ class GeneralSettingController extends Controller
             'zones' => $this->gs::optionsZone($user),
             'vehicle_types' => $this->gs::optionsVehicleType($user),
             'drivers' => $this->gs::optionsDriver($user),
-            'product_types' => $this->gs::optionsProductType($user)
+            'product_types' => $this->gs::optionsProductType($user),
+            'default_addresses' => $this->gs::optionsDefaultAddress()
         ];
         return ApiResponse::JsonResult($obj);
     }
