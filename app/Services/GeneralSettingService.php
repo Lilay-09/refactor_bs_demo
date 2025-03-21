@@ -254,9 +254,7 @@ public static function optionsRole($type=null){
     }
 
     public static function optionsDriver($user,$vehicleType=null){
-        $qD = User::where(function($q){
-            $q->where('lock',0);
-        })->where('is_deleted',0)->where('company_id',$user->company_id)->where('account_type','driver')->selectRaw('id,user_name,phone,name_km');
+        $qD = User::where('is_deleted',0)->where('company_id',$user->company_id)->where('account_type','driver')->selectRaw('id,user_name,phone,name_km');
         if($vehicleType) $qD->where('vehicle_type','ilike',$vehicleType);
         $drivers = $qD->orderByDesc('id')->get();
         foreach($drivers as $d){
