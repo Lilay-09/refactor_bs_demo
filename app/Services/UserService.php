@@ -634,27 +634,49 @@ class UserService
     }
 
     private static function hasCommission($driverId){
-        $packages = Package::selectRaw('status_id,driver_id')
-        ->whereIn('status_id',[9,19])
-        ->where('driver_id',$driverId)
-        ->where('is_deleted',0)
-        ->whereNull('driver_commission_id')
-        ->get();
-        $orders = Order::where('is_deleted',0)->whereNull('driver_commission_id')
-        ->where('status_id',5)
-        ->where('driver_id',$driverId)
-        ->get();
         $qDc = DriverCommission::where('is_deleted',0)
         ->selectRaw('id,driver_id,delivery_type,pickup_commission,delivery_commission,delivery_commission_start_date,pickup_commission_start_date,DATE(updated_at) as updated_date')
         ->where('driver_id',$driverId);
         $driverCommissions = $qDc->get();
-        $pkp = TransactionService::getPickUpDetails($orders,$driverId);
-        $delPkg = TransactionService::getDeliveredDetails($packages,$driverId);
         $comm = TransactionService::getDriverCommissionInfo($driverCommissions,$driverId);
-        $pickupRate = $comm->normal_pickup_commission;
+        $deliveryCommStartDate = $comm->normal_delivery_commission_start_date;
+        $qP = Package::selectRaw('status_id,driver_id')
+        // ->whereIn('status_id',[9,19])
+        ->where('status_id',9)
+        ->where('driver_id',$driverId)
+        ->where('is_deleted',0)
+        ->whereNull('driver_commission_id');
+        if($deliveryCommStartDate){
+            $startDate = Helper::dateYMD($deliveryCommStartDate);
+            $startDatetime = $startDate.' 00:00:00';
+            // $qP->where(function($q) use ($startDatetime) {
+            //     // $q->where(function($q) use ($startDatetime) {
+            //     //     // For status_id 19, query only failed_datetime
+            //     //     $q->whereDate('failed_datetime', '>=',$startDatetime)
+            //     //     ->where('status_id', 19);
+            //     // })
+            //     $q->where(function($q) use ($startDatetime) {
+            //         // For status_id 9, query only delivered_datetime
+            //         $q->where('delivered_datetime', '>=' ,$startDatetime)
+            //         ->where('status_id', 9);
+            //     });
+            // });
+            $qP->where('delivered_datetime', '>=' ,$startDatetime);
+        }
+        $packages = $qP->get();
+
+        // $qO = Order::where('is_deleted',0)->whereNull('driver_commission_id')
+        // ->where('status_id',5)
+        // ->where('driver_id',$driverId);
+        // $orders = $qO->get();
+
+        // $pkp = TransactionService::getPickUpDetails($orders,$driverId);
+        $delPkg = TransactionService::getDeliveredDetails($packages,$driverId);
+
+        $pickupRate = 0;//$comm->normal_pickup_commission;
         $deliveryRate = $comm->normal_delivery_commission;
         $totalDelivered = $delPkg->delivered_count;
-        $totalPickUp = $pkp->total_package;
+        $totalPickUp = 0;//$pkp->total_package;
         $total = Helper::getNumber($pickupRate * $totalPickUp + $deliveryRate * $totalDelivered,2);
         return $total > 0;
     }
