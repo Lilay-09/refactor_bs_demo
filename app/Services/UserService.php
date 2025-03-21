@@ -677,6 +677,9 @@ class UserService
         $deliveryRate = $comm->normal_delivery_commission;
         $totalDelivered = $delPkg->delivered_count;
         $totalPickUp = 0;//$pkp->total_package;
+        Log::info($deliveryCommStartDate);
+        Log::info($deliveryRate);
+        Log::info($totalDelivered);
         $total = Helper::getNumber($pickupRate * $totalPickUp + $deliveryRate * $totalDelivered,2);
         return $total > 0;
     }

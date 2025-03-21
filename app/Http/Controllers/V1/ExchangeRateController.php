@@ -19,6 +19,7 @@ class ExchangeRateController extends Controller
             'currency_pair' => 'required|in:USD-KHR'
         ]);
     }
+
     public function create(Request $req){
         $user = UserService::getAuthUser();
         $validate = $this->xRateValidation($req);
