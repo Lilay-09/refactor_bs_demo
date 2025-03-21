@@ -420,6 +420,7 @@ Route::middleware(['jwt','localize','userAccess:admin'])->prefix('admin/v1/{lang
 
     Route::prefix('setting')->group(function(){
         Route::prefix('option')->group(function(){
+            // Route::get('fleet/package/trackingStatus',[GeneralSettingController::class,'getOptionsFleetPackageTrackingStatus']);
             Route::get('role',[GeneralSettingController::class,'getOptionsRole']);
             Route::get('permission',[GeneralSettingController::class,'getOptionsPermission']);
             Route::get('module',[GeneralSettingController::class,'getOptionsModule']);
@@ -456,6 +457,7 @@ Route::middleware(['jwt','localize','userAccess:admin'])->prefix('admin/v1/{lang
             Route::get('merchant/transaction',[GeneralSettingController::class,'getMerchantTransactionTabFilter']);
         });
         Route::prefix('form')->group(function(){
+            Route::get('fleet/package/trackingStatus',[GeneralSettingController::class,'getFormOptionsFleetPackageTrackingStatus']);
             Route::get('banner',[GeneralSettingController::class,'getFormBanner']);
             Route::get('receivePayment',[GeneralSettingController::class,'getFormReceivePayment']);
             Route::get('pricelist',[GeneralSettingController::class,'getFormPriceList']);

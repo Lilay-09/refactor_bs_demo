@@ -14,13 +14,9 @@ use App\Models\UserPermission;
 use App\Models\UserRoles;
 use App\Services\UserManagementService;
 use App\Services\UserService;
-use DataResponse;
 use DB;
-use Exception;
-use Hash;
 use Helper;
 use Illuminate\Http\Request;
-use Log;
 
 class UserManagementController extends Controller
 {
