@@ -677,11 +677,11 @@ class UserService
         $deliveryRate = $comm->normal_delivery_commission;
         $totalDelivered = $delPkg->delivered_count;
         $totalPickUp = 0;//$pkp->total_package;
-        Log::error($deliveryCommStartDate);
-        Log::error($deliveryRate);
-        Log::error($totalDelivered);
+        // Log::error($deliveryCommStartDate);
+        // Log::error($deliveryRate);
+        // Log::error($totalDelivered);
         $total = Helper::getNumber($pickupRate * $totalPickUp + $deliveryRate * $totalDelivered,2);
-        Log::error($total);
+        // Log::error($total);
         return $total > 0;
     }
 
