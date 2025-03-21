@@ -669,7 +669,6 @@ class UserService
         // ->where('status_id',5)
         // ->where('driver_id',$driverId);
         // $orders = $qO->get();
-
         // $pkp = TransactionService::getPickUpDetails($orders,$driverId);
         $delPkg = TransactionService::getDeliveredDetails($packages,$driverId);
 
