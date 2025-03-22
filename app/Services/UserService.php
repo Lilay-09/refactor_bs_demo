@@ -236,7 +236,7 @@ class UserService
         DB::beginTransaction();
         try{
             if($id){
-                unset($inputs['password']);
+                unset($inputs['password'],$inputs['register_status']);
                 $updateUser = User::where('account_type',$user_class)->where('is_deleted',0)->find($id);
                 if(!$updateUser) return DataResponse::NotFound(__('messages.not_found',['info' => 'User']));
                 // if($updateUser->phone) unset($inputs['phone']);
@@ -458,6 +458,7 @@ class UserService
             'login_name' => $loginName,
             'delete_account' => false,
             'lock' => false,
+            'register_status' => 'registered',
             'password' => $hpwd
         ];
         if($photoFile) $updateArr['photo_file_name'] = $photoFile;
