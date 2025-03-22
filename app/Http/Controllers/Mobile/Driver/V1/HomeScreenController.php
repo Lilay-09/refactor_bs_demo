@@ -19,6 +19,8 @@ use App\Services\GeneralSettingService;
 use App\Services\PickupCenterService;
 use App\Services\TransactionService;
 use App\Services\UserService;
+use DB;
+use Exception;
 use Helper;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -205,7 +207,8 @@ class HomeScreenController extends Controller
         })
         ->where('p.created_at', '>=', Carbon::now()->subDays(15))
         ->join('tracking_statuses as ts','ts.id','dp.status_id')
-        ->selectRaw('p.payer,p.receiver_address,p.extra_charge,p.id,p.delivered_datetime,p.failed_datetime,p.assign_driver_datetime,p.merchant_id,p.qr_code,p.price,p.cod,p.receiver_name,p.receiver_phone,p.zone_code,p.zone_name,ts.name as status_code,d.user_name as driver_name,d.phone as driver_phone,m.user_name as merchant_name,m.phone as merchant_phone,p.id as package_id,dp.delivery_id,p.zone_code,p.zone_name,p.delivery_fee as base_fee,p.driver_total,p.taxi_fee,p.product_type,dp.status_id')
+        ->selectRaw('p.driver_display_order,p.payer,p.receiver_address,p.extra_charge,p.id,p.delivered_datetime,p.failed_datetime,p.assign_driver_datetime,p.merchant_id,p.qr_code,p.price,p.cod,p.receiver_name,p.receiver_phone,p.zone_code,p.zone_name,ts.name as status_code,d.user_name as driver_name,d.phone as driver_phone,m.user_name as merchant_name,m.phone as merchant_phone,p.id as package_id,dp.delivery_id,p.zone_code,p.zone_name,p.delivery_fee as base_fee,p.driver_total,p.taxi_fee,p.product_type,dp.status_id')
+        ->orderBy('p.driver_display_order','asc')
         ->orderByRaw('(dp.status_id = ?) DESC', [6]);
         if($driverId){
             $qP->where('p.driver_id',$driverId);
@@ -620,22 +623,43 @@ class HomeScreenController extends Controller
         return ApiResponse::JsonResult(GeneralSettingService::termAndConditions($user));
     }
 
-    public function pinPackage(Request $req){
+    public function sortPackages(Request $req){
         $user = UserService::getAuthUser('driver');
-        $sortList = $req->sort_list;
-        if(empty($sortList)) return ApiResponse::ValidateFail(__('messages.info',[
+        $sortListIds = $req->sort_list;
+        if(empty($sortListIds)) return ApiResponse::ValidateFail(__('messages.info',[
             'info' => 'Sort list is required'
         ]));
-        foreach($sortList as $sl){
-            if(!isset($sl['package_id'])) return ApiResponse::ValidateFail(__('messages.info',[
-                'info' => 'Package Identity is required'
-            ]));
-            $id = $sl['package_id'];
-            $package = Package::where('is_deleted',0)->where('driver_id',$user->id)->find($id);
-            if(!$package) return ApiResponse::ValidateFail(__('messages.not_found',[
-                'info' => 'Package'
-            ]));
+        // $packageIds = Helper::pluckArrValue($sortList);
+        $packages = Package::where('is_deleted',0)->whereIn('id',$sortListIds)
+        ->select('id','driver_display_order')
+        ->get()->keyBy('id');
+        // return $packages;
+        DB::beginTransaction();
+        try{
+            foreach($sortListIds as $key => $pkgId){
+                $idx = $key + 1;
+                if(!isset($packages[$pkgId])) return ApiResponse::NotFound('Package row (',$idx.') not found!');
+                $pkg = $packages[$pkgId];
+                $pkg->driver_display_order = $idx;
+                $pkg->save();
+            }
+            // return $packages;
+            DB::commit();
+            return ApiResponse::JsonResult(null,'Sorted');
+        }catch(Exception $e){
+            DB::rollBack();
         }
+        return $sortListIds;
+        // foreach($sortList as $sl){
+        //     if(!isset($sl['package_id'])) return ApiResponse::ValidateFail(__('messages.info',[
+        //         'info' => 'Package Identity is required'
+        //     ]));
+        //     $id = $sl['package_id'];
+        //     $package = Package::where('is_deleted',0)->where('driver_id',$user->id)->find($id);
+        //     if(!$package) return ApiResponse::ValidateFail(__('messages.not_found',[
+        //         'info' => 'Package'
+        //     ]));
+        // }
         // $package = PackageService::getPackage($sl['package_id']);
     }
 

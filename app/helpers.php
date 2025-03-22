@@ -303,6 +303,14 @@ class Helper{
     }
 
 
+    static function pluckEloCollection($data,$key){
+        return Arr::pluck($data,$key);
+    }
+
+    static function pluckArrValue($data,$key){
+        return array_column($data,$key);
+    }
+
     // static function formatCustomDateTime($datetime, $outputFormat = 'd-M-Y h:i:s A', $useMeridiem = false) {
     //     if (!$datetime) return null;
 

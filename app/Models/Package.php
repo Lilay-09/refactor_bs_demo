@@ -23,6 +23,7 @@ class Package extends Model
         'id',
         'qr_code',
         'last_submit_uid',
+        'driver_display_order',
         'last_remark_user',
         'package_name',
         'product_type',
