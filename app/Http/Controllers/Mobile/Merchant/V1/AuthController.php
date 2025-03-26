@@ -150,7 +150,8 @@ class AuthController extends Controller
             'account_type' => 'merchant',
             'business_type' => $inputs['business_type'] ?? null,
             'otp' => $otp,
-            'register_channel' => 'mobile'
+            'register_channel' => 'mobile',
+            'cod' => true
         ]);
 
         $authUser = User::where('system_admin',1)->selectRaw('id,company_id,branch_id')->first();
@@ -162,7 +163,7 @@ class AuthController extends Controller
         ]);
 
         $smsInfo = AppSetting::sendSms("JS Express",$phone,$message);
-        if($smsInfo->status_code == 402) return ApiResponse::ValidateFail('Error sending SMS, Please try again later.');
+        if($smsInfo->error) return ApiResponse::ValidateFail('Error sending SMS, Please try again later.');
         return ApiResponse::JsonResult([
             'phone' => $phone,
         ],'Registered');

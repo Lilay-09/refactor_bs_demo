@@ -635,21 +635,20 @@ class HomeScreenController extends Controller
         ->get()->keyBy('id');
         // return $packages;
         DB::beginTransaction();
-        try{
-            foreach($sortListIds as $key => $pkgId){
-                $idx = $key + 1;
-                if(!isset($packages[$pkgId])) return ApiResponse::NotFound('Package row (',$idx.') not found!');
-                $pkg = $packages[$pkgId];
-                $pkg->driver_display_order = $idx;
-                $pkg->save();
+        try {
+            foreach (array_values($sortListIds) as $index => $pkgId) {
+                if (!isset($packages[$pkgId])) {
+                    DB::rollBack();
+                    return ApiResponse::NotFound("Package row (" . ($index + 1) . ") not found!");
+                }
+                $packages[$pkgId]->update(['driver_display_order' => $index + 1]); // Efficient batch update
             }
-            // return $packages;
             DB::commit();
-            return ApiResponse::JsonResult(null,'Sorted');
-        }catch(Exception $e){
+            return ApiResponse::JsonResult(null, 'Sorted');
+        } catch (Exception $e) {
             DB::rollBack();
+            return ApiResponse::Error('Failed');
         }
-        return $sortListIds;
         // foreach($sortList as $sl){
         //     if(!isset($sl['package_id'])) return ApiResponse::ValidateFail(__('messages.info',[
         //         'info' => 'Package Identity is required'
