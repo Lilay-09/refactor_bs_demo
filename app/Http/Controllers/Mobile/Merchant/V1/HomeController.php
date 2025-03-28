@@ -68,30 +68,23 @@ class HomeController extends Controller
         $user = UserService::getAuthUser('merchant');
         // Consolidate counts into a single query for Order and Package models
         $orderCounts = Order::where('merchant_id', $user->id)
-                ->where('is_deleted', 0)
-                ->selectRaw('
-                    SUM(status_id = 1) as pending,
-                    SUM(status_id IN (2, 3, 4)) as pick
-                ')
-                ->first();
+        ->where('is_deleted', 0)
+        ->selectRaw('
+            SUM(CASE WHEN status_id = 1 THEN 1 ELSE 0 END) as pending,
+            SUM(CASE WHEN status_id IN (2, 3, 4) THEN 1 ELSE 0 END) as pick
+        ')
+        ->first();
 
-        $packageCounts = Package::where('merchant_id', $user->id)
-            ->where('is_deleted', 0)
-            // ->whereBetween('delivered_datetime', [$dateaAgo, $today])
-            // ->whereBetween('failed_datetime', [$dateaAgo, $today])
-            // ->whereBetween('returned_datetime', [$dateaAgo, $today])
-            ->where(function($query) use ($dateaAgo, $today) {
-                $query->whereBetween('delivered_datetime', [$dateaAgo, $today])
-                    ->whereBetween('failed_datetime', [$dateaAgo, $today])
-                    ->whereBetween('returned_datetime', [$dateaAgo, $today]);
-            })
-            ->selectRaw('
-                SUM(status_id = 6) as on_delivery,
-                SUM(status_id = 9) as success,
-                SUM(status_id IN (10, 19)) as fail,
-                SUM(status_id = 11) as return
-            ')
-            ->first();
+
+    $packageCounts = Package::where('merchant_id', $user->id)
+        ->where('is_deleted', 0)
+        ->selectRaw('
+            SUM(CASE WHEN status_id = 6 THEN 1 ELSE 0 END) as on_delivery,
+            SUM(CASE WHEN status_id = 9 AND delivered_datetime BETWEEN ? AND ? THEN 1 ELSE 0 END) as success,
+            SUM(CASE WHEN status_id IN (10, 19) AND failed_datetime BETWEEN ? AND ? THEN 1 ELSE 0 END) as fail,
+            SUM(CASE WHEN status_id = 11 AND returned_datetime BETWEEN ? AND ? THEN 1 ELSE 0 END) as return
+        ', [$dateaAgo, $today, $dateaAgo, $today, $dateaAgo, $today])
+        ->first();
 
         // Calculate total counts by summing the values from both queries
         $totalCount = $orderCounts->pending + $orderCounts->pick + $packageCounts->on_delivery +
