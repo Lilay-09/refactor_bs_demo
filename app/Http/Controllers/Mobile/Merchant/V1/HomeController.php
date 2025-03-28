@@ -209,8 +209,8 @@ class HomeController extends Controller
     }
 
     public function getOnDeliveryPackages(Request $req){
-        $today = now();
-        $dateaAgo = Helper::getDateDaysAgo(0);
+        // $today = now();
+        // $dateaAgo = Helper::getDateDaysAgo(0);
         $lang = $req->lang;
         $user = UserService::getAuthUser('merchant');
         $qP = Package::where('merchant_id', $user->id)
@@ -218,7 +218,7 @@ class HomeController extends Controller
         ->where('status_id', 6)
         ->where('is_deleted', 0)
         ->selectRaw('id,merchant_id,receiver_phone,receiver_address,receiver_name,cod,price,delivery_fee,remarks,driver_id,arrive_warehouse_datetime');
-        $qP->whereBetween('arrive_warehouse_datetime',[$dateaAgo,$today]);
+        // $qP->whereBetween('arrive_warehouse_datetime',[$dateaAgo,$today]);
         $packages = $qP->get()
         ->map(function ($package) use($lang) {
             // Cast price to float manually

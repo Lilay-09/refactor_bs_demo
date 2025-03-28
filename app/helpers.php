@@ -1,4 +1,5 @@
 <?php
+use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Milon\Barcode\DNS1D;
 class ApiResponse
@@ -128,18 +129,17 @@ class ApiResponse
     //     return response()->json($obj, 200);
     // }
 
-    static function PaginationV1($query, $filter = null, $message = null, $additionalKey = [], $limit = 1000, callable $transformCallback = null, $cache = null)
+    static function PaginationV1($query, Request $filter, $message = null, $additionalKey = [], $limit = 1000, callable $transformCallback = null, $cache = null)
     {
-        $filter = (object)$filter;
-        $perPage = isset($filter->per_page) ? ($filter->per_page == 0 ? 1 : min($filter->per_page, $limit)) : min(10, $limit);
-        $currentPage = isset($filter->page_no) ? $filter->page_no : 1;
+        // Ensure filter parameters are properly set
+        $perPage = max(1, min($filter->query('per_page', 10), $limit));
+        $currentPage = $filter->query('page_no', 1);
 
-        $query->take($limit);
-        // Build a cache key based on the request parameters or any other unique identifier
+        // Set the cache key based on filter parameters (e.g., 'per_page', 'page_no', etc.)
         $cacheKey = 'pagination_' . md5(json_encode($filter->all()));
 
         // Check if caching is enabled and data is already cached
-        if ($cache !== null) {
+        if ($cache && $cache > 0) {
             $cachedData = Cache::get($cacheKey);
             if ($cachedData) {
                 return response()->json($cachedData, 200); // Return cached data if available
@@ -172,16 +172,16 @@ class ApiResponse
             $obj[$key] = $value;
         }
 
-        // Cache the result if caching is enabled and a cache time is provided
+        // Cache the result if caching is enabled
         if ($cache !== null) {
-            // Default cache time is 300 seconds (5 minutes), or use the provided time
-            $cacheTime = is_numeric($cache) ? $cache : 300;
-            Cache::put($cacheKey, $obj, $cacheTime);
+            $cacheTime = is_numeric($cache) ? $cache : 300; // Default cache time of 300 seconds (5 minutes)
+            Cache::put($cacheKey, $obj, $cacheTime); // Store the response in the cache
         }
 
         // Return the response as JSON
         return response()->json($obj, 200);
     }
+
 
 
 
@@ -1164,13 +1164,22 @@ class DataResponse //extends Model
         ];
     }
 
-    static function PaginationV1($query, $filter = null, $message = null, $additionalKey = [], $limit = 1000, callable $transformCallback = null)
+    static function PaginationV1($query, $filter = null, $message = null, $additionalKey = [], $limit = 1000, callable $transformCallback = null, $cache = null)
     {
         $filter = (object)$filter;
         $perPage = isset($filter->per_page) ? ($filter->per_page == 0 ? 1 : min($filter->per_page, $limit)) : min(10, $limit);
         $currentPage = isset($filter->page_no) ? $filter->page_no : 1;
 
-        $query->take($limit);
+        // Build cache key based on filter parameters
+        $cacheKey = 'pagination_' . md5(json_encode($filter));
+
+        // Cache logic: check if data is already cached
+        if ($cache && $cache > 0) {
+            $cachedData = Cache::get($cacheKey);
+            if ($cachedData) {
+                return $cachedData; // Return cached data if available
+            }
+        }
 
         // Execute pagination on the query
         $data = $query->paginate($perPage, ['*'], 'page', $currentPage);
@@ -1193,11 +1202,20 @@ class DataResponse //extends Model
             'errors' => [],
         ];
 
-        foreach ((object) $additionalKey as $key => $value) {
+        // Add additional custom data if provided
+        foreach ((object)$additionalKey as $key => $value) {
             $obj->{$key} = $value;
         }
+
+        // Cache the result if caching is enabled
+        if ($cache !== null) {
+            $cacheTime = is_numeric($cache) ? $cache : 300; // Default cache time of 300 seconds (5 minutes)
+            Cache::put($cacheKey, $obj, $cacheTime); // Store the response in the cache
+        }
+
         return $obj;
     }
+
 
 }
 
