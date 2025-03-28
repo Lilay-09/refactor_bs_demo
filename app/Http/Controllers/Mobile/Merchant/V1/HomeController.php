@@ -181,14 +181,15 @@ class HomeController extends Controller
         // $qO->where(function ($q) use ($dateaAgo, $today) {
         //     $q->whereBetween('order_datetime', [$dateaAgo, $today]);
         // });
-        $orders = $qO->get();
-        foreach($orders as $order){
+        $orders = $qO->orderByDesc('id')->get();
+        $callback = function($order) use($lang){
             if($lang == 'km') $order->status_code = 'រង់ចាំ';
             else $order->status_code = 'Pending';
             $order->order_datetime = Helper::formatCustomDateTime($order->order_datetime);
             $order->driver_name = $order->driver?->user_name;
-        }
-        return ApiResponse::Pagination($orders,$req);
+            return $order;
+        };
+        return ApiResponse::PaginationV1($orders,$req,'',[],100,$callback);
     }
 
     public function getPickOrders(Request $req){
@@ -203,8 +204,8 @@ class HomeController extends Controller
         // $qO->where(function ($q) use ($dateaAgo, $today) {
         //     $q->whereBetween('order_datetime', [$dateaAgo, $today]);
         // });
-        $orders = $qO->get();
-        foreach($orders as $order){
+        $orders = $qO->orderByDesc('id')->get();
+        $callback = function($order) use($lang){
             if($lang == 'km') $order->status_code = GeneralSettingService::$statusCodeTrans[$order->status_id];
             else $order->status_code = $order->tracking_status->name;
             $order->driver_phone = $order->driver->phone;
@@ -212,8 +213,9 @@ class HomeController extends Controller
             $order->driver_name = $order->driver->user_name;
             $order->order_datetime = Helper::formatCustomDateTime($order->order_datetime);
             unset($order->tracking_status,$order->driver);
-        }
-        return ApiResponse::Pagination($orders,$req);
+            return $order;
+        };
+        return ApiResponse::PaginationV1($orders,$req,'',[],200,$callback);
     }
 
     public function getOnDeliveryPackages(Request $req){
@@ -228,9 +230,7 @@ class HomeController extends Controller
         ->selectRaw('id,merchant_id,receiver_phone,receiver_address,receiver_name,cod,price,delivery_fee,remarks,driver_id,arrive_warehouse_datetime')
         // $qP->whereBetween('arrive_warehouse_datetime',[$dateaAgo,$today]);
         ->orderByDesc('assign_driver_datetime');
-        $packages = $qP->get()
-        ->map(function ($package) use($lang) {
-            // Cast price to float manually
+        $callback = function ($package) use($lang){
             $package->price = (float) $package->price;
             $package->cod_fee = $package->cod ? $package->price : 0;
             if($lang == 'km') $package->status_code = GeneralSettingService::$statusCodeTrans[6];
@@ -245,9 +245,8 @@ class HomeController extends Controller
             // Remove the driver relationship if not needed in the response
             unset($package->driver);
             return $package;
-        });
-
-        return ApiResponse::Pagination($packages, $req);
+        };
+        return ApiResponse::PaginationV1($qP,$req,'',[],200,$callback);
     }
 
     public function getTermConditions(Request $req){
@@ -271,8 +270,8 @@ class HomeController extends Controller
         ->where('status_id',9)
         ->where('is_deleted',0)
         ->whereBetween('delivered_datetime',[$dateaAgo,$today])
-        ->selectRaw('id,merchant_id,receiver_phone,receiver_address,receiver_name,cod,price,delivery_fee,remarks,driver_id,delivered_datetime,arrive_warehouse_datetime')
-        ->get()->map(function($package) use ($lang,$attachmentsLookup){
+        ->selectRaw('id,merchant_id,receiver_phone,receiver_address,receiver_name,cod,price,delivery_fee,remarks,driver_id,delivered_datetime,arrive_warehouse_datetime');
+        $callback = function($package) use($lang,$attachmentsLookup){
             $package->price = (float) $package->price;
             $package->cod_fee = $package->cod ? $package->price : 0;
             $package->has_img = isset($attachmentsLookup[$package->id]);
@@ -288,8 +287,8 @@ class HomeController extends Controller
             $package->fee = $package->delivery_fee;
             unset($package->driver);
             return $package;
-        });
-        return ApiResponse::Pagination($packages,$req);
+        };
+        return ApiResponse::PaginationV1($packages,$req,'',[],200,$callback);
     }
 
     public function getFailPackages(Request $req){
@@ -309,9 +308,9 @@ class HomeController extends Controller
         ->where('status_id',$statusId)
         ->where('is_deleted',0)
         ->whereBetween('failed_datetime',[$dateaAgo,$today])
-        ->selectRaw('id,merchant_id,arrive_warehouse_datetime,receiver_phone,receiver_address,receiver_name,cod,price,delivery_fee,status_id,remarks,driver_id,failed_datetime')
-        ->get()
-        ->map(function($package) use($lang,$attachmentsLookup){
+        ->selectRaw('id,merchant_id,arrive_warehouse_datetime,receiver_phone,receiver_address,receiver_name,cod,price,delivery_fee,status_id,remarks,driver_id,failed_datetime');
+
+        $callback = function($package) use($lang,$attachmentsLookup){
             $package->price = (float)$package->price;
             $package->cod_fee = $package->cod ? $package->price : 0;
             $package->has_img = isset($attachmentsLookup[$package->id]);
@@ -327,8 +326,8 @@ class HomeController extends Controller
             $package->failed_datetime = Helper::formatCustomDateTime($package->failed_datetime);
             unset($package->driver,$package->status);
             return $package;
-        });
-        return ApiResponse::Pagination($packages,$req);
+        };
+        return ApiResponse::PaginationV1($packages,$req,'',[],200,$callback);
     }
 
     public function getReturnPackages(Request $req){
@@ -340,9 +339,8 @@ class HomeController extends Controller
         ->with(['returnUser:id,phone,user_name','status'])
         ->where('status_id',11)
         ->whereBetween('returned_datetime',[$dateaAgo,$today])
-        ->selectRaw('id,merchant_id,arrive_warehouse_datetime,receiver_phone,receiver_address,receiver_name,cod,price,delivery_fee,status_id,remarks,returned_uid,failed_datetime,returned_datetime,updated_at')
-        ->get()
-        ->map(function($package) use($lang){
+        ->selectRaw('id,merchant_id,arrive_warehouse_datetime,receiver_phone,receiver_address,receiver_name,cod,price,delivery_fee,status_id,remarks,returned_uid,failed_datetime,returned_datetime,updated_at');
+        $callback = function($package) use($lang){
             $package->price = (float)$package->price;
             $package->cod_fee = $package->cod ? $package->price : 0;
             if($lang == 'km') $package->status_code = GeneralSettingService::$statusCodeTrans[$package->status_id];
@@ -358,8 +356,8 @@ class HomeController extends Controller
             $package->return_time = Helper::formatCustomDateTime($returnDate, 'h:i:s');
             unset($package->returnUser,$package->status);
             return $package;
-        });
-        return ApiResponse::Pagination($packages,$req);
+        };
+        return ApiResponse::PaginationV1($packages,$req,'',[],200,$callback);
     }
 
     public function getPromotions(Request $req){
@@ -369,15 +367,15 @@ class HomeController extends Controller
         ->where('channel','merchant')
         ->whereRaw('DATE(start_date) >= ? AND DATE(end_date) <= ?',[$today,$today])
         ->orWhereDate('start_date','>=',$today)
-        ->orderByDesc('start_date')
-        ->get();
-        foreach($promotions as $promotion){
+        ->orderByDesc('start_date');
+        $callback = function($promotion) use($user){
             $xDays = Helper::getAnalyzDiffDate($promotion->start_date,$promotion->end_date);
             $promotion->expires_at = $xDays;
             $promotion->time_ago = Helper::timeAgo($promotion->start_date,false);
             $promotion->image_url = Helper::getImageUrl($promotion->photo_file_name,$user->company_id,'promotion');
-        }
-        return ApiResponse::Pagination($promotions,$req);
+            return $promotion;
+        };
+        return ApiResponse::PaginationV1($promotions,$req,'',[],100,$callback);
     }
 
     public function getOptionsZone(Request $req){
@@ -390,7 +388,6 @@ class HomeController extends Controller
         $id = $req->zone_id;
         return ApiResponse::JsonResult(GeneralSettingService::priceByZone($id,$user,$user->id));
     }
-
 
     public function getHomeScreen(Request $req,$user){
         $user = UserService::getAuthUser('merchant');
