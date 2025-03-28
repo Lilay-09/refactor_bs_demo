@@ -61,42 +61,93 @@ class HomeController extends Controller
         ]);
         return ApiResponse::JsonResult(null,__('messages.canceled'));
     }
-
-    public function trackingActivitySummary(Request $req){
+    public function trackingActivitySummary(Request $req)
+    {
         $today = now();
         $dateaAgo = Helper::getDateDaysAgo(0);
         $user = UserService::getAuthUser('merchant');
-        $pendingCount = Order::where('merchant_id',$user->id)->where('is_deleted',0)
-        ->whereBetween('order_datetime',[$dateaAgo,$today])
-        ->where('status_id',1)->count();
-        $pickCount = Order::where('merchant_id',$user->id)->where('is_deleted',0)
-        ->whereBetween('pickup_datetime',[$dateaAgo,$today])
-        ->whereIn('status_id',[2,3,4])->count();
-        $onDeliveryCount = Package::where('merchant_id',$user->id)->where('is_deleted',0)
-        ->whereBetween('assign_driver_datetime',[$dateaAgo,$today])
-        ->where('status_id',6)->count();
-        $successCount = Package::where('merchant_id',$user->id)->where('is_deleted',0)
-        ->whereBetween('delivered_datetime',[$dateaAgo,$today])
-        ->where('status_id',9)->count();
-        $failCount = Package::where('merchant_id',$user->id)->where('is_deleted',0)
-        ->whereBetween('failed_datetime',[$dateaAgo,$today])
-        ->whereIn('status_id',[10,19])->count();
-        $returnCount = Package::where('merchant_id',$user->id)->where('is_deleted',0)
-        ->whereBetween('returned_datetime',values: [$dateaAgo,$today])
-        ->where('status_id',11)->count();
-        $totalCount = $pendingCount + $pickCount + $onDeliveryCount + $successCount + $failCount + $returnCount;
+        // Consolidate counts into a single query for Order and Package models
+        $orderCounts = Order::where('merchant_id', $user->id)
+                ->where('is_deleted', 0)
+                ->selectRaw('
+                    SUM(status_id = 1) as pending,
+                    SUM(status_id IN (2, 3, 4)) as pick
+                ')
+                ->first();
+
+        $packageCounts = Package::where('merchant_id', $user->id)
+            ->where('is_deleted', 0)
+            // ->whereBetween('delivered_datetime', [$dateaAgo, $today])
+            // ->whereBetween('failed_datetime', [$dateaAgo, $today])
+            // ->whereBetween('returned_datetime', [$dateaAgo, $today])
+            ->where(function($query) use ($dateaAgo, $today) {
+                $query->whereBetween('delivered_datetime', [$dateaAgo, $today])
+                    ->whereBetween('failed_datetime', [$dateaAgo, $today])
+                    ->whereBetween('returned_datetime', [$dateaAgo, $today]);
+            })
+            ->selectRaw('
+                SUM(status_id = 6) as on_delivery,
+                SUM(status_id = 9) as success,
+                SUM(status_id IN (10, 19)) as fail,
+                SUM(status_id = 11) as return
+            ')
+            ->first();
+
+        // Calculate total counts by summing the values from both queries
+        $totalCount = $orderCounts->pending + $orderCounts->pick + $packageCounts->on_delivery +
+                    $packageCounts->success + $packageCounts->fail + $packageCounts->return;
+
+        // Build the response object
         $obj = [
-            'pending' => $pendingCount,
-            'pick' => $pickCount,
-            'on_delivery' => $onDeliveryCount,
-            'success' => $successCount,
-            'fail' => $failCount,
-            'return' => $returnCount,
+            'pending' => $orderCounts->pending,
+            'pick' => $orderCounts->pick,
+            'on_delivery' => $packageCounts->on_delivery,
+            'success' => $packageCounts->success,
+            'fail' => $packageCounts->fail,
+            'return' => $packageCounts->return,
             'total' => $totalCount,
-            'date' => Helper::getDateTime('d-M-Y')
+            'date' => Helper::getDateTime('d-M-Y'),
         ];
+
         return ApiResponse::JsonResult($obj);
     }
+
+
+    // public function trackingActivitySummary(Request $req){
+    //     $today = now();
+    //     $dateaAgo = Helper::getDateDaysAgo(0);
+    //     $user = UserService::getAuthUser('merchant');
+    //     $pendingCount = Order::where('merchant_id',$user->id)->where('is_deleted',0)
+    //     // ->whereBetween('order_datetime',[$dateaAgo,$today])
+    //     ->where('status_id',1)->count();
+    //     $pickCount = Order::where('merchant_id',$user->id)->where('is_deleted',0)
+    //     // ->whereBetween('pickup_datetime',[$dateaAgo,$today])
+    //     ->whereIn('status_id',[2,3,4])->count();
+    //     $onDeliveryCount = Package::where('merchant_id',$user->id)->where('is_deleted',0)
+    //     // ->whereBetween('assign_driver_datetime',[$dateaAgo,$today])
+    //     ->where('status_id',6)->count();
+    //     $successCount = Package::where('merchant_id',$user->id)->where('is_deleted',0)
+    //     ->whereBetween('delivered_datetime',[$dateaAgo,$today])
+    //     ->where('status_id',9)->count();
+    //     $failCount = Package::where('merchant_id',$user->id)->where('is_deleted',0)
+    //     ->whereBetween('failed_datetime',[$dateaAgo,$today])
+    //     ->whereIn('status_id',[10,19])->count();
+    //     $returnCount = Package::where('merchant_id',$user->id)->where('is_deleted',0)
+    //     ->whereBetween('returned_datetime',values: [$dateaAgo,$today])
+    //     ->where('status_id',11)->count();
+    //     $totalCount = $pendingCount + $pickCount + $onDeliveryCount + $successCount + $failCount + $returnCount;
+    //     $obj = [
+    //         'pending' => $pendingCount,
+    //         'pick' => $pickCount,
+    //         'on_delivery' => $onDeliveryCount,
+    //         'success' => $successCount,
+    //         'fail' => $failCount,
+    //         'return' => $returnCount,
+    //         'total' => $totalCount,
+    //         'date' => Helper::getDateTime('d-M-Y')
+    //     ];
+    //     return ApiResponse::JsonResult($obj);
+    // }
 
     public function getBankAccount(){
         $user = UserService::getAuthUser('merchant');
