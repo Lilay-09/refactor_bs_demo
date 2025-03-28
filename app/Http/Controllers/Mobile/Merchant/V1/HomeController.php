@@ -106,42 +106,6 @@ class HomeController extends Controller
     }
 
 
-    // public function trackingActivitySummary(Request $req){
-    //     $today = now();
-    //     $dateaAgo = Helper::getDateDaysAgo(0);
-    //     $user = UserService::getAuthUser('merchant');
-    //     $pendingCount = Order::where('merchant_id',$user->id)->where('is_deleted',0)
-    //     // ->whereBetween('order_datetime',[$dateaAgo,$today])
-    //     ->where('status_id',1)->count();
-    //     $pickCount = Order::where('merchant_id',$user->id)->where('is_deleted',0)
-    //     // ->whereBetween('pickup_datetime',[$dateaAgo,$today])
-    //     ->whereIn('status_id',[2,3,4])->count();
-    //     $onDeliveryCount = Package::where('merchant_id',$user->id)->where('is_deleted',0)
-    //     // ->whereBetween('assign_driver_datetime',[$dateaAgo,$today])
-    //     ->where('status_id',6)->count();
-    //     $successCount = Package::where('merchant_id',$user->id)->where('is_deleted',0)
-    //     ->whereBetween('delivered_datetime',[$dateaAgo,$today])
-    //     ->where('status_id',9)->count();
-    //     $failCount = Package::where('merchant_id',$user->id)->where('is_deleted',0)
-    //     ->whereBetween('failed_datetime',[$dateaAgo,$today])
-    //     ->whereIn('status_id',[10,19])->count();
-    //     $returnCount = Package::where('merchant_id',$user->id)->where('is_deleted',0)
-    //     ->whereBetween('returned_datetime',values: [$dateaAgo,$today])
-    //     ->where('status_id',11)->count();
-    //     $totalCount = $pendingCount + $pickCount + $onDeliveryCount + $successCount + $failCount + $returnCount;
-    //     $obj = [
-    //         'pending' => $pendingCount,
-    //         'pick' => $pickCount,
-    //         'on_delivery' => $onDeliveryCount,
-    //         'success' => $successCount,
-    //         'fail' => $failCount,
-    //         'return' => $returnCount,
-    //         'total' => $totalCount,
-    //         'date' => Helper::getDateTime('d-M-Y')
-    //     ];
-    //     return ApiResponse::JsonResult($obj);
-    // }
-
     public function getBankAccount(){
         $user = UserService::getAuthUser('merchant');
         $userBanks = UserBank::where('user_id',$user->id)->selectRaw('id,bank_name,bank_number,account_name,is_primary')->orderByDesc('is_primary')->get();
@@ -261,8 +225,9 @@ class HomeController extends Controller
         ->with('driver')
         ->where('status_id', 6)
         ->where('is_deleted', 0)
-        ->selectRaw('id,merchant_id,receiver_phone,receiver_address,receiver_name,cod,price,delivery_fee,remarks,driver_id,arrive_warehouse_datetime');
+        ->selectRaw('id,merchant_id,receiver_phone,receiver_address,receiver_name,cod,price,delivery_fee,remarks,driver_id,arrive_warehouse_datetime')
         // $qP->whereBetween('arrive_warehouse_datetime',[$dateaAgo,$today]);
+        ->orderByDesc('assign_driver_datetime');
         $packages = $qP->get()
         ->map(function ($package) use($lang) {
             // Cast price to float manually
