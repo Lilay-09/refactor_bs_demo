@@ -170,17 +170,17 @@ class HomeController extends Controller
     }
 
     public function getPendingOrders(Request $req){
-        $today = now();
-        $dateaAgo = Helper::getDateDaysAgo(0);
+        // $today = now();
+        // $dateaAgo = Helper::getDateDaysAgo(0);
         $lang = $req->lang;
         $user = UserService::getAuthUser('merchant');
         $qO = Order::where('merchant_id',$user->id)
         ->where('is_deleted',0)
         ->with('driver')
         ->selectRaw('id,code,qty,product_type,vehicle_type,order_datetime,status_id')->where('status_id',1);
-        $qO->where(function ($q) use ($dateaAgo, $today) {
-            $q->whereBetween('order_datetime', [$dateaAgo, $today]);
-        });
+        // $qO->where(function ($q) use ($dateaAgo, $today) {
+        //     $q->whereBetween('order_datetime', [$dateaAgo, $today]);
+        // });
         $orders = $qO->get();
         foreach($orders as $order){
             if($lang == 'km') $order->status_code = 'រង់ចាំ';
@@ -192,17 +192,17 @@ class HomeController extends Controller
     }
 
     public function getPickOrders(Request $req){
-        $today = now();
-        $dateaAgo = Helper::getDateDaysAgo(0);
+        // $today = now();
+        // $dateaAgo = Helper::getDateDaysAgo(0);
         $user = UserService::getAuthUser('merchant');
         $lang = $req->lang;
         $qO = Order::where('merchant_id',$user->id)
         ->with(['tracking_status','driver'])
         ->where('is_deleted',0)
         ->selectRaw('id,code,qty,product_type,vehicle_type,order_datetime,status_id,driver_id')->whereIn('status_id',[2,3,4]);
-        $qO->where(function ($q) use ($dateaAgo, $today) {
-            $q->whereBetween('order_datetime', [$dateaAgo, $today]);
-        });
+        // $qO->where(function ($q) use ($dateaAgo, $today) {
+        //     $q->whereBetween('order_datetime', [$dateaAgo, $today]);
+        // });
         $orders = $qO->get();
         foreach($orders as $order){
             if($lang == 'km') $order->status_code = GeneralSettingService::$statusCodeTrans[$order->status_id];
