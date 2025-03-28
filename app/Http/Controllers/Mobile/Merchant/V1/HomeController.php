@@ -181,7 +181,7 @@ class HomeController extends Controller
         // $qO->where(function ($q) use ($dateaAgo, $today) {
         //     $q->whereBetween('order_datetime', [$dateaAgo, $today]);
         // });
-        $orders = $qO->orderByDesc('id')->get();
+        $orders = $qO->orderByDesc('id');
         $callback = function($order) use($lang){
             if($lang == 'km') $order->status_code = 'រង់ចាំ';
             else $order->status_code = 'Pending';
@@ -204,7 +204,7 @@ class HomeController extends Controller
         // $qO->where(function ($q) use ($dateaAgo, $today) {
         //     $q->whereBetween('order_datetime', [$dateaAgo, $today]);
         // });
-        $orders = $qO->orderByDesc('id')->get();
+        $orders = $qO->orderByDesc('id');
         $callback = function($order) use($lang){
             if($lang == 'km') $order->status_code = GeneralSettingService::$statusCodeTrans[$order->status_id];
             else $order->status_code = $order->tracking_status->name;
