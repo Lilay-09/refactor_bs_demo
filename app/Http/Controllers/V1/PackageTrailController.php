@@ -120,7 +120,7 @@ class PackageTrailController extends Controller
             unset($pkg->status,$pkg->merchant,$pkg->driver);
             return $pkg;
         };
-        return ApiResponse::PaginationV1($query,$req,__('messages.get_list',['info'=>'Package']),[],1000,$callbackMapper,300);
+        return ApiResponse::PaginationV1($query,$req,__('messages.get_list',['info'=>'Package']),[],1000,$callbackMapper);
     }
 
     public function getOnePackage(Request $req){
