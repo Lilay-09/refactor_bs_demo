@@ -142,9 +142,6 @@ class HistoryController extends Controller
             ];
         })->values();
 
-        // Log::error(count($groupedPackages));
-
-        return $groupedPackages;
         // Example data for the PDF
         if(!isset($groupedPackages[0])) return ApiResponse::NotFound('No data available!');
         $data = [
