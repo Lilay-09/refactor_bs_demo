@@ -16,7 +16,6 @@ use App\Services\CompanyProfileService;
 use App\Services\GeneralSettingService;
 use App\Services\PickupCenterService;
 use App\Services\UserService;
-use Cache;
 use DataResponse;
 use DB;
 use Exception;
@@ -381,7 +380,8 @@ class PackageTrailController extends Controller
         if($package->status_id == 19) return ApiResponse::Duplicated(__('messages.error',['info' => 'This package is already marked as failed with fee']));
         if($package->status_id == 11) return ApiResponse::Duplicated(__('messages.error',['info' => 'This package is already returned']));
         if($package->driver_id == $driver_id && $package->status_id == 6) return ApiResponse::Duplicated(__('messages.error',[
-            'info' => 'It seems like you are trying to assign this package to the same driver'
+            'info' => 'It seems like you are trying to assign this package to the same driver',
+            'khInfo' => 'កញ្ចប់បានចាត់តាំងរួចម្ដងហើយ'
         ]));
 
         DB::beginTransaction();
@@ -389,7 +389,7 @@ class PackageTrailController extends Controller
             if($package->driver_id){
                 $deliveryPackage = DeliveryPackage::where('package_id',$id)->where('is_deleted',0)->where('delay_count',0)->first();
                 if($deliveryPackage){
-                    if(!in_array($package->status_id,[6,5,10,19]) ) return ApiResponse::Duplicated(__('messages.has already assigned',['info' => 'Package']));
+                    if(!in_array($package->status_id,[6,5,10,19]) ) return ApiResponse::Duplicated(__('messages.has already assigned',['info' => 'Package','khInfo' => 'កញ្ចប់']));
                     // $fleet = new FleetManagementController();
                     // $fleetArr = new Request([
                     // 'packages' => [
@@ -478,7 +478,7 @@ class PackageTrailController extends Controller
                 'target_uid' => $driver_id,
                 'title' => __('messages.info',[
                     'info'=>'Assigned Package',
-                    'khInfo' => ''
+                    'khInfo' => 'ចាត់តាំង'
                 ]),
                 'body' => 'You have been assigned to deliver the package('.$package->qr_code.').'
             ]);
