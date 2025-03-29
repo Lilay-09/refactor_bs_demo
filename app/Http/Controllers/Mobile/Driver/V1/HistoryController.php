@@ -128,6 +128,7 @@ class HistoryController extends Controller
                 // if($item->status_id == 9 || $item->status_id == 19){
                 //     $grandTotal = $item->total;
                 // }
+                $item->receiver_address = preg_replace('/\x{17D2}$/u', '', $item->receiver_address);
                 unset($item->delivery_id,$item->fleet_tracking_number,$item->groupKey);
             });
             $rowGrand = $group->whereIn('status_id',[9,19])->sum('total');
@@ -143,7 +144,7 @@ class HistoryController extends Controller
 
         // Log::error(count($groupedPackages));
 
-        // return $groupedPackages;
+        return $groupedPackages;
         // Example data for the PDF
         if(!isset($groupedPackages[0])) return ApiResponse::NotFound('No data available!');
         $data = [
