@@ -8,6 +8,7 @@ use App\Models\City;
 use App\Models\ClientType;
 use App\Models\Commune;
 use App\Models\Country;
+use App\Models\DefaultAddress;
 use App\Models\DefaultRemark;
 use App\Models\Delivery;
 use App\Models\DeliveryPackage;
@@ -164,6 +165,10 @@ public static function optionsRole($type=null){
         ];
     }
 
+    static function optionsDefaultAddress(){
+        return DefaultAddress::where('is_deleted',0)->select('name')->get();
+    }
+
     public static function optionsPriceList($user){
         $pricelist = PriceListname::where('is_deleted',0)->selectRaw( 'id,id as price_list_name_id,name')->get();
         //  PriceList::where('is_deleted', 0)
@@ -249,9 +254,7 @@ public static function optionsRole($type=null){
     }
 
     public static function optionsDriver($user,$vehicleType=null){
-        $qD = User::where(function($q){
-            $q->where('lock',0);
-        })->where('is_deleted',0)->where('has_account',true)->where('company_id',$user->company_id)->where('account_type','driver')->selectRaw('id,user_name,phone,name_km');
+        $qD = User::where('is_deleted',0)->where('company_id',$user->company_id)->where('account_type','driver')->selectRaw('id,user_name,phone,name_km');
         if($vehicleType) $qD->where('vehicle_type','ilike',$vehicleType);
         $drivers = $qD->orderByDesc('id')->get();
         foreach($drivers as $d){

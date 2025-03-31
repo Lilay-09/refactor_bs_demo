@@ -135,28 +135,47 @@ class TransactionController extends Controller
         $driverId = $user->id;
         $startDate = $req->startDate;
         $endDate = $req->endDate;
-        $qP = Package::selectRaw('status_id,driver_id')
-        ->whereIn('status_id',[9,19])
-        ->where('driver_id',$driverId);
-        // ->where('driver_disbursement_id',$driverId);
-        if($startDate && $endDate){
-            $startDate = date('Y-m-d',strtotime($startDate));
-            $endDate = date('Y-m-d',strtotime($endDate));
-            $qP->whereBetween('delivered_datetime', ["$startDate 00:00:00", "$endDate 23:59:59"]);
-        }
-        $deliveredCount = $qP->count();
-        $qO = Order::where('is_deleted',0)->where('status_id',5)
-        // ->where('driver_disbursement_id',$driverId)
-        ->where('driver_id',$driverId);
-        if($startDate && $endDate){
-            $startDate = date('Y-m-d',strtotime($startDate));
-            $endDate = date('Y-m-d',strtotime($endDate));
-            $qP->where('order_datetime', '>=', "$startDate 00:00:00")
-            ->where('order_datetime', '<=', "$endDate 23:59:59");
-        }
-        $pickUpCount = $qO->sum('qty');
-        $driverCommissions = DriverCommission::where('is_deleted',0)->where('driver_id',$driverId)->get();
+        $driverCommissions = DriverCommission::where('driver_id',$user->id)->where('is_deleted',0)
+        ->selectRaw('id,driver_id,delivery_type,pickup_commission,delivery_commission,delivery_commission_start_date,pickup_commission_start_date,DATE(updated_at) as updated_date')
+        ->get();
         $driverCommissionInfo = TransactionService::getDriverCommissionInfo($driverCommissions,$driverId);
+        $deliveryCommStartDate = $driverCommissionInfo->normal_delivery_commission_start_date;
+        $delCommDatetime = Helper::dateYMD($deliveryCommStartDate). ' 00:00:00';
+        $qP = Package::selectRaw('id,status_id,driver_id,driver_disbursement_id')
+        ->whereIn('status_id',[9])
+        ->where('driver_id',$driverId)
+        ->where('is_deleted',0)
+        // ->where('driver_disbursement_id',$driverId);
+        ->whereNull('driver_commission_id');
+        if($startDate && $endDate){
+            $startDate = date('Y-m-d',strtotime($startDate));
+            $endDate = date('Y-m-d',strtotime($endDate));
+            if ($deliveryCommStartDate) {
+                $deliveryCommStartDate = date('Y-m-d', strtotime($deliveryCommStartDate));
+                if ($startDate < $deliveryCommStartDate) {
+                    $startDate = $deliveryCommStartDate;
+                }
+            }
+            // \Log::error($startDate.'--'.$endDate);
+            $qP->whereBetween('delivered_datetime', ["$startDate 00:00:00", "$endDate 23:59:59"]);
+            // $qP->where('delivered_datetime','>=',$delCommDatetime);
+        }
+        if($deliveryCommStartDate){
+            // $qP->where('delivered_datetime','>=',$delCommDatetime);
+            $deliveredCount = $qP->count();
+        } else $deliveredCount = 0;
+        // $qO = Order::where('is_deleted',0)->where('status_id',5)
+        // ->whereNull('driver_commission_id')
+        // // ->where('driver_disbursement_id',$driverId)
+        // ->where('driver_id',$driverId);
+        // if($startDate && $endDate){
+        //     $startDate = date('Y-m-d',strtotime($startDate));
+        //     $endDate = date('Y-m-d',strtotime($endDate));
+        //     $qP->where('order_datetime', '>=', "$startDate 00:00:00")
+        //     ->where('order_datetime', '<=', "$endDate 23:59:59");
+        // }
+        $pickUpCount = 0;//$qO->sum('qty');
+
         $pickUpRate = $driverCommissionInfo->normal_pickup_commission;
         $deliveryRate = $driverCommissionInfo->normal_delivery_commission;
         $total = $pickUpCount * $pickUpRate + $deliveredCount * $deliveryRate;
