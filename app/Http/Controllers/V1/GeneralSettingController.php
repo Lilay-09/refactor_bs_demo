@@ -4,11 +4,13 @@ namespace App\Http\Controllers\V1;
 
 use ApiResponse;
 use App\Http\Controllers\Controller;
+use App\Models\DeliveryPackage;
 use App\Models\StockLocation;
 use App\Models\Tax;
 use App\Models\User;
 use App\Services\GeneralSettingService;
 use App\Services\UserService;
+use Helper;
 use Illuminate\Http\Request;
 
 class GeneralSettingController extends Controller
@@ -90,6 +92,31 @@ class GeneralSettingController extends Controller
         return ApiResponse::JsonResult($this->gs::optionsPermission());
     }
 
+    public function getOptionsFleetPackageTrackingStatus(){
+        $user = UserService::getAuthUser();
+        return ApiResponse::JsonResult($this->gs::optionsTrackingStatus($user,[],[9,6,10,19]));
+    }
+
+    public function getFormOptionsFleetPackageTrackingStatus(Request $req){
+        $user = UserService::getAuthUser();
+        $tripId = $req->trip_id;
+        $dates = DeliveryPackage::from('delivery_packages as dp')
+        ->where('dp.delivery_id', $tripId)
+        ->join('packages as p', 'dp.package_id', '=', 'p.id')
+        ->where('p.status_id', 6)
+        ->whereColumn('dp.driver_id', 'p.driver_id') // Ensure driver_id matches
+        ->orderBy('p.assign_driver_datetime', 'asc') // Order by earliest first
+        ->pluck('p.assign_driver_datetime');
+        $firstAssignDate = $dates->first(); // Earliest assign_driver_datetime
+        $lastAssignDate = $dates->last();   // Latest assign_driver_datetime
+
+        return ApiResponse::JsonResult([
+            'statuses' => $this->gs::optionsTrackingStatus($user,[],[9,6,10,19]),
+            'start_time' => Helper::formatCustomDateTime($firstAssignDate,'H:i:s'),
+            'end_time' => Helper::formatCustomDateTime($lastAssignDate,'H:i:s')
+        ]);
+
+    }
 
     public function getDriverFilterOptions(){
         $user = UserService::getAuthUser();
@@ -215,7 +242,8 @@ class GeneralSettingController extends Controller
             'zones' => $this->gs::optionsZone($user),
             'vehicle_types' => $this->gs::optionsVehicleType($user),
             'drivers' => $this->gs::optionsDriver($user),
-            'product_types' => $this->gs::optionsProductType($user)
+            'product_types' => $this->gs::optionsProductType($user),
+            'default_addresses' => $this->gs::optionsDefaultAddress()
         ];
         return ApiResponse::JsonResult($obj);
     }

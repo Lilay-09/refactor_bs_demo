@@ -1,4 +1,5 @@
 <?php
+use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Milon\Barcode\DNS1D;
 class ApiResponse
@@ -94,13 +95,57 @@ class ApiResponse
         return response()->json($obj,200);
     }
 
-    static function PaginationV1($query, $filter = null, $message = null, $additionalKey = [], $limit = 1000, callable $transformCallback = null)
-    {
-        $filter = (object)$filter;
-        $perPage = isset($filter->per_page) ? ($filter->per_page == 0 ? 1 : min($filter->per_page, $limit)) : min(10, $limit);
-        $currentPage = isset($filter->page_no) ? $filter->page_no : 1;
+    // static function PaginationV1($query, $filter = null, $message = null, $additionalKey = [], $limit = 1000, callable $transformCallback = null)
+    // {
+    //     $filter = (object)$filter;
+    //     $perPage = isset($filter->per_page) ? ($filter->per_page == 0 ? 1 : min($filter->per_page, $limit)) : min(10, $limit);
+    //     $currentPage = isset($filter->page_no) ? $filter->page_no : 1;
 
-        $query->take($limit);
+    //     $query->take($limit);
+    //     // Execute pagination on the query
+    //     $data = $query->paginate($perPage, ['*'], 'page', $currentPage);
+
+    //     // Apply transformation if provided
+    //     if ($transformCallback) {
+    //         $data->getCollection()->transform($transformCallback);
+    //     }
+
+    //     // Build response object
+    //     $obj = [
+    //         'status' => "OK",
+    //         'error' => false,
+    //         'message' => $message,
+    //         'data' => $data->items(),
+    //         'per_page' => (int) $data->perPage(),
+    //         'total' => (int) $data->total(),
+    //         'total_page' => (int) $data->lastPage(),
+    //         'page_no' => (int) $data->currentPage(),
+    //         'errors' => [],
+    //     ];
+
+    //     foreach ((array) $additionalKey as $key => $value) {
+    //         $obj[$key] = $value;
+    //     }
+    //     return response()->json($obj, 200);
+    // }
+
+    static function PaginationV1($query, Request $filter, $message = null, $additionalKey = [], $limit = 1000, callable $transformCallback = null, $cache = null)
+    {
+        // Ensure filter parameters are properly set
+        $perPage = max(1, min($filter->query('per_page', 10), $limit));
+        $currentPage = $filter->query('page_no', 1);
+
+        // Set the cache key based on filter parameters (e.g., 'per_page', 'page_no', etc.)
+        $cacheKey = 'pagination_' . md5(json_encode($filter->all()));
+
+        // Check if caching is enabled and data is already cached
+        if ($cache && $cache > 0) {
+            $cachedData = Cache::get($cacheKey);
+            if ($cachedData) {
+                return response()->json($cachedData, 200); // Return cached data if available
+            }
+        }
+
         // Execute pagination on the query
         $data = $query->paginate($perPage, ['*'], 'page', $currentPage);
 
@@ -122,11 +167,21 @@ class ApiResponse
             'errors' => [],
         ];
 
+        // Add additional custom data if provided
         foreach ((array) $additionalKey as $key => $value) {
             $obj[$key] = $value;
         }
+
+        // Cache the result if caching is enabled
+        if ($cache !== null) {
+            $cacheTime = is_numeric($cache) ? $cache : 300; // Default cache time of 300 seconds (5 minutes)
+            Cache::put($cacheKey, $obj, $cacheTime); // Store the response in the cache
+        }
+
+        // Return the response as JSON
         return response()->json($obj, 200);
     }
+
 
 
 
@@ -302,6 +357,35 @@ class Helper{
         return $formattedDate;
     }
 
+    public static function removeDuplicateConcat($pmtBreakDown, $paymentType, $removeDuplicate = true)
+    {
+        // If removeDuplicate is false, simply concatenate the new payment type
+        if (!$removeDuplicate) {
+            return empty($pmtBreakDown) ? $paymentType : $pmtBreakDown . ', ' . $paymentType;
+        }
+
+        // If breakdown is empty, just return the payment type
+        if (empty($pmtBreakDown)) {
+            return $paymentType;
+        }
+
+        // Check if the paymentType is already part of the breakdown string
+        if (strpos($pmtBreakDown, $paymentType) === false) {
+            // If not found, append the new type
+            return $pmtBreakDown . ', ' . $paymentType;
+        }
+
+        // If the paymentType already exists, return the original breakdown without modification
+        return $pmtBreakDown;
+    }
+
+    static function pluckEloCollection($data,$key){
+        return Arr::pluck($data,$key);
+    }
+
+    static function pluckArrValue($data,$key){
+        return array_column($data,$key);
+    }
 
     // static function formatCustomDateTime($datetime, $outputFormat = 'd-M-Y h:i:s A', $useMeridiem = false) {
     //     if (!$datetime) return null;
@@ -529,14 +613,15 @@ class Helper{
     }
 
 
-    static function deleteImageFile($fileName, $companyId, $dirName)
+    static function deleteImageFile($fileName, $companyId, $dirName,$subDir=null)
     {
         // Construct the base directory path
         $baseFolder = public_path('uploads/images/' . $companyId . '/' . $dirName);
-
+        if ($subDir) {
+            $baseFolder .= '/' . $subDir;
+        }
         // Construct the full file path
         $filePath = $baseFolder . '/' . $fileName;
-
         // Check if the file exists
         if (file_exists($filePath) && $fileName) {
             // Attempt to delete the file
@@ -1079,13 +1164,22 @@ class DataResponse //extends Model
         ];
     }
 
-    static function PaginationV1($query, $filter = null, $message = null, $additionalKey = [], $limit = 1000, callable $transformCallback = null)
+    static function PaginationV1($query, $filter = null, $message = null, $additionalKey = [], $limit = 1000, callable $transformCallback = null, $cache = null)
     {
         $filter = (object)$filter;
         $perPage = isset($filter->per_page) ? ($filter->per_page == 0 ? 1 : min($filter->per_page, $limit)) : min(10, $limit);
         $currentPage = isset($filter->page_no) ? $filter->page_no : 1;
 
-        $query->take($limit);
+        // Build cache key based on filter parameters
+        $cacheKey = 'pagination_' . md5(json_encode($filter));
+
+        // Cache logic: check if data is already cached
+        if ($cache && $cache > 0) {
+            $cachedData = Cache::get($cacheKey);
+            if ($cachedData) {
+                return $cachedData; // Return cached data if available
+            }
+        }
 
         // Execute pagination on the query
         $data = $query->paginate($perPage, ['*'], 'page', $currentPage);
@@ -1108,11 +1202,20 @@ class DataResponse //extends Model
             'errors' => [],
         ];
 
-        foreach ((object) $additionalKey as $key => $value) {
+        // Add additional custom data if provided
+        foreach ((object)$additionalKey as $key => $value) {
             $obj->{$key} = $value;
         }
+
+        // Cache the result if caching is enabled
+        if ($cache !== null) {
+            $cacheTime = is_numeric($cache) ? $cache : 300; // Default cache time of 300 seconds (5 minutes)
+            Cache::put($cacheKey, $obj, $cacheTime); // Store the response in the cache
+        }
+
         return $obj;
     }
+
 
 }
 

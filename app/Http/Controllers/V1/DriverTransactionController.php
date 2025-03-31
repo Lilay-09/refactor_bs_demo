@@ -8,7 +8,6 @@ use App\Models\DriverCommission;
 use App\Models\Order;
 use App\Models\Package;
 use App\Models\User;
-use App\Services\DriverService;
 use App\Services\GeneralSettingService;
 use App\Services\TransactionService;
 use App\Services\UserService;
@@ -35,7 +34,9 @@ class DriverTransactionController extends Controller
         ->whereIn('status_id',[9,19])
         ->where('is_deleted',0)
         ->whereNull('driver_commission_id');
-        $qO = Order::query()->where('is_deleted',0)->whereNull('driver_commission_id')->where('status_id',5);
+        // $qO = Order::query()->where('is_deleted',0)
+        // ->whereNull('driver_commission_id')
+        // ->where('status_id',5);
         if($startDate && $endDate){
             $startDate = Helper::dateYMD($startDate);
             $endDate = Helper::dateYMD($endDate);
@@ -50,24 +51,24 @@ class DriverTransactionController extends Controller
                 "$startDate 00:00:00", "$endDate 23:59:59"
             ]);
 
-            $qO->whereBetween('order_datetime', [$startDate . ' 00:00:00', $endDate . ' 23:59:59']);
+            // $qO->whereBetween('order_datetime', [$startDate . ' 00:00:00', $endDate . ' 23:59:59']);
         }
         $qDc = DriverCommission::query()->where('is_deleted',0)->selectRaw('id,driver_id,delivery_type,pickup_commission,delivery_commission');
         if($driverId) {
             $qP->where('driver_id',$driverId);
-            $qO->where('driver_id',$driverId);
+            // $qO->where('driver_id',$driverId);
             $qDc->where('driver_id',$driverId);
         }
         $packages = $qP->get();
-        $orders = $qO->get();
+        $orders = [];//$qO->get();
         // if($driverId)
         $driverCommissions = $qDc->get();
         $clbMapper = function ($driver) use($driverCommissions,$orders,$packages) {
-            $commissionInfo = $this->getDriverCommissionInfo($driverCommissions,$driver->id);
+            $commissionInfo = TransactionService::getDriverCommissionInfo($driverCommissions,$driver->id);
             $driver->pickup_rate = $commissionInfo->normal_pickup_commission;
             $driver->delivery_rate = $commissionInfo->normal_delivery_commission;
-            $pickUpInfo = $this->getPickUpDetails($orders,$driver->id);
-            $totalPickUp = $pickUpInfo->total_package;
+            // $pickUpInfo = $this->getPickUpDetails($orders,$driver->id);
+            $totalPickUp = 0;//$pickUpInfo->total_package;
             $driver->total_pickup = $totalPickUp;
             $deliverdInfo = $this->getDeliveredDetails($packages,$driver->id);
             $totalDelivered = $deliverdInfo->delivered_count;
@@ -141,37 +142,37 @@ class DriverTransactionController extends Controller
         ];
     }
 
-    public static function getDriverCommissionInfo($driverCommissions,$driverId){
-        $dc = (object)[
-            'normal_pickup_commission' => 0,
-            'normal_pickup_commission_start_date' => null,
-            'normal_delivery_commission' => 0,
-            'normal_delivery_commission_start_date' => null,
-            'fast_pickup_commission' => 0,
-            'fast_pickup_commission_start_date' => null,
-            'fast_delivery_commission' => 0,
-            'fast_delivery_commission_start_date' => null,
+    // public static function getDriverCommissionInfo($driverCommissions,$driverId){
+    //     $dc = (object)[
+    //         'normal_pickup_commission' => 0,
+    //         'normal_pickup_commission_start_date' => null,
+    //         'normal_delivery_commission' => 0,
+    //         'normal_delivery_commission_start_date' => null,
+    //         'fast_pickup_commission' => 0,
+    //         'fast_pickup_commission_start_date' => null,
+    //         'fast_delivery_commission' => 0,
+    //         'fast_delivery_commission_start_date' => null,
 
-        ];
-        foreach($driverCommissions as $driverComm){
-            if($driverComm->driver_id == $driverId){
-                    if($driverComm->delivery_type == 'fast'){
-                    $dc->fast_pickup_commission = $driverComm->pickup_commission;
-                    $dc->fast_pickup_commission_start_date = $driverComm->pickup_commission_start_date;
-                    $dc->fast_delivery_commission = $driverComm->delivery_commission;
-                    $dc->fast_delivery_commission_start_date = $driverComm->delivery_commission_start_date;
-                }
-                if($driverComm->delivery_type == 'normal'){
-                    $dc->normal_pickup_commission = $driverComm->pickup_commission;
-                    $dc->normal_pickup_commission_start_date = $driverComm->pickup_commission_start_date;
-                    $dc->normal_delivery_commission = $driverComm->delivery_commission;
-                    $dc->normal_delivery_commission_start_date = $driverComm->delivery_commission_start_date;
-                }
-            }
-        }
+    //     ];
+    //     foreach($driverCommissions as $driverComm){
+    //         if($driverComm->driver_id == $driverId){
+    //                 if($driverComm->delivery_type == 'fast'){
+    //                 $dc->fast_pickup_commission = $driverComm->pickup_commission;
+    //                 $dc->fast_pickup_commission_start_date = $driverComm->pickup_commission_start_date;
+    //                 $dc->fast_delivery_commission = $driverComm->delivery_commission;
+    //                 $dc->fast_delivery_commission_start_date = $driverComm->delivery_commission_start_date;
+    //             }
+    //             if($driverComm->delivery_type == 'normal'){
+    //                 $dc->normal_pickup_commission = $driverComm->pickup_commission;
+    //                 $dc->normal_pickup_commission_start_date = $driverComm->pickup_commission_start_date;
+    //                 $dc->normal_delivery_commission = $driverComm->delivery_commission;
+    //                 $dc->normal_delivery_commission_start_date = $driverComm->delivery_commission_start_date;
+    //             }
+    //         }
+    //     }
 
-        return $dc;
-    }
+    //     return $dc;
+    // }
 
     public function getDriverBalance(Request $req){
         $user = UserService::getAuthUser();
