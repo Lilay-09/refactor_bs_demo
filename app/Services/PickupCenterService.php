@@ -117,8 +117,8 @@ class PickupCenterService
         $pickup_address_google_map = $inputs['pickup_address_google_map'] ?? $inputs['pin_address'] ?? null;
         $latLng = Helper::getLatLongFromGoogleMapsUrl($pickup_address_google_map);
         $lang = $req->lang;
-        $inputs['loc_lat'] = $inputs['loc_lat'] ?? $latLng->latitude;
-        $inputs['loc_lng'] = $inputs['loc_lng'] ?? $latLng->longitude;
+        $inputs['loc_lat'] = (float) ($inputs['loc_lat'] ?? $latLng->latitude);
+        $inputs['loc_lng'] = (float) ($inputs['loc_lng'] ?? $latLng->longitude);
         if(!$pickupAddress) $inputs['pickup_address'] = $latLng->address;
         DB::beginTransaction();
         try{
