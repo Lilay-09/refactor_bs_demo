@@ -737,10 +737,10 @@ class HomeScreenController extends Controller
             $message = Str::replace(['??amount??'], $replaceKeys, $scoringReward->message);
         }
         return ApiResponse::JsonResult([
-            'target_packages' => [
+            'target' => [
                 'date' => 'April 2025',
                 'title' => 'Your Monthly target',
-                'target' => $userReward ? (string)($userReward->target_package.' points') : 'N/A',
+                'target_packages' => $userReward ? (string)($userReward->target_package.' points') : '0 points',
                 'current_packages' => 10
             ],
             'alert_message' => $alertMsg,
