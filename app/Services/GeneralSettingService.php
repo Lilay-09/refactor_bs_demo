@@ -82,11 +82,17 @@ class GeneralSettingService
         return self::$channels;
     }
 
-public static function optionsRole($type=null){
+    public static function optionsRole($type=null){
         $qR = Role::selectRaw('id,name');
         if($type) $qR->where('group', $type);
         $roles = $qR->get();
         return $roles;
+    }
+
+    public static function optionsRewardType(){
+        return [
+            ['value' => 'cashback', 'label' => 'Cashback']
+        ];
     }
 
     public static function optionsModule(){
@@ -115,7 +121,7 @@ public static function optionsRole($type=null){
     }
 
     static function disclaimerText($text=null){
-        return $text ? $text : 'សូមអរគុណសម្រាប់ការប្រើប្រាស់សេវាកម្មដឹកជញ្ជូន JS Express របស់ខ្ញុំ។';
+        return $text ? $text : 'សូមអរគុណនូវការប្រើប្រាស់សេវាកម្មដឹកជញ្ជូន Arrizon របស់ខ្ញុំ។';
     }
     static function optionsGender(){
         return [

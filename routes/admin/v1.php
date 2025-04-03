@@ -29,6 +29,7 @@ use App\Http\Controllers\V1\PriceListController;
 use App\Http\Controllers\V1\PriceListNameController;
 use App\Http\Controllers\V1\ProductTypeController;
 use App\Http\Controllers\V1\PromotionController;
+use App\Http\Controllers\V1\ScoringRewardController;
 use App\Http\Controllers\V1\SocialMediaController;
 use App\Http\Controllers\V1\UserController;
 use App\Http\Controllers\V1\UserManagementController;
@@ -368,6 +369,15 @@ Route::middleware(['jwt','localize','userAccess:admin'])->prefix('admin/v1/{lang
         Route::get('/{id}',[BannerController::class,'getOneBanner']);
         Route::put('/{id}',[BannerController::class,'updateBaanner']);
         Route::delete('/{id}',[BannerController::class,'deleteBanner']);
+    });
+
+    Route::prefix('scoringReward')->group(function(): void{
+        Route::get('',[ScoringRewardController::class,'getOneScoringReward']);
+        // Route::post('',[BannerController::class,'createBanner']);
+        // Route::get('',[BannerController::class,'getBanners']);
+        // Route::get('/{id}',[BannerController::class,'getOneBanner']);
+        // Route::put('/{id}',[BannerController::class,'updateBaanner']);
+        // Route::delete('/{id}',[BannerController::class,'deleteBanner']);
     });
 
     Route::prefix('remark')->group(function(){

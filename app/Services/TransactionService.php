@@ -1721,33 +1721,6 @@ class TransactionService
             }
             $packageTotal = TransactionService::getPackageTotal($targetUser,$p->cod,$price,$taxiFee,$p->extra_charge,$p->additional_fee,$p->delivery_fee,$p->payer);
             $total += $opt * $packageTotal;
-            // if(!isset($samePmtId[$p->{$pUid}]) && $p->{$pUid}){
-            //     $pmt = self::getTrxDetails($payments,$p->{$pUid});
-            //     if($pmt) {
-            //         $pmt->payment_status = 'Paid';
-            //         $pmt->remarks = 'Disbursement';
-            //         $total -= $opt * $pmt->payable_amount;
-            //         $count -= $pmt->package_count;
-            //     }
-            //     $samePmtId[$p->{$pUid}] = true;
-            // }
-
-            // if(!isset($sameDisId[$p->{$dUid}]) && $p->{$dUid}){
-            //     $dis = self::getTrxDetails($disbursements,$p->{$dUid});
-            //     if($dis) {
-            //         $dis->payment_status = 'Paid';
-            //         $total -= $dis->payable_amount;
-            //         $dis->remarks = 'Receive';
-            //         $count -= $dis->package_count;
-            //     }
-            //     $sameDisId[$p->{$dUid}] = true;
-            // }
-
-            // if($opt){
-            //     $packageTotal = TransactionService::getPackageTotal($targetUser,$p->cod,$price,$taxiFee,$p->extra_charge,$p->additional_fee,$p->delivery_fee,$p->payer);
-            //     $total += $opt * $packageTotal;
-            // }
-            // $count +=1;
         }
         return [
             'count' => $count,
@@ -1763,7 +1736,6 @@ class TransactionService
                     [' & ', '$'],
                     $row->breakdown_notes
                 );
-
                 $row->breakdown_notes = preg_replace('/KHR (\d+)/', '$1៛', $row->breakdown_notes);
                 $row->payment_date = Helper::dateDMY($row->payment_datetime);
                 $row->payment_time = Helper::formatCustomDateTime($row->payment_datetime,'h:i A');
@@ -1772,5 +1744,4 @@ class TransactionService
         }
         return null;
     }
-
 }

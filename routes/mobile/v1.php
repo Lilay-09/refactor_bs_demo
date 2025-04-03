@@ -29,6 +29,7 @@ Route::middleware(['jwtDriver','localize'])->prefix('driver/v1/{lang}')->group(f
     Route::post('notification/subscribe',[AuthController::class,'subscribeTopics']);
     Route::post('notification/unsubscribe',[AuthController::class,'unsubscribeTopics']);
     Route::get('termConditions',[HomeScreenController::class,'getTermConditions']);
+    Route::get('scoringReward',[HomeScreenController::class,'getScoringReward']);
     Route::get('notification',[HomeScreenController::class,'getNotifications']);
     Route::put('notification/read/{id?}',[HomeScreenController::class,'readNotification']);
     Route::prefix('transaction')->group(function(){
