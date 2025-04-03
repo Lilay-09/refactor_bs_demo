@@ -871,26 +871,51 @@ class Helper{
         ];
     }
 
+    // static function getLatLongFromGoogleMapsUrl($url)
+    // {
+    //     // Regular expression to capture latitude and longitude from Google Maps URL
+    //     $pattern = '/@([-+]?[0-9]*\.?[0-9]+),([-+]?[0-9]*\.?[0-9]+)/';
+    //     $placePattern = "/place\/([^\/]+)\/@/";
+    //     $lat = null;
+    //     $lng = null;
+    //     $placeName = null;
+    //     if (preg_match($pattern, $url, $matches)) {
+    //         $lat = $matches[1];
+    //         $lng = $matches[2];
+    //     }
+    //     if (preg_match($placePattern, $url, $placeMatches)) {
+    //         $placeName = str_replace("+", " ", $placeMatches[1]);
+    //     }
+    //     return (object)[
+    //         'latitude' => $lat,
+    //         'longitude' => $lng,
+    //         'address' => $placeName
+    //     ]; // Return null if no coordinates found
+    // }
+
     static function getLatLongFromGoogleMapsUrl($url)
     {
-        // Regular expression to capture latitude and longitude from Google Maps URL
-        $pattern = '/@([-+]?[0-9]*\.?[0-9]+),([-+]?[0-9]*\.?[0-9]+)/';
-        $placePattern = "/place\/([^\/]+)\/@/";
-        $lat = null;
-        $lng = null;
-        $placeName = null;
-        if (preg_match($pattern, $url, $matches)) {
+        // Regular expressions for extracting latitude and longitude
+        $coordinatePattern = '/@([-+]?[0-9]*\.?[0-9]+),([-+]?[0-9]*\.?[0-9]+)/';
+        // Adjusted pattern to optionally capture a place name
+        $placePattern = '/place\/([^\/]+)\//';
+
+        $lat = $lng = $placeName = null;
+
+        if (preg_match($coordinatePattern, $url, $matches)) {
             $lat = $matches[1];
             $lng = $matches[2];
         }
+
         if (preg_match($placePattern, $url, $placeMatches)) {
-            $placeName = str_replace("+", " ", $placeMatches[1]);
+            $placeName = urldecode(str_replace("+", " ", $placeMatches[1]));
         }
+
         return (object)[
-            'latitude' => $lat,
+            'latitude'  => $lat,
             'longitude' => $lng,
-            'address' => $placeName
-        ]; // Return null if no coordinates found
+            'address'   => $placeName ?? null,
+        ];
     }
 
     static function setRefCode($tbl_code_control,$target_tbl,$target_col,$branch_id,$company_id,$newID,$issue_date = null,$prefix='CODE', $len = 5,$onSuccess = null){
