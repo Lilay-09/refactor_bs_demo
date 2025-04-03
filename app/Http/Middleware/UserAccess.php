@@ -42,12 +42,6 @@ class UserAccess
             // Log::info($uri.'=>'.$code);
             if(!$this->checkPermissionCode($userId,$code)) return DataResponse::Forbidden();
         }
-        // if($method === 'PUT') if(!$this->checkPermissionCode($userId,[201,202])) return DataResponse::Forbidden();
-
-        // Log::info($uri);
-        // if(!isset($userPermissions[0])) {
-        //     if(!$systemAdmin) return DataResponse::Forbidden();
-        // }
         return DataResponse::JsonResult(null);
     }
 

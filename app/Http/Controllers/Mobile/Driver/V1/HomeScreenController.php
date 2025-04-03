@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Mobile\Driver\V1;
 use ApiResponse;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Mobile\V1\GeneralSettingController;
-use App\Http\Controllers\V1\DriverTransactionController;
 use App\Models\Delivery;
 use App\Models\DeliveryPackage;
 use App\Models\DriverCommission;
@@ -14,6 +13,8 @@ use App\Models\Order;
 use App\Models\OrderImage;
 use App\Models\Package;
 use App\Models\PackageAttachment;
+use App\Models\ScoringReward;
+use App\Models\UserScoringReward;
 use App\Services\CloudMessagingService;
 use App\Services\GeneralSettingService;
 use App\Services\PickupCenterService;
@@ -24,7 +25,7 @@ use Exception;
 use Helper;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
-use Log;
+use Str;
 
 class HomeScreenController extends Controller
 {
@@ -40,8 +41,7 @@ class HomeScreenController extends Controller
         ->where('status_id',1)
         ->where('company_id',$user->company_id)
         ->orderByDesc('id')
-        ->selectRaw('id,order_datetime,merchant_id,warehouse_id,qty,code,pickup_address,pickup_address_google_map,vehicle_type,delivery_type');
-        // ->get();
+        ->selectRaw('id,loc_lat,loc_lng,order_datetime,merchant_id,warehouse_id,qty,code,pickup_address,pickup_address_google_map,vehicle_type,delivery_type');
         $callback = function ($order){
             $order->merchant_name = $order->merchant->user_name;
             $order->merchant_code = $order->merchant->code;
@@ -50,16 +50,7 @@ class HomeScreenController extends Controller
             unset($order->merchant,$order->warehouse);
             return $order;
         };
-
-        // foreach($orders as $order){
-        //     $order->merchant_name = $order->merchant->user_name;
-        //     $order->merchant_code = $order->merchant->code;
-        //     $order->merchant_phone = $order->merchant->phone;
-        //     $order->warehouse_address = $order->warehouse->address;
-        //     unset($order->merchant,$order->warehouse);
-        // }
         return ApiResponse::PaginationV1($query,$req,'',[],1000,$callback);
-        // return ApiResponse::Pagination($orders,$req);
     }
 
     public function getAcceptedPickup(Request $req){
@@ -72,9 +63,8 @@ class HomeScreenController extends Controller
         ->where('driver_id',$user->id)
         ->orderByRaw('status_id = ? desc',[3])
         ->orderByDesc('id')
-        ->selectRaw('id,warehouse_id,driver_id,pickup_address_google_map,order_datetime,merchant_id,status_id,qty,code,pickup_address,pickup_address_google_map,vehicle_type,delivery_type,loc_lat,loc_lng,product_type')
-        ->get();
-        foreach($orders as $order){
+        ->selectRaw('id,warehouse_id,driver_id,pickup_address_google_map,order_datetime,merchant_id,status_id,qty,code,pickup_address,pickup_address_google_map,vehicle_type,delivery_type,loc_lat,loc_lng,product_type');
+        $callback = function($order){
             $order->warehouse_address = $order->warehouse->address;
             $order->status_code = $order->tracking_status->name;
             $order->merchant_name = $order->merchant->user_name;
@@ -83,8 +73,19 @@ class HomeScreenController extends Controller
             $order->latitude = $order->loc_lat ;//? $order->loc_lat : 11.552692;//;
             $order->longitude = $order->loc_lng ;// ? $order->loc_lng : 104.901413;//$order->loc_lng;
             unset($order->merchant,$order->tracking_status,$order->warehouse);
-        }
-        return ApiResponse::Pagination($orders,$req);
+        };
+        // ->get();
+        // foreach($orders as $order){
+        //     $order->warehouse_address = $order->warehouse->address;
+        //     $order->status_code = $order->tracking_status->name;
+        //     $order->merchant_name = $order->merchant->user_name;
+        //     $order->merchant_phone = $order->merchant->phone;
+        //     // $latLng = Helper::getLatLongFromGoogleMapsUrl($order->pickup_address_google_map);
+        //     $order->latitude = $order->loc_lat ;//? $order->loc_lat : 11.552692;//;
+        //     $order->longitude = $order->loc_lng ;// ? $order->loc_lng : 104.901413;//$order->loc_lng;
+        //     unset($order->merchant,$order->tracking_status,$order->warehouse);
+        // }
+        return ApiResponse::PaginationV1($orders,$req,'',[],1000,$callback);
     }
 
     public function getDriverBalance(Request $req){
@@ -96,29 +97,50 @@ class HomeScreenController extends Controller
         $commissionInfo = TransactionService::getDriverCommissionInfo($driverCommissions,$user->id);
         $deliveryCommStartDate = $commissionInfo->normal_delivery_commission_start_date;
         // $pickupCommStartDate = $commissionInfo->normal_pickup_commission_start_date;
-        $qP = Package::selectRaw('status_id,driver_id')
-        ->where('status_id',9)
-        ->where('is_deleted',0)
-        ->whereNull('driver_commission_id')
-        ->where('driver_id',$user->id);
+        $qP = Package::where('is_deleted', 0)
+            ->whereNull('driver_commission_id')
+            ->where('driver_id', $user->id)
+            ->whereIn('status_id', [6, 9]); // Include both statuses in a single query
 
-        if($deliveryCommStartDate){
+        if ($deliveryCommStartDate) {
             $startDate = Helper::dateYMD($deliveryCommStartDate);
-            $startDatetime = $startDate.' 00:00:00';
-            $qP->where(function($q) use ($startDatetime) {
-                // $q->where(function($q) use ($startDatetime) {
-                //     // For status_id 19, query only failed_datetime
-                //     $q->whereDate('failed_datetime', '>=',$startDatetime)
-                //     ->where('status_id', 19);
-                // })
-                $q->where(function($q) use ($startDatetime) {
-                    // For status_id 9, query only delivered_datetime
-                    $q->where('delivered_datetime', '>=',$startDatetime)
-                    ->where('status_id', 9);
+            $startDatetime = $startDate . ' 00:00:00';
+
+            $qP->where(function ($q) use ($startDatetime) {
+                $q->where(function ($q) use ($startDatetime) {
+                    // Count delivered packages based on delivered_datetime
+                    $q->where('delivered_datetime', '>=', $startDatetime)
+                        ->where('status_id', 9);
+                })
+                ->orWhere(function ($q) use ($startDatetime) {
+                    // Count delivery packages based on another datetime (if needed)
+                    $q->where('assign_driver_datetime', '>=', $startDatetime)
+                        ->where('status_id', 6);
                 });
             });
-            $deliveredPkg = $qP->count();
-        }else  $deliveredPkg = 0;
+        }
+
+        // Single query with aggregation for better performance
+        $counts = $qP->selectRaw("
+            COUNT(CASE WHEN status_id = 9 THEN 1 END) as deliveredPkg,
+            COUNT(CASE WHEN status_id = 6 THEN 1 END) as deliveryPkg
+        ")->first();
+
+        $deliveredPkg = $counts->deliveredPkg ?? 0;
+        $deliveryPkg = $counts->deliveryPkg ?? 0;
+
+        // $orderCount = Order::whereNull('driver_commission_id')->count();
+        $counts = Order::whereNull('driver_commission_id')
+        // COUNT(*) as total_orders,
+            ->selectRaw("
+                COUNT(CASE WHEN status_id != 5 THEN 1 END) as pickup_count,
+                COUNT(CASE WHEN status_id = 5 THEN 1 END) as picked_up_count
+            ")
+            ->first();
+
+        // $totalOrders = $counts->total_orders;
+        $pickupCount = $counts->pickup_count;
+        $pickedUpCount = $counts->picked_up_count;
 
         // $packages = $qP->get();
         // $qO = Order::where('is_deleted',0)->whereNull('driver_commission_id')->where('status_id',5)
@@ -142,7 +164,10 @@ class HomeScreenController extends Controller
         $balanceDues = TransactionService::getMobileUserBalance($req,$user,'driver');
         // $totalSettledDisburment = Disbursement::where('payee_id',$user->id)->where('type','payment')->where('is_deleted',0)->where('is_settled',1)->sum('payable_amount');
         $obj = [
-            'earning' => (string)$deliveredPkg,
+            'delivered_count' => (string)$deliveredPkg,
+            'pickedup_count' => (string)$pickedUpCount,
+            'pickup_count' => (string)$pickupCount,
+            'delivery' => (string)$deliveryPkg,
             'settlement' => (string)Helper::getNumber($balanceDues['total']),
         ];
         return ApiResponse::JsonResult($obj);
@@ -466,7 +491,6 @@ class HomeScreenController extends Controller
             }
         }
 
-
         $todayDt = Helper::getDateTime();
         $driverName = $user->user_name;
         $statusCode = $status_id == 9 ? 'Delivered' : ($status_id == 10 ? 'Failed':($status_id == 19 ? 'Failed with fee':''));
@@ -695,6 +719,34 @@ class HomeScreenController extends Controller
         $user = UserService::getAuthUser('driver');
         $mr = GeneralSettingController::markReadNotification($req,$user);
         return ApiResponse::flex($mr);
+    }
+
+    public function getScoringReward(){
+        $user = UserService::getAuthUser('driver');
+        $scoringReward = ScoringReward::select('message','description')->find(1);
+        $userReward = UserScoringReward::where('user_id',$user->id)->where('reward_id',1)->first();
+        $alertMsg = '';
+        $message = '';
+        if($scoringReward){
+            $replaceKeys = ['N/A'];
+            if($userReward){
+                $replaceKeys = [$userReward->amount];
+            }else{
+                $alertMsg = 'You have no reward';
+            }
+            $message = Str::replace(['??amount??'], $replaceKeys, $scoringReward->message);
+        }
+        return ApiResponse::JsonResult([
+            'target_packages' => [
+                'date' => 'April 2025',
+                'title' => 'Your Monthly target',
+                'target' => $userReward ? (string)($userReward->target_package.' points') : 'N/A',
+                'current_packages' => 10
+            ],
+            'alert_message' => $alertMsg,
+            'message' => $message,
+            'description' => $scoringReward->description ?? ''
+        ]);
     }
 
 }

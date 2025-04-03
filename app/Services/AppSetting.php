@@ -369,107 +369,160 @@ class AppSetting
         ];
     }
 
+    public static function getCodeByURI($uri, $method, $prefix) {
+        static $permissionMap = [
+            'order'            => 'orderPermissionCode',
+            'package'          => 'packagePermissionCode',
+            'trip'             => 'fleetPermissionCode',
+            'finished'         => 'completePackagePermissionCode',
+            'delivery'         => 'trasactionPermissionCode',
+            'payment'          => 'trasactionPermissionCode',
+            'settle'           => 'trasactionPermissionCode',
+            'commission'       => ['driver/commission/disbursement', null, 234, 302],
+            'driver'           => 'driverPermissionCode',
+            'merchant'         => 'merchantPermissionCode',
+            'comany'           => ['company', null, 252],
+            'brandImage'       => ['brandImage', 256, null, 257],
+            'promotion'        => ['promotion', 258, 259, 260],
+            'socialMedia'      => ['socialMedia', 261, null, 262],
+            'privacyStatement' => ['privacyStatement', null, 263, null],
+            'termCondition'    => ['termCondition', null, 264, null],
+            'xrate'            => ['xrate', 265, 266, 267],
+            'productType'      => ['productType', 268, 269, 270],
+            'remark'           => ['remark', 289, 290, 291],
+            'country'          => ['location/country', 274, 275, 276],
+            'city'             => ['location/city', 278, 279, 280],
+            'district'         => ['location/district', 282, 283, 284],
+            'commune'          => ['location/commune', 286, 287, 288],
+            'zone'             => ['zone', 289, 290, 291],
+            'name'             => ['priceList/name', 292, 293, 294],
+            'priceList'        => 'priceListPermissionCode',
+            'bank'             => ['bank', null, 300, 229],
+        ];
 
-    public static function getCodeByURI($uri,$method,$prefix){
-        $allowed = [];
-        switch($prefix){
-            case 'order':
-                $allowed = self::orderPermissionCode();
-                break;
-            case 'package':
-                $allowed = self::packagePermissionCode();
-                break;
-            case 'trip':
-                $allowed = self::fleetPermissionCode();
-                break;
-            case 'finished':
-                $allowed = self::completePackagePermissionCode();
-                break;
-            case 'delivery': //* transaction
-                $allowed = self::trasactionPermissionCode();
-                break;
-            case 'payment': //* transaction
-                $allowed = self::trasactionPermissionCode();
-                break;
-            case 'settle': //* transaction
-                $allowed = self::trasactionPermissionCode();
-                break;
-            case 'commission': //* transaction
-                $allowed = self::simplePermissionCode('driver/commission/disbursement',null,234,302);
-                break;
-            case 'driver': //* Management
-                $allowed = self::driverPermissionCode();
-                break;
-            case 'merchant': //* Management
-                $allowed = self::merchantPermissionCode();
-                break;
-            case 'comany': //* Management
-                $allowed = self::simplePermissionCode('company',null,252);
-                break;
-            case 'brandImage':
-                $allowed = self::simplePermissionCode('brandImage',256,null,257);
-                break;
-            case 'promotion':
-                $allowed = self::simplePermissionCode('promotion',258,259,260);
-                break;
-            case 'socialMedia':
-                $allowed = self::simplePermissionCode('socialMedia',261,null,262);
-                break;
-            case 'privacyStatement':
-                $allowed = self::simplePermissionCode('privacyStatement',null,263,null);
-                break;
-            case 'termCondition':
-                $allowed = self::simplePermissionCode('termCondition',null,264,null);
-                break;
-            case 'xrate':
-                $allowed = self::simplePermissionCode('xrate',265,266,267);
-                break;
-            case 'productType':
-                $allowed = self::simplePermissionCode('productType',268,269,270);
-                break;
-            case 'remark':
-                $allowed = self::simplePermissionCode('remark',289,290,291);
-                break;
-            case 'country':
-                $allowed = self::simplePermissionCode('location/country',274,275,276);
-                break;
-            case 'city':
-                $allowed = self::simplePermissionCode('location/city',278,279,280);
-                break;
-            case 'district':
-                $allowed = self::simplePermissionCode('location/district',282,283,284);
-                break;
-            case 'commune':
-                $allowed = self::simplePermissionCode('location/commune',286,287,288);
-                break;
-            case 'zone':
-                $allowed = self::simplePermissionCode('zone',289,290,291);
-                break;
-
-            case 'name': //** price list name */
-                $allowed = self::simplePermissionCode('priceList/name',292,293,294);
-                break;
-            case 'priceList': //** price list name */
-                $allowed = self::priceListPermissionCode();
-                break;
-            case 'bank':
-                $allowed = self::simplePermissionCode('bank',null,300,229);
-                break;
+        if (!isset($permissionMap[$prefix])) {
+            return null;
         }
 
-        // Check if the method exists in the allowed routes
+        // Retrieve permission codes
+        $allowed = is_array($permissionMap[$prefix])
+                    ? self::simplePermissionCode(...$permissionMap[$prefix])
+                    : self::{$permissionMap[$prefix]}();
+
         if (!isset($allowed[$method])) {
-            return null; // Method not allowed
+            return null;
         }
 
         foreach ($allowed[$method] as $route => $number) {
             if (self::matchURI($uri, $route)) {
-                return $number; // Return the matching number
+                return $number;
             }
         }
 
         return null;
     }
+
+
+
+    // public static function getCodeByURI($uri,$method,$prefix){
+    //     $allowed = [];
+    //     switch($prefix){
+    //         case 'order':
+    //             $allowed = self::orderPermissionCode();
+    //             break;
+    //         case 'package':
+    //             $allowed = self::packagePermissionCode();
+    //             break;
+    //         case 'trip':
+    //             $allowed = self::fleetPermissionCode();
+    //             break;
+    //         case 'finished':
+    //             $allowed = self::completePackagePermissionCode();
+    //             break;
+    //         case 'delivery': //* transaction
+    //             $allowed = self::trasactionPermissionCode();
+    //             break;
+    //         case 'payment': //* transaction
+    //             $allowed = self::trasactionPermissionCode();
+    //             break;
+    //         case 'settle': //* transaction
+    //             $allowed = self::trasactionPermissionCode();
+    //             break;
+    //         case 'commission': //* transaction
+    //             $allowed = self::simplePermissionCode('driver/commission/disbursement',null,234,302);
+    //             break;
+    //         case 'driver': //* Management
+    //             $allowed = self::driverPermissionCode();
+    //             break;
+    //         case 'merchant': //* Management
+    //             $allowed = self::merchantPermissionCode();
+    //             break;
+    //         case 'comany': //* Management
+    //             $allowed = self::simplePermissionCode('company',null,252);
+    //             break;
+    //         case 'brandImage':
+    //             $allowed = self::simplePermissionCode('brandImage',256,null,257);
+    //             break;
+    //         case 'promotion':
+    //             $allowed = self::simplePermissionCode('promotion',258,259,260);
+    //             break;
+    //         case 'socialMedia':
+    //             $allowed = self::simplePermissionCode('socialMedia',261,null,262);
+    //             break;
+    //         case 'privacyStatement':
+    //             $allowed = self::simplePermissionCode('privacyStatement',null,263,null);
+    //             break;
+    //         case 'termCondition':
+    //             $allowed = self::simplePermissionCode('termCondition',null,264,null);
+    //             break;
+    //         case 'xrate':
+    //             $allowed = self::simplePermissionCode('xrate',265,266,267);
+    //             break;
+    //         case 'productType':
+    //             $allowed = self::simplePermissionCode('productType',268,269,270);
+    //             break;
+    //         case 'remark':
+    //             $allowed = self::simplePermissionCode('remark',289,290,291);
+    //             break;
+    //         case 'country':
+    //             $allowed = self::simplePermissionCode('location/country',274,275,276);
+    //             break;
+    //         case 'city':
+    //             $allowed = self::simplePermissionCode('location/city',278,279,280);
+    //             break;
+    //         case 'district':
+    //             $allowed = self::simplePermissionCode('location/district',282,283,284);
+    //             break;
+    //         case 'commune':
+    //             $allowed = self::simplePermissionCode('location/commune',286,287,288);
+    //             break;
+    //         case 'zone':
+    //             $allowed = self::simplePermissionCode('zone',289,290,291);
+    //             break;
+    //         case 'name': //** price list name */
+    //             $allowed = self::simplePermissionCode('priceList/name',292,293,294);
+    //             break;
+    //         case 'priceList': //** price list name */
+    //             $allowed = self::priceListPermissionCode();
+    //             break;
+    //         case 'bank':
+    //             $allowed = self::simplePermissionCode('bank',null,300,229);
+    //             break;
+    //     }
+
+    //     // Check if the method exists in the allowed routes
+    //     if (!isset($allowed[$method])) {
+    //         return null; // Method not allowed
+    //     }
+
+    //     foreach ($allowed[$method] as $route => $number) {
+    //         if (self::matchURI($uri, $route)) {
+    //             return $number; // Return the matching number
+    //         }
+    //     }
+
+    //     return null;
+    // }
 
     private static function matchURI($uri, $route)
     {
