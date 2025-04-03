@@ -115,7 +115,6 @@ class PickupCenterService
         $deleteImgs = [];
         $pickupAddress = $inputs['pickup_address'] ?? null;
         $pickup_address_google_map = $inputs['pickup_address_google_map'] ?? $inputs['pin_address'] ?? null;
-        Log::error($pickup_address_google_map);
         $latLng = Helper::getLatLongFromGoogleMapsUrl($pickup_address_google_map);
         $lang = $req->lang;
         $inputs['loc_lat'] = (float) ($inputs['loc_lat'] ?? $latLng->latitude);
