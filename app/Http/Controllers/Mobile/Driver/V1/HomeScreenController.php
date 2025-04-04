@@ -73,6 +73,7 @@ class HomeScreenController extends Controller
             $order->latitude = $order->loc_lat ;//? $order->loc_lat : 11.552692;//;
             $order->longitude = $order->loc_lng ;// ? $order->loc_lng : 104.901413;//$order->loc_lng;
             unset($order->merchant,$order->tracking_status,$order->warehouse);
+            return $order;
         };
         // ->get();
         // foreach($orders as $order){
@@ -747,6 +748,10 @@ class HomeScreenController extends Controller
             'message' => $message,
             'description' => $scoringReward->description ?? ''
         ]);
+    }
+
+    public function getEmergencyContact(){
+
     }
 
 }
