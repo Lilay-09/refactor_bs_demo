@@ -8,6 +8,7 @@ use App\Http\Controllers\Mobile\V1\GeneralSettingController;
 use App\Models\Delivery;
 use App\Models\DeliveryPackage;
 use App\Models\DriverCommission;
+use App\Models\EmergencyContact;
 use App\Models\Notification;
 use App\Models\Order;
 use App\Models\OrderImage;
@@ -752,7 +753,14 @@ class HomeScreenController extends Controller
     }
 
     public function getEmergencyContact(){
-
+        $user = UserService::getAuthUser('driver');
+        $emergencyContacts = EmergencyContact::where('is_deleted',0)
+        ->select('name_en as name','phone','logo')
+        ->get()->map(function($emer) use ($user){
+            $emer->logo = Helper::getImageUrl($emer->logo,$user->company_id,'emergency');
+            return $emer;
+        });
+        return ApiResponse::JsonResult($emergencyContacts);
     }
 
 }
