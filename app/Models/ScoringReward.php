@@ -13,6 +13,8 @@ class ScoringReward extends Model
         'code',
         'mission',
         'description',
+        'is_publish',
+        'published_datetime',
         'channel',
         'message',
         'start_date',
