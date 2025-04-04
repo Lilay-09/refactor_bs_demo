@@ -3,6 +3,7 @@
 use App\Http\Controllers\V1\BannerController;
 use App\Http\Controllers\V1\DashboardController;
 use App\Http\Controllers\V1\DefaultAddressController;
+use App\Http\Controllers\V1\EmergencyContactController;
 use App\Http\Controllers\V1\ReportController;
 use App\Http\Controllers\V1\AppSettingController;
 use App\Http\Controllers\V1\AuthController;
@@ -378,6 +379,15 @@ Route::middleware(['jwt','localize','userAccess:admin'])->prefix('admin/v1/{lang
         // Route::get('/{id}',[BannerController::class,'getOneBanner']);
         // Route::put('/{id}',[BannerController::class,'updateBaanner']);
         // Route::delete('/{id}',[BannerController::class,'deleteBanner']);
+    });
+
+    Route::prefix('emergencyContact')->group(function(){
+        Route::post('',[EmergencyContactController::class,'createEmergencyContact']);
+        Route::get('',[EmergencyContactController::class,'getEmergencyContacts']);
+        Route::get('/{id}',[EmergencyContactController::class,'getOneEmergencyContact']);
+        Route::put('/{id}',[EmergencyContactController::class,'updateEmergencyContact']);
+        Route::delete('/{id}',[EmergencyContactController::class,'deleteEmergencyContact']);
+        // Route::put('/toggleHidden/{id}',[EmergencyContactController::class,'toggleHidden']);
     });
 
     Route::prefix('remark')->group(function(){
