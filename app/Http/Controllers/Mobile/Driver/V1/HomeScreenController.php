@@ -165,8 +165,9 @@ class HomeScreenController extends Controller
         $balanceDues = TransactionService::getMobileUserBalance($req,$user,'driver');
         // $totalSettledDisburment = Disbursement::where('payee_id',$user->id)->where('type','payment')->where('is_deleted',0)->where('is_settled',1)->sum('payable_amount');
         $obj = [
-            'delivered_count' => (string)$deliveredPkg,
-            'pickedup_count' => (string)$pickedUpCount,
+            'earning' => (string)1500,
+            'delivered_count' => (string)$deliveredPkg.'pcs',
+            'pickedup_count' => (string)$pickedUpCount.'pcs',
             'pickup_count' => (string)$pickupCount,
             'delivery' => (string)$deliveryPkg,
             'settlement' => (string)Helper::getNumber($balanceDues['total']),
