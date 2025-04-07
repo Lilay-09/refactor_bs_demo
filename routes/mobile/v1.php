@@ -31,6 +31,8 @@ Route::middleware(['jwtDriver','localize'])->prefix('driver/v1/{lang}')->group(f
     Route::get('termConditions',[HomeScreenController::class,'getTermConditions']);
     Route::get('scoringReward',[HomeScreenController::class,'getScoringReward']);
     Route::get('emergencyContact',[HomeScreenController::class,'getEmergencyContact']);
+    Route::get('feedback/question',[HomeScreenController::class,'getFeedbackQuestions']);
+    Route::post('feedback/question',[HomeScreenController::class,'createFeedback']);
     Route::get('notification',[HomeScreenController::class,'getNotifications']);
     Route::put('notification/read/{id?}',[HomeScreenController::class,'readNotification']);
     Route::prefix('transaction')->group(function(){

@@ -14,6 +14,7 @@ use App\Models\Delivery;
 use App\Models\DeliveryPackage;
 use App\Models\District;
 use App\Models\ExchangeRate;
+use App\Models\FeedbackForm;
 use App\Models\MerchantPriceList;
 use App\Models\Order;
 use App\Models\Permission;
@@ -276,6 +277,15 @@ class GeneralSettingService
         })->where('has_account',true)->where('company_id',$user->company_id)->where('account_type','admin')->selectRaw('id,user_name,phone');
         $drivers = $qD->orderByDesc('id')->get();
         return $drivers;
+    }
+
+    static function optionsFeedbackForm($lang='en',$takeIds=[]){
+        $nameKey = 'name_'.$lang;
+        $q = FeedbackForm::where('is_deleted',0)->select('id',$nameKey)->orderByDesc('id');
+        if(!empty($takeIds)){
+            $q->whereIn('id',$takeIds);
+        }
+        return $q->get();
     }
 
     public static function optionsDriverByVehicleType($vehicle_type,$user){

@@ -92,45 +92,12 @@ class UserService
                 'info'=> (object)[
                     'phone' => $user->phone,
                     'address' => $user->address,
-                    'vehicle_type' => $user->vehicle_type
-                ]
+                    'pin_address' => $user?->pin_address,
+                    'vehicle_type' => $user?->vehicle_type,
+                    'latitude' => $user?->latitude,
+                    'longitude' => $user?->longitude
+                ],
             ]);
-            // $hasUser = User::where('id',$user->id)->where('is_deleted',0)->selectRaw('id,user_name,phone,account_type,company_id,lock,branch_id,system_admin,vehicle_type,address,delete_account')->first();
-            // if($hasUser){
-            //     if($class != $hasUser->account_type && $useSpecificClass) return DataResponse::Forbidden();
-            //     if($hasUser->delete_account || $hasUser->lock) return DataResponse::Unauthorized();
-            //     $validActions = ['create','update','modify','void','delete'];
-            //     // $roles = UserRoles::where('user_id',$hasUser->id)->with(['role:id,name'])->selectRaw('role_id')->get();
-            //     // $hasUser->roles = $roles;
-            //     // $action = $action ?? 'void';
-            //     if($action && !in_array($action,$validActions)){
-            //         return DataResponse::ValidateFail('You action must be one of '.implode(',',$validActions));
-            //     }
-            //     // if(!$hasUser->system_admin && $action == 'void'){
-            //     //     return DataResponse::Forbidden();
-            //     // }
-            //     // foreach($roles as $role){
-            //     //     $role->id = $role->role->id;
-            //     //     $role->name = $role->role->name;
-            //     //     unset($role->role);
-            //     // }
-                // return DataResponse::JsonRaw([
-                //     'error'=>false,
-                //     'status_code' => 200,
-                //     'status' => 'OK',
-                //     'id' => $hasUser->id,
-                //     'user_name' => $hasUser->user_name,
-                //     'account_type' => $hasUser->account_type,
-                //     'company_id' => $hasUser->company_id,
-                //     'branch_id' => $hasUser->branch_id,
-                //     'system_admin' => $hasUser->system_admin,
-                //     'info'=> (object)[
-                //         'phone' => $hasUser->phone,
-                //         'address' => $hasUser->address,
-                //         'vehicle_type' => $hasUser->vehicle_type
-                //     ]
-                // ]);
-            // }
         }
         return DataResponse::Unauthorized();
     }

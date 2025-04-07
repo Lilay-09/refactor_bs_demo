@@ -75,37 +75,37 @@ class simpleCrud extends Command
      * @return string
      */
     protected function processRuleOption($rule)
-{
-    // If no rule provided, return an empty array
-    if (!$rule) {
-        return '[]';
-    }
-
-    // Remove any unwanted spaces or characters before and after the rule
-    $rule = trim($rule, "[] \n\t");
-
-    // If the rule is in the form of a PHP array-like string, we'll process it
-    // This will handle the syntax like [name=>'required|string|max:150',email=>'required|email']
-    $rules = explode(',', $rule);
-    $ruleArray = [];
-
-    foreach ($rules as $item) {
-        // Split each rule by the first `=>` found, to separate the field and its validation rules
-        // We also trim any surrounding spaces or unwanted characters
-        $item = trim($item);
-        $parts = explode('=>', $item);
-
-        if (count($parts) == 2) {
-            $field = trim($parts[0], " \t'"); // Remove extra spaces or quotes
-            $validation = trim($parts[1], " \t'"); // Remove extra spaces or quotes
-
-            // Add the field and rule to the array
-            $ruleArray[] = "'{$field}' => '{$validation}'";
+    {
+        // If no rule provided, return an empty array
+        if (!$rule) {
+            return '[]';
         }
-    }
 
-    // Join the array elements with newlines and commas after each line
-    return "[\n\t\t\t" . implode(",\n\t\t\t", $ruleArray) . "\n\t\t]";
-}
+        // Remove any unwanted spaces or characters before and after the rule
+        $rule = trim($rule, "[] \n\t");
+
+        // If the rule is in the form of a PHP array-like string, we'll process it
+        // This will handle the syntax like [name=>'required|string|max:150',email=>'required|email']
+        $rules = explode(',', $rule);
+        $ruleArray = [];
+
+        foreach ($rules as $item) {
+            // Split each rule by the first `=>` found, to separate the field and its validation rules
+            // We also trim any surrounding spaces or unwanted characters
+            $item = trim($item);
+            $parts = explode('=>', $item);
+
+            if (count($parts) == 2) {
+                $field = trim($parts[0], " \t'"); // Remove extra spaces or quotes
+                $validation = trim($parts[1], " \t'"); // Remove extra spaces or quotes
+
+                // Add the field and rule to the array
+                $ruleArray[] = "'{$field}' => '{$validation}'";
+            }
+        }
+
+        // Join the array elements with newlines and commas after each line
+        return "[\n\t\t\t" . implode(",\n\t\t\t", $ruleArray) . "\n\t\t]";
+    }
 
 }
