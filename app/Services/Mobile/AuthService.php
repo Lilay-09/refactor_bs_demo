@@ -11,7 +11,7 @@ class AuthService
     // Your service methods go here
     public function getProfile($authUser){
         $user = User::where('lock',0)->where('is_deleted',0)
-        ->selectRaw('id,user_name,phone,email,address,photo_file_name')
+        ->selectRaw('id,user_name,phone,email,address,photo_file_name,pin_address,latitude as loc_lat,longitude as loc_lng')
         ->where('account_type',$authUser->account_type)
         ->find($authUser->id);
         if(!$user) return DataResponse::NotFound('User not found');

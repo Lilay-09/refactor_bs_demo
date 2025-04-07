@@ -4,6 +4,8 @@ use App\Http\Controllers\V1\BannerController;
 use App\Http\Controllers\V1\DashboardController;
 use App\Http\Controllers\V1\DefaultAddressController;
 use App\Http\Controllers\V1\EmergencyContactController;
+use App\Http\Controllers\V1\FeedbackFormController;
+use App\Http\Controllers\V1\FeedbackQuestionController;
 use App\Http\Controllers\V1\ReportController;
 use App\Http\Controllers\V1\AppSettingController;
 use App\Http\Controllers\V1\AuthController;
@@ -381,6 +383,20 @@ Route::middleware(['jwt','localize','userAccess:admin'])->prefix('admin/v1/{lang
         // Route::delete('/{id}',[BannerController::class,'deleteBanner']);
     });
 
+    Route::prefix('feedback')->group(function(): void{
+        Route::get('form',[FeedbackFormController::class,'getFeedbackForms']);
+        Route::get('form/{id}',[FeedbackFormController::class,'getOneFeedbackForm']);
+        Route::post('form',[FeedbackFormController::class,'createFeedbackForm']);
+        Route::put('form/{id}',[FeedbackFormController::class,'updateFeedbackForm']);
+
+
+        // Question
+        Route::get('question',[FeedbackQuestionController::class,'getFeedbackQuestions']);
+        Route::get('question/{id}',[FeedbackQuestionController::class,'getOneFeedbackQuestion']);
+        Route::post('question',[FeedbackQuestionController::class,'createFeedbackQuestion']);
+        Route::put('question/{id}',[FeedbackQuestionController::class,'updateFeedbackQuestion']);
+    });
+
     Route::prefix('emergencyContact')->group(function(){
         Route::post('',[EmergencyContactController::class,'createEmergencyContact']);
         Route::get('',[EmergencyContactController::class,'getEmergencyContacts']);
@@ -440,6 +456,8 @@ Route::middleware(['jwt','localize','userAccess:admin'])->prefix('admin/v1/{lang
 
     Route::prefix('setting')->group(function(){
         Route::prefix('option')->group(function(){
+            Route::get('feedbackForm',[GeneralSettingController::class,'getOptionsFeedbackForm']);
+            Route::get('driver/feedbackForm',[GeneralSettingController::class,'getOptionsDriverFeedbackForm']);
             // Route::get('fleet/package/trackingStatus',[GeneralSettingController::class,'getOptionsFleetPackageTrackingStatus']);
             Route::get('role',[GeneralSettingController::class,'getOptionsRole']);
             Route::get('permission',[GeneralSettingController::class,'getOptionsPermission']);

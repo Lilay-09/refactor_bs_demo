@@ -31,11 +31,24 @@ class GeneralSettingController extends Controller
         return ApiResponse::JsonResult(GeneralSettingService::optionsDriverRemarks('failure',$req->isFailWithFee));
     }
 
+    // public function getMerchantFormBooking(){
+    //     $user = UserService::getAuthUser('merchant');
+    //     $obj = (object)[
+    //         'vehicle_types' => GeneralSettingService::optionsVehicleType($user),
+    //         'product_types' => GeneralSettingService::optionsProductType($user)
+    //     ];
+    //     return ApiResponse::JsonResult($obj);
+    // }
     public function getMerchantFormBooking(){
         $user = UserService::getAuthUser('merchant');
         $obj = (object)[
             'vehicle_types' => GeneralSettingService::optionsVehicleType($user),
-            'product_types' => GeneralSettingService::optionsProductType($user)
+            'product_types' => GeneralSettingService::optionsProductType($user),
+            'address_info'  => [
+                'loc_lat' => $user->info->latitude,
+                'longitude' => $user->info->longitude,
+                'pin_address' => $user->info->pin_address
+            ]
         ];
         return ApiResponse::JsonResult($obj);
     }

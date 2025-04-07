@@ -98,16 +98,21 @@ class AuthController extends Controller
     }
 
     public function updateProfile(Request $req){
-        $authUser = UserService::getAuthUser('driver');
+        $authUser = UserService::getAuthUser('merchant');
         $validate = validator($req->all(),[
             'user_name' => 'required|string',
             'email' => 'nullable|string',
             'address' => 'nullable|string',
-            'photo' => 'nullable'
+            'photo' => 'nullable',
+            'pin_address' => 'nullable',
+            'loc_lat' => 'nullable',
+            'loc_lng' => 'nullable'
         ]);
         if($validate->fails()) return ApiResponse::ValidateFail($validate->errors()->first());
-        $user = User::where('account_type',$authUser->account_type)->selectRaw('id,photo_file_name,user_name,phone,email')->find($authUser->id);
+        $user = User::where('account_type',$authUser->account_type)->selectRaw('id,photo_file_name,user_name,phone,email,pin_address,latitude,longitude')->find($authUser->id);
         $inputs = $validate->validated();
+        $inputs['latitude'] = $inputs['loc_lat'] ?? null;
+        $inputs['longitude'] = $inputs['loc_lng'] ?? null;
         $photo = $inputs['photo'] ?? null;
         if($photo instanceof UploadedFile){
             $inputs['photo_file_name'] = Helper::saveImageFile($photo,$authUser->company_id,'user_profile')->filename;

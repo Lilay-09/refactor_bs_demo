@@ -3,100 +3,102 @@
 namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
-use Symfony\Component\Process\Exception\ProcessFailedException;
-use Symfony\Component\Process\Process;
+use Illuminate\Filesystem\Filesystem;
 
 class MakeService extends Command
 {
-    /**
-     * The name and signature of the console command.
-     *
-     * @var string
-     */
-    protected $signature = 'make:service {name}';
+    protected $signature = 'make:crudService
+                            {--namespace= : The namespace for the service}
+                            {--class= : The name of the service class}
+                            {--model= : The associated model}
+                            {--method= : The validation method}
+                            {--rule= : The validation rules}';
 
-    /**
-     * The console command description.
-     *
-     * @var string
-     */
-    protected $description = 'Create a new service class';
+    protected $description = 'Generate a service class file from a stub template with dynamic subdirectories in the namespace';
 
-    /**
-     * Create a new command instance.
-     *
-     * @return void
-     */
-    public function __construct()
-    {
-        parent::__construct();
-    }
-
-    /**
-     * Execute the console command.
-     *
-     * @return int
-     */
     public function handle()
     {
-        $name = $this->argument('name');
-        $path = app_path("Services/{$name}.php");
+        $filesystem = new Filesystem();
 
-        if (\File::exists($path)) {
-            $this->error("Service {$name} already exists!");
+        $stubPath = app_path('Console/Commands/stubs/crudService.stub'); // Path to the stub file
+
+        if (!$filesystem->exists($stubPath)) {
+            $this->error("Stub file not found at: {$stubPath}");
             return 1;
         }
 
+        $class = $this->option('class');
+        if (!$class) {
+            $this->error('The --class option is required.');
+            return 1;
+        }
+
+        // Set default namespace if not provided
+        $namespace = $this->option('namespace')
+            ? 'App\\Services\\' . trim($this->option('namespace'), '\\/')
+            : 'App\\Services';
+
+        // Convert namespace to directory path
+        $directory = app_path(str_replace('\\', '/', str_replace('App\\', '', $namespace)));
+
         // Ensure the directory exists
-       \File::ensureDirectoryExists(dirname($path));
+        $filesystem->ensureDirectoryExists($directory);
 
-        // Determine the namespace
-        $namespace = $this->getNamespace($name);
+        $model = $this->option('model') ?? '';
+        $method = $this->option('method') ?? '';
+        $rule = $this->processRuleOption($this->option('rule'));
 
-        // Load the stub and replace placeholders
-        $stub = file_get_contents(__DIR__ . '/stubs/service.stub');
+        // Read stub content
+        $stub = $filesystem->get($stubPath);
+
+        // Replace placeholders
         $stub = str_replace(
-            ['{{ namespace }}', '{{ class }}'],
-            [$namespace, class_basename($name)],
+            ['{{ namespace }}', '{{ class }}', '{{ model }}', '{{ method }}', '{{ rule }}'],
+            [$namespace, $class, $model, $method, $rule],
             $stub
         );
 
-        \File::put($path, $stub);
+        $outputPath = "{$directory}/{$class}.php";
 
-        $this->info("Service {$name} created successfully.");
+        if ($filesystem->exists($outputPath)) {
+            $this->error("Service class already exists at: {$outputPath}");
+            return 1;
+        }
 
-        // Run Composer dump-autoload
-        $this->dumpAutoload();
+
+        // Write the class file
+        $filesystem->put($outputPath, $stub);
+
+        $this->info("Service class {$class} created at: {$outputPath}");
 
         return 0;
     }
 
-     /**
-     * Determine the namespace for the given class name.
+    /**
+     * Process the rule option and convert it into an array string.
      *
-     * @param  string  $name
+     * @param string|null $rule
      * @return string
      */
-    protected function getNamespace($name)
+    protected function processRuleOption($rule)
     {
-        $segments = explode('/', $name);
-        array_pop($segments);
-
-        return 'App\\Services' . (count($segments) ? '\\' . implode('\\', $segments) : '');
-    }
-
-    /**
-     * Run Composer dump-autoload.
-     */
-    protected function dumpAutoload()
-    {
-        $process = new Process(['composer', 'dump-autoload']);
-        $process->run();
-
-        if (!$process->isSuccessful()) {
-            throw new ProcessFailedException($process);
+        if (!$rule) {
+            return '[]';
         }
 
-        $this->info($process->getOutput());
+        $rule = trim($rule, "[] \n\t");
+        $rules = explode(',', $rule);
+        $ruleArray = [];
+
+        foreach ($rules as $item) {
+            $parts = explode('=>', $item);
+            if (count($parts) === 2) {
+                $field = trim($parts[0], " \t\n\r\"'");
+                $validation = trim($parts[1], " \t\n\r\"'");
+                $ruleArray[] = "'{$field}' => '{$validation}'";
+            }
+        }
+
+        return "[\n\t\t\t" . implode(",\n\t\t\t", $ruleArray) . "\n\t\t]";
     }
 }

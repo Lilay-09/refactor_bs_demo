@@ -228,7 +228,10 @@ class AuthController extends Controller
             'user_name' => 'required|string',
             'email' => 'nullable|string',
             'address' => 'nullable|string',
-            'photo' => 'nullable'
+            'photo' => 'nullable',
+            'pin_address' => 'nullable',
+            'loc_lat' => 'nullable',
+            'loc_lng' => 'nullable'
         ]);
         if($validate->fails()) return ApiResponse::ValidateFail($validate->errors()->first());
         $user = User::where('account_type',$authUser->account_type)->selectRaw('id,photo_file_name,user_name,phone,email')->find($authUser->id);
@@ -238,6 +241,8 @@ class AuthController extends Controller
             $inputs['photo_file_name'] = Helper::saveImageFile($photo,$authUser->company_id,'user_profile')->filename;
             Helper::deleteImageFile($user->photo_file_name,$authUser->company_id,'user_profile');
         }else if(!$photo) Helper::deleteImageFile($user->photo_file_name,$authUser->company_id,'user_profile');
+        $inputs['latitude'] = $inputs['loc_lat'] ?? null;
+        $inputs['longitude'] = $inputs['loc_lng'] ?? null;
         $user->update($inputs);
         return ApiResponse::JsonResult(null,__('messages.info',[
             'info' => 'Updated'

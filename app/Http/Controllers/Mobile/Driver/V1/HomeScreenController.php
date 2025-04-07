@@ -9,6 +9,9 @@ use App\Models\Delivery;
 use App\Models\DeliveryPackage;
 use App\Models\DriverCommission;
 use App\Models\EmergencyContact;
+use App\Models\FeedbackAnswer;
+use App\Models\FeedbackQuestion;
+use App\Models\FeedbackSubmission;
 use App\Models\Notification;
 use App\Models\Order;
 use App\Models\OrderImage;
@@ -26,6 +29,7 @@ use Exception;
 use Helper;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Log;
 use Str;
 
 class HomeScreenController extends Controller
@@ -194,31 +198,27 @@ class HomeScreenController extends Controller
         $user = $this->user;
         if($user->error) return ApiResponse::flex($user);
         $driverId = $user->id;
-        $packages = $this->tripPackageInfo();
-        $fleets = Delivery::where('driver_id', $driverId)->where('is_deleted',0)
+
+        $query = Delivery::where('driver_id', $driverId)->where('is_deleted',0)
         ->with(['status'])
         ->where(function ($q){
             $q->where('finished',0)->orWhereDate('depart_datetime',Carbon::today());
         })
-        ->selectRaw('id,status_id,package_count,delivered_count,fleet_tracking_number,depart_datetime,driver_id')->orderByDesc('id')->get();
-        foreach($fleets as $fleet){
+        ->selectRaw('id,status_id,package_count,delivered_count,fleet_tracking_number,depart_datetime,driver_id')->orderByDesc('id');
+        $cloneQ = clone $query;
+        $packages = $this->tripPackageInfo($cloneQ->pluck('id')->toArray());
+        $callback = function ($fleet) use($packages){
             $fleet->status_code = $fleet->status->name;
-            $fleet->total = $this->getTripTotal($packages,$fleet->id);
+            $fleet->package_count = $packages['total_packages'];
+            $fleet->total = $this->getTripTotalAmount($packages,$fleet->id);
             unset($fleet->status);
-        }
-        // $orders = Order::fromRaw('orders as o')->join('packages as p','p.order_id','o.id')->where('o.is_deleted',0)
-        // ->join('users as m','m.id','o.merchant_id')
-        // // ->join('tracking_statuses as ts','ts.id','o.status_id')
-        // // ->where('is_completed',0)
-        // // ->with(['packages:id,cod,price,delivery_fee,payer,zone_code,zone_name,receiver_phone,delivery_type,status_id,order_id,arrive_warehouse_datetime','packages.status'])
-        // ->selectRaw('o.qty,o.order_datetime,o.id as order_id,o.id,o.code,m.user_name,m.phone')
-        // ->groupByRaw('m.phone,o.id,o.code,m.user_name')
-        // ->orderByDesc('o.id')
-        // ->where('p.driver_id',$driverId)->get();
-        return ApiResponse::Pagination($fleets,$req);
+            return $fleet;
+        };
+
+        return ApiResponse::PaginationV1($query,$req,'',[],100,$callback);
     }
 
-    private function getTripTotal($packages,$tripId){
+    private function getTripTotalAmount($packages,$tripId){
         $total = 0;
         foreach ($packages as $key => $p) {
             if($p->delivery_id == $tripId) $total += $p->driver_total;
@@ -226,7 +226,7 @@ class HomeScreenController extends Controller
         return '$'.$total;
     }
 
-    private function tripPackageInfo($tripId=null,$driverId = null){
+    private function tripPackageInfo($tripIds=null,$driverId = null){
         $qP = Package::fromRaw('packages as p')->join('delivery_packages as dp','p.id','dp.package_id')
         ->join('users as d','d.id','p.driver_id')
         ->leftJoin('users as m','m.id','p.merchant_id')
@@ -234,36 +234,35 @@ class HomeScreenController extends Controller
             $q->where('dp.is_deleted',0)->where('dp.delay_count',0);
         })
         ->where('p.created_at', '>=', Carbon::now()->subDays(15))
-        ->join('tracking_statuses as ts','ts.id','dp.status_id')
-        ->selectRaw('p.driver_display_order,p.payer,p.receiver_address,p.extra_charge,p.id,p.delivered_datetime,p.failed_datetime,p.assign_driver_datetime,p.merchant_id,p.qr_code,p.price,p.cod,p.receiver_name,p.receiver_phone,p.zone_code,p.zone_name,ts.name as status_code,d.user_name as driver_name,d.phone as driver_phone,m.user_name as merchant_name,m.phone as merchant_phone,p.id as package_id,dp.delivery_id,p.zone_code,p.zone_name,p.delivery_fee as base_fee,p.driver_total,p.taxi_fee,p.product_type,dp.status_id')
+        ->join('tracking_statuses as ts','ts.id','p.status_id')
+        ->selectRaw('p.driver_display_order,p.payer,p.receiver_address,p.extra_charge,p.id,p.delivered_datetime,p.failed_datetime,p.assign_driver_datetime,p.merchant_id,p.qr_code,p.price,p.cod,p.receiver_name,p.receiver_phone,p.zone_code,p.zone_name,ts.name as status_code,d.user_name as driver_name,d.phone as driver_phone,m.user_name as merchant_name,m.phone as merchant_phone,p.id as package_id,dp.delivery_id,p.zone_code,p.zone_name,p.delivery_fee as base_fee,p.driver_total,p.taxi_fee,p.product_type,p.status_id')
         ->orderBy('p.driver_display_order','asc')
-        ->orderByRaw('(dp.status_id = ?) DESC', [6]);
+        ->orderByRaw('(p.status_id = ?) DESC', [6]);
         if($driverId){
             $qP->where('p.driver_id',$driverId);
         }
-        if($tripId){
-            $qP->where('dp.delivery_id',$tripId);
+        if(!empty($tripIds)){
+            $qP->whereIn('dp.delivery_id',$tripIds);
         }
         $packages = $qP->get();
         foreach($packages as $p){
             $p->date = $p->assign_driver_datetime;
-            // $p->delivery_fee = "0";
-            // if($p->payer == 'receiver'){
-
-            // }
             $p->delivery_fee = Helper::getNumber($p->base_fee + $p->extra_charge,2);
             if($p->status_id == 9) $p->date = $p->delivered_datetime;
             if($p->status_id == 10 || $p->status_id == 19) $p->date = $p->failed_datetime;
             unset($p->assign_driver_datetime,$p->delivered_datetime,$p->failed_datetime);
         }
-        return $packages;
+        return [
+            'packages' => $packages,
+            'total_packages' => $qP->count()
+        ];
     }
 
     public function getDeliveryItems(Request $req){
         $user = $this->user;
         $tripId = $req->trip_id;
         $driverId = $user->id;
-        $packages = $this->tripPackageInfo($tripId,$driverId);
+        $packages = $this->tripPackageInfo([$tripId],$driverId)['packages'];
         foreach($packages as $package){
             $package->status_code = $package->status->name;
             $package->telegram_url = Helper::generateTelegramLink($package->merchant_phone);
@@ -293,7 +292,6 @@ class HomeScreenController extends Controller
         }
 
         $trackingNotes = $order->tracking_notes.'|Driver has accepted order ('.$order->code.') '.date('d-M-Y h:i:s A');
-
         $order->update([
             'tracking_notes' => $trackingNotes,
             'status_id' => 3,
@@ -763,4 +761,88 @@ class HomeScreenController extends Controller
         return ApiResponse::JsonResult($emergencyContacts);
     }
 
+    public function getFeedbackQuestions(Request $req){
+        $lang = $req->lang;
+        $nameKey = 'question_'.$lang.' as question';
+        $questions = FeedbackQuestion::where('form_id',1)
+        ->select('id',$nameKey)
+        ->get();
+        return ApiResponse::JsonResult($questions);
+    }
+
+    public function createFeedback(Request $req){
+        $user = UserService::getAuthUser('driver');
+        $validator = validator($req->all(),[
+            'comment' => 'nullable',
+            'answers' => 'required|array'
+        ]);
+
+        if($validator->fails()) return ApiResponse::ValidateFail($validator->errors()->first());
+        $inputs = $validator->validated();
+        $failMsg = '';
+        try{
+            DB::transaction(function () use ($inputs, $user,&$failMsg) {
+            // Create the submission once\
+                $formId = 1;// Default Form for driver ***
+                $submission = FeedbackSubmission::create([
+                    'comment' => $inputs['comment'] ?? null,
+                    'form_id' => $formId,
+                    'submitted_datetime' => now(),
+                    'user_id' => $user->id,
+                    'create_uid' => $user->id,
+                    'update_uid' => $user->id,
+                    'company_id' => $user->company_id,
+                    'branch_id' => $user->branch_id
+                ]);
+
+                // Prepare all answer rows with submission_id
+                $answerArr = [];
+                $answeredQuestionIds = [];
+                $questionIds = FeedbackQuestion::where('is_deleted',0)->where('form_id',$formId)->get()->keyBy('id');
+                // Log::info($questionIds->count().'--'.count($inputs['answers']));
+                if (count($inputs['answers']) !== $questionIds->count()) {
+                    $failMsg = 'The number of answers must match the number of questions.';
+                    throw new Exception($failMsg);
+                }
+                foreach ($inputs['answers'] as $idx => $ans) {
+                    if (empty($ans['rate']) || empty($ans['question_id'])) {
+                        $failMsg = 'Please rate all questions.';
+                        throw new Exception($failMsg);
+                    }
+                    if($ans['rate'] < 1 || $ans['rate'] >5){
+                        $failMsg = 'Please rate between 1-5';
+                        throw new Exception($failMsg);
+                    }
+                    if(empty($questionIds[$ans['question_id']])) {
+                        $failMsg = 'Please rate all questions.';
+                        throw new Exception($failMsg.' invalid id or missing');
+                    }
+                    if (isset($answeredQuestionIds[$ans['question_id']])) {
+                        $failMsg = 'You have already answered question ' . $answeredQuestionIds[$ans['question_id']];
+                        throw new Exception($failMsg);
+                    }
+                    $answeredQuestionIds[$ans['question_id']] = $idx + 1;
+                    $answerArr[] = [
+                        'user_id' => $user->id,
+                        'submission_id' => $submission->id,
+                        'rating' => $ans['rate'],
+                        'question_id' => $ans['question_id'],
+                        'create_uid' => $user->id,
+                        'update_uid' => $user->id,
+                        'company_id' => $user->company_id,
+                        'branch_id' => $user->branch_id
+                    ];
+                }
+                FeedbackAnswer::insert($answerArr);
+            });
+            if(!empty($failMsg)) return ApiResponse::ValidateFail($failMsg);
+            return ApiResponse::JsonResult(null,'Success');
+        }catch (Exception $e){
+            Log::error($e->getTraceAsString());
+            Log::error($e->getMessage());
+            if(!empty($failMsg)) return ApiResponse::ValidateFail($failMsg);
+            return ApiResponse::Error('Something went wrong!');
+        }
+
+    }
 }
