@@ -19,6 +19,7 @@ use App\Models\Package;
 use App\Models\PackageAttachment;
 use App\Models\ScoringReward;
 use App\Models\UserScoringReward;
+use App\Services\AppSetting;
 use App\Services\CloudMessagingService;
 use App\Services\GeneralSettingService;
 use App\Services\PickupCenterService;
@@ -268,7 +269,7 @@ class HomeScreenController extends Controller
         $packages = $this->tripPackageInfo([$tripId],$driverId)['packages'];
         foreach($packages as $package){
             $package->status_code = $package->status->name;
-            $package->telegram_url = Helper::generateTelegramLink($package->merchant_phone);
+            $package->telegram_url = AppSetting::getTelegramLink('driver',$package->receiver_phone,$package->merchant_phone);
             unset($package->status);
         }
         return ApiResponse::JsonResult($packages);

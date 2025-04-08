@@ -466,6 +466,7 @@ Route::middleware(['jwt','localize','userAccess:admin'])->prefix('admin/v1/{lang
             Route::get('merchant',[GeneralSettingController::class,'getMerchants']);
             Route::get('operator',[GeneralSettingController::class,'getOptionsOperator']);
             Route::get('channel',[GeneralSettingController::class,'getOptionsChannel']);
+            Route::get('driver/channel',[GeneralSettingController::class,'getOptionsDriverChannel']);
             Route::get('zone',[GeneralSettingController::class,'getOptionsZone']);
             Route::get('pickup/status',[GeneralSettingController::class,'getOptionsPickupStatus']);
             Route::get('driver',[GeneralSettingController::class,'getOptionsDriver']);
@@ -512,6 +513,7 @@ Route::middleware(['jwt','localize','userAccess:admin'])->prefix('admin/v1/{lang
             Route::get('merchant',[GeneralSettingController::class,'getFormMerchant']);
             Route::get('driver',[GeneralSettingController::class,'getFormDriver']);
             Route::get('finished/package',[GeneralSettingController::class,'getFormUpdateFinishedPackage']);
+            Route::get('driver/question',[GeneralSettingController::class,'getDriverFormQuestion']);
         });
     });
 

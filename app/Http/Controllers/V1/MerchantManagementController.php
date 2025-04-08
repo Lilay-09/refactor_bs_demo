@@ -92,9 +92,9 @@ class MerchantManagementController extends Controller
         $merchant = User::where('is_deleted',0)->with('merchantPriceList')->where('account_type','merchant')->selectRaw('id,cod,cod_fee')->where('id',$id)->first();
         if(!$merchant) return ApiResponse::NotFound();
         $merchant->cod = $merchant->cod ? 1:0;
-        $merchant->zone_code = $merchant->merchantPriceList->zone_code;
-        $merchant->zone_id = $merchant->merchantPriceList->zone_id;
-        $merchant->price_list_id = $merchant->merchantPriceList->price_list_id;
+        $merchant->zone_code = $merchant->merchantPriceList?->zone_code;
+        $merchant->zone_id = $merchant->merchantPriceList?->zone_id;
+        $merchant->price_list_id = $merchant->merchantPriceList?->price_list_id;
         unset($merchant->merchantPriceList);
         return ApiResponse::JsonResult($merchant);
     }
