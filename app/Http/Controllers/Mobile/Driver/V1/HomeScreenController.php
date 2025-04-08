@@ -213,7 +213,7 @@ class HomeScreenController extends Controller
             $fleetPackages = $groupedPackages->get($fleet->id, collect());
             $fleet->package_count = $fleetPackages->count();
             // $fleet->package_count = $packages['packages']->where('delivery_id',$fleet->id)->count();
-            $fleet->total = $this->getTripTotal($fleetPackages,tripId: $fleet->id);
+            $fleet->total = $this->getTripTotalAmount($fleetPackages,$fleet->id);
             unset($fleet->status);
             return $fleet;
         };
