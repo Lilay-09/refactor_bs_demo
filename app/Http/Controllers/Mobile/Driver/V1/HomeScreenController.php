@@ -207,10 +207,13 @@ class HomeScreenController extends Controller
         ->selectRaw('id,status_id,package_count,delivered_count,fleet_tracking_number,depart_datetime,driver_id')->orderByDesc('id');
         $cloneQ = clone $query;
         $packages = $this->tripPackageInfo($cloneQ->pluck('id')->toArray());
-        $callback = function ($fleet) use($packages){
+        $groupedPackages = $packages['packages']->groupBy('delivery_id');
+        $callback = function ($fleet) use($groupedPackages){
             $fleet->status_code = $fleet->status->name;
-            $fleet->package_count = $packages['total_packages'];
-            $fleet->total = $this->getTripTotalAmount($packages,$fleet->id);
+            $fleetPackages = $groupedPackages->get($fleet->id, collect());
+            $fleet->package_count = $fleetPackages->count();
+            // $fleet->package_count = $packages['packages']->where('delivery_id',$fleet->id)->count();
+            $fleet->total = $this->getTripTotal($fleetPackages,tripId: $fleet->id);
             unset($fleet->status);
             return $fleet;
         };
@@ -799,7 +802,6 @@ class HomeScreenController extends Controller
                 $answerArr = [];
                 $answeredQuestionIds = [];
                 $questionIds = FeedbackQuestion::where('is_deleted',0)->where('form_id',$formId)->get()->keyBy('id');
-                // Log::info($questionIds->count().'--'.count($inputs['answers']));
                 if (count($inputs['answers']) !== $questionIds->count()) {
                     $failMsg = 'The number of answers must match the number of questions.';
                     throw new Exception($failMsg);
@@ -843,6 +845,5 @@ class HomeScreenController extends Controller
             if(!empty($failMsg)) return ApiResponse::ValidateFail($failMsg);
             return ApiResponse::Error('Something went wrong!');
         }
-
     }
 }
