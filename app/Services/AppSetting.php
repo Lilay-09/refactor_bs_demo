@@ -422,6 +422,16 @@ class AppSetting
         return null;
     }
 
+    static function getTelegramLink($userType,$receiverPhone,$notUserTypephone){
+        if($userType == 'merchant') {
+            $userType = 'driver';
+        }else $userType = 'driver';
+        return [
+            $userType => Helper::generateTelegramLink($notUserTypephone),
+            'receiver' => Helper::generateTelegramLink($receiverPhone),
+        ];
+    }
+
 
 
     // public static function getCodeByURI($uri,$method,$prefix){

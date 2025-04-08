@@ -4,6 +4,7 @@ namespace App\Services\Mobile;
 
 use App\Models\Delivery;
 use App\Models\PackageAttachment;
+use App\Services\AppSetting;
 use App\Services\GeneralSettingService;
 use DataResponse;
 use DB;
@@ -149,6 +150,7 @@ class ReusableService
             $finished_date = $f->delivered_datetime;
             $f->total = $userClass == 'merchant' ? ($f->cod ? $f->price:"0"):$f->driver_total;
             $statusId = $f->status_id;
+
             if($statusId == 6) $finished_date = $f->arrive_warehouse_datetime;
             if($statusId == 10) $finished_date = $f->failed_datetime;
             if($statusId == 11) $finished_date = $f->returned_datetime;
@@ -158,17 +160,19 @@ class ReusableService
                 $f->status_code = GeneralSettingService::$statusCodeTrans[$statusId] ?? '';
             }
             if($userClass == 'merchant'){
-                $f->telegram_url = Helper::generateTelegramLink($f->driver_phone);
                 if($f->payer == 'sender'){
                     $f->delivery_fee = Helper::getNumber($f->delivery_fee + $f->extra_charge);
                 }
-            }else $f->telegram_url = Helper::generateTelegramLink($f->merchant_phone);
+            }
+            // $driverPhone = $statusId == 11 ? : $f->driver_phone;\
+            $telegramPhone = $userClass == 'merchant' ? $f->driver_phone : $f->merchant_phone;
+            $f->telegram_url = AppSetting::getTelegramLink($userClass,$f->receiver_phone,$telegramPhone);
+            // else $f->telegram_url = Helper::generateTelegramLink($f->merchant_phone);
             $f->finished_datetime = Helper::formatCustomDateTime($finished_date,'d-M-Y h:i A');
             $f->arrive_warehouse_datetime = $warehouse_datetime;
             unset($f->failed_datetime,$f->returned_datetime,$f->delivered_datetime);
             return $f;
         };
-
         return DataResponse::PaginationV1($qFp,$req,null,[],500,$callbackMapper);
     }
 }

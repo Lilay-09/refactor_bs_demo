@@ -15,6 +15,7 @@ use App\Models\PackageAttachment;
 use App\Models\Promotion;
 use App\Models\SocialMedia;
 use App\Models\UserBank;
+use App\Services\AppSetting;
 use App\Services\CompanyProfileService;
 use App\Services\GeneralSettingService;
 use App\Services\Mobile\ReusableService;
@@ -236,7 +237,7 @@ class HomeController extends Controller
             if($lang == 'km') $package->status_code = GeneralSettingService::$statusCodeTrans[6];
             else $package->status_code = 'On Delivery';
             $package->driver_phone = $package->driver->phone ?? null; // Ensure driver relationship exists
-            $package->telegram_url = Helper::generateTelegramLink($package->driver->phone);
+            $package->telegram_url = AppSetting::getTelegramLink('merchant',$package->receiver_phone,$package->driver->phone);
             $package->driver_name = $package->driver->user_name ?? null;
             $package->total = (float) $package->cod_fee;
             $package->delivery_fee = (float) $package->delivery_fee;
@@ -280,7 +281,7 @@ class HomeController extends Controller
             $package->driver_phone = $package->driver->phone;
             $package->driver_name = $package->driver->user_name;
             $package->total = (float)$package->cod_fee;
-            $package->telegram_url = Helper::generateTelegramLink($package->driver->phone);
+            $package->telegram_url = AppSetting::getTelegramLink('merchant',$package->receiver_phone,$package->driver->phone);
             $package->delivery_fee = (float)$package->delivery_fee;
             $package->arrive_warehouse_datetime = Helper::formatCustomDateTime($package->arrive_warehouse_datetime);
             $package->delivered_datetime = Helper::formatCustomDateTime($package->delivered_datetime);
@@ -318,7 +319,7 @@ class HomeController extends Controller
             else $package->status_code = $package->status->name;
             $package->driver_phone = $package->driver->phone;
             $package->driver_name = $package->driver->user_name;
-            $package->telegram_url = Helper::generateTelegramLink($package->driver->phone);
+            $package->telegram_url = AppSetting::getTelegramLink('merchant',$package->receiver_phone,$package->driver->phone);
             $package->total = (float)$package->code_fee;
             $package->fee = (float)$package->delivery_fee;
             $package->delivery_fee = (float)$package->delivery_fee;
@@ -347,7 +348,7 @@ class HomeController extends Controller
             else $package->status_code = $package->status->name;
             $package->driver_phone = $package->returnUser?->phone;
             $package->driver_name = $package->returnUser?->user_name;
-            $package->telegram_url = Helper::generateTelegramLink($package->returnUser->phone);
+            $package->telegram_url = AppSetting::getTelegramLink('merchant',$package->receiver_phone,$package->driver_phone);
             $package->total = (float)$package->code_fee;
             $package->delivery_fee = (float)$package->delivery_fee;
             $package->fee = $package->delivery_fee;
@@ -520,8 +521,10 @@ class HomeController extends Controller
             $package->status_code = $package->status->name;
             $package->driver_phone = $package->driver?->phone;
             if($package->status_id != 11){
-                $package->telegram_url = Helper::generateTelegramLink($package->driver?->phone);
-            }else $package->telegram_url = Helper::generateTelegramLink($package->returnUser?->phone);
+                $package->telegram_url = $package->telegram_url = AppSetting::getTelegramLink('merchant',$package->receiver_phone,$package->driver?->phone);
+                //::generateTelegramLink($package->driver?->phone);
+            }else $package->telegram_url = $package->telegram_url = AppSetting::getTelegramLink('merchant',$package->receiver_phone,$package->returnUser?->phone);
+            Helper::generateTelegramLink($package->returnUser?->phone);
             $package->driver_name = $package->driver?->user_name;
             $package->total = (float)$package->cod_fee + $package->delivery_fee;
             $rowStatusId = $package->status_id;
