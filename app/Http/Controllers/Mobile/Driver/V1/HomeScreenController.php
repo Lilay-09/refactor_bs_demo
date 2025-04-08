@@ -75,9 +75,10 @@ class HomeScreenController extends Controller
             $order->status_code = $order->tracking_status->name;
             $order->merchant_name = $order->merchant->user_name;
             $order->merchant_phone = $order->merchant->phone;
+            $order->telegram_url = Helper::generateTelegramLink($order->merchant_phone);
             // $latLng = Helper::getLatLongFromGoogleMapsUrl($order->pickup_address_google_map);
-            $order->latitude = $order->loc_lat ;//? $order->loc_lat : 11.552692;//;
-            $order->longitude = $order->loc_lng ;// ? $order->loc_lng : 104.901413;//$order->loc_lng;
+            // $order->latitude = $order->loc_lat ;//? $order->loc_lat : 11.552692;//;
+            // $order->longitude = $order->loc_lng ;// ? $order->loc_lng : 104.901413;//$order->loc_lng;
             unset($order->merchant,$order->tracking_status,$order->warehouse);
             return $order;
         };

@@ -71,15 +71,6 @@ class ReusableService
                 WHEN p.status_id = 11 THEN p.returned_datetime
             END DESC
         ');
-        // ->orderByRaw('
-        //     CASE
-        //         WHEN dp.status_id = ? THEN 1
-        //         WHEN dp.status_id = ? THEN 2
-        //         WHEN dp.status_id = ? THEN 3
-        //         WHEN dp.status_id = ? THEN 4
-        //         ELSE 7
-        //     END DESC', [9,10,11,19]
-        // );
 
         if($paymentStatus == 2 && $userClass=='driver'){
             $qFp->where('pmt.approved',1);
