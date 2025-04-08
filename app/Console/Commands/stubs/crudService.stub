@@ -20,7 +20,7 @@ class {{ class }}
         $inputs['company_id'] = $user->company_id;
         $inputs['branch_id'] = $user->branch_id;
         {{ model }}::create($inputs);
-        return DataResponse::JsonResult(null,"Created");
+        return DataResponse::JsonResult(null,false,"Created");
     }
 
     public function update{{ method }} (Request $req,int $id,$user){
@@ -33,7 +33,7 @@ class {{ class }}
         $inputs['company_id'] = $user->company_id;
         $inputs['branch_id'] = $user->branch_id;
         ${{ model }}->update($inputs);
-        return DataResponse::JsonResult(null,"Updated");
+        return DataResponse::JsonResult(null,false,"Updated");
     }
 
     public function get{{ method }}(Request $req,$user){
@@ -44,7 +44,7 @@ class {{ class }}
     public function getOne{{ method }}(int $id,$user){
         ${{ model }} = {{ model }}::where('is_deleted',0)->find($id);
         if(!${{ model }}) return DataResponse::NotFound("{{ model }} not found");
-        return DataResponse::JsonResult(${{ model }},"get one {{ model }}");
+        return DataResponse::JsonResult(${{ model }},false,"get one {{ model }}");
     }
 
     public function delete{{ method }}(int $id,$user){
@@ -55,6 +55,6 @@ class {{ class }}
             'deleted_uid' => $user->id,
             'deleted_datetime'=> now()
         ]);
-        return DataResponse::JsonResult(null,"Deleted");
+        return DataResponse::JsonResult(null,false,"Deleted");
     }
 }

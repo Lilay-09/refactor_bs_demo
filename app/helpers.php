@@ -129,7 +129,7 @@ class ApiResponse
     //     return response()->json($obj, 200);
     // }
 
-    static function PaginationV1($query, Request $filter, $message = null, $additionalKey = [], $limit = 1000, callable $transformCallback = null, $cache = null)
+    static function PaginationV1($query, Request $filter, $message = null, $additionalKey = [], $limit = 1000, callable $transformCallback = null,array $selectCols=['*'], $cache = null)
     {
         // Ensure filter parameters are properly set
         $perPage = max(1, min($filter->query('per_page', 10), $limit));
@@ -147,11 +147,11 @@ class ApiResponse
         }
 
         // Execute pagination on the query
-        $data = $query->paginate($perPage, ['*'], 'page', $currentPage);
+        $data = $query->paginate($perPage, $selectCols, 'page', $currentPage);
 
         // Apply transformation if provided
         if ($transformCallback) {
-            $data->getCollection()->transform($transformCallback);
+            $data->transform($transformCallback);
         }
 
         // Build response object
