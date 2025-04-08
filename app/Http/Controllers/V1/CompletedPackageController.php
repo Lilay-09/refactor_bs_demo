@@ -86,11 +86,12 @@ class CompletedPackageController extends Controller
 
         ->whereIn('p.status_id',[9,11,19]) //* delivered and failed with fee
         ->where(function ($query) {
-            $query->where('p.status_id', '!=', 19)    // Include 9 and 11 unconditionally
+            $query->where('p.status_id', '!=', 19)    // wxclude status 19
                     ->orWhereNotNull('p.returned_uid'); // Include 19 only if returned_uid is not null
-        })
+        });
+        $select = ['p.driver_id','p.arrive_warehouse_datetime','p.returned_uid','p.receiver_address','p.driver_disbursement_id','p.driver_payment_id','p.delivered_datetime','m.user_name as merchant_name','m.phone as merchant_phone','d.user_name as driver_name','p.status_id','p.returned_datetime','p.id as package_id','d.id as driver_id','p.qr_code','p.price','ts.name as status_code','p.product_type','p.delivered_datetime','p.failed_datetime','p.taxi_fee','p.payer','p.cod','p.zone_code','p.zone_name','p.receiver_phone','p.delivery_type','p.delivery_fee','p.driver_total','p.merchant_total'];
         // ->selectRaw('p.arrive_warehouse_datetime,p.returned_uid,p.receiver_address,p.driver_disbursement_id,p.driver_payment_id,p.delivered_datetime,m.user_name as merchant_name,m.phone as merchant_phone,d.user_name as driver_name,p.status_id,p.returned_datetime,p.id as package_id,d.id as driver_id,p.qr_code,p.price,ts.name as status_code,p.product_type,p.delivered_datetime,p.failed_datetime,p.taxi_fee,p.payer,p.cod,p.zone_code,p.zone_name,p.receiver_phone,p.delivery_type,p.delivery_fee,p.driver_total,p.merchant_total'.$driverSettled.$merchantSettled);
-        ->selectRaw('p.driver_id,p.arrive_warehouse_datetime,p.returned_uid,p.receiver_address,p.driver_disbursement_id,p.driver_payment_id,p.delivered_datetime,m.user_name as merchant_name,m.phone as merchant_phone,d.user_name as driver_name,p.status_id,p.returned_datetime,p.id as package_id,d.id as driver_id,p.qr_code,p.price,ts.name as status_code,p.product_type,p.delivered_datetime,p.failed_datetime,p.taxi_fee,p.payer,p.cod,p.zone_code,p.zone_name,p.receiver_phone,p.delivery_type,p.delivery_fee,p.driver_total,p.merchant_total');
+        // ->select('p.driver_id','p.arrive_warehouse_datetime','p.returned_uid','p.receiver_address','p.driver_disbursement_id','p.driver_payment_id','p.delivered_datetime','m.user_name as merchant_name','m.phone as merchant_phone','d.user_name as driver_name','p.status_id','p.returned_datetime','p.id as package_id','d.id as driver_id','p.qr_code','p.price','ts.name as status_code','p.product_type','p.delivered_datetime','p.failed_datetime','p.taxi_fee','p.payer','p.cod','p.zone_code','p.zone_name','p.receiver_phone','p.delivery_type','p.delivery_fee','p.driver_total','p.merchant_total');
         //** Filter */
         if($search){
             $qP->where(function ($q) use ($search){
@@ -159,7 +160,7 @@ class CompletedPackageController extends Controller
             return $qP;
         };
 
-        return ApiResponse::PaginationV1($qP,$req,null,[],1000,$callbackMapper);
+        return ApiResponse::PaginationV1($qP,$req,null,[],1000,$callbackMapper,$select);
     }
 
     private function finishPackagePaymentStatus($query,$driverId,$merchantId,$paymentStatusId){

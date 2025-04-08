@@ -8,7 +8,7 @@ trait BaseMigrationField{
         $table->timestampTz("updated_at")->useCurrent()->useCurrentOnUpdate();
         $table->unsignedBigInteger('create_uid');
         $table->unsignedBigInteger('update_uid');
-        $table->unsignedBigInteger("branch_id");
+        $table->unsignedBigInteger('branch_id')->nullable();
         $table->unsignedBigInteger('company_id');
 
         /**
@@ -20,7 +20,6 @@ trait BaseMigrationField{
         $table->foreign('branch_id')->references('id')->on('branches')->onDelete('cascade');
         $table->foreign('company_id')->references('id')->on('companies')->onDelete('cascade');
 
-
         /**
          * add soft delete if needed
          */
@@ -28,6 +27,7 @@ trait BaseMigrationField{
         if($useIsDelete){
             $table->boolean('is_deleted')->default(0);
             $table->unsignedBigInteger('deleted_uid')->nullable();
+            $table->string('deleted_reason')->nullable();
             $table->foreign('deleted_uid')->references('id')->on('users')->onDelete('cascade');
             $table->dateTime('deleted_datetime')->nullable();
         }

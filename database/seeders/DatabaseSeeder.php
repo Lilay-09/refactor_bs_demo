@@ -15,7 +15,8 @@ class DatabaseSeeder extends Seeder
             InitialSeeder::class,
             AppModuleSeeder::class,
             PermissionSeeder::class,
-            ScoringRewardSeeder::class
+            ScoringRewardSeeder::class,
+            FeedbackFormSeeder::class
         ]);
     }
 }

@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use DataResponse;
 use Illuminate\Http\Request;
 
 class UserShopService
@@ -25,6 +26,13 @@ class UserShopService
         ]);
     }
     public function saveShop(Request $req,$user){
+        $validator = $this->userShopValidation($req);
+        if($validator->fails()) return DataResponse::ValidateFail($validator->errors()->first());
+        $inputs = $validator->validated();
+        $inputs['create_uid'] = $user->id;
+        $inputs['update_uid'] = $user->id;
+        $inputs['company_id'] = $user->company_id;
+        $inputs['branch_id'] = $user->branch_id;
 
     }
 }

@@ -24,7 +24,7 @@ class FeedbackQuestionService
         $inputs['company_id'] = $user->company_id;
         $inputs['branch_id'] = $user->branch_id;
         FeedbackQuestion::create($inputs);
-        return DataResponse::JsonResult(null,"Created");
+        return DataResponse::JsonResult(null,false,"Created");
     }
 
     public function updateFeedbackQuestion (Request $req,int $id,$user){
@@ -38,12 +38,13 @@ class FeedbackQuestionService
         $inputs['company_id'] = $user->company_id;
         $inputs['branch_id'] = $user->branch_id;
         $FeedbackQuestion->update($inputs);
-        return DataResponse::JsonResult(null,"Updated");
+        return DataResponse::JsonResult(null,false,"Updated");
     }
 
     public function getFeedbackQuestions(Request $req,$user){
         $FeedbackQuestion = FeedbackQuestion::query()->where('is_deleted',0)
-        ->select('id','question_en','question_km','form_id');
+        ->select('id','question_en','question_km','form_id')
+        ->orderByDesc('id');
         return DataResponse::PaginationV1($FeedbackQuestion,$req);
     }
 
@@ -52,7 +53,7 @@ class FeedbackQuestionService
         ->select('id','question_en','question_km','form_id')
         ->find($id);
         if(!$FeedbackQuestion) return DataResponse::NotFound("FeedbackQuestion not found");
-        return DataResponse::JsonResult($FeedbackQuestion,"get one FeedbackQuestion");
+        return DataResponse::JsonResult($FeedbackQuestion,false,"get one FeedbackQuestion");
     }
 
     public function deleteFeedbackQuestion(int $id,$user){
@@ -63,7 +64,7 @@ class FeedbackQuestionService
             'deleted_uid' => $user->id,
             'deleted_datetime'=> now()
         ]);
-        return DataResponse::JsonResult(null,"Deleted");
+        return DataResponse::JsonResult(null,false,"Deleted");
     }
 
     public function reoderQuestion($orderIds,$user){
@@ -71,11 +72,11 @@ class FeedbackQuestionService
         foreach($orderIds as $idx => $id){
             $orderItems[] = [
                 'id' => $id,
-                'display_order' => $idx +1,
+                'display_order' => $idx + 1,
                 'update_uid' => $user->id
             ];
         }
         FeedbackQuestion::whereIn('id',$orderIds)->update($orderItems);
-        return DataResponse::JsonResult(null,'Updated');
+        return DataResponse::JsonResult(null,false,'Updated');
     }
 }

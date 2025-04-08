@@ -149,10 +149,9 @@ class GeneralSettingController extends Controller
 
     public function getDriverFormQuestion(Request $req){
         $lang = $req->lang;
-        return ApiResponse::JsonResult([
-            'channels' => $this->gs::optionChannels(0),
-            'forms' => $this->gs::optionsFeedbackForm($lang,[1])
-        ]);
+        return ApiResponse::JsonResult(
+            $this->gs::optionsFeedbackForm($lang,[1])
+        );
     }
 
 

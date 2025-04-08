@@ -376,6 +376,7 @@ Route::middleware(['jwt','localize','userAccess:admin'])->prefix('admin/v1/{lang
 
     Route::prefix('scoringReward')->group(function(): void{
         Route::get('',[ScoringRewardController::class,'getOneScoringReward']);
+        Route::post('',[ScoringRewardController::class,'saveScoringReward']);
         // Route::post('',[BannerController::class,'createBanner']);
         // Route::get('',[BannerController::class,'getBanners']);
         // Route::get('/{id}',[BannerController::class,'getOneBanner']);
