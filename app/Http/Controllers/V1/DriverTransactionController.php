@@ -34,9 +34,9 @@ class DriverTransactionController extends Controller
         ->whereIn('status_id',[9,19])
         ->where('is_deleted',0)
         ->whereNull('driver_commission_id');
-        // $qO = Order::query()->where('is_deleted',0)
-        // ->whereNull('driver_commission_id')
-        // ->where('status_id',5);
+        $qO = Order::query()->where('is_deleted',0)
+        ->whereNull('driver_commission_id')
+        ->where('status_id',5);
         if($startDate && $endDate){
             $startDate = Helper::dateYMD($startDate);
             $endDate = Helper::dateYMD($endDate);
@@ -51,24 +51,24 @@ class DriverTransactionController extends Controller
                 "$startDate 00:00:00", "$endDate 23:59:59"
             ]);
 
-            // $qO->whereBetween('order_datetime', [$startDate . ' 00:00:00', $endDate . ' 23:59:59']);
+            $qO->whereBetween('pickup_datetime', [$startDate . ' 00:00:00', $endDate . ' 23:59:59']);
         }
         $qDc = DriverCommission::query()->where('is_deleted',0)->selectRaw('id,driver_id,delivery_type,pickup_commission,delivery_commission');
         if($driverId) {
             $qP->where('driver_id',$driverId);
-            // $qO->where('driver_id',$driverId);
+            $qO->where('driver_id',$driverId);
             $qDc->where('driver_id',$driverId);
         }
         $packages = $qP->get();
-        $orders = [];//$qO->get();
+        $orders = $qO->get();
         // if($driverId)
         $driverCommissions = $qDc->get();
         $clbMapper = function ($driver) use($driverCommissions,$orders,$packages) {
             $commissionInfo = TransactionService::getDriverCommissionInfo($driverCommissions,$driver->id);
             $driver->pickup_rate = $commissionInfo->normal_pickup_commission;
             $driver->delivery_rate = $commissionInfo->normal_delivery_commission;
-            // $pickUpInfo = $this->getPickUpDetails($orders,$driver->id);
-            $totalPickUp = 0;//$pickUpInfo->total_package;
+            $pickUpInfo = $this->getPickUpDetails($orders,$driver->id);
+            $totalPickUp = $pickUpInfo->total_package;
             $driver->total_pickup = $totalPickUp;
             $deliverdInfo = $this->getDeliveredDetails($packages,$driver->id);
             $totalDelivered = $deliverdInfo->delivered_count;

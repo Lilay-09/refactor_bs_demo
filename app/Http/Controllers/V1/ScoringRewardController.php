@@ -27,7 +27,6 @@ class ScoringRewardController
         $inputs['update_uid'] = $user->id;
         $createUid = ScoringReward::where('id', 1)->take(1)->value('create_uid');
         $inputs['create_uid'] = $createUid ?? $user->id;
-
         ScoringReward::upsert($inputs,['id']);
         return ApiResponse::JsonResult(null,'Saved');
     }
@@ -35,7 +34,7 @@ class ScoringRewardController
 
     public function getOneScoringReward(Request $req){
         // $user = UserService::getAuthUser();
-        $id = $req->id;
+        // $id = $req->id;
         $ScoringReward = ScoringReward::where('is_deleted',0)
         ->select('id','channel','code','message','description')
         ->find(1);

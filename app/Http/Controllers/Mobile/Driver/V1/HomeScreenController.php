@@ -104,51 +104,52 @@ class HomeScreenController extends Controller
         // $totalEarning = (float)Disbursement::where('payee_id',$user->id)->where('type','commission')->where('is_deleted',0)->sum('payable_amount');
         $commissionInfo = TransactionService::getDriverCommissionInfo($driverCommissions,$user->id);
         $deliveryCommStartDate = $commissionInfo->normal_delivery_commission_start_date;
-        // $pickupCommStartDate = $commissionInfo->normal_pickup_commission_start_date;
+        $pickupCommStartDate = $commissionInfo->normal_pickup_commission_start_date;
         $qP = Package::where('is_deleted', 0)
-            ->whereNull('driver_commission_id')
+            // ->whereNull('driver_commission_id')
             ->where('driver_id', $user->id)
             ->whereIn('status_id', [6, 9]); // Include both statuses in a single query
 
-        if ($deliveryCommStartDate) {
-            $startDate = Helper::dateYMD($deliveryCommStartDate);
-            $startDatetime = $startDate . ' 00:00:00';
+        // if ($deliveryCommStartDate) {
+        //     $startDate = Helper::dateYMD($deliveryCommStartDate);
+        //     $startDatetime = $startDate . ' 00:00:00';
 
-            $qP->where(function ($q) use ($startDatetime) {
-                $q->where(function ($q) use ($startDatetime) {
-                    // Count delivered packages based on delivered_datetime
-                    $q->where('delivered_datetime', '>=', $startDatetime)
-                        ->where('status_id', 9);
-                })
-                ->orWhere(function ($q) use ($startDatetime) {
-                    // Count delivery packages based on another datetime (if needed)
-                    $q->where('assign_driver_datetime', '>=', $startDatetime)
-                        ->where('status_id', 6);
-                });
-            });
-        }
+        //     $qP->where(function ($q) use ($startDatetime) {
+        //         $q->where(function ($q) use ($startDatetime) {
+        //             // Count delivered packages based on delivered_datetime
+        //             $q->where('delivered_datetime', '>=', $startDatetime)
+        //                 ->where('status_id', 9);
+        //         })
+        //         ->orWhere(function ($q) use ($startDatetime) {
+        //             // Count delivery packages based on another datetime (if needed)
+        //             $q->where('assign_driver_datetime', '>=', $startDatetime)
+        //                 ->where('status_id', 6);
+        //         });
+        //     });
+        // }
 
         // Single query with aggregation for better performance
         $counts = $qP->selectRaw("
-            COUNT(CASE WHEN status_id = 9 THEN 1 END) as deliveredPkg,
-            COUNT(CASE WHEN status_id = 6 THEN 1 END) as deliveryPkg
-        ")->first();
+            COUNT(CASE WHEN status_id = 9 THEN 1 END) AS deliveredPkg,
+            COUNT(CASE WHEN status_id = 6 THEN 1 END) AS deliveryPkg
+        ")->first() ?? (object)['deliveredPkg' => 0, 'deliveryPkg' => 0];
 
-        $deliveredPkg = $counts->deliveredPkg ?? 0;
-        $deliveryPkg = $counts->deliveryPkg ?? 0;
+        $deliveredPkg = $counts->deliverypkg;
+        $deliveryPkg = $counts->deliverypkg;
 
         // $orderCount = Order::whereNull('driver_commission_id')->count();
-        $counts = Order::whereNull('driver_commission_id')
+        $orderCounts = Order::whereNull('driver_commission_id')
         // COUNT(*) as total_orders,
-            ->selectRaw("
-                COUNT(CASE WHEN status_id != 5 THEN 1 END) as pickup_count,
-                COUNT(CASE WHEN status_id = 5 THEN 1 END) as picked_up_count
-            ")
-            ->first();
+        ->selectRaw("
+            COUNT(CASE WHEN status_id IN (2,3,4) THEN 1 END) as pickup_count,
+            COUNT(CASE WHEN status_id = 5 THEN 1 END) as picked_up_count
+        ")
+        ->first();
 
+        // return $commissionInfo;
         // $totalOrders = $counts->total_orders;
-        $pickupCount = $counts->pickup_count;
-        $pickedUpCount = $counts->picked_up_count;
+        $pickupCount = $orderCounts->pickup_count;
+        $pickedUpCount = $orderCounts->picked_up_count;
 
         // $packages = $qP->get();
         // $qO = Order::where('is_deleted',0)->whereNull('driver_commission_id')->where('status_id',5)

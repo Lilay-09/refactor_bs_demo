@@ -157,4 +157,24 @@ class Package extends Model
     public function driver_payment(){
         return $this->belongsTo(Payment::class,'driver_payment_id','id');
     }
+
+    // public function driverPayment(){
+    //     return $this->belongsTo(PaymentPackage::class,'package_id')->where('payer_type','driver')->where('is_deleted',0);
+    // }
+
+    // public function merchantPayment(){
+    //     return $this->belongsTo(PaymentPackage::class,'package_id')->where('payer_type','merchant')->where('is_deleted',0);
+    // }
+
+    public function payment()
+    {
+        return $this->belongsTo(PaymentPackage::class, 'package_id','package_id');
+    }
+
+    public function disbursement()
+    {
+        return $this->belongsTo(DisbursementPackage::class, 'package_id','package_id');
+    }
+
+
 }

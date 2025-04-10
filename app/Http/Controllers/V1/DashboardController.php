@@ -33,7 +33,6 @@ class DashboardController extends Controller
             'merchants_by_category' => $this->merchantsByCategory(),
             'bar_charts' => $this->barChart()
         ];
-
         return ApiResponse::JsonResult($obj);
     }
 

@@ -85,6 +85,7 @@ class UserService
                 'status' => 'OK',
                 'id' => $user->id,
                 'user_name' => $user->user_name,
+                'username' => $user->user_name,
                 'account_type' => $user->account_type,
                 'company_id' => $user->company_id,
                 'branch_id' => $user->branch_id,
