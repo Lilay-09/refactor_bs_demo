@@ -37,4 +37,8 @@ class FeedbackQuestionController extends Controller
     public function deleteFeedbackQuestion(Request $req){
         return ApiResponse::flex($this->feedbackQuestionService->deleteFeedbackQuestion($req->id,$this->authUser));
     }
+
+    public function reoderQuestion(Request $req){
+        return ApiResponse::flex($this->feedbackQuestionService->reoderQuestion($req->order_ids,$this->authUser));
+    }
 }

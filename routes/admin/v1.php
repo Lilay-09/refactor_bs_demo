@@ -402,11 +402,13 @@ Route::middleware(['jwt','localize','userAccess:admin'])->prefix('admin/v1/{lang
 
 
         // Question
+        Route::put('question/reorder',[FeedbackQuestionController::class,'reoderQuestion']);
         Route::get('question',[FeedbackQuestionController::class,'getFeedbackQuestions']);
         Route::get('question/{id}',[FeedbackQuestionController::class,'getOneFeedbackQuestion']);
         Route::post('question',[FeedbackQuestionController::class,'createFeedbackQuestion']);
         Route::put('question/{id}',[FeedbackQuestionController::class,'updateFeedbackQuestion']);
         Route::delete('question/{id}',[FeedbackQuestionController::class,'deleteFeedbackQuestion']);
+
     });
 
     Route::prefix('emergencyContact')->group(function(){

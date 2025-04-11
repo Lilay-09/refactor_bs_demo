@@ -44,7 +44,7 @@ class FeedbackQuestionService
     public function getFeedbackQuestions(Request $req,$user){
         $FeedbackQuestion = FeedbackQuestion::query()->where('is_deleted',0)
         ->select('id','question_en','question_km','form_id')
-        ->orderByDesc('id');
+        ->orderByDesc('display_order')->orderByDesc('id');
         return DataResponse::PaginationV1($FeedbackQuestion,$req);
     }
 
@@ -69,14 +69,20 @@ class FeedbackQuestionService
 
     public function reoderQuestion($orderIds,$user){
         $orderItems = [];
+        $userId = $user->id;
+        $feedbackQuestions = FeedbackQuestion::whereIn('id',$orderIds)->get()->keyBy('id');
         foreach($orderIds as $idx => $id){
-            $orderItems[] = [
-                'id' => $id,
-                'display_order' => $idx + 1,
-                'update_uid' => $user->id
-            ];
+            if(empty($feedbackQuestions[$id])) {
+                return DataResponse::NotFound();
+            }
+            $fq = $feedbackQuestions[$id];
+            $fq->display_order = $idx + 1;
+            $fq->update_uid = $userId;
+            $orderItems[] = $fq->only(['id', 'display_order', 'update_uid']);
         }
-        FeedbackQuestion::whereIn('id',$orderIds)->update($orderItems);
+        if (!empty($orderItems)) {
+            FeedbackQuestion::upsert($orderItems, ['id']);
+        }
         return DataResponse::JsonResult(null,false,'Updated');
     }
 }
