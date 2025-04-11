@@ -56,16 +56,19 @@ class ZoneController extends Controller
     public function getZones(Request $req){
         $user = UserService::getAuthUser();
         $search = $req->search;
-        $query = Zone::where('is_deleted',0)->with('country:id,name')->selectRaw('id,zone_code,zone_type,zone_name,commune,description,city,district,country_id,status')->where('company_id',$user->company_id);
+        $query = Zone::query()->where('is_deleted',0)
+        ->where('company_id',$user->company_id)
+        ->orderByDesc('id');
         if($search){
             $query->where('zone_name','ilike','%'.$search.'%')->orWhere('zone_code','ilike','%'.$search.'%');
         }
-        $zones = $query->get();
-        foreach($zones as $zone){
+        $select = ['id','zone_code','zone_type','zone_name','commune','description','city','district','country_id','status'];
+        $callback = function($zone){
             $zone->country_name = $zone->country->name;
             unset($zone->country);
-        }
-        return ApiResponse::Pagination($zones,$req,'Get Zones');
+            return $zone;
+        };
+        return ApiResponse::PaginationV1($query,$req,'Get Zones',[],500,$callback,$select);
     }
 
     public function getOneZone(Request $req){
@@ -81,6 +84,7 @@ class ZoneController extends Controller
     public function updateZone(Request $req){
         $user = UserService::getAuthUser();
         $id = $req->id;
+        // \Log::info($req->all());
         $zone = Zone::where('company_id',$user->company_id)->where('is_deleted',0)->find($id);
         if(!$zone) return ApiResponse::NotFound(__('messages.not_found'));
         $validate = $this->zoneValidation($req);

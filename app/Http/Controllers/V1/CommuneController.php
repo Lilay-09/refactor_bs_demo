@@ -60,9 +60,9 @@ class CommuneController extends Controller
         $id = $req->id;
         $district_id = $inputs['district_id'];
         $user = UserService::getAuthUser();
-        $commune = Commune::find($id)->where('branch_id',$user->branch_id);
+        $commune = Commune::where('is_deleted',0)->find($id);
         if(!$commune) return ApiResponse::NotFound(__('messages.not_found'));
-
+        // \Log::info($commune);
         $existCity = Commune::where('name',$name)->where('is_deleted',0)->where('company_id',$user->company_id)->where('district_id',$district_id)->where('id','!=',$id)->take(1)->value('id');
         if($existCity) return ApiResponse::Duplicated('Commune('.$name.') is already taken.');
         // return $user;
