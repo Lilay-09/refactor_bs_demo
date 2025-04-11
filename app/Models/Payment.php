@@ -11,6 +11,7 @@ class Payment extends Model
     protected $table = 'payments';
     protected $fillable = [
         'id',
+        'trx_code',
         'payer_id',
         'payer_type',
         'amount',

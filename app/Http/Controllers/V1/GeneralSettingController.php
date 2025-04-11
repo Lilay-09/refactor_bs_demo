@@ -84,7 +84,7 @@ class GeneralSettingController extends Controller
 
     public function getMerchants(Request $req){
         $search = $req->search;
-        $mc = User::where('is_deleted',0)->where('account_type','merchant')->selectRaw('id,code,user_name,email,phone');
+        $mc = User::where('is_deleted',0)->where('account_type','merchant')->selectRaw('id,code,user_name,email,phone,pin_address,address');
         if($search){
             $mc->where(function($q) use($search){
                 $q->where('code','ilike','%'.$search.'%')
@@ -139,6 +139,16 @@ class GeneralSettingController extends Controller
         return ApiResponse::JsonResult($this->gs::optionMerchantOrder($req->id,$req->startDate,$req->endDate,[5]));
     }
 
+
+    public function getRewardFormOptions(Request $req){
+        $lang = $req->lang;
+        return ApiResponse::JsonResult([
+            'reward_types' => $this->gs::optionsRewardType($lang),
+            'claim_types' => $this->gs::optionsClaimType($lang),
+            'units' => $this->gs::optionsUnit($lang),
+            'usages' => $this->gs::optionsRewardUsage($lang)
+        ]);
+    }
     public function getOptionsChannel(){
         return ApiResponse::JsonResult($this->gs::optionChannels());
     }

@@ -23,8 +23,17 @@ class ScoringReward extends Model
         'reward_type',
         'amount',
         'currency_code',
+        'claim_type_id',
+        'unit',
+        'unit_amount',
+        'list',
+        'max_usage',
         'is_deleted',
         'deleted_datetime',
-        'deleted_uid'
+        'deleted_uid',
+        'create_uid',
+        'update_uid',
+        'company_id',
+        'branch_id'
     ];
 }

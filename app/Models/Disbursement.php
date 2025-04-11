@@ -11,6 +11,7 @@ class Disbursement extends Model
     protected $table  = 'disbursements';
     protected $fillable = [
         'id',
+        'trx_code',
         'payee_id',
         'payee_type',
         'amount',

@@ -125,7 +125,7 @@ class PickupCenterService
             $createOrder = Order::create($inputs);
             if(!$createOrder) return DataResponse::Error('Fail to create order!');
             $orderId = $createOrder->id;
-            $code = Helper::generateCode('JS',$orderId,'',8);
+            $code = Helper::generateCode('ARZ',$orderId,'',8);
 
 
             // $statusId = $inputs['status_id'];
@@ -347,8 +347,8 @@ class PickupCenterService
             }
             $createPackage = Package::create($inputs);
             if(!$createPackage) return DataResponse::Error(__('messages.Fail to create package'));
-            $qrCode = Helper::generateBarcodeString($createPackage->id,$user->company_id);
-            Package::find( $createPackage->id)->update([
+            $qrCode = Helper::generateBarcodeString($createPackage->id,$user->company_id,'ARZ');
+            $createPackage->update([
                 'qr_code' => $qrCode
             ]);
             $count = Package::where('order_id',$orderId)->where('is_deleted',0)->count();

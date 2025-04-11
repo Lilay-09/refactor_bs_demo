@@ -297,10 +297,10 @@ class Helper{
         return date($format);
     }
 
-    static function dateDMY($date){
+    static function dateDMY($date,$format='d-M-Y'){
         $datetime = str_replace(" PM", "", $date);
         $datetime = str_replace(" AM", "", $datetime);
-        return $date ? date('d-M-Y',strtotime($datetime)):null;
+        return $date ? date($format,strtotime($datetime)):null;
     }
 
     static function formatDateTime($datetime, $format = 'd-M-Y h:i:s', $useMeridiem = true) {
@@ -415,6 +415,13 @@ class Helper{
     //     // Return the formatted datetime string
     //     return $date->format($outputFormat);
     // }
+
+    public static function translateOptions(array $translations,$lang = 'en',$labelKey='label',$valueKey='value',$valueType=null) {
+        return array_map(fn($key) => [
+            $labelKey => $translations[$key][$lang] ?? $translations[$key]['en'],
+            $valueKey => $valueType == 'string' ? (string)$key: $key
+        ], array_keys($translations));
+    }
 
 
 
@@ -1123,7 +1130,7 @@ class DataResponse //extends Model
         return $jsonRes;
     }
 
-    static function NotFound($message)
+    static function NotFound($message='Not found')
     {
         return (object)[
             'status_code' => 404,
@@ -1189,7 +1196,7 @@ class DataResponse //extends Model
         ];
     }
 
-    static function PaginationV1($query, $filter = null, $message = null, $additionalKey = [], $limit = 1000, callable $transformCallback = null, $cache = null)
+    static function PaginationV1($query, $filter = null, $message = null, $additionalKey = [], $limit = 1000, callable $transformCallback = null,array $select = ['*'], $cache = null)
     {
         $filter = (object)$filter;
         $perPage = isset($filter->per_page) ? ($filter->per_page == 0 ? 1 : min($filter->per_page, $limit)) : min(10, $limit);
@@ -1207,7 +1214,7 @@ class DataResponse //extends Model
         }
 
         // Execute pagination on the query
-        $data = $query->paginate($perPage, ['*'], 'page', $currentPage);
+        $data = $query->paginate($perPage, $select, 'page', $currentPage);
 
         // Apply transformation if provided
         if ($transformCallback) {
