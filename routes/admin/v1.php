@@ -375,14 +375,24 @@ Route::middleware(['jwt','localize','userAccess:admin'])->prefix('admin/v1/{lang
     });
 
     Route::prefix('scoringReward')->group(function(): void{
-        Route::get('',[ScoringRewardController::class,'getOneScoringReward']);
-        Route::post('',[ScoringRewardController::class,'saveScoringReward']);
+        Route::get('',[ScoringRewardController::class,'getOneDriverScoringReward']);
+        Route::post('',[ScoringRewardController::class,'saveDriverScoringReward']);
         // Route::post('',[BannerController::class,'createBanner']);
         // Route::get('',[BannerController::class,'getBanners']);
         // Route::get('/{id}',[BannerController::class,'getOneBanner']);
         // Route::put('/{id}',[BannerController::class,'updateBaanner']);
         // Route::delete('/{id}',[BannerController::class,'deleteBanner']);
     });
+
+
+    Route::prefix('reward')->group(function(): void{
+        Route::get('/{id}',[ScoringRewardController::class,'getOneScoringReward']);
+        Route::post('',[ScoringRewardController::class,'createScoringReward']);
+        Route::get('',[ScoringRewardController::class,'getScoringReward']);
+        Route::put('/{id}',[ScoringRewardController::class,'updateScoringReward']);
+        Route::delete('/{id}',[ScoringRewardController::class,'deleteScoringReward']);
+    });
+
 
     Route::prefix('feedback')->group(function(): void{
         Route::get('form',[FeedbackFormController::class,'getFeedbackForms']);
@@ -396,6 +406,7 @@ Route::middleware(['jwt','localize','userAccess:admin'])->prefix('admin/v1/{lang
         Route::get('question/{id}',[FeedbackQuestionController::class,'getOneFeedbackQuestion']);
         Route::post('question',[FeedbackQuestionController::class,'createFeedbackQuestion']);
         Route::put('question/{id}',[FeedbackQuestionController::class,'updateFeedbackQuestion']);
+        Route::delete('question/{id}',[FeedbackQuestionController::class,'deleteFeedbackQuestion']);
     });
 
     Route::prefix('emergencyContact')->group(function(){
@@ -509,6 +520,7 @@ Route::middleware(['jwt','localize','userAccess:admin'])->prefix('admin/v1/{lang
             Route::get('fleet/status',[GeneralSettingController::class,'getFormFleetStatus']);
             Route::get('promotion',[GeneralSettingController::class,'getFormPromotion']);
             Route::get('remark',[GeneralSettingController::class,'getFormRemark']);
+            Route::get('reward',[GeneralSettingController::class,'getRewardFormOptions']);
             Route::get('zone',[GeneralSettingController::class,'getFormZone']);
             Route::get('finished',[GeneralSettingController::class,'getFormFinished']);
             Route::get('merchant',[GeneralSettingController::class,'getFormMerchant']);

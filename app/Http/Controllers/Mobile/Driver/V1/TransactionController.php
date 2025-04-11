@@ -5,10 +5,12 @@ namespace App\Http\Controllers\Mobile\Driver\V1;
 use ApiResponse;
 use App\Http\Controllers\Controller;
 use App\Models\Disbursement;
+use App\Models\DisbursementDetails;
 use App\Models\DriverCommission;
 use App\Models\Order;
 use App\Models\Package;
 use App\Models\Payment;
+use App\Models\PaymentDetail;
 use App\Services\TransactionService;
 use App\Services\UserService;
 use Carbon\Carbon;
@@ -25,18 +27,30 @@ class TransactionController extends Controller
         $count = 0;
         $total = 0;
         $paidTrx = [];
-        $payments = Payment::where('payments.is_deleted',0)->where('payments.payer_id',$user->id)
+        $startDate = $req->query('startDate');
+        $endDate = $req->query('endDate');
+        $qPmt = Payment::where('payments.is_deleted',0)->where('payments.payer_id',$user->id)
         // ->where('payments.approved',1)
         ->join('users as c','c.id','payments.receiver_uid')
         ->selectRaw('payments.package_count,payments.id,payments.payable_amount,payments.breakdown_notes,c.user_name as cashier_name,payments.payment_datetime')
-        ->orderByDesc('payment_datetime')
-        ->get();
-        $disbursements = Disbursement::where('type','payment')->where('disbursements.is_deleted',0)->where('disbursements.payee_id',$user->id)
+        ->orderByDesc('payment_datetime');
+
+        $qDis = Disbursement::where('type','payment')->where('disbursements.is_deleted',0)->where('disbursements.payee_id',$user->id)
         // ->where('disbursements.approved',1)
         ->join('users as c','c.id','disbursements.receiptionist_uid')
         ->selectRaw('disbursements.package_count,disbursements.id,disbursements.payable_amount,disbursements.breakdown_notes,c.user_name as cashier_name,disbursements.payment_datetime')
-        ->orderByDesc('payment_datetime')
-        ->get();
+        ->orderByDesc('payment_datetime');
+
+        if($startDate && $endDate){
+            $startDateTime = Helper::dateYMD($startDate).' 00:00:00';
+            $endDateTime = Helper::dateYMD($endDate).' 23:59:59';
+            $qPmt->whereBetween('payment_datetime',[$startDateTime,$endDateTime]);
+            $qDis->whereBetween('payment_datetime',[$startDateTime,$endDateTime]);
+        }
+
+        $disbursements = $qDis->get();
+
+        $payments = $qPmt->get();
         $packages = Package::where('is_deleted',0)
         ->where('created_at', '>=', Carbon::now()->subMonths(2))
         ->whereIn('status_id',[9,19])
@@ -47,6 +61,8 @@ class TransactionController extends Controller
         ->get();
         $samePmtId = [];
         $sameDisId = [];
+        $paymentDetails = PaymentDetail::whereIn('payment_id',Helper::pluckEloCollection($payments,'id'))->get()->keyBy('payment_id');
+        $disbursementDetails = DisbursementDetails::whereIn('disbursement_id',Helper::pluckEloCollection($disbursements,'id'))->get()->keyBy('payment_id');
         foreach($packages as $p){
             $price = $p->price;
             $taxiFee = $p->taxi_fee;
@@ -55,7 +71,7 @@ class TransactionController extends Controller
                 $taxiFee = 0;
             }
             if(!isset($samePmtId[$p->driver_payment_id]) && $p->driver_payment_id){
-                $pmt = TransactionService::getTrxDetails($payments,$p->driver_payment_id);
+                $pmt = TransactionService::getTrxDetails($payments,$p->driver_payment_id,$paymentDetails);
                 if($pmt) {
                     $pmt->remarks = 'Disbursement';
                     // $total -= (float)$pmt->payable_amount;
@@ -66,7 +82,7 @@ class TransactionController extends Controller
             }
 
             if(!isset($sameDisId[$p->driver_disbursement_id]) && $p->driver_disbursement_id){
-                $dis = TransactionService::getTrxDetails($disbursements,$p->driver_disbursement_id);
+                $dis = TransactionService::getTrxDetails($disbursements,$p->driver_disbursement_id,$disbursementDetails);
                 if($dis) {
                     // $total -= (float)$dis->payable_amount;
                     $dis->remarks = 'Receive';
@@ -209,10 +225,11 @@ class TransactionController extends Controller
         ->where('is_deleted',0)
         ->with('receiptionist:id,user_name')
         ->where('payee_id',$user->id)
-        ->selectRaw('id,payable_amount,breakdown_notes as method,receiptionist_uid,payment_datetime')
+        ->selectRaw('id,payable_amount,breakdown_notes as method,receiptionist_uid,payment_datetime,remarks')
         ->get();
         foreach($disbursements as $d){
             $d->payment_date = Helper::dateDMY($d->payment_datetime);
+            $d->payment_time = Helper::dateDMY($d->payment_datetime,'h:i A');
             $d->payer_name = $d->receiptionist->user_name;
             $d->payable_amount = (float)$d->payable_amount;
             unset($d->receiptionist,$d->receiptionist_uid,$d->payment_datetime);

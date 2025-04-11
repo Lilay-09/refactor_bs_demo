@@ -110,32 +110,32 @@ class HomeScreenController extends Controller
             ->where('driver_id', $user->id)
             ->whereIn('status_id', [6, 9]); // Include both statuses in a single query
 
-        // if ($deliveryCommStartDate) {
-        //     $startDate = Helper::dateYMD($deliveryCommStartDate);
-        //     $startDatetime = $startDate . ' 00:00:00';
+        if ($deliveryCommStartDate) {
+            $startDate = Helper::dateYMD($deliveryCommStartDate);
+            $startDatetime = $startDate . ' 00:00:00';
 
-        //     $qP->where(function ($q) use ($startDatetime) {
-        //         $q->where(function ($q) use ($startDatetime) {
-        //             // Count delivered packages based on delivered_datetime
-        //             $q->where('delivered_datetime', '>=', $startDatetime)
-        //                 ->where('status_id', 9);
-        //         })
-        //         ->orWhere(function ($q) use ($startDatetime) {
-        //             // Count delivery packages based on another datetime (if needed)
-        //             $q->where('assign_driver_datetime', '>=', $startDatetime)
-        //                 ->where('status_id', 6);
-        //         });
-        //     });
-        // }
+            $qP->where(function ($q) use ($startDatetime) {
+                $q->where(function ($q) use ($startDatetime) {
+                    // Count delivered packages based on delivered_datetime
+                    $q->where('delivered_datetime', '>=', $startDatetime)
+                        ->where('status_id', 9);
+                })
+                ->orWhere(function ($q) use ($startDatetime) {
+                    // Count delivery packages based on another datetime (if needed)
+                    $q->where('assign_driver_datetime', '>=', $startDatetime)
+                        ->where('status_id', 6);
+                });
+            });
+        }
 
         // Single query with aggregation for better performance
         $counts = $qP->selectRaw("
-            COUNT(CASE WHEN status_id = 9 THEN 1 END) AS deliveredPkg,
-            COUNT(CASE WHEN status_id = 6 THEN 1 END) AS deliveryPkg
-        ")->first() ?? (object)['deliveredPkg' => 0, 'deliveryPkg' => 0];
+            COUNT(CASE WHEN status_id = 9 THEN 1 END) AS delivered_pkg,
+            COUNT(CASE WHEN status_id = 6 THEN 1 END) AS delivery_pkg
+        ")->first() ?? (object)['delivered_pkg' => 0, 'delivery_pkg' => 0];
 
-        $deliveredPkg = $counts->deliverypkg;
-        $deliveryPkg = $counts->deliverypkg;
+        $deliveredPkg = $counts->delivered_pkg;
+        $deliveryPkg = $counts->delivery_pkg;
 
         // $orderCount = Order::whereNull('driver_commission_id')->count();
         $orderCounts = Order::whereNull('driver_commission_id')

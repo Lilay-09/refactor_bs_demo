@@ -776,7 +776,7 @@ class TransactionService
             ->where('p.is_deleted',0)
             ->join('users as ap','ap.id','p.receiver_uid')
             ->where('payer_type',$type)
-            ->selectRaw('p.is_settled,p.payment_datetime,p.package_count,ap.user_name as booked_user,p.payable_amount,p.id as payment_id,p.delivery_fee,p.cod_amount,d.user_name as payer_name,d.user_name as merchant_name,p.exchange_rate,p.taxi_fee,p.approved,p.breakdown_notes,p.remarks')
+            ->selectRaw('p.trx_code,p.is_settled,p.payment_datetime,p.package_count,ap.user_name as booked_user,p.payable_amount,p.id as payment_id,p.delivery_fee,p.cod_amount,d.user_name as payer_name,d.user_name as merchant_name,p.exchange_rate,p.taxi_fee,p.approved,p.breakdown_notes,p.remarks')
             ->orderByDesc('p.payment_datetime');
             if($payeeOrPayerId) $qP->where('p.payer_id',$payeeOrPayerId);
             if($startDate && $endDate){
@@ -1918,7 +1918,7 @@ class TransactionService
         ];
     }
 
-    static function getTrxDetails($rows,$pmtId){
+    static function getTrxDetails($rows,$pmtId,$pmtBillings=null,&$pmtMethod = ''){
         foreach($rows as $row){
             if($row->id == $pmtId){
                 $row->breakdown_notes = str_replace(
@@ -1927,8 +1927,18 @@ class TransactionService
                     $row->breakdown_notes
                 );
                 $row->breakdown_notes = preg_replace('/KHR (\d+)/', '$1៛', $row->breakdown_notes);
-                $row->payment_date = Helper::dateDMY($row->payment_datetime);
+                $method = $pmtBillings[$row->id]?->method;
+
+                // Append to the reference string (if not already included)
+                if ($method && !str_contains($pmtMethod, $method)) {
+                    $pmtMethod .= ($pmtMethod ? ', ' : '') . $method;
+                }
+
+                $row->payment_method = $method;
+                // Log::info($pmtBillings[$row->id]);
+                $row->payment_date = Helper::dateDMY($row->payment_datetime,'d M Y');
                 $row->payment_time = Helper::formatCustomDateTime($row->payment_datetime,'h:i A');
+                // Log::info($pmtMethod);
                 return $row;
             }
         }

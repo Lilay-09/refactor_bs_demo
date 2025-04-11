@@ -76,6 +76,43 @@ class GeneralSettingService
         ['value' => 'merchant', 'label'=>'Merchant']
     ];
 
+
+    static function optionsClaimType($lang='en'){
+        return Helper::translateOptions([
+            '1' => ['en' => 'Free'],
+            '2' => ['en' => 'Purchase'],
+            '3' => ['en' => 'Redeem'],
+            '4' => ['en' => 'Event'],
+        ],$lang);
+    }
+
+    static function optionsRewardUsage($lang='en'){
+        return Helper::translateOptions([
+            '0' => ['en' => 'Unlimited'],
+            '1' => ['en' => '1 Time'],
+            '2' => ['en' => '2 Times'],
+            '3' => ['en' => '3 Times'],
+        ],$lang,'label');
+    }
+
+    static function optionsUnit($lang='en'){
+        return Helper::translateOptions([
+            'coin' => ['en' => 'Coin'],
+            'point' => ['en' => 'point'],
+            'percent' => ['en' => 'Percent'],
+        ],$lang);
+    }
+
+
+    static function optionsRewardType($lang='en'){
+        return Helper::translateOptions([
+            'cashback' => ['en' => 'Cashback'],
+            'challenge' => ['en' => 'Challenges'],
+            'referal' => ['en' => 'Referral Rewards'],
+            'promotion' => ['en' => 'Promotions']
+        ],$lang);
+    }
+
     public static function optionChannels($idx=null){
         if(is_int($idx) && $idx >= 0){
             return isset(self::$channels[$idx]) ? [self::$channels[$idx]] : [];
@@ -90,11 +127,11 @@ class GeneralSettingService
         return $roles;
     }
 
-    public static function optionsRewardType(){
-        return [
-            ['value' => 'cashback', 'label' => 'Cashback']
-        ];
-    }
+    // public static function optionsRewardType(){
+    //     return [
+    //         ['value' => 'cashback', 'label' => 'Cashback']
+    //     ];
+    // }
 
     public static function optionsModule(){
         return AppModule::selectRaw('id,native_name as name')->orderBy('display_order')->get();
