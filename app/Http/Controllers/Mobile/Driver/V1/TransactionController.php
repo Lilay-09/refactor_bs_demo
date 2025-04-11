@@ -200,17 +200,33 @@ class TransactionController extends Controller
             "details" => [
                 [
                     'category' => 'Pickup',
-                    'count' => $pickUpCount,
-                    'unit' => (float)$pickUpRate,
-                    'total' => (float)Helper::getNumber($pickUpCount * $pickUpRate,2),
-                    'remarks' => '',
+                    'details' => [
+                        [
+                            'count' => $pickUpCount,
+                            'unit' => (float)$pickUpRate,
+                            'total' => (float)Helper::getNumber($pickUpCount * $pickUpRate,2),
+                            'remarks' => '',
+                        ]
+                    ]
                 ],
                 [
                     'category' => 'Delivered',
-                    'count' => $deliveredCount,
-                    'unit' => (float)$deliveryRate,
-                    'total' => (float)Helper::getNumber($deliveryRate * $deliveredCount,2),
-                    'remarks' => '',
+                    'details' => [
+                        [
+                            'type' => 'Normal',
+                            'count' => $deliveredCount,
+                            'unit' => (float)$deliveryRate,
+                            'total' => (float)Helper::getNumber($deliveryRate * $deliveredCount,2),
+                            'remarks' => '',
+                        ],
+                        [
+                            'type' => 'Fast',
+                            'count' => $deliveredCount,
+                            'unit' => (float)$deliveryRate,
+                            'total' => (float)Helper::getNumber($deliveryRate * $deliveredCount,2),
+                            'remarks' => '',
+                        ]
+                    ]
                 ]
             ]
         ];

@@ -36,7 +36,7 @@ class ZoneController extends Controller
         $inputs['company_id'] = $user->company_id;
         $inputZoneCode = $inputs['zone_code'] ?? null;
         if($inputZoneCode){
-            $existZone = Zone::where('zone_code',$inputs['zone_code'])->first();
+            $existZone = Zone::where('is_deleted',0)->where('zone_code',$inputs['zone_code'])->first();
             if($existZone) return ApiResponse::Duplicated(__('messages.error',[
                 'info' => 'Zone code ('.$inputs['zone_code'].') is already exists.'
             ]));
