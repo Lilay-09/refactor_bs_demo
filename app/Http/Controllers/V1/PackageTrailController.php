@@ -26,6 +26,10 @@ use Log;
 class PackageTrailController extends Controller
 {
     //
+    private $cacheTags;
+    public function __construct(){
+        $this->cacheTags = ['package_trail'];
+    }
     public function getPackages(Request $req){
         $user = UserService::getAuthUser();
         $search = $req->query('search', null);
@@ -39,14 +43,7 @@ class PackageTrailController extends Controller
         $startDate = $req->query('startDate', null);
         $endDate = $req->query('endDate', null);
 
-        // $startFinishDate = $req->startFinishDate ?? null;
-        // $endFinishDate = $req->endFinishDate ?? null;
-        // Log::error(json_encode($req->all()));
-        // Generate a unique cache key based on request parameters to ensure uniqueness
-        // $cacheKey = 'packages_' . md5(json_encode($req->all()));
-        // Check if the result is already cached
-        // $packages = Cache::get($cacheKey);
-        // Log::info($cacheKey);
+
         $query = Package::query()->where('is_deleted',0)
         ->with(['status','merchant','driver'])
         ->where('outstanding',0)
@@ -55,7 +52,6 @@ class PackageTrailController extends Controller
         ->where(function($q){
             $q->whereNotIn('status_id',[9,11])->whereNull('returned_uid');
         })
-        ->select(['merchant_id','order_id','id','taxi_fee','delivery_type','qr_code','price','driver_id','product_type','dim_z','dim_x','dim_y','status_id','failed_datetime','failure_notes','payer','cod','delivery_fee','receiver_address','zone_code','zone_name','receiver_name','receiver_phone','delivered_datetime','assign_driver_datetime','arrive_warehouse_datetime','driver_total','merchant_total','billed_kg','actual_kg','created_at'])
         // ->selectRaw('merchant_id,order_id,id,taxi_fee,delivery_type,qr_code,price,driver_id,product_type,dim_z,dim_x,dim_y,status_id,failed_datetime,failure_notes,payer,cod,delivery_fee,receiver_address,zone_code,zone_name,receiver_name,receiver_phone,delivered_datetime,assign_driver_datetime,arrive_warehouse_datetime,driver_total,merchant_total,billed_kg,actual_kg,created_at')
         ->orderByRaw('(status_id = ?) DESC', [5])
         ->orderBy('arrive_warehouse_datetime','desc')
@@ -66,6 +62,7 @@ class PackageTrailController extends Controller
                 ELSE NULL
             END DESC
         ");
+        $select = ['merchant_id','order_id','id','taxi_fee','delivery_type','qr_code','price','driver_id','product_type','dim_z','dim_x','dim_y','status_id','failed_datetime','failure_notes','payer','cod','delivery_fee','receiver_address','zone_code','zone_name','receiver_name','receiver_phone','delivered_datetime','assign_driver_datetime','arrive_warehouse_datetime','driver_total','merchant_total','billed_kg','actual_kg','created_at'];
         if($warehouse_id){
             $query->whereHas('order',function($q) use($warehouse_id){
                 $q->where('warehouse_id',$warehouse_id);
@@ -120,7 +117,7 @@ class PackageTrailController extends Controller
             unset($pkg->status,$pkg->merchant,$pkg->driver);
             return $pkg;
         };
-        return ApiResponse::PaginationV1($query,$req,__('messages.get_list',['info'=>'Package']),[],1000,$callbackMapper);
+        return ApiResponse::PaginationV1($query,$req,__('messages.get_list',['info'=>'Package']),[],1000,$callbackMapper,$select,300,$this->cacheTags);
     }
 
     public function getOnePackage(Request $req){
@@ -220,7 +217,7 @@ class PackageTrailController extends Controller
                 $inputs['merchant_total'] = PickupCenterService::getTotal('merchant',$cod,$payer,0,$deliveryFee,$package->additional_fee,$extra_charge,0);
             }
         }
-
+        Helper::clearCacheByTags($this->cacheTags);
         $package->update($inputs);
         return ApiResponse::JsonResult(null,__('messages.updated'));
     }

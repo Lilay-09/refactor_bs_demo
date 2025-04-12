@@ -12,6 +12,7 @@ use Illuminate\Http\Request;
 class ZoneController extends Controller
 {
     //
+
     public function zoneValidation(Request $req){
         return validator($req->all(),[
             'zone_code' => 'nullable|string|max:30',
@@ -121,5 +122,26 @@ class ZoneController extends Controller
         $zone->update($deletedArr);
         PriceListZone::where('zone_id',$id)->update($deletedArr);
         return ApiResponse::JsonResult(null,__('messages.deleted'));
+    }
+
+    public function assignZone(Request $req){
+        $user = UserService::getAuthUser();
+        $validate = validator($req->all(),[
+            'parent_id' => 'required|int',
+            'zone_ids' => 'required|array'
+        ]);
+
+        if($validate->fails()) return ApiResponse::ValidateFail($validate->errors()->first());
+        $inputs = $validate->validated();
+        $zoneId = $inputs['zone_id'];
+        $zone = Zone::where('is_deleted',0)->find($zoneId);
+        if(!$zone) return ApiResponse::NotFound();
+        Zone::where('is_deleted',0)->update([
+            'parent_id' => $zoneId
+        ]);
+
+
+        return ApiResponse::JsonResult(null,'Assigned');
+
     }
 }
