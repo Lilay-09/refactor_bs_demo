@@ -1,6 +1,7 @@
 <?php
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Redis;
 use Milon\Barcode\DNS1D;
 class ApiResponse
 {
@@ -129,20 +130,95 @@ class ApiResponse
     //     return response()->json($obj, 200);
     // }
 
-    static function PaginationV1($query, Request $filter, $message = null, $additionalKey = [], $limit = 1000, callable $transformCallback = null,array $selectCols=['*'], $cache = null)
-    {
+    // static function PaginationV1($query, Request $filter, $message = null, $additionalKey = [], $limit = 1000, callable $transformCallback = null,array $selectCols=['*'], $cache = null)
+    // {
+    //     // Ensure filter parameters are properly set
+    //     $perPage = max(1, min($filter->query('per_page', 10), $limit));
+    //     $currentPage = $filter->query('page_no', 1);
+
+    //     // Set the cache key based on filter parameters (e.g., 'per_page', 'page_no', etc.)
+    //     $cacheKey = 'pagination_' . md5(json_encode($filter->all()));
+
+    //     // Check if caching is enabled and data is already cached
+    //     if ($cache && $cache > 0) {
+    //         $cachedData = Cache::get($cacheKey);
+    //         if ($cachedData) {
+    //             return response()->json($cachedData, 200); // Return cached data if available
+    //         }
+    //     }
+
+    //     // Execute pagination on the query
+    //     $data = $query->paginate($perPage, $selectCols, 'page', $currentPage);
+
+    //     // Apply transformation if provided
+    //     if ($transformCallback) {
+    //         $data->transform($transformCallback);
+    //     }
+
+    //     // Build response object
+    //     $obj = [
+    //         'status' => "OK",
+    //         'error' => false,
+    //         'message' => $message,
+    //         'data' => $data->items(),
+    //         'per_page' => (int) $data->perPage(),
+    //         'total' => (int) $data->total(),
+    //         'total_page' => (int) $data->lastPage(),
+    //         'page_no' => (int) $data->currentPage(),
+    //         'errors' => [],
+    //     ];
+
+    //     // Add additional custom data if provided
+    //     foreach ((array) $additionalKey as $key => $value) {
+    //         $obj[$key] = $value;
+    //     }
+
+    //     // Cache the result if caching is enabled
+    //     if ($cache !== null) {
+    //         $cacheTime = is_numeric($cache) ? $cache : 300; // Default cache time of 300 seconds (5 minutes)
+    //         Cache::put($cacheKey, $obj, $cacheTime); // Store the response in the cache
+    //     }
+
+    //     // Return the response as JSON
+    //     return response()->json($obj, 200);
+    // }
+
+    public static function PaginationV1(
+        $query,
+        Request $filter,
+        $message = null,
+        $additionalKey = [],
+        $limit = 1000,
+        callable $transformCallback = null,
+        array $selectCols = ['*'],
+        $cache = null,
+        $cacheTags = [] // Added parameter for custom cache tags
+    ) {
         // Ensure filter parameters are properly set
         $perPage = max(1, min($filter->query('per_page', 10), $limit));
         $currentPage = $filter->query('page_no', 1);
-
         // Set the cache key based on filter parameters (e.g., 'per_page', 'page_no', etc.)
         $cacheKey = 'pagination_' . md5(json_encode($filter->all()));
+        // If cacheTags parameter is not provided, use a default value
+        $cacheTags = empty($cacheTags) ? ['pagination', 'filter_' . md5(json_encode($filter->all()))] : $cacheTags;
 
-        // Check if caching is enabled and data is already cached
-        if ($cache && $cache > 0) {
-            $cachedData = Cache::get($cacheKey);
-            if ($cachedData) {
-                return response()->json($cachedData, 200); // Return cached data if available
+        // Check if caching is enabled, data is already cached, and Redis is available
+        if ($cache && $cache > 0 && !empty($cacheTags) && Helper::isRedisAvailable()) {
+            // Log::info('test');
+            // config(['cache.default' => 'redis']);
+            try {
+                // Check if cache supports tags and use tags if available
+                if (Cache::getStore()) {
+                    // Use custom cache tags provided in the parameter
+                    $cachedData = Cache::tags($cacheTags)->get($cacheKey);
+                    if ($cachedData) {
+                        return response()->json($cachedData, 200); // Return cached data if available
+                    }
+                }
+            } catch (\Throwable $e) {
+                // Optionally log the error if needed
+                Log::warning('Redis not available or error occurred while accessing cache tags: ' . $e->getMessage());
+                // Fallback silently without interrupting the flow
             }
         }
 
@@ -172,17 +248,21 @@ class ApiResponse
             $obj[$key] = $value;
         }
 
-        // Cache the result if caching is enabled
-        if ($cache !== null) {
+        // Cache the result if caching is enabled and Redis is available
+        if ($cache !== null && Helper::isRedisAvailable()) {
             $cacheTime = is_numeric($cache) ? $cache : 300; // Default cache time of 300 seconds (5 minutes)
-            Cache::put($cacheKey, $obj, $cacheTime); // Store the response in the cache
+            // Store the response in the cache with tags if Redis is being used
+            if (Cache::getStore() instanceof \Illuminate\Cache\RedisStore) {
+                Cache::tags($cacheTags)->put($cacheKey, $obj, $cacheTime);
+            } else {
+                // Use regular caching for other drivers
+                Cache::put($cacheKey, $obj, $cacheTime);
+            }
         }
 
         // Return the response as JSON
         return response()->json($obj, 200);
     }
-
-
 
 
     static function Forbidden($message='Has no permmision to access')
@@ -223,6 +303,47 @@ class Helper{
         if($sd > $ed) return false;
         return true;
     }
+
+    public static function clearCacheByTags($tags)
+    {
+        try {
+            if (self::isRedisAvailable()) {
+                // Proceed only if Redis is available
+                if (is_array($tags)) {
+                    foreach ($tags as $tag) {
+                        Cache::tags($tag)->flush();
+                    }
+                } else {
+                    Cache::tags($tags)->flush();
+                }
+            }
+        } catch (\Throwable $e) {
+            // Optionally log the error or silently fail
+        }
+    }
+
+
+
+    public static function isRedisAvailable(): bool
+    {
+        try {
+            // Check if Redis connection exists and ping it
+            if(config('app.use_redis') == true){
+                $redis = app('redis'); // Works if predis/phpredis is installed and configured
+                $connected = $redis->ping() == 'PONG';
+                // Log::info('Redis is available->>'.$connected);
+                return $connected;
+            }
+            config(['cache.default' => 'file']);
+            return false;
+        } catch (\Throwable $e) {
+            Log::warning('Redis is not available ' . $e->getMessage());
+            return false;
+        }
+    }
+
+
+
 
     static function addCountryCode($phoneNumber, $countryCode = '+855') {
         // Remove all non-numeric characters except '+'

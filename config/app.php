@@ -21,6 +21,8 @@ return [
     'driver_jwt_ttl' => env('DRIVER_JWT_TTL',31536000),
     'merchant_jwt_ttl' => env('MERCHANT_JWT_TTL',78840000),
 
+
+    'use_redis' => env('USE_REDIS','false'),
     /*
     |--------------------------------------------------------------------------
     | Application Environment
@@ -132,9 +134,12 @@ return [
         'store' => env('APP_MAINTENANCE_STORE', 'database'),
     ],
 
+    // 'Redis' => Illuminate\Support\Facades\Redis::class,
+
 
     // 'providers' => [
-    //     Barryvdh\DomPDF\ServiceProvider::class,
+    //     // Barryvdh\DomPDF\ServiceProvider::class,
+    //     Illuminate\Redis\RedisServiceProvider::class,
     // ],
 
     // 'aliases' => [

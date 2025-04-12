@@ -3,8 +3,10 @@
 namespace App\Providers;
 
 use App\Exceptions\Handler;
+use Helper;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Contracts\Debug\ExceptionHandler as ExceptionHandlerContract;
+use Log;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -13,8 +15,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
         $this->app->singleton(ExceptionHandlerContract::class, Handler::class);
+
     }
 
     /**
@@ -22,6 +24,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        //
+        if(!config('app.use_redis')){
+            config(['cache.default' => 'file']);
+        }
     }
 }

@@ -67,11 +67,12 @@ class CountryController extends Controller
     public function getDistrictsByCountry(Request $req){
         $user = UserService::getAuthUser();
         $countryId = $req->id;
-        $city_id = $req->city_id;
+        $city_id = $req->query('city_id');
         $cityIds = City::where('country_id',$countryId)->where('company_id',$user->company_id)->where('is_deleted',0)->pluck('id')->toArray();
         $qD = District::where('is_deleted',0)->whereIn('city_id',$cityIds)->selectRaw('id,name,updated_at');
         if($city_id) $qD->where('city_id',$city_id);
         $disctricts = $qD->get();
+
         return ApiResponse::JsonResult($disctricts);
     }
 
