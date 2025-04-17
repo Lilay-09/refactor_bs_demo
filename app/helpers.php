@@ -870,6 +870,8 @@ class Helper{
             ];
         }
 
+        Log::error($info?->size_kb);
+
         return (object)[
             'valid' => true,
             'message' => 'Image is valid.',
