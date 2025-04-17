@@ -261,7 +261,6 @@ class HomeScreenController extends Controller
             if($p->status_id == 10 || $p->status_id == 19) $p->date = $p->failed_datetime;
             unset($p->assign_driver_datetime,$p->delivered_datetime,$p->failed_datetime);
         }
-        print_r($qP->count());
         return [
             'packages' => $packages,
             'total_packages' => $qP->count()
@@ -313,7 +312,6 @@ class HomeScreenController extends Controller
             'khInfo' => 'ទទួលយកយកការកម្មង់'
         ]));
     }
-
 
     //** Pick or Pick & Book */
     public function updateAcceptedOrder(Request $req){
@@ -709,7 +707,15 @@ class HomeScreenController extends Controller
         $user = UserService::getAuthUser('driver');
         $notifications = Notification::where('user_id',$user->id)->where('is_read',0)->orderByDesc('sent_datetime')->selectRaw('id,is_read,title,body,sent_datetime')->get();
         $groupedPackages = collect($notifications)->map(function ($item) {
-            $item->groupKey = date('d-M-Y',strtotime($item->sent_datetime));
+            $sentAt = Carbon::parse($item->sent_datetime);
+            if ($sentAt->isToday()) {
+                $item->groupKey = 'Today';
+            } elseif ($sentAt->isYesterday()) {
+                $item->groupKey = 'Yesterday';
+            } else {
+                $item->groupKey = $sentAt->format('d-M-Y'); // e.g., 17-Apr-2025
+            }
+            $item->groupKey = $sentAt;
             $item->time = Helper::formatCustomDateTime($item->sent_datetime,'h:i A');
             return $item;
         })

@@ -33,6 +33,9 @@ class ZoneController extends Controller
             'city' => "required|string|exists:cities,name",
             'country_id' => "required|exists:countries,id",
             'description' => "nullable|string|max:250",
+            'loc_lat' => 'nullable|numeric',
+            'loc_lng' => 'nullable|numeric',
+            'pin_map' => 'nullable|string'
         ]);
     }
 
@@ -374,7 +377,7 @@ class ZoneController extends Controller
         $removedChildIds = array_diff($userSubZones->keys()->all(), $children);
         foreach ($removedChildIds as $removedZoneId) {
             $existing = $userSubZones[$removedZoneId];
-            Log::info($existing);
+            // Log::info($existing);
             $validChildren[] = array_merge(
                 [
                     'id' => $existing->id,
