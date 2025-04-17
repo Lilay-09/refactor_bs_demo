@@ -11,7 +11,6 @@ use App\Http\Controllers\Mobile\Driver\V1\HomeScreenController;
 use App\Http\Controllers\Mobile\Merchant\V1\HomeController;
 use App\Http\Controllers\Mobile\V1\GeneralSettingController;
 use App\Http\Controllers\Mobile\V1\ReportController;
-use App\Models\TrackingStatus;
 use Illuminate\Support\Facades\Route;
 
 //BEGIN::Driver
@@ -42,6 +41,8 @@ Route::middleware(['jwtDriver','localize'])->prefix('driver/v1/{lang}')->group(f
         Route::get('commission/report',[TransactionController::class,'getCommissionReport']);
         Route::get('commission/trx',[TransactionController::class,'getCommissionTrx']);
     });
+
+    Route::get('unpaid/packages',[TransactionController::class,'getUnpaidPackages']);
 
     Route::prefix('home')->group(function(){
         Route::get('balance',[HomeScreenController::class,'getDriverBalance']);
