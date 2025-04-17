@@ -146,9 +146,10 @@ class PickupCenterService
             ]);
 
             if(isset($images[0])){
-                foreach($images as $photo){
-                    $isValidUpload = Helper::isValidUploadImage($photo,0.01);
-                    if($isValidUpload->error) return DataResponse::ValidateFail($isValidUpload->message);
+                foreach($images as $idx => $photo){
+                    Log::info('test1');
+                    $isValidUpload = Helper::isValidUploadImage($photo,0.8);
+                    if($isValidUpload->error) return DataResponse::ValidateFail($isValidUpload->message.', check your Image #'.($idx + 1));
                     $img = Helper::saveImageFile($photo,$companyId,'order_image',date('Y-m-d'));
                     $deleteImgs[] = $img->filename;
                     OrderImage::create([
@@ -205,7 +206,7 @@ class PickupCenterService
                 Helper::deleteImageFile($img,$companyId,'order_image');
             }
             DB::rollBack();
-            return DataResponse::Error('Faile to create a new order');
+            return DataResponse::Error('Failed to create a new order');
         }
     }
 

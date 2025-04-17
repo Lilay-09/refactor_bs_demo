@@ -841,39 +841,36 @@ class Helper{
     static function isValidUploadImage($image, float $maxSizeMB = 2.0, int $maxWidth = null, int $maxHeight = null): object
     {
         $info = self::getImageInfo($image);
-
         if ($info->error) {
             return (object)[
-                'valid' => false,
+                'error' => true,
                 'message' => $info->message ?? 'Invalid image data.'
             ];
         }
 
         if ($info->size_kb > ($maxSizeMB * 1024)) {
             return (object)[
-                'valid' => false,
+                'error' => true,
                 'message' => "Image size exceeds the maximum allowed limit of {$maxSizeMB}MB."
             ];
         }
 
         if ($maxWidth && $info->width > $maxWidth) {
             return (object)[
-                'valid' => false,
+                'error' => true,
                 'message' => "Image width ({$info->width}px) exceeds the maximum allowed width of {$maxWidth}px."
             ];
         }
 
         if ($maxHeight && $info->height > $maxHeight) {
             return (object)[
-                'valid' => false,
+                'error' => true,
                 'message' => "Image height ({$info->height}px) exceeds the maximum allowed height of {$maxHeight}px."
             ];
         }
 
-        Log::error($info?->size_kb);
-
         return (object)[
-            'valid' => true,
+            'error' => false,
             'message' => 'Image is valid.',
             'info' => $info
         ];
