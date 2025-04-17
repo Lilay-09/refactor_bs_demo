@@ -1,4 +1,5 @@
 <?php
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Redis;
@@ -130,20 +131,123 @@ class ApiResponse
     //     return response()->json($obj, 200);
     // }
 
-    // static function PaginationV1($query, Request $filter, $message = null, $additionalKey = [], $limit = 1000, callable $transformCallback = null,array $selectCols=['*'], $cache = null)
-    // {
+    public static function PaginationV1(
+        $query,
+        Request $filter,
+        $message = null,
+        $additionalKey = [],
+        $limit = 1000,
+        callable $transformCallback = null,
+        array $selectCols = ['*'],
+        $cache = null,
+        $cacheTags = []
+    ) {
+        // Ensure perPage and currentPage are integers
+        $perPage = max(1, min((int)$filter->query('per_page', 10), $limit));
+        $currentPage = (int)$filter->query('page_no', 1);
+
+        // Generate a unique cache key based on filter parameters
+        $filterArray = $filter->all();
+        $cacheKey = 'pagination_' . md5(json_encode($filterArray));
+
+        // Assign cacheTags based on whether tags are supported and provided
+        $cacheTags = (!empty($cacheTags)) ? $cacheTags : [];
+
+        // Determine if caching is enabled and Redis is available
+        $isCaching = $cache && $cache > 0 && Helper::isRedisAvailable();
+
+        // Attempt to get cached data if caching is enabled
+        if ($isCaching) {
+            try {
+                $store = Cache::getStore();
+                // If Redis or a store supporting tags is available, try to fetch from cache
+                if ($store instanceof \Illuminate\Cache\RedisStore || method_exists($store, 'tags')) {
+                    $cachedData = Cache::tags($cacheTags)->get($cacheKey);
+                    if ($cachedData) {
+                        Log::info('test=>'.$cacheKey);
+                        return response()->json($cachedData, 200);
+                    }
+                }
+            } catch (\Throwable $e) {
+                Log::warning('Redis/cache error: ' . $e->getMessage());
+            }
+        }
+
+        // Run the query with pagination
+        $data = $query->paginate($perPage, $selectCols, 'page', $currentPage);
+
+        // Optionally apply transformation to the results
+        if ($transformCallback) {
+            $data->transform($transformCallback);
+        }
+
+        // Prepare the response object
+        $response = array_merge([
+            'status' => "OK",
+            'error' => false,
+            'message' => $message,
+            'data' => $data->items(),
+            'per_page' => $data->perPage(),
+            'total' => $data->total(),
+            'total_page' => $data->lastPage(),
+            'page_no' => $data->currentPage(),
+            'errors' => [],
+        ], $additionalKey);
+
+        // Cache the response if caching is enabled
+        if ($isCaching) {
+            $cacheTime = is_numeric($cache) ? $cache : 300; // Default cache time: 300 seconds
+            // Log::info('test cache');
+            if (Cache::getStore() instanceof \Illuminate\Cache\RedisStore) {
+                Cache::tags($cacheTags)->put($cacheKey, $response, $cacheTime);
+            }
+            // else {
+            //     Cache::put($cacheKey, $response, $cacheTime);
+            // }
+        }
+
+        // Return the response as JSON
+        return response()->json($response, 200);
+    }
+
+
+
+    // public static function PaginationV1(
+    //     $query,
+    //     Request $filter,
+    //     $message = null,
+    //     $additionalKey = [],
+    //     $limit = 1000,
+    //     callable $transformCallback = null,
+    //     array $selectCols = ['*'],
+    //     $cache = null,
+    //     $cacheTags = [] // Added parameter for custom cache tags
+    // ) {
     //     // Ensure filter parameters are properly set
     //     $perPage = max(1, min($filter->query('per_page', 10), $limit));
     //     $currentPage = $filter->query('page_no', 1);
-
     //     // Set the cache key based on filter parameters (e.g., 'per_page', 'page_no', etc.)
     //     $cacheKey = 'pagination_' . md5(json_encode($filter->all()));
+    //     // If cacheTags parameter is not provided, use a default value
+    //     $cacheTags = empty($cacheTags) ? ['pagination', 'filter_' . md5(json_encode($filter->all()))] : $cacheTags;
 
-    //     // Check if caching is enabled and data is already cached
-    //     if ($cache && $cache > 0) {
-    //         $cachedData = Cache::get($cacheKey);
-    //         if ($cachedData) {
-    //             return response()->json($cachedData, 200); // Return cached data if available
+    //     // Check if caching is enabled, data is already cached, and Redis is available
+    //     if ($cache && $cache > 0 && !empty($cacheTags) && Helper::isRedisAvailable()) {
+    //         // Log::info('test');
+    //         // config(['cache.default' => 'redis']);
+    //         try {
+    //             // Check if cache supports tags and use tags if available
+    //             if (Cache::getStore()) {
+    //                 // Use custom cache tags provided in the parameter
+    //                 $cachedData = Cache::tags($cacheTags)->get($cacheKey);
+    //                 if ($cachedData) {
+    //                     return response()->json($cachedData, 200); // Return cached data if available
+    //                 }
+    //             }
+    //         } catch (\Throwable $e) {
+    //             // Optionally log the error if needed
+    //             Log::warning('Redis not available or error occurred while accessing cache tags: ' . $e->getMessage());
+    //             // Fallback silently without interrupting the flow
     //         }
     //     }
 
@@ -173,96 +277,21 @@ class ApiResponse
     //         $obj[$key] = $value;
     //     }
 
-    //     // Cache the result if caching is enabled
-    //     if ($cache !== null) {
+    //     // Cache the result if caching is enabled and Redis is available
+    //     if ($cache !== null && Helper::isRedisAvailable()) {
     //         $cacheTime = is_numeric($cache) ? $cache : 300; // Default cache time of 300 seconds (5 minutes)
-    //         Cache::put($cacheKey, $obj, $cacheTime); // Store the response in the cache
+    //         // Store the response in the cache with tags if Redis is being used
+    //         if (Cache::getStore() instanceof \Illuminate\Cache\RedisStore) {
+    //             Cache::tags($cacheTags)->put($cacheKey, $obj, $cacheTime);
+    //         } else {
+    //             // Use regular caching for other drivers
+    //             Cache::put($cacheKey, $obj, $cacheTime);
+    //         }
     //     }
 
     //     // Return the response as JSON
     //     return response()->json($obj, 200);
     // }
-
-    public static function PaginationV1(
-        $query,
-        Request $filter,
-        $message = null,
-        $additionalKey = [],
-        $limit = 1000,
-        callable $transformCallback = null,
-        array $selectCols = ['*'],
-        $cache = null,
-        $cacheTags = [] // Added parameter for custom cache tags
-    ) {
-        // Ensure filter parameters are properly set
-        $perPage = max(1, min($filter->query('per_page', 10), $limit));
-        $currentPage = $filter->query('page_no', 1);
-        // Set the cache key based on filter parameters (e.g., 'per_page', 'page_no', etc.)
-        $cacheKey = 'pagination_' . md5(json_encode($filter->all()));
-        // If cacheTags parameter is not provided, use a default value
-        $cacheTags = empty($cacheTags) ? ['pagination', 'filter_' . md5(json_encode($filter->all()))] : $cacheTags;
-
-        // Check if caching is enabled, data is already cached, and Redis is available
-        if ($cache && $cache > 0 && !empty($cacheTags) && Helper::isRedisAvailable()) {
-            // Log::info('test');
-            // config(['cache.default' => 'redis']);
-            try {
-                // Check if cache supports tags and use tags if available
-                if (Cache::getStore()) {
-                    // Use custom cache tags provided in the parameter
-                    $cachedData = Cache::tags($cacheTags)->get($cacheKey);
-                    if ($cachedData) {
-                        return response()->json($cachedData, 200); // Return cached data if available
-                    }
-                }
-            } catch (\Throwable $e) {
-                // Optionally log the error if needed
-                Log::warning('Redis not available or error occurred while accessing cache tags: ' . $e->getMessage());
-                // Fallback silently without interrupting the flow
-            }
-        }
-
-        // Execute pagination on the query
-        $data = $query->paginate($perPage, $selectCols, 'page', $currentPage);
-
-        // Apply transformation if provided
-        if ($transformCallback) {
-            $data->transform($transformCallback);
-        }
-
-        // Build response object
-        $obj = [
-            'status' => "OK",
-            'error' => false,
-            'message' => $message,
-            'data' => $data->items(),
-            'per_page' => (int) $data->perPage(),
-            'total' => (int) $data->total(),
-            'total_page' => (int) $data->lastPage(),
-            'page_no' => (int) $data->currentPage(),
-            'errors' => [],
-        ];
-
-        // Add additional custom data if provided
-        foreach ((array) $additionalKey as $key => $value) {
-            $obj[$key] = $value;
-        }
-
-        // Cache the result if caching is enabled and Redis is available
-        if ($cache !== null && Helper::isRedisAvailable()) {
-            $cacheTime = is_numeric($cache) ? $cache : 300; // Default cache time of 300 seconds (5 minutes)
-            // Store the response in the cache with tags if Redis is being used
-            if (Cache::getStore() instanceof \Illuminate\Cache\RedisStore) {
-                Cache::tags($cacheTags)->put($cacheKey, $obj, $cacheTime);
-            } else {
-                // Use regular caching for other drivers
-                Cache::put($cacheKey, $obj, $cacheTime);
-            }
-        }
-
-        // Return the response as JSON
-        return response()->json($obj, 200);
-    }
 
 
     static function Forbidden($message='Has no permmision to access')
@@ -316,9 +345,12 @@ class Helper{
                 } else {
                     Cache::tags($tags)->flush();
                 }
+                return true;
             }
         } catch (\Throwable $e) {
             // Optionally log the error or silently fail
+            // Log::info("Redis status: Inactive!");
+            return false;
         }
     }
 
@@ -472,6 +504,25 @@ class Helper{
         if ($lang == 'km') {
             // Replace English month names with Khmer names
             $formattedDate = str_replace(array_keys(self::$khmerMonths), array_values(self::$khmerMonths), $formattedDate);
+
+            $hour = (int) $date->format('H');
+
+            if (strpos($formattedDate, 'AM') !== false) {
+                if ($hour >= 6 && $hour < 12) {
+                    $formattedDate = str_replace('AM', 'ព្រឹក', $formattedDate); // Morning
+                } else {
+                    $formattedDate = str_replace('AM', 'យប់', $formattedDate); // Late night (still considered night)
+                }
+            } elseif (strpos($formattedDate, 'PM') !== false) {
+                if ($hour >= 12 && $hour < 17) {
+                    $khmerPm = 'រសៀល'; // Afternoon
+                } elseif ($hour >= 17 && $hour < 20) {
+                    $khmerPm = 'ល្ងាច'; // Evening
+                } else {
+                    $khmerPm = 'យប់';   // Night
+                }
+                $formattedDate = str_replace('PM', $khmerPm, $formattedDate);
+            }
         }
 
         // Return the formatted datetime string
@@ -703,6 +754,110 @@ class Helper{
         } else {
             throw new \Exception("Invalid image format.");
         }
+    }
+
+
+    static function getImageInfo($image): object
+    {
+        try {
+            // Check if base64 image
+            if (is_string($image) && Helper::isValidBase64Image($image)) {
+                $imageData = explode(',', $image)[1];
+                $binaryData = base64_decode($imageData);
+                $sizeKB = strlen($binaryData) / 1024;
+
+                $img = imagecreatefromstring($binaryData);
+                if (!$img) return (object)[
+                    'error' => false,
+                    'message' => 'Invalid image size'
+                ];
+
+                $width = imagesx($img);
+                $height = imagesy($img);
+                imagedestroy($img);
+
+                return (object)[
+                    'error' => false,
+                    'type' => 'base64',
+                    'size_kb' => round($sizeKB, 2),
+                    'width' => $width,
+                    'height' => $height,
+                ];
+            }
+
+            // Check if UploadedFile
+            if ($image instanceof UploadedFile) {
+                $sizeKB = $image->getSize() / 1024;
+                [$width, $height] = getimagesize($image->getPathname());
+
+                return (object)[
+                    'error' => false,
+                    'type' => 'file',
+                    'size_kb' => round($sizeKB, 2),
+                    'width' => $width,
+                    'height' => $height,
+                ];
+            }
+
+            return (object)[
+                'error' => true,
+                'message' => 'Invalid image size'
+            ]; // Not valid
+        } catch (\Exception $e) {
+            Log::error($e->getMessage());
+            return (object)[
+                'error' => true,
+                'message' => 'fallback'
+            ]; // Safe fallback
+        }
+    }
+
+    /**
+     * Validate image size and dimensions.
+     *
+     * @param  string|UploadedFile  $image
+     * @param  float  $maxSizeMB
+     * @param  int|null  $maxWidth
+     * @param  int|null  $maxHeight
+     * @return bool
+     */
+    static function isValidUploadImage($image, float $maxSizeMB = 2.0, int $maxWidth = null, int $maxHeight = null): object
+    {
+        $info = self::getImageInfo($image);
+
+        if ($info->error) {
+            return (object)[
+                'valid' => false,
+                'message' => $info->message ?? 'Invalid image data.'
+            ];
+        }
+
+        if ($info->size_kb > ($maxSizeMB * 1024)) {
+            return (object)[
+                'valid' => false,
+                'message' => "Image size exceeds the maximum allowed limit of {$maxSizeMB}MB."
+            ];
+        }
+
+        if ($maxWidth && $info->width > $maxWidth) {
+            return (object)[
+                'valid' => false,
+                'message' => "Image width ({$info->width}px) exceeds the maximum allowed width of {$maxWidth}px."
+            ];
+        }
+
+        if ($maxHeight && $info->height > $maxHeight) {
+            return (object)[
+                'valid' => false,
+                'message' => "Image height ({$info->height}px) exceeds the maximum allowed height of {$maxHeight}px."
+            ];
+        }
+
+        return (object)[
+            'valid' => true,
+            'message' => 'Image is valid.',
+            'info' => $info
+        ];
     }
 
 
@@ -1317,24 +1472,48 @@ class DataResponse //extends Model
         ];
     }
 
-    static function PaginationV1($query, $filter = null, $message = null, $additionalKey = [], $limit = 1000, callable $transformCallback = null,array $select = ['*'], $cache = null)
-    {
-        $filter = (object)$filter;
+    public static function PaginationV1(
+        Builder $query,
+        Request $filter = null,
+        string $message = '',
+        array $additionalKey = [],
+        int $limit = 1000,
+        callable $transformCallback = null,
+        array $select = ['*'],
+        int $cache = null,
+        array $cacheTags = [] // 🆕 Customizable cache tags
+    ) {
+        $filter = (object) $filter;
         $perPage = isset($filter->per_page) ? ($filter->per_page == 0 ? 1 : min($filter->per_page, $limit)) : min(10, $limit);
         $currentPage = isset($filter->page_no) ? $filter->page_no : 1;
 
-        // Build cache key based on filter parameters
+        // Generate unique cache key from filter
         $cacheKey = 'pagination_' . md5(json_encode($filter));
 
-        // Cache logic: check if data is already cached
+        // Redis & taggable support check
+        $store = Cache::getStore();
+        $supportsTags = method_exists($store, 'tags') && $store instanceof \Illuminate\Cache\TaggableStore;
+
+        // Use default tags if not provided
+        $cacheTags = ($supportsTags && !empty($cacheTags)) ? $cacheTags : [];
+
+
+        // Attempt to read from cache
         if ($cache && $cache > 0) {
-            $cachedData = Cache::get($cacheKey);
-            if ($cachedData) {
-                return $cachedData; // Return cached data if available
+            try {
+                $cached = $supportsTags
+                    ? Cache::tags($cacheTags)->get($cacheKey)
+                    : Cache::get($cacheKey);
+
+                if ($cached) {
+                    return $cached;
+                }
+            } catch (\Throwable $e) {
+                \Log::warning("Pagination cache read failed: " . $e->getMessage());
             }
         }
 
-        // Execute pagination on the query
+        // Run query and paginate
         $data = $query->paginate($perPage, $select, 'page', $currentPage);
 
         // Apply transformation if provided
@@ -1342,7 +1521,7 @@ class DataResponse //extends Model
             $data->getCollection()->transform($transformCallback);
         }
 
-        // Build response object
+        // Prepare the response object
         $obj = (object)[
             'status' => "OK",
             'error' => false,
@@ -1355,19 +1534,28 @@ class DataResponse //extends Model
             'errors' => [],
         ];
 
-        // Add additional custom data if provided
-        foreach ((object)$additionalKey as $key => $value) {
+        foreach ((array) $additionalKey as $key => $value) {
             $obj->{$key} = $value;
         }
 
-        // Cache the result if caching is enabled
+        // Save to cache if enabled
         if ($cache !== null) {
-            $cacheTime = is_numeric($cache) ? $cache : 300; // Default cache time of 300 seconds (5 minutes)
-            Cache::put($cacheKey, $obj, $cacheTime); // Store the response in the cache
+            $cacheTime = is_numeric($cache) ? $cache : 300;
+
+            try {
+                if ($supportsTags && !empty($cacheTags)) {
+                    Cache::tags($cacheTags)->put($cacheKey, $obj, $cacheTime);
+                } else {
+                    Cache::put($cacheKey, $obj, $cacheTime);
+                }
+            } catch (\Throwable $e) {
+                \Log::warning("Pagination cache write failed: " . $e->getMessage());
+            }
         }
 
         return $obj;
     }
+
 
 
 }

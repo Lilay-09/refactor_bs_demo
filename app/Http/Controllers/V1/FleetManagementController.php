@@ -31,9 +31,14 @@ class FleetManagementController extends Controller
         $endDate = $req->endDate;
         $statusId = $req->status_id;
         $packages = Package::fromRaw('packages as p')->join('delivery_packages as dp','p.id','dp.package_id')
-        ->selectRaw('p.id as package_id,dp.delivery_id,dp.delay_count,dp.has_swap,dp.status_id,p.driver_total')
+        ->selectRaw('p.id as package_id,dp.delivery_id,dp.delay_count,dp.has_swap,p.status_id,p.driver_total')
         ->where('dp.is_deleted',0)
         ->where('dp.has_swap',0)
+        ->where(function($q){
+            $q->where('dp.is_deleted',0)
+            ->where('dp.has_swap',0)
+            ->where('dp.delay_count',0);
+        })
         // ->groupBy('p.id','dp.delivery_id','dp.delay_count')
         ->get();
         $query = Delivery::query()->with(['status','driver'])->where('is_deleted',0)->where('company_id',$user->company_id)
@@ -113,7 +118,8 @@ class FleetManagementController extends Controller
                     $failedWithFeeCount +=1;
                     $totalFailedWithFee += $pkg->driver_total;
                 }
-                if($pkg->status_id == 6 && $pkg->has_swap == 0) $deliveryCount +=1;
+                if($pkg->status_id == 6 && ($pkg->has_swap == 0 || $pkg->delay_count == 0)) $deliveryCount +=1;
+                // if($pkg->status_id == 6) $deliveryCount +=1;
             }
         }
         return (object)[
@@ -130,27 +136,49 @@ class FleetManagementController extends Controller
         $trip_id = $req->trip_id;
         $isKm = $req->lang == 'km';
         $search = $req->search;
-
+        // $caseHistory = 'CASE
+        //     WHEN p.status_id != dp.status_id AND p.driver_id != dp.driver_id AND (dp.delay_count = TRUE OR dp.has_swap = TRUE) THEN true
+        //     ELSE false
+        // END AS is_history';
+        // $countHistory = 'SUM(
+        //     CASE
+        //         WHEN
+        //             p.status_id != dp.status_id
+        //             OR p.driver_id != dp.driver_id
+        //             OR dp.delay_count = TRUE
+        //             OR dp.has_swap = TRUE
+        //         THEN 1
+        //         ELSE 0
+        //     END
+        // ) AS history_count';
         $caseHistory = 'CASE
-            WHEN p.status_id != dp.status_id THEN true
+            WHEN
+                p.status_id != dp.status_id
+                OR p.driver_id != dp.driver_id
+                OR dp.delay_count = TRUE
+                OR dp.has_swap = TRUE
+            THEN true
             ELSE false
         END AS is_history';
+
 
         $qP = Package::query()->fromRaw('packages as p')->join('delivery_packages as dp','p.id','dp.package_id')
         ->where('dp.is_deleted',0)
         // ->where('dp.delay_count', 0)
-        ->whereIn('dp.status_id',[6,9,10,19])
-        ->where(function ($q) {
-            $q->where('dp.status_id', '!=', 6) // Allow other statuses freely
-            ->orWhere('dp.has_swap', 0); // Only allow status_id = 6 if has_swap = 0
-        })
+        // ->whereIn('dp.status_id',[6,9,10,19])
+        ->whereIn('p.status_id',[6,9,10,19])
+        // ->where(function ($q) {
+        //     $q->where('dp.status_id', '!=', 6) // Allow other statuses freely
+        //     ->orWhere('dp.has_swap', 0); // Only allow status_id = 6 if has_swap = 0
+        // })
         // ->where('dp.delay_count',0)
         ->where('dp.delivery_id',$trip_id)
         ->join('users as m','m.id','p.merchant_id')
         ->join('users as d','d.id','p.driver_id')
-        ->join('tracking_statuses as ts','ts.id','dp.status_id')
-        ->selectRaw('p.assign_driver_datetime,dp.has_swap,p.qr_code,p.price,p.cod,p.receiver_name,p.receiver_phone,p.zone_code,p.zone_name,ts.name as status_code,d.user_name as driver_name,d.phone as driver_phone,m.user_name as merchant_name,m.phone as merchant_phone,p.id as package_id,dp.delivery_id,p.zone_code,p.zone_name,p.delivery_fee as base_fee,p.driver_total,p.taxi_fee,p.product_type,dp.status_id,p.payer,'.$caseHistory)
-        ->orderByRaw('(dp.status_id = ?) DESC', [6]);
+        ->join('tracking_statuses as ts','ts.id','p.status_id')
+        ->selectRaw('p.assign_driver_datetime,dp.has_swap,p.qr_code,p.price,p.cod,p.receiver_name,p.receiver_phone,p.zone_code,p.zone_name,ts.name as status_code,d.user_name as driver_name,d.phone as driver_phone,m.user_name as merchant_name,m.phone as merchant_phone,p.id as package_id,dp.delivery_id,p.zone_code,p.zone_name,p.delivery_fee as base_fee,p.driver_total,p.taxi_fee,p.product_type,p.status_id,p.payer,'.$caseHistory)
+        // ->orderByRaw('(dp.status_id = ?) DESC', [6]);
+        ->orderByRaw('(p.status_id = ?) DESC', [6]);
         if ($search && str_starts_with($search, 'JPK')) {
             $qP->where('p.qr_code',$search);
         }
@@ -181,10 +209,7 @@ class FleetManagementController extends Controller
         // ]));
         //** check if this package exists in latest trip */
         $latestTripId = DeliveryPackage::where('is_deleted',0)->where('package_id',$package_id)->where('delay_count',0)->take(1)->orderByDesc('id')->value('delivery_id');
-        if($latestTripId && $latestTripId > $trip_id) {
-            $trackingNumber = Delivery::where('id',$latestTripId)->where('is_deleted',0)->take(1)->value('fleet_tracking_number');
-            if($trackingNumber) return ApiResponse::Duplicated('This package is not currently yours! someone has accepted for delivery ('.$trackingNumber.')');
-        }
+
         $delayMsg = '.';
         // if($tripPackage) $delayMsg = ', This package is delivered in trip number('.Delivery::where('id',$tripPackage->delivery_id)->value('fleet_tracking_number').')';
         if(!$delivery) return ApiResponse::NotFound(__('messages.not_found',['info' => 'Trip']));
@@ -193,6 +218,15 @@ class FleetManagementController extends Controller
         ->selectRaw('tracking_notes,payer,id,status_id,driver_id,cod,delivery_fee,price,additional_fee,extra_charge,taxi_fee,driver_disbursement_id,merchant_disbursement_id,driver_payment_id,merchant_payment_id')
         ->find($package_id);
         if(!$package) return ApiResponse::NotFound(__('messages.not_found',['info' => 'Package','khInfo' => 'កញ្ចប់']));
+        if($package->driver_id != $delivery->driver_id){
+            if($latestTripId) {
+                $trackingNumber = Delivery::where('id',$latestTripId)->where('is_deleted',0)->take(1)->value('fleet_tracking_number');
+                if($trackingNumber) return ApiResponse::Duplicated(__('messages.info',[
+                    'info' => 'This package is not currently yours! someone has accepted for delivery ('.$trackingNumber.')',
+                    'khInfo' => 'កញ្ចប់នេះមានអ្នកផ្សេងទៀតបានទទួលដើម្បីដឹកជញ្ជូន នៅលេខដឹកជញ្ជូន('.$trackingNumber.')'
+                ]));
+            }
+        }
         if($package->driver_disbursement_id || $package->merchant_disbursement_id || $package->driver_payment_id || $package->merchant_payment_id)
             return ApiResponse::ValidateFail(__('messages.info',[
                 'info' => 'Package has link to payment you cannot make change!',
@@ -263,7 +297,7 @@ class FleetManagementController extends Controller
             ]);
             GeneralSettingService::updateTripStatus($trip_id,$user);
             // Log::error(json_encode(Delivery::where('id',$trip_id)->selectRaw('id,status_id')->first()));
-            DB::commit();
+            // DB::commit();
         }catch(Exception $e){
             DB::rollBack();
         }

@@ -14,6 +14,8 @@ class Zone extends Model
         'id',
         'zone_name',
         'zone_type',
+        'parent_id',
+        'identity',
         'zone_code',
         'commune',
         'district',
@@ -36,5 +38,9 @@ class Zone extends Model
 
     public function priceListZone(){
         return $this->hasMany(PriceListZone::class,'zone_id','id');
+    }
+
+    public function sub_zones(){
+        return $this->hasMany(self::class,'parent_id','id');
     }
 }

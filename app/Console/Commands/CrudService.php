@@ -5,7 +5,7 @@ namespace App\Console\Commands;
 use Illuminate\Console\Command;
 use Illuminate\Filesystem\Filesystem;
 
-class MakeService extends Command
+class CrudService extends Command
 {
     protected $signature = 'make:crudService
                             {--namespace= : The namespace for the service}

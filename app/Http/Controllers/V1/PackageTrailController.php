@@ -117,7 +117,7 @@ class PackageTrailController extends Controller
             unset($pkg->status,$pkg->merchant,$pkg->driver);
             return $pkg;
         };
-        return ApiResponse::PaginationV1($query,$req,__('messages.get_list',['info'=>'Package']),[],1000,$callbackMapper,$select,300,$this->cacheTags);
+        return ApiResponse::PaginationV1($query,$req,__('messages.get_list',['info'=>'Package']),[],1000,$callbackMapper,$select,1800,$this->cacheTags);
     }
 
     public function getOnePackage(Request $req){
@@ -244,6 +244,7 @@ class PackageTrailController extends Controller
             'deleted_datetime' => now(),
             'deleted_uid' => $user->id
         ]);
+        Helper::clearCacheByTags($this->cacheTags);
         return ApiResponse::JsonResult(null,__('messages.info',[
             'info' => 'Deleted',
             'khInfo' => 'លុបជោគជ័យ'
@@ -272,6 +273,7 @@ class PackageTrailController extends Controller
             'returned_datetime' => now(),
             'update_uid' => $user->id,
         ]);
+        Helper::clearCacheByTags($this->cacheTags);
         return ApiResponse::JsonResult(null,__('messages.info',['info' => 'Returned']));
     }
 
@@ -387,18 +389,6 @@ class PackageTrailController extends Controller
                 $deliveryPackage = DeliveryPackage::where('package_id',$id)->where('is_deleted',0)->where('delay_count',0)->first();
                 if($deliveryPackage){
                     if(!in_array($package->status_id,[6,5,10,19]) ) return ApiResponse::Duplicated(__('messages.has already assigned',['info' => 'Package','khInfo' => 'កញ្ចប់']));
-                    // $fleet = new FleetManagementController();
-                    // $fleetArr = new Request([
-                    // 'packages' => [
-                    //     [
-                    //         'package_id' => $package->id
-                    //     ]
-                    // ],
-                    // 'depart_datetime' => now(),
-                    //     'driver_id' => $driver_id
-                    // ]);
-                    // $createOrUpdate = $fleet->createOrUpdateTripService($fleetArr,$user,[6]);
-                    // if($createOrUpdate->error) return ApiResponse::flex($createOrUpdate);
                 }
                 $selfTrip = Delivery::where('driver_id',$package->driver_id)->where('status_id',14)->where(function($query) {
                     $query->where('finished', 0)
@@ -480,6 +470,7 @@ class PackageTrailController extends Controller
                 'body' => 'You have been assigned to deliver the package('.$package->qr_code.').'
             ]);
             $notif->sendNotificationByTopic($notifReq,$user);
+            Helper::clearCacheByTags($this->cacheTags);
             DB::commit();
             return ApiResponse::JsonResult(null,__('messages.assigned',['info' => '']));
         }catch(Exception $e){

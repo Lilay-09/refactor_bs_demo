@@ -160,7 +160,7 @@ class CompletedPackageController extends Controller
             return $qP;
         };
 
-        return ApiResponse::PaginationV1($qP,$req,null,[],1000,$callbackMapper,$select);
+        return ApiResponse::PaginationV1($qP,$req,null,[],12000,$callbackMapper,$select,null,['completed_packages']);
     }
 
     private function finishPackagePaymentStatus($query,$driverId,$merchantId,$paymentStatusId){
