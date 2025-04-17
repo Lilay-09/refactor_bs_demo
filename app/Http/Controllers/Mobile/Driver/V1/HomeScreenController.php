@@ -64,8 +64,8 @@ class HomeScreenController extends Controller
         if($user->error) return ApiResponse::flex($user);
         $orders = Order::where('is_deleted',0)
         ->with(['merchant','tracking_status','warehouse'])
-        // ->whereIn('status_id',[2,3,4]) //** order which not mark as arrive warehouse */
-        ->where('status_id',2)  //* only accepted pick up
+        ->whereIn('status_id',[2,3,4]) //** order which not mark as arrive warehouse */
+        // ->where('status_id',2)  //* only accepted pick up
         ->where('company_id',$user->company_id)
         ->where('driver_id',$user->id)
         ->orderByRaw('status_id = ? desc',[3])
