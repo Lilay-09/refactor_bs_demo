@@ -11,9 +11,11 @@ use App\Models\Order;
 use App\Models\Package;
 use App\Models\Payment;
 use App\Models\PaymentDetail;
+use App\Services\GeneralSettingService;
 use App\Services\TransactionService;
 use App\Services\UserService;
 use Carbon\Carbon;
+use DB;
 use Helper;
 use Illuminate\Http\Request;
 
@@ -117,6 +119,40 @@ class TransactionController extends Controller
         // $payments =
 
         return ApiResponse::JsonResult($obj);
+    }
+
+    public function getUnpaidPackages(Request $req){
+        $user = UserService::getAuthUser();
+        // $type = 'driver';
+        $lang = $req->lang;
+        $qP = Package::query()->from('packages as p')->where('p.is_deleted',0)
+        ->join('users as m','m.id','p.merchant_id')
+        ->join('tracking_statuses as trs','p.status_id','trs.id')
+        ->where('p.driver_id',$user->id)
+        ->whereNotExists(function ($sub) {
+            $sub->select(DB::raw(1))
+                ->from('payment_packages as pp')
+                ->whereColumn('pp.package_id', 'p.id')
+                ->where('pp.payer_type', 'driver')
+                ->where('pp.is_deleted', false);
+        })
+        ->whereNotExists(function ($sub) {
+            $sub->select(DB::raw(1))
+                ->from('disbursement_packages as dp')
+                ->whereColumn('dp.package_id', 'p.id')
+                ->where('dp.payee_type', 'driver')
+                ->where('dp.is_deleted', false);
+        })
+
+        ->selectRaw('p.driver_id,p.returned_uid,p.payer,p.extra_charge,p.cod,p.price,p.pickup_notes as notes,p.merchant_total,p.receiver_address,p.qr_code,p.status_id,trs.name as status_code,m.user_name as merchant_name,m.phone as merchant_phone,p.receiver_name,p.receiver_phone,p.delivery_fee,p.taxi_fee,p.remarks,p.id as package_id,p.product_type,p.driver_total,p.billed_kg,p.failed_datetime,p.delivered_datetime,p.arrive_warehouse_datetime,p.returned_datetime');
+        // ->get();
+        $callback = function ($p) use($lang){
+            if($lang == 'km'){
+                $p->status_code = GeneralSettingService::$statusCodeTrans[$p->status_id];
+            }
+            return $p;
+        };
+        return ApiResponse::PaginationV1($qP,$req,'',[],200,$callback);
     }
 
     // public function getPaymentMethods($details,$pmtId){

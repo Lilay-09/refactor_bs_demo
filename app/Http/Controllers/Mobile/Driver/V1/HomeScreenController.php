@@ -53,6 +53,9 @@ class HomeScreenController extends Controller
             $order->merchant_code = $order->merchant->code;
             $order->merchant_phone = $order->merchant->phone;
             $order->warehouse_address = $order->warehouse->address;
+            $orderDatetime = $order->order_datetime;
+            $order->order_date = Helper::formatCustomDateTime($orderDatetime,'d-M-Y');
+            $order->order_time = Helper::formatCustomDateTime($orderDatetime,'h:i A');
             unset($order->merchant,$order->warehouse);
             return $order;
         };
@@ -76,6 +79,9 @@ class HomeScreenController extends Controller
             $order->status_code = $order->tracking_status->name;
             $order->merchant_name = $order->merchant->user_name;
             $order->merchant_phone = $order->merchant->phone;
+            $orderDatetime = $order->order_datetime;
+            $order->order_date = Helper::formatCustomDateTime($orderDatetime,'d-M-Y');
+            $order->order_time = Helper::formatCustomDateTime($orderDatetime,'h:i A');
             $order->telegram_url = Helper::generateTelegramLink($order->merchant_phone);
             // $latLng = Helper::getLatLongFromGoogleMapsUrl($order->pickup_address_google_map);
             // $order->latitude = $order->loc_lat ;//? $order->loc_lat : 11.552692;//;
