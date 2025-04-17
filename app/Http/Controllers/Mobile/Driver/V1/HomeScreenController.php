@@ -717,7 +717,7 @@ class HomeScreenController extends Controller
             }
             // $item->groupKey = $sentAt;
             $item->time = Helper::formatCustomDateTime($item->sent_datetime,'h:i A');
-            $item->time_ago = Helper::timeAgo($sentAt,false).' ago';
+            $item->time_ago = Helper::timeAgo($sentAt,false);
             return $item;
         })
         ->groupBy('groupKey')
