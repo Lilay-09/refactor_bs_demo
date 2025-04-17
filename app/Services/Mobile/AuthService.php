@@ -9,9 +9,18 @@ use Helper;
 class AuthService
 {
     // Your service methods go here
-    public function getProfile($authUser){
+    public function getProfile($authUser,$userClass){
+        $select = ['id','code','user_name','phone','email','address','photo_file_name','pin_address','latitude as loc_lat','longitude as loc_lng'];
+        if($userClass == 'driver'){
+            $select = array_merge($select,[
+                'relative_name',
+                'relative_phone',
+                'relative_relationship',
+                'relative_address'
+            ]);
+        }
         $user = User::where('lock',0)->where('is_deleted',0)
-        ->selectRaw('id,code,user_name,phone,email,address,photo_file_name,pin_address,latitude as loc_lat,longitude as loc_lng')
+        ->select($select)
         ->where('account_type',$authUser->account_type)
         ->find($authUser->id);
         if(!$user) return DataResponse::NotFound('User not found');

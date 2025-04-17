@@ -219,7 +219,7 @@ class AuthController extends Controller
     public function getProfile(Request $req){
         $user = UserService::getAuthUser('merchant');
         $authService = new AuthService();
-        return ApiResponse::flex($authService->getProfile($user));
+        return ApiResponse::flex($authService->getProfile($user,'merchant'));
     }
 
     public function updateProfile(Request $req){

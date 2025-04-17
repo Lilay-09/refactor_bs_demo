@@ -94,7 +94,7 @@ class AuthController extends Controller
     public function getProfile(Request $req){
         $user = UserService::getAuthUser('driver');
         $authService = new AuthService();
-        return ApiResponse::flex($authService->getProfile($user));
+        return ApiResponse::flex($authService->getProfile($user,'driver'));
     }
 
     public function updateProfile(Request $req){
