@@ -520,9 +520,9 @@ class GeneralSettingService
     // }
 
     public static function priceByZone($zone_id,$user,$merchant_id=null){
-        $priceListId = PriceList::with(['zones'])
+        $priceList = PriceList::with(['zones'])
             ->where('status',1)
-            ->where('company_id',$user->company_id)
+            // ->where('company_id',$user->company_id)
             // ->where('is_deleted',0)
             ->whereHas('zones',function($q) use($zone_id){
                 $q->where('zone_id',$zone_id);
@@ -530,12 +530,20 @@ class GeneralSettingService
             // ->orderByDesc('id')
             ->where('base_fee','>',0)
             ->selectRaw('base_fee,id,price')
-            ->take(1)->value('id');
-            $row = PriceListZone::with('priceList:id,base_fee')->where('zone_id',$zone_id)->where('price_list_id',$priceListId)->first();
+            ->take(1)->first();
+            // Log::info('$plid' .$priceListId.'Zid'.$zone_id);
+            $row = PriceListZone::with('priceList:id,base_fee')->where('zone_id',$zone_id)->where('price_list_id',$priceList?->id)->first();
             if($merchant_id){
+                // Log::info('merchant');
                 $plNameId = MerchantPriceList::where('merchant_id',$merchant_id)->take(1)->value('price_list_id');
-                $plIds = PriceList::where('price_list_name_id',$plNameId)->pluck('id')->toArray();
-                $row = PriceListZone::with('priceList:id,base_fee')->where('zone_id',$zone_id)->whereIn('price_list_id',$plIds)->first();
+                if($plNameId){
+                    // Log::info(' sdfsdfsd');
+                    $plIds = PriceList::where('price_list_name_id',$plNameId)->pluck('id')->toArray();
+                    if(!empty($plIds)){
+                        $row = PriceListZone::with('priceList:id,base_fee')->where('zone_id',$zone_id)->whereIn('price_list_id',$plIds)->first();
+                        Log::info($row);
+                    }
+                }
             }
 
             if($row) {
