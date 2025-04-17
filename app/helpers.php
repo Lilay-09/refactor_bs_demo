@@ -164,7 +164,7 @@ class ApiResponse
                 if ($store instanceof \Illuminate\Cache\RedisStore || method_exists($store, 'tags')) {
                     $cachedData = Cache::tags($cacheTags)->get($cacheKey);
                     if ($cachedData) {
-                        Log::info('test=>'.$cacheKey);
+                        // Log::info('test=>'.$cacheKey);
                         return response()->json($cachedData, 200);
                     }
                 }
@@ -352,6 +352,23 @@ class Helper{
             // Log::info("Redis status: Inactive!");
             return false;
         }
+    }
+
+
+    public static function haversineDistance($lat1, $lon1, $lat2, $lon2): float
+    {
+        $earthRadius = 6371000; // meters
+
+        $dLat = deg2rad($lat2 - $lat1);
+        $dLon = deg2rad($lon2 - $lon1);
+
+        $a = sin($dLat / 2) ** 2 +
+            cos(deg2rad($lat1)) * cos(deg2rad($lat2)) *
+            sin($dLon / 2) ** 2;
+
+        $c = 2 * atan2(sqrt($a), sqrt(1 - $a));
+
+        return $earthRadius * $c;
     }
 
 
@@ -1555,8 +1572,6 @@ class DataResponse //extends Model
 
         return $obj;
     }
-
-
 
 }
 

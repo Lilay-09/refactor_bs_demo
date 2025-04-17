@@ -261,7 +261,6 @@ class HomeScreenController extends Controller
             if($p->status_id == 10 || $p->status_id == 19) $p->date = $p->failed_datetime;
             unset($p->assign_driver_datetime,$p->delivered_datetime,$p->failed_datetime);
         }
-        print_r($qP->count());
         return [
             'packages' => $packages,
             'total_packages' => $qP->count()
@@ -313,7 +312,6 @@ class HomeScreenController extends Controller
             'khInfo' => 'ទទួលយកយកការកម្មង់'
         ]));
     }
-
 
     //** Pick or Pick & Book */
     public function updateAcceptedOrder(Request $req){

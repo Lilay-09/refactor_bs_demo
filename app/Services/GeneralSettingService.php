@@ -77,6 +77,13 @@ class GeneralSettingService
     ];
 
 
+
+    public static function getRadiusTypeOptions(): array {
+        return [
+            'flexible' => 'Flexible (Unlimited)',
+            'fixed' => 'Fixed (Set distance)',
+        ];
+    }
     static function optionsClaimType($lang='en'){
         return Helper::translateOptions([
             '1' => ['en' => 'Free'],
