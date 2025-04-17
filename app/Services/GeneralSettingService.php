@@ -519,7 +519,7 @@ class GeneralSettingService
     //     return $packages;
     // }
 
-    public static function priceByZone($zone_id,$user,$merchant_id=null){
+    public static function priceByZone($zone_id,$user,$merchant_id=null): object|null{
         $priceList = PriceList::with(['zones'])
             ->where('status',1)
             // ->where('company_id',$user->company_id)
@@ -530,9 +530,9 @@ class GeneralSettingService
             // ->orderByDesc('id')
             ->where('base_fee','>',0)
             ->selectRaw('base_fee,id,price')
-            ->take(1)->first();
+            ->first();
             // Log::info('$plid' .$priceListId.'Zid'.$zone_id);
-            $row = PriceListZone::with('priceList:id,base_fee')->where('zone_id',$zone_id)->where('price_list_id',$priceList?->id)->first();
+            $plZone = PriceListZone::with('priceList:id,base_fee')->where('zone_id',$zone_id)->where('price_list_id',$priceList?->id)->first();
             if($merchant_id){
                 // Log::info('merchant');
                 $plNameId = MerchantPriceList::where('merchant_id',$merchant_id)->take(1)->value('price_list_id');
@@ -540,16 +540,21 @@ class GeneralSettingService
                     // Log::info(' sdfsdfsd');
                     $plIds = PriceList::where('price_list_name_id',$plNameId)->pluck('id')->toArray();
                     if(!empty($plIds)){
-                        $row = PriceListZone::with('priceList:id,base_fee')->where('zone_id',$zone_id)->whereIn('price_list_id',$plIds)->first();
-                        Log::info($row);
+                        $plZone = PriceListZone::with('priceList:id,base_fee')->where('zone_id',$zone_id)->whereIn('price_list_id',$plIds)->first();
+                        // Log::info($row);
                     }
                 }
             }
-
-            if($row) {
-                $row->base_fee = $row->priceList->base_fee;
-                unset($row->zones,$row->price,$row->priceList);
-            }
+            $row = (object)[];
+            if($plZone) {
+                Log::info($plZone);
+                $row->base_fee = $plZone->priceList->base_fee;
+                $row->price = $plZone->priceList->base_fee;
+                unset($plZone->zones,$plZone->price,$plZone->priceList);
+            }else if($priceList){
+                $row->base_fee = $priceList->base_fee;
+                $row->price = $priceList->price;
+            }else $row=null;
         return $row;
     }
 
@@ -664,10 +669,12 @@ class GeneralSettingService
         $selectKg = $billedKg ?? $actualKg;
         $additionalPrice = 0;
         $merchant_total = $zPrice;
-        if($selectKg >= $priceList->above_kg){
-            $additionalPrice = $priceList->above_kg_price;
-        }else if($selectKg < $priceList->above_kg && $selectKg >= $priceList->below_kg){
-            $additionalPrice = $priceList->below_kg_price;
+        if(!empty($selectKg) && $selectKg > 0){
+            if($selectKg >= $priceList->above_kg){
+                $additionalPrice = $priceList->above_kg_price;
+            }else if($selectKg < $priceList->above_kg && $selectKg >= $priceList->below_kg){
+                $additionalPrice = $priceList->below_kg_price;
+            }
         }
         $driverTotal = 0;
         if($cod) $driverTotal += $price;
