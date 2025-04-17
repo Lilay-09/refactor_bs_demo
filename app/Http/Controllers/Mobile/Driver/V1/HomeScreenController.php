@@ -707,7 +707,7 @@ class HomeScreenController extends Controller
         $user = UserService::getAuthUser('driver');
         $notifications = Notification::where('user_id',$user->id)->where('is_read',0)->orderByDesc('sent_datetime')->selectRaw('id,is_read,title,body,sent_datetime')->get();
         $groupedPackages = collect($notifications)->map(function ($item) {
-            $sentAt = Carbon::parse($item->sent_datetime);
+            $sentAt = Carbon::parse($item->sent_datetime)->timezone(config('app.timezone'));
             if ($sentAt->isToday()) {
                 $item->groupKey = 'Today';
             } elseif ($sentAt->isYesterday()) {
