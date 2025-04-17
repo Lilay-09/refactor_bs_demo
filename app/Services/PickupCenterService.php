@@ -172,6 +172,7 @@ class PickupCenterService
                 'type' => 'private',
                 'target_uid' => $merchantId
             ]);
+            // Log::info($clmsgReq);
             // $clmsg->sendNotificationByTopic($clmsgReq,$user);
             SendNotificationJob::dispatch($clmsgReq, $user);
             if($driverId){
