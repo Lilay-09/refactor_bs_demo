@@ -715,7 +715,7 @@ class HomeScreenController extends Controller
             } else {
                 $item->groupKey = $sentAt->format('d-M-Y'); // e.g., 17-Apr-2025
             }
-            $item->groupKey = $sentAt;
+            // $item->groupKey = $sentAt;
             $item->time = Helper::formatCustomDateTime($item->sent_datetime,'h:i A');
             return $item;
         })
