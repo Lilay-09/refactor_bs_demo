@@ -164,6 +164,6 @@ class ReusableService
             unset($f->failed_datetime,$f->returned_datetime,$f->delivered_datetime);
             return $f;
         };
-        return DataResponse::PaginationV1($qFp,$req,null,[],500,$callbackMapper);
+        return DataResponse::PaginationV1($qFp,$req,'',[],500,$callbackMapper);
     }
 }
