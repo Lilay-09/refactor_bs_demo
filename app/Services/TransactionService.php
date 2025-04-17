@@ -134,7 +134,7 @@ class TransactionService
             $package->fee = Helper::getNumber($package->delivery_fee + $package->extra_charge + $package->additional_fee,2);
             return $package;
         };
-        return DataResponse::PaginationV1($qP,$req,null,[],1000,$clbMapper);
+        return DataResponse::PaginationV1($qP,$req,'',[],1000,$clbMapper);
     }
 
 
