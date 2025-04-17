@@ -180,14 +180,14 @@ class HomeScreenController extends Controller
         // $totalEarning = (float)Helper::getNumber($pickup_rate * $totalPickUpPackage + $delivery_rate * $totalDeliveredPackage,2);
         $balanceDues = TransactionService::getMobileUserBalance($req,$user,'driver');
         // $totalSettledDisburment = Disbursement::where('payee_id',$user->id)->where('type','payment')->where('is_deleted',0)->where('is_settled',1)->sum('payable_amount');
-        $pcsUnitLng = $lang == 'km' ? 'កញ្ចប់': 'pcs';
+        $pcsUnitLng = $lang == 'km' ? 'កញ្ចប់': 'PCS';
         $obj = [
             'earning' => (string)Helper::getNumber(1500,2,true),
             'delivered_count' => (string)$deliveredPkg.$pcsUnitLng,
             'pickedup_count' => (string)$pickedUpCount.$pcsUnitLng,
             'pickup_count' => (string)$pickupCount,
             'delivery' => (string)$deliveryPkg,
-            'settlement' => (string)Helper::getNumber($balanceDues['total'],true),
+            'settlement' => (string)Helper::getNumber($balanceDues['total'],2,true),
         ];
         return ApiResponse::JsonResult($obj);
     }
@@ -225,7 +225,7 @@ class HomeScreenController extends Controller
             if($fleet->status_id == 14){
                 $fleet->status_code = $lang == 'km' ? 'កំពុងដឹក':'On Trip';
             }else {
-                $fleet->status_code = $lang == 'km' ? '':$fleet->status->name;
+                $fleet->status_code = $lang == 'km' ? 'រួចរាល់':$fleet->status->name;
             }
             $fleetPackages = $groupedPackages->get($fleet->id, collect());
             $fleet->package_count = $fleetPackages->count();
