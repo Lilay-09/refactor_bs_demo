@@ -147,7 +147,6 @@ class PickupCenterService
 
             if(isset($images[0])){
                 foreach($images as $idx => $photo){
-                    Log::info('test1');
                     $isValidUpload = Helper::isValidUploadImage($photo,0.8);
                     if($isValidUpload->error) return DataResponse::ValidateFail($isValidUpload->message.', check your Image #'.($idx + 1));
                     $img = Helper::saveImageFile($photo,$companyId,'order_image',date('Y-m-d'));
