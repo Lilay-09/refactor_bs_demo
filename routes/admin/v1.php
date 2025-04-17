@@ -272,6 +272,10 @@ Route::middleware(['jwt','localize','userAccess:admin'])->prefix('admin/v1/{lang
         Route::get('/{id}',[ZoneController::class,'getOneZone']);
         Route::put('/{id}',[ZoneController::class,'updateZone']);
         Route::delete('/{id}',[ZoneController::class,'deleteZone']);
+        Route::get('/{id}/children',[ZoneController::class,'getZoneChildren']);
+        Route::put('/{id}/assign/children',[ZoneController::class,'assignZoneToParent']);
+
+        Route::put('/assign/driver',[ZoneController::class,'assignZoneToDriver']);
     });
 
     Route::prefix('priceList')->group(function(){

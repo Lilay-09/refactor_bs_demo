@@ -1,5 +1,6 @@
 <?php
 use App\Http\Controllers\Mobile\Driver\V1\AuthController;
+use App\Http\Controllers\Mobile\Driver\V1\DrawerController;
 use App\Http\Controllers\Mobile\Driver\V1\HistoryController;
 use App\Http\Controllers\Mobile\Driver\V1\SearchController;
 use App\Http\Controllers\Mobile\Driver\V1\TransactionController;
@@ -33,6 +34,7 @@ Route::middleware(['jwtDriver','localize'])->prefix('driver/v1/{lang}')->group(f
     Route::get('emergencyContact',[HomeScreenController::class,'getEmergencyContact']);
     Route::get('feedback/question',[HomeScreenController::class,'getFeedbackQuestions']);
     Route::post('feedback/question',[HomeScreenController::class,'createFeedback']);
+    Route::get('location/zone',[DrawerController::class,'getUserZones']);
     Route::get('notification',[HomeScreenController::class,'getNotifications']);
     Route::put('notification/read/{id?}',[HomeScreenController::class,'readNotification']);
     Route::prefix('transaction')->group(function(){

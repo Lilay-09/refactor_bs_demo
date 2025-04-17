@@ -64,7 +64,8 @@ class HomeScreenController extends Controller
         if($user->error) return ApiResponse::flex($user);
         $orders = Order::where('is_deleted',0)
         ->with(['merchant','tracking_status','warehouse'])
-        ->whereIn('status_id',[2,3,4])
+        // ->whereIn('status_id',[2,3,4]) //** order which not mark as arrive warehouse */
+        ->where('status_id',2)  //* only accepted pick up
         ->where('company_id',$user->company_id)
         ->where('driver_id',$user->id)
         ->orderByRaw('status_id = ? desc',[3])
@@ -237,7 +238,9 @@ class HomeScreenController extends Controller
         ->join('users as d','d.id','p.driver_id')
         ->leftJoin('users as m','m.id','p.merchant_id')
         ->where(function($q){
-            $q->where('dp.is_deleted',0)->where('dp.delay_count',0);
+            $q->where('dp.is_deleted',0)
+            ->where('dp.has_swap',0)
+            ->where('dp.delay_count',0);
         })
         ->where('p.created_at', '>=', Carbon::now()->subDays(15))
         ->join('tracking_statuses as ts','ts.id','p.status_id')
@@ -258,6 +261,7 @@ class HomeScreenController extends Controller
             if($p->status_id == 10 || $p->status_id == 19) $p->date = $p->failed_datetime;
             unset($p->assign_driver_datetime,$p->delivered_datetime,$p->failed_datetime);
         }
+        print_r($qP->count());
         return [
             'packages' => $packages,
             'total_packages' => $qP->count()

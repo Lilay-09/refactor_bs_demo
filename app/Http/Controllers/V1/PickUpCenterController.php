@@ -8,7 +8,6 @@ use App\Models\Order;
 use App\Models\OrderImage;
 use App\Models\Package;
 use App\Models\User;
-use App\Models\VehicleType;
 use App\Services\CloudMessagingService;
 use App\Services\CompanyProfileService;
 use App\Services\GeneralSettingService;
@@ -322,6 +321,7 @@ class PickUpCenterController extends Controller
     public function setAtWarehouse(Request $req){
         $user = UserService::getAuthUser();
         $orderId = $req->order_id;
+
         $order = Order::where('is_deleted',0)->find($orderId);
         if(!$order) return ApiResponse::NotFound(trans('messages.not_found',['info' => 'Order']));
         $order->update([
@@ -524,6 +524,10 @@ class PickUpCenterController extends Controller
         $order->update([
             'status_id' => 5, //* at warehouse
             'qty' => $count
+        ]);
+
+        Helper::clearCacheByTags([
+            'package_trail'
         ]);
         return ApiResponse::JsonResult(null,__('messages.arrived',['info' => 'Packages have']));
     }

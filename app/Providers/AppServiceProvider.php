@@ -15,6 +15,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
+        if(!config('app.use_redis')){
+            config(['cache.default' => 'file']);
+        }
         $this->app->singleton(ExceptionHandlerContract::class, Handler::class);
 
     }
@@ -24,8 +27,6 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        if(!config('app.use_redis')){
-            config(['cache.default' => 'file']);
-        }
+
     }
 }

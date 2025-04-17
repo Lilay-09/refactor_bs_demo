@@ -147,6 +147,8 @@ class PickupCenterService
 
             if(isset($images[0])){
                 foreach($images as $photo){
+                    $isValidUpload = Helper::isValidUploadImage($photo,0.01);
+                    if($isValidUpload->error) return DataResponse::ValidateFail($isValidUpload->message);
                     $img = Helper::saveImageFile($photo,$companyId,'order_image',date('Y-m-d'));
                     $deleteImgs[] = $img->filename;
                     OrderImage::create([

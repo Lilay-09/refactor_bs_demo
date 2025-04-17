@@ -222,6 +222,9 @@ class GeneralSettingController extends Controller
             // }catch(Exception $e){
             //     DB::rollBack();
             // }
+            Helper::clearCacheByTags([
+                'package_trail'
+            ]);
         }else $confirmDelivery = ($package->status_id == 6);
         if($markContact && !$confirmDelivery) return ApiResponse::ValidateFail(__('messages.info',[
             'info' => 'You cannot mark contact on package which is not on delivery'
