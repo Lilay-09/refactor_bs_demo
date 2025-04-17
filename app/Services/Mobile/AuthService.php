@@ -4,6 +4,7 @@ namespace App\Services\Mobile;
 
 use App\Models\User;
 use DataResponse;
+use DB;
 use Helper;
 
 class AuthService
@@ -13,6 +14,7 @@ class AuthService
         $select = ['id','code','user_name','phone','email','address','photo_file_name','pin_address','latitude as loc_lat','longitude as loc_lng'];
         if($userClass == 'driver'){
             $select = array_merge($select,[
+                DB::raw('DATE(employment_date) as employment_date'),
                 'relative_name',
                 'relative_phone',
                 'relative_relationship',
