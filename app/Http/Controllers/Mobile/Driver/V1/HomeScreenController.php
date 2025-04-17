@@ -105,6 +105,7 @@ class HomeScreenController extends Controller
 
     public function getDriverBalance(Request $req){
         $user = UserService::getAuthUser('driver');
+        $lang = $req->lang;
         $driverCommissions = DriverCommission::where('driver_id',$user->id)->where('is_deleted',0)
         ->selectRaw('id,driver_id,delivery_type,pickup_commission,delivery_commission,delivery_commission_start_date,pickup_commission_start_date,DATE(updated_at) as updated_date')
         ->get();
@@ -179,13 +180,14 @@ class HomeScreenController extends Controller
         // $totalEarning = (float)Helper::getNumber($pickup_rate * $totalPickUpPackage + $delivery_rate * $totalDeliveredPackage,2);
         $balanceDues = TransactionService::getMobileUserBalance($req,$user,'driver');
         // $totalSettledDisburment = Disbursement::where('payee_id',$user->id)->where('type','payment')->where('is_deleted',0)->where('is_settled',1)->sum('payable_amount');
+        $pcsUnitLng = $lang == 'km' ? 'កញ្ចប់': 'pcs';
         $obj = [
-            'earning' => (string)1500,
-            'delivered_count' => (string)$deliveredPkg.'pcs',
-            'pickedup_count' => (string)$pickedUpCount.'pcs',
+            'earning' => (string)Helper::getNumber(1500,2,true),
+            'delivered_count' => (string)$deliveredPkg.$pcsUnitLng,
+            'pickedup_count' => (string)$pickedUpCount.$pcsUnitLng,
             'pickup_count' => (string)$pickupCount,
             'delivery' => (string)$deliveryPkg,
-            'settlement' => (string)Helper::getNumber($balanceDues['total']),
+            'settlement' => (string)Helper::getNumber($balanceDues['total'],true),
         ];
         return ApiResponse::JsonResult($obj);
     }
@@ -208,7 +210,7 @@ class HomeScreenController extends Controller
         $user = $this->user;
         if($user->error) return ApiResponse::flex($user);
         $driverId = $user->id;
-
+        $lang = $req->lang;
         $query = Delivery::where('driver_id', $driverId)->where('is_deleted',0)
         ->with(['status'])
         ->where(function ($q){
@@ -218,8 +220,13 @@ class HomeScreenController extends Controller
         $cloneQ = clone $query;
         $packages = $this->tripPackageInfo($cloneQ->pluck('id')->toArray());
         $groupedPackages = $packages['packages']->groupBy('delivery_id');
-        $callback = function ($fleet) use($groupedPackages){
-            $fleet->status_code = $fleet->status->name;
+        $callback = function ($fleet) use($groupedPackages,$lang){
+            // $fleet->status_code = $fleet->status->name == '';
+            if($fleet->status_id == 14){
+                $fleet->status_code = $lang == 'km' ? 'កំពុងដឹក':'On Trip';
+            }else {
+                $fleet->status_code = $lang == 'km' ? '':$fleet->status->name;
+            }
             $fleetPackages = $groupedPackages->get($fleet->id, collect());
             $fleet->package_count = $fleetPackages->count();
             // $fleet->package_count = $packages['packages']->where('delivery_id',$fleet->id)->count();
