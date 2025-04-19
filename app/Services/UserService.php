@@ -181,6 +181,7 @@ class UserService
         $inputs['driver_warehouse_id'] = $inputs['warehouse_id'] ?? null;
         $roleId = $inputs['role_id'] ?? null;
         $roleIds = $inputs['roles'] ?? ($roleId ? [$roleId] : []);
+
         if($isRegistered){
             $inputs['lock'] = true;
             $inputs['register_status'] = 'in-progress';
