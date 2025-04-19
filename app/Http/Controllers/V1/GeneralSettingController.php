@@ -157,6 +157,10 @@ class GeneralSettingController extends Controller
         return ApiResponse::JsonResult($this->gs::optionChannels(0));
     }
 
+    public function getOptionsUnpaidMerchant(){
+        // return ApiResponse::JsonResult($this->gs::optionsUnpaidMerchant());
+    }
+
     public function getDriverFormQuestion(Request $req){
         $lang = $req->lang;
         return ApiResponse::JsonResult(

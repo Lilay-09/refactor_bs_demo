@@ -399,4 +399,18 @@ class GeneralSettingController extends Controller
         $id = $req->zone_id;
         return ApiResponse::JsonResult(GeneralSettingService::priceByZone($id,$user,$req->merchant_id));
     }
+
+    public function getProfileFormOptions(){
+        $user = UserService::getAuthUser();
+        return ApiResponse::JsonResult([
+            'product_types' => GeneralSettingService::optionsProductType($user),
+            'cities' => GeneralSettingService::optionsCity($user),
+            'districts' => GeneralSettingService::optionsDistrict($user)
+        ]);
+    }
+
+    public function getOptionBanks(){
+        $user = UserService::getAuthUser();
+        return ApiResponse::JsonResult(GeneralSettingService::optionsBank($user));
+    }
 }

@@ -613,6 +613,16 @@ class Helper{
     }
 
 
+    static function getLabelByValue($data, $searchValue,$valueKey='value',$labelKey='label',$lang='en') {
+        foreach ($data as $item) {
+            if ($item[$valueKey] === $searchValue) {
+                return $item[$labelKey];
+            }
+        }
+        return null; // Return null if value not found
+    }
+
+
 
 
 

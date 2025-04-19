@@ -17,6 +17,7 @@ use App\Models\ExchangeRate;
 use App\Models\FeedbackForm;
 use App\Models\MerchantPriceList;
 use App\Models\Order;
+use App\Models\Package;
 use App\Models\Permission;
 use App\Models\PriceList;
 use App\Models\PriceListname;
@@ -114,9 +115,10 @@ class GeneralSettingService
     static function optionsRewardType($lang='en'){
         return Helper::translateOptions([
             'cashback' => ['en' => 'Cashback'],
-            'challenge' => ['en' => 'Challenges'],
+            'promotion' => ['en' => 'Promotions'],
             'referal' => ['en' => 'Referral Rewards'],
-            'promotion' => ['en' => 'Promotions']
+            'challenge' => ['en' => 'Challenges']
+
         ],$lang);
     }
 
@@ -796,6 +798,25 @@ class GeneralSettingService
             // Delivery::find($id)->update($updateArr);
             $trip->update($updateArr);
         }
+    }
+
+    public static function optionsUnpaidUser($userClass){
+        $mP = Package::with($userClass)->get();
+        // ->whereNotExists(function ($sub) {
+        //         $sub->select(DB::raw(1))
+        //             ->from('payment_packages as pp')
+        //             ->whereColumn('pp.package_id', 'p.id')
+        //             ->where('pp.payer_type', $userClass)
+        //             ->where('pp.is_deleted', false);
+        //     })
+        //     ->whereNotExists(function ($sub) {
+        //         $sub->select(DB::raw(1))
+        //             ->from('disbursement_packages as dp')
+        //             ->whereColumn('dp.package_id', 'p.id')
+        //             ->where('dp.payee_type', $userClass)
+        //             ->where('dp.is_deleted', false);
+        //     });
+        return $mP;
     }
 
 }

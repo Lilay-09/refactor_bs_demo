@@ -67,11 +67,11 @@ class HomeScreenController extends Controller
         if($user->error) return ApiResponse::flex($user);
         $orders = Order::where('is_deleted',0)
         ->with(['merchant','tracking_status','warehouse'])
-        ->whereIn('status_id',[2,3,4]) //** order which not mark as arrive warehouse */
-        // ->where('status_id',2)  //* only accepted pick up
+        // ->whereIn('status_id',[2,3,4]) //** order which not mark as arrive warehouse */
+        ->where('status_id',3)  //* only accepted pick up
         ->where('company_id',$user->company_id)
         ->where('driver_id',$user->id)
-        ->orderByRaw('status_id = ? desc',[3])
+        // ->orderByRaw('status_id = ? desc',[3])
         ->orderByDesc('id')
         ->selectRaw('id,warehouse_id,driver_id,pickup_address_google_map,order_datetime,merchant_id,status_id,qty,code,pickup_address,pickup_address_google_map,vehicle_type,delivery_type,loc_lat,loc_lng,product_type');
         $callback = function($order){
@@ -147,9 +147,11 @@ class HomeScreenController extends Controller
 
         // $orderCount = Order::whereNull('driver_commission_id')->count();
         $orderCounts = Order::whereNull('driver_commission_id')
+        ->where('is_deleted', 0)
+        ->where('driver_id',$user->id)
         // COUNT(*) as total_orders,
         ->selectRaw("
-            COUNT(CASE WHEN status_id IN (2,3,4) THEN 1 END) as pickup_count,
+            COUNT(CASE WHEN status_id = 3 THEN 1 END) as pickup_count,
             COUNT(CASE WHEN status_id = 5 THEN 1 END) as picked_up_count
         ")
         ->first();

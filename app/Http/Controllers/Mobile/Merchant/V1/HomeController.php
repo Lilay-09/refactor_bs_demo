@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Mobile\Merchant\V1;
 use ApiResponse;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Mobile\V1\GeneralSettingController;
+use App\Models\Bank;
 use App\Models\Banner;
 use App\Models\BrandImage;
 use App\Models\FeedBack;
@@ -25,6 +26,7 @@ use App\Services\UserService;
 use Cache;
 use Helper;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Validator;
 
 class HomeController extends Controller
 {
@@ -106,62 +108,92 @@ class HomeController extends Controller
         return ApiResponse::JsonResult($obj);
     }
 
-
     public function getBankAccount(){
         $user = UserService::getAuthUser('merchant');
-        $userBanks = UserBank::where('user_id',$user->id)->selectRaw('id,bank_name,bank_number,account_name,is_primary')->orderByDesc('is_primary')->get();
-        $displayBanks = $userBanks->toArray();
-
-        // Check the number of existing records
-        if ($userBanks->isEmpty()) {
-            // No records, add two: one primary and one secondary
-            $displayBanks[] = [
-                'bank_name' => '',
-                'bank_number' => '',
-                'account_name' => '',
-                'is_primary' => true, // First record is primary
-                'skip' => 1
-            ];
-            $displayBanks[] = [
-                'bank_name' => '',
-                'bank_number' => '',
-                'account_name' => '',
-                'is_primary' => false, // Second record is not primary
-                'skip' => 1
-            ];
-        } elseif ($userBanks->count() === 1) {
-            // One record exists, check its `is_primary` value
-            $existing = $userBanks->first();
-            if ($existing->is_primary) {
-                // If the existing record is primary, add a secondary row
-                $displayBanks[] = [
-                    'bank_name' => '',
-                    'bank_number' => '',
-                    'account_name' => '',
-                    'is_primary' => false,
-                    'skip' => 1
-                ];
-            } else {
-                // If the existing record is not primary, add a primary row first
-                $displayBanks = array_merge([
-                    [
-                        'bank_name' => '',
-                        'bank_number' => '',
-                        'account_name' => '',
-                        'is_primary' => true,
-                        'skip' => 1
-                    ]
-                ], $displayBanks);
-            }
-        }
-        return ApiResponse::JsonResult($displayBanks);
+        $userBanks = UserBank::where('user_id',$user->id)->selectRaw('id,bank_name,bank_number,account_name,is_primary')->orderByDesc('is_primary')->first();
+        return ApiResponse::JsonResult($userBanks);
     }
 
+    // public function getBankAccount(){
+    //     $user = UserService::getAuthUser('merchant');
+    //     $userBanks = UserBank::where('user_id',$user->id)->selectRaw('id,bank_name,bank_number,account_name,is_primary')->orderByDesc('is_primary')->get();
+    //     $displayBanks = $userBanks->toArray();
+
+    //     // Check the number of existing records
+    //     if ($userBanks->isEmpty()) {
+    //         // No records, add two: one primary and one secondary
+    //         $displayBanks[] = [
+    //             'bank_name' => '',
+    //             'bank_number' => '',
+    //             'account_name' => '',
+    //             'is_primary' => true, // First record is primary
+    //             'skip' => 1
+    //         ];
+    //         $displayBanks[] = [
+    //             'bank_name' => '',
+    //             'bank_number' => '',
+    //             'account_name' => '',
+    //             'is_primary' => false, // Second record is not primary
+    //             'skip' => 1
+    //         ];
+    //     } elseif ($userBanks->count() === 1) {
+    //         // One record exists, check its `is_primary` value
+    //         $existing = $userBanks->first();
+    //         if ($existing->is_primary) {
+    //             // If the existing record is primary, add a secondary row
+    //             $displayBanks[] = [
+    //                 'bank_name' => '',
+    //                 'bank_number' => '',
+    //                 'account_name' => '',
+    //                 'is_primary' => false,
+    //                 'skip' => 1
+    //             ];
+    //         } else {
+    //             // If the existing record is not primary, add a primary row first
+    //             $displayBanks = array_merge([
+    //                 [
+    //                     'bank_name' => '',
+    //                     'bank_number' => '',
+    //                     'account_name' => '',
+    //                     'is_primary' => true,
+    //                     'skip' => 1
+    //                 ]
+    //             ], $displayBanks);
+    //         }
+    //     }
+    //     return ApiResponse::JsonResult($displayBanks);
+    // }
+
+    private function bankValidator(Request $req):Validator{
+        return validator($req->all(), [
+            'bank_id' => 'required|int',
+            'bank_name' => 'nullable|string:max:50',
+            'bank_number' => 'string|max:50',
+            'account_name' => 'string|max:50'
+        ]);
+    }
     public function saveBankAccount(Request $req){
         $user = UserService::getAuthUser('merchant');
-        if(!$req->bank_info) return ApiResponse::ValidateFail('You must provide a bank_info');
-        $saveBank = UserService::saveUserBanks($req->bank_info,$user->id,$user);
-        return ApiResponse::flex($saveBank);
+        $validator = $this->bankValidator($req);
+        if($validator->fails()) return ApiResponse::ValidateFail($validator->errors()->first());
+        $userBank = UserBank::where('user_id',$user->id)->first();
+        $inputs = $validator->validated();
+        $bankInfo = Bank::select('name')->find($inputs['bank_id']);
+        if(!$bankInfo) return ApiResponse::ValidateFail('Bank not found');
+        $inputs['bank_name'] = $bankInfo->name;
+        $inputs['update_uid'] = $user->id;
+        $inputs['branch_id'] = $user->branch_id;
+        $inputs['company_id'] = $user->company_id;
+        if($userBank){
+            $userBank->update($inputs);
+        }else{
+            $inputs['user_id'] = $user->id;
+            $inputs['create_uid'] = $user->id;
+            Bank::create($inputs);
+        }
+        return ApiResponse::JsonResult(null,__('messages.saved'));
+        // $saveBank = UserService::saveUserBanks($req->bank_info,$user->id,$user);
+        // return ApiResponse::flex($saveBank);
     }
 
     public function deleteBankAccount(Request $req){
