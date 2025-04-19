@@ -201,7 +201,7 @@ class FleetManagementController extends Controller
         $status_id = $req->status_id;
         $failure_notes = $req->failure_notes ?? null;
         $payer = $req->payer ?? null;
-        $delivery = Delivery::where('is_deleted',0)->selectRaw('id')->find($trip_id);
+        $delivery = Delivery::where('is_deleted',0)->select('id','driver_id')->find($trip_id);
         // $tripPackage = DeliveryPackage::where('package_id',$package_id)->where('delivery_id','>',$trip_id)->where('delay_count',0)->orderByDesc('id')->first();
         // if(!$tripPackage) return ApiResponse::NotFound(__('messages.not_found',[
         //     'info' => 'Package',
@@ -297,7 +297,7 @@ class FleetManagementController extends Controller
             ]);
             GeneralSettingService::updateTripStatus($trip_id,$user);
             // Log::error(json_encode(Delivery::where('id',$trip_id)->selectRaw('id,status_id')->first()));
-            // DB::commit();
+            DB::commit();
         }catch(Exception $e){
             DB::rollBack();
         }

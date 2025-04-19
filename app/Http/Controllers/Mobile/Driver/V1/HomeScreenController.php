@@ -109,6 +109,16 @@ class HomeScreenController extends Controller
         $driverCommissions = DriverCommission::where('driver_id',$user->id)->where('is_deleted',0)
         ->selectRaw('id,driver_id,delivery_type,pickup_commission,delivery_commission,delivery_commission_start_date,pickup_commission_start_date,DATE(updated_at) as updated_date')
         ->get();
+
+        // $delivery = Delivery::where('driver_id', $user->id)
+        // ->where('is_deleted', 0)
+        // ->where(function ($q) {
+        //     $q->where('finished', 0)
+        //     ->orWhereDate('depart_datetime', Carbon::today());
+        // })
+        // ->select('depart_datetime')
+        // ->orderBy('depart_datetime', 'asc')
+        // ->first();
         // $totalEarning = (float)Disbursement::where('payee_id',$user->id)->where('type','commission')->where('is_deleted',0)->sum('payable_amount');
         $commissionInfo = TransactionService::getDriverCommissionInfo($driverCommissions,$user->id);
         $deliveryCommStartDate = $commissionInfo->normal_delivery_commission_start_date;
