@@ -5,10 +5,13 @@ namespace App\Http\Controllers\Mobile\Merchant\V1;
 use ApiResponse;
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Models\UserShop;
 use App\Services\AppSetting;
 use App\Services\CloudMessagingService;
 use App\Services\Mobile\AuthService;
 use App\Services\UserService;
+use App\Services\UserShopService;
+use DB;
 use Helper;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
@@ -219,7 +222,14 @@ class AuthController extends Controller
     public function getProfile(Request $req){
         $user = UserService::getAuthUser('merchant');
         $authService = new AuthService();
-        return ApiResponse::flex($authService->getProfile($user,'merchant'));
+        $profile = $authService->getProfile($user,'merchant');
+        $userShop = UserShop::where('owner_id',$user->id)
+        ->select('name_en','est_pcs','city','commune')->first();
+        $profile->data['shop_name'] = $userShop->name_en ?? '';
+        $profile->data['est_pcs'] = (int) ($userShop->est_pcs ?? 0);
+        $profile->data['city'] = $userShop->city ?? '';
+        $profile->data['commune'] = $userShop->commune ?? '';
+        return ApiResponse::flex($profile);
     }
 
     public function updateProfile(Request $req){
@@ -231,10 +241,10 @@ class AuthController extends Controller
             'photo' => 'nullable',
             'pin_address' => 'nullable',
             'loc_lat' => 'nullable',
-            'loc_lng' => 'nullable'
+            'loc_lng' => 'nullable',
         ]);
         if($validate->fails()) return ApiResponse::ValidateFail($validate->errors()->first());
-        $user = User::where('account_type',$authUser->account_type)->selectRaw('id,photo_file_name,user_name,phone,email')->find($authUser->id);
+        $user = User::where('account_type',$authUser->account_type)->selectRaw('id,photo_file_name,user_name,phone,email,company_id,branch_id')->find($authUser->id);
         $inputs = $validate->validated();
         $photo = $inputs['photo'] ?? null;
         if($photo instanceof UploadedFile){
@@ -243,7 +253,26 @@ class AuthController extends Controller
         }else if(!$photo) Helper::deleteImageFile($user->photo_file_name,$authUser->company_id,'user_profile');
         $inputs['latitude'] = $inputs['loc_lat'] ?? null;
         $inputs['longitude'] = $inputs['loc_lng'] ?? null;
-        $user->update($inputs);
+        $errorMsg = '';
+        DB::transaction(function () use($user,$inputs,$req,&$errorMsg){
+            $user->update($inputs);
+            $userShopService = new UserShopService();
+            $shopReq = clone $req;
+            $shopReq->merge([
+                'name_en' => $req->shop_name ?? null,
+                'owner_id' => $user->id,
+                'phone' => $user->phone,
+                'est_pcs' => $req->est_pcs,
+            ]);
+            // Log::info($shopReq->all());
+            $shop = $userShopService->saveShop($shopReq,$user);
+            if($shop->error){
+                $errorMsg = $shop->message;
+            }
+        });
+        if($errorMsg){
+            return ApiResponse::Error($errorMsg);
+        }
         return ApiResponse::JsonResult(null,__('messages.info',[
             'info' => 'Updated'
         ]));

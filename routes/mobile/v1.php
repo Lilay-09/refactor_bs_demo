@@ -11,6 +11,7 @@ use App\Http\Controllers\Mobile\Driver\V1\HomeScreenController;
 use App\Http\Controllers\Mobile\Merchant\V1\HomeController;
 use App\Http\Controllers\Mobile\V1\GeneralSettingController;
 use App\Http\Controllers\Mobile\V1\ReportController;
+use App\Http\Controllers\Mobile\V1\SpecialOfferController;
 use Illuminate\Support\Facades\Route;
 
 //BEGIN::Driver
@@ -119,6 +120,7 @@ Route::middleware(['jwtMerchant','localize'])->prefix('merchant/v1/{lang}')->gro
     Route::get('history/packages',[MerchantHistoryController::class,'getAllHistories']);
     Route::get('search/packages',[HomeController::class,'getSearchPackages']);
     Route::get('transaction',[MerchantTransactionController::class,'getTransaction']);
+    Route::get('specialOffer',[SpecialOfferController::class,'getSpecialOffers']);
     Route::get('package/{package_id}/images',[GeneralSettingController::class,'getPackageImages']);
     Route::prefix('home')->group(function(){
         Route::get('',[HomeController::class,'getHomeScreen']);
@@ -146,8 +148,11 @@ Route::middleware(['jwtMerchant','localize'])->prefix('merchant/v1/{lang}')->gro
         Route::prefix('option')->group(function (){
             Route::get('zone/{zone_id}/price',[HomeController::class,'getZonePrice']);
             Route::get('zone',[HomeController::class,'getOptionsZone']);
+
+            Route::get('bank',[GeneralSettingController::class,'getOptionBanks']);
         });
         Route::prefix('form')->group(function (){
+            Route::get('profile',[GeneralSettingController::class,'getProfileFormOptions']);
             Route::get('booking',[GeneralSettingController::class,'getMerchantFormBooking']);
         });
     });

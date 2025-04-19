@@ -18,7 +18,7 @@ return [
     'submitted' => ':info submitted',
     'info' => ':info',
     'canceled' => 'Canceled',
-    'saved' => ':info Saved',
+    'saved' => 'Saved',
     'returned' => ':info Returned',
     'has already assigned' => ':info has already assigned',
     'all' => 'All',
