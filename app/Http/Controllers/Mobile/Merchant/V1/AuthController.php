@@ -46,7 +46,7 @@ class AuthController extends Controller
             $q->where('email', $account)
             ->orWhere('phone', $account)
             ->orWhere('login_name', $account);
-        })->selectRaw('photo_file_name,email,phone,id,system_admin,lock,company_id,account_type,login_name,delete_account,register_status')->first();
+        })->selectRaw('photo_file_name,email,phone,id,system_admin,lock,company_id,account_type,login_name,delete_account,register_status,register_channel')->first();
         $systemAdmin = $user->system_admin ?? false;
         $isLock = $user->lock ?? false;
         if(!$user) return  ApiResponse::NotFound('Invalid Username or password');
