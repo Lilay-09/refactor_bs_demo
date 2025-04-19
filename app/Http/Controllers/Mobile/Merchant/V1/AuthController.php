@@ -50,8 +50,7 @@ class AuthController extends Controller
         $systemAdmin = $user->system_admin ?? false;
         $isLock = $user->lock ?? false;
         if(!$user) return  ApiResponse::NotFound('Invalid Username or password');
-        Log::info($user);
-        if($user->register_status !== 'registered') return ApiResponse::Unauthorized('You have no access to this application.');
+        if($user->register_status !== 'registered' && $user->register_channel != 'admin') return ApiResponse::Unauthorized('You have no access to this application.');
         if($isLock || $user->delete_account) {
             if(!$systemAdmin) return ApiResponse::Unauthorized('You have no access to this application.');
         }
