@@ -54,7 +54,7 @@ class HomeScreenController extends Controller
             $order->merchant_phone = $order->merchant->phone;
             $order->warehouse_address = $order->warehouse->address;
             $orderDatetime = $order->order_datetime;
-            $order->order_date = Helper::formatCustomDateTime($orderDatetime,'d-M-Y');
+            $order->order_date = Helper::formatCustomDateTime($orderDatetime,'d M Y');
             $order->order_time = Helper::formatCustomDateTime($orderDatetime,'h:i A');
             unset($order->merchant,$order->warehouse);
             return $order;
@@ -80,7 +80,7 @@ class HomeScreenController extends Controller
             $order->merchant_name = $order->merchant->user_name;
             $order->merchant_phone = $order->merchant->phone;
             $orderDatetime = $order->order_datetime;
-            $order->order_date = Helper::formatCustomDateTime($orderDatetime,'d-M-Y');
+            $order->order_date = Helper::formatCustomDateTime($orderDatetime,'d M Y');
             $order->order_time = Helper::formatCustomDateTime($orderDatetime,'h:i A');
             $order->telegram_url = Helper::generateTelegramLink($order->merchant_phone);
             // $latLng = Helper::getLatLongFromGoogleMapsUrl($order->pickup_address_google_map);
@@ -598,7 +598,7 @@ class HomeScreenController extends Controller
         $orderId = $req->order_id;
         $order = Order::where('is_deleted',0)->where('driver_id',$user->id)->find($orderId);
         if(!$order) return ApiResponse::NotFound(__('messages.not_found',[
-            'info' => 'Order'
+            'info' => 'Order',
         ]));
         if($order->status_id == 21) return ApiResponse::Duplicated(__('messages.info',[
             'info' => 'Order has already dropped'

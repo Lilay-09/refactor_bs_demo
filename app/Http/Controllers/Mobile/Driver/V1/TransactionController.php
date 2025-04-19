@@ -22,104 +22,235 @@ use Illuminate\Http\Request;
 class TransactionController extends Controller
 {
     //
-
-    public function getTransactionSummary(Request $req){
+    public function getTransactionSummary(Request $req)
+    {
         $user = UserService::getAuthUser('driver');
-        // $balanceDue = Package::where('driver_id',$user->id)->where('is_deleted',0)->whereIn('status_id',[9,19])->sum('driver_total');
         $count = 0;
         $total = 0;
         $paidTrx = [];
+
         $startDate = $req->query('startDate');
         $endDate = $req->query('endDate');
-        $qPmt = Payment::where('payments.is_deleted',0)->where('payments.payer_id',$user->id)
-        // ->where('payments.approved',1)
-        ->join('users as c','c.id','payments.receiver_uid')
-        ->selectRaw('payments.package_count,payments.id,payments.payable_amount,payments.breakdown_notes,c.user_name as cashier_name,payments.payment_datetime')
-        ->orderByDesc('payment_datetime');
 
-        $qDis = Disbursement::where('type','payment')->where('disbursements.is_deleted',0)->where('disbursements.payee_id',$user->id)
-        // ->where('disbursements.approved',1)
-        ->join('users as c','c.id','disbursements.receiptionist_uid')
-        ->selectRaw('disbursements.package_count,disbursements.id,disbursements.payable_amount,disbursements.breakdown_notes,c.user_name as cashier_name,disbursements.payment_datetime')
-        ->orderByDesc('payment_datetime');
+        $qPmt = Payment::where('payments.is_deleted', 0)
+            ->where('payments.payer_id', $user->id)
+            ->join('users as c', 'c.id', 'payments.receiver_uid')
+            ->selectRaw('payments.package_count, payments.id, payments.payable_amount, payments.breakdown_notes, c.user_name as cashier_name, payments.payment_datetime')
+            ->orderByDesc('payment_datetime');
 
-        if($startDate && $endDate){
-            $startDateTime = Helper::dateYMD($startDate).' 00:00:00';
-            $endDateTime = Helper::dateYMD($endDate).' 23:59:59';
-            $qPmt->whereBetween('payment_datetime',[$startDateTime,$endDateTime]);
-            $qDis->whereBetween('payment_datetime',[$startDateTime,$endDateTime]);
+        $qDis = Disbursement::where('type', 'payment')
+            ->where('disbursements.is_deleted', 0)
+            ->where('disbursements.payee_id', $user->id)
+            ->join('users as c', 'c.id', 'disbursements.receiptionist_uid')
+            ->selectRaw('disbursements.package_count, disbursements.id, disbursements.payable_amount, disbursements.breakdown_notes, c.user_name as cashier_name, disbursements.payment_datetime')
+            ->orderByDesc('payment_datetime');
+
+        if ($startDate && $endDate) {
+            $startDateTime = Helper::dateYMD($startDate) . ' 00:00:00';
+            $endDateTime = Helper::dateYMD($endDate) . ' 23:59:59';
+            $qPmt->whereBetween('payment_datetime', [$startDateTime, $endDateTime]);
+            $qDis->whereBetween('payment_datetime', [$startDateTime, $endDateTime]);
         }
 
-        $disbursements = $qDis->get();
+        $disbursements = $qDis->get()->keyBy('id');
+        $payments = $qPmt->get()->keyBy('id');
 
-        $payments = $qPmt->get();
-        $packages = Package::where('is_deleted',0)
-        ->where('created_at', '>=', Carbon::now()->subMonths(2))
-        ->whereIn('status_id',[9,19])
-        ->selectRaw('*')
-        ->where('driver_id',$user->id)
-        ->orderBy('driver_payment_id','desc')
-        ->orderBy('driver_disbursement_id','desc')
-        ->get();
+        $packages = Package::where('is_deleted', 0)
+            ->where('created_at', '>=', Carbon::now()->subMonths(2))
+            ->whereIn('status_id', [9, 19])
+            ->where('driver_id', $user->id)
+            ->orderBy('id', 'desc')
+            ->get();
+
         $samePmtId = [];
         $sameDisId = [];
-        $paymentDetails = PaymentDetail::whereIn('payment_id',Helper::pluckEloCollection($payments,'id'))->get()->keyBy('payment_id');
-        $disbursementDetails = DisbursementDetails::whereIn('disbursement_id',Helper::pluckEloCollection($disbursements,'id'))->get()->keyBy('payment_id');
-        foreach($packages as $p){
+
+        // Map of package_id => payment_id
+        $paymentPackages = DB::table('payment_packages')
+            ->where('payer_type', 'driver')
+            ->where('is_deleted', false)
+            ->whereIn('package_id', $packages->pluck('id'))
+            ->get()
+            ->groupBy('package_id');
+
+        // Map of package_id => disbursement_id
+        $disbursementPackages = DB::table('disbursement_packages')
+            ->where('payee_type', 'driver')
+            ->where('is_deleted', false)
+            ->whereIn('package_id', $packages->pluck('id'))
+            ->get()
+            ->groupBy('package_id');
+
+        $paymentDetails = PaymentDetail::whereIn('payment_id', $payments->keys())->get()->keyBy('payment_id');
+        $disbursementDetails = DisbursementDetails::whereIn('disbursement_id', $disbursements->keys())->get()->keyBy('payment_id');
+
+        foreach ($packages as $p) {
             $price = $p->price;
             $taxiFee = $p->taxi_fee;
-            if($p->status_id == 19){
+
+            if ($p->status_id == 19) {
                 $price = 0;
                 $taxiFee = 0;
             }
-            if(!isset($samePmtId[$p->driver_payment_id]) && $p->driver_payment_id){
-                $pmt = TransactionService::getTrxDetails($payments,$p->driver_payment_id,$paymentDetails);
-                if($pmt) {
-                    $pmt->remarks = 'Disbursement';
-                    // $total -= (float)$pmt->payable_amount;
-                    $paidTrx[] = $pmt;
-                    // $count -= $pmt->package_count;
+
+            // Use disbursement_packages table instead of driver_disbursement_id
+            if (isset($disbursementPackages[$p->id])) {
+                foreach ($disbursementPackages[$p->id] as $dp) {
+                    $disbursementId = $dp->disbursement_id;
+                    if (!isset($sameDisId[$disbursementId])) {
+                        $dis = TransactionService::getTrxDetails($disbursements, $disbursementId, $disbursementDetails);
+                        if ($dis) {
+                            $dis->remarks = 'Receive';
+                            $paidTrx[] = $dis;
+                            $sameDisId[$disbursementId] = true;
+                        }
+                    }
                 }
-                $samePmtId[$p->driver_payment_id] = true;
             }
 
-            if(!isset($sameDisId[$p->driver_disbursement_id]) && $p->driver_disbursement_id){
-                $dis = TransactionService::getTrxDetails($disbursements,$p->driver_disbursement_id,$disbursementDetails);
-                if($dis) {
-                    // $total -= (float)$dis->payable_amount;
-                    $dis->remarks = 'Receive';
-                    $paidTrx[] = $dis;
-                    // $count -= $dis->package_count;
+            if (isset($paymentPackages[$p->id])) {
+                foreach ($paymentPackages[$p->id] as $pp) {
+                    $paymentId = $pp->payment_id;
+                    if (!isset($samePmtId[$paymentId])) {
+                        $pmt = TransactionService::getTrxDetails($payments, $paymentId, $paymentDetails);
+                        if ($pmt) {
+                            $pmt->remarks = 'Disbursement'; // This might be better named "Payment"
+                            $paidTrx[] = $pmt;
+                            $samePmtId[$paymentId] = true;
+                        }
+                    }
                 }
-                $sameDisId[$p->driver_disbursement_id] = true;
             }
 
-            // else {
-            //     $total += Helper::getNumber(TransactionService::getPackageTotal('driver',$p->cod,$price,$taxiFee,$p->extra_charge,$p->additional_fee,$p->delivery_fee,$p->payer));
-            //     $count +=1;
-            // }
-            if(!$p->driver_payment_id && !$p->driver_disbursement_id) {
+
+            // Check if package is unpaid
+            $isPaid = isset($paymentPackages[$p->id]) || isset($disbursementPackages[$p->id]);
+
+            if (!$isPaid) {
                 $count += 1;
-                $total += Helper::getNumber(TransactionService::getPackageTotal('driver',$p->cod,$price,$taxiFee,$p->extra_charge,$p->additional_fee,$p->delivery_fee,$p->payer));
+                $total += Helper::getNumber(TransactionService::getPackageTotal(
+                    'driver',
+                    $p->cod,
+                    $price,
+                    $taxiFee,
+                    $p->extra_charge,
+                    $p->additional_fee,
+                    $p->delivery_fee,
+                    $p->payer
+                ));
             }
-
-
         }
+
         usort($paidTrx, function ($a, $b) {
             return strtotime($b['payment_datetime']) <=> strtotime($a['payment_datetime']);
         });
 
-        $obj = (object)[
-            'balance_due' => (float)Helper::getNumber($total,2),
+        return ApiResponse::JsonResult([
+            'balance_due' => (float)Helper::getNumber($total, 2),
             'count' => $count,
-            'total' => (float)Helper::getNumber($total,2),
-            'payment_transaction' => $paidTrx
-        ];
-
-        // $payments =
-
-        return ApiResponse::JsonResult($obj);
+            'total' => (float)Helper::getNumber($total, 2),
+            'payment_transaction' => $paidTrx,
+        ]);
     }
+
+
+    // public function getTransactionSummary(Request $req){
+    //     $user = UserService::getAuthUser('driver');
+    //     // $balanceDue = Package::where('driver_id',$user->id)->where('is_deleted',0)->whereIn('status_id',[9,19])->sum('driver_total');
+    //     $count = 0;
+    //     $total = 0;
+    //     $paidTrx = [];
+    //     $startDate = $req->query('startDate');
+    //     $endDate = $req->query('endDate');
+    //     $qPmt = Payment::where('payments.is_deleted',0)->where('payments.payer_id',$user->id)
+    //     // ->where('payments.approved',1)
+    //     ->join('users as c','c.id','payments.receiver_uid')
+    //     ->selectRaw('payments.package_count,payments.id,payments.payable_amount,payments.breakdown_notes,c.user_name as cashier_name,payments.payment_datetime')
+    //     ->orderByDesc('payment_datetime');
+
+    //     $qDis = Disbursement::where('type','payment')->where('disbursements.is_deleted',0)->where('disbursements.payee_id',$user->id)
+    //     // ->where('disbursements.approved',1)
+    //     ->join('users as c','c.id','disbursements.receiptionist_uid')
+    //     ->selectRaw('disbursements.package_count,disbursements.id,disbursements.payable_amount,disbursements.breakdown_notes,c.user_name as cashier_name,disbursements.payment_datetime')
+    //     ->orderByDesc('payment_datetime');
+
+    //     if($startDate && $endDate){
+    //         $startDateTime = Helper::dateYMD($startDate).' 00:00:00';
+    //         $endDateTime = Helper::dateYMD($endDate).' 23:59:59';
+    //         $qPmt->whereBetween('payment_datetime',[$startDateTime,$endDateTime]);
+    //         $qDis->whereBetween('payment_datetime',[$startDateTime,$endDateTime]);
+    //     }
+
+    //     $disbursements = $qDis->get();
+
+    //     $payments = $qPmt->get();
+    //     $packages = Package::where('is_deleted',0)
+    //     ->where('created_at', '>=', Carbon::now()->subMonths(2))
+    //     ->whereIn('status_id',[9,19])
+    //     ->selectRaw('*')
+    //     ->where('driver_id',$user->id)
+    //     ->orderBy('driver_payment_id','desc')
+    //     ->orderBy('driver_disbursement_id','desc')
+    //     ->get();
+    //     $samePmtId = [];
+    //     $sameDisId = [];
+    //     $paymentDetails = PaymentDetail::whereIn('payment_id',Helper::pluckEloCollection($payments,'id'))->get()->keyBy('payment_id');
+    //     $disbursementDetails = DisbursementDetails::whereIn('disbursement_id',Helper::pluckEloCollection($disbursements,'id'))->get()->keyBy('payment_id');
+    //     foreach($packages as $p){
+    //         $price = $p->price;
+    //         $taxiFee = $p->taxi_fee;
+    //         if($p->status_id == 19){
+    //             $price = 0;
+    //             $taxiFee = 0;
+    //         }
+    //         if(!isset($samePmtId[$p->driver_payment_id]) && $p->driver_payment_id){
+    //             $pmt = TransactionService::getTrxDetails($payments,$p->driver_payment_id,$paymentDetails);
+    //             if($pmt) {
+    //                 $pmt->remarks = 'Disbursement';
+    //                 // $total -= (float)$pmt->payable_amount;
+    //                 $paidTrx[] = $pmt;
+    //                 // $count -= $pmt->package_count;
+    //             }
+    //             $samePmtId[$p->driver_payment_id] = true;
+    //         }
+
+    //         if(!isset($sameDisId[$p->driver_disbursement_id]) && $p->driver_disbursement_id){
+    //             $dis = TransactionService::getTrxDetails($disbursements,$p->driver_disbursement_id,$disbursementDetails);
+    //             if($dis) {
+    //                 // $total -= (float)$dis->payable_amount;
+    //                 $dis->remarks = 'Receive';
+    //                 $paidTrx[] = $dis;
+    //                 // $count -= $dis->package_count;
+    //             }
+    //             $sameDisId[$p->driver_disbursement_id] = true;
+    //         }
+
+    //         // else {
+    //         //     $total += Helper::getNumber(TransactionService::getPackageTotal('driver',$p->cod,$price,$taxiFee,$p->extra_charge,$p->additional_fee,$p->delivery_fee,$p->payer));
+    //         //     $count +=1;
+    //         // }
+    //         if(!$p->driver_payment_id && !$p->driver_disbursement_id) {
+    //             $count += 1;
+    //             $total += Helper::getNumber(TransactionService::getPackageTotal('driver',$p->cod,$price,$taxiFee,$p->extra_charge,$p->additional_fee,$p->delivery_fee,$p->payer));
+    //         }
+
+
+    //     }
+    //     usort($paidTrx, function ($a, $b) {
+    //         return strtotime($b['payment_datetime']) <=> strtotime($a['payment_datetime']);
+    //     });
+
+    //     $obj = (object)[
+    //         'balance_due' => (float)Helper::getNumber($total,2),
+    //         'count' => $count,
+    //         'total' => (float)Helper::getNumber($total,2),
+    //         'payment_transaction' => $paidTrx
+    //     ];
+
+    //     // $payments =
+
+    //     return ApiResponse::JsonResult($obj);
+    // }
 
     public function getUnpaidPackages(Request $req){
         $user = UserService::getAuthUser();
