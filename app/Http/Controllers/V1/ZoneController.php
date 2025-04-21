@@ -55,13 +55,13 @@ class ZoneController extends Controller
                 'info' => 'Zone code ('.$inputs['zone_code'].') is already exists.'
             ]));
         }
-        $existZoneName = Zone::where('zone_name',$inputs['zone_name'])->select('id','zone_name','zone_code')->first();
+        $existZoneName = Zone::where('is_deleted',0)->where('zone_name',$inputs['zone_name'])->select('id','zone_name','zone_code')->first();
         if($existZoneName) return ApiResponse::Duplicated(__('messages.error',[
             'info' => 'Zone name ('.$inputs['zone_name'].'- '.$existZoneName->zone_code.') is already exists.'
         ]));
         $create = Zone::create($inputs);
         if(!$create) return ApiResponse::Error('Fail to create zone');
-        if(!$inputZoneCode) Zone::find($create->id)->update([
+        if(!$inputZoneCode) $create->update([
             'zone_code' => 'AZ'.$create->id
         ]);
         return ApiResponse::JsonResult(null,__('messages.created'));
