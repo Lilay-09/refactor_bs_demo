@@ -43,6 +43,7 @@ class ZoneController extends Controller
         $user = UserService::getAuthUser();
         $validate = $this->zoneValidation($req);
         if($validate->fails()) return ApiResponse::ValidateFail($validate->errors()->first());
+        Log::info($req->all());
         $inputs = $validate->validated();
         $inputs['create_uid'] = $user->id;
         $inputs['update_uid'] = $user->id;
