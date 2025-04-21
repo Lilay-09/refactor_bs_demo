@@ -43,7 +43,6 @@ class ZoneController extends Controller
         $user = UserService::getAuthUser();
         $validate = $this->zoneValidation($req);
         if($validate->fails()) return ApiResponse::ValidateFail($validate->errors()->first());
-        Log::info($req->all());
         $inputs = $validate->validated();
         $inputs['create_uid'] = $user->id;
         $inputs['update_uid'] = $user->id;
@@ -60,8 +59,9 @@ class ZoneController extends Controller
         if($existZoneName) return ApiResponse::Duplicated(__('messages.error',[
             'info' => 'Zone name ('.$inputs['zone_name'].'- '.$existZoneName->zone_code.') is already exists.'
         ]));
+        Log::info($req->all());
         $create = Zone::create($inputs);
-        if(!$create) return ApiResponse::Error('Fail to create zone');
+        // if(!$create) return ApiResponse::Error('Fail to create zone');
         if(!$inputZoneCode) $create->update([
             'zone_code' => 'AZ'.$create->id
         ]);
