@@ -27,6 +27,12 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        if (!request()->is('api/*')) {
+            config([
+                'cache.default' => 'file',
+                'session.driver' => 'file',
+            ]);
+        }
 
     }
 }
