@@ -549,7 +549,7 @@ class GeneralSettingService
             }
             $row = (object)[];
             if($plZone) {
-                Log::info($plZone);
+                // Log::info($plZone);
                 $row->base_fee = $plZone->priceList->base_fee;
                 $row->price = $plZone->priceList->base_fee;
                 unset($plZone->zones,$plZone->price,$plZone->priceList);
