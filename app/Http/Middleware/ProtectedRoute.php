@@ -5,7 +5,6 @@ namespace App\Http\Middleware;
 use ApiResponse;
 use Closure;
 use Illuminate\Http\Request;
-use Log;
 use Symfony\Component\HttpFoundation\Response;
 
 class ProtectedRoute

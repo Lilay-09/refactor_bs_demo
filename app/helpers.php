@@ -164,7 +164,7 @@ class ApiResponse
                 if ($store instanceof \Illuminate\Cache\RedisStore || method_exists($store, 'tags')) {
                     $cachedData = Cache::tags($cacheTags)->get($cacheKey);
                     if ($cachedData) {
-                        // Log::info('test=>'.$cacheKey);
+                        Log::info('test=>'.$cacheKey);
                         return response()->json($cachedData, 200);
                     }
                 }
@@ -197,8 +197,10 @@ class ApiResponse
         // Cache the response if caching is enabled
         if ($isCaching) {
             $cacheTime = is_numeric($cache) ? $cache : 300; // Default cache time: 300 seconds
-            // Log::info('test cache');
-            if (Cache::getStore() instanceof \Illuminate\Cache\RedisStore) {
+            $store = Cache::getStore();
+                // If Redis or a store supporting tags is available, try to fetch from cache
+            if ($store instanceof \Illuminate\Cache\RedisStore || method_exists($store, 'tags')) {
+                Log::info('test cache');
                 Cache::tags($cacheTags)->put($cacheKey, $response, $cacheTime);
             }
             // else {
@@ -378,9 +380,10 @@ class Helper{
         try {
             // Check if Redis connection exists and ping it
             if(config('app.use_redis') == true){
+                // Log::info('sdfs');
                 $redis = app('redis'); // Works if predis/phpredis is installed and configured
                 $connected = $redis->ping() == 'PONG';
-                // Log::info('Redis is available->>'.$connected);
+                Log::info('Redis is available->'.$connected);
                 return $connected;
             }
             config(['cache.default' => 'file']);
