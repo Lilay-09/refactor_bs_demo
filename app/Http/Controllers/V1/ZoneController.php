@@ -71,7 +71,6 @@ class ZoneController extends Controller
     public function getZones(Request $req){
         $user = UserService::getAuthUser();
         $search = $req->search;
-        Log::info($req->all());
         $query = Zone::query()->where('is_deleted',0)
         // ->where('company_id',$user->company_id)
         ->orderByDesc('id');
@@ -108,11 +107,11 @@ class ZoneController extends Controller
         $validate = $this->zoneValidation($req);
         if($validate->fails()) return ApiResponse::ValidateFail($validate->errors()->first());
         $inputs = $validate->validated();
-        $existsType = Zone::where('zone_code',$inputs['zone_code'])->where('id','!=',$id)->first();
+        $existsType = Zone::where('is_deleted',0)->where('zone_code',$inputs['zone_code'])->where('id','!=',$id)->first();
         if($existsType) return ApiResponse::Duplicated(__('messages.error',[
             'info' => 'Zone code ('.$inputs['zone_code'].') is already exists.'
         ]));
-        $existZoneName = Zone::where('zone_name',$inputs['zone_name'])->where('id','!=',$id)->first();
+        $existZoneName = Zone::where('is_deleted',0)->where('zone_name',$inputs['zone_name'])->where('id','!=',$id)->first();
         if($existZoneName) return ApiResponse::Duplicated(__('messages.error',[
             'info' => 'Zone name ('.$inputs['zone_name'].') is already exists.'
         ]));
