@@ -72,7 +72,7 @@ class ZoneController extends Controller
         $user = UserService::getAuthUser();
         $search = $req->search;
         $query = Zone::query()->where('is_deleted',0)
-        ->where('company_id',$user->company_id)
+        // ->where('company_id',$user->company_id)
         ->orderByDesc('id');
         if($search){
             $query->where(function($q) use($search){
