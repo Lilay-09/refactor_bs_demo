@@ -62,7 +62,7 @@ class ZoneController extends Controller
         $create = Zone::create($inputs);
         if(!$create) return ApiResponse::Error('Fail to create zone');
         if(!$inputZoneCode) Zone::find($create->id)->update([
-            'zone_code' => 'C'.$create->id
+            'zone_code' => 'AZ'.$create->id
         ]);
         return ApiResponse::JsonResult(null,__('messages.created'));
     }
@@ -70,12 +70,13 @@ class ZoneController extends Controller
     public function getZones(Request $req){
         $user = UserService::getAuthUser();
         $search = $req->search;
-        Log::info($req->all());
         $query = Zone::query()->where('is_deleted',0)
         ->where('company_id',$user->company_id)
         ->orderByDesc('id');
         if($search){
-            $query->where('zone_name','ilike','%'.$search.'%')->orWhere('zone_code','ilike','%'.$search.'%');
+            $query->where(function($q) use($search){
+                $q->where('zone_name','ilike','%'.$search.'%')->orWhere('zone_code','ilike','%'.$search.'%');
+            });
         }
         $select = ['id','zone_code','zone_type','zone_name','commune','description','city','district','country_id','status'];
         $callback = function($zone){
