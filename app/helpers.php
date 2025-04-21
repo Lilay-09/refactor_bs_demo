@@ -164,7 +164,7 @@ class ApiResponse
                 if ($store instanceof \Illuminate\Cache\RedisStore || method_exists($store, 'tags')) {
                     $cachedData = Cache::tags($cacheTags)->get($cacheKey);
                     if ($cachedData) {
-                        Log::info('test=>'.$cacheKey);
+                        // Log::info('test=>'.$cacheKey);
                         return response()->json($cachedData, 200);
                     }
                 }
@@ -200,7 +200,7 @@ class ApiResponse
             $store = Cache::getStore();
                 // If Redis or a store supporting tags is available, try to fetch from cache
             if ($store instanceof \Illuminate\Cache\RedisStore || method_exists($store, 'tags')) {
-                Log::info('test cache');
+                // Log::info('test cache');
                 Cache::tags($cacheTags)->put($cacheKey, $response, $cacheTime);
             }
             // else {
@@ -383,7 +383,6 @@ class Helper{
                 // Log::info('sdfs');
                 $redis = app('redis'); // Works if predis/phpredis is installed and configured
                 $connected = $redis->ping() == 'PONG';
-                Log::info('Redis is available->'.$connected);
                 return $connected;
             }
             config(['cache.default' => 'file']);
