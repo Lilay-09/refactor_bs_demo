@@ -70,6 +70,7 @@ class ZoneController extends Controller
     public function getZones(Request $req){
         $user = UserService::getAuthUser();
         $search = $req->search;
+        Log::info($req->all());
         $query = Zone::query()->where('is_deleted',0)
         ->where('company_id',$user->company_id)
         ->orderByDesc('id');
@@ -89,7 +90,7 @@ class ZoneController extends Controller
         $id = $req->id;
         $user = UserService::getAuthUser();
         $zone = Zone::where(function($q){
-            $q->where('is_deleted',0)->orWhere('status',1);
+            $q->where('is_deleted',0);
         })->where('company_id',$user->company_id)->selectRaw('id,zone_code,zone_type,zone_name,commune,description,city,district,country_id,status')->find($id);
         if(!$zone) return ApiResponse::NotFound(__('messages.not_found'));
         return ApiResponse::JsonResult($zone,__('messages.get one'));
@@ -125,7 +126,7 @@ class ZoneController extends Controller
         $user = UserService::getAuthUser();
         $id = $req->id;
         if($id == 300) return ApiResponse::ValidateFail('You cannot delete default zone!');
-        $zone = Zone::where('company_id',$user->company_id)->where('is_deleted',0)->find($id);
+        $zone = Zone::where('is_deleted',0)->find($id);
         if(!$zone) return ApiResponse::NotFound(__('messages.not_found'));
         $deletedArr = [
             'is_deleted' => 1,
