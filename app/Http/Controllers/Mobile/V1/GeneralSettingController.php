@@ -48,6 +48,7 @@ class GeneralSettingController extends Controller
             'address_info'  => [
                 'loc_lat' => $user->info->latitude,
                 'loc_lng' => $user->info->longitude,
+                'address' => $user->info->address,
                 'pin_address' => $user->info->pin_address
             ]
         ];
