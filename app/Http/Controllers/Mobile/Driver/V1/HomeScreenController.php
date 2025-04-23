@@ -409,7 +409,12 @@ class HomeScreenController extends Controller
             //     'info' => 'Your package quantity is not matching the number of photos.',
             //     'khInfo' => 'ចំនួនកញ្ចប់និងចំនួនរូបភាពមិនត្រូវគ្នា'
             // ]));
-            foreach($images as $image){
+            // Log::info('count img => '.count($images));
+            $maxSize = Helper::validTotalImageSize($images);
+            if($maxSize->error) return ApiResponse::ValidateFail($maxSize->message);
+            foreach($images as $idx => $image){
+                $isValidUpload = Helper::isValidUploadImage($image,0.8);
+                if($isValidUpload->error) return ApiResponse::ValidateFail($isValidUpload->message.', check your Image #'.($idx + 1));
                 $photoFileName = Helper::saveImageFile($image,$user->company_id,'order_image')->filename;
                 if($photoFileName){
                     OrderImage::create([

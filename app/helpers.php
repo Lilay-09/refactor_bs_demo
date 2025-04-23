@@ -888,6 +888,48 @@ class Helper{
         ];
     }
 
+    static function validTotalImageSize(array $images): object
+    {
+        $totalBytes = 0;
+        foreach ($images as $image) {
+            if ($image instanceof UploadedFile) {
+                $totalBytes += $image->getSize();
+            }
+        }
+
+        $totalSizeMB = $totalBytes / (1024 * 1024); // Convert bytes to MB
+        $limitMB = round(
+            self::convertPHPSizeToBytes(ini_get('upload_max_filesize')) / (1024 * 1024), 2
+        );
+        Log::info('limit => '.$limitMB);
+        $isValid = $totalSizeMB <= $limitMB;
+
+        return (object)[
+            'error' => !$isValid,
+            'message' => $isValid
+                ? "Total upload size: {$totalSizeMB}MB (within limit of {$limitMB}MB)."
+                : "Total upload size: {$totalSizeMB}MB exceeds the limit of {$limitMB}MB."
+        ];
+    }
+
+    static function convertPHPSizeToBytes(string $size): int
+    {
+        $unit = strtoupper(substr($size, -1));
+        $bytes = (int) $size;
+
+        switch ($unit) {
+            case 'G':
+                $bytes *= 1024;
+            case 'M':
+                $bytes *= 1024;
+            case 'K':
+                $bytes *= 1024;
+        }
+
+        return $bytes;
+    }
+
+
 
     public static function saveImageFile(UploadedFile $image, $companyId, $dirName = 'images',$subDir=null)
     {
