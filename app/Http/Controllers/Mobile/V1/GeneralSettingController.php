@@ -44,9 +44,10 @@ class GeneralSettingController extends Controller
         $obj = (object)[
             'vehicle_types' => GeneralSettingService::optionsVehicleType($user),
             'product_types' => GeneralSettingService::optionsProductType($user),
+            'delivery_type' => GeneralSettingService::optionsDeliveryType(),
             'address_info'  => [
                 'loc_lat' => $user->info->latitude,
-                'longitude' => $user->info->longitude,
+                'loc_lng' => $user->info->longitude,
                 'pin_address' => $user->info->pin_address
             ]
         ];

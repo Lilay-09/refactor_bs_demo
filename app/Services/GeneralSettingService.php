@@ -40,7 +40,7 @@ class GeneralSettingService
 {
     // Your service methods go here
     protected static $deliveryTypes = [
-        // ['value' => 'fast','label' => 'Fast'],
+        ['value' => 'fast','label' => 'Fast'],
         ['value' => 'normal','label' => 'Normal'],
     ];
 
