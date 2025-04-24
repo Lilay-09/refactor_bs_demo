@@ -897,6 +897,7 @@ class Helper{
             }
         }
 
+        Log::info("total byte $totalBytes");
         $totalSizeMB = $totalBytes / (1024 * 1024); // Convert bytes to MB
         $limitMB = round(
             self::convertPHPSizeToBytes(ini_get('upload_max_filesize')) / (1024 * 1024), 2
