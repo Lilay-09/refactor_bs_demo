@@ -31,6 +31,10 @@ use Illuminate\Validation\Validator;
 class HomeController extends Controller
 {
     //
+    protected $reuseableService;
+    public function __construct(){
+        $this->reuseableService = new ReusableService();
+    }
     public function createBooking(Request $req){
         $user = UserService::getAuthUser('merchant');
         $pck = new PickupCenterService();
@@ -82,6 +86,7 @@ class HomeController extends Controller
     $packageCounts = Package::where('merchant_id', $user->id)
         ->where('is_deleted', 0)
         ->selectRaw('
+            SUM(CASE WHEN cod = TRUE THEN price ELSE 0 END) as total_cod,
             SUM(CASE WHEN status_id = 6 THEN 1 ELSE 0 END) as on_delivery,
             SUM(CASE WHEN status_id = 9 AND delivered_datetime BETWEEN ? AND ? THEN 1 ELSE 0 END) as success,
             SUM(CASE WHEN status_id IN (10, 19) AND failed_datetime BETWEEN ? AND ? THEN 1 ELSE 0 END) as fail,
@@ -102,6 +107,7 @@ class HomeController extends Controller
             'fail' => $packageCounts->fail,
             'return' => $packageCounts->return,
             'total' => $totalCount,
+            'total_cod' => Helper::getNumber($packageCounts->total_cod,2),
             'date' => Helper::getDateTime('d-M-Y'),
         ];
 
@@ -260,11 +266,12 @@ class HomeController extends Controller
         ->with('driver')
         ->where('status_id', 6)
         ->where('is_deleted', 0)
-        ->selectRaw('id,merchant_id,receiver_phone,receiver_address,receiver_name,cod,price,delivery_fee,remarks,driver_id,arrive_warehouse_datetime')
+        ->selectRaw('id,merchant_id,receiver_phone,receiver_address,taxi_fee,receiver_name,cod,price,delivery_fee,remarks,driver_id,arrive_warehouse_datetime')
         // $qP->whereBetween('arrive_warehouse_datetime',[$dateaAgo,$today]);
         ->orderByDesc('assign_driver_datetime');
         $callback = function ($package) use($lang){
             $package->price = (float) $package->price;
+            $package->taxi_fee = (float) $package->taxi_fee;
             $package->cod_fee = $package->cod ? $package->price : 0;
             if($lang == 'km') $package->status_code = GeneralSettingService::$statusCodeTrans[6];
             else $package->status_code = 'On Delivery';
@@ -288,109 +295,114 @@ class HomeController extends Controller
     }
 
     public function getSuccessPackages(Request $req){
-        $today = now();
-        $dateaAgo = Helper::getDateDaysAgo(0);
-        $lang = $req->lang;
-        $user = UserService::getAuthUser('merchant');
-        $attachments = PackageAttachment::where('hidden', 0)
-        ->whereBetween('updated_at', [$dateaAgo, $today])
-        ->limit(700)
-        ->pluck('package_id')
-        ->toArray();
-        $attachmentsLookup = array_flip($attachments);
-        $packages = Package::where('merchant_id',$user->id)
-        ->with('driver')
-        ->where('status_id',9)
-        ->where('is_deleted',0)
-        ->whereBetween('delivered_datetime',[$dateaAgo,$today])
-        ->selectRaw('id,merchant_id,receiver_phone,receiver_address,receiver_name,cod,price,delivery_fee,remarks,driver_id,delivered_datetime,arrive_warehouse_datetime');
-        $callback = function($package) use($lang,$attachmentsLookup){
-            $package->price = (float) $package->price;
-            $package->cod_fee = $package->cod ? $package->price : 0;
-            $package->has_img = isset($attachmentsLookup[$package->id]);
-            if($lang == 'km') $package->status_code = GeneralSettingService::$statusCodeTrans[9];
-            else $package->status_code = 'Delivered';
-            $package->driver_phone = $package->driver->phone;
-            $package->driver_name = $package->driver->user_name;
-            $package->total = (float)$package->cod_fee;
-            $package->telegram_url = AppSetting::getTelegramLink('merchant',$package->receiver_phone,$package->driver->phone);
-            $package->delivery_fee = (float)$package->delivery_fee;
-            $package->arrive_warehouse_datetime = Helper::formatCustomDateTime($package->arrive_warehouse_datetime);
-            $package->delivered_datetime = Helper::formatCustomDateTime($package->delivered_datetime);
-            $package->fee = $package->delivery_fee;
-            unset($package->driver);
-            return $package;
-        };
-        return ApiResponse::PaginationV1($packages,$req,'',[],200,$callback);
+        $user = UserService::getAuthUser();
+        return ApiResponse::flex($this->reuseableService::getTrackingPackages($req,$user,9));
+        // $today = now();
+        // $dateaAgo = Helper::getDateDaysAgo(0);
+        // $lang = $req->lang;
+        // $user = UserService::getAuthUser('merchant');
+        // $attachments = PackageAttachment::where('hidden', 0)
+        // ->whereBetween('updated_at', [$dateaAgo, $today])
+        // ->limit(700)
+        // ->pluck('package_id')
+        // ->toArray();
+        // $attachmentsLookup = array_flip($attachments);
+        // $packages = Package::where('merchant_id',$user->id)
+        // ->with('driver')
+        // ->where('status_id',9)
+        // ->where('is_deleted',0)
+        // ->whereBetween('delivered_datetime',[$dateaAgo,$today])
+        // ->selectRaw('id,merchant_id,receiver_phone,receiver_address,receiver_name,cod,price,delivery_fee,remarks,driver_id,delivered_datetime,arrive_warehouse_datetime');
+        // $callback = function($package) use($lang,$attachmentsLookup){
+        //     $package->price = (float) $package->price;
+        //     $package->cod_fee = $package->cod ? $package->price : 0;
+        //     $package->has_img = isset($attachmentsLookup[$package->id]);
+        //     if($lang == 'km') $package->status_code = GeneralSettingService::$statusCodeTrans[9];
+        //     else $package->status_code = 'Delivered';
+        //     $package->driver_phone = $package->driver->phone;
+        //     $package->driver_name = $package->driver->user_name;
+        //     $package->total = (float)$package->cod_fee;
+        //     $package->telegram_url = AppSetting::getTelegramLink('merchant',$package->receiver_phone,$package->driver->phone);
+        //     $package->delivery_fee = (float)$package->delivery_fee;
+        //     $package->arrive_warehouse_datetime = Helper::formatCustomDateTime($package->arrive_warehouse_datetime);
+        //     $package->delivered_datetime = Helper::formatCustomDateTime($package->delivered_datetime);
+        //     $package->fee = $package->delivery_fee;
+        //     unset($package->driver);
+        //     return $package;
+        // };
+        // return ApiResponse::PaginationV1($packages,$req,'',[],200,$callback);
     }
 
     public function getFailPackages(Request $req){
-        $today = now();
-        $dateaAgo = Helper::getDateDaysAgo(0);
-        $lang = $req->lang;
+        // $today = now();
+        // $dateaAgo = Helper::getDateDaysAgo(0);
+        // $lang = $req->lang;
         $statusId = $req->status_id;
         $user = UserService::getAuthUser('merchant');
-        $attachments = PackageAttachment::where('hidden', 0)
-        ->whereBetween('updated_at', [$dateaAgo, $today])
-        ->limit(700)
-        ->pluck('package_id')
-        ->toArray();
-        $attachmentsLookup = array_flip($attachments);
-        $packages = Package::where('merchant_id',$user->id)
-        ->with(['driver','status'])
-        ->where('status_id',$statusId)
-        ->where('is_deleted',0)
-        ->whereBetween('failed_datetime',[$dateaAgo,$today])
-        ->selectRaw('id,merchant_id,arrive_warehouse_datetime,receiver_phone,receiver_address,receiver_name,cod,price,delivery_fee,status_id,remarks,driver_id,failed_datetime');
+        return ApiResponse::flex($this->reuseableService::getTrackingPackages($req,$user,$statusId));
+        //
+        // $attachments = PackageAttachment::where('hidden', 0)
+        // ->whereBetween('updated_at', [$dateaAgo, $today])
+        // ->limit(700)
+        // ->pluck('package_id')
+        // ->toArray();
+        // $attachmentsLookup = array_flip($attachments);
+        // $packages = Package::where('merchant_id',$user->id)
+        // ->with(['driver','status'])
+        // ->where('status_id',$statusId)
+        // ->where('is_deleted',0)
+        // ->whereBetween('failed_datetime',[$dateaAgo,$today])
+        // ->selectRaw('id,merchant_id,arrive_warehouse_datetime,receiver_phone,receiver_address,receiver_name,cod,price,delivery_fee,status_id,remarks,driver_id,failed_datetime');
 
-        $callback = function($package) use($lang,$attachmentsLookup){
-            $package->price = (float)$package->price;
-            $package->cod_fee = $package->cod ? $package->price : 0;
-            $package->has_img = isset($attachmentsLookup[$package->id]);
-            if($lang == 'km') $package->status_code = GeneralSettingService::$statusCodeTrans[$package->status_id];
-            else $package->status_code = $package->status->name;
-            $package->driver_phone = $package->driver->phone;
-            $package->driver_name = $package->driver->user_name;
-            $package->telegram_url = AppSetting::getTelegramLink('merchant',$package->receiver_phone,$package->driver->phone);
-            $package->total = (float)$package->code_fee;
-            $package->fee = (float)$package->delivery_fee;
-            $package->delivery_fee = (float)$package->delivery_fee;
-            $package->arrive_warehouse_datetime = Helper::formatCustomDateTime($package->arrive_warehouse_datetime);
-            $package->failed_datetime = Helper::formatCustomDateTime($package->failed_datetime);
-            unset($package->driver,$package->status);
-            return $package;
-        };
-        return ApiResponse::PaginationV1($packages,$req,'',[],200,$callback);
+        // $callback = function($package) use($lang,$attachmentsLookup){
+        //     $package->price = (float)$package->price;
+        //     $package->cod_fee = $package->cod ? $package->price : 0;
+        //     $package->has_img = isset($attachmentsLookup[$package->id]);
+        //     if($lang == 'km') $package->status_code = GeneralSettingService::$statusCodeTrans[$package->status_id];
+        //     else $package->status_code = $package->status->name;
+        //     $package->driver_phone = $package->driver->phone;
+        //     $package->driver_name = $package->driver->user_name;
+        //     $package->telegram_url = AppSetting::getTelegramLink('merchant',$package->receiver_phone,$package->driver->phone);
+        //     $package->total = (float)$package->code_fee;
+        //     $package->fee = (float)$package->delivery_fee;
+        //     $package->delivery_fee = (float)$package->delivery_fee;
+        //     $package->arrive_warehouse_datetime = Helper::formatCustomDateTime($package->arrive_warehouse_datetime);
+        //     $package->failed_datetime = Helper::formatCustomDateTime($package->failed_datetime);
+        //     unset($package->driver,$package->status);
+        //     return $package;
+        // };
+        // return ApiResponse::PaginationV1($packages,$req,'',[],200,$callback);
     }
 
     public function getReturnPackages(Request $req){
-        $today = now();
-        $dateaAgo = Helper::getDateDaysAgo(0);
-        $lang = $req->lang;
+        // $today = now();
+        // $dateaAgo = Helper::getDateDaysAgo(0);
+        // $lang = $req->lang;
         $user = UserService::getAuthUser('merchant');
-        $packages = Package::where('merchant_id',$user->id)
-        ->with(['returnUser:id,phone,user_name','status'])
-        ->where('status_id',11)
-        ->whereBetween('returned_datetime',[$dateaAgo,$today])
-        ->selectRaw('id,merchant_id,arrive_warehouse_datetime,receiver_phone,receiver_address,receiver_name,cod,price,delivery_fee,status_id,remarks,returned_uid,failed_datetime,returned_datetime,updated_at');
-        $callback = function($package) use($lang){
-            $package->price = (float)$package->price;
-            $package->cod_fee = $package->cod ? $package->price : 0;
-            if($lang == 'km') $package->status_code = GeneralSettingService::$statusCodeTrans[$package->status_id];
-            else $package->status_code = $package->status->name;
-            $package->driver_phone = $package->returnUser?->phone;
-            $package->driver_name = $package->returnUser?->user_name;
-            $package->telegram_url = AppSetting::getTelegramLink('merchant',$package->receiver_phone,$package->driver_phone);
-            $package->total = (float)$package->code_fee;
-            $package->delivery_fee = (float)$package->delivery_fee;
-            $package->fee = $package->delivery_fee;
-            $returnDate = $package->return_datetime ? $package->return_datetime : $package->updated_at;
-            $package->returned_date = Helper::dateDMY($returnDate);
-            $package->return_time = Helper::formatCustomDateTime($returnDate, 'h:i:s');
-            unset($package->returnUser,$package->status);
-            return $package;
-        };
-        return ApiResponse::PaginationV1($packages,$req,'',[],200,$callback);
+        return ApiResponse::flex($this->reuseableService::getTrackingPackages($req,$user,11));
+        // $packages = Package::where('merchant_id',$user->id)
+        // ->with(['returnUser:id,phone,user_name','status'])
+        // ->where('status_id',11)
+        // ->whereBetween('returned_datetime',[$dateaAgo,$today])
+        // ->selectRaw('id,merchant_id,arrive_warehouse_datetime,receiver_phone,receiver_address,receiver_name,cod,price,delivery_fee,status_id,remarks,returned_uid,failed_datetime,returned_datetime,updated_at');
+        // $callback = function($package) use($lang){
+        //     $package->price = (float)$package->price;
+        //     $package->cod_fee = $package->cod ? $package->price : 0;
+        //     if($lang == 'km') $package->status_code = GeneralSettingService::$statusCodeTrans[$package->status_id];
+        //     else $package->status_code = $package->status->name;
+        //     $package->driver_phone = $package->returnUser?->phone;
+        //     $package->driver_name = $package->returnUser?->user_name;
+        //     $package->telegram_url = AppSetting::getTelegramLink('merchant',$package->receiver_phone,$package->driver_phone);
+        //     $package->total = (float)$package->code_fee;
+        //     $package->delivery_fee = (float)$package->delivery_fee;
+        //     $package->fee = $package->delivery_fee;
+        //     $returnDate = $package->return_datetime ? $package->return_datetime : $package->updated_at;
+        //     $package->returned_date = Helper::dateDMY($returnDate);
+        //     $package->return_time = Helper::formatCustomDateTime($returnDate, 'h:i:s');
+        //     unset($package->returnUser,$package->status);
+        //     return $package;
+        // };
+        // return ApiResponse::PaginationV1($packages,$req,'',[],200,$callback);
     }
 
     public function getPromotions(Request $req){

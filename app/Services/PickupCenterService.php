@@ -60,6 +60,7 @@ class PickupCenterService
             'driver_id' => 'nullable',
             'loc_lat' => 'nullable|numeric',
             'loc_lng' => 'nullable|numeric',
+            'delivery_type' => 'nullable|string',
             'pickup_address_google_map' => 'nullable|string',
             'pin_address' => 'nullable|string',
             'pickup_address' => 'nullable|string|max:300',
@@ -119,6 +120,7 @@ class PickupCenterService
         $lang = $req->lang;
         $inputs['loc_lat'] = (float) ($inputs['loc_lat'] ?? $latLng->latitude);
         $inputs['loc_lng'] = (float) ($inputs['loc_lng'] ?? $latLng->longitude);
+        $inputs['delivery_type'] = $inputs['delivery_type'] ?? 'normal';
         if(!$pickupAddress) $inputs['pickup_address'] = $latLng->address;
         DB::beginTransaction();
         try{
