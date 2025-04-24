@@ -12,6 +12,7 @@ use DB;
 use Helper;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\Request;
+use Log;
 
 class ReusableService
 {
@@ -363,6 +364,7 @@ class ReusableService
             19 => 'Falied With Fee',
             11 => 'Returned'
          ];
+        //  Log::info($statusId);
         // $user = UserService::getAuthUser('merchant');
         $attachments = PackageAttachment::where('hidden', 0)
         ->whereBetween('updated_at', [$dateaAgo, $today])
@@ -370,12 +372,12 @@ class ReusableService
         ->pluck('package_id')
         ->toArray();
         $attachmentsLookup = array_flip($attachments);
-        $packages = Package::where('merchant_id',$user->id)
+        $packages = Package::query()->where('merchant_id',$user->id)
         ->with('driver')
         ->where('status_id',$statusId)
         ->where('is_deleted',0)
         ->whereBetween('delivered_datetime',[$dateaAgo,$today])
-        ->selectRaw('id,merchant_id,receiver_phone,receiver_address,,taxi_fee,cod,price,delivery_fee,remarks,driver_id,delivered_datetime,arrive_warehouse_datetime');
+        ->selectRaw('id,merchant_id,receiver_phone,receiver_address,taxi_fee,cod,price,delivery_fee,remarks,driver_id,delivered_datetime,arrive_warehouse_datetime');
         $callback = function($package) use($lang,$attachmentsLookup,$status,$statusId){
             $package->price = (float) $package->price;
             $package->cod_fee = $package->cod ? $package->price : 0;
