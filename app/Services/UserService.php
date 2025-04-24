@@ -28,9 +28,9 @@ class UserService
     // Your service methods go here
 
     protected static $user_prefix = [
-        'admin' => 'JSA',
-        'driver' => 'JSD',
-        'merchant' => 'JSM'
+        'admin' => 'AZA',
+        'driver' => 'AZD',
+        'merchant' => 'AZM'
     ];
 
     public static function getUserAuthAccess($class='admin',$action='',$useSpecificClass=true){
@@ -148,6 +148,9 @@ class UserService
             $baseFields['salary'] = 'nullable|numeric';
             $baseFields['bank_info'] = 'nullable|array';
             $baseFields['user_name'] = 'required|max:100';
+            if(!$req->id){
+                $baseFields['has_commission'] = 'required|boolean';
+            }
             return validator($req->all(),$baseFields);
         }else if($userClass == 'merchant'){
             $baseFields['bank_info'] = 'nullable|array';
@@ -172,9 +175,11 @@ class UserService
         $bankInfo = $inputs['bank_info'] ?? [];
         $photo = $inputs['photo'] ?? null;
         $inputs['account_type'] = $user_class;
+        $branchId = $user->branch_id ?? 1;
+        $companyId = $user->company_id ?? 1;
         $inputs['update_uid'] = $user->id;
-        $inputs['branch_id'] = $user->branch_id;
-        $inputs['company_id'] = $user->company_id;
+        $inputs['branch_id'] =$branchId;
+        $inputs['company_id'] = $companyId;
         $inputs['account_type'] = $user_class;
         $inputs['cod'] = $inputs['cod'] ?? 0;
         $inputs['dob'] = isset($inputs['dob']) ? date('Y-m-d',strtotime($inputs['dob'])) : null;
@@ -253,8 +258,19 @@ class UserService
                 $inputs['photo_file_name'] = Helper::base64ToImageFile($photo,$user->company_id,'user_profile')->filename;
                 $create = User::create($inputs);
                 if(!$create) return DataResponse::Error(__('messages.error',['info' => 'Fail to create']));
-                Helper::setRefCode('user_code_control','users','code',$user->branch_id,$user->company_id,$create->id,null,self::$user_prefix[$user_class]);
+                $prefix = self::$user_prefix[$user_class];
+                if($user_class == 'driver'){
+                    if($inputs['has_commission']){
+                        $prefix .= 'PB'.$branchId;
+                    }else {
+                        $prefix .= 'FB'.$branchId;
+                    }
+                }else if($user_class == 'merchant'){
+                    $prefix .= 'B'.$branchId;
+                }
+                self::setRefCode('user_code_control','users','code',$user->branch_id,$user->company_id,$create->id,$prefix);
                 $userId = $create->id;
+                // return $userId;
             }
             if(isset($bankInfo[0])){
                 $saveUserBank = self::saveUserBanks($bankInfo,$userId,$user);
@@ -263,14 +279,43 @@ class UserService
             if($user_class == 'merchant' && $priceListId) self::saveMerchantPriceList($userId,$priceListId,$zoneId,$user);
             self::assignRolesUser($userId,$roleIds,$user_class);
             DB::commit();
-            return DataResponse::JsonResult(null,false,__('messages.saved',[
-                'info' => 'Merchant',
-                'khInfo' => 'អតិថិជន'
-            ]));
+            return DataResponse::JsonResult(null,false,__('messages.saved'));
         }catch(Exception $e){
             DB::rollBack();
             Log::error($e->getMessage());
             return DataResponse::Error(__('messages.error',['info' => 'Fail to create']));
+        }
+    }
+
+    static function setRefCode($tbl_code_control,$target_tbl,$target_col,$branch_id,$company_id,$newID,$prefix,$len = 5,$issue_date = null){
+        if (!$len) $len = 5;
+        if (!$newID) return DataResponse::ValidateFail('Identity should be input');
+        $year = $issue_date?date('Y', strtotime($issue_date)):date('Y');
+        $qRow = DB::table($tbl_code_control . " as c")->where('c.branch_id', $branch_id)
+        ->where('prefix',$prefix)
+        ->where('c.company_id',$company_id)
+        ->selectRaw("c.last_id,c.prefix,c.issue_year");
+        if($issue_date) $qRow->where('c.issue_year',$year);
+        $row = $qRow->first();
+
+        $next_num = 0;
+        if ($row){
+            $next_num = $row->last_id;
+            if($row->issue_year == $year) $year = $row->issue_year;
+        }
+        $next_num++;
+        //example ref number => 2300001 || prefix-2300001
+        $new_code = substr($year,-2) . Helper::formatNumber($next_num, $len);
+        if($prefix) $new_code = $prefix.'-'.$new_code;
+        $x = DB::table($target_tbl)->where('id', $newID)->update([$target_col => $new_code]);
+        if ($x || $x === 1) {
+            $Qupdated = DB::table($tbl_code_control)->where('branch_id', $branch_id)->where('prefix',$prefix);
+            if($issue_date) $Qupdated->where('issue_year', $year);
+            $updated = $Qupdated->where('company_id',$company_id)->update(['last_id' => $next_num]);
+            $insert_arr = ['branch_id' => $branch_id, 'issue_year' => $year,'last_id' => $next_num,'company_id' => $company_id,'prefix'=>$prefix];
+            if (!$updated) DB::table($tbl_code_control)->insert($insert_arr);
+            // if ($onSuccess) $onSuccess();
+            return (object)['status_code' => 200, 'status' => 'OK', 'code' => $new_code];
         }
     }
 
