@@ -117,7 +117,7 @@ class AuthController extends Controller
         $maxSize = Helper::validTotalImageSize([$photo]);
         if($maxSize->error) return ApiResponse::ValidateFail($maxSize->message);
         if($photo instanceof UploadedFile){
-            $isValidUpload = Helper::isValidUploadImage($photo,maxSizeMB: 1);
+            $isValidUpload = Helper::isValidUploadImage($photo,1);
             if($isValidUpload->error) return ApiResponse::ValidateFail($isValidUpload->message);
             $inputs['photo_file_name'] = Helper::saveImageFile($photo,$authUser->company_id,'user_profile')->filename;
             Helper::deleteImageFile($user->photo_file_name,$authUser->company_id,'user_profile');
