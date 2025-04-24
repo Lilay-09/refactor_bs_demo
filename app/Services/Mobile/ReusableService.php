@@ -304,7 +304,7 @@ class ReusableService
                 ->orWhere(function ($q) use ($startDateTime, $endDateTime,$userId) {
                     $q->whereBetween('p.returned_datetime', [$startDateTime, $endDateTime])
                         ->where('p.returned_uid',$userId)
-                        ->where('p.status_id', 11);
+                        ->where('p.status_id', operator: 11);
                 });
             });
             $qAt->whereBetween('updated_at', [$startDateTime, $endDateTime]);
@@ -415,8 +415,10 @@ class ReusableService
             $package->fee = $package->delivery_fee;
 
             // Format dates
-            $package->arrive_warehouse_datetime = Helper::formatCustomDateTime($package->arrive_warehouse_datetime);
-            $package->delivered_datetime = Helper::formatCustomDateTime($package->delivered_datetime);
+            // $package->arrive_warehouse_datetime = Helper::formatCustomDateTime($package->arrive_warehouse_datetime);
+            $package->arrive_warehouse_date = Helper::formatCustomDateTime($package->arrive_warehouse_datetime,'d-M-Y');
+            $package->arrive_warehouse_time = Helper::formatCustomDateTime($package->arrive_warehouse_datetime,'h:i A');
+            // $package->delivered_datetime = Helper::formatCustomDateTime($package->delivered_datetime);
             if(in_array($statusId,[10,19])){
                 $package->failed_date = Helper::formatCustomDateTime($package->failed_datetime,'d-M-Y');
                 $package->failed_time = Helper::formatCustomDateTime($package->failed_datetime,'h:i A');

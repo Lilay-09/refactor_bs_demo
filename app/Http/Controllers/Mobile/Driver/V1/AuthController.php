@@ -115,6 +115,8 @@ class AuthController extends Controller
         $inputs['longitude'] = $inputs['loc_lng'] ?? null;
         $photo = $inputs['photo'] ?? null;
         if($photo instanceof UploadedFile){
+            $isValidUpload = Helper::isValidUploadImage($photo,1);
+            if($isValidUpload->error) return ApiResponse::ValidateFail($isValidUpload->message);
             $inputs['photo_file_name'] = Helper::saveImageFile($photo,$authUser->company_id,'user_profile')->filename;
             Helper::deleteImageFile($user->photo_file_name,$authUser->company_id,'user_profile');
         }else if(!$photo) Helper::deleteImageFile($user->photo_file_name,$authUser->company_id,'user_profile');
