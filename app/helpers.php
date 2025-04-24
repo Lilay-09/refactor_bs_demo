@@ -817,7 +817,25 @@ class Helper{
             // Check if UploadedFile
             if ($image instanceof UploadedFile) {
                 $sizeKB = $image->getSize() / 1024;
-                [$width, $height] = getimagesize($image->getPathname());
+                $path = $image->getPathname();
+
+                if (!$path || !file_exists($path)) {
+                    return (object)[
+                        'error' => true,
+                        'message' => 'Image file not found or path is empty'
+                    ];
+                }
+
+                $imageSize = @getimagesize($path);
+                if ($imageSize === false) {
+                    return (object)[
+                        'error' => true,
+                        'message' => 'Failed to read image dimensions'
+                    ];
+                }
+
+                [$width, $height] = $imageSize;
+                // [$width, $height] = getimagesize($image->getPathname());
 
                 return (object)[
                     'error' => false,
