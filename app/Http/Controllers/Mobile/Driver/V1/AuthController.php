@@ -114,10 +114,10 @@ class AuthController extends Controller
         $inputs['latitude'] = $inputs['loc_lat'] ?? null;
         $inputs['longitude'] = $inputs['loc_lng'] ?? null;
         $photo = $inputs['photo'] ?? null;
-        $maxSize = Helper::validTotalImageSize($photo);
+        $maxSize = Helper::validTotalImageSize([$photo]);
         if($maxSize->error) return ApiResponse::ValidateFail($maxSize->message);
         if($photo instanceof UploadedFile){
-            $isValidUpload = Helper::isValidUploadImage($photo,1);
+            $isValidUpload = Helper::isValidUploadImage($photo,maxSizeMB: 1);
             if($isValidUpload->error) return ApiResponse::ValidateFail($isValidUpload->message);
             $inputs['photo_file_name'] = Helper::saveImageFile($photo,$authUser->company_id,'user_profile')->filename;
             Helper::deleteImageFile($user->photo_file_name,$authUser->company_id,'user_profile');
