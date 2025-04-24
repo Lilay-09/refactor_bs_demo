@@ -353,6 +353,50 @@ class ReusableService
         return DataResponse::PaginationV1($qFp,$req,'',[],500,$callbackMapper);
     }
 
+    public static function getTrackingPackages(Request $req,$user,$statusId){
+        $today = now();
+        $dateaAgo = Helper::getDateDaysAgo(0);
+        $lang = $req->lang;
+        $status = [
+            9 => 'Delivered',
+            10 => 'Failed',
+            19 => 'Falied With Fee',
+            11 => 'Returned'
+         ];
+        // $user = UserService::getAuthUser('merchant');
+        $attachments = PackageAttachment::where('hidden', 0)
+        ->whereBetween('updated_at', [$dateaAgo, $today])
+        ->limit(700)
+        ->pluck('package_id')
+        ->toArray();
+        $attachmentsLookup = array_flip($attachments);
+        $packages = Package::where('merchant_id',$user->id)
+        ->with('driver')
+        ->where('status_id',$statusId)
+        ->where('is_deleted',0)
+        ->whereBetween('delivered_datetime',[$dateaAgo,$today])
+        ->selectRaw('id,merchant_id,receiver_phone,receiver_address,,taxi_fee,cod,price,delivery_fee,remarks,driver_id,delivered_datetime,arrive_warehouse_datetime');
+        $callback = function($package) use($lang,$attachmentsLookup,$status,$statusId){
+            $package->price = (float) $package->price;
+            $package->cod_fee = $package->cod ? $package->price : 0;
+            $package->taxi_fee = (float) $package->taxi_fee;
+            $package->has_img = isset($attachmentsLookup[$package->id]);
+            if($lang == 'km') $package->status_code = GeneralSettingService::$statusCodeTrans[$statusId];
+            else $package->status_code = $status[$statusId];
+            $package->driver_phone = $package->driver->phone;
+            $package->driver_name = $package->driver->user_name;
+            $package->total = (float)$package->cod_fee;
+            $package->telegram_url = AppSetting::getTelegramLink('merchant',$package->receiver_phone,$package->driver->phone);
+            $package->delivery_fee = (float)$package->delivery_fee;
+            $package->arrive_warehouse_datetime = Helper::formatCustomDateTime($package->arrive_warehouse_datetime);
+            $package->delivered_datetime = Helper::formatCustomDateTime($package->delivered_datetime);
+            $package->fee = $package->delivery_fee;
+            unset($package->driver);
+            return $package;
+        };
+        return DataResponse::PaginationV1($packages,$req,'',[],200,$callback);
+    }
+
     // public static function getHistoryPackagesV1(Request $req,$user=null,$reqSearch=false,$userClass='driver'){
     //     $paymentStatus = $req->payment_status_id ?? null;
     //     $statusId = $req->status_id ?? null;
