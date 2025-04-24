@@ -392,7 +392,7 @@ class ReusableService
             ->select([
                 'id', 'merchant_id', 'receiver_phone', 'receiver_address', 'taxi_fee',
                 'cod', 'price', 'delivery_fee', 'remarks', 'driver_id',
-                'delivered_datetime', 'arrive_warehouse_datetime'
+                'arrive_warehouse_datetime',$dateField
             ]);
 
         // Format package output
@@ -417,7 +417,16 @@ class ReusableService
             // Format dates
             $package->arrive_warehouse_datetime = Helper::formatCustomDateTime($package->arrive_warehouse_datetime);
             $package->delivered_datetime = Helper::formatCustomDateTime($package->delivered_datetime);
-
+            if(in_array($statusId,[10,19])){
+                $package->failed_date = Helper::formatCustomDateTime($package->failed_datetime,'d-M-Y');
+                $package->failed_time = Helper::formatCustomDateTime($package->failed_datetime,'h:i A');
+            }else if($statusId == 11){
+                $package->returned_date = Helper::formatCustomDateTime($package->returned_datetime,'d-M-Y');
+                $package->returned_time = Helper::formatCustomDateTime($package->returned_datetime,'h:i A');
+            }else if($statusId == 9){
+                $package->delivered_date = Helper::formatCustomDateTime($package->delivered_datetime,'d-M-Y');
+                $package->delivered_time = Helper::formatCustomDateTime($package->delivered_datetime,'h:i A');
+            }
             // Generate Telegram URL
             $package->telegram_url = AppSetting::getTelegramLink('merchant', $package->receiver_phone, $driver->phone ?? '');
 
