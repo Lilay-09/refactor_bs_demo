@@ -818,6 +818,7 @@ class Helper{
             if ($image instanceof UploadedFile) {
                 $sizeKB = $image->getSize() / 1024;
                 $path = $image->getPathname();
+                Log::info($path);
 
                 if (!$path || !file_exists($path)) {
                     return (object)[
