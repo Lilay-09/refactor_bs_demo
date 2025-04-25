@@ -288,16 +288,19 @@ class HomeScreenController extends Controller
         }
         $packages = $qP->get();
         foreach($packages as $p){
-            $p->date = Helper::formatCustomDateTime($p->assign_driver_datetime,'d-M-Y');
-            $p->time = Helper::formatCustomDateTime($p->assign_driver_datetime,'h:i A');
+            $p->date = Helper::formatCustomDateTime($p->assign_driver_datetime,'d-M-Y h:i A');
+            $p->action_date = Helper::formatCustomDateTime($p->assign_driver_datetime,'d M Y ');
+            $p->action_time = Helper::formatCustomDateTime($p->assign_driver_datetime,'h:i A');
             $p->delivery_fee = Helper::getNumber($p->base_fee + $p->extra_charge,2);
             if($p->status_id == 9) {
-                $p->date = Helper::formatCustomDateTime($p->delivered_datetime,'d-M-Y');
-                $p->time = Helper::formatCustomDateTime($p->delivered_datetime,'h:i A');
+                $p->date = Helper::formatCustomDateTime($p->delivered_datetime,'d-M-Y h:i A');
+                $p->action_date = Helper::formatCustomDateTime($p->delivered_datetime,'d M Y');
+                $p->action_time = Helper::formatCustomDateTime($p->delivered_datetime,'h:i A');
             }
             if($p->status_id == 10 || $p->status_id == 19) {
-                $p->date = Helper::formatCustomDateTime($p->failed_datetime,'d-M-Y');
-                $p->time = Helper::formatCustomDateTime($p->failed_datetime,'h:i A');
+                $p->date = Helper::formatCustomDateTime($p->failed_datetime,'d-M-Y h:i A');
+                $p->action_date = Helper::formatCustomDateTime($p->failed_datetime,'d M Y');
+                $p->action_time = Helper::formatCustomDateTime($p->failed_datetime,'h:i A');
             }
             unset($p->assign_driver_datetime,$p->delivered_datetime,$p->failed_datetime);
         }
