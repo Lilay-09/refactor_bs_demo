@@ -162,7 +162,7 @@ class HistoryController extends Controller
             'format' => 'A4',
         ]);
 
-        $pdf->WriteHTML(view('pdf.package_history', $data));
+        $pdf->WriteHTML(view('pdf.package_historyV1', $data));
         $fileName = 'history-packages-' . time() . '.pdf';
         $filePath = 'pdfs/' . $fileName;
 
