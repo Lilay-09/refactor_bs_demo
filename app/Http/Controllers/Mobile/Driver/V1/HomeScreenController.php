@@ -149,11 +149,16 @@ class HomeScreenController extends Controller
         // Single query with aggregation for better performance
         $counts = $qP->selectRaw("
             COUNT(CASE WHEN status_id = 9 THEN 1 END) AS delivered_pkg,
+            COUNT(CASE WHEN status_id = 19 THEN 1 END) AS failed_with_fee_pkg,
             COUNT(CASE WHEN status_id = 6 THEN 1 END) AS delivery_pkg
         ")->first() ?? (object)['delivered_pkg' => 0, 'delivery_pkg' => 0];
 
         $deliveredPkg = $counts->delivered_pkg;
         $deliveryPkg = $counts->delivery_pkg;
+        $failedWithFeePkg = $counts->failed_with_fee_pkg;
+
+        $deliveredComm = $deliveredPkg * $commissionInfo->normal_delivery_commission;
+        $failedWithFeeComm = $failedWithFeePkg * $commissionInfo->normal_delivery_commission;
 
         // $orderCount = Order::whereNull('driver_commission_id')->count();
         $orderCounts = Order::whereNull('driver_commission_id')
@@ -193,8 +198,9 @@ class HomeScreenController extends Controller
         $balanceDues = TransactionService::getMobileUserBalance($req,$user,'driver');
         // $totalSettledDisburment = Disbursement::where('payee_id',$user->id)->where('type','payment')->where('is_deleted',0)->where('is_settled',1)->sum('payable_amount');
         $pcsUnitLng = $lang == 'km' ? 'កញ្ចប់': 'PCS';
+        $totalEearning = $deliveredComm + $failedWithFeeComm;
         $obj = [
-            'earning' => (string)Helper::getNumber(1500,2,true),
+            'earning' => (string)Helper::getNumber($totalEearning,2,true),
             'delivered_count' => (string)$deliveredPkg.$pcsUnitLng,
             'pickedup_count' => (string)$pickedUpCount.$pcsUnitLng,
             'pickup_count' => (string)$pickupCount,
@@ -234,6 +240,8 @@ class HomeScreenController extends Controller
         $groupedPackages = $packages['packages']->groupBy('delivery_id');
         $callback = function ($fleet) use($groupedPackages,$lang){
             // $fleet->status_code = $fleet->status->name == '';
+            $fleet->depart_date = Helper::formatCustomDateTime($fleet->depart_datetime,'d M Y');
+            $fleet->depart_time = Helper::formatCustomDateTime($fleet->depart_datetime,'h:i A');
             if($fleet->status_id == 14){
                 $fleet->status_code = $lang == 'km' ? 'កំពុងដឹក':'On Trip';
             }else {
@@ -280,10 +288,17 @@ class HomeScreenController extends Controller
         }
         $packages = $qP->get();
         foreach($packages as $p){
-            $p->date = $p->assign_driver_datetime;
+            $p->date = Helper::formatCustomDateTime($p->assign_driver_datetime,'d-M-Y');
+            $p->time = Helper::formatCustomDateTime($p->assign_driver_datetime,'h:i A');
             $p->delivery_fee = Helper::getNumber($p->base_fee + $p->extra_charge,2);
-            if($p->status_id == 9) $p->date = $p->delivered_datetime;
-            if($p->status_id == 10 || $p->status_id == 19) $p->date = $p->failed_datetime;
+            if($p->status_id == 9) {
+                $p->date = Helper::formatCustomDateTime($p->delivered_datetime,'d-M-Y');
+                $p->time = Helper::formatCustomDateTime($p->delivered_datetime,'h:i A');
+            }
+            if($p->status_id == 10 || $p->status_id == 19) {
+                $p->date = Helper::formatCustomDateTime($p->failed_datetime,'d-M-Y');
+                $p->time = Helper::formatCustomDateTime($p->failed_datetime,'h:i A');
+            }
             unset($p->assign_driver_datetime,$p->delivered_datetime,$p->failed_datetime);
         }
         return [
