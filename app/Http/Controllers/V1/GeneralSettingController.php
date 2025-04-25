@@ -366,6 +366,7 @@ class GeneralSettingController extends Controller
             'vehicle_types' => $this->gs::optionsVehicleType($user),
             'warehouses' => $this->gs::optionsWarehouse($user),
             'banks' => $this->gs::optionsBank($user),
+            'apply_commissions' => $this->gs::optionsApplyCommission()
         ];
         return ApiResponse::JsonResult($obj);
     }
