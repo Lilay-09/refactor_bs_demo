@@ -268,6 +268,9 @@ class UserService
                 }else if($user_class == 'merchant'){
                     $prefix .= 'B'.$branchId;
                 }
+                else{
+                    $prefix .= 'B'.$branchId;
+                }
                 self::setRefCode('user_code_control','users','code',$user->branch_id,$user->company_id,$create->id,$prefix);
                 $userId = $create->id;
                 // return $userId;

@@ -359,6 +359,19 @@ class GeneralSettingService
         return Bank::where('is_deleted',0)->where('company_id',$user->company_id)->selectRaw('id,name')->get();
     }
 
+    public static function optionsApplyCommission(){
+        return Helper::translateOptions([
+            true => [
+                'en' => 'Commission-based',
+                'km' => 'Commission-based'
+            ],
+            false => [
+                'en' => 'Fixed Salary',
+                'km' => 'Fixed Salary'
+            ]
+        ]);
+    }
+
     public static function optionsTransactionType(){
         return [
             [
