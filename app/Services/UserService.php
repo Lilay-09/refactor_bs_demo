@@ -275,6 +275,7 @@ class UserService
                 $userId = $create->id;
                 // return $userId;
             }
+
             if(isset($bankInfo[0])){
                 $saveUserBank = self::saveUserBanks($bankInfo,$userId,$user);
                 if($saveUserBank->error) return $saveUserBank;
