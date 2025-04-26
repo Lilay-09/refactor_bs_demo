@@ -35,14 +35,14 @@ class TransactionController extends Controller
         $qPmt = Payment::where('payments.is_deleted', 0)
             ->where('payments.payer_id', $user->id)
             ->join('users as c', 'c.id', 'payments.receiver_uid')
-            ->selectRaw('payments.package_count, payments.id, payments.payable_amount, payments.breakdown_notes, c.user_name as cashier_name, payments.payment_datetime')
+            ->selectRaw('payments.remarks,payments.package_count,payments.id, payments.payable_amount, payments.breakdown_notes, c.user_name as cashier_name, payments.payment_datetime')
             ->orderByDesc('payment_datetime');
 
         $qDis = Disbursement::where('type', 'payment')
             ->where('disbursements.is_deleted', 0)
             ->where('disbursements.payee_id', $user->id)
             ->join('users as c', 'c.id', 'disbursements.receiptionist_uid')
-            ->selectRaw('disbursements.package_count, disbursements.id, disbursements.payable_amount, disbursements.breakdown_notes, c.user_name as cashier_name, disbursements.payment_datetime')
+            ->selectRaw('disbursements.remarks,disbursements.package_count, disbursements.id, disbursements.payable_amount, disbursements.breakdown_notes, c.user_name as cashier_name, disbursements.payment_datetime')
             ->orderByDesc('payment_datetime');
 
         if ($startDate && $endDate) {
@@ -101,7 +101,7 @@ class TransactionController extends Controller
                         $disPmtMethod = '';
                         $dis = TransactionService::getTrxDetails($disbursements, $disbursementId, $disbursementDetails,$disPmtMethod);
                         if ($dis) {
-                            $dis->remarks = 'Receive';
+                            // $dis->remarks = 'Receive';
                             $paidTrx[] = $dis;
                             $sameDisId[$disbursementId] = true;
                         }
@@ -116,7 +116,7 @@ class TransactionController extends Controller
                         $recPmtMethod = '';
                         $pmt = TransactionService::getTrxDetails($payments, $paymentId, $paymentDetails,$recPmtMethod);
                         if ($pmt) {
-                            $pmt->remarks = 'Disbursement'; // This might be better named "Payment"
+                            // $pmt->remarks = 'Disbursement'; // This might be better named "Payment"
                             $paidTrx[] = $pmt;
                             $samePmtId[$paymentId] = true;
                         }

@@ -1930,7 +1930,7 @@ class TransactionService
                 $row->breakdown_notes = preg_replace('/KHR (\d+)/', '$1៛', $row->breakdown_notes);
                 $method = isset($pmtBillings[$row->id]) ? $pmtBillings[$row->id]->method : null;
 
-
+                Log::info($method);
                 // Append to the reference string (if not already included)
                 if ($method && !str_contains($pmtMethod, $method)) {
                     $pmtMethod .= ($pmtMethod ? ', ' : '') . $method;

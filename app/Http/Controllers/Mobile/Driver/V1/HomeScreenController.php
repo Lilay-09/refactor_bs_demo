@@ -443,7 +443,7 @@ class HomeScreenController extends Controller
             //     'info' => 'Your package quantity is not matching the number of photos.',
             //     'khInfo' => 'ចំនួនកញ្ចប់និងចំនួនរូបភាពមិនត្រូវគ្នា'
             // ]));
-            // Log::info('count img => '.count($images));
+            Log::info('count img => '.count($images));
             $maxSize = Helper::validTotalImageSize($images);
             if($maxSize->error) return ApiResponse::ValidateFail($maxSize->message);
             foreach($images as $idx => $image){
