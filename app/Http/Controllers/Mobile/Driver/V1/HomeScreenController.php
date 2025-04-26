@@ -121,44 +121,78 @@ class HomeScreenController extends Controller
         // ->first();
         // $totalEarning = (float)Disbursement::where('payee_id',$user->id)->where('type','commission')->where('is_deleted',0)->sum('payable_amount');
         $commissionInfo = TransactionService::getDriverCommissionInfo($driverCommissions,$user->id);
-        $deliveryCommStartDate = $commissionInfo->normal_delivery_commission_start_date;
-        $pickupCommStartDate = $commissionInfo->normal_pickup_commission_start_date;
+        // return $commissionInfo;
+
+        $normalStartDatetime = $commissionInfo->normal_delivery_commission_start_date
+            ? Helper::dateYMD($commissionInfo->normal_delivery_commission_start_date) . ' 00:00:00'
+            : null;
+
+        $fastStartDatetime = $commissionInfo->fast_delivery_commission_start_date
+            ? Helper::dateYMD($commissionInfo->fast_delivery_commission_start_date) . ' 00:00:00'
+            : null;
+
         $qP = Package::where('is_deleted', 0)
-            // ->whereNull('driver_commission_id')
             ->where('driver_id', $user->id)
-            ->whereIn('status_id', [6, 9]); // Include both statuses in a single query
+            ->whereIn('status_id', [6, 9, 19]);
 
-        if ($deliveryCommStartDate) {
-            $startDate = Helper::dateYMD($deliveryCommStartDate);
-            $startDatetime = $startDate . ' 00:00:00';
-
-            $qP->where(function ($q) use ($startDatetime) {
-                $q->where(function ($q) use ($startDatetime) {
-                    // Count delivered packages based on delivered_datetime
-                    $q->where('delivered_datetime', '>=', $startDatetime)
-                        ->where('status_id', 9);
-                })
-                ->orWhere(function ($q) use ($startDatetime) {
-                    // Count delivery packages based on another datetime (if needed)
-                    $q->where('assign_driver_datetime', '>=', $startDatetime)
-                        ->where('status_id', 6);
-                });
+        if ($normalStartDatetime || $fastStartDatetime) {
+            $qP->where(function ($q) use ($normalStartDatetime, $fastStartDatetime) {
+                if ($normalStartDatetime) {
+                    $q->orWhere(function ($q) use ($normalStartDatetime) {
+                        $q->where('delivery_type', 'normal')
+                        ->where(function ($q) use ($normalStartDatetime) {
+                            $q->where('delivered_datetime', '>=', $normalStartDatetime)
+                                ->orWhere('failed_datetime', '>=', $normalStartDatetime)
+                                ->orWhere('assign_driver_datetime', '>=', $normalStartDatetime);
+                        });
+                    });
+                }
+                if ($fastStartDatetime) {
+                    $q->orWhere(function ($q) use ($fastStartDatetime) {
+                        $q->where('delivery_type', 'fast')
+                        ->where(function ($q) use ($fastStartDatetime) {
+                            $q->where('delivered_datetime', '>=', $fastStartDatetime)
+                                ->orWhere('failed_datetime', '>=', $fastStartDatetime)
+                                ->orWhere('assign_driver_datetime', '>=', $fastStartDatetime);
+                        });
+                    });
+                }
             });
         }
 
-        // Single query with aggregation for better performance
         $counts = $qP->selectRaw("
-            COUNT(CASE WHEN status_id = 9 THEN 1 END) AS delivered_pkg,
-            COUNT(CASE WHEN status_id = 19 THEN 1 END) AS failed_with_fee_pkg,
-            COUNT(CASE WHEN status_id = 6 THEN 1 END) AS delivery_pkg
-        ")->first() ?? (object)['delivered_pkg' => 0, 'delivery_pkg' => 0];
+            COUNT(CASE WHEN status_id = 9 AND delivery_type = 'normal' THEN 1 END) AS delivered_normal_pkg,
+            COUNT(CASE WHEN status_id = 9 AND delivery_type = 'fast' THEN 1 END) AS delivered_fast_pkg,
 
-        $deliveredPkg = $counts->delivered_pkg;
-        $deliveryPkg = $counts->delivery_pkg;
-        $failedWithFeePkg = $counts->failed_with_fee_pkg;
+            COUNT(CASE WHEN status_id = 19 AND delivery_type = 'normal' THEN 1 END) AS failed_with_fee_normal_pkg,
+            COUNT(CASE WHEN status_id = 19 AND delivery_type = 'fast' THEN 1 END) AS failed_with_fee_fast_pkg,
 
-        $deliveredComm = $deliveredPkg * $commissionInfo->normal_delivery_commission;
-        $failedWithFeeComm = $failedWithFeePkg * $commissionInfo->normal_delivery_commission;
+            COUNT(CASE WHEN status_id = 6 AND delivery_type = 'normal' THEN 1 END) AS delivery_normal_pkg,
+            COUNT(CASE WHEN status_id = 6 AND delivery_type = 'fast' THEN 1 END) AS delivery_fast_pkg
+        ")->first() ?? (object)[
+            'delivered_normal_pkg' => 0, 'delivered_fast_pkg' => 0,
+            'failed_with_fee_normal_pkg' => 0, 'failed_with_fee_fast_pkg' => 0,
+            'delivery_normal_pkg' => 0, 'delivery_fast_pkg' => 0,
+        ];
+
+        //** Type: Normal */
+        $normalDeliveredPkg = $counts->delivered_normal_pkg;
+        $allDeliveryPkg = $counts->delivery_normal_pkg + $counts->delivery_fast_pkg;
+        $normalFailedWithFeePkg = $counts->failed_with_fee_normal_pkg;
+
+        //** Type: Fast */
+
+        $fastDeliveredPkg = $counts->delivered_fast_pkg;
+        $fastFailedWithFeePkg = $counts->failed_with_fee_fast_pkg;
+
+        //** Normal Commission */
+        $normalDeliveryComm = $normalDeliveredPkg * $commissionInfo->normal_delivery_commission;
+        $normalFailedWithFeeComm = $normalFailedWithFeePkg * $commissionInfo->normal_delivery_commission;
+
+        //** Fast Commission */
+
+        $fastDeliveryComm = $fastDeliveredPkg * $commissionInfo->fast_delivery_commission;
+        $fastFailedWithFeeComm = $fastFailedWithFeePkg * $commissionInfo->fast_delivery_commission;
 
         // $orderCount = Order::whereNull('driver_commission_id')->count();
         $orderCounts = Order::whereNull('driver_commission_id')
@@ -176,35 +210,17 @@ class HomeScreenController extends Controller
         $pickupCount = $orderCounts->pickup_count;
         $pickedUpCount = $orderCounts->picked_up_count;
 
-        // $packages = $qP->get();
-        // $qO = Order::where('is_deleted',0)->whereNull('driver_commission_id')->where('status_id',5)
-        // ->where('driver_id',$user->id);
-        // if($pickupCommStartDate){
-        //     $startDatetime = Helper::dateYMD($pickupCommStartDate).' 00:00:00';
-        //     $qO->whereDate('created_at','>=',$startDatetime);
-        // }
-
-        // $orders = $qO->get();
-        // $totalSettledPayment = Payment::where('payer_id',$user->id)->where('is_settled',1)->where('is_deleted',0)->sum('payable_amount');
-
-
-
-        // $dtc = new DriverTransactionController();
-        // $totalPickUpPackage = $dtc->getPickUpDetails($orders,$user->id,)->total_package;
-        // $totalDeliveredPackage = $dtc->getDeliveredDetails($packages,$user->id)->delivered_count;
-        // $pickup_rate = $commissionInfo->normal_pickup_commission;
-        // $delivery_rate = $commissionInfo->normal_delivery_commission;
-        // $totalEarning = (float)Helper::getNumber($pickup_rate * $totalPickUpPackage + $delivery_rate * $totalDeliveredPackage,2);
         $balanceDues = TransactionService::getMobileUserBalance($req,$user,'driver');
         // $totalSettledDisburment = Disbursement::where('payee_id',$user->id)->where('type','payment')->where('is_deleted',0)->where('is_settled',1)->sum('payable_amount');
         $pcsUnitLng = $lang == 'km' ? 'កញ្ចប់': 'PCS';
-        $totalEearning = $deliveredComm + $failedWithFeeComm;
+        $totalEearning = $normalDeliveryComm + $normalFailedWithFeeComm + $fastDeliveryComm + $fastFailedWithFeeComm;
+        $totalDeliveredPkg = $normalDeliveredPkg + $normalFailedWithFeePkg + $fastDeliveredPkg + $fastFailedWithFeePkg;
         $obj = [
             'earning' => (string)Helper::getNumber($totalEearning,2,true),
-            'delivered_count' => (string)$deliveredPkg.$pcsUnitLng,
+            'delivered_count' => (string)$totalDeliveredPkg.$pcsUnitLng,
             'pickedup_count' => (string)$pickedUpCount.$pcsUnitLng,
             'pickup_count' => (string)$pickupCount,
-            'delivery' => (string)$deliveryPkg,
+            'delivery' => (string)$allDeliveryPkg,
             'settlement' => (string)Helper::getNumber($balanceDues['total'],2,true),
         ];
         return ApiResponse::JsonResult($obj);
@@ -427,7 +443,7 @@ class HomeScreenController extends Controller
             //     'info' => 'Your package quantity is not matching the number of photos.',
             //     'khInfo' => 'ចំនួនកញ្ចប់និងចំនួនរូបភាពមិនត្រូវគ្នា'
             // ]));
-            Log::info('count img => '.count($images));
+            // Log::info('count img => '.count($images));
             $maxSize = Helper::validTotalImageSize($images);
             if($maxSize->error) return ApiResponse::ValidateFail($maxSize->message);
             foreach($images as $idx => $image){
@@ -450,7 +466,8 @@ class HomeScreenController extends Controller
         $order->update($acceptArr);
         return ApiResponse::JsonResult(null,__('messages.info',[
             'info' => 'You have accepted for '.$pickMsg,
-            'khInfo' => 'បានបញ្ចូលទិន្នន័យកញ្ចប់'
+            // 'khInfo' => 'បានបញ្ចូលទិន្នន័យកញ្ចប់',
+            'khInfo' => 'បានទទួល'
         ]));
     }
 
@@ -508,31 +525,41 @@ class HomeScreenController extends Controller
 
         $payer = $inputs['payer'] ?? $package->payer;
 
-        if($package->status_id == 9) return ApiResponse::Duplicated(__('messages.info',[
-            'info' => 'This package has already been delivered!',
-            'khInfo' => 'កញ្ចប់​បានដឹករួចហើយ'
-        ]));
+        if($package->status_id == 9) {
+            return ApiResponse::Duplicated(__('messages.info',[
+                'info' => 'This package has already been delivered!',
+                'khInfo' => 'កញ្ចប់​បានដឹករួចហើយ'
+            ]));
+        }
 
-        else if($package->status_id == 10) return ApiResponse::Duplicated(__('messages.info',[
-            'info' => 'This package has summitted as failed, Only On Delivery can be summitted!',
-            'khInfo' => 'កញ្ចប់​បរាជ័យ, មានតែកញ្ចប់​ដែលកំពុងដឹកទើបប្រតិបត្តិបាន'
-        ]));
+        else if($package->status_id == 10) {
+            return ApiResponse::Duplicated(__('messages.info',[
+                'info' => 'This package has summitted as failed, Only On Delivery can be summitted!',
+                'khInfo' => 'កញ្ចប់​បរាជ័យ, មានតែកញ្ចប់​ដែលកំពុងដឹកទើបប្រតិបត្តិបាន'
+            ]));
+        }
 
-        else if($package->status_id == 11)  return ApiResponse::Duplicated(__('messages.info',[
-            'info' => 'Package has already been returned.',
-            'khInfo' => 'កញ្ចប់បានយកត្រឡប់ទៅហាងរួចហើយ'
-        ]));
+        else if($package->status_id == 11){
+            return ApiResponse::Duplicated(__('messages.info',[
+                'info' => 'Package has already been returned.',
+                'khInfo' => 'កញ្ចប់បានយកត្រឡប់ទៅហាងរួចហើយ'
+            ]));
+        }
+
 
         else if($package->driver_id !== $user->id) return ApiResponse::Duplicated(__('messages.info',[
             'info' => 'Please submit package that belongs to you'
         ]));
+
         else if($package->status_id == 19) return ApiResponse::Duplicated(__('messages.info',[
             'info' => 'Package is already failed with fee.',
             'khInfo' => 'កញ្ចប់ធ្លាប់បរាជ័យគិតសេវា'
         ]));
+
         PackageAttachment::where('package_id',$id)->update([
             'hidden' => 1
         ]);
+
         if(isset($photos[0])) {
             foreach($photos as $p){
                 $dirName = 'submit_package';

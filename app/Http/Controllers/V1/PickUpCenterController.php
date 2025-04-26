@@ -153,7 +153,10 @@ class PickUpCenterController extends Controller
             ->whereIn('status_id',[1,2,3,4,21])
             ->where('company_id',$user->company_id)
             ->orderByDesc('id')
-            ->selectRaw('booking_channel,id,merchant_id,status_id,order_datetime,driver_id,warehouse_id,vehicle_type,product_type,original_qty as qty,qty as actual_qty,pickup_address,code,created_at,create_uid');
+            ->select([
+                'booking_channel','id','merchant_id','status_id','order_datetime','driver_id','warehouse_id','vehicle_type','product_type',
+                'original_qty as qty','qty as actual_qty','pickup_address','code','created_at','create_uid','delivery_type'
+            ]);
         if($search){
             $query->where(function($q) use ($search){
                 $q->whereHas('merchant',function ($q) use ($search){
