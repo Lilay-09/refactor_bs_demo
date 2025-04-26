@@ -469,10 +469,20 @@ class Helper{
         return date($format);
     }
 
-    static function dateDMY($date,$format='d-M-Y'){
-        $datetime = str_replace(" PM", "", $date);
-        $datetime = str_replace(" AM", "", $datetime);
-        return $date ? date($format,strtotime($datetime)):null;
+    public static function dateDMY($date, $format = 'd-M-Y', $lang = 'en')
+    {
+        if (!$date) return null;
+
+        $datetime = str_replace([' AM', ' PM'], '', $date);
+        $formatted = date($format, strtotime($datetime));
+
+        if ($lang === 'km') {
+            foreach (self::$khmerMonths as $en => $kh) {
+                $formatted = str_replace($en, $kh, $formatted);
+            }
+        }
+
+        return $formatted;
     }
 
     static function formatDateTime($datetime, $format = 'd-M-Y h:i:s', $useMeridiem = true) {

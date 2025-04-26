@@ -2,7 +2,6 @@
 
 namespace App\Services;
 
-use ApiResponse;
 use App\Models\NotificationTopic;
 use App\Models\UserNotificationToken;
 use DataResponse;
@@ -13,7 +12,6 @@ use Kreait\Firebase\Exception\Messaging\InvalidMessage;
 use Kreait\Firebase\Exception\Messaging\NotFound;
 use Kreait\Firebase\Factory;
 use Kreait\Firebase\Messaging\CloudMessage;
-use Log;
 
 class CloudMessagingService
 {

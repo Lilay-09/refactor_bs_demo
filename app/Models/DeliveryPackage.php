@@ -52,4 +52,10 @@ class DeliveryPackage extends Model
     public function package(){
         return $this->belongsTo(Package::class,'package_id','id')->where('is_deleted',0);
     }
+
+    public function delivery()
+    {
+        return $this->belongsTo(Delivery::class,'delivery_id');
+    }
+
 }
