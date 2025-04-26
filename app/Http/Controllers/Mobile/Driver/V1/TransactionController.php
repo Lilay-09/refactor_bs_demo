@@ -98,7 +98,8 @@ class TransactionController extends Controller
                 foreach ($disbursementPackages[$p->id] as $dp) {
                     $disbursementId = $dp->disbursement_id;
                     if (!isset($sameDisId[$disbursementId])) {
-                        $dis = TransactionService::getTrxDetails($disbursements, $disbursementId, $disbursementDetails);
+                        $disPmtMethod = '';
+                        $dis = TransactionService::getTrxDetails($disbursements, $disbursementId, $disbursementDetails,$disPmtMethod);
                         if ($dis) {
                             $dis->remarks = 'Receive';
                             $paidTrx[] = $dis;
@@ -112,7 +113,8 @@ class TransactionController extends Controller
                 foreach ($paymentPackages[$p->id] as $pp) {
                     $paymentId = $pp->payment_id;
                     if (!isset($samePmtId[$paymentId])) {
-                        $pmt = TransactionService::getTrxDetails($payments, $paymentId, $paymentDetails);
+                        $recPmtMethod = '';
+                        $pmt = TransactionService::getTrxDetails($payments, $paymentId, $paymentDetails,$recPmtMethod);
                         if ($pmt) {
                             $pmt->remarks = 'Disbursement'; // This might be better named "Payment"
                             $paidTrx[] = $pmt;
