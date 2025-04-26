@@ -81,8 +81,10 @@ class TransactionController extends Controller
             ->get()
             ->groupBy('package_id');
 
-        $paymentDetails = PaymentDetail::whereIn('payment_id', $payments->keys())->get()->keyBy('payment_id');
-        $disbursementDetails = DisbursementDetails::whereIn('disbursement_id', $disbursements->keys())->get()->keyBy('payment_id');
+        // $paymentDetails = PaymentDetail::whereIn('payment_id', $payments->keys())->get()->keyBy('payment_id');
+        $paymentDetails = PaymentDetail::whereIn('payment_id', $payments->keys())->get()->groupBy('payment_id');
+        // return $paymentDetails;
+        $disbursementDetails = DisbursementDetails::whereIn('disbursement_id', $disbursements->keys())->get()->groupBy('disbursement_id');
 
         foreach ($packages as $p) {
             $price = $p->price;
@@ -98,8 +100,7 @@ class TransactionController extends Controller
                 foreach ($disbursementPackages[$p->id] as $dp) {
                     $disbursementId = $dp->disbursement_id;
                     if (!isset($sameDisId[$disbursementId])) {
-                        $disPmtMethod = '';
-                        $dis = TransactionService::getTrxDetails($disbursements, $disbursementId, $disbursementDetails,$disPmtMethod);
+                        $dis = TransactionService::getTrxDetails($disbursements, $disbursementId, $disbursementDetails);
                         if ($dis) {
                             // $dis->remarks = 'Receive';
                             $paidTrx[] = $dis;
@@ -113,8 +114,7 @@ class TransactionController extends Controller
                 foreach ($paymentPackages[$p->id] as $pp) {
                     $paymentId = $pp->payment_id;
                     if (!isset($samePmtId[$paymentId])) {
-                        $recPmtMethod = '';
-                        $pmt = TransactionService::getTrxDetails($payments, $paymentId, $paymentDetails,$recPmtMethod);
+                        $pmt = TransactionService::getTrxDetails($payments, $paymentId, $paymentDetails);
                         if ($pmt) {
                             // $pmt->remarks = 'Disbursement'; // This might be better named "Payment"
                             $paidTrx[] = $pmt;
@@ -123,7 +123,6 @@ class TransactionController extends Controller
                     }
                 }
             }
-
 
             // Check if package is unpaid
             $isPaid = isset($paymentPackages[$p->id]) || isset($disbursementPackages[$p->id]);

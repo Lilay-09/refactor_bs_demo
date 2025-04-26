@@ -1919,33 +1919,66 @@ class TransactionService
         ];
     }
 
-    static function getTrxDetails($rows,$pmtId,$pmtBillings=null,&$pmtMethod = ''){
-        foreach($rows as $row){
-            if($row->id == $pmtId){
-                $row->breakdown_notes = str_replace(
-                    ['|', 'USD '],
-                    [' & ', '$'],
-                    $row->breakdown_notes
-                );
-                $row->breakdown_notes = preg_replace('/KHR (\d+)/', '$1៛', $row->breakdown_notes);
-                $method = isset($pmtBillings[$row->id]) ? $pmtBillings[$row->id]->method : null;
 
-                Log::info($method);
-                // Append to the reference string (if not already included)
-                if ($method && !str_contains($pmtMethod, $method)) {
-                    $pmtMethod .= ($pmtMethod ? ', ' : '') . $method;
+    static function getTrxDetails($rows, $pmtId, $pmtBillings = null)
+    {
+        foreach ($rows as $row) {
+            if ($row->id == $pmtId) {
+                $row->breakdown_notes = str_replace(['|', 'USD '], [' & ', '$'], $row->breakdown_notes);
+                $row->breakdown_notes = preg_replace('/KHR (\d+)/', '$1៛', $row->breakdown_notes);
+
+                // 🛠 Fix: Collect unique methods
+                $methods = [];
+                if (isset($pmtBillings[$row->id])) {
+                    foreach ($pmtBillings[$row->id] as $billing) {
+                        if (!in_array($billing->method, $methods)) {
+                            if($billing->method == 'cash') $billing->method = 'Cash';
+                            $methods[] = $billing->method;
+                        }
+                    }
                 }
 
+                // 🛠 Concat methods into a string
+                $pmtMethod = implode(', ', $methods);
+
                 $row->payment_method = $pmtMethod;
-                // Log::info($pmtBillings[$row->id]);
-                $row->payment_date = Helper::dateDMY($row->payment_datetime,'d M Y');
-                $row->payment_time = Helper::formatCustomDateTime($row->payment_datetime,'h:i A');
-                // Log::info($pmtMethod);
+                $row->payment_date = Helper::dateDMY($row->payment_datetime, 'd M Y');
+                $row->payment_time = Helper::formatCustomDateTime($row->payment_datetime, 'h:i A');
+
                 return $row;
             }
         }
         return null;
     }
+
+
+    // static function getTrxDetails($rows,$pmtId,$pmtBillings=null,&$pmtMethod = ''){
+    //     foreach($rows as $row){
+    //         if($row->id == $pmtId){
+    //             $row->breakdown_notes = str_replace(
+    //                 ['|', 'USD '],
+    //                 [' & ', '$'],
+    //                 $row->breakdown_notes
+    //             );
+    //             $row->breakdown_notes = preg_replace('/KHR (\d+)/', '$1៛', $row->breakdown_notes);
+    //             $method = isset($pmtBillings[$row->id]) ? $pmtBillings[$row->id]->method : null;
+
+    //             Log::info($pmtBillings);
+    //             // Append to the reference string (if not already included)
+    //             if ($method && !str_contains($pmtMethod, $method)) {
+    //                 $pmtMethod .= ($pmtMethod ? ', ' : '') . $method;
+    //             }
+
+    //             $row->payment_method = $pmtMethod;
+    //             // Log::info($pmtBillings[$row->id]);
+    //             $row->payment_date = Helper::dateDMY($row->payment_datetime,'d M Y');
+    //             $row->payment_time = Helper::formatCustomDateTime($row->payment_datetime,'h:i A');
+    //             // Log::info($pmtMethod);
+    //             return $row;
+    //         }
+    //     }
+    //     return null;
+    // }
 
     static function transactionCodeGenerator($tbl_code_control,$type,$target_tbl,$target_col,$branch_id,$company_id,$newID,$prefix='TRX', $len = 5){
         if (!$len) $len = 5;
