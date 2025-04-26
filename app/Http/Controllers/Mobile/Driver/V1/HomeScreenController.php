@@ -865,7 +865,7 @@ class HomeScreenController extends Controller
     public function createFeedback(Request $req){
         $user = UserService::getAuthUser('driver');
         $validator = validator($req->all(),[
-            'comment' => 'nullable|string|max:250',
+            'comment' => 'nullable|string|max:255',
             'answers' => 'required|array'
         ]);
 
