@@ -266,7 +266,7 @@ class HomeController extends Controller
         $lang = $req->lang;
         $user = UserService::getAuthUser('merchant');
         $qP = Package::where('merchant_id', $user->id)
-        ->with('driver')
+        ->with(['driver:id,user_name,phone','activeDeliveryPackage:package_id,id,delivery_id','activeDeliveryPackage.delivery:id,fleet_tracking_number'])
         ->where('status_id', 6)
         ->where('is_deleted', 0)
         ->selectRaw('id,merchant_id,receiver_phone,receiver_address,taxi_fee,receiver_name,cod,price,delivery_fee,remarks,driver_id,arrive_warehouse_datetime')
@@ -276,6 +276,7 @@ class HomeController extends Controller
             $package->price = (float) $package->price;
             $package->taxi_fee = (float) $package->taxi_fee;
             $package->cod_fee = $package->cod ? $package->price : 0;
+            $package->tracking_number = $package->activeDeliveryPackage->delivery->fleet_tracking_number;
             if($lang == 'km') $package->status_code = GeneralSettingService::$statusCodeTrans[6];
             else $package->status_code = 'On Delivery';
             $package->driver_phone = $package->driver->phone ?? null; // Ensure driver relationship exists
@@ -288,7 +289,7 @@ class HomeController extends Controller
             $package->arrive_warehouse_date = Helper::formatCustomDateTime($package->arrive_warehouse_datetime,'d-M-Y');
             $package->arrive_warehouse_time = Helper::formatCustomDateTime($package->arrive_warehouse_datetime,'h:i A');
             // Remove the driver relationship if not needed in the response
-            unset($package->driver);
+            unset($package->driver,$package->activeDeliveryPackage);
             return $package;
         };
         return ApiResponse::PaginationV1($qP,$req,'',[],200,$callback);
