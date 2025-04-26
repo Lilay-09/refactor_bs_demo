@@ -933,7 +933,7 @@ class Helper{
         $limitMB = round(
             self::convertPHPSizeToBytes(ini_get('upload_max_filesize')) / (1024 * 1024), 2
         );
-        // Log::info('limit => '.$limitMB);
+        Log::info('limit => '.$limitMB);
         $isValid = $totalSizeMB <= $limitMB;
 
         return (object)[
