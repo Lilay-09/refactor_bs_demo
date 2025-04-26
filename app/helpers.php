@@ -828,8 +828,8 @@ class Helper{
             if ($image instanceof UploadedFile) {
                 $sizeKB = $image->getSize() / 1024;
                 $path = $image->getPathname();
-                Log::info('Uploaded file class: ' . get_class($image));
-                Log::info('Uploaded file path: ' . $image->getPathname());
+                // Log::info('Uploaded file class: ' . get_class($image));
+                // Log::info('Uploaded file path: ' . $image->getPathname());
 
 
                 if (!$path || !file_exists($path)) {
@@ -933,7 +933,7 @@ class Helper{
         $limitMB = round(
             self::convertPHPSizeToBytes(ini_get('upload_max_filesize')) / (1024 * 1024), 2
         );
-        Log::info('limit => '.$limitMB);
+        // Log::info('limit => '.$limitMB);
         $isValid = $totalSizeMB <= $limitMB;
 
         return (object)[
