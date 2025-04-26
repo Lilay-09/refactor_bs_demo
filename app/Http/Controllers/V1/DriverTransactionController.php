@@ -67,6 +67,7 @@ class DriverTransactionController extends Controller
             $commissionInfo = TransactionService::getDriverCommissionInfo($driverCommissions,$driver->id);
             $driver->pickup_rate = $commissionInfo->normal_pickup_commission;
             $driver->delivery_rate = $commissionInfo->normal_delivery_commission;
+            $driver->delivery_fast_rate = $commissionInfo->fast_delivery_commission;
             $pickUpInfo = $this->getPickUpDetails($orders,$driver->id);
             $totalPickUp = $pickUpInfo->total_package;
             $driver->total_pickup = $totalPickUp;
