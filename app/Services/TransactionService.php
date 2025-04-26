@@ -1875,6 +1875,7 @@ class TransactionService
             'merchant' => -1,
             'driver' => 1,
         ];
+
         $targeUId = $targetUser.'_id';
         $pUid = $targetUser.'_payment_id';
         $dUid = $targetUser.'_disbursement_id';
@@ -1935,7 +1936,7 @@ class TransactionService
                     $pmtMethod .= ($pmtMethod ? ', ' : '') . $method;
                 }
 
-                $row->payment_method = $method;
+                $row->payment_method = $pmtMethod;
                 // Log::info($pmtBillings[$row->id]);
                 $row->payment_date = Helper::dateDMY($row->payment_datetime,'d M Y');
                 $row->payment_time = Helper::formatCustomDateTime($row->payment_datetime,'h:i A');
