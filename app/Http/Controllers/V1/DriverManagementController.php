@@ -25,6 +25,7 @@ class DriverManagementController extends Controller
     public function getDrivers(Request $req){
         $user = UserService::getAuthUser();
         $search = $req->search;
+        $lang = $req->lang;
         $statusId = $req->status_id;
         $employeeType = $req->employee_type;
         $query = User::where('is_deleted',0)->where('company_id',$user->company_id)
@@ -49,9 +50,10 @@ class DriverManagementController extends Controller
         }
         $query->orderByDesc('id');
 
-        $callback = function ($driver) use($user){
+        $callback = function ($driver) use($user,$lang){
             $driver->create_by = $driver->createUser->user_name;
             $driver->login_name = $driver->login_name ?? $driver->phone;
+            $driver->employment_date = Helper::dateDMY($driver->employment_date,'d M Y',$lang);
             foreach($driver->bank_accounts as $b){
                 if($b->is_primary) $driver->bank_account = GeneralSettingService::concatBankInfo($b->bank_name,$b->bank_number,$b->account_name);
                 if(!$b->bank_account) $driver->bank_account = GeneralSettingService::concatBankInfo($b->bank_name,$b->bank_number,$b->account_name);

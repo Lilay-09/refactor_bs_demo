@@ -203,6 +203,10 @@ class UserService
             $inputs['latitude'] = $getLatLng->latitude ?? 0;
             $inputs['longitude'] = $getLatLng->longitude ?? 0;
         }
+
+        $empDate = $inputs['employment_date'] ?? null;
+        $inputs['employment_date'] = $empDate ? Helper::dateYMD($empDate):null;
+
         $zoneId = $inputs['zone_id'] ?? null;
         $pwd = $inputs['password'] ?? null;
         if($pwd) $inputs['password'] = Hash::make($pwd);

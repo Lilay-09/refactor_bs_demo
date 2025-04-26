@@ -385,7 +385,7 @@ class ReusableService
 
         // Prepare base query
         $packagesQuery = Package::where('merchant_id', $user->id)
-            ->with('driver:id,user_name,phone') // Limit driver fields
+            ->with(['driver:id,user_name,phone','activeDeliveryPackage:package_id,id,delivery_id','activeDeliveryPackage.delivery:id,fleet_tracking_number']) // Limit driver fields
             ->where('status_id', $statusId)
             ->where('is_deleted', 0)
             ->whereBetween($dateField, [$dateAgo, $today])
@@ -407,7 +407,7 @@ class ReusableService
             $package->status_code = $lang === 'km'
                 ? (GeneralSettingService::$statusCodeTrans[$statusId] ?? '')
                 : ($statusNames[$statusId] ?? '');
-
+            $package->tracking_number = $package->activeDeliveryPackage->delivery->fleet_tracking_number;
             // Safely assign driver details
             $package->driver_phone = $driver->phone ?? '';
             $package->driver_name = $driver->user_name ?? '';
@@ -432,7 +432,7 @@ class ReusableService
             // Generate Telegram URL
             $package->telegram_url = AppSetting::getTelegramLink('merchant', $package->receiver_phone, $driver->phone ?? '');
 
-            unset($package->driver); // Remove the relation to clean output
+            unset($package->driver,$package->activeDeliveryPackage); // Remove the relation to clean output
 
             return $package;
         };

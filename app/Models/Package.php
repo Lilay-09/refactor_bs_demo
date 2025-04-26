@@ -106,6 +106,13 @@ class Package extends Model
     // }
 
 
+    public function activeDeliveryPackage()
+{
+    return $this->hasOne(DeliveryPackage::class,'package_id','id')
+        ->latest('created_at');
+}
+
+
     public function setDriverTotalAttribute($value)
     {
         $this->attributes['driver_total'] = Helper::getNumber($value);
