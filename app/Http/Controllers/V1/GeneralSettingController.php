@@ -289,6 +289,10 @@ class GeneralSettingController extends Controller
 
     }
 
+    public function getMerchantLocation(Request $req){
+        return ApiResponse::JsonResult($this->gs::getDefaultMerchantLocation($req->id));
+    }
+
     public function getFormPackageTrail(Request $req){
         $user = UserService::getAuthUser();
         $obj = (object)[

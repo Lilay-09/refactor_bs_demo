@@ -474,6 +474,7 @@ Route::middleware(['jwt','localize','userAccess:admin'])->prefix('admin/v1/{lang
 
     Route::prefix('setting')->group(function(){
         Route::prefix('option')->group(function(){
+            Route::get('merchant/{id}/address',[GeneralSettingController::class,'getMerchantLocation']);
             Route::get('unpaidMerchant',[GeneralSettingController::class,'getOptionsUnpaidMerchant']);
             Route::get('feedbackForm',[GeneralSettingController::class,'getOptionsFeedbackForm']);
             Route::get('driver/feedbackForm',[GeneralSettingController::class,'getOptionsDriverFeedbackForm']);

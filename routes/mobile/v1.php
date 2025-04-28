@@ -91,21 +91,26 @@ Route::middleware(['jwtDriver','localize'])->prefix('driver/v1/{lang}')->group(f
 
 //BEGIN::Merchant
 
-Route::prefix('merchant/v1/{lang}/auth')->middleware('localize')->group(function(){
-    Route::post('login',[AuthMerchantController::class,'login']);
-    Route::post('registration',[AuthMerchantController::class,'merchantRegistration']);
-    Route::post('verifyOtp',[AuthMerchantController::class,'verifyOtp']);
-    Route::post('otp/resend',[AuthMerchantController::class,'resendOtp']);
-    Route::post('registration/password',[AuthMerchantController::class,'registrationPassword']);
-    Route::middleware('jwtMerchant')->group(function(){
-        Route::delete('account',[AuthMerchantController::class,'deleteAccount']);
-        Route::post('resetPassword',[AuthMerchantController::class,'resetPassword']);
-        Route::get('profile',[AuthMerchantController::class,'getProfile']);
-        Route::post('profile',[AuthMerchantController::class,'updateProfile']);
-        Route::post('registration/forgetPassword',[AuthMerchantController::class,'forgetPassword']);
-        Route::post('logout',[AuthMerchantController::class,'logOut']);
+
+Route::prefix('merchant/v1/{lang}')->middleware('localize')->group(function(){
+    Route::prefix('auth')->group(function(){
+        Route::post('login',[AuthMerchantController::class,'login']);
+        Route::post('registration',[AuthMerchantController::class,'merchantRegistration']);
+        Route::post('verifyOtp',[AuthMerchantController::class,'verifyOtp']);
+        Route::post('otp/resend',[AuthMerchantController::class,'resendOtp']);
+        Route::post('registration/password',[AuthMerchantController::class,'registrationPassword']);
+        Route::middleware('jwtMerchant')->group(function(){
+            Route::delete('account',[AuthMerchantController::class,'deleteAccount']);
+            Route::post('resetPassword',[AuthMerchantController::class,'resetPassword']);
+            Route::get('profile',[AuthMerchantController::class,'getProfile']);
+            Route::post('profile',[AuthMerchantController::class,'updateProfile']);
+            Route::post('registration/forgetPassword',[AuthMerchantController::class,'forgetPassword']);
+            Route::post('logout',[AuthMerchantController::class,'logOut']);
+        });
     });
+    Route::get('test',[HomeController::class,'getHomeScreen']);
 });
+
 
 Route::middleware(['jwtMerchant','localize'])->prefix('merchant/v1/{lang}')->group(function(){
     Route::post('notification/subscribe',[AuthMerchantController::class,'subscribeTopics']);

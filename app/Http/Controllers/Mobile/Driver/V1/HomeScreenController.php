@@ -49,6 +49,7 @@ class HomeScreenController extends Controller
         ->orderByDesc('id')
         ->selectRaw('id,loc_lat,loc_lng,order_datetime,merchant_id,warehouse_id,qty,code,pickup_address,pickup_address_google_map,vehicle_type,delivery_type');
         $callback = function ($order){
+            $order->delivery_type = trans($order->delivery_type);
             $order->merchant_name = $order->merchant->user_name;
             $order->merchant_code = $order->merchant->code;
             $order->merchant_phone = $order->merchant->phone;
