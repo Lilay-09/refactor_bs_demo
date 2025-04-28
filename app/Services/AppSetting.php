@@ -214,6 +214,8 @@ class AppSetting
         return [
             'GET' => [
                 self::$baseUrl.'/package/{id}/print' => 214,
+            ],
+            'POST' => [
                 self::$baseUrl.'/package/list/print' => 214,
             ],
             'PUT' => [
