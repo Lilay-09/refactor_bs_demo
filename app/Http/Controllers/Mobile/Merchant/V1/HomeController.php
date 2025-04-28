@@ -440,10 +440,10 @@ class HomeController extends Controller
         return ApiResponse::JsonResult(GeneralSettingService::priceByZone($id,$user,$user->id));
     }
 
-    public function getHomeScreen(Request $req,$user){
+    public function getHomeScreen(Request $req){
         $user = UserService::getAuthUser('merchant');
         $bannerImages = BrandImage::where('is_deleted',0)
-        ->where('channel',$user->account_type)->pluck('photo_file_name')
+        ->where('channel','merchant')->pluck('photo_file_name')
         ->map(fn($img) => Helper::getImageUrl($img, $user->company_id, 'brand_image'))
         ->toArray();
         $obj = [

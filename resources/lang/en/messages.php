@@ -13,6 +13,8 @@ return [
     'Get Orders' => 'Get Orders',
     'no_access' => 'No Access :info',
     'no_found' => 'No :info Found',
+    'normal' => 'Normal',
+    'fast' => 'Fast',
     'assigned' => ':info assigned',
     'error' => ':info',
     'submitted' => ':info submitted',

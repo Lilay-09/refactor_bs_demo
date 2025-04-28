@@ -136,6 +136,13 @@ class GeneralSettingService
         return $roles;
     }
 
+    public static function getDefaultMerchantLocation($merchatnId){
+        return User::where('id',$merchatnId)->where('is_deleted',0)
+        ->where('account_type','merchant')
+        ->select('address','pin_address','latitude','longitude')
+        ->first();
+    }
+
     // public static function optionsRewardType(){
     //     return [
     //         ['value' => 'cashback', 'label' => 'Cashback']
