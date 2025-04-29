@@ -284,7 +284,19 @@ class UserService
                 $saveUserBank = self::saveUserBanks($bankInfo,$userId,$user);
                 if($saveUserBank->error) return $saveUserBank;
             }
-            if($user_class == 'merchant' && $priceListId) self::saveMerchantPriceList($userId,$priceListId,$zoneId,$user);
+            if($user_class == 'merchant') {
+                $userShopService = new UserShopService();
+                    $shopReq = clone $req;
+                    $shopReq->merge([
+                        'owner_id' => $userId,
+                        'name_en' => $req->shop_name_en,
+                        'name_km' => $req->shop_name_km
+                    ]);
+                    $userShopService->saveShop($req,$user);
+                if($priceListId) {
+                    self::saveMerchantPriceList($userId,$priceListId,$zoneId,$user);
+                }
+            }
             self::assignRolesUser($userId,$roleIds,$user_class);
             DB::commit();
             return DataResponse::JsonResult(null,false,__('messages.saved'));

@@ -28,7 +28,7 @@ class UserShopService
         ]);
     }
     public function saveShop(Request $req,$user){
-        \Log::info($user);
+        // \Log::info($user);
         $validator = $this->userShopValidation($req);
         if($validator->fails()) return DataResponse::ValidateFail($validator->errors()->first());
         $inputs = $validator->validated();
