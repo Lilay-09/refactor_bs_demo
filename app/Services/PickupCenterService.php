@@ -80,7 +80,6 @@ class PickupCenterService
         $companyId = $user->company_id;
         if($validate->fails()) return DataResponse::ValidateFail($validate->errors()->first(),$validate->errors());
         $inputs = $validate->validated();
-        return ApiResponse::JsonResult(null,'Success');
         $merchantId = $inputs['merchant_id'];
         $validMerchant = User::where('is_deleted',0)->where('delete_account',0)->where('account_type','merchant')->find($merchantId);
         if(!$validMerchant) return DataResponse::ValidateFail('Invalid sender identity!');
