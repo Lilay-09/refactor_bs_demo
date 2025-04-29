@@ -16,11 +16,10 @@ Route::middleware(['web'])->group(function () {
         return response()->json(['message' => 'Log file not found.'], 404);
     });
 
-    Route::get('/clear-configCache', function () {
-        Artisan::call('config:clear');
-
-        return response()->json(['message' => 'Config cache cleared.']);
-    });
+    // Route::get('/clear-configCache', function () {
+    //     Artisan::call('config:clear');
+    //     return response()->json(['message' => 'Config cache cleared.']);
+    // });
 
     Route::get('/pdf', function(){
         return view('pdf.package_history');
