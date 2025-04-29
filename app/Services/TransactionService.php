@@ -1926,7 +1926,6 @@ class TransactionService
             if ($row->id == $pmtId) {
                 $row->breakdown_notes = str_replace(['|', 'USD '], [' & ', '$'], $row->breakdown_notes);
                 $row->breakdown_notes = preg_replace('/KHR (\d+)/', '$1៛', $row->breakdown_notes);
-
                 // 🛠 Fix: Collect unique methods
                 $methods = [];
                 if (isset($pmtBillings[$row->id])) {

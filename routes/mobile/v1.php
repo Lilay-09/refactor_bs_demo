@@ -108,7 +108,7 @@ Route::prefix('merchant/v1/{lang}')->middleware('localize')->group(function(){
             Route::post('logout',[AuthMerchantController::class,'logOut']);
         });
     });
-    Route::get('test',[HomeController::class,'getHomeScreen']);
+    // Route::get('test',[HomeController::class,'getHomeScreen']);
 });
 
 

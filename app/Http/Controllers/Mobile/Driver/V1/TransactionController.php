@@ -469,7 +469,7 @@ class TransactionController extends Controller
             "details" => [
                 [
                     'category' => $lang == 'km' ? 'បានប្រមូល': 'Pickup',
-                    'color' => '#223bc9',
+                    'key' => 'pickup',
                     'details' => [
                         [
                             'count' => $pickUpCount,
@@ -481,7 +481,7 @@ class TransactionController extends Controller
                 ],
                 [
                     'category' => $lang == 'km' ? 'បានដឹក': 'Delivered',
-                    'color' => '#17b74d',
+                    'key' => 'delivery',
                     'details' => [
                         [
                             'type' => $lang == 'km' ? 'ធម្មតា':'Normal',
