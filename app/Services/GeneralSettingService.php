@@ -506,7 +506,7 @@ class GeneralSettingService
         ->selectRaw('name,id')
         ->orderByDesc('id');
         if($cityId){
-            $q->where('city_id');
+            $q->where('city_id',$cityId);
         }
         return $q->get();
 

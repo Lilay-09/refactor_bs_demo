@@ -211,6 +211,19 @@ class UserService
         $pwd = $inputs['password'] ?? null;
         if($pwd) $inputs['password'] = Hash::make($pwd);
         unset($inputs['bank_info'],$inputs['photo'],$inputs['role_id'],$inputs['zone_id']);
+        $prefix = self::$user_prefix[$user_class];
+        if($user_class == 'driver'){
+            if($inputs['has_commission']){
+                $prefix .= 'PB'.$branchId;
+            }else {
+                $prefix .= 'FB'.$branchId;
+            }
+        }else if($user_class == 'merchant'){
+            $prefix .= 'B'.$branchId;
+        }
+        else{
+            $prefix .= 'B'.$branchId;
+        }
         DB::beginTransaction();
         try{
             if($id){
@@ -262,19 +275,7 @@ class UserService
                 $inputs['photo_file_name'] = Helper::base64ToImageFile($photo,$user->company_id,'user_profile')->filename;
                 $create = User::create($inputs);
                 if(!$create) return DataResponse::Error(__('messages.error',['info' => 'Fail to create']));
-                $prefix = self::$user_prefix[$user_class];
-                if($user_class == 'driver'){
-                    if($inputs['has_commission']){
-                        $prefix .= 'PB'.$branchId;
-                    }else {
-                        $prefix .= 'FB'.$branchId;
-                    }
-                }else if($user_class == 'merchant'){
-                    $prefix .= 'B'.$branchId;
-                }
-                else{
-                    $prefix .= 'B'.$branchId;
-                }
+
                 self::setRefCode('user_code_control','users','code',$user->branch_id,$user->company_id,$create->id,$prefix);
                 $userId = $create->id;
                 // return $userId;
@@ -307,6 +308,10 @@ class UserService
             Log::error($e->getMessage());
             return DataResponse::Error(__('messages.error',['info' => 'Fail to create']));
         }
+    }
+
+    static function saveEmploymentHistory(){
+
     }
 
     static function setRefCode($tbl_code_control,$target_tbl,$target_col,$branch_id,$company_id,$newID,$prefix,$len = 5,$issue_date = null){
