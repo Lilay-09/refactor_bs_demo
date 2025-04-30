@@ -296,18 +296,19 @@ class UserService
                 $userShopService = new UserShopService();
                 foreach ($req->shops as $shop) {
                     // Clone the original request to avoid mutation
-                    $shopReq = clone $req;
-
-                    // Create a new array with merged data
-                    $mergedData = array_merge($shopReq->all(), [
-                        'owner_id'  => $userId,
-                        'name_en'   => $shop['shop_name_en'] ?? null,
-                        'name_km'   => $shop['shop_name_km'] ?? null,
-                        'shop_type' => $shop['shop_type'] ?? $req->input('business_type')
+                    $shopReq = new Request([
+                        'owner_id'        => $userId,
+                        'name_en'         => $shop['shop_name_en'] ?? null,
+                        'name_km'         => $shop['shop_name_km'] ?? null,
+                        'shop_type'       => $shop['shop_type'] ?? $req->input('business_type'),
+                        'product_type_id' => $shop['product_type_id'] ?? null,
+                        'phone' => $shop['phone'],
+                        'est_pcs' => $shop['est_pcs'],
+                        "city" =>  $shop['city'],
+                        "district" => $shop['district'],
+                        "commune" => $shop['commune'],
+                        'address' => $shop['address']
                     ]);
-
-                    // Replace the input in the cloned request
-                    $shopReq->replace($mergedData);
 
                     // Save the shop using your service
                     $userShopService->saveShop($shopReq, $user);

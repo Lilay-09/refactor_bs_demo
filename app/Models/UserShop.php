@@ -15,6 +15,7 @@ class UserShop extends Model
         'name_km',
         'address',
         'shop_type',
+        'product_type_id',
         'pin_address',
         'loc_lat',
         'loc_lng',
