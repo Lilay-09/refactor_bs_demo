@@ -44,7 +44,7 @@ class GeneralSettingController extends Controller
 
     public function getOptionsDistrict(Request $req){
         $user = UserService::getAuthUser();
-        return ApiResponse::JsonResult($this->gs::optionsDistrict($user));
+        return ApiResponse::JsonResult($this->gs::optionsDistrict($user,$req->query('city_id')));
     }
 
     public function getOptionsFeedbackForm(Request $req){
@@ -352,6 +352,7 @@ class GeneralSettingController extends Controller
             'price_list' => $this->gs::optionsPriceList($user),
             'referrers' => $this->gs::optionsMerchant($user),
             'banks' => $this->gs::optionsBank($user),
+            'cities' => $this->gs::optionsCity($user)
         ];
         return ApiResponse::JsonResult($obj);
     }

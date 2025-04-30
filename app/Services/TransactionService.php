@@ -36,6 +36,7 @@ class TransactionService
         $startDate = $req->startDate;
         $endDate = $req->endDate;
         $search = $req->search;
+        Log::info($req->all());
         $qP = Package::query()
             ->from('packages as p')
             ->with(['payment' => function ($query) use ($type) {
@@ -530,7 +531,7 @@ class TransactionService
         if($totalAmountUSD && $totalAmountKHR){
             $totalAmountKHR_to_USD = $totalAmountKHR/$exchangeRate;
             $totalAllAmt = Helper::getNumber($totalAmountUSD + $totalAmountKHR_to_USD);
-            if($totalAllAmt > $dueAmount) return DataResponse::ValidateFail('You amount is exceeding the expected, amount is only $'.$dueAmount.' in total');
+            if($totalAllAmt > $dueAmount) return DataResponse::ValidateFail('Your amount is exceeding the expected, amount is only $'.$dueAmount.' in total');
             $remainingAmt = abs($totalAmountUSD - $dueAmount);
             $totalSuggestionAmt_KH = $remainingAmt * $exchangeRate;
             $suggestionAmtBankKh = abs($totalSuggestionAmt_KH  - $cashKh);
@@ -566,7 +567,7 @@ class TransactionService
             $totalAmountUSD = (float) $totalAmountUSD; // Ensures it's a float
             $dueAmount = (float) $dueAmount; // Casts dueAmount to float
             $misMatchTotal = abs($totalAmountUSD - $dueAmount) > 0;
-            if($misMatchTotal) return DataResponse::ValidateFail('You amount is exceeding the expected, amount is only $'.$dueAmount.' in total');
+            if($misMatchTotal) return DataResponse::ValidateFail('Your amount is exceeding the expected, amount is only $'.$dueAmount.' in total');
         }
 
         if($totalAmountKHR && !$totalAmountUSD){
@@ -1595,11 +1596,10 @@ class TransactionService
         $payeeInfo = User::where('is_deleted',0)->whereIn('account_type',['driver','merchant'])->find($payeeId);
         if(!$payeeInfo) return DataResponse::NotFound('Could not find payee information');
         $validPackages = $this->validCommissionPackage($payeeId,$type,$startDate,$endDate);
+        // return DataResponse::JsonResult($validPackages);
         if($validPackages->error) return $validPackages;
         $packageIds = $validPackages->package_ids;
         $orderIds = $validPackages->order_ids;
-        $deliveryRate = $validPackages->delivery_rate;
-        $pickupRate = $validPackages->pickup_rate;
         $exchangeRate = $inputs['exchange_rate'] ?? GeneralSettingService::getLatestXRate()->buy_rate;
         $cashKh = $inputs['cash_kh'] ?? 0;
         $cash = $inputs['cash'] ?? 0;
@@ -1632,8 +1632,10 @@ class TransactionService
                 'exchange_rate' => $exchangeRate,
                 'approved' => true,
                 'is_settled' => true,
-                'pickup_rate' => $pickupRate,
-                'delivery_rate' => $deliveryRate,
+                'pickup_rate' => $validPackages->pickup_rate,
+                'fast_pickup_rate' => $validPackages->fast_pickup_rate,
+                'delivery_rate' => $validPackages->fast_delivery_rate,
+                'fast_delivery_rate' => $validPackages->fast_delivery_rate,
                 'settled_uid' => $user->id,
                 'approved_uid' => $user->id,
                 'receiptionist_uid' => $user->id,
@@ -1741,9 +1743,9 @@ class TransactionService
     private function validCommissionPackage($payeeId,$type,$startDate,$endDate){
         $validType = $this->validType($type);
         if($validType->error) return $validType;
-        $deliveredCount = 0;
+        // $deliveredCount = 0;
         $pickUpCount = 0;
-        $failedWithFeeCount = 0;
+        // $failedWithFeeCount = 0;
         // Log::info($startDate.'--'.$endDate);
         $obj = (object)[
             'error' => false,
@@ -1769,29 +1771,32 @@ class TransactionService
         ->whereIn('status_id',[9,19])
         ->where('is_deleted',0)
         ->whereNull('driver_commission_id');
-        if($startDate && $endDate){
-            $startDate = Helper::dateYMD($startDate);
-            $endDate = Helper::dateYMD($endDate);
-            $qP->whereRaw("
-                (
-                    (status_id = 19 AND failed_datetime::DATE >= ? AND failed_datetime::DATE <= ?)
-                    OR
-                    (status_id = 9 AND delivered_datetime::DATE >= ? AND delivered_datetime::DATE <= ?)
-                )
-            ", [$startDate, $endDate, $startDate, $endDate]);
-
-        }
         if($payeeId) $qP->where($payeeKey,$payeeId);
-        $packages = $qP->get();
+
         $qO = Order::where('is_deleted',0)->whereNull('driver_commission_id')
         ->where('status_id',5)
         ->selectRaw('id,status_id,qty');
         if($payeeId) $qO->where($payeeKey,$payeeId);
+        // if($startDate && $endDate){
+        //     $startDate = Helper::dateYMD($startDate);
+        //     $endDate = Helper::dateYMD($endDate);
+        //     $qO->whereRaw('order_datetime::DATE >= ? AND order_datetime::DATE <= ?', [$startDate, $endDate]);
+        // }
+
         if($startDate && $endDate){
-            $startDate = Helper::dateYMD($startDate);
-            $endDate = Helper::dateYMD($endDate);
-            $qO->whereRaw('order_datetime::DATE >= ? AND order_datetime::DATE <= ?', [$startDate, $endDate]);
+            $startDate = Helper::dateYMD($startDate).' 00:00:00';
+            $endDate = Helper::dateYMD($endDate). ' 23:59:59';
+            $qP->whereRaw("
+                (
+                    (status_id = 19 AND failed_datetime >= ? AND failed_datetime <= ?)
+                    OR
+                    (status_id = 9 AND delivered_datetime >= ? AND delivered_datetime <= ?)
+                )
+            ", [$startDate, $endDate, $startDate, $endDate]);
+
+            $qO->whereRaw('order_datetime >= ? AND order_datetime <= ?', [$startDate, $endDate]);
         }
+        $packages = $qP->get();
         $orders = $qO->get();
         $qDc = DriverCommission::where('driver_id',$payeeId)->where('is_deleted',0)->selectRaw('delivery_type,pickup_commission,delivery_commission,use_percentage');
         $driverCommissions = $qDc->get();
@@ -1809,24 +1814,56 @@ class TransactionService
             $pickUpCount += $order->qty;
             $obj->order_ids[] = $order->id;
         }
+
+        $totalCommissionPkg = 0;
+        $normalDeliveredCount = 0;
+        $fastDeliveredCount = 0;
+
+        $normalFailedWithFeeCount = 0;
+        $fastFailedWithFeeCount = 0;
         foreach($packages as $package){
+            // if($package->status_id == 9) {
+            //     $deliveredCount += 1;
+            //     $obj->package_ids[] = $package->id;
+            // }
+            // if($package->status_id == 19) $failedWithFeeCount +=1;
+            // if($package->cod) $obj->total_taxi_fee += $package->delivery_fee;
+            // if($package->taxi_fee) $obj->total_taxi_fee += $package->taxi_fee;
             if($package->status_id == 9) {
-                $deliveredCount += 1;
-                $obj->package_ids[] = $package->id;
+                if($package->delivery_type == 'normal'){
+                    $normalDeliveredCount +=1;
+                }else if($package->delivery_type == 'fast'){
+                    $fastDeliveredCount +=1;
+                }
+                $totalCommissionPkg +=1;
             }
-            if($package->status_id == 19) $failedWithFeeCount +=1;
-            if($package->cod) $obj->total_taxi_fee += $package->delivery_fee;
-            if($package->taxi_fee) $obj->total_taxi_fee += $package->taxi_fee;
+            if($package->status_id == 19) {
+                if($package->delivery_type == 'normal'){
+                    $normalFailedWithFeeCount +=1;
+                }
+                else if($package->delivery_type == 'fast'){
+                    $fastFailedWithFeeCount +=1;
+                }
+                $totalCommissionPkg +=1;
+            }
         }
 
         $obj->total_pickup = $pickUpCount * $dc->normal_pickup_commission;
-        $obj->total_delivered = $deliveredCount * $dc->normal_delivery_commission;
-        $obj->total_package = $pickUpCount + $deliveredCount + $failedWithFeeCount;
-        $obj->total_delivered_package = $deliveredCount;
+        $obj->total_delivered = $normalDeliveredCount * $dc->normal_delivery_commission + $fastDeliveredCount * $dc->fast_delivery_commission;
+        $obj->total_package = $pickUpCount + $normalDeliveredCount + $fastDeliveredCount + $normalFailedWithFeeCount + $fastFailedWithFeeCount;
+        //** Deliverd pkgs */
+        $obj->normal_delivered_count= $normalDeliveredCount;
+        $obj->fast_delivered_count = $fastDeliveredCount;
+        //-----
+        $obj->total_delivered_package = $normalDeliveredCount + $fastDeliveredCount;
         $obj->total_pickup_package = $pickUpCount;
         $obj->delivery_rate = $dc->normal_delivery_commission;
         $obj->pickup_rate = $dc->normal_pickup_commission;
-        $obj->failed_with_fee_count = $failedWithFeeCount;
+        //** FailedWithFee pkgs */
+        $obj->normal_failed_with_fee_count = $normalFailedWithFeeCount;
+        $obj->fast_failed_with_fee_count = $fastFailedWithFeeCount;
+        //----
+
         $obj->total_pickup_count = $pickUpCount;
 
         $obj->grand_total = Helper::getNumber($obj->total_pickup + $obj->total_delivered,2);

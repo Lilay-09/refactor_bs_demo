@@ -501,8 +501,15 @@ class GeneralSettingService
     public static function optionsCity($user){
         return City::where('is_deleted',0)->where('company_id',$user->company_id)->selectRaw('name,id')->orderByDesc('id')->get();
     }
-    public static function optionsDistrict($user){
-        return District::where('is_deleted',0)->where('company_id',$user->company_id)->selectRaw('name,id')->orderByDesc('id')->get();
+    public static function optionsDistrict($user,$cityId){
+        $q = District::where('is_deleted',0)->where('company_id',$user->company_id)
+        ->selectRaw('name,id')
+        ->orderByDesc('id');
+        if($cityId){
+            $q->where('city_id');
+        }
+        return $q->get();
+
     }
 
     public static function getGeneralTopics($companyId=null,$channel=null,$userId=null){

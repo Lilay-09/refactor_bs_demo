@@ -22,6 +22,8 @@ class Disbursement extends Model
         'delivery_fee',
         'pickup_rate',
         'delivery_rate',
+        'fast_delivery_rate',
+        'fast_pickup_rate',
         'type',
         'taxi_fee',
         'is_settled',

@@ -6,6 +6,7 @@ use ApiResponse;
 use App\Http\Controllers\Controller;
 use App\Models\MerchantPriceList;
 use App\Models\User;
+use App\Models\UserShop;
 use App\Models\Zone;
 use App\Services\GeneralSettingService;
 use App\Services\UserService;
@@ -123,6 +124,8 @@ class MerchantManagementController extends Controller
             $cod = $merchant->cod;
         }
         $merchant->cod = $cod ? 1:0;
+        $merchant->shop_info = UserShop::where('owner_id',$id)
+        ->select('name_en as shop_name_en','name_km as shop_name_km','*')->first();
         unset($m->merchantType,$m->bank_accounts);
         return ApiResponse::JsonResult($merchant,__('messages.get one'));
     }
