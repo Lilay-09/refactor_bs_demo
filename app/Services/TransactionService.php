@@ -101,21 +101,9 @@ class TransactionService
                 });
             });
         }
-        // // Log::error(json_encode($req->all()));
-        // if($type == 'merchant' && $pmtStatusId == 2){
-        //     $qP->where(function ($q) {
-        //         $q->whereNotNull('p.merchant_payment_id')->orWhereNotNull('p.merchant_disbursement_id');
-        //     });
-        // }else if($type == 'merchant' && $pmtStatusId == 1){
-        //     $qP->where(function ($q) {
-        //         $q->whereNull('p.merchant_payment_id')->whereNull('p.merchant_disbursement_id');
-        //     });
-        // }
-        // // $packages = $qP->get();
-        $statusKey = $type.'_payment_status';
-        // // foreach($packages as $package){
 
-        // // }
+        $statusKey = $type.'_payment_status';
+
         // $clbMapper = null;
         $clbMapper = function($package) use($statusKey,$type){
             $cod = $package->cod;
