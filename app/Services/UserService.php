@@ -302,7 +302,7 @@ class UserService
                         'name_km' => $shop['shop_name_km'],
                         'shop_type' => $shop['shop_type'] ?? $inputs['business_type']
                     ]);
-                    $userShopService->saveShop($req,$user);
+                    $userShopService->saveShop($shopReq,$user);
                 }
                 if($priceListId) {
                     self::saveMerchantPriceList($userId,$priceListId,$zoneId,$user);
@@ -322,7 +322,7 @@ class UserService
 
     }
 
-    // static function saveOptions
+    // static function changeEmployeePolicy
 
 
 
