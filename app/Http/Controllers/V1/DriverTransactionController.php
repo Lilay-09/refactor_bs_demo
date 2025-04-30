@@ -27,6 +27,7 @@ class DriverTransactionController extends Controller
         $driverId = $req->driver_id;
         $startDate = $req->startDate;
         $endDate = $req->endDate;
+        \Log::info($req->all());
         $qD = User::query()->selectRaw('code,id,user_name as driver_name,phone as driver_phone')->where('account_type','driver');
         if($driverId) $qD->where('id',$driverId);
         // $driverInfo = $qD->get();
@@ -81,8 +82,13 @@ class DriverTransactionController extends Controller
 
             $driver->total_pickup = $totalPickUp;
             $driver->total_delivered = ($deliverdInfo->normal_delivered_count ?? 0) + ($deliverdInfo->fast_delivered_count ?? 0);
+            $driver->normal_delivered_count = $deliverdInfo->normal_delivered_count;
+            $driver->fast_delivered_count = $deliverdInfo->fast_delivered_count;
+
             $driver->total_failed_with_fee = ($deliverdInfo->normal_failed_with_fee_count ?? 0) + ($deliverdInfo->fast_failed_with_fee_count ?? 0);
             $driver->total_commission_packages = $deliverdInfo->total_commission_pkg ?? 0;
+            $driver->normal_failed_with_fee_count = $deliverdInfo->normal_failed_with_fee_count;
+            $driver->fast_failed_with_fee_count = $deliverdInfo->fast_failed_with_fee_count;
 
             $driver->total = Helper::getNumber(
                 $driver->pickup_rate * $totalPickUp

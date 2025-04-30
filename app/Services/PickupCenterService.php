@@ -130,7 +130,6 @@ class PickupCenterService
             $orderId = $createOrder->id;
             $code = Helper::generateCode('ARZ',$orderId,'',8);
 
-
             // $statusId = $inputs['status_id'];
             if(isset($details[0])){
                 if($userType == 'driver') $statusId = 4;
