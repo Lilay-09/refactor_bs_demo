@@ -36,7 +36,7 @@ class TransactionService
         $startDate = $req->startDate;
         $endDate = $req->endDate;
         $search = $req->search;
-        Log::info($req->all());
+        // Log::info($req->all());
         $qP = Package::query()
             ->from('packages as p')
             ->with(['payment' => function ($query) use ($type) {

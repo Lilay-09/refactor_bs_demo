@@ -110,7 +110,7 @@ class MerchantManagementController extends Controller
         $id = $req->id;
         $merchant = User::where('is_deleted',0)->where('company_id',$user->company_id)
         ->where('account_type',$this->userClass)
-        ->with(['bank_accounts:id,bank_name,bank_number,account_name,user_id,is_primary'])
+        ->with(['bank_accounts:id,bank_name,bank_number,account_name,user_id,is_primary','shops:id,owner_id,name_en as shop_name_en,name_km as shop_name_km,phone,est_pcs'])
         ->selectRaw('id,cod_fee,code,name_km,user_name,email,gender,photo_file_name,business_type,phone,client_type_id,address,referrer_uid,cod,pin_address,login_name')
         ->find($id);
         $priceList = DB::table('price_list_names as n')

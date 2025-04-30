@@ -286,13 +286,15 @@ class UserService
             }
             if($user_class == 'merchant') {
                 $userShopService = new UserShopService();
+                foreach($req->shops as $shop){
                     $shopReq = clone $req;
                     $shopReq->merge([
                         'owner_id' => $userId,
-                        'name_en' => $req->shop_name_en,
-                        'name_km' => $req->shop_name_km
+                        'name_en' => $shop['shop_name_en'],
+                        'name_km' => $shop['shop_name_km']
                     ]);
                     $userShopService->saveShop($req,$user);
+                }
                 if($priceListId) {
                     self::saveMerchantPriceList($userId,$priceListId,$zoneId,$user);
                 }
