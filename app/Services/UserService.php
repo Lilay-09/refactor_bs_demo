@@ -294,16 +294,35 @@ class UserService
             }
             if($user_class == 'merchant') {
                 $userShopService = new UserShopService();
-                foreach($req->shops as $shop){
+                foreach ($req->shops as $shop) {
+                    // Clone the original request to avoid mutation
                     $shopReq = clone $req;
-                    $shopReq->merge([
-                        'owner_id' => $userId,
-                        'name_en' => $shop['shop_name_en'],
-                        'name_km' => $shop['shop_name_km'],
-                        'shop_type' => $shop['shop_type'] ?? $inputs['business_type']
+
+                    // Create a new array with merged data
+                    $mergedData = array_merge($shopReq->all(), [
+                        'owner_id'  => $userId,
+                        'name_en'   => $shop['shop_name_en'] ?? null,
+                        'name_km'   => $shop['shop_name_km'] ?? null,
+                        'shop_type' => $shop['shop_type'] ?? $req->input('business_type')
                     ]);
-                    $userShopService->saveShop($shopReq,$user);
+
+                    // Replace the input in the cloned request
+                    $shopReq->replace($mergedData);
+
+                    // Save the shop using your service
+                    $userShopService->saveShop($shopReq, $user);
                 }
+
+                // foreach($req->shops as $shop){
+                //     $shopReq = clone $req;
+                //     $shopReq->merge([
+                //         'owner_id' => $userId,
+                //         'name_en' => $shop['shop_name_en'],
+                //         'name_km' => $shop['shop_name_km'],
+                //         'shop_type' => $shop['shop_type'] ?? $inputs['business_type']
+                //     ]);
+                //     $userShopService->saveShop($shopReq,$user);
+                // }
                 if($priceListId) {
                     self::saveMerchantPriceList($userId,$priceListId,$zoneId,$user);
                 }
