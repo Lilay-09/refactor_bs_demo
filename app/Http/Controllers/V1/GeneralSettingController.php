@@ -352,7 +352,8 @@ class GeneralSettingController extends Controller
             'price_list' => $this->gs::optionsPriceList($user),
             'referrers' => $this->gs::optionsMerchant($user),
             'banks' => $this->gs::optionsBank($user),
-            'cities' => $this->gs::optionsCity($user)
+            'cities' => $this->gs::optionsCity($user),
+            'product_types' => $this->gs::optionsProductType($user)
         ];
         return ApiResponse::JsonResult($obj);
     }
