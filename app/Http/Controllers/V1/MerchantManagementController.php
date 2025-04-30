@@ -114,7 +114,8 @@ class MerchantManagementController extends Controller
         ->selectRaw('id,cod_fee,code,name_km,user_name,email,gender,photo_file_name,business_type,phone,client_type_id,address,referrer_uid,cod,pin_address,login_name')
         ->find($id);
         $priceList = DB::table('price_list_names as n')
-        ->selectRaw('n.id,n.name,mpl.merchant_id')->join('merchant_price_list as mpl','mpl.price_list_id','n.id')
+        ->selectRaw('n.id,n.name,mpl.merchant_id')
+        ->join('merchant_price_list as mpl','mpl.price_list_id','n.id')
         ->where('mpl.merchant_id',$id)->first();
         if(!$merchant) return ApiResponse::NotFound(__('messages.not_found',['info' => 'Merchant']));
         $merchant->image_url = Helper::getImageUrl($merchant->photo_file_name,$user->company_id,'user_profile');
@@ -201,5 +202,4 @@ class MerchantManagementController extends Controller
         $user = UserService::getAuthUser();
         return ApiResponse::flex(UserService::deleteUser($req->id,'merchant',$user));
     }
-
 }
