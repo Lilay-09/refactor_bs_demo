@@ -234,19 +234,26 @@ class UserService
                 $existsEmail = User::where('account_type',$user_class)->where('is_deleted',0)->where('id','!=',$id)->whereNotNull('email')->where('email',$email)->first();
                 $existsPhone = User::where('account_type',$user_class)->where('is_deleted',0)->where('id','!=',$id)->where('phone',$phone)->first();
                 $existsNationalId = User::where('account_type',$user_class)->where('is_deleted',0)->where('id','!=',$id)->whereNotNull('national_id')->where('national_id',$nationalId)->first();
-                if($existsEmail) return DataResponse::Duplicated(__('messages.error',[
-                    'info' => 'Email has already taken.'
-                ]));
-                if($existsNationalId) return DataResponse::Duplicated(__('messages.error',[
-                    'info' => 'National ID is already exists.'
-                ]));
-                if($existsPhone) return DataResponse::Duplicated(__('messages.error',[
-                    'info' => 'Phone number('.$phone.') has already taken.'
-                ]));
+                if($existsEmail) {
+                    return DataResponse::Duplicated(__('messages.error',[
+                        'info' => 'Email has already taken.'
+                    ]));
+                }
+                if($existsNationalId) {
+                    return DataResponse::Duplicated(__('messages.error',[
+                        'info' => 'National ID is already exists.'
+                    ]));
+                }
+                if($existsPhone) {
+                    return DataResponse::Duplicated(__('messages.error',[
+                        'info' => 'Phone number('.$phone.') has already taken.'
+                    ]));
+                }
                 if(!$photo || Helper::isValidBase64Image($photo)) {
                     $inputs['photo_file_name'] = Helper::base64ToImageFile($photo,$user->company_id,'user_profile')->filename;
                     Helper::deleteImageFile($updateUser->photo_file_name,$user->company_id,'user_profile');
                 }
+
                 $update = $updateUser->update($inputs);
                 if(!$update) return DataResponse::Error(__('messages.error',['info' => 'Fail to update']));
                 $userId = $id;
@@ -292,7 +299,8 @@ class UserService
                     $shopReq->merge([
                         'owner_id' => $userId,
                         'name_en' => $shop['shop_name_en'],
-                        'name_km' => $shop['shop_name_km']
+                        'name_km' => $shop['shop_name_km'],
+                        'shop_type' => $shop['shop_type'] ?? $inputs['business_type']
                     ]);
                     $userShopService->saveShop($req,$user);
                 }
@@ -313,6 +321,11 @@ class UserService
     static function saveEmploymentHistory(){
 
     }
+
+    // static function saveOptions
+
+
+
 
     static function setRefCode($tbl_code_control,$target_tbl,$target_col,$branch_id,$company_id,$newID,$prefix,$len = 5,$issue_date = null){
         if (!$len) $len = 5;
