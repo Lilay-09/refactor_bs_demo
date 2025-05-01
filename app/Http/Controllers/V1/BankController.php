@@ -105,6 +105,6 @@ class BankController extends Controller
             'deleted_uid' => $user->id,
             'deleted_datetime' => now()
         ]);
-        return ApiResponse::JsonResult(null,false,'Deleted');
+        return ApiResponse::JsonResult(null,'Deleted',false);
     }
 }

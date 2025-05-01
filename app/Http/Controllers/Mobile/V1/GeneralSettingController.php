@@ -407,8 +407,13 @@ class GeneralSettingController extends Controller
         return ApiResponse::JsonResult([
             'product_types' => GeneralSettingService::optionsProductType($user),
             'cities' => GeneralSettingService::optionsCity($user),
-            'districts' => GeneralSettingService::optionsDistrict($user)
+            // 'districts' => GeneralSettingService::optionsDistrict($user,$req)
         ]);
+    }
+
+    public function getOptionsDistrict(Request $req){
+        $user = UserService::getAuthUser();
+        return ApiResponse::JsonResult(GeneralSettingService::optionsDistrict($user,$req->city_id));
     }
 
     public function getOptionBanks(){

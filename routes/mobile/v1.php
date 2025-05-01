@@ -153,7 +153,7 @@ Route::middleware(['jwtMerchant','localize'])->prefix('merchant/v1/{lang}')->gro
         Route::prefix('option')->group(function (){
             Route::get('zone/{zone_id}/price',[HomeController::class,'getZonePrice']);
             Route::get('zone',[HomeController::class,'getOptionsZone']);
-
+            Route::get('district',[GeneralSettingController::class,'getOptionsDistrict']);
             Route::get('bank',[GeneralSettingController::class,'getOptionBanks']);
         });
         Route::prefix('form')->group(function (){
