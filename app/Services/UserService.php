@@ -302,12 +302,12 @@ class UserService
                         'name_km'         => $shop['shop_name_km'] ?? null,
                         'shop_type'       => $shop['shop_type'] ?? $req->input('business_type'),
                         'product_type_id' => $shop['product_type_id'] ?? null,
-                        'phone' => $shop['phone'],
-                        'est_pcs' => $shop['est_pcs'],
-                        "city" =>  $shop['city'],
-                        "district" => $shop['district'],
-                        "commune" => $shop['commune'],
-                        'address' => $shop['address']
+                        'phone' => $shop['phone'] ?? null,
+                        'est_pcs' => $shop['est_pcs'] ?? null,
+                        "city" =>  $shop['city'] ?? null,
+                        "district" => $shop['district'] ?? null,
+                        "commune" => $shop['commune'] ?? null,
+                        'address' => $shop['address'] ?? null
                     ]);
 
                     // Save the shop using your service
