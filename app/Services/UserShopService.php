@@ -16,6 +16,7 @@ class UserShopService
             'name_km' => 'nullable',
             'shop_type' => 'nullable',
             'address' => 'nullable',
+            'product_type_id' => 'nullable|int',
             'pin_address' => 'nullable',
             'phone' => 'required',
             'email' => 'nullable',
@@ -44,8 +45,6 @@ class UserShopService
             $inputs['create_uid'] = $user->id;
             $userShop = UserShop::create($inputs);
         }
-
         return DataResponse::JsonResult(null,false,'Saved');
-
     }
 }

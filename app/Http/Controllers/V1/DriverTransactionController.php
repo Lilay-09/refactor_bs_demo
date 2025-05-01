@@ -25,9 +25,8 @@ class DriverTransactionController extends Controller
 
     public function getDriverCommissionPackage(Request $req){
         $driverId = $req->driver_id;
-        $startDate = $req->startDate;
-        $endDate = $req->endDate;
-        \Log::info($req->all());
+
+        // \Log::info($req->all());
         $qD = User::query()->selectRaw('code,id,user_name as driver_name,phone as driver_phone')->where('account_type','driver');
         if($driverId) $qD->where('id',$driverId);
         // $driverInfo = $qD->get();
@@ -38,33 +37,79 @@ class DriverTransactionController extends Controller
         $qO = Order::query()->where('is_deleted',0)
         ->whereNull('driver_commission_id')
         ->where('status_id',5);
-        if($startDate && $endDate){
-            $startDate = Helper::dateYMD($startDate);
-            $endDate = Helper::dateYMD($endDate);
-            $qP->whereRaw("
-                (
-                    (status_id = 19 AND failed_datetime BETWEEN ? AND ?)
-                    OR
-                    (status_id = 9 AND delivered_datetime BETWEEN ? AND ?)
-                )
-            ", [
-                "$startDate 00:00:00", "$endDate 23:59:59",
-                "$startDate 00:00:00", "$endDate 23:59:59"
-            ]);
 
-            $qO->whereBetween('pickup_datetime', [$startDate . ' 00:00:00', $endDate . ' 23:59:59']);
-        }
-        $qDc = DriverCommission::query()->where('is_deleted',0)->selectRaw('id,driver_id,delivery_type,pickup_commission,delivery_commission');
+        $qDc = DriverCommission::query()->where('is_deleted',0)->selectRaw('id,driver_id,delivery_type,pickup_commission,delivery_commission,pickup_commission_start_date,delivery_commission_start_date');
         if($driverId) {
             $qP->where('driver_id',$driverId);
             $qO->where('driver_id',$driverId);
             $qDc->where('driver_id',$driverId);
         }
-        $packages = $qP->get();
-        $orders = $qO->get();
+
         // if($driverId)
         $driverCommissions = $qDc->get();
+        $driverCommissionInfo = TransactionService::getDriverCommissionInfo($driverCommissions,$driverId);
+        // return $driverCommissionInfo;
+        // $pickUpStartDate = $req->query('startDate',$driverCommissionInfo->normal_pickup_commission_start_date);
+        $startDateFromQuery = $req->query('startDate');
+        $endDate = $req->query('endDate');
+        $defaultNormalDeliveryDate = $driverCommissionInfo->normal_delivery_commission_start_date;
+        $defaultFastDeliveryDate = $driverCommissionInfo->fast_delivery_commission_start_date;
+        $defaultNormalPickUpDate = $driverCommissionInfo->normal_pickup_commission_start_date;
 
+        $normalDeliveryStartDate = $startDateFromQuery
+            ? max(Helper::dateYMD($startDateFromQuery).' 00:00:00', $defaultNormalDeliveryDate)
+            : null;
+        $fastDeliveryStartDate = $startDateFromQuery
+            ? max(Helper::dateYMD($startDateFromQuery).' 00:00:00', $defaultFastDeliveryDate)
+            : null;
+        $normalPickUpStartDate = $startDateFromQuery
+            ? max(Helper::dateYMD($startDateFromQuery).' 00:00:00', $defaultNormalPickUpDate)
+            : null;
+
+
+        $endDate = $endDate ? Helper::dateYMD($endDate). ' 23:59:59' : null;
+        // return $endDate;
+
+        if($normalDeliveryStartDate && $endDate){
+            $qP->where(function ($q) use ($normalDeliveryStartDate,$fastDeliveryStartDate, $endDate) {
+                $q->where(function ($q) use ($normalDeliveryStartDate, $endDate) {
+                    $q->where('delivery_type', 'normal')
+                    ->whereRaw("
+                            (
+                                (status_id = 19 AND failed_datetime BETWEEN ? AND ?)
+                                OR
+                                (status_id = 9 AND delivered_datetime BETWEEN ? AND ?)
+                            )
+                        ", [
+                            $normalDeliveryStartDate, $endDate,
+                            $normalDeliveryStartDate, $endDate
+                        ]);
+                })
+
+                ->orWhere(function ($q) use ($fastDeliveryStartDate, $endDate) {
+                    $q->where('delivery_type', 'fast')
+                    ->whereRaw("
+                            (
+                                (status_id = 19 AND failed_datetime BETWEEN ? AND ?)
+                                OR
+                                (status_id = 9 AND delivered_datetime BETWEEN ? AND ?)
+                            )
+                        ", [
+                            $fastDeliveryStartDate, $endDate,
+                            $fastDeliveryStartDate, $endDate
+                        ]);
+                });
+            });
+        }
+
+        if($normalPickUpStartDate && $endDate){
+            $qO->whereBetween('pickup_datetime',[$normalPickUpStartDate,$endDate]);
+        }
+
+
+
+        $packages = $qP->get();
+        $orders = $qO->get();
         //** Callback func */
         $clbMapper = function ($driver) use ($driverCommissions, $orders, $packages) {
             $commissionInfo = TransactionService::getDriverCommissionInfo($driverCommissions, $driver->id);

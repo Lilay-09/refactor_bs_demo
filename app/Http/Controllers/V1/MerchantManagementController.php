@@ -6,7 +6,6 @@ use ApiResponse;
 use App\Http\Controllers\Controller;
 use App\Models\MerchantPriceList;
 use App\Models\User;
-use App\Models\UserShop;
 use App\Models\Zone;
 use App\Services\GeneralSettingService;
 use App\Services\UserService;
@@ -178,7 +177,7 @@ class MerchantManagementController extends Controller
             $insertOrUpdate['zone_id'] = $zoneId;
         }
         if($merchantPriceList){
-            \Log::info(json_encode($insertOrUpdate));
+            // \Log::info(json_encode($insertOrUpdate));
             $merchantPriceList->update($insertOrUpdate);
         }else{
             $insertOrUpdate['merchant_id'] = $id;

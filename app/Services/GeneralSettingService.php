@@ -548,7 +548,8 @@ class GeneralSettingService
     //     return $packages;
     // }
 
-    public static function priceByZone($zone_id,$user,$merchant_id=null): object|null{
+    public static function priceByZone($zone_id,$user,$merchant_id=null,$delivery_type='normal'): object|null{
+        if(!$delivery_type) $delivery_type = 'normal';
         $priceList = PriceList::with(['zones'])
             ->where('status',1)
             // ->where('company_id',$user->company_id)
@@ -556,20 +557,23 @@ class GeneralSettingService
             ->whereHas('zones',function($q) use($zone_id){
                 $q->where('zone_id',$zone_id);
             })
+            ->where('delivery_type',$delivery_type)
             // ->orderByDesc('id')
             ->where('base_fee','>',0)
-            ->selectRaw('base_fee,below_kg,below_kg_price,id,price,above_kg_price,above_kg')
+            ->selectRaw('base_fee,below_kg,below_kg_price,id,price,above_kg_price,above_kg,delivery_type')
             ->first();
             // Log::info('$plid' .$priceListId.'Zid'.$zone_id);
-            $plZone = PriceListZone::with('priceList:base_fee,below_kg,below_kg_price,id,price,above_kg_price,above_kg')->where('zone_id',$zone_id)->where('price_list_id',$priceList?->id)->first();
+            $plZone = PriceListZone::with('priceList:base_fee,below_kg,below_kg_price,id,price,above_kg_price,above_kg,delivery_type')->where('zone_id',$zone_id)->where('price_list_id',$priceList?->id)->first();
             if($merchant_id){
                 // Log::info('merchant');
                 $plNameId = MerchantPriceList::where('merchant_id',$merchant_id)->take(1)->value('price_list_id');
                 if($plNameId){
                     // Log::info(' sdfsdfsd');
-                    $plIds = PriceList::where('price_list_name_id',$plNameId)->pluck('id')->toArray();
+                    $plIds = PriceList::where('price_list_name_id',$plNameId)
+                    ->where('delivery_type',$delivery_type)
+                    ->pluck('id')->toArray();
                     if(!empty($plIds)){
-                        $plZone = PriceListZone::with('priceList:base_fee,below_kg,below_kg_price,id,price,above_kg_price,above_kg')->where('zone_id',$zone_id)->whereIn('price_list_id',$plIds)->first();
+                        $plZone = PriceListZone::with('priceList:base_fee,below_kg,below_kg_price,id,price,above_kg_price,above_kg,delivery_type')->where('zone_id',$zone_id)->whereIn('price_list_id',$plIds)->first();
                         // Log::info($row);
                     }
                 }
@@ -583,6 +587,7 @@ class GeneralSettingService
                 $row->above_kg = $plZone->priceList->above_kg;
                 $row->below_kg = $plZone->priceList->below_kg;
                 $row->below_kg_price = $plZone->priceList->below_kg_price;
+                $row->delivery_type = $plZone->priceList->delivery_type;
                 unset($plZone->zones,$plZone->price,$plZone->priceList);
             }else if($priceList){
                 $row->base_fee = $priceList->base_fee;
@@ -590,6 +595,7 @@ class GeneralSettingService
                 $row->above_kg_price = $priceList->above_kg_price;
                 $row->above_kg = $priceList->above_kg;
                 $row->below_kg = $priceList->below_kg;
+                $row->delivery_type = $priceList->delivery_type;
                 $row->below_kg_price = $priceList->below_kg_price;
             }else $row=null;
         return $row;
