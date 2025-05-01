@@ -8,6 +8,7 @@ use App\Models\DeliveryPackage;
 use App\Models\StockLocation;
 use App\Models\Tax;
 use App\Models\User;
+use App\Models\UserShop;
 use App\Services\GeneralSettingService;
 use App\Services\UserService;
 use Helper;
@@ -261,7 +262,7 @@ class GeneralSettingController extends Controller
         $user = UserService::getAuthUser();
         $merchantId = $req->merchant_id ?? null;
         if(!$merchantId) return ApiResponse::ValidateFail('Merchant ID is required');
-        $price = $this->gs::priceByZone($req->zone_id,$user,$merchantId);
+        $price = $this->gs::priceByZone($req->zone_id,$user,$merchantId,$req->delivery_type);
         if(!$price) return ApiResponse::NotFound('Price not found');
         return ApiResponse::JsonResult($price,__('get zone price'));
     }
@@ -290,7 +291,11 @@ class GeneralSettingController extends Controller
     }
 
     public function getMerchantLocation(Request $req){
-        return ApiResponse::JsonResult($this->gs::getDefaultMerchantLocation($req->id));
+        $mId = $req->id;
+        return ApiResponse::JsonResult([
+            'product_type_id' => UserShop::where('owner_id',$mId)->take(1)->orderByDesc('id')->value('product_type_id'),
+            'locations' => $this->gs::getDefaultMerchantLocation($mId)
+        ]);
     }
 
     public function getFormPackageTrail(Request $req){

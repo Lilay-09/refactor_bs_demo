@@ -213,7 +213,7 @@ class UserService
         unset($inputs['bank_info'],$inputs['photo'],$inputs['role_id'],$inputs['zone_id']);
         $prefix = self::$user_prefix[$user_class];
         if($user_class == 'driver'){
-            if($inputs['has_commission']){
+            if(isset($inputs['has_commission'])){
                 $prefix .= 'PB'.$branchId;
             }else {
                 $prefix .= 'FB'.$branchId;
