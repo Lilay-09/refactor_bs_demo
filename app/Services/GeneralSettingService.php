@@ -601,17 +601,12 @@ class GeneralSettingService
         return $row;
     }
 
-    public static function optionsCOD(){
-        return [
-            [
-                'value' => 0,
-                'label' => 'No'
-            ],
-            [
-                'value' => 1,
-                'label' => 'Yes'
-            ],
+    public static function optionsCOD($lang='en',$valueType='int'){
+        $options = [
+            '0' => ['en' => 'No','km' => 'No'],
+            '1' => ['en' => 'Yes','km' => 'Yes']
         ];
+        return Helper::translateOptions($options,$lang,'label','value',$valueType);
     }
 
     public static function optionsMerchantType($user){

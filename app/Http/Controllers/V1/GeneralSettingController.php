@@ -347,12 +347,13 @@ class GeneralSettingController extends Controller
         return ApiResponse::JsonResult($statuses);
     }
 
-    public function getFormMerchant(){
+    public function getFormMerchant(Request $req){
         $user = UserService::getAuthUser();
+        $lang = $req->lang;
         $obj = (object)[
             'merchant_types' => $this->gs::optionsClientType($user),
             'business_types' => $this->gs::optionsBusinessType($user),
-            'cods' => $this->gs::optionsCOD(),
+            'cods' => $this->gs::optionsCOD($lang,'string'),
             'genders' => $this->gs::optionsGender(),
             'price_list' => $this->gs::optionsPriceList($user),
             'referrers' => $this->gs::optionsMerchant($user),
