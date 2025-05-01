@@ -264,6 +264,8 @@ class AuthController extends Controller
                 'owner_id' => $user->id,
                 'phone' => $user->phone,
                 'est_pcs' => $req->est_pcs,
+                'city' => $shopReq->city,
+                'district' => $shopReq->district
             ]);
             // Log::info($shopReq->all());
             $shop = $userShopService->saveShop($shopReq,$user);

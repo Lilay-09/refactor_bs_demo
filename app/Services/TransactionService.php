@@ -71,6 +71,40 @@ class TransactionService
                         ->where('dp.is_deleted', false);
                 });
             }
+
+            if ($type === 'merchant') {
+            if ($pmtStatusId == 1) { // Unpaid
+                $qP->whereNotExists(function ($sub) {
+                    $sub->select(DB::raw(1))
+                        ->from('payment_packages as pp')
+                        ->whereColumn('pp.package_id', 'p.id')
+                        ->where('pp.payer_type', 'merchant')
+                        ->where('pp.is_deleted', false);
+                })->whereNotExists(function ($sub) {
+                    $sub->select(DB::raw(1))
+                        ->from('disbursement_packages as dp')
+                        ->whereColumn('dp.package_id', 'p.id')
+                        ->where('dp.payee_type', 'merchant')
+                        ->where('dp.is_deleted', false);
+                });
+            } elseif ($pmtStatusId == 2) { // Paid
+                Log::info("paid");
+                $qP->whereExists(function ($sub) {
+                    $sub->select(DB::raw(1))
+                        ->from('payment_packages as pp')
+                        ->whereColumn('pp.package_id', 'p.id')
+                        ->where('pp.payer_type', 'merchant')
+                        ->where('pp.is_deleted', false);
+                })->whereExists(function ($sub) {
+                    $sub->select(DB::raw(1))
+                        ->from('disbursement_packages as dp')
+                        ->whereColumn('dp.package_id', 'p.id')
+                        ->where('dp.payee_type', 'merchant')
+                        ->where('dp.is_deleted', false);
+                });
+            }
+        }
+
         if($driverId || $merchantId){
             if($type == 'driver') {
                 $qP->where('p.driver_id',$driverId);
