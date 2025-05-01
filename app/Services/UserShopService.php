@@ -26,6 +26,9 @@ class UserShopService
             'district' => 'nullable',
             'commune' => 'nullable',
             'est_pcs' => 'nullable|numeric'
+        ],[
+            'name_en.required' => 'Shop Name (English) is required',
+            'phone.required' => 'Shop contact is required'
         ]);
     }
     public function saveShop(Request $req,$user){

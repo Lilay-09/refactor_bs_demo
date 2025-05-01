@@ -243,6 +243,7 @@ class AuthController extends Controller
             'loc_lat' => 'nullable',
             'loc_lng' => 'nullable',
         ]);
+        Log::error(json_encode($req->all()));
         if($validate->fails()) return ApiResponse::ValidateFail($validate->errors()->first());
         $user = User::where('account_type',$authUser->account_type)->selectRaw('id,photo_file_name,user_name,phone,email,company_id,branch_id')->find($authUser->id);
         $inputs = $validate->validated();
