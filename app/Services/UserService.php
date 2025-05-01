@@ -312,7 +312,7 @@ class UserService
 
                     // Save the shop using your service
                     $saveShop = $userShopService->saveShop($shopReq, $user);
-                    if($saveShop->error) return ApiResponse::ValidateFail($saveShop->message);
+                    if($saveShop->error) return ApiResponse::flex($saveShop);
                 }
 
                 // foreach($req->shops as $shop){
