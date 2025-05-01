@@ -311,7 +311,8 @@ class UserService
                     ]);
 
                     // Save the shop using your service
-                    $userShopService->saveShop($shopReq, $user);
+                    $saveShop = $userShopService->saveShop($shopReq, $user);
+                    if($saveShop->error) return ApiResponse::ValidateFail($saveShop->message);
                 }
 
                 // foreach($req->shops as $shop){
