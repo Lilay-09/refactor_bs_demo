@@ -4,9 +4,7 @@ namespace App\Http\Controllers\V1;
 
 use ApiResponse;
 use App\Http\Controllers\Controller;
-use App\Models\Disbursement;
 use App\Models\Package;
-use App\Models\Payment;
 use App\Models\PaymentDetail;
 use App\Models\User;
 use App\Services\TransactionService;
@@ -14,7 +12,6 @@ use Carbon\Carbon;
 use DB;
 use Helper;
 use Illuminate\Http\Request;
-use Kreait\Firebase\Database\Transaction;
 
 class DashboardController extends Controller
 {
@@ -40,9 +37,9 @@ class DashboardController extends Controller
 
         // $payments = Payment::where('is_deleted',0)
         // ->where('payment_datetime', '>=', Carbon::now()->subDays($this->days))->get();
-        $deliveredCount = 0;
-        $returnedCount = 0;
-        $failedWithFeeCount = 0;
+        $startDate = Carbon::now()->subDays($this->days)->startOfDay();
+        $today = Carbon::today();
+
         $results = User::selectRaw("
             SUM(CASE WHEN account_type = 'merchant' AND register_channel = 'mobile' THEN 1 ELSE 0 END) as register_count,
             SUM(CASE WHEN is_deleted = FALSE AND account_type = 'driver' AND lock = FALSE AND has_account = TRUE THEN 1 ELSE 0 END) as total_active_driver,
@@ -55,28 +52,55 @@ class DashboardController extends Controller
         $todayEarning = 0;
         $packages = Package::where('is_deleted',0)
         // ->where('outstanding',0)
-        ->selectRaw('id,status_id,delivery_fee,extra_charge,failed_datetime,delivered_datetime')
+        ->select(['id','status_id','delivery_fee','extra_charge','failed_datetime','delivered_datetime'])
         ->where('updated_at', '>=', Carbon::now()->subDays($this->days))->get();
-        foreach ($packages as $p){
-            $isDeliveredToday = $p->status_id == 9 && Carbon::parse($p->delivered_datetime)->isToday();
-            $isFailedToday = $p->status_id == 19 && Carbon::parse($p->failed_datetime)->isToday();
-            if ($isDeliveredToday) {
-                $todayEarning += $p->delivery_fee + $p->extra_charge; // Add earnings for delivered packages
-            }
 
-            if ($isFailedToday) {
-                $todayEarning += $p->delivery_fee + $p->extra_charge; // Add earnings for failed packages
+        $deliveredCount = 0;
+        $returnedCount = 0;
+        $failedWithFeeCount = 0;
+
+        foreach ($packages as $p) {
+            switch ($p->status_id) {
+                case 9: // Delivered
+                    $deliveredCount++;
+                    $p->finished_date = Helper::dateYMD($p->delivered_datetime);
+                    if (Carbon::parse($p->delivered_datetime)->isSameDay($today)) {
+                        $todayEarning += $p->delivery_fee + $p->extra_charge;
+                    }
+                    break;
+                case 11: // Returned
+                    $returnedCount++;
+                    break;
+                case 19: // Failed
+                    $failedWithFeeCount++;
+                    $p->finished_date = Helper::dateYMD($p->failed_datetime);
+                    if (Carbon::parse($p->failed_datetime)->isSameDay($today)) {
+                        $todayEarning += $p->delivery_fee + $p->extra_charge;
+                    }
+                    break;
             }
-            if($p->status_id == 9) {
-                $deliveredCount += 1;
-                $p->finished_date = Helper::dateYMD($p->delivered_datetime);
-            }
-            if($p->status_id == 19) {
-                $p->finished_date = Helper::dateYMD($p->failed_datetime);
-                $failedWithFeeCount += 1;
-            }
-            if($p->status_id == 11) $returnedCount += 1;
         }
+
+        // foreach ($packages as $p){
+        //     $isDeliveredToday = $p->status_id == 9 && Carbon::parse($p->delivered_datetime)->isToday();
+        //     $isFailedToday = $p->status_id == 19 && Carbon::parse($p->failed_datetime)->isToday();
+        //     if ($isDeliveredToday) {
+        //         $todayEarning += $p->delivery_fee + $p->extra_charge; // Add earnings for delivered packages
+        //     }
+
+        //     if ($isFailedToday) {
+        //         $todayEarning += $p->delivery_fee + $p->extra_charge; // Add earnings for failed packages
+        //     }
+        //     if($p->status_id == 9) {
+        //         $deliveredCount += 1;
+        //         $p->finished_date = Helper::dateYMD($p->delivered_datetime);
+        //     }
+        //     if($p->status_id == 19) {
+        //         $p->finished_date = Helper::dateYMD($p->failed_datetime);
+        //         $failedWithFeeCount += 1;
+        //     }
+        //     if($p->status_id == 11) $returnedCount += 1;
+        // }
         $earningData = $this->getEarning($packages);
         $items = [
             [
@@ -202,29 +226,61 @@ class DashboardController extends Controller
         ];
     }
 
+    // private function getEarning($rows)
+    // {
+    //     // Ensure $rows is always an array
+    //     $rows = !is_array($rows) ? iterator_to_array($rows) : $rows;
+
+    //     $totalEarning = array_reduce($rows, function ($sum, $p) {
+    //         // Only include rows where status_id is 9 or 19
+    //         if (in_array($p->status_id, [9, 19])) {
+    //             return $sum + $p->delivery_fee + $p->extra_charge;
+    //         }
+    //         return $sum; // If status_id is not 9 or 19, don't add anything
+    //     }, 0);
+
+    //     $filteredRowsForDates = array_filter($rows, fn($p) => in_array($p->status_id, [9, 19]));
+    //     $uniqueDates = array_unique(array_map(fn($p) => date('Y-m-d', strtotime($p->finished_date)), $filteredRowsForDates));
+    //     $daysCount = count($uniqueDates) ?: 1; // ADvoid division by zero
+
+    //     // Calculate average daily earning
+    //     $averageDailyEarning = $totalEarning / $daysCount;
+
+    //     return [
+    //         'total_earning' => Helper::getNumber($totalEarning,2,true),
+    //         'average_daily_earning' => Helper::getNumber($averageDailyEarning,2,true),
+    //     ];
+    // }
+
     private function getEarning($rows)
     {
-        // Ensure $rows is always an array
-        $rows = !is_array($rows) ? iterator_to_array($rows) : $rows;
+        // Convert to array only if necessary
+        if (!is_array($rows)) {
+            $rows = iterator_to_array($rows);
+        }
 
-        $totalEarning = array_reduce($rows, function ($sum, $p) {
-            // Only include rows where status_id is 9 or 19
-            if (in_array($p->status_id, [9, 19])) {
-                return $sum + $p->delivery_fee + $p->extra_charge;
+        $totalEarning = 0;
+        $dateSet = [];
+
+        foreach ($rows as $p) {
+            // Only process if status is 9 (delivered) or 19 (failed with fee)
+            if ($p->status_id === 9 || $p->status_id === 19) {
+                $totalEarning += $p->delivery_fee + $p->extra_charge;
+
+                // Collect unique dates (Carbon parsing only once)
+                if (!empty($p->finished_date)) {
+                    $date = Carbon::parse($p->finished_date)->format('Y-m-d');
+                    $dateSet[$date] = true; // Using associative array as a set
+                }
             }
-            return $sum; // If status_id is not 9 or 19, don't add anything
-        }, 0);
+        }
 
-        $filteredRowsForDates = array_filter($rows, fn($p) => in_array($p->status_id, [9, 19]));
-        $uniqueDates = array_unique(array_map(fn($p) => date('Y-m-d', strtotime($p->finished_date)), $filteredRowsForDates));
-        $daysCount = count($uniqueDates) ?: 1; // ADvoid division by zero
-
-        // Calculate average daily earning
+        $daysCount = count($dateSet) ?: 1; // Avoid division by zero
         $averageDailyEarning = $totalEarning / $daysCount;
 
         return [
-            'total_earning' => Helper::getNumber($totalEarning,2,true),
-            'average_daily_earning' => Helper::getNumber($averageDailyEarning,2,true),
+            'total_earning' => Helper::getNumber($totalEarning, 2, true),
+            'average_daily_earning' => Helper::getNumber($averageDailyEarning, 2, true),
         ];
     }
 
