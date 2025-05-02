@@ -84,6 +84,7 @@ class TransactionService
                 ->from('disbursement_packages as dp')
                 ->whereColumn('dp.package_id', 'p.id')
                 ->where('dp.payee_type', 'merchant')
+                ->where('dp.type','payment')
                 ->where('dp.is_deleted', false);
         });
     } elseif ($pmtStatusId == 2) { // Paid
@@ -98,6 +99,7 @@ class TransactionService
                 ->from('disbursement_packages as dp')
                 ->whereColumn('dp.package_id', 'p.id')
                 ->where('dp.payee_type', 'merchant')
+                ->where('dp.type','payment')
                 ->where('dp.is_deleted', false);
         });
     }

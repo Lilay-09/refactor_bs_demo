@@ -303,7 +303,7 @@ class UserService
                         'shop_type'       => $shop['shop_type'] ?? $req->input('business_type'),
                         'product_type_id' => $shop['product_type_id'] ?? null,
                         'phone' => $shop['phone'] ?? null,
-                        'est_pcs' => $shop['est_pcs'] ?? null,
+                        'est_pcs' => $shop['est_pcs'] ?? 0,
                         "city" =>  $shop['city'] ?? null,
                         "district" => $shop['district'] ?? null,
                         "commune" => $shop['commune'] ?? null,
