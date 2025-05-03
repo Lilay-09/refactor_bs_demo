@@ -199,9 +199,17 @@ class UserService
 
         $priceListId = $inputs['price_list_id'] ?? 1; //:: Default = 1
         if($pin_address){
-            $getLatLng = Helper::getLatLongFromGoogleMapsUrl($pin_address);
-            $inputs['latitude'] = $getLatLng->latitude ?? 0;
-            $inputs['longitude'] = $getLatLng->longitude ?? 0;
+            if(Helper::isShortGoogleMapUrl($pin_address)){
+                $geoRes = new GeoResolverService();
+                $xM = $geoRes->fromShortUrl($pin_address);
+                $inputs['latitude'] = $xM['lat'] ?? 0;
+                $inputs['longitude'] = $xM['lng'] ?? 0;
+            }else{
+                $getLatLng = Helper::getLatLongFromGoogleMapsUrl($pin_address);
+                $inputs['latitude'] = $getLatLng->latitude ?? 0;
+                $inputs['longitude'] = $getLatLng->longitude ?? 0;
+            }
+
         }
 
         $empDate = $inputs['employment_date'] ?? null;

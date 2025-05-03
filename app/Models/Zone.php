@@ -46,6 +46,10 @@ class Zone extends Model
         return $this->hasMany(PriceListZone::class,'zone_id','id');
     }
 
+    public function parent(){
+        return $this->belongsTo(self::class,'parent_id');
+    }
+
     public function sub_zones(){
         return $this->hasMany(self::class,'parent_id','id');
     }

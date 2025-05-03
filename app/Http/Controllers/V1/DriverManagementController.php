@@ -10,10 +10,10 @@ use App\Models\Package;
 use App\Models\User;
 use App\Services\GeneralSettingService;
 use App\Services\TransactionService;
+use App\Services\UserCommissionPerformanceService;
 use App\Services\UserService;
 use Helper;
 use Illuminate\Http\Request;
-use Log;
 
 class DriverManagementController extends Controller
 {
@@ -82,12 +82,16 @@ class DriverManagementController extends Controller
         return validator($req->all(),[
             'salary' => 'nullable|numeric',
             'normal_pickup_commission' => 'nullable|numeric',
+            'normal_pickup_commission_type' => 'nullable|in:percentage,amount',
             'normal_pickup_commission_start_date' => 'nullable',
             'normal_delivery_commission' => 'nullable|numeric',
+            'normal_delivery_commission_type' => 'nullable|in:percentage,amount',
             'normal_delivery_commission_start_date' => 'nullable',
             'fast_pickup_commission' => 'nullable|numeric',
+            'fast_pickup_commission_type' => 'nullable|in:percentage,amount',
             'fast_pickup_commission_start_date' => 'nullable',
             'fast_delivery_commission' => 'nullable|numeric',
+            'fast_delivery_commission_type' => 'nullable|in:percentage,amount',
             'fast_delivery_commission_start_date' => 'nullable'
         ]);
     }
@@ -104,6 +108,11 @@ class DriverManagementController extends Controller
         $normal_delivery_commission = $inputs['normal_delivery_commission'] ?? 0;
         $fast_pickup_commission = $inputs['fast_pickup_commission'] ?? 0;
         $fast_delivery_commission = $inputs['fast_delivery_commission'] ?? 0;
+
+        $inputs['fast_delivery_commission_type'] = $inputs['fast_delivery_commission_type'] ?? 'amount';
+        $inputs['fast_pickup_commission_type'] = $inputs['fast_pickup_commission_type'] ?? 'amount';
+        $inputs['normal_delivery_commission_type'] = $inputs['normal_delivery_commission_type'] ?? 'amount';
+        $inputs['normal_pickup_commission_type'] = $inputs['normal_pickup_commission_type'] ?? 'amount';
 
         $normal_pickup_commissionStartDate = $inputs['normal_pickup_commission_start_date'] ?? null;
         $normal_delivery_commissionStartDate = $inputs['normal_delivery_commission_start_date'] ?? null;
@@ -148,6 +157,9 @@ class DriverManagementController extends Controller
         User::find($driver_id)->update([
             'salary' => $inputs['salary'] ?? 0
         ]);
+        $userCommPerformanceService = new UserCommissionPerformanceService();
+        $setComPerformance = $userCommPerformanceService->saveCommissionPerformance($req,$driver_id,$user);
+        if($setComPerformance->error) return ApiResponse::flex($setComPerformance);
         if($success) return ApiResponse::JsonResult(null,__('messages.saved'));
         return ApiResponse::Error(__('messages.error',['info' => 'Fail to save commission']));
     }

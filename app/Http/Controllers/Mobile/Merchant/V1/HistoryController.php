@@ -240,54 +240,146 @@ class HistoryController extends Controller
         }
 
         $statusGroups = [
-            'On Delivery' => 6,
-            'Success' => 9,
-            'Failed' => 10,
-            'Failed With Fee' => 19,
-            'Return' => 11,
-            'Returned' => 11,
+            6  => 'On Delivery',
+            9  => 'Success',
+            10 => 'Failed',
+            19 => 'Failed With Fee',
+            11 => 'Return', // Also used for 'Returned'
         ];
 
-        foreach ($statusGroups as $key => $statusId) {
-            if (!in_array($status, ['All', $key])) continue;
+        $targetStatusIds = $status === 'All'
+            ? array_keys($statusGroups)
+            : array_keys(array_filter($statusGroups, fn($name) => $name === $status));
 
-            $fields = [
-                'id', 'status_id', 'merchant_id', 'receiver_phone', 'receiver_address', 'receiver_name',
-                'cod', 'price', 'delivery_fee', 'remarks', 'driver_id',
-                'arrive_warehouse_datetime', 'delivery_remarks as notes'
-            ];
+        // Fields to select
+        $fields = [
+            'id', 'status_id', 'merchant_id', 'receiver_phone', 'receiver_address', 'receiver_name',
+            'cod', 'price', 'delivery_fee', 'remarks', 'driver_id',
+            'arrive_warehouse_datetime', 'delivery_remarks as notes',
+            'delivered_datetime', 'failed_datetime', 'returned_datetime', 'updated_at'
+        ];
 
-            if ($key === 'Success') {
-                $fields[] = 'delivered_datetime';
-            } elseif (in_array($key, ['Failed', 'Failed With Fee'])) {
-                $fields[] = 'failed_datetime';
-            } elseif (in_array($key, ['Return', 'Returned'])) {
-                $fields[] = 'failed_datetime';
-                $fields[] = 'returned_datetime';
-                $fields[] = 'updated_at';
+        // Load packages once
+        $packages = Package::where('merchant_id', $user->id)
+            ->with(['driver:id,user_name', 'status:id,name'])
+            ->whereIn('status_id', $targetStatusIds)
+            ->where('is_deleted', 0)
+            ->select($fields)
+            ->get();
+
+        // Group by status name
+        $groupedPackages = $packages->groupBy(function ($pkg) use ($statusGroups) {
+            return $statusGroups[$pkg->status_id] ?? 'Other';
+        });
+
+        // Helper to split datetime fields based on status_id
+        foreach ($groupedPackages as $statusName => $group) {
+            foreach ($group as $pkg) {
+                $pkg = $formatCommonFields($pkg, $statusName, [
+                    'arrive_warehouse_datetime',
+                    'delivered_datetime',
+                    'failed_datetime',
+                    'returned_datetime',
+                ]);
+
+                // Split datetime fields based on status_id
+                $this->splitDatetimeFieldsByStatus($pkg, $statusName);
+
+                // Additional handling for 'Return' and 'Returned' status
+                // if (in_array($statusName, ['Return', 'Returned'])) {
+                //     $returnDate = $pkg->returned_datetime ?? $pkg->updated_at;
+                //     $pkg->returned_date = Helper::dateDMY($returnDate);
+                //     $pkg->return_time = Helper::formatCustomDateTime($returnDate, 'h:i:s');
+                // }
+
+                $items[] = $pkg;
             }
-
-            Package::where('merchant_id', $user->id)
-                ->with(['driver', 'status'])
-                ->where('status_id', $statusId)
-                ->where('is_deleted', 0)
-                ->selectRaw(implode(',', $fields))
-                ->get()
-                ->each(function ($pkg) use (&$items, $formatCommonFields, $key) {
-                    $pkg = $formatCommonFields($pkg, $key, ['arrive_warehouse_datetime', 'delivered_datetime', 'failed_datetime']);
-
-                    if (in_array($key, ['Return', 'Returned'])) {
-                        $returnDate = $pkg->returned_datetime ?? $pkg->updated_at;
-                        $pkg->returned_date = Helper::dateDMY($returnDate);
-                        $pkg->return_time = Helper::formatCustomDateTime($returnDate, 'h:i:s');
-                    }
-
-                    $items[] = $pkg;
-                });
         }
+
+
+
+
+        // $statusGroups = [
+        //     'On Delivery' => 6,
+        //     'Success' => 9,
+        //     'Failed' => 10,
+        //     'Failed With Fee' => 19,
+        //     'Return' => 11,
+        //     'Returned' => 11,
+        // ];
+
+        // foreach ($statusGroups as $key => $statusId) {
+        //     if (!in_array($status, ['All', $key])) continue;
+
+        //     $fields = [
+        //         'id', 'status_id', 'merchant_id', 'receiver_phone', 'receiver_address', 'receiver_name',
+        //         'cod', 'price', 'delivery_fee', 'remarks', 'driver_id',
+        //         'arrive_warehouse_datetime', 'delivery_remarks as notes'
+        //     ];
+
+        //     if ($key === 'Success') {
+        //         $fields[] = 'delivered_datetime';
+        //     } elseif (in_array($key, ['Failed', 'Failed With Fee'])) {
+        //         $fields[] = 'failed_datetime';
+        //     } elseif (in_array($key, ['Return', 'Returned'])) {
+        //         $fields[] = 'failed_datetime';
+        //         $fields[] = 'returned_datetime';
+        //         $fields[] = 'updated_at';
+        //     }
+
+        //     Package::where('merchant_id', $user->id)
+        //         ->with(['driver', 'status'])
+        //         ->where('status_id', $statusId)
+        //         ->where('is_deleted', 0)
+        //         ->selectRaw(implode(',', $fields))
+        //         ->get()
+        //         ->each(function ($pkg) use (&$items, $formatCommonFields, $key) {
+        //             $pkg = $formatCommonFields($pkg, $key, ['arrive_warehouse_datetime', 'delivered_datetime', 'failed_datetime']);
+
+        //             if (in_array($key, ['Return', 'Returned'])) {
+        //                 $returnDate = $pkg->returned_datetime ?? $pkg->updated_at;
+        //                 $pkg->returned_date = Helper::dateDMY($returnDate);
+        //                 $pkg->return_time = Helper::formatCustomDateTime($returnDate, 'h:i:s');
+        //             }
+
+        //             $items[] = $pkg;
+        //         });
+        // }
 
         return ApiResponse::Pagination(collect($items), $req);
     }
+
+    // Helper function to split datetime fields based on status_id
+    protected function splitDatetimeFieldsByStatus(&$pkg, $statusName)
+    {
+        // Mapping status to relevant datetime fields
+        if ($statusName === 'Success' || $pkg->status_id == 9) {
+            // Split `delivered_datetime` for status_id 9 (Success)
+            $this->splitDatetimeField($pkg, 'delivered_datetime', 'delivered');
+        } elseif (in_array($pkg->status_id, [10, 19])) {
+            // Split `failed_datetime` for status_id 10 (Failed) or 19 (Failed With Fee)
+            $this->splitDatetimeField($pkg, 'failed_datetime', 'failed');
+        } elseif ($pkg->status_id == 11) {
+            // Split `returned_datetime` for status_id 11 (Return/Returned)
+            $this->splitDatetimeField($pkg, 'returned_datetime', 'returned');
+        }
+
+        // Split `arrive_warehouse_datetime` for all packages
+        $this->splitDatetimeField($pkg, 'arrive_warehouse_datetime', 'arrive_warehouse');
+    }
+
+    // Helper function to split a single datetime field into date and time
+    protected function splitDatetimeField(&$pkg, $originalField, $prefix)
+    {
+        if (!empty($pkg->$originalField)) {
+            $timestamp = strtotime($pkg->$originalField);
+            $pkg->{$prefix . '_date'} = date('d M Y', $timestamp);
+            $pkg->{$prefix . '_time'} = date('H:i A', $timestamp);
+        }
+        unset($pkg->$originalField); // Optionally remove the original field
+    }
+
+
 
 
     private function getHistoryPackage($merchantId,$packageIds){

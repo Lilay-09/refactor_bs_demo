@@ -117,10 +117,17 @@ class PickupCenterService
         $deleteImgs = [];
         $pickupAddress = $inputs['pickup_address'] ?? null;
         $pickup_address_google_map = $inputs['pickup_address_google_map'] ?? $inputs['pin_address'] ?? null;
-        $latLng = Helper::getLatLongFromGoogleMapsUrl($pickup_address_google_map);
+        if(Helper::isShortGoogleMapUrl($pickup_address_google_map)){
+            $geoRes = new GeoResolverService();
+            $xM = $geoRes->fromShortUrl($pickup_address_google_map);
+            $inputs['loc_lat'] = $xM['lat'] ?? 0;
+            $inputs['loc_lng'] = $xM['lng'] ?? 0;
+        }else{
+            $latLng = Helper::getLatLongFromGoogleMapsUrl($pickup_address_google_map);
+            $inputs['loc_lat'] = (float) ($inputs['loc_lat'] ?? $latLng->latitude);
+            $inputs['loc_lng'] = (float) ($inputs['loc_lng'] ?? $latLng->longitude);
+        }
         $lang = $req->lang;
-        $inputs['loc_lat'] = (float) ($inputs['loc_lat'] ?? $latLng->latitude);
-        $inputs['loc_lng'] = (float) ($inputs['loc_lng'] ?? $latLng->longitude);
         $inputs['delivery_type'] = $inputs['delivery_type'] ?? 'normal';
         if(!$pickupAddress) $inputs['pickup_address'] = $latLng->address;
         DB::beginTransaction();

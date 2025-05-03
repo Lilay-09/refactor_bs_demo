@@ -3,6 +3,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Redis;
+use Illuminate\Validation\Rule;
 use Milon\Barcode\DNS1D;
 class ApiResponse
 {
@@ -312,6 +313,7 @@ class ApiResponse
         return response()->json($object,$status_code);
     }
 }
+
 
 class Helper{
     protected static $khmerMonths = [
@@ -919,6 +921,19 @@ class Helper{
         ];
     }
 
+
+    static function isShortGoogleMapUrl($url){
+        $parsed = parse_url($url);
+
+        return isset($parsed['host']) &&
+            Str::contains($parsed['host'], 'maps.app.goo.gl');
+    }
+
+    static function enumValuesRule(string $enumClass): Rule
+    {
+        return Rule::in(array_column($enumClass::cases(), 'value'));
+    }
+
     static function validTotalImageSize(array $images): object
     {
         $totalBytes = 0;
@@ -1466,7 +1481,7 @@ class DataResponse //extends Model
         ];
     }
 
-    static function Duplicated($message, $errors = [])
+    static function Duplicated($message, $errors = []): object
     {
         return (object)[
             'status_code' => 409,
@@ -1477,7 +1492,7 @@ class DataResponse //extends Model
         ];
     }
 
-    static function Unauthorized($err_msg = 'Unauthorized')
+    static function Unauthorized($err_msg = 'Unauthorized'): object
     {
         return (object)[
             'status_code' => 401,
@@ -1487,7 +1502,7 @@ class DataResponse //extends Model
         ];
     }
 
-    static function JsonResult($data, $error = false, $message = null,$errors=[],$status_code=200,$status="OK" )
+    static function JsonResult($data, $error = false, $message = null,$errors=[],$status_code=200,$status="OK" ): object
     {
         return (object)[
             'error' => $error,
@@ -1499,7 +1514,7 @@ class DataResponse //extends Model
         ];
     }
 
-    static function JsonRaw($json, $status = null)
+    static function JsonRaw($json, $status = null): object
     {
         $jsonRes = (object)[];
         foreach($json as $key=>$j){
@@ -1508,7 +1523,7 @@ class DataResponse //extends Model
         return $jsonRes;
     }
 
-    static function NotFound($message='Not found')
+    static function NotFound($message='Not found'): object
     {
         return (object)[
             'status_code' => 404,
@@ -1519,7 +1534,7 @@ class DataResponse //extends Model
         ];
     }
 
-    static function Error($message,$errors=[])
+    static function Error($message,$errors=[]): object
     {
         return (object)[
             'status_code' => 500,
@@ -1531,7 +1546,7 @@ class DataResponse //extends Model
         ];
     }
 
-    static function Pagination($data, $filter = null, $message = "get list",$additionalKey=[],$limit=1000)
+    static function Pagination($data, $filter = null, $message = "get list",$additionalKey=[],$limit=1000): object
     {
         $filter = (object)$filter;
         $perPage = isset($filter->per_page) ? ($filter->per_page == 0 ? 1:$filter->per_page) : 10;
@@ -1563,7 +1578,7 @@ class DataResponse //extends Model
         return $obj;
     }
 
-    static function Forbidden($message='You has no permmision to access or do the action')
+    static function Forbidden($message='You has no permmision to access or do the action'): object
     {
         return (object)[
             'status_code' => 403,
