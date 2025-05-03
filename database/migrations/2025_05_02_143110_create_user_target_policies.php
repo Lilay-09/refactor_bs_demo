@@ -18,11 +18,11 @@ return new class extends Migration
             $table->unsignedBigInteger('user_id');
             $table->unsignedInteger('target_value')->default(0);
             $table->string('target_type',35)->nullable();
-            $table->unsignedInteger('monthly_bonus')->default(0);
+            $table->decimal('monthly_bonus',15,2)->default(0);
             $table->string('monthly_bonus_type',35)->nullable();
-            $table->unsignedInteger('yearly_bonus')->default(0);
+            $table->decimal('yearly_bonus',15,2)->default(0);
             $table->string('yearly_bonus_type',35)->nullable();
-            $table->dateTimeTz('effective_date')->default(0);
+            $table->dateTimeTz('effective_date')->nullable();
             $table->string('period_type',35)->nullable();
         });
     }

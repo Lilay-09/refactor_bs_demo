@@ -216,8 +216,8 @@ class HomeScreenController extends Controller
         $pcsUnitLng = $lang == 'km' ? 'កញ្ចប់': 'PCS';
         $totalEearning = $normalDeliveryComm + $normalFailedWithFeeComm + $fastDeliveryComm + $fastFailedWithFeeComm;
         $totalDeliveredPkg = $normalDeliveredPkg + $normalFailedWithFeePkg + $fastDeliveredPkg + $fastFailedWithFeePkg;
-        $maxSettlement = $balanceDues['total'] > 800
-            ? ((int) ceil($balanceDues['total'] / 100) + 1) * 100
+        $maxSettlement = $balanceDues['total'] > 150
+            ? ((int) ceil($balanceDues['total'] / 100)) * 100
             : 800;
 
         $percentSettlement = round($balanceDues['total'] / $maxSettlement * 100, 1);
@@ -364,7 +364,7 @@ class HomeScreenController extends Controller
             ]));
             else return ApiResponse::Duplicated(__('messages.info',[
                 'info' => 'You have already accepted order ('.$order->code.')',
-                'khInfo' => 'ការកម្នង់នេះបានទទួលរួចហើយ ('.$order->code.')'
+                'khInfo' => 'ការកម្នង់នេះមានគេទទួលរួចហើយ ('.$order->code.')'
             ]));
         }
 

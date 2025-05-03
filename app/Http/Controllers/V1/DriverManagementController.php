@@ -5,13 +5,11 @@ namespace App\Http\Controllers\V1;
 use ApiResponse;
 use App\Http\Controllers\Controller;
 use App\Models\DriverCommission;
-use App\Models\Order;
-use App\Models\Package;
 use App\Models\User;
+use App\Models\UserTargetPolicy;
 use App\Services\GeneralSettingService;
-use App\Services\TransactionService;
-use App\Services\UserCommissionPerformanceService;
 use App\Services\UserService;
+use App\Services\UserTargetPolicyService;
 use Helper;
 use Illuminate\Http\Request;
 
@@ -92,7 +90,7 @@ class DriverManagementController extends Controller
             'fast_pickup_commission_start_date' => 'nullable',
             'fast_delivery_commission' => 'nullable|numeric',
             'fast_delivery_commission_type' => 'nullable|in:percentage,amount',
-            'fast_delivery_commission_start_date' => 'nullable'
+            'fast_delivery_commission_start_date' => 'nullable',
         ]);
     }
 
@@ -100,7 +98,7 @@ class DriverManagementController extends Controller
         $user = UserService::getAuthUser();
         $validate = $this->driverCommissionValidation($req);
         $driver_id = $req->id;
-        if($validate->fails()) return ApiResponse::ValidateFail($validate);
+        if($validate->fails()) return ApiResponse::ValidateFail($validate->errors()->first());
         $inputs = $validate->validated();
         $driverCommissions = DriverCommission::where('driver_id',$driver_id)->where('is_deleted',0)->first();
         $success = 0;
@@ -154,12 +152,22 @@ class DriverManagementController extends Controller
                 $success = 1;
             }
         }
+
+        $userTargetPolicyService = new UserTargetPolicyService();
+        $setTargetPlc = $userTargetPolicyService->saveUserTargetPolicy(request()->merge([
+            'target_value' => $req->monthly_target,
+            'target_type' => 'package',
+            'monthly_bonus' => $req->monthly_bonus,
+            'monthly_bonus_type' => 'amount',
+            'yearly_bonus' => $req->yearly_bonus,
+            'yearly_bonus_type' => 'amount',
+            'period_type' => 'monthly'
+        ]), $driver_id, $user);
+
+        if($setTargetPlc->error) return ApiResponse::flex($setTargetPlc);
         User::find($driver_id)->update([
             'salary' => $inputs['salary'] ?? 0
         ]);
-        $userCommPerformanceService = new UserCommissionPerformanceService();
-        $setComPerformance = $userCommPerformanceService->saveCommissionPerformance($req,$driver_id,$user);
-        if($setComPerformance->error) return ApiResponse::flex($setComPerformance);
         if($success) return ApiResponse::JsonResult(null,__('messages.saved'));
         return ApiResponse::Error(__('messages.error',['info' => 'Fail to save commission']));
     }
@@ -171,6 +179,10 @@ class DriverManagementController extends Controller
         ->selectRaw('code,user_name,employment_date,shift_type,salary,employee_type')
         ->where('account_type','driver')->find($id);
         if(!$driver) return ApiResponse::NotFound(__('messages.not_found',['info' => 'Driver']));
+        $userTargetPolicy = UserTargetPolicy::where('user_id',$id)->first();
+        $driver->monthly_target = $userTargetPolicy->target_value ?? 0;
+        $driver->monthly_bonus = $userTargetPolicy->monthly_bonus ?? 0;
+        $driver->yearly_bonus = $userTargetPolicy->yearly_bonus ?? 0;
         $dc = (object)[
             'normal_pickup_commission' => 0,
             'normal_delivery_commission' => 0,

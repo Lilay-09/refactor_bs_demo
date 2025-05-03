@@ -2,7 +2,7 @@
 
 namespace App\Enums;
 
-enum PeriodType
+enum PeriodType: String
 {
     //
     case MONTHLY = 'monthly';
