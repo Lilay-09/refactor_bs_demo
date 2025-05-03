@@ -21,9 +21,13 @@ class GeoResolverService
         $location = $resp->header('Location')
             ?? throw new RuntimeException("No redirect for {$shortUrl}");
             // \Log::info($location);
-        if (! str_starts_with($location, 'https://www.google.com/maps')) {
+        // if (! str_starts_with($location, 'https://www.google.com/maps')) {
+        //     throw new RuntimeException("Unexpected redirect URL: {$location}");
+        // }
+        if (! preg_match('#^https://www\.google\.com(?:\.kh)?/maps#', $location)) {
             throw new RuntimeException("Unexpected redirect URL: {$location}");
         }
+
 
         // 2) extract lat/lng from the final URL
         if (! preg_match('/@(-?\d+\.\d+),(-?\d+\.\d+)/', $location, $m)) {
