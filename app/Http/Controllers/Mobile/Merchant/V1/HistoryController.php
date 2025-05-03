@@ -288,14 +288,6 @@ class HistoryController extends Controller
 
                 // Split datetime fields based on status_id
                 $this->splitDatetimeFieldsByStatus($pkg, $statusName);
-
-                // Additional handling for 'Return' and 'Returned' status
-                // if (in_array($statusName, ['Return', 'Returned'])) {
-                //     $returnDate = $pkg->returned_datetime ?? $pkg->updated_at;
-                //     $pkg->returned_date = Helper::dateDMY($returnDate);
-                //     $pkg->return_time = Helper::formatCustomDateTime($returnDate, 'h:i:s');
-                // }
-
                 $items[] = $pkg;
             }
         }
