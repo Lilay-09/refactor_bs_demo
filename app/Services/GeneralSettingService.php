@@ -468,7 +468,7 @@ class GeneralSettingService
     public static function optionsVehicleType($user){
 
         $vT = VehicleType::where('company_id',$user->company_id)->where('is_deleted',0)
-        ->selectRaw('name,name as value,id')->orderByDesc('id');
+        ->selectRaw('name,name as value,id')->orderByRaw('id');
         if($user->account_type == 'driver'){
             $vT->where('name',$user->info->vehicle_type);
         }
