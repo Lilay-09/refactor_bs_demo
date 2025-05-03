@@ -74,7 +74,7 @@ class HomeScreenController extends Controller
         ->where('driver_id',$user->id)
         // ->orderByRaw('status_id = ? desc',[3])
         ->orderByDesc('id')
-        ->selectRaw('id,warehouse_id,driver_id,pickup_address_google_map,order_datetime,merchant_id,status_id,qty,code,pickup_address,pickup_address_google_map,vehicle_type,delivery_type,loc_lat,loc_lng,product_type');
+        ->selectRaw('id,warehouse_id,driver_id,order_datetime,merchant_id,status_id,qty,code,pickup_address,pickup_address_google_map,vehicle_type,delivery_type,loc_lat,loc_lng,product_type');
         $callback = function($order){
             $order->warehouse_address = $order->warehouse->address;
             $order->status_code = $order->tracking_status->name;

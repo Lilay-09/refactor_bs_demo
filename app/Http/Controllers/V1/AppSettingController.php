@@ -5,6 +5,7 @@ namespace App\Http\Controllers\V1;
 use ApiResponse;
 use App\Http\Controllers\Controller;
 use App\Services\AppSetting;
+use App\Services\GeoResolverService;
 use App\Services\UserService;
 use Illuminate\Http\Request;
 
@@ -32,6 +33,11 @@ class AppSettingController extends Controller
 
     public function redirectBarcodeScan(Request $req){
         return AppSetting::redirectBasedOnDevice($req);
+    }
+
+    public function mapInfo(Request $req){
+        $goSolver = new GeoResolverService();
+        return ApiResponse::JsonResult($goSolver->fromShortUrl($req->url));
     }
 
     public function getPrivacyStatement(Request $req){

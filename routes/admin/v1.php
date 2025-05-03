@@ -48,6 +48,8 @@ Route::prefix('admin/v1/auth')->group(function(){
     });
 });
 
+// Route::get('mapInfo',[AppSettingController::class,'mapInfo']);
+
 Route::middleware(['jwt','localize','userAccess:admin'])->prefix('admin/v1/{lang}')->group(function(){
     Route::prefix('management')->group(function(){
         Route::prefix('module')->group(function(){

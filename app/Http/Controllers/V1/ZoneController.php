@@ -79,7 +79,7 @@ class ZoneController extends Controller
                 $q->where('zone_name','ilike','%'.$search.'%')->orWhere('zone_code','ilike','%'.$search.'%');
             });
         }
-        $select = ['id','zone_code','zone_type','zone_name','commune','description','city','district','country_id','status'];
+        $select = ['id','identity','zone_code','zone_type','zone_name','commune','description','city','district','country_id','status'];
         $callback = function($zone){
             $zone->country_name = $zone->country->name;
             unset($zone->country);
@@ -158,6 +158,7 @@ class ZoneController extends Controller
             ]));
         }
         $childrenZones = Zone::where('is_deleted', 0)
+            ->with('parent:id,parent_id,zone_name')
             ->whereIn('id', $childrenIds)
             ->select(['id', 'update_uid', 'parent_id', 'identity'])
             ->get()
@@ -178,14 +179,17 @@ class ZoneController extends Controller
                 continue;
             }
             $zoneItem = $childrenZones[$chId];
-            if ($zoneItem->parent_id) {
-                continue;
-                // return ApiResponse::Duplicated('This zone already has sub, you cannot add it to another!');
+            if (!empty($zoneItem->parent_id)) {
+                // continue;
+                if($zoneId == $zoneItem->parent_id){
+                    continue;
+                }
+                return ApiResponse::Duplicated('This zone is already a sub zone of ('.$zoneItem->parent->zone_name.'), you cannot add it to another!');
             }
 
             if ($zoneId == $chId) {
                 return ApiResponse::ValidateFail('It seems like you try to assign parent to itself!');
-            }
+            }-
 
             $validChildrenIds[] = $chId;
         }
