@@ -216,7 +216,15 @@ class HomeScreenController extends Controller
         $pcsUnitLng = $lang == 'km' ? 'កញ្ចប់': 'PCS';
         $totalEearning = $normalDeliveryComm + $normalFailedWithFeeComm + $fastDeliveryComm + $fastFailedWithFeeComm;
         $totalDeliveredPkg = $normalDeliveredPkg + $normalFailedWithFeePkg + $fastDeliveredPkg + $fastFailedWithFeePkg;
+        $maxSettlement = $balanceDues['total'] > 800
+            ? ((int) ceil($balanceDues['total'] / 100) + 1) * 100
+            : 800;
+
+        $percentSettlement = round($balanceDues['total'] / $maxSettlement * 100, 1);
+
         $obj = [
+            'max_settlement' => $maxSettlement,
+            'percent_settlement' => $percentSettlement,
             'earning' => (string)Helper::getNumber($totalEearning,2,true),
             'delivered_count' => (string)$totalDeliveredPkg.$pcsUnitLng,
             'pickedup_count' => (string)$pickedUpCount.$pcsUnitLng,
