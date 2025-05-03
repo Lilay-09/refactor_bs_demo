@@ -231,6 +231,9 @@ class HistoryController extends Controller
                 ->get()
                 ->each(function ($order) use (&$items, $isKm) {
                     $order->status_code = $order->tracking_status->name;
+                    $orderDatetime = strtotime($order->order_datetime);
+                    $order->order_date = date('d M Y',$orderDatetime);
+                    $order->order_time = date('h:i A',$orderDatetime);
                     $order->render_status = $isKm ? GeneralSettingService::$statusCodeTrans[$order->status_id] : 'Pick Up';
                     $order->driver_phone = $order->driver->phone ?? null;
                     $order->driver_name = $order->driver->user_name ?? null;
@@ -271,6 +274,7 @@ class HistoryController extends Controller
         $groupedPackages = $packages->groupBy(function ($pkg) use ($statusGroups) {
             return $statusGroups[$pkg->status_id] ?? 'Other';
         });
+
 
         // Helper to split datetime fields based on status_id
         foreach ($groupedPackages as $statusName => $group) {
@@ -374,7 +378,7 @@ class HistoryController extends Controller
         if (!empty($pkg->$originalField)) {
             $timestamp = strtotime($pkg->$originalField);
             $pkg->{$prefix . '_date'} = date('d M Y', $timestamp);
-            $pkg->{$prefix . '_time'} = date('H:i A', $timestamp);
+            $pkg->{$prefix . '_time'} = date('h:i A', $timestamp);
         }
         unset($pkg->$originalField); // Optionally remove the original field
     }
