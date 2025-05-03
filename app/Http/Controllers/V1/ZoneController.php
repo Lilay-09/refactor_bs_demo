@@ -35,7 +35,8 @@ class ZoneController extends Controller
             'description' => "nullable|string|max:250",
             'loc_lat' => 'nullable|numeric',
             'loc_lng' => 'nullable|numeric',
-            'pin_map' => 'nullable|string'
+            'pin_map' => 'nullable|string',
+            'parent_id' => 'nullable|int'
         ]);
     }
 
@@ -48,6 +49,7 @@ class ZoneController extends Controller
         $inputs['update_uid'] = $user->id;
         $inputs['branch_id'] = $user->branch_id;
         $inputs['company_id'] = $user->company_id;
+        $inputs['identify'] = isset($inputs['parent_id']) ? 'child':'parent';
         $inputZoneCode = $inputs['zone_code'] ?? null;
         if($inputZoneCode){
             $existZone = Zone::where('is_deleted',0)->where('zone_code',$inputs['zone_code'])->first();
@@ -59,7 +61,7 @@ class ZoneController extends Controller
         if($existZoneName) return ApiResponse::Duplicated(__('messages.error',[
             'info' => 'Zone name ('.$inputs['zone_name'].'- '.$existZoneName->zone_code.') is already exists.'
         ]));
-        Log::info($inputs);
+        // Log::info($inputs);
         $create = Zone::create($inputs);
         // if(!$create) return ApiResponse::Error('Fail to create zone');
         if(!$inputZoneCode) $create->update([
@@ -79,7 +81,7 @@ class ZoneController extends Controller
                 $q->where('zone_name','ilike','%'.$search.'%')->orWhere('zone_code','ilike','%'.$search.'%');
             });
         }
-        $select = ['id','identity','zone_code','zone_type','zone_name','commune','description','city','district','country_id','status'];
+        $select = ['id','identity','zone_code','zone_type','parent_id','zone_name','commune','description','city','district','country_id','status'];
         $callback = function($zone){
             $zone->country_name = $zone->country->name;
             unset($zone->country);
@@ -93,7 +95,7 @@ class ZoneController extends Controller
         $user = UserService::getAuthUser();
         $zone = Zone::where(function($q){
             $q->where('is_deleted',0);
-        })->where('company_id',$user->company_id)->selectRaw('id,zone_code,zone_type,zone_name,commune,description,city,district,country_id,status')->find($id);
+        })->where('company_id',$user->company_id)->selectRaw('id,zone_code,parent_id,zone_type,zone_name,commune,description,city,district,country_id,status')->find($id);
         if(!$zone) return ApiResponse::NotFound(__('messages.not_found'));
         return ApiResponse::JsonResult($zone,__('messages.get one'));
     }

@@ -20,24 +20,21 @@ class GeoResolverService
                     ->head($shortUrl);
         $location = $resp->header('Location')
             ?? throw new RuntimeException("No redirect for {$shortUrl}");
-            // \Log::info($location);
         // if (! str_starts_with($location, 'https://www.google.com/maps')) {
         //     throw new RuntimeException("Unexpected redirect URL: {$location}");
         // }
         if (! preg_match('#^https://www\.google\.com(?:\.kh)?/maps#', $location)) {
             throw new RuntimeException("Unexpected redirect URL: {$location}");
         }
-
-
-        // 2) extract lat/lng from the final URL
-        if (! preg_match('/@(-?\d+\.\d+),(-?\d+\.\d+)/', $location, $m)) {
-            // throw new RuntimeException("Couldn't parse coords from URL: {$location}");
+        if (! preg_match('#(?:@|search/)(-?\d+\.\d+),[+\s]?(-?\d+\.\d+)#', $location, $m)) {
+            // \Log::info("NO MATCH in location: {$location}");
             return [
-                'lat'     => 0,
-                'lng'     => 0,
+                'lat' => 0,
+                'lng' => 0,
                 'address' => null,
             ];
         }
+        // 2) extract lat/lng from the final URL
         [, $lat, $lng] = $m;
 
         // 3) reverse-geocode via Nominatim
