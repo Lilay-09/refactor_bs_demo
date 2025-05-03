@@ -232,7 +232,7 @@ class HistoryController extends Controller
                 ->each(function ($order) use (&$items, $isKm) {
                     $order->status_code = $order->tracking_status->name;
                     $orderDatetime = strtotime($order->order_datetime);
-                    $order->order_date = Helper::dateDMY('d M Y',$orderDatetime);
+                    $order->order_date = date('d M Y',$orderDatetime);
                     $order->order_time = date('h:i A',$orderDatetime);
                     $order->render_status = $isKm ? GeneralSettingService::$statusCodeTrans[$order->status_id] : 'Pick Up';
                     $order->driver_phone = $order->driver->phone ?? null;
