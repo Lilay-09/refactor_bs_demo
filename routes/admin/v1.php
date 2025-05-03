@@ -490,6 +490,7 @@ Route::middleware(['jwt','localize','userAccess:admin'])->prefix('admin/v1/{lang
             Route::get('channel',[GeneralSettingController::class,'getOptionsChannel']);
             Route::get('driver/channel',[GeneralSettingController::class,'getOptionsDriverChannel']);
             Route::get('zone',[GeneralSettingController::class,'getOptionsZone']);
+            Route::get('zone/parent',[GeneralSettingController::class,'getOptionsParentZone']);
             Route::get('pickup/status',[GeneralSettingController::class,'getOptionsPickupStatus']);
             Route::get('driver',[GeneralSettingController::class,'getOptionsDriver']);
             Route::get('zone/price/{zone_id}',[GeneralSettingController::class,'getPriceByZone']);

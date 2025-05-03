@@ -98,6 +98,10 @@ class User extends Authenticatable implements JWTSubject
     public function shops(){
         return $this->hasMany(UserShop::class,'owner_id','id');
     }
+
+    public function shop(){
+        return $this->hasOne(UserShop::class,'owner_id');
+    }
     public function merchantType(){
         return $this->belongsTo(ClientType::class,'client_type_id','id');
     }

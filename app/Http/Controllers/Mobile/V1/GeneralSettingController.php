@@ -125,6 +125,12 @@ class GeneralSettingController extends Controller
             'info' => 'Package is already failed with fee.',
             'khInfo' => 'កញ្ចប់ធ្លាប់បរាជ័យគិតសេវា'
         ]));
+        if($package->status_id == 7) {
+            return ApiResponse::ValidateFail(__('messages.info',[
+                'info' => 'Please ensure package has arrived warehouse',
+                'khInfo' => 'កញ្ចប់ត្រូវបញ្ចាក់ថាមកដល់​ឃ្លាំងទើបអាចដឹកបាន'
+            ]));
+        }
         $diffDriver = $package->driver_id ? ($user->id != $package->driver_id) : false;
         $isOnDelivery = $package->status_id == 6;
         $data = null;

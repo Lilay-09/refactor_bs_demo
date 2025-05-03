@@ -36,4 +36,8 @@ class UserShop extends Model
         'company_id',
         'branch_id'
     ];
+
+    public function product_type(){
+        return $this->belongsTo(ProductType::class);
+    }
 }
