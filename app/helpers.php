@@ -2,9 +2,7 @@
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\Redis;
 use Illuminate\Validation\Rule;
-use Milon\Barcode\DNS1D;
 class ApiResponse
 {
 
@@ -929,7 +927,7 @@ class Helper{
             Str::contains($parsed['host'], 'maps.app.goo.gl');
     }
 
-    static function enumValuesRule(string $enumClass): Rule
+    static function enumValuesRule(string $enumClass)
     {
         return Rule::in(array_column($enumClass::cases(), 'value'));
     }
