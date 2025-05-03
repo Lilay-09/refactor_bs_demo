@@ -39,11 +39,13 @@ class GeoResolverService
 
         // 3) reverse-geocode via Nominatim
         $address = $this->reverseGeocode($lat, $lng);
+        // $embedUrl = "https://www.google.com/maps?q={$lat},{$lng}&hl=en&z=14&output=embed";
 
         return [
             'lat'     => (float) $lat,
             'lng'     => (float) $lng,
             'address' => $address,
+            // 'embedUrl' => $embedUrl
         ];
     }
 
