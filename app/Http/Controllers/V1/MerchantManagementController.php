@@ -32,7 +32,7 @@ class MerchantManagementController extends Controller
         ->get();
         $query = User::where('is_deleted',0)->where('company_id',$user->company_id)
         ->where('account_type',$this->userClass)
-        ->with(['merchantType:id,name','bank_accounts:id,bank_name,bank_number,account_name,user_id,is_primary']);
+        ->with(['merchantType:id,name','bank_accounts:id,bank_name,bank_number,account_name,user_id,is_primary','shop:id,owner_id,name_en as shop_name_en,name_km as shop_name_km,product_type_id','shop.product_type:id,name']);
         // ->selectRaw('id,cod_fee,code,name_km,user_name,email,gender,business_type,phone,client_type_id,address,cod,pin_address,photo_file_name,lock,has_account,photo_file_name');
         if($statusId !== null && $statusId>=0) {
             $query->where('lock',$statusId ? 0 : 1);
@@ -76,6 +76,10 @@ class MerchantManagementController extends Controller
             $m->client_type = $m->merchantType?->name;
             $m->login_name = $m->login_name ?? $m->phone;
             $m->create_by = ($m->create_uid == $m->id) ? 'Self': 'Admin';
+            $m->shop_name_en = $m->shop->shop_name_en;
+            $m->shop_name_km = $m->shop->shop_name_km;
+            $m->product_type = $m->shop->product_type->name;
+            unset($m->shop);
             foreach($m->bank_accounts as $b){
                 if($b->is_primary) $m->bank_account = GeneralSettingService::concatBankInfo($b->bank_name,$b->bank_number,$b->account_name);
                 if(!$b->bank_account) $m->bank_account = GeneralSettingService::concatBankInfo($b->bank_name,$b->bank_number,$b->account_name);
