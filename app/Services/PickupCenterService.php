@@ -307,7 +307,7 @@ class PickupCenterService
     public function createOrUpdatePackage(Request $req,$user,$packageId=null,$orderId=null,$statusIds=[1,7],$whereClause=null){
         if($orderId){
             $order = Order::where('is_deleted',0)->select(['merchant_id','delivery_type'])->find($orderId);
-            $req->merge(['merchant_id' => $order->merchant_id,'delivery_type' => $req->delivery_type ?? $order->delivery_type]);
+            $req->merge(['merchant_id' => $order->merchant_id,'delivery_type' => $req->delivery_type ?? $order->delivery_type,'product_type' => $req->product_type ?? $order->product_type]);
             if(!$order) return DataResponse::NotFound('Order not found');
         }
         $validate = $this->packageValidation($req);
