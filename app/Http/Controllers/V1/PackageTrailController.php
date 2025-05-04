@@ -134,7 +134,7 @@ class PackageTrailController extends Controller
         if(!$package) return ApiResponse::NotFound();
         $package->status_code = $package->status->name;
         $cod = $package->cod;
-        $package->cod = $cod == false ? 0 : 1;
+        $package->cod = $cod == false ? "0" : "1";
         $driver = $package->driver;
         if($driver){
             $package->driver_name = $driver->user_name;
