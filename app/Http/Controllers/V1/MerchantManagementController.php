@@ -76,9 +76,9 @@ class MerchantManagementController extends Controller
             $m->client_type = $m->merchantType?->name;
             $m->login_name = $m->login_name ?? $m->phone;
             $m->create_by = ($m->create_uid == $m->id) ? 'Self': 'Admin';
-            $m->shop_name_en = $m->shop->shop_name_en;
-            $m->shop_name_km = $m->shop->shop_name_km;
-            $m->product_type = $m->shop->product_type->name;
+            $m->shop_name_en = $m->shop?->shop_name_en;
+            $m->shop_name_km = $m->shop?->shop_name_km;
+            $m->product_type = $m->shop?->product_type->name;
             unset($m->shop);
             foreach($m->bank_accounts as $b){
                 if($b->is_primary) $m->bank_account = GeneralSettingService::concatBankInfo($b->bank_name,$b->bank_number,$b->account_name);
