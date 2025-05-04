@@ -254,10 +254,11 @@ class GeneralSettingController extends Controller
 
     public function getFormPackage(Request $req){
         $user = UserService::getAuthUser();
+        $lang = $req->lang;
         $obj = (object)[
             'zones' => $this->gs::optionsZone($user),
             'delivery_types' => $this->gs::optionsDeliveryType(),
-            'cod' => $this->gs::optionsCOD(),
+            'cod' => $this->gs::optionsCOD($lang,'string'),
             'payers' => $this->gs::optionsPayer($req->lang),
         ];
         return ApiResponse::JsonResult($obj);
