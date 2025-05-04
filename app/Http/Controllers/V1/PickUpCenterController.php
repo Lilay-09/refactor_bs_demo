@@ -394,6 +394,7 @@ class PickUpCenterController extends Controller
         if(!$package) return ApiResponse::NotFound(trans('messages.not_found',['info' => 'Package','khInfo' => 'កញ្ចប់​']));
         // $calFee = GeneralSettingService::calculatePackageFee($package->zone_code,$package->price,$package->billed_kg,$package->actual_kg,$package->payer,$package->cod,$package->extra_charge,$user,$package->taxi_fee,$package->merchant_id);
         $package->total = $package->merchant_total + $package->driver_total;
+        $package->cod = $package->cod? "1":"0";
         return ApiResponse::JsonResult($package,__('messages.get one'));
     }
 
@@ -407,7 +408,7 @@ class PickUpCenterController extends Controller
         $count = $qP->count();
         // $packages = $qP->get();
         $clbMapper = function ($pkg){
-            $pkg->cod = $pkg->cod? 1:0;
+            $pkg->cod = $pkg->cod? "1":"0";
             $pkg->total = $pkg->driver_total;//PickupCenterService::getDriverTotal($pkg->cod,$pkg->payer,$pkg->price,$pkg->delivery_fee,$pkg->additional_fee,$pkg->extra_charge);
             $pkg->fee = ($pkg->payer == 'receiver' ? $pkg->delivery_fee : 0) + $pkg->extra_charge + $pkg->additional_fee;
             unset($pkg->status);
