@@ -81,7 +81,9 @@ class PickupCenterService
         if($validate->fails()) return DataResponse::ValidateFail($validate->errors()->first(),$validate->errors());
         $inputs = $validate->validated();
         $merchantId = $inputs['merchant_id'];
-        $validMerchant = User::where('is_deleted',0)->where('delete_account',0)->where('account_type','merchant')->find($merchantId);
+        $validMerchant = User::where('is_deleted',0)->where('delete_account',0)->where('account_type','merchant')
+        ->select(['id','user_name','phone'])
+        ->find($merchantId);
         if(!$validMerchant) return DataResponse::ValidateFail('Invalid sender identity!');
         $userType = $user->account_type;
         $inputs['create_uid'] = $user->id;
@@ -176,8 +178,11 @@ class PickupCenterService
             // Log::error(json_encode($topics));
             $clmsgReq = new Request([
                 'topic' => $topics->private,
-                'title' => 'Create Order',
-                'body' => $lang == 'km' ? ucfirst($user->account_type).' បានបង្កើតការកម្មង់ឲ្យ​អ្នកចំនួន'.$inputQty.'កញ្ចប់' : ucfirst($user->account_type).' has created an order for you.',
+                'title' => __('notification.create_order.title'),
+                'body' => __('notification.create_order.body',[
+                    'create_user' => $user->account_type,
+                    'count' => $inputQty
+                ]),//$lang == 'km' ? ucfirst($user->account_type).' បានបង្កើតការកម្មង់ឲ្យ​អ្នកចំនួន'.$inputQty.'កញ្ចប់' : ucfirst($user->account_type).' has created an order for you.',
                 'type' => 'private',
                 'target_uid' => $merchantId
             ]);
@@ -190,15 +195,18 @@ class PickupCenterService
                 // $notifBody = "$validMerchant->user_name: ".$inputs['qty']."PCS, \nPickup Address:".Str::limit($pickupAddress, 25, '...');
                 // $notifTitle = 'New Order Available';
                 // if($driverId) {
-                    $notifBody = $lang == 'km' ? 'អ្នកត្រូវបានចាត់តាំងទៅយកការកម្មង់​លេខ('.$code.') ចំនួន​('.$inputQty.')កញ្ចប់':'You have been assigned to pick the order('.$code.') has '.$inputQty.' package(s).';
-                    $notifTitle = $lang == 'km' ? 'ចាត់តាំងទៅយកការកម្មង់​' : 'Assigned Order';
+                    // $notifBody = 'Admin: ចាត់តាំង​អេាយ ទៅយកឥវ៉ាន់អតិថិជន Ry Merchant​ (5 កញ្ចប់)';//$lang == 'km' ? 'អ្នកត្រូវបានចាត់តាំងទៅយកការកម្មង់​លេខ('.$code.') ចំនួន​('.$inputQty.')កញ្ចប់':'You have been assigned to pick the order('.$code.') has '.$inputQty.' package(s).';
+                    // $notifTitle = $lang == 'km' ? 'ចាត់តាំងទៅយកការកម្មង់​' : 'Assigned Order';
                 // }
                 $notifReq = new Request([
                     'topic' => $topics->private,//$driverId ? $topics->private:$topics->public,
                     'type' =>  'private',//$driverId ? 'private':'public',
                     'target_uid' => $driverId,
-                    'title' => $notifTitle,
-                    'body' => $notifBody
+                    'title' => __('notification.assign_order.title'),//$notifTitle,
+                    'body' => __('notification.assign_order.body',[
+                        'merchant' => $validMerchant->user_name,
+                        'count' => $inputQty
+                    ])
                 ]);
                 // $clmsg->sendNotificationByTopic($notifReq,$user);
                 SendNotificationJob::dispatch($notifReq, $user);
