@@ -263,7 +263,7 @@ class GeneralSettingService
         if($parentId){
             $qZ->where('parent_id',$parentId);
         }
-        return $qZ->selectRaw('id,zone_name,identity,zone_code')->orderByDesc('id')->get();
+        return $qZ->selectRaw('id,zone_name,identity,zone_code,parent_id')->orderByDesc('id')->get();
     }
 
     public static function optionsZoneByPriceListNameId($user,$id=null){
@@ -370,7 +370,11 @@ class GeneralSettingService
     }
 
     public static function optionsBank($user){
-        return Bank::where('is_deleted',0)->where('company_id',$user->company_id)->selectRaw('id,name')->get();
+        return Bank::where('is_deleted',0)->where('company_id',$user->company_id)->selectRaw('id,name,photo_file_name')
+        ->get()->map(function ($b){
+            $b->image = Helper::getImageUrl($b->photo_file_name,1,'payment_method');
+            return $b;
+        });
     }
 
     public static function optionsApplyCommission(){

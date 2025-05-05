@@ -280,6 +280,7 @@ Route::middleware(['jwt','localize','userAccess:admin'])->prefix('admin/v1/{lang
         Route::delete('/{id}',[ZoneController::class,'deleteZone']);
         Route::get('/{id}/children',[ZoneController::class,'getZoneChildren']);
         Route::put('/{id}/assign/children',[ZoneController::class,'assignZoneToParent']);
+        Route::put('/{id}/toParent',[ZoneController::class,'setToParent']);
 
         Route::put('/assign/driver',[ZoneController::class,'assignZoneToDriver']);
     });
