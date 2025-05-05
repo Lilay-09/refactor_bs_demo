@@ -88,7 +88,6 @@ class BankController extends Controller
                 $img = Helper::base64ToImageFile($photo,$user->company_id,$this->imgDir);
                 $inputs['photo_file_name'] = $img->filename;
             }
-
         }
         $update = $bank->update($inputs);
         if(!$update) return ApiResponse::Error('Fail to update');

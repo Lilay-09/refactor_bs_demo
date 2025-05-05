@@ -32,7 +32,7 @@ class MerchantManagementController extends Controller
         ->get();
         $query = User::where('is_deleted',0)->where('company_id',$user->company_id)
         ->where('account_type',$this->userClass)
-        ->with(['merchantType:id,name','bank_accounts:id,bank_name,bank_number,account_name,user_id,is_primary','shop:id,owner_id,name_en as shop_name_en,name_km as shop_name_km,product_type_id,city,district','shop.product_type:id,name']);
+        ->with(['merchantType:id,name','bank_accounts:id,bank_name,bank_number,account_name,user_id,is_primary','shop:id,owner_id,name_en as shop_name_en,name_km as shop_name_km,product_type_id,city,district,est_pcs','shop.product_type:id,name']);
         // ->selectRaw('id,cod_fee,code,name_km,user_name,email,gender,business_type,phone,client_type_id,address,cod,pin_address,photo_file_name,lock,has_account,photo_file_name');
         if($statusId !== null && $statusId>=0) {
             $query->where('lock',$statusId ? 0 : 1);
@@ -80,6 +80,7 @@ class MerchantManagementController extends Controller
             $m->shop_name_km = $m->shop?->shop_name_km;
             $m->city = $m->shop?->city;
             $m->district = $m->shop?->district;
+            $m->est_pcs = $m->shop?->est_pcs;
             $m->product_type = $m->shop?->product_type?->name;
             unset($m->shop);
             foreach($m->bank_accounts as $b){

@@ -406,4 +406,21 @@ class ZoneController extends Controller
             'children' => $validChildren,
         ]);
     }
+
+    public function setToParent(Request $req){
+        $id = $req->id;
+        $zone = Zone::where('is_deleted',0)
+        ->where('identity','child')
+        ->find($id);
+        if(!$zone){
+            return ApiResponse::NotFound();
+        }
+
+        $zone->update([
+            'parent_id' => null,
+            'identity' => 'child'
+        ]);
+
+        return ApiResponse::JsonResult(null,'Take out');
+    }
 }
