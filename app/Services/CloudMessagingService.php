@@ -12,6 +12,7 @@ use Kreait\Firebase\Exception\Messaging\InvalidMessage;
 use Kreait\Firebase\Exception\Messaging\NotFound;
 use Kreait\Firebase\Factory;
 use Kreait\Firebase\Messaging\CloudMessage;
+use Log;
 
 class CloudMessagingService
 {
@@ -244,6 +245,7 @@ class CloudMessagingService
     private function saveNotification($targetUid,$type,$title,$body,$user,$status='sent'): void{
         $token = UserNotificationToken::where('user_id',$targetUid)->first();
         if($token){
+            // Log::info('yes');
             $userTopic = NotificationTopic::where('token_id',$token->id)->where('type',$type)->first();
             if($userTopic){
                 \App\Models\Notification::create([

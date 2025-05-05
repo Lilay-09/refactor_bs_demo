@@ -119,6 +119,9 @@ class ZoneController extends Controller
             'info' => 'Zone name ('.$inputs['zone_name'].') is already exists.'
         ]));
         // $zone
+        if(isset($inputs['parent_id'])){
+            $inputs['identity'] = 'child';
+        }
         $inputs['update_uid'] = $user->id;
         $inputs['branch_id'] = $user->branch_id;
         $inputs['company_id'] = $user->company_id;

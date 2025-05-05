@@ -224,6 +224,11 @@ class GeneralSettingController extends Controller
         return ApiResponse::JsonResult($this->gs::optionsZone($user,'parent'));
     }
 
+    public function getOptionsSubZone(Request $req){
+        $user = UserService::getAuthUser();
+        return ApiResponse::JsonResult($this->gs::optionsZone($user,'child',$req->id));
+    }
+
     public function getOptionsPickupStatus(Request $req){
         $user = UserService::getAuthUser();
         return ApiResponse::JsonResult($this->gs::optionsTrackingStatus($user,[20,21],[],'pick',null,$req->lang));
@@ -434,10 +439,11 @@ class GeneralSettingController extends Controller
         return ApiResponse::JsonResult($obj);
     }
     public function getFormUpdateFinishedPackage(Request $req){
+        $lang = $req->lang;
         $user = UserService::getAuthUser();
         $obj = (object)[
             'delivery_types' => $this->gs::optionsDeliveryType(),
-            'cod' => $this->gs::optionsCOD(),
+            'cod' => $this->gs::optionsCOD($lang,'string'),
             'payers' => $this->gs::optionsPayer($req->lang),
             'zones' => $this->gs::optionsZone($user),
         ];

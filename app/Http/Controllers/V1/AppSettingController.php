@@ -35,6 +35,11 @@ class AppSettingController extends Controller
         return AppSetting::redirectBasedOnDevice($req);
     }
 
+    public function redirectStoreDriverMobile(Request $req){
+        return AppSetting::redirectStoreDriverApp($req);
+    }
+
+
     public function mapInfo(Request $req){
         $goSolver = new GeoResolverService();
         return ApiResponse::JsonResult($goSolver->fromShortUrl($req->url));

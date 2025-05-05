@@ -98,13 +98,24 @@ class AppSetting
         // Check if the device is an iPhone or iPad
         if (strpos($userAgent, 'iPhone') !== false || strpos($userAgent, 'iPad') !== false) {
             // Redirect to the App Store (iOS)
-            // return Redirect::to('https://apps.apple.com/kh/app/js-express/id6739161811');
+            // return Redirect::to('');
         } else {
             // Redirect to the Play Store (Android or other devices)
-            // return Redirect::to('https://play.google.com/store/apps/details?id=com.gtech.jsexpressmerchant');
+            // return Redirect::to('');
         }
     }
 
+    public static function redirectStoreDriverApp(Request $req){
+        $userAgent = $req->header('User-Agent');
+        // Check if the device is an iPhone or iPad
+        if (strpos($userAgent, 'iPhone') !== false || strpos($userAgent, 'iPad') !== false) {
+            // Redirect to the App Store (iOS)
+            return Redirect::to('https://apps.apple.com/kh/app/arrizon-driver/id6744563520');
+        } else {
+            // Redirect to the Play Store (Android or other devices)
+            return Redirect::to('https://play.google.com/store/apps/details?id=com.gtech.arrizonedriver');
+        }
+    }
 
 
 

@@ -255,10 +255,13 @@ class GeneralSettingService
         return $remarks;
     }
 
-    public static function optionsZone($user,$identity=null){
+    public static function optionsZone($user,$identity=null,$parentId=null){
         $qZ = Zone::where('status',1)->where('company_id',$user->company_id)->where('is_deleted',0);
         if($identity){
             $qZ->where('identity',$identity);
+        }
+        if($parentId){
+            $qZ->where('parent_id',$parentId);
         }
         return $qZ->selectRaw('id,zone_name,identity,zone_code')->orderByDesc('id')->get();
     }

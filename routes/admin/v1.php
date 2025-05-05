@@ -113,6 +113,7 @@ Route::middleware(['jwt','localize','userAccess:admin'])->prefix('admin/v1/{lang
     });
 
     Route::prefix('driver')->group(function(){
+        Route::get('{id}/zones',[DriverManagementController::class,'getDriverZones']);
         Route::post('',action: [DriverManagementController::class,'createDriver']);
         Route::get('',[DriverManagementController::class,'getDrivers']);
         Route::get('/{id}',[DriverManagementController::class,'getOneDriver']);
@@ -130,6 +131,7 @@ Route::middleware(['jwt','localize','userAccess:admin'])->prefix('admin/v1/{lang
 
         //** Driver Transaction Module */
         Route::prefix('transaction')->group(function(){
+
             Route::prefix('delivery')->group(function(){
                 Route::get('package',[DriverTransactionController::class,'getDeliveryPackages']);
                 Route::put('package/{id}',[DriverTransactionController::class,'updateDeliveryPackage']);
@@ -141,11 +143,13 @@ Route::middleware(['jwt','localize','userAccess:admin'])->prefix('admin/v1/{lang
                 Route::put('',[DriverTransactionController::class,'approvePayments']);
                 Route::delete('{id}',[DriverTransactionController::class,'deletePayment']);
             });
+
             Route::prefix('settle')->group(function(){
                 Route::get('payment',[DriverTransactionController::class,'getApprovedPayments']);
                 Route::put('payment',[DriverTransactionController::class,'settleApprovedPayments']);
                 Route::delete('payment/{id}',[DriverTransactionController::class,'deleteSettlePayment']);
             });
+
             Route::get('balance',[DriverTransactionController::class,'getDriverBalance']);
         });
         //** Driver Commission Module */
@@ -491,6 +495,7 @@ Route::middleware(['jwt','localize','userAccess:admin'])->prefix('admin/v1/{lang
             Route::get('driver/channel',[GeneralSettingController::class,'getOptionsDriverChannel']);
             Route::get('zone',[GeneralSettingController::class,'getOptionsZone']);
             Route::get('zone/parent',[GeneralSettingController::class,'getOptionsParentZone']);
+            Route::get('zone/{id}/subZone',[GeneralSettingController::class,'getOptionsSubZone']);
             Route::get('pickup/status',[GeneralSettingController::class,'getOptionsPickupStatus']);
             Route::get('driver',[GeneralSettingController::class,'getOptionsDriver']);
             Route::get('zone/price/{zone_id}',[GeneralSettingController::class,'getPriceByZone']);

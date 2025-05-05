@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Models\DriverCommission;
 use App\Models\User;
 use App\Models\UserTargetPolicy;
+use App\Models\UserZone;
 use App\Services\GeneralSettingService;
 use App\Services\UserService;
 use App\Services\UserTargetPolicyService;
@@ -216,6 +217,13 @@ class DriverManagementController extends Controller
         }
         return ApiResponse::JsonResult($driver,__('messages.info',['info' => 'Get Diver Commissions']));
     }
+
+
+    public function getDriverZones(Request $req){
+        $driverZones = UserZone::where('user_id',$req->id)->with('sub_zones')->get();
+        return ApiResponse::JsonResult($driverZones);
+    }
+
 
     public function updateDriver(Request $req){
         $user = UserService::getAuthUser();

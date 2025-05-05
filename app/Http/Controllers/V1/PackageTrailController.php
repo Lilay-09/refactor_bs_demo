@@ -4,6 +4,7 @@ namespace App\Http\Controllers\V1;
 
 use ApiResponse;
 use App\Http\Controllers\Controller;
+use App\Jobs\SendNotificationJob;
 use App\Models\Delivery;
 use App\Models\DeliveryPackage;
 use App\Models\Order;
@@ -123,7 +124,7 @@ class PackageTrailController extends Controller
     public function getOnePackage(Request $req){
         $user = UserService::getAuthUser();
         $id = $req->id;
-        $isKm = $req->lang == 'km';
+        // $isKm = $req->lang == 'km';
         $package = Package::where('is_deleted',0)
         ->with(['status','driver'])
         ->where('outstanding',0)
@@ -373,7 +374,11 @@ class PackageTrailController extends Controller
         $notes = $req->notes;
         $validDriver = GeneralSettingService::getDriverById($driver_id);
         if(!$validDriver) return ApiResponse::NotFound(__('messages.not_found',['info' => 'Driver']));
-        $package = Package::where('company_id',$user->company_id)->where('is_deleted',0)->where('outstanding',0)->find($id);
+        $package = Package::where('company_id',$user->company_id)->where('is_deleted',0)
+        ->where('outstanding',0)
+        ->with('merchant:id,user_name,phone')
+        ->select(['id','status_id','merchant_id','driver_id','assign_uid','assign_driver_datetime','receiver_phone'])
+        ->find($id);
         if(!$package) return ApiResponse::NotFound(__('messages.not_found',['info' => 'Package','khInfo' => 'កញ្ចប់']));
         if($package->status_id == 9) return ApiResponse::Duplicated(__('messages.error',['info' => 'This package is already delivered']));
         if($package->status_id == 19) return ApiResponse::Duplicated(__('messages.error',['info' => 'This package is already marked as failed with fee']));
@@ -456,20 +461,20 @@ class PackageTrailController extends Controller
             ]);
             $trip = $this->createOrUpdateTrip($driver_id,$id,$validDriver->vehicle_type,$user,$notes,6,'assign');
             if($trip->error) return ApiResponse::flex($trip);
-            $notif = new CloudMessagingService();
+            // $notif = new CloudMessagingService();
             $topics = GeneralSettingService::getGeneralTopics($user->company_id,'driver',$driver_id);
             // return $topics;
             $notifReq = new Request([
                 'topic' => $topics->private,
                 'type' => 'private',
                 'target_uid' => $driver_id,
-                'title' => __('messages.info',[
-                    'info'=>'Assigned Package',
-                    'khInfo' => 'ចាត់តាំង'
-                ]),
-                'body' => 'You have been assigned to deliver the package('.$package->qr_code.').'
+                'title' => __('notification.assign_package.title'),
+                'body' => __('notification.assign_package.body',[
+                    'merchant' => $package->merchant->user_name,
+                ])//'You have been assigned to deliver the package('.$package->qr_code.').'
             ]);
-            $notif->sendNotificationByTopic($notifReq,$user);
+            // $notif->sendNotificationByTopic($notifReq,$user);
+            SendNotificationJob::dispatch($notifReq, $user);
             Helper::clearCacheByTags($this->cacheTags);
             DB::commit();
             return ApiResponse::JsonResult(null,__('messages.assigned',['info' => '']));
