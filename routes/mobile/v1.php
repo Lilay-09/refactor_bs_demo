@@ -4,6 +4,7 @@ use App\Http\Controllers\Mobile\Driver\V1\DrawerController;
 use App\Http\Controllers\Mobile\Driver\V1\HistoryController;
 use App\Http\Controllers\Mobile\Driver\V1\SearchController;
 use App\Http\Controllers\Mobile\Driver\V1\TransactionController;
+use App\Http\Controllers\Mobile\Merchant\DataInsightController;
 use App\Http\Controllers\Mobile\Merchant\V1\TransactionController as MerchantTransactionController;
 use App\Http\Controllers\Mobile\Merchant\V1\AuthController as AuthMerchantController;
 use App\Http\Controllers\Mobile\Merchant\V1\HistoryController as MerchantHistoryController;
@@ -147,6 +148,10 @@ Route::middleware(['jwtMerchant','localize'])->prefix('merchant/v1/{lang}')->gro
             Route::get('dailyPackage/option',[ReportController::class,'merchantDailyPackagesOption']);
             Route::get('dailyPackage/export',[ReportController::class,'merchantDailyPackagesPreview']);
         });
+    });
+
+    Route::prefix('dataInsight')->group(function(){
+        Route::get('summary',[DataInsightController::class,'getDataInsight']);
     });
 
     Route::prefix('setting')->group(function (){

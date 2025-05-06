@@ -3,6 +3,7 @@
 namespace App\Services;
 use Http;
 use RuntimeException;
+use Str;
 class GeoResolverService
 {
     // Your service methods go here
@@ -15,6 +16,27 @@ class GeoResolverService
      */
     public function fromShortUrl(string $shortUrl): array
     {
+
+
+        $parsed = parse_url($shortUrl);
+        parse_str($parsed['query'] ?? '', $query);
+
+        if (
+            isset($parsed['host'], $query['q']) &&
+            Str::contains($parsed['host'], 'maps.google.com') &&
+            preg_match('/^-?\d+\.\d+,-?\d+\.\d+$/', $query['q'])
+        ) {
+            [$lat, $lng] = explode(',', $query['q']);
+
+            $address = $this->reverseGeocode($lat, $lng);
+
+            return [
+                'lat'     => (float) $lat,
+                'lng'     => (float) $lng,
+                'address' => $address,
+            ];
+        }
+
         // 1) HEAD to get the redirect location
         $resp = Http::withOptions(['allow_redirects' => false])
                     ->head($shortUrl);
