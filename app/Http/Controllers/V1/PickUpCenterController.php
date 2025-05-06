@@ -193,7 +193,7 @@ class PickUpCenterController extends Controller
             $order->merchant_code = $order->merchant->code;
             $order->merchant_code = $order->merchant->code;
             $order->default = [
-                'cod' => $order->merchant->cod ? 1:0,
+                'cod' => $order->merchant->cod ? "1":"0",
                 'code' => $order->merchant->merchantPriceList?->zone_code
             ];
             if(!$order->product_type) $order->product_type = 'Others';

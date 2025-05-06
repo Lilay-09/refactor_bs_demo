@@ -477,8 +477,6 @@ Route::middleware(['jwt','localize','userAccess:admin'])->prefix('admin/v1/{lang
     });
 
 
-
-
     Route::prefix('setting')->group(function(){
         Route::prefix('option')->group(function(){
             Route::get('merchant/{id}/address',[GeneralSettingController::class,'getMerchantLocation']);

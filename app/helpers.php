@@ -923,8 +923,13 @@ class Helper{
     static function isShortGoogleMapUrl($url){
         $parsed = parse_url($url);
 
-        return isset($parsed['host']) &&
-            Str::contains($parsed['host'], 'maps.app.goo.gl');
+        return isset($parsed['host']) && (
+            Str::contains($parsed['host'], 'maps.app.goo.gl') ||
+            Str::contains($parsed['host'], 'maps.google.com')
+        );
+
+        // return isset($parsed['host']) &&
+        //     Str::contains($parsed['host'], 'maps.app.goo.gl');
     }
 
     static function enumValuesRule(string $enumClass)
