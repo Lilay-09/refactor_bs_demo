@@ -247,7 +247,7 @@ class ZoneController extends Controller
         ->select(['id','parent_id','identity','zone_name','zone_code'])
         ->get()->keyBy('id');
         $subZones = Zone::where('is_deleted',0)->whereIn('parent_id',$zoneIds)
-        ->select('id')->get()->keyBy('id');
+        ->select('id','parent_id')->get()->keyBy('id');
         // get SubZone id
         $clSubZOne = clone $subZones;
         $subZoneIds = $clSubZOne->keys();
@@ -257,10 +257,9 @@ class ZoneController extends Controller
         ->get()->keyBy('zone_id');
         $userSubZones = UserSubZone::whereIn('zone_id',$subZoneIds)
         ->select('id','create_uid','zone_id')
+        ->with(['zone:id,parent_id'])
         ->get()->keyBy('zone_id');
-        // return $userSubZones;
-        // $remainingSubZoneIds = array_column($subZones, 'zone_id');
-        // return $remainingSubZoneIds;
+
         $setDriverZoneArr = [];
         $insertDriverZoneArr = [];
         $setDriverSubZone = [];
@@ -273,6 +272,7 @@ class ZoneController extends Controller
             'is_deleted' => false,
             'update_uid' => $userId
         ];
+        // return $subZones;
 
         foreach($assignZones as $zone){
             $zId = $zone['zone_id'];
@@ -286,11 +286,19 @@ class ZoneController extends Controller
                 return ApiResponse::ValidateFail('please select parent zone, '.$parentName.' is the sub zone!');
             }
             $extraFields['parent_id'] = $zId;
-            $callbackChildren = $this->validChildZones($zone['children'],$subZones,$userSubZones,$extraFields,$parentName);
+
+            $childrenWithParent = array_map(function ($childZoneId) use ($zId) {
+                return [
+                    'zone_id' => $childZoneId,
+                    'parent_id' => $zId,
+                ];
+            }, $zone['children']);
+
+            $callbackChildren = $this->validChildZones($childrenWithParent,$subZones,$userSubZones,$extraFields,$parentName);
             if($callbackChildren->error){
                 return ApiResponse::flex($callbackChildren);
             }
-            $setDriverSubZone = $callbackChildren->data['children'];
+            $setDriverSubZone[$zId] = $callbackChildren->data['children'];
             $zoneData = $userZones[$zId] ?? null;
             $setData = [
                 'user_id' => $inputs['driver_id'],
@@ -311,11 +319,6 @@ class ZoneController extends Controller
 
         }
 
-        Log::info(json_encode($setDriverSubZone));
-        // return $setDriverZoneArr;
-        // return $setDriverSubZone;
-        // Log::info(json_encode($setData));
-        // // return $updateSubZoneArr;
         DB::transaction(function () use (&$setDriverZoneArr,&$insertDriverZoneArr, &$setDriverSubZone) {
             // Step 1: Upsert UserZone first
 
@@ -341,42 +344,37 @@ class ZoneController extends Controller
             $userZoneMap = UserZone::whereIn('zone_id', $zoneIds)
                 ->select('id', 'zone_id')
                 ->get()
-                ->keyBy('id');
+                ->keyBy('zone_id');
 
-            // Log::info($userZoneMap);
-            // Step 3: Update user_zone_id in $setDriverSubZone
             $toInsert = [];
             $toUpdate = [];
-            // Log::info(json_encode($setDriverSubZone));
-            foreach ($setDriverSubZone as $row) {
-                $parentId = $row['parent_id'];
-                // Log::info($parentId);
-                unset($row['parent_id']);
-                if (isset($userZoneMap[$parentId])) {
-                    // Log::info($userZoneMap[$parentId]);
-                    $row['user_zone_id'] = $userZoneMap[$parentId]->id ?? null;
-                    if (!empty($row['id'])) {
-                        // $row['is_deleted'] = false;
-                        $toUpdate[] = $row;
-                    } else {
-                        unset($row['id']); // Make sure id is not passed
-                        $toInsert[] = $row;
+            $seenUpdateIds = [];
+
+            foreach ($setDriverSubZone as $parentId => $subZones) {
+                foreach ($subZones as $row) {
+                    if (isset($userZoneMap[$parentId])) {
+                        $row['user_zone_id'] = $userZoneMap[$parentId]->id;
+                        unset($row['parent_id'],$row['note']);
+                        if (!empty($row['id'])) {
+                            if (!in_array($row['id'], $seenUpdateIds)) {
+                                $seenUpdateIds[] = $row['id'];
+                                $toUpdate[] = $row;
+                            }
+                            // else skip if already added
+                        } else {
+                            unset($row['id']); // Make sure id is not passed
+                            $toInsert[] = $row;
+                        }
                     }
-
-                } else {
-                    // Log::info("zone_id $parentId not found in userZoneMap");
                 }
-
             }
 
             if (!empty($toInsert)) {
-                // Log::info("sdfsdf");
                 UserSubZone::insert($toInsert);
             }
 
             // update existing
             if (!empty($toUpdate)) {
-                // Log::info('sdfsdfs');
                 UserSubZone::upsert($toUpdate, ['id'], [
                     'id',
                     'user_zone_id',
@@ -395,42 +393,77 @@ class ZoneController extends Controller
 
     private function validChildZones(array $children,Collection $subZones,Collection $userSubZones,array $extraFields,string $parentName){
         $validChildren = [];
-        foreach ($children as $idx => $childId) {
+
+        foreach ($children as $idx => $child) {
+            $childId = $child['zone_id'];
+
             if (!isset($subZones[$childId])) {
                 return DataResponse::ValidateFail(__('messages.info', [
                     'info' => 'Sub Zone row('.($idx + 1).') not found by '.$parentName
                 ]));
             }
+
             $existingSubZone = $userSubZones[$childId] ?? null;
             $setData = [
                 'zone_id' => $childId,
                 'create_uid' => $existingSubZone?->create_uid ?? $extraFields['update_uid'],
             ];
-            if($existingSubZone) $extraFields['id'] = $existingSubZone?->id;
-            else $extraFields['id'] = null;
+
+            // Handle existing zone, set id in extra fields
+            if ($existingSubZone) {
+                $extraFields['id'] = $existingSubZone?->id;
+            } else {
+                $extraFields['id'] = null;
+            }
+
+            // Add valid child data
             $validChildren[] = array_merge(
                 $setData,
-                $extraFields,[
-                    'is_deleted' => false
-                ]
+                $extraFields,
+                ['is_deleted' => false]
             );
+
+            // Clean up after processing
             unset($extraFields['id']);
         }
-        $removedChildIds = array_diff($userSubZones->keys()->all(), $children);
-        foreach ($removedChildIds as $removedZoneId) {
-            $existing = $userSubZones[$removedZoneId];
-            // Log::info($existing);
-            $validChildren[] = array_merge(
-                [
-                    'id' => $existing->id,
-                    'zone_id' => $existing->zone_id,
-                    'create_uid' => $existing->create_uid,
-                ],
-                $extraFields,
-                ['is_deleted' => true] // override
-            );
+
+        // Now handle removed subzones where parent_id does not match
+        $removed = collect($userSubZones)->filter(function ($subZone) use ($children, $extraFields) {
+            // Flag to indicate if match is found
+            $isMatched = false;
+
+            foreach ($children as $child) {
+                if (
+                    $child['zone_id'] == $subZone->zone_id &&
+                    $child['parent_id'] == ($subZone->zone->parent_id ?? null)
+                ) {
+                    $isMatched = true; // Match found
+                    break;
+                }
+            }
+
+            // Remove if there's no match or parent_id doesn't match
+            return !$isMatched || $subZone->zone->parent_id != $extraFields['parent_id'];
+        });
+
+        foreach ($removed as $existing) {
+            // Only add to validChildren if parent_id matches
+            if ($existing->zone->parent_id == $extraFields['parent_id']) {
+                $data = array_merge(
+                    [
+                        'id' => $existing->id,
+                        'zone_id' => $existing->zone_id,
+                        'create_uid' => $existing->create_uid,
+                    ],
+                    $extraFields,
+                    ['is_deleted' => true]
+                );
+
+                $data['note'] = 'Removed: unmatched zone_id/parent_id pair';
+                $validChildren[] = $data;
+            }
         }
-        // Log::info($removedChildIds);
+
         return DataResponse::JsonResult([
             'children' => $validChildren,
         ]);

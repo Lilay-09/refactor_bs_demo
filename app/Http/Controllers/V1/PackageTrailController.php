@@ -197,7 +197,7 @@ class PackageTrailController extends Controller
         $inputs['billed_kg'] = $actualKg;
         $inputs['status_id'] = $package->status_id; //** add warehouse */
         $zoneCode = $inputs['zone_code'] ?? $package->zone_code;
-        $inputs['zone_name'] = Zone::where('zone_code', $zoneCode)->value('zone_name');
+        $inputs['zone_name'] = Zone::where('zone_code', $zoneCode)->where('is_deleted',0)->value('zone_name');
         $extra_charge = $inputs['extra_charge'] ?? 0;
         $calPrice = GeneralSettingService::calculatePackageFee($zoneCode,$price,$billedKg,$actualKg,$payer,$cod,$extra_charge,$user,$taxiFee,$package->merchant_id);
         if($calPrice->error) return $calPrice;
