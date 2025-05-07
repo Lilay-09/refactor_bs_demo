@@ -344,7 +344,7 @@ class PickupCenterService
         // $inputs['tracking_notes'] = '['.$user->id.']Admin ('.$user->user_name.') add new package ('.date('d-M-Y h:i:s A').')';
         if($user->account_type == 'driver') $inputs['booking_channel'] = 'driver';
         if($user->account_type == 'merchant') $inputs['booking_channel'] = 'merchant';
-        $zoneName = Zone::where('zone_code',$zoneCode)->value('zone_name');
+        $zoneName = Zone::where('zone_code',$zoneCode)->take(1)->where('is_deleted',0)->value('zone_name');
         $inputs['zone_name'] = $zoneName;
         $extraCharge = $inputs['extra_charge'] ?? 0;
         $calPrice = GeneralSettingService::calculatePackageFee($zoneCode,$price,$billedKg,$actualKg,$payer,$cod,$extraCharge,$user,$taxiFee,$inputs['merchant_id']);
