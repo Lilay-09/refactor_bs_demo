@@ -416,47 +416,6 @@ class PickUpCenterController extends Controller
         };
         $req->per_page = $count;
         return ApiResponse::PaginationV1($qP,$req,null,[],250,$clbMapper);
-        // $qI = OrderImage::where('order_id',$orderId)->selectRaw('id as photo_id,photo_file_name');
-        // $pkgCount = $qP->count();
-        // $imgCount = $qI->count();
-        // $images = $qI->get();
-        // foreach($packages as $pkg){
-        //     $pkg->status_code = $pkg->status->name;
-        //     unset($pkg->status);
-        // }
-        // $data = [];
-        // $skipIds = [];
-        // if($imgCount >= $pkgCount){
-        //     foreach($images as $index=>$img){
-        //         $img->image_url = Helper::getImageUrl($img->photo_file_name,$user->company_id,'order_image');
-        //         if ($index < $pkgCount) {
-        //             $img->package_id = $packages[$index]->package_id;
-        //         } else {
-        //             $img->package_id = null;
-        //         }
-        //         unset($img->photo_file_name);
-        //     }
-        //     $data = $images;
-        // }else{
-        //     foreach($packages as $index=>$pkg){
-        //         if ($index < $imgCount) {
-        //             $pkg->image_url = Helper::getImageUrl($images[$index]->package_id,$user->company_id,'order_image');
-        //         } else {
-        //             $pkg->image_url = null;
-        //         }
-        //         // foreach($images as $img){
-        //         //     $img->image_url = null;
-        //         //     $img->image_url = Helper::getImageUrl($img->photo_file_name,$user->company_id,'order_image');
-        //         //     $img->package_id = $pkg->package_id;
-        //         // }
-        //     }
-        //     $data = $packages;
-        // }
-        // foreach($packages as $package){
-        //     $package->status_code = $package->status->name;
-        //     unset($package->status);
-        // }
-
     }
 
     public function updatePackage(Request $req){
