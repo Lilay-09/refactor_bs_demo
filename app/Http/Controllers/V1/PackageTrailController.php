@@ -293,6 +293,7 @@ class PackageTrailController extends Controller
         if($driver){
             $package->driver_name = $driver->user_name;
         }
+        $package->receiver_address = $package->receiver_address ?? $package->zone_name;
         $package->merchant_name = $package->merchant->user_name;
         $package->merchant_phone = $package->merchant->phone;
         $package->delivery_fee = $package->delivery_fee + $package->taxi_fee + $package->extra_charge;//($package->cod ? $package->price : 0);
@@ -343,6 +344,7 @@ class PackageTrailController extends Controller
             if($driver){
                 $package->driver_name = $driver->user_name;
             }
+            $package->receiver_address = $package->receiver_address ?? $package->zone_name;
             $package->merchant_name = $package->merchant->user_name;
             $package->merchant_phone = $package->merchant->phone;
             $package->delivery_fee = $package->delivery_fee + $package->taxi_fee + $package->extra_charge;//($package->cod ? $package->price : 0);

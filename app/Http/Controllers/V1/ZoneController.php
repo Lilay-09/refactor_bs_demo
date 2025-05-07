@@ -233,6 +233,7 @@ class ZoneController extends Controller
             'driver_id' => 'required|int',
             'zones' => 'required|array'
         ]);
+        // Log::info($req->all());
         if($validator->fails()) return ApiResponse::ValidateFail($validator->errors()->first());
         $inputs = $validator->validated();
         $assignZones = $inputs['zones'];
@@ -261,6 +262,7 @@ class ZoneController extends Controller
         // $remainingSubZoneIds = array_column($subZones, 'zone_id');
         // return $remainingSubZoneIds;
         $setDriverZoneArr = [];
+        $insertDriverZoneArr = [];
         $setDriverSubZone = [];
         $branchId = $user->branch_id;
         $userId = $user->id;
@@ -271,6 +273,7 @@ class ZoneController extends Controller
             'is_deleted' => false,
             'update_uid' => $userId
         ];
+
         foreach($assignZones as $zone){
             $zId = $zone['zone_id'];
             if(!isset($zones[$zId])){
@@ -300,58 +303,82 @@ class ZoneController extends Controller
             ];
             if($zoneData){
                 $setData['id'] = $zoneData->id;
+                $setDriverZoneArr[] = $setData;
+            }else{
+                unset($setData['id']);
+                $insertDriverZoneArr[] = $setData;
             }
-            $setDriverZoneArr[] = $setData;
+
         }
+
+        Log::info(json_encode($setDriverSubZone));
         // return $setDriverZoneArr;
         // return $setDriverSubZone;
+        // Log::info(json_encode($setData));
         // // return $updateSubZoneArr;
-        DB::transaction(function () use (&$setDriverZoneArr, &$setDriverSubZone) {
+        DB::transaction(function () use (&$setDriverZoneArr,&$insertDriverZoneArr, &$setDriverSubZone) {
             // Step 1: Upsert UserZone first
-            UserZone::upsert($setDriverZoneArr, ['id'], [
-                'zone_id',
-                'is_deleted',
-                'create_uid',
-                'update_uid',
-                'branch_id',
-                'company_id',
-            ]);
+
+            if(isset($upSetData['id'])){
+                UserZone::upsert($setDriverZoneArr, ['id'],[
+                    'id',
+                    'user_id',
+                    'zone_id',
+                    'is_deleted',
+                    'create_uid',
+                    'update_uid',
+                    'branch_id',
+                    'company_id',
+                ]);
+            }else{
+                UserZone::insert($insertDriverZoneArr);
+            }
 
             // Step 2: Get latest UserZone records to map zone_id → id
-            $zoneIds = array_column($setDriverZoneArr, 'zone_id');
+            $combinedZoneArr = array_merge($setDriverZoneArr, $insertDriverZoneArr);
+            $zoneIds = array_column($combinedZoneArr, 'zone_id');
+            // $zoneIds = array_column($setDriverZoneArr, 'zone_id');
             $userZoneMap = UserZone::whereIn('zone_id', $zoneIds)
                 ->select('id', 'zone_id')
                 ->get()
-                ->keyBy('zone_id');
+                ->keyBy('id');
+
             // Log::info($userZoneMap);
             // Step 3: Update user_zone_id in $setDriverSubZone
             $toInsert = [];
             $toUpdate = [];
-            foreach ($setDriverSubZone as &$row) {
+            // Log::info(json_encode($setDriverSubZone));
+            foreach ($setDriverSubZone as $row) {
                 $parentId = $row['parent_id'];
+                // Log::info($parentId);
                 unset($row['parent_id']);
                 if (isset($userZoneMap[$parentId])) {
-                    // Log::info('Found zone_id in userZoneMap');
+                    // Log::info($userZoneMap[$parentId]);
                     $row['user_zone_id'] = $userZoneMap[$parentId]->id ?? null;
                     if (!empty($row['id'])) {
+                        // $row['is_deleted'] = false;
                         $toUpdate[] = $row;
                     } else {
                         unset($row['id']); // Make sure id is not passed
                         $toInsert[] = $row;
                     }
+
                 } else {
-                    Log::info("zone_id $parentId not found in userZoneMap");
+                    // Log::info("zone_id $parentId not found in userZoneMap");
                 }
 
             }
 
             if (!empty($toInsert)) {
+                // Log::info("sdfsdf");
                 UserSubZone::insert($toInsert);
             }
 
             // update existing
             if (!empty($toUpdate)) {
+                // Log::info('sdfsdfs');
                 UserSubZone::upsert($toUpdate, ['id'], [
+                    'id',
                     'user_zone_id',
                     'zone_id',
                     'is_deleted',
@@ -383,7 +410,9 @@ class ZoneController extends Controller
             else $extraFields['id'] = null;
             $validChildren[] = array_merge(
                 $setData,
-                $extraFields
+                $extraFields,[
+                    'is_deleted' => false
+                ]
             );
             unset($extraFields['id']);
         }

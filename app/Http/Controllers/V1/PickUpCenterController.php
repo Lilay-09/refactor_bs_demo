@@ -489,6 +489,7 @@ class PickUpCenterController extends Controller
             }
             $package->merchant_name = $package->merchant->user_name;
             $package->merchant_phone = $package->merchant->phone;
+            $package->receiver_address = $package->receiver_address ?? $package->zone_name;
             $package->delivery_fee = $package->delivery_fee + $package->taxi_fee + $package->extra_charge;//($package->cod ? $package->price : 0);
             $package->base_fee = $package->payer == 'receiver' ? $package->delivery_fee:0;
             $package->created_by = $package->updateUser->user_name;
