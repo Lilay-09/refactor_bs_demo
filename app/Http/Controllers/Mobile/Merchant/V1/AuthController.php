@@ -267,7 +267,7 @@ class AuthController extends Controller
     public function resendOtp(Request $req){
         $phone = $req->phone;
         $validPhone = Helper::formatPhoneNumber($phone);
-        $user = User::where('phone',$phone)->orderByDesc('id')->select('id','otp')->first();
+        $user = User::where('phone',$phone)->where('account_type','merchant')->orderByDesc('id')->select('id','otp')->first();
         $otp = Helper::newOTP();
         $message = __('messages.info',[
                 'info' => 'Your otp '.$otp,
