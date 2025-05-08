@@ -302,25 +302,27 @@ class UserService
             }
             if($user_class == 'merchant') {
                 $userShopService = new UserShopService();
-                foreach ($req->shops as $shop) {
-                    // Clone the original request to avoid mutation
-                    $shopReq = new Request([
-                        'owner_id'        => $userId,
-                        'name_en'         => $shop['shop_name_en'] ?? null,
-                        'name_km'         => $shop['shop_name_km'] ?? null,
-                        'shop_type'       => $shop['shop_type'] ?? $req->input('business_type'),
-                        'product_type_id' => $shop['product_type_id'] ?? null,
-                        'phone' => $shop['phone'] ?? null,
-                        'est_pcs' => $shop['est_pcs'] ?? 0,
-                        "city" =>  $shop['city'] ?? null,
-                        "district" => $shop['district'] ?? null,
-                        "commune" => $shop['commune'] ?? null,
-                        'address' => $shop['address'] ?? null
-                    ]);
+                if(!empty($req->shops)){
+                    foreach ($req->shops as $shop) {
+                        // Clone the original request to avoid mutation
+                        $shopReq = new Request([
+                            'owner_id'        => $userId,
+                            'name_en'         => $shop['shop_name_en'] ?? null,
+                            'name_km'         => $shop['shop_name_km'] ?? null,
+                            'shop_type'       => $shop['shop_type'] ?? $req->input('business_type'),
+                            'product_type_id' => $shop['product_type_id'] ?? null,
+                            'phone' => $shop['phone'] ?? null,
+                            'est_pcs' => $shop['est_pcs'] ?? 0,
+                            "city" =>  $shop['city'] ?? null,
+                            "district" => $shop['district'] ?? null,
+                            "commune" => $shop['commune'] ?? null,
+                            'address' => $shop['address'] ?? null
+                        ]);
 
-                    // Save the shop using your service
-                    $saveShop = $userShopService->saveShop($shopReq, $user);
-                    if($saveShop->error) return $saveShop;
+                        // Save the shop using your service
+                        $saveShop = $userShopService->saveShop($shopReq, $user);
+                        if($saveShop->error) return $saveShop;
+                    }
                 }
 
                 // foreach($req->shops as $shop){
