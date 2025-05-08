@@ -89,10 +89,11 @@ class HomeController extends Controller
             SUM(CASE WHEN cod = TRUE THEN price ELSE 0 END) as total_cod,
             SUM(CASE WHEN status_id = 6 THEN 1 ELSE 0 END) as on_delivery,
             SUM(CASE WHEN status_id = 9 AND delivered_datetime BETWEEN ? AND ? THEN 1 ELSE 0 END) as success,
-            SUM(CASE WHEN status_id IN (10, 19) AND failed_datetime BETWEEN ? AND ? THEN 1 ELSE 0 END) as fail,
-            SUM(CASE WHEN status_id = 11 AND returned_datetime BETWEEN ? AND ? THEN 1 ELSE 0 END) as return
-        ', [$dateaAgo, $today, $dateaAgo, $today, $dateaAgo, $today])
+            SUM(CASE WHEN status_id = 11 AND returned_datetime BETWEEN ? AND ? THEN 1 ELSE 0 END) as return,
+            SUM(CASE WHEN status_id IN (10, 19) THEN 1 ELSE 0 END) as fail
+        ', [$dateaAgo, $today, $dateaAgo, $today])
         ->first();
+        //SUM(CASE WHEN status_id IN (10, 19) AND failed_datetime BETWEEN ? AND ? THEN 1 ELSE 0 END) as fail
 
         // Calculate total counts by summing the values from both queries
         $totalCount = $orderCounts->pending + $orderCounts->pick + $packageCounts->on_delivery +
@@ -100,13 +101,13 @@ class HomeController extends Controller
 
         // Build the response object
         $obj = [
-            'pending' => $orderCounts->pending,
-            'pick' => $orderCounts->pick,
-            'on_delivery' => $packageCounts->on_delivery,
-            'success' => $packageCounts->success,
-            'fail' => $packageCounts->fail,
-            'return' => $packageCounts->return,
-            'total' => $totalCount,
+            'pending' => $orderCounts->pending ?? 0,
+            'pick' => $orderCounts->pick ?? 0,
+            'on_delivery' => $packageCounts->on_delivery ?? 0,
+            'success' => $packageCounts->success ?? 0,
+            'fail' => $packageCounts->fail ?? 0,
+            'return' => $packageCounts->return ?? 0,
+            'total' => $totalCount ?? 0,
             'total_cod' => Helper::getNumber($packageCounts->total_cod,2),
             'date' => Helper::getDateTime('d-M-Y'),
         ];

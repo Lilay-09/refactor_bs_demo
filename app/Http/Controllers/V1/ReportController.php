@@ -138,7 +138,7 @@ class ReportController extends Controller
                 $item->merchant_phone = $item->merchant->phone;
                 $item->driver_name = $item->driver?->user_name;
                 $item->driver_phone = $item->driver?->phone;
-                $item->cod_fee = $item->price;
+                $item->cod_fee = $item->cod ? $item->price:0;
                 $item->fee = $item->delivery_fee + $item->extra_charge;//PickupCenterService::getFees($item->cod,$item->delivery_fee,$item->additional_fee,$item->extra_charge);
                 unset(
                     $item->status,$item->cod,$item->merchant,$item->driver,$item->driver_id,
