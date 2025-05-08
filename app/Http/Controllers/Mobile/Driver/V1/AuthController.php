@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Services\CloudMessagingService;
 use App\Services\Mobile\AuthService;
 use App\Services\UserService;
+use Hash;
 use Helper;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
@@ -35,7 +36,7 @@ class AuthController extends Controller
             $q->where('email', $account)
             // ->orWhere('phone', $account)
             ->orWhere('login_name', $account);
-        })->selectRaw('photo_file_name,email,phone,id,system_admin,lock,company_id,account_type,login_name,delete_account')->first();
+        })->selectRaw('photo_file_name,email,phone,id,password,system_admin,lock,company_id,account_type,login_name,delete_account')->first();
         if(!$user) return  ApiResponse::NotFound('Invalid Username or Password');
         $systemAdmin = $user->system_admin ?? false;
         $isLock = $user->lock ?? false;
@@ -59,12 +60,21 @@ class AuthController extends Controller
         if($user->email == $account) $credentials['email'] = $account;
         else if($user->phone == $account) $credentials['phone'] = $account;
         else if($user->login_name == $account) $credentials['login_name'] = $account;
+
+        if (!$user || !Hash::check($credentials['password'], $user->password)) {
+            return ApiResponse::Unauthorized('Invalid Credentials');
+        }
         try {
             $ttl = time() + (int)config('app.driver_jwt_ttl');
-            if(!$token = JWTAuth::attempt($credentials)) {
-                return ApiResponse::Unauthorized('Invalid Username or Password');
-            }
-            $token = JWTAuth::customClaims(['exp'=>$ttl,'type'=>'access','iss' => ''])->fromUser($user);
+            $token = JWTAuth::customClaims([
+                'exp' => $ttl,
+                'type' => 'access',
+                'iss' => '',
+            ])->fromUser($user);
+            // if(!$token = JWTAuth::attempt($credentials)) {
+            //     return ApiResponse::Unauthorized('Invalid Username or Password');
+            // }
+            // $token = JWTAuth::customClaims(['exp'=>$ttl,'type'=>'access','iss' => ''])->fromUser($user);
         } catch (JWTException $e) {
             return ApiResponse::Unauthorized();
         }

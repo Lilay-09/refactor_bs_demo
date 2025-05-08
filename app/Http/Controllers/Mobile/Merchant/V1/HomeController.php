@@ -82,7 +82,6 @@ class HomeController extends Controller
         ')
         ->first();
 
-
     $packageCounts = Package::where('merchant_id', $user->id)
         ->where('is_deleted', 0)
         ->selectRaw('
@@ -100,13 +99,13 @@ class HomeController extends Controller
 
         // Build the response object
         $obj = [
-            'pending' => $orderCounts->pending,
-            'pick' => $orderCounts->pick,
-            'on_delivery' => $packageCounts->on_delivery,
-            'success' => $packageCounts->success,
-            'fail' => $packageCounts->fail,
-            'return' => $packageCounts->return,
-            'total' => $totalCount,
+            'pending' => $orderCounts->pending ?? 0,
+            'pick' => $orderCounts->pick ?? 0,
+            'on_delivery' => $packageCounts->on_delivery ?? 0,
+            'success' => $packageCounts->success ?? 0,
+            'fail' => $packageCounts->fail ?? 0,
+            'return' => $packageCounts->return ?? 0,
+            'total' => $totalCount ?? 0,
             'total_cod' => Helper::getNumber($packageCounts->total_cod,2),
             'date' => Helper::getDateTime('d-M-Y'),
         ];

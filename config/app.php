@@ -20,8 +20,7 @@ return [
     'driver_app_id' => env('DRIVER_APPID'),
     'driver_jwt_ttl' => env('DRIVER_JWT_TTL',31536000),
     'merchant_jwt_ttl' => env('MERCHANT_JWT_TTL',78840000),
-
-
+    'plasgate_sender' => env('PLASGATE_SENDER','PlasGateUAT'),
     'use_redis' => env('USE_REDIS','false'),
     /*
     |--------------------------------------------------------------------------

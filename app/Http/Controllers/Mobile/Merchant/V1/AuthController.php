@@ -12,6 +12,7 @@ use App\Services\Mobile\AuthService;
 use App\Services\UserService;
 use App\Services\UserShopService;
 use DB;
+use Hash;
 use Helper;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
@@ -46,7 +47,7 @@ class AuthController extends Controller
             $q->where('email', $account)
             ->orWhere('phone', $account)
             ->orWhere('login_name', $account);
-        })->selectRaw('photo_file_name,email,phone,id,system_admin,lock,company_id,account_type,login_name,delete_account,register_status,register_channel')->first();
+        })->selectRaw('photo_file_name,email,phone,id,password,system_admin,lock,company_id,account_type,login_name,delete_account,register_status,register_channel')->first();
         $systemAdmin = $user->system_admin ?? false;
         $isLock = $user->lock ?? false;
         if(!$user) return  ApiResponse::NotFound('Invalid Username or password');
@@ -68,12 +69,21 @@ class AuthController extends Controller
         if($user->email == $account) $credentials['email'] = $account;
         else if($user->phone == $account) $credentials['phone'] = $account;
         else if($user->login_name == $account) $credentials['login_name'] = $account;
+
+        if (!$user || !Hash::check($credentials['password'], $user->password)) {
+            return ApiResponse::Unauthorized('Invalid Credentials');
+        }
         try {
             $ttl = time() + (int)config('app.merchant_jwt_ttl');
-            if(!$token = JWTAuth::attempt($credentials)) {
-                return ApiResponse::Unauthorized('invalid_credentials');
-            }
-            $token = JWTAuth::customClaims(['exp' => $ttl,'type'=>'access','iss' => ''])->fromUser($user);
+            $token = JWTAuth::customClaims([
+                'exp' => $ttl,
+                'type' => 'access',
+                'iss' => '',
+            ])->fromUser($user);
+            // if(!$token = JWTAuth::attempt($credentials)) {
+            //     return ApiResponse::Unauthorized('invalid_credentials');
+            // }
+            // $token = JWTAuth::customClaims(['exp' => $ttl,'type'=>'access','iss' => ''])->fromUser($user);
         } catch (JWTException $e) {
             Log::error($e->getTraceAsString());
             return ApiResponse::Unauthorized();
@@ -113,10 +123,10 @@ class AuthController extends Controller
         $phone = $inputs['phone'];
         //* Cache User information
         $existPhone = User::where('is_deleted',0)->where('account_type','merchant')->where('phone',$phone)->first();
-        // if($existPhone && $existPhone->register_status != 'in-progress') return ApiResponse::Duplicated(__('messages.info',[
-        //     'info' => 'This phone number is already taken',
-        //     'khInfo' => 'លេខទូរស័ព្ទនេះបានប្រើរួច'
-        // ]));
+        if($existPhone && $existPhone->register_status != 'in-progress') return ApiResponse::Duplicated(__('messages.info',[
+            'info' => 'This phone number is already taken',
+            'khInfo' => 'លេខទូរស័ព្ទនេះបានប្រើរួច'
+        ]));
         $maxAttempts = 3; // Maximum allowed attempts
         $lockoutTime = 3600; // Lockout duration in seconds (60 minute)
 
@@ -165,7 +175,7 @@ class AuthController extends Controller
                 'khInfo' => 'លេខសំងាត់ '.$otp
         ]);
 
-        $smsInfo = AppSetting::sendSms("JS Express",$phone,$message);
+        $smsInfo = AppSetting::sendSms(config('app.plasgate_sender'),$phone,$message);
         if($smsInfo->error) return ApiResponse::ValidateFail('Error sending SMS, Please try again later.');
         return ApiResponse::JsonResult([
             'phone' => $phone,
@@ -199,8 +209,55 @@ class AuthController extends Controller
         return ApiResponse::JsonResult(null,'Success');
     }
 
-    public function forgetPassword(){
+    public function forgetPassword(Request $req){
+        $phone = $req->phone;
+        $found = User::where('is_deleted',0)->where('phone',$phone)
+        ->where('account_type','merchant')
+        ->where('register_status','registered')
+        ->where('lock',false)
+        ->first();
+        if(!$found) {
+            return ApiResponse::ValidateFail(__('messages.not_found'));
+        }
+        // return $found;
+        $otp = Helper::newOTP();
+        $validPhone = Helper::formatPhoneNumber($phone);
+        $found->update([
+            'otp' => $otp
+        ]);
+        $otpContent = __('messages.info',[
+                'info' => 'Your otp '.$otp,
+                'khInfo' => 'លេខសំងាត់ '.$otp
+        ]);
+        $otpSend = AppSetting::sendSms(config('app.plasgate_sender'),$validPhone,$otpContent);
+        if($otpSend->error){
+            return ApiResponse::ValidateFail(__('messages.try_again'));
+        }
+        return ApiResponse::JsonResult(null,'sent');
+    }
 
+    public function forgotPasswordReset(Request $req){
+        $validate = validator($req->all(),[
+            'phone' => 'required|string',
+            'password' => 'required|string|min:6',
+            'confirm_password' => 'required|string|min:6'
+        ]);
+        if($validate->fails()) return ApiResponse::ValidateFail($validate->errors()->first());
+        $inputs = $validate->validated();
+        $phone = $inputs['phone'];
+        $pwd = $inputs['password'];
+        $cfPwd = $inputs['confirm_password'];
+        $found = User::where('is_deleted',0)->where('phone',$phone)->where('account_type','merchant')->first();
+        if(!$found) return ApiResponse::NotFound();
+        if($pwd !== $cfPwd) return ApiResponse::ValidateFail(__('messages.error',['info' => 'Password not match !','khInfo' => 'លេខសំងាត់មិនត្រូវគ្នា']));
+        // $hpwd = Hash::make($pwd);
+        if($found->otp) {
+            return ApiResponse::ValidateFail(__('messages.info',['info' => 'Failed']));
+        }
+        // Log::info('Old password: ' . $found->getOriginal('password'));
+        $found->password = Hash::make($pwd);
+        $found->save();
+        return ApiResponse::JsonResult(null,'Success');
     }
 
     public function verifyOTP(Request $req){
@@ -208,9 +265,19 @@ class AuthController extends Controller
     }
 
     public function resendOtp(Request $req){
-        $validPhone = Helper::formatPhoneNumber($req->phone);
+        $phone = $req->phone;
+        $validPhone = Helper::formatPhoneNumber($phone);
+        $user = User::where('phone',$phone)->where('account_type','merchant')->orderByDesc('id')->select('id','otp')->first();
+        $otp = Helper::newOTP();
+        $message = __('messages.info',[
+                'info' => 'Your otp '.$otp,
+                'khInfo' => 'លេខសំងាត់ '.$otp
+        ]);
+        $user->update([
+            'otp' => $otp
+        ]);
         // return $validPhone;
-        return ApiResponse::flex(AppSetting::sendSms('PlasGateUAT',$validPhone,'merchant'));
+        return ApiResponse::flex(AppSetting::sendSms(config('app.plasgate_sender'),$validPhone,$message));
     }
 
     public function subscribeTopics(Request $req){

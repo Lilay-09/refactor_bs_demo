@@ -380,9 +380,10 @@ class PickUpCenterController extends Controller
     public function getOrderImages(Request $req){
         $orderId = $req->order_id;
         $user = UserService::getAuthUser();
-        $orderImages = OrderImage::where('order_id',$orderId)->selectRaw('photo_file_name')->get();
+        $orderImages = OrderImage::where('order_id',$orderId)->selectRaw('photo_file_name,created_at')->get();
         foreach($orderImages as $img){
-            $img->image_url = Helper::getImageUrl($img->photo_file_name,$user->company_id,'order_image');
+            $imageAt = Helper::dateYMD($img->created_at);
+            $img->image_url = Helper::getImageUrl($img->photo_file_name,$user->company_id,'order_image',$imageAt);
         }
         return ApiResponse::JsonResult($orderImages);
     }

@@ -388,12 +388,15 @@ class ReusableService
             ->with(['driver:id,user_name,phone','activeDeliveryPackage:package_id,id,delivery_id','activeDeliveryPackage.delivery:id,fleet_tracking_number']) // Limit driver fields
             ->where('status_id', $statusId)
             ->where('is_deleted', 0)
-            ->whereBetween($dateField, [$dateAgo, $today])
+
             ->select([
                 'id', 'merchant_id', 'receiver_phone', 'receiver_address', 'taxi_fee',
                 'cod', 'price', 'delivery_fee', 'remarks', 'driver_id',
                 'arrive_warehouse_datetime',$dateField
             ]);
+        if(!in_array($statusId,[9,19])){
+            $packagesQuery->whereBetween($dateField, [$dateAgo, $today]);
+        }
 
         // Format package output
         $callback = function ($package) use ($lang, $attachmentsLookup, $statusNames, $statusId) {
