@@ -127,7 +127,7 @@ class AuthController extends Controller
             'info' => 'This phone number is already taken',
             'khInfo' => 'លេខទូរស័ព្ទនេះបានប្រើរួច'
         ]));
-        $maxAttempts = 3; // Maximum allowed attempts
+        $maxAttempts = 50; // Maximum allowed attempts
         $lockoutTime = 3600; // Lockout duration in seconds (60 minute)
 
         // Check if the user is locked out
@@ -196,7 +196,7 @@ class AuthController extends Controller
         $found = User::where('is_deleted',0)->where('phone',$phone)->where('account_type','merchant')->first();
         if(!$found) return ApiResponse::NotFound();
         if($pwd !== $cfPwd) return ApiResponse::ValidateFail(__('messages.error',['info' => 'Password not match !','khInfo' => 'លេខសំងាត់មិនត្រូវគ្នា']));
-        $hpwd = \Hash::make($pwd);
+        $hpwd = Hash::make($pwd);
         if($found->otp) return ApiResponse::ValidateFail(__('messages.info',['info' => 'Failed']));
         if($found->has_account) return ApiResponse::Duplicated();
         $found->update([
