@@ -114,7 +114,7 @@ class AuthController extends Controller
 
         $validate = validator($req->all(),[
             'phone' => 'required|string',
-            'full_name' => 'required|string',
+            'full_name' => 'nullable|string',
             'address' => 'nullable|string|max:250',
             'business_type' => 'nullable|string|max:50',
         ]);
@@ -157,7 +157,7 @@ class AuthController extends Controller
         $otp = Helper::newOTP();
 
         $newReq = new Request([
-            'user_name' => $inputs['full_name'],
+            'user_name' => $inputs['full_name'] ?? null,
             'phone' => $phone,
             'address' => $inputs['address'] ?? null,
             'account_type' => 'merchant',
@@ -185,6 +185,7 @@ class AuthController extends Controller
     public function registrationPassword(Request $req){
         $validate = validator($req->all(),[
             'phone' => 'required|string',
+            'username' => 'required|string|max:100',
             'password' => 'required|string|min:6',
             'confirm_password' => 'required|string|min:6',
         ]);
@@ -200,6 +201,7 @@ class AuthController extends Controller
         if($found->otp) return ApiResponse::ValidateFail(__('messages.info',['info' => 'Failed']));
         if($found->has_account) return ApiResponse::Duplicated();
         $found->update([
+            'user_name' => $inputs['username'],
             'login_name' => $phone,
             'password' => $hpwd,
             'has_account' => true,
