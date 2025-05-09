@@ -1145,17 +1145,18 @@ class ReportController extends Controller
             $finishDate = $item->failed_datetime;
             if($item->status_id == 9 || $item->status_id == 11) {
                 $finishDate = $item->delivered_datetime;
-                $item->delivery_remarks = '';
+                // $item->delivery_remarks = '';
             }
             if($item->status_id == 5) $finishDate = $item->arrive_warehouse_datetime;
             if($item->status_id == 6) {
                 $finishDate = $item->assign_driver_datetime;
                 $item->failed_datetime = '';
-                $item->delivery_remarks = '';
+                // $item->delivery_remarks = '';
             }
             if($item->status_id == 10 || $item->status_id == 19) $finishDate = $item->failed_datetime;
             if($item->status_id == 11) $finishDate = $item->returned_datetime;
             $item->groupDate = Helper::dateDMY($finishDate);
+            $item->makeHidden('delivery_remarks');
             unset($item->status);
             return $item;
         })->groupBy('groupDate')

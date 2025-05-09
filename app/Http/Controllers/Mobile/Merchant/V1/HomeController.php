@@ -246,7 +246,7 @@ class HomeController extends Controller
         $orders = $qO->orderByDesc('id');
         $callback = function($order) use($lang){
             if($lang == 'km') $order->status_code = GeneralSettingService::$statusCodeTrans[$order->status_id];
-            else $order->status_code = $order->tracking_status->name;
+            else $order->status_code = $order->status_id == 3 ? 'Accepted' : $order->tracking_status->name;
             $order->driver_phone = $order->driver->phone;
             $order->telegram_url = Helper::generateTelegramLink($order->driver->phone);
             $order->driver_name = $order->driver->user_name;
