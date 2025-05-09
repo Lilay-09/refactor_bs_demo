@@ -415,9 +415,7 @@ class PickUpCenterController extends Controller
             unset($pkg->status);
             return $pkg;
         };
-        $req->merge([
-            'per_page' => $count
-        ]);
+        $req->query->set('per_page', $count);
         return ApiResponse::PaginationV1($qP,$req,null,[],250,$clbMapper);
     }
 
