@@ -49,7 +49,7 @@ class JwtAuthMiddleware
                 //     'errors' => []
                 // ],403);
             }else{
-                Log::error('test middleware');
+                // Log::error('test middleware');
                 return ApiResponse::Unauthorized($hasUser->message);
             }
             $checkDeleteAndSuperAdmin = new ProtectedRoute($hasUser);
