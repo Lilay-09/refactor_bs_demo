@@ -174,7 +174,7 @@ class AuthController extends Controller
                 'info' => 'Your otp '.$otp,
                 'khInfo' => 'លេខសំងាត់ '.$otp
         ]);
-        // Log::info($req->all());
+        Log::info($req->all());
         $smsPhoneFmt = Helper::formatPhoneNumber($phone);
         $smsInfo = AppSetting::sendSms(config('app.plasgate_sender'),$smsPhoneFmt,$message);
         if($smsInfo->error) return ApiResponse::ValidateFail('Error sending SMS, Please try again later.');
