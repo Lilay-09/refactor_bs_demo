@@ -12,7 +12,6 @@ use DB;
 use Helper;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
-use Log;
 use Mpdf\Mpdf;
 
 class HistoryController extends Controller
