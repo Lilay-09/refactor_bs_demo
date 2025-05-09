@@ -230,7 +230,8 @@ class HistoryController extends Controller
                 ->select('id', 'code', 'qty', 'product_type', 'vehicle_type', 'order_datetime', 'status_id', 'driver_id')
                 ->get()
                 ->each(function ($order) use (&$items, $isKm) {
-                    $order->status_code = $order->tracking_status->name;
+                    // $order->status_code = $order->tracking_status->name;
+                    $order->status_code = $order->status_id == 3 ? 'Accepted' : $order->tracking_status->name;
                     $orderDatetime = strtotime($order->order_datetime);
                     $order->order_date = date('d M Y',$orderDatetime);
                     $order->order_time = date('h:i A',$orderDatetime);
