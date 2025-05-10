@@ -439,12 +439,15 @@ class AppSetting
         if($userType == 'merchant') {
             $userType = 'driver';
         }else $userType = 'driver';
+        $userTypeTelegramLnk = Helper::generateTelegramLink($notUserTypephone);
+        $receiverTelegramLnk = Helper::generateTelegramLink($receiverPhone);
         return [
-            $userType => Helper::generateTelegramLink($notUserTypephone),
-            'receiver' => Helper::generateTelegramLink($receiverPhone),
+            $userType => $userTypeTelegramLnk['url'],
+            $userType.'_deep_link' => $userTypeTelegramLnk['deep_link'],
+            'receiver' => $receiverTelegramLnk['url'],
+            'receiver_deep_link' => $receiverTelegramLnk['deep_link']
         ];
     }
-
 
 
     // public static function getCodeByURI($uri,$method,$prefix){
