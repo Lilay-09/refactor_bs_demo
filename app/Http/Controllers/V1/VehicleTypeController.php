@@ -15,7 +15,9 @@ class VehicleTypeController extends Controller
 
     public function vehicleTypeValiation(Request $req){
         return validator($req->all(),[
-            'name' => 'required|string|max:50'
+            'name' => 'required|string|max:50',
+            'description_en' => 'nullable|string|max:250',
+            'description_km' => 'nullable|string|max:250',
         ]);
     }
 
