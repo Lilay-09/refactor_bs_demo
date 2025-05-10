@@ -413,7 +413,7 @@ class Helper{
         return $countryCode . $cleanNumber;
     }
 
-    static function generateTelegramLink($phoneNumber, $countryCode = '+855') {
+    static function generateTelegramLink($phoneNumber, $countryCode = '+855',$isDeepLnk=false) {
         // Remove all non-numeric characters except '+'
         $cleanNumber = preg_replace('/[^\d+]/', '', $phoneNumber);
 
@@ -428,7 +428,10 @@ class Helper{
         }
 
         // Return the Telegram link with the correct format
-        return 'https://t.me/+' . $cleanNumber;
+        return [
+            'url' => 'https://t.me/+' . $cleanNumber,
+            'deep_link' => 't.me+'.$cleanNumber
+        ];
     }
 
     static function getDateDaysAgo($days): string

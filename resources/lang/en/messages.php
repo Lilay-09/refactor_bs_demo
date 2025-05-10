@@ -24,6 +24,8 @@ return [
     'returned' => ':info Returned',
     'has already assigned' => ':info has already assigned',
     'all' => 'All',
-    'submitDuplicatedPackage' => 'This package is already submitted as :info'
+    'submitDuplicatedPackage' => 'This package is already submitted as :info',
+    'fast_desc' => 'Instant pick-up & deliver within 1 hour.',
+    'normal_desc' => 'Pick-up within 1 hour & deliver within 3 hours.'
 ];
 
