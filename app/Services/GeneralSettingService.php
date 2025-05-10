@@ -480,7 +480,7 @@ class GeneralSettingService
         if($userType == 'merchant'){
             $select .= ',description_'.$lang.' as description';
             if($lang == 'km'){
-                $select .= ',name_km as value';
+                $select .= ',name_km as name';
             }
         }
         $vT = VehicleType::where('company_id',$user->company_id)->where('is_deleted',0)
