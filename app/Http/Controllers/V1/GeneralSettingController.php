@@ -298,7 +298,6 @@ class GeneralSettingController extends Controller
         $user = UserService::getAuthUser();
         $id = $req->id ?? null;
         return ApiResponse::JsonResult($this->gs::optionsZoneByPriceListNameId($user,$id));
-
     }
 
     public function getMerchantLocation(Request $req){
