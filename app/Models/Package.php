@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Helper;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
@@ -94,6 +95,14 @@ class Package extends Model
     {
         return $this->formatDatetime($value);
     }
+
+    public function receiverAddress(): Attribute
+    {
+        return Attribute::get(
+            fn ($value) => $value ?? $this->zone_name
+        );
+    }
+
 
     // public function getArriveWarehouseDatetimeAttribute($value)
     // {
