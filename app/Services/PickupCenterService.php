@@ -113,8 +113,12 @@ class PickupCenterService
             if($validDriver->vehicle_type != $inputs['vehicle_type']) return DataResponse::ValidateFail(__('messages.error',['info' => 'Driver vehicle type and chosen vehicle type is different!']));
         }
         $dateTime = Helper::getDateTime();
-        if($userType == 'driver') $inputs['tracking_notes'] = 'Driver create order ('.$dateTime.')';
-        else if($userType == 'merchant') $inputs['tracking_notes'] = 'Merchant create order ('.$dateTime.')';
+        if($userType == 'driver') {
+            $inputs['tracking_notes'] = 'Driver create order ('.$dateTime.')';
+        }
+        else if($userType == 'merchant') {
+            $inputs['tracking_notes'] = 'Merchant create order ('.$dateTime.')';
+        }
         else if($userType == 'admin') $inputs['tracking_notes'] = 'Admin create order ('.$dateTime.')';
         $deleteImgs = [];
         $pickupAddress = $inputs['pickup_address'] ?? null;
@@ -343,7 +347,10 @@ class PickupCenterService
         $taxiFee = $inputs['taxi_fee'] ?? 0;
         // $inputs['tracking_notes'] = '['.$user->id.']Admin ('.$user->user_name.') add new package ('.date('d-M-Y h:i:s A').')';
         if($user->account_type == 'driver') $inputs['booking_channel'] = 'driver';
-        if($user->account_type == 'merchant') $inputs['booking_channel'] = 'merchant';
+        if($user->account_type == 'merchant') {
+            $inputs['cod'] = isset($inputs['price']) ? true : false;
+            $inputs['booking_channel'] = 'merchant';
+        }
         $zoneName = Zone::where('zone_code',$zoneCode)->take(1)->where('is_deleted',0)->value('zone_name');
         $inputs['zone_name'] = $zoneName;
         $extraCharge = $inputs['extra_charge'] ?? 0;

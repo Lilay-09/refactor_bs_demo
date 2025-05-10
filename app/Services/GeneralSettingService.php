@@ -473,10 +473,15 @@ class GeneralSettingService
         return $merchants;
     }
 
-    public static function optionsVehicleType($user){
+    public static function optionsVehicleType($user,$lang='en'){
 
+        $userType = $user->account_type;
+        $select = 'name,name as value,id';
+        if($userType == 'merchant'){
+            $select .= ',description_'.$lang.' as description';
+        }
         $vT = VehicleType::where('company_id',$user->company_id)->where('is_deleted',0)
-        ->selectRaw('name,name as value,id')->orderByRaw('id');
+        ->selectRaw($select)->orderByRaw('id');
         if($user->account_type == 'driver'){
             $vT->where('name',$user->info->vehicle_type);
         }
@@ -626,28 +631,16 @@ class GeneralSettingService
     }
 
     public static function optionsPayer($lang){
-        if($lang == 'km') {
             return [
                 [
                     'value' => 'sender',
-                    'label' => 'អ្នកផ្ញើ'
+                    'label' => __('messages.sender')
                 ],
                 [
                     'value' => 'receiver',
-                    'label' => 'អ្នកទទួល'
-                ],
+                    'label' => __('messages.receiver')
+                ]
             ];
-        }
-        return [
-            [
-                'value' => 'sender',
-                'label' => 'Sender'
-            ],
-            [
-                'value' => 'receiver',
-                'label' => 'Receiver'
-            ],
-        ];
     }
 
     public static function optionsDeliveryType(){

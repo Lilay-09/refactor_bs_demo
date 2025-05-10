@@ -119,56 +119,6 @@ class HomeController extends Controller
         return ApiResponse::JsonResult($userBanks);
     }
 
-    // public function getBankAccount(){
-    //     $user = UserService::getAuthUser('merchant');
-    //     $userBanks = UserBank::where('user_id',$user->id)->selectRaw('id,bank_name,bank_number,account_name,is_primary')->orderByDesc('is_primary')->get();
-    //     $displayBanks = $userBanks->toArray();
-
-    //     // Check the number of existing records
-    //     if ($userBanks->isEmpty()) {
-    //         // No records, add two: one primary and one secondary
-    //         $displayBanks[] = [
-    //             'bank_name' => '',
-    //             'bank_number' => '',
-    //             'account_name' => '',
-    //             'is_primary' => true, // First record is primary
-    //             'skip' => 1
-    //         ];
-    //         $displayBanks[] = [
-    //             'bank_name' => '',
-    //             'bank_number' => '',
-    //             'account_name' => '',
-    //             'is_primary' => false, // Second record is not primary
-    //             'skip' => 1
-    //         ];
-    //     } elseif ($userBanks->count() === 1) {
-    //         // One record exists, check its `is_primary` value
-    //         $existing = $userBanks->first();
-    //         if ($existing->is_primary) {
-    //             // If the existing record is primary, add a secondary row
-    //             $displayBanks[] = [
-    //                 'bank_name' => '',
-    //                 'bank_number' => '',
-    //                 'account_name' => '',
-    //                 'is_primary' => false,
-    //                 'skip' => 1
-    //             ];
-    //         } else {
-    //             // If the existing record is not primary, add a primary row first
-    //             $displayBanks = array_merge([
-    //                 [
-    //                     'bank_name' => '',
-    //                     'bank_number' => '',
-    //                     'account_name' => '',
-    //                     'is_primary' => true,
-    //                     'skip' => 1
-    //                 ]
-    //             ], $displayBanks);
-    //         }
-    //     }
-    //     return ApiResponse::JsonResult($displayBanks);
-    // }
-
     private function bankValidator(Request $req):Validator{
         return validator($req->all(), [
             'bank_id' => 'required|int',
@@ -197,8 +147,6 @@ class HomeController extends Controller
             Bank::create($inputs);
         }
         return ApiResponse::JsonResult(null,__('messages.saved'));
-        // $saveBank = UserService::saveUserBanks($req->bank_info,$user->id,$user);
-        // return ApiResponse::flex($saveBank);
     }
 
     public function deleteBankAccount(Request $req){

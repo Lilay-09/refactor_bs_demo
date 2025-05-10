@@ -21,7 +21,10 @@ class Package extends Model
     //     'driver_total' => 'float',
     // ];
     protected $fillable = [
-        'id',
+        'main_zone_name',
+        'main_zone_code',
+        'receiver_lat',
+        'receiver_lng',
         'qr_code',
         'last_submit_uid',
         'driver_display_order',
