@@ -39,10 +39,11 @@ class GeneralSettingController extends Controller
     //     ];
     //     return ApiResponse::JsonResult($obj);
     // }
-    public function getMerchantFormBooking(){
+    public function getMerchantFormBooking(Request $req){
         $user = UserService::getAuthUser('merchant');
+        $lang = $req->lang;
         $obj = (object)[
-            'vehicle_types' => GeneralSettingService::optionsVehicleType($user),
+            'vehicle_types' => GeneralSettingService::optionsVehicleType($user,$lang),
             'product_types' => GeneralSettingService::optionsProductType($user),
             'delivery_types' => GeneralSettingService::optionsDeliveryType(),
             'address_info'  => [
