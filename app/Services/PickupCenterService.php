@@ -348,7 +348,7 @@ class PickupCenterService
         // $inputs['tracking_notes'] = '['.$user->id.']Admin ('.$user->user_name.') add new package ('.date('d-M-Y h:i:s A').')';
         if($user->account_type == 'driver') $inputs['booking_channel'] = 'driver';
         if($user->account_type == 'merchant') {
-            $inputs['cod'] = isset($inputs['price']) ? true : false;
+            $inputs['cod'] = $price > 0 ? true : false;
             $inputs['booking_channel'] = 'merchant';
         }
         $zoneName = Zone::where('zone_code',$zoneCode)->take(1)->where('is_deleted',0)->value('zone_name');

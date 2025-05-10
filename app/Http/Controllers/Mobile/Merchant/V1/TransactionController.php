@@ -24,11 +24,11 @@ class TransactionController extends Controller
         $packageInfo = [];
         $qP = Payment::where('payments.is_deleted',0)->where('payments.payer_id',$user->id)->where('payments.is_settled',1)
         ->join('users as c','c.id','payments.approved_uid')
-        ->selectRaw('payments.package_count,payments.id,payments.payable_amount,payments.breakdown_notes,c.user_name as cashier_name,payments.payment_datetime')
+        ->selectRaw('payments.remarks,payments.package_count,payments.id,payments.payable_amount,payments.breakdown_notes,c.user_name as cashier_name,payments.payment_datetime')
         ->orderByDesc('payments.payment_datetime');
         $qD = Disbursement::where('disbursements.type','payment')->where('disbursements.is_deleted',0)->where('disbursements.payee_id',$user->id)->where('disbursements.is_settled',1)
         ->join('users as c','c.id','disbursements.receiptionist_uid')
-        ->selectRaw('disbursements.package_count,disbursements.id,disbursements.payable_amount,disbursements.breakdown_notes,c.user_name as cashier_name,disbursements.payment_datetime')
+        ->selectRaw('disbursements.remarks,disbursements.package_count,disbursements.id,disbursements.payable_amount,disbursements.breakdown_notes,c.user_name as cashier_name,disbursements.payment_datetime')
         ->orderByDesc('disbursements.payment_datetime');
         if($startDate && $endDate){
             $startDate = Helper::dateYMD($startDate);
@@ -64,7 +64,7 @@ class TransactionController extends Controller
                 $pmt = TransactionService::getTrxDetails($payments,$p->merchant_payment_id);
                 if($pmt) {
                     $pmt->payment_status = 'Paid';
-                    $pmt->remarks = 'Disbursement';
+                    $pmt->status = 'Disbursement';
                     $total += ($count > 0 && $key == 0) ?(float)$pmt->payable_amount : 0;
                     $packageInfo[] = $pmt;
                     $count -= ($count > 0 && $key == 0) ? $pmt->package_count : 0;
@@ -78,7 +78,7 @@ class TransactionController extends Controller
                     $dis->payment_status = 'Paid';
                     // \Log::error($total);
                     $total -= ($count > 0 && $key == 0) ? (float)$dis->payable_amount : 0;
-                    $dis->remarks = 'Receive';
+                    $dis->status = 'Receive';
                     $packageInfo[] = $dis;
                     // $count -= $dis->package_count;
                     $count -= ($count > 0 && $key == 0) ? $dis->package_count : 0;
