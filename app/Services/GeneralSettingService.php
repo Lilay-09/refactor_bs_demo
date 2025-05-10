@@ -652,8 +652,8 @@ class GeneralSettingService
 
     public static function optionsDeliveryType(){
         return [
-            ['value' => __('messages.fast'), 'label' => 'Fast', 'description' => __('messages.fast_desc')],
-            ['value' => __('messages.normal'), 'label' => 'Normal', 'description' => __('messages.normal_desc')],
+            ['value' => 'fast', 'label' => __('messages.fast'), 'description' => __('messages.fast_desc')],
+            ['value' => 'normal', 'label' => __('messages.normal'), 'description' => __('messages.normal_desc')],
         ];
     }
 
