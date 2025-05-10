@@ -215,7 +215,7 @@ class HomeController extends Controller
         $qO = Order::where('merchant_id',$user->id)
         ->where('is_deleted',0)
         ->with('driver')
-        ->selectRaw('id,code,qty,product_type,vehicle_type,order_datetime,status_id')->where('status_id',1);
+        ->selectRaw('id,code,qty,product_type,vehicle_type,pickup_address,pickup_address_google_map,order_datetime,status_id')->where('status_id',1);
         // $qO->where(function ($q) use ($dateaAgo, $today) {
         //     $q->whereBetween('order_datetime', [$dateaAgo, $today]);
         // });
