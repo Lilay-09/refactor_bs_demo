@@ -269,11 +269,13 @@ class GeneralSettingService
         $hasChild = $filter->hasChild ?? null;
         $exceptId = $filter->exceptId ?? null;
         if($hasChild == 'false'){
-            $qZ->whereNotIn('id', function ($query) {
+            $qZ->whereNull('parent_id') // Only top-level zones
+            ->whereNotIn('id', function ($query) {
                 $query->select('parent_id')
-                      ->from('zones')
-                      ->whereNotNull('parent_id');
-            })->whereNull('parent_id');
+                    ->from('zones')
+                    ->whereNotNull('parent_id'); // Exclude zones that are parents
+            });
+
         }
         if($exceptId){
             $qZ->where('id','!=',$exceptId);
