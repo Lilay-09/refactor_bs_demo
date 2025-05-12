@@ -374,8 +374,10 @@ class GeneralSettingService
     public static function getDriverById($id){
         return User::where('is_deleted',0)->where('delete_account',0)->where('account_type','driver')->orderByDesc('id')->find($id);
     }
-    public static function getMerchantById($id){
-        return User::where('is_deleted',0)->where('delete_account',0)->where('account_type','merchant')->orderByDesc('id')->find($id);
+    public static function getMerchantById($id,$select=['*']){
+        return User::where('is_deleted',0)->where('delete_account',0)
+        ->select($select)
+        ->where('account_type','merchant')->orderByDesc('id')->find($id);
     }
 
     public static function sumDeliveryFee($baseFee,$extraCharge,$taxi_fee,$payer){

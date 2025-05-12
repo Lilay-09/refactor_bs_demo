@@ -8,6 +8,7 @@ use App\Models\Delivery;
 use App\Models\Package;
 use App\Models\PackageAttachment;
 use App\Models\TrackingStatus;
+use App\Services\CompanyProfileService;
 use App\Services\GeneralSettingService;
 use App\Services\UserService;
 use Helper;
@@ -176,17 +177,17 @@ class ReportController extends Controller
         $startDate = $req->startDate;
         $endDate = $req->endDate;
         $userId = $user->id;
-        $isKm = $req->lang != 'en';
+        $lang = $req->lang;
         // $paymentStatus = $req->payment_status_id ?? null;
         $statusId = $req->status_id ?? null;
         // $search = $req->search ?? null;
-        $merchantInfo = GeneralSettingService::getMerchantById($userId);
+        $merchantInfo = GeneralSettingService::getMerchantById($userId,['user_name','phone','id']);
         $qP = Package::where('is_deleted',0)
         ->whereIn('status_id',[9,10,19,11])
         ->where('merchant_id',$userId)
         // ->with(['driver:id,user_name,phone','returnUser:id,user_name,phone'])
         // ->selectRaw('id,payer,cod,driver_id,qr_code,extra_charge,delivery_fee,extra_charge,price,status_id,failed_datetime,delivered_datetime,returned_datetime,receiver_phone,receiver_address,remarks');
-        ->selectRaw('id,payer,cod,driver_id,qr_code,extra_charge,delivery_fee,extra_charge,price,status_id,failed_datetime,delivered_datetime,returned_datetime,receiver_phone,receiver_address');
+        ->selectRaw('id,payer,remarks,cod,zone_name,driver_id,qr_code,extra_charge,delivery_fee,extra_charge,price,status_id,failed_datetime,delivered_datetime,returned_datetime,receiver_phone,receiver_address');
         $qP->orderByRaw('
             CASE
                 WHEN status_id = 9 THEN delivered_datetime
@@ -237,14 +238,14 @@ class ReportController extends Controller
             }
             if ($item->status_id == 10 || $item->status_id == 19) $finishDate = $item->failed_datetime;
             if ($item->status_id == 11) $finishDate = $item->returned_datetime;
-            $item->groupDate = Helper::dateDMY($finishDate);
+            $item->groupDate = Helper::dateDMY($finishDate,'d-M-Y');
             // Return the modified object
             return $item;
         })->groupBy('groupDate')
-        ->map(function ($group, $date) use ($isKm){
+        ->map(function ($group, $date) use ($lang){
             $totalPrice = 0;
             $totalFees = 0;
-            $group->each(function ($item) use ($isKm,&$totalDeliveryFee,&$totalPrice,&$totalFees) {
+            $group->each(function ($item) use ($lang,&$totalDeliveryFee,&$totalPrice,&$totalFees) {
                 // $item->driver_name = $item->driver?->user_name;
                 // $item->driver_phone = $item->driver?->phone;
                 if(!$item->driver) {
@@ -268,7 +269,7 @@ class ReportController extends Controller
                 $totalDeliveryFee += $item->delivery_fee;
                 $item->total = $isCal ? (float)Helper::getNumber($total) : 0;
                 // $total += $item->total;
-                if($isKm) {
+                if($lang == 'km') {
                     $item->status_code = GeneralSettingService::$statusCodeTrans[$item->status_id] ?? '';
                     $item->payer = GeneralSettingService::$payerTrans[$item->payer] ?? '';
                     if(in_array($item->status_id,[9,19])){
@@ -290,6 +291,7 @@ class ReportController extends Controller
             });
             return [
                 'date' => $date,
+                'exchange_rate' => 4000,
                 'list' => $group->toArray(),
                 'total' => [
                     'grand' => $group->sum('total'),
@@ -300,12 +302,14 @@ class ReportController extends Controller
             ];
         })->values();
 
+        // return
         // Example data for the PDF
         if(!isset($groupedPackages[0])) return ApiResponse::NotFound('No data available!');
         $data = [
             'title' => 'Report',
+            'logo' => CompanyProfileService::profileInfo($user)['image_url'] ?? null,
             'merchant' => $merchantInfo,
-            'date' => date('d-M-Y',strtotime($startDate)) .' to '. date('d-M-Y',strtotime($endDate)),
+            'date' => Helper::dateDMY($startDate,'d-M-Y',$lang) .' to '. Helper::dateDMY($endDate,'d-M-Y',$lang),
             'data' => $groupedPackages
         ];
         $pdf = new Mpdf([
@@ -314,6 +318,7 @@ class ReportController extends Controller
             'format' => 'A4',            // Paper size
         ]);
 
+        // return $data;
         // Render the Blade template with data
         $html = view('pdf.merchant_report', $data);
 
