@@ -228,7 +228,8 @@ class ReportController extends Controller
             });
         }
         $packages = $qP->get();
-        $groupedPackages = collect($packages)->map(function ($item) {
+        $grandTotal = 0;
+        $groupedPackages = collect($packages)->map(function ($item) use(&$grandTotal) {
             $finishDate = $item->failed_datetime;
             if ($item->status_id == 9) $finishDate = $item->delivered_datetime;
             if ($item->status_id == 5) $finishDate = $item->arrive_warehouse_datetime;
@@ -242,10 +243,10 @@ class ReportController extends Controller
             // Return the modified object
             return $item;
         })->groupBy('groupDate')
-        ->map(function ($group, $date) use ($lang){
+        ->map(function ($group, $date) use ($lang,&$grandTotal){
             $totalPrice = 0;
             $totalFees = 0;
-            $group->each(function ($item) use ($lang,&$totalDeliveryFee,&$totalPrice,&$totalFees) {
+            $group->each(function ($item) use ($lang,&$totalDeliveryFee,&$totalPrice,&$totalFees,&$grandTotal) {
                 // $item->driver_name = $item->driver?->user_name;
                 // $item->driver_phone = $item->driver?->phone;
                 if(!$item->driver) {
@@ -289,12 +290,15 @@ class ReportController extends Controller
                 }
                 unset($item->driver,$item->status,$item->groupDate,$item->failed_datetime,$item->delivered_datetime,$item->returned_datetime);
             });
+            $total = $group->sum('total');
+            $grandTotal += $total;
             return [
                 'date' => $date,
                 'exchange_rate' => 4000,
                 'list' => $group->toArray(),
+                'grand_total' => $grandTotal,
                 'total' => [
-                    'grand' => $group->sum('total'),
+                    'grand' => $total,
                     'price' => $totalPrice,
                     'fees' => $totalFees
 
@@ -309,9 +313,11 @@ class ReportController extends Controller
             'title' => 'Report',
             'logo' => CompanyProfileService::profileInfo($user)['image_url'] ?? null,
             'merchant' => $merchantInfo,
+            'grand_total' => $grandTotal,
             'date' => Helper::dateDMY($startDate,'d-M-Y',$lang) .' to '. Helper::dateDMY($endDate,'d-M-Y',$lang),
             'data' => $groupedPackages
         ];
+
         $pdf = new Mpdf([
             'default_font' => 'khmeros', // Ensure the font is correctly installed and loaded
             'mode' => 'utf-8',           // Required for Unicode support
