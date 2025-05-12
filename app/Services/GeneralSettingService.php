@@ -266,14 +266,19 @@ class GeneralSettingService
             $qZ->where('parent_id',$parentId);
         }
 
-        if($filter->hasChild == 'false'){
+        $hasChild = $filter->hasChild ?? null;
+        $exceptId = $filter->exceptId ?? null;
+        if($hasChild == 'false'){
             $qZ->whereNotIn('id', function ($query) {
                 $query->select('parent_id')
                       ->from('zones')
                       ->whereNotNull('parent_id');
             });
         }
-        Log::info($qZ->count());
+        if($exceptId){
+            $qZ->where('id','!=',$exceptId);
+        }
+        // Log::info($qZ->count());
         return $qZ->selectRaw('id,zone_name,identity,zone_code,parent_id')->orderByDesc('id')->get();
     }
 
