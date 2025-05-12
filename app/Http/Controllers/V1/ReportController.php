@@ -1160,9 +1160,10 @@ class ReportController extends Controller
             unset($item->status);
             return $item;
         })->groupBy('groupDate')
-        ->map(function ($group, $date) use (&$grand,$isKm){
+        ->map(function ($group, $date) use ($isKm){
             $group->each(function ($item) use (&$grand,$isKm,&$totalDeliveryFee) {
                 unset($item->groupDate);
+
                 $item->finished_date = $item->failed_datetime ? Helper::dateDMY($item->failed_datetime): Helper::dateDMY($item->delivered_datetime);
                 $finished_time = $item->failed_datetime ? Helper::formatCustomDateTime($item->failed_datetime,'h:i:s A'):Helper::formatCustomDateTime($item->delivered_datetime,'h:i:s A');
                 $item->finished_time = $finished_time;
@@ -1203,11 +1204,11 @@ class ReportController extends Controller
                     'taxi' => Helper::getNumber($group->where('status_id','=',9)->sum('taxi_fee')),
                     'delivery_fee' => Helper::getNumber($totalDeliveryFee,2),
                     'grand' => Helper::getNumber($grand,2)
-                ],
+                ]
             ];
-        })->values();
+        // })->values();
 
-        // })->sortKeysDesc()->values();
+        })->sortKeysDesc()->values();
 
         //sortKeys()
         $obj =(object)[
