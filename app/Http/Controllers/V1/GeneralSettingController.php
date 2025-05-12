@@ -216,7 +216,7 @@ class GeneralSettingController extends Controller
 
     public function getOptionsZone(Request $req){
         $user = UserService::getAuthUser();
-        return ApiResponse::JsonResult($this->gs::optionsZone($user));
+        return ApiResponse::JsonResult($this->gs::optionsZone($user,null,null,$req));
     }
 
     public function getOptionsParentZone(){
