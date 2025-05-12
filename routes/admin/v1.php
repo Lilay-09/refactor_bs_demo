@@ -271,7 +271,6 @@ Route::middleware(['jwt','localize','userAccess:admin'])->prefix('admin/v1/{lang
         Route::delete('{id}',[BankController::class,'deleteBank']);
     });
 
-
     Route::prefix('zone')->group(function(){
         Route::post('',[ZoneController::class,'createZone']);
         Route::get('',[ZoneController::class,'getZones']);
@@ -281,7 +280,6 @@ Route::middleware(['jwt','localize','userAccess:admin'])->prefix('admin/v1/{lang
         Route::get('/{id}/children',[ZoneController::class,'getZoneChildren']);
         Route::put('/{id}/assign/children',[ZoneController::class,'assignZoneToParent']);
         Route::put('/{id}/toParent',[ZoneController::class,'setToParent']);
-
         Route::put('/assign/driver',[ZoneController::class,'assignZoneToDriver']);
         Route::get('{id}/assigned/subZones',[ZoneController::class,'getAssignSubZones']);
     });
@@ -524,6 +522,7 @@ Route::middleware(['jwt','localize','userAccess:admin'])->prefix('admin/v1/{lang
             Route::get('merchant/transaction',[GeneralSettingController::class,'getMerchantTransactionTabFilter']);
         });
         Route::prefix('form')->group(function(){
+            Route::get('zone/{exceptId}/assign',[GeneralSettingController::class,'getAssignZoneFormOptions']);
             Route::get('fleet/package/trackingStatus',[GeneralSettingController::class,'getFormOptionsFleetPackageTrackingStatus']);
             Route::get('banner',[GeneralSettingController::class,'getFormBanner']);
             Route::get('receivePayment',[GeneralSettingController::class,'getFormReceivePayment']);

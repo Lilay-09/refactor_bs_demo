@@ -275,7 +275,6 @@ class GeneralSettingService
                     ->from('zones')
                     ->whereNotNull('parent_id'); // Exclude zones that are parents
             });
-
         }
         if($exceptId){
             $qZ->where('id','!=',$exceptId);
