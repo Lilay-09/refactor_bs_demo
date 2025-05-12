@@ -94,9 +94,9 @@ class CompletedPackageController extends Controller
         // ->select('p.driver_id','p.arrive_warehouse_datetime','p.returned_uid','p.receiver_address','p.driver_disbursement_id','p.driver_payment_id','p.delivered_datetime','m.user_name as merchant_name','m.phone as merchant_phone','d.user_name as driver_name','p.status_id','p.returned_datetime','p.id as package_id','d.id as driver_id','p.qr_code','p.price','ts.name as status_code','p.product_type','p.delivered_datetime','p.failed_datetime','p.taxi_fee','p.payer','p.cod','p.zone_code','p.zone_name','p.receiver_phone','p.delivery_type','p.delivery_fee','p.driver_total','p.merchant_total');
         //** Filter */
         if($search){
-            $qP->where(function ($q) use ($search){
-                $q->where('p.qr_code',$search)->orWhere('p.receiver_phone','ilike','%'.$search.'%');
-            });
+            // $qP->where(function ($q) use ($search){
+                $qP->where('p.qr_code',$search)->orWhere('p.receiver_phone','ilike','%'.$search.'%');
+            // });
         }
 
         if($statusId) $qP->where('p.status_id',$statusId);
