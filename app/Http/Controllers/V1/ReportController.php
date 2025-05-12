@@ -1205,8 +1205,8 @@ class ReportController extends Controller
                     'grand' => Helper::getNumber($grand,2)
                 ],
             ];
-        })->sortKeys()->values();
-        //sortKeysDesc()
+        })->sortKeysDesc()->values();
+        //sortKeys()
         $obj =(object)[
             'title' => 'Daily Packages Summary',
             'status' => 'All Driver',
