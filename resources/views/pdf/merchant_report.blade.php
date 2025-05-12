@@ -38,6 +38,7 @@
     .divided{
         height: 5px;
         background-color: #223BC9;
+        margin-bottom: 5px;
     }
     .summary {
         display: flex;
@@ -241,14 +242,13 @@
 
       <div class="divided"></div>
 
-      <div class="totals" style="width: 100%;">
-            <div style="float: right; text-align: right;">
-                <strong>សរុបប្រាក់: $200.00</strong>
-            </div>
-            <div style="clear: both;"></div>
-        </div>
-
       @endforeach
+      <div class="totals" style="width: 100%;">
+        <div style="float: right; text-align: right;">
+            <strong>សរុបប្រាក់:  ${{ number_format($grand_total ?? 0, 2) }}</strong>
+        </div>
+        <div style="clear: both;"></div>
+    </div>
       @else
           <p class="no-data">No data available</p>
       @endif
