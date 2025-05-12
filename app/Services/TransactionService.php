@@ -1395,7 +1395,7 @@ class TransactionService
             'info' => 'Package'
         ]));
         $driverPayment = $package->driver_payment_id || $package->driver_disbursement_id;
-        $merchantPayment = $package->driver_payment_id || $package->driver_disbursement_id;
+        $merchantPayment = $package->merchant_payment_id || $package->merchant_disbursement_id;
         if($merchantPayment || $driverPayment){
             if(isset($inputs['remarks'])){
                 $package->update([
