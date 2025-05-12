@@ -1389,19 +1389,29 @@ class TransactionService
         ]);
         if($validate->fails()) return DataResponse::ValidateFail($validate->errors()->first());
         $inputs = $validate->validated();
-        // $package = Package::fromRaw('packages as p')->where('p.company_id',$user->company_id)
-        // // ->leftJoin('payments as dpmt',$joinCallback)
-        // ->selectRaw('p.status_id,p.p.extra_charge,p.id,p.taxi_fee,p.cod,p.payer,p.zone_code,p.price,p.billed_kg,p.actual_kg,p.driver_payment_id,p.merchant_payment_id,p.merchant_disbursement_id,p.driver_disbursement_id')
-        // ->where('p.id',$id)->first();
+
         $package = Package::where('is_deleted',0)->find($id);
         if(!$package) return DataResponse::NotFound(__('messages.not_found',[
             'info' => 'Package'
         ]));
-        if($package->driver_payment_id || $package->driver_disbursement_id) return DataResponse::Duplicated(__('messages.info',[
+        $driverPayment = $package->driver_payment_id || $package->driver_disbursement_id;
+        $merchantPayment = $package->driver_payment_id || $package->driver_disbursement_id;
+        if($merchantPayment || $driverPayment){
+            if(isset($inputs['remarks'])){
+                $package->update([
+                    'remarks' => $inputs['remarks']
+                ]);
+                return DataResponse::JsonResult(null, false, __('messages.info', [
+                    'info' => 'Only remark was updated. Price-related fields cannot be modified for paid packages.',
+                    'khInfo' => 'បានកែសំគាល់តែប៉ុណ្ណោះ។ ពាក់ព័ន្ធនឹងតម្លៃមិនអាចកែប្រែបានទេសម្រាប់កញ្ចប់ដែលបានទូរទាត់ប្រាក់រួច។'
+                ]));
+            }
+        }
+        if($driverPayment) return DataResponse::Duplicated(__('messages.info',[
             'info' => 'It seems like you try to update package which is on payment pending or paid with driver',
-            'khInfo' => 'មិនអាចកែកញ្ចប់បានទេ, កញ្ចប់បានទូរទាត់ជាមួយអ្នកដឹករួចហើយ'
+            'khInfo' => 'មិនអាចកែកញ្ចប់បានទេ, កញ្ចប់បានទូរទាត់ជាមួយអ្នកដឹករួចហើយ (Driver)'
         ]));
-        if($package->merchant_payment_id || $package->merchant_disbursement_id) return DataResponse::Duplicated(__('messages.info',[
+        if($merchantPayment) return DataResponse::Duplicated(__('messages.info',[
             'info' => 'It seems like you try to update package which is on payment pending or paid with merchant',
             'khInfo' => 'មិនអាចកែកញ្ចប់បានទេ, កញ្ចប់បានទូរទាត់ជាមួយអ្នកផ្ញើរួចហើយ (Merchant)'
         ]));
