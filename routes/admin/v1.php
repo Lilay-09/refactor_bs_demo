@@ -283,6 +283,7 @@ Route::middleware(['jwt','localize','userAccess:admin'])->prefix('admin/v1/{lang
         Route::put('/{id}/toParent',[ZoneController::class,'setToParent']);
 
         Route::put('/assign/driver',[ZoneController::class,'assignZoneToDriver']);
+        Route::get('{id}/assign/subZones',[ZoneController::class,'getAssignSubZones']);
     });
 
     Route::prefix('priceList')->group(function(){

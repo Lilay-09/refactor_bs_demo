@@ -485,4 +485,10 @@ class ZoneController extends Controller
 
         return ApiResponse::JsonResult(null,'Take out');
     }
+
+    public function getAssignSubZones(Request $req){
+        $id = $req->id;
+        $subZones = Zone::where('parent_id',$id)->where('is_deleted',0)->pluck('id')->toArray();
+        return ApiResponse::JsonResult($subZones);
+    }
 }
