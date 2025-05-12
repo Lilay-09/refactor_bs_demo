@@ -9,6 +9,7 @@ use App\Models\StockLocation;
 use App\Models\Tax;
 use App\Models\User;
 use App\Models\UserShop;
+use App\Models\Zone;
 use App\Services\GeneralSettingService;
 use App\Services\UserService;
 use Helper;
@@ -77,6 +78,28 @@ class GeneralSettingController extends Controller
 
     public function getOptionsRole(Request $req){
         return ApiResponse::JsonResult($this->gs::optionsRole($req->type));
+    }
+
+    public function getAssignZoneFormOptions(Request $req){
+        $exceptId = $req->exceptId;
+        $pZone = Zone::where('is_deleted',0)
+        ->select(['id','city','district','country_id'])
+        ->find($exceptId);
+        if(!$pZone){
+            return ApiResponse::NotFound();
+        }
+        $qZ = Zone::where('is_deleted',0)->where('id','!=',$exceptId)
+        ->where('country_id',$pZone->country_id)
+        ->where('city',$pZone->city)
+        ->where('district',$pZone->district)
+        ->select(['id','zone_name','zone_code']);
+        $qZ->whereNotIn('id', function ($query) {
+            $query->select('parent_id')
+                ->from('zones')
+                ->whereNotNull('parent_id'); // Exclude zones that are parents
+        });
+
+        return ApiResponse::JsonResult($qZ->get());
     }
 
     public function getOptionsModule(){
