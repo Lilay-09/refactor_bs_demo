@@ -294,7 +294,7 @@ class AuthController extends Controller
         $authService = new AuthService();
         $profile = $authService->getProfile($user,'merchant');
         $userShop = UserShop::where('owner_id',$user->id)
-        ->select('name_en','est_pcs','city','commune')->first();
+        ->select('name_en','est_pcs','city','commune','district','product_type_id')->first();
         $profile->data['shop_name'] = $userShop->name_en ?? '';
         $profile->data['est_pcs'] = (int) ($userShop->est_pcs ?? 0);
         $profile->data['product_type_id'] = $userShop->product_type_id;
@@ -330,6 +330,7 @@ class AuthController extends Controller
             $user->update($inputs);
             $userShopService = new UserShopService();
             $shopReq = clone $req;
+            // Log::info($shopReq->all());
             $shopReq->merge([
                 'name_en' => $req->shop_name ?? null,
                 'owner_id' => $user->id,
