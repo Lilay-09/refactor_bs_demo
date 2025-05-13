@@ -130,7 +130,32 @@
         $hasLogo = !empty($logo);
     @endphp
 
-    <div class="header" style="text-align: center;">
+    @if ($hasLogo)
+        <!-- Left Section (Logo) -->
+        <div class="logo" style="float: left; width: 30%; text-align: left;">
+            <img src="{{ $logo }}" alt="Logo">
+        </div>
+
+        <!-- Center Section (Title + Date) -->
+        <div class="title" style="float: left; width: 40%; text-align: center;">
+            <div style="font-weight: bold; font-size: 18px;">របាយការណ៏អតិថិជន</div>
+            <div>កាលបរិច្ឆេទ៖</div>
+            <span>{{ $date ?? now()->format('Y-m-d') }}</span>
+        </div>
+
+        <!-- Clear floats -->
+        <div style="clear: both;"></div>
+        @else
+        <!-- Centered Title Only (when no logo) -->
+        <div class="title" style="width: 100%; text-align: center;">
+            <div style="font-weight: bold; font-size: 18px;">របាយការណ៏អតិថិជន</div>
+            <div>កាលបរិច្ឆេទ៖</div>
+            <div>{{ $date ?? now()->format('Y-m-d') }}</div>
+        </div>
+    @endif
+
+
+    {{-- <div class="header" style="text-align: center;">
         @if ($hasLogo)
             <!-- Left Section (Logo) -->
             <div class="logo" style="float: left; width: 30%; text-align: left;">
@@ -153,7 +178,7 @@
                 <div>កាលបរិច្ឆេទ៖</div>
                 <div>{{ $date ?? now()->format('Y-m-d') }}</div>
             </div>
-        @endif
+        @endif --}}
     </div>
 
 
