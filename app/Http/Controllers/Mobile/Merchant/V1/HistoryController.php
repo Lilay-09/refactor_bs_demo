@@ -376,9 +376,6 @@ class HistoryController extends Controller
         unset($pkg->$originalField); // Optionally remove the original field
     }
 
-
-
-
     private function getHistoryPackage($merchantId,$packageIds){
 
     }
