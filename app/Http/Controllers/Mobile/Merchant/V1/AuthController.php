@@ -336,6 +336,7 @@ class AuthController extends Controller
                 'phone' => $user->phone,
                 'est_pcs' => $req->est_pcs,
                 'city' => $shopReq->city,
+                'product_type_id' => $shopReq->product_type_id,
                 'district' => $shopReq->district
             ]);
             // Log::info($shopReq->all());
