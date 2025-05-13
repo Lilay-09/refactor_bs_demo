@@ -229,7 +229,7 @@ class ReportController extends Controller
         }
         $packages = $qP->get();
         $grandTotal = 0;
-        $groupedPackages = collect($packages)->map(function ($item) use(&$grandTotal) {
+        $groupedPackages = collect($packages)->map(function ($item) use($lang,&$grandTotal) {
             $finishDate = $item->failed_datetime;
             if ($item->status_id == 9) $finishDate = $item->delivered_datetime;
             if ($item->status_id == 5) $finishDate = $item->arrive_warehouse_datetime;
@@ -239,7 +239,7 @@ class ReportController extends Controller
             }
             if ($item->status_id == 10 || $item->status_id == 19) $finishDate = $item->failed_datetime;
             if ($item->status_id == 11) $finishDate = $item->returned_datetime;
-            $item->groupDate = Helper::dateDMY($finishDate,'d-M-Y');
+            $item->groupDate = Helper::dateDMY($finishDate,'d-M-Y',$lang);
             // Return the modified object
             return $item;
         })->groupBy('groupDate')
@@ -309,9 +309,14 @@ class ReportController extends Controller
         // return
         // Example data for the PDF
         if(!isset($groupedPackages[0])) return ApiResponse::NotFound('No data available!');
+        $logo = public_path('./logo/arz_logo.png');//CompanyProfileService::profileInfo($user)['image_url'] ?? null;
+        // $logoData = file_get_contents($logo);
+        // $logoBase64 = base64_encode($logoData);
+        // $logo = 'data:image/png;base64,' . $logoBase64;
+
         $data = [
             'title' => 'Report',
-            'logo' => CompanyProfileService::profileInfo($user)['image_url'] ?? null,
+            'logo' => $logo,
             'merchant' => $merchantInfo,
             'grand_total' => $grandTotal,
             'date' => Helper::dateDMY($startDate,'d-M-Y',$lang) .' to '. Helper::dateDMY($endDate,'d-M-Y',$lang),

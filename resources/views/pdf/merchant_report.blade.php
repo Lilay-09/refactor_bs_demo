@@ -47,6 +47,9 @@
         width: 100%;
     }
 
+    .title > div{
+        font-size: 18px;
+    }
     p{
         padding-bottom: 8px;
         margin: 0;
@@ -131,14 +134,14 @@
         @if ($hasLogo)
             <!-- Left Section (Logo) -->
             <div class="logo" style="float: left; width: 30%; text-align: left;">
-                <img src="{{ $logo }}" alt="Logo" style="width: 100px;">
+                <img src="{{ $logo }}" alt="Logo" >
             </div>
 
             <!-- Center Section (Title + Date) -->
             <div class="title" style="float: left; width: 40%; text-align: center;">
                 <div>របាយការណ៏អតិថិជន</div>
                 <div>កាលបរិច្ឆេទ៖</div>
-                <div>{{ $date ?? now()->format('Y-m-d') }}</div>
+                <span>{{ $date ?? now()->format('Y-m-d') }}</span>
             </div>
 
             <!-- Clear floats -->
@@ -185,6 +188,7 @@
 
     @if(isset($data[0]))
             @foreach($data as $key => $tracking)
+            {{$tracking['date']}}
     <div class="table-wrapper">
         <table>
           <thead>
@@ -216,8 +220,8 @@
                         <td>{{ $item['receiver_phone'] ?? '' }}</td>
                         <td>{{ $item['price'] ?? '' }}</td>
                         <td>{{ $item['delivery_fee'] ?? '' }}</td>
-                        <td style="color:{{$colorCode[$item['status_id']] ?? ''}}">{{ $item['status_code'] ?? '' }}</td>
                         <td>${{ number_format($item['total'] ?? 0, 2) }}</td>
+                        <td style="color:{{$colorCode[$item['status_id']] ?? ''}}">{{ $item['status_code'] ?? '' }}</td>
                         <td>{{ $item['remarks'] ?? '' }}</td>
                     </tr>
                 @endforeach
@@ -235,7 +239,6 @@
                     ${{ number_format($tracking['total']['grand'] ?? 0, 2) }}
                 </td>
             </tr>
-
           </tbody>
         </table>
       </div>
