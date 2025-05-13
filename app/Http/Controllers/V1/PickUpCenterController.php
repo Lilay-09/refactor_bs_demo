@@ -459,7 +459,7 @@ class PickUpCenterController extends Controller
             if($package->cod) $total += $package->price;
             if($package->payer == 'receiver') $total += $package->delivery_fee;
             $package->total = $total;
-            $package->total_khr = Helper::getNumber($total * $exchange->sell_rate);
+            $package->total_khr = Helper::getNumber($total * $exchange->buy_rate);
             unset($package->status,$package->driver,$package->merchant,$package->arrive_warehouse_datetime,$package->updateUser,$package->create_uid,$package->created_at);
         }
         $companyInfo = CompanyProfileService::profileInfo($user,true);

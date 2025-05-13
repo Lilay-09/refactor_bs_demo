@@ -41,7 +41,7 @@ class DepartmentService
         return DataResponse::JsonResult(null,false,"Updated");
     }
 
-    public function getDepartment(Request $req,$user){
+    public function getDepartments(Request $req,$user){
         $Department = Department::query()->where('is_deleted',0);
         return DataResponse::PaginationV1($Department,$req);
     }
