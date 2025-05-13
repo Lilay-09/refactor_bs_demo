@@ -83,10 +83,10 @@ class HomeScreenController extends Controller
             $orderDatetime = $order->order_datetime;
             $order->order_date = Helper::formatCustomDateTime($orderDatetime,'d M Y');
             $order->order_time = Helper::formatCustomDateTime($orderDatetime,'h:i A');
-            $order->telegram_url = Helper::generateTelegramLink($order->merchant_phone);
+            $order->telegram_url = Helper::generateTelegramLink($order->merchant_phone)['url'];
             // $latLng = Helper::getLatLongFromGoogleMapsUrl($order->pickup_address_google_map);
-            // $order->latitude = $order->loc_lat ;//? $order->loc_lat : 11.552692;//;
-            // $order->longitude = $order->loc_lng ;// ? $order->loc_lng : 104.901413;//$order->loc_lng;
+            $order->latitude = $order->loc_lat ;//? $order->loc_lat : 11.552692;//;
+            $order->longitude = $order->loc_lng ;// ? $order->loc_lng : 104.901413;//$order->loc_lng;
             unset($order->merchant,$order->tracking_status,$order->warehouse);
             return $order;
         };

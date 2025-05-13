@@ -1160,7 +1160,7 @@ class ReportController extends Controller
             unset($item->status);
             return $item;
         })->groupBy('groupDate')
-        ->map(function ($group, $date) use ($isKm){
+        ->map(function ($group, $date) use ($isKm,&$grandTotal){
             $group->each(function ($item) use (&$grand,$isKm,&$totalDeliveryFee) {
                 unset($item->groupDate);
 
@@ -1196,6 +1196,7 @@ class ReportController extends Controller
                     $item->status_code = $item->status->name;
                 }
             });
+            $grandTotal += $grand;
             return [
                 'date' => $date,
                 'details' => $group->toArray(),
@@ -1217,6 +1218,7 @@ class ReportController extends Controller
             'date' => $startDate.' to '.$endDate,
             'merchant' => $merchantInfo,
             'total_packages' => $headerSummary->total_count,
+            'grand_total' => $grandTotal,
             'summary' => $summary,
             'company_profile' => CompanyProfileService::profileInfo($user),
             'list' => $groupedPackages
@@ -1225,6 +1227,8 @@ class ReportController extends Controller
     }
 
     private function getMerchantSummaryHeader($clonePkg,$merchantId,$startDate,$endDate){
+        $startDate = Helper::dateYMD($startDate).' 00:00:00';
+        $endDate = Helper::dateYMD($endDate).' 23:59:59';
         $lastOrder = Package::from('packages as p')->where('p.is_deleted',0)
         ->whereRaw(
             "(p.status_id = 5 AND p.arrive_warehouse_datetime BETWEEN ? AND ?)
@@ -1244,8 +1248,10 @@ class ReportController extends Controller
         'p.order_id'
         )
         ->whereIn('p.status_id',[5,6,10])
-        ->selectRaw('p.id as package_id,p.order_id,p.qr_code,p.merchant_total')
+        ->selectRaw('p.id as package_id,p.order_id,p.qr_code,p.merchant_total,p.cod,p.price')
         ->get();
+
+        // \Log::error($lastOrder);
         $packages = $clonePkg->get();
         $totalCount = 0;
         $pkgInfo = [
@@ -1257,32 +1263,30 @@ class ReportController extends Controller
             10 => ['title' => 'បរាជ័យ ', 'count' => 0, 'total' => 0],
             19 => ['title' => 'បរាជ័យគិតសេវា ', 'count' => 0, 'total' => 0],
             11 => ['title' => 'ត្រឡប់ទៅហាងវិញ ', 'count' => 0, 'total' => 0],
-            'all' => ['title' => 'ត្រឡប់ទៅហាងវិញ ', 'count' => 0, 'total' => 0],
+            // 'all' => ['title' => 'ត្រឡប់ទៅហាងវិញ ', 'count' => 0, 'total' => 0],
         ];
         foreach($lastOrder as $p){
+
             $pkgInfo['5.1']['count'] += 1;
-            $pkgInfo['5.1']['total'] += -$p->merchant_total;
-            $totalCount += 1;
+            $pkgInfo['5.1']['total'] += $p->cod ? $p->price:0;//- $p->merchant_total;
+            // $totalCount += 1;
+            // \Log::info($p->price);
         }
+        // \Log::info($pkgInfo['5.1']['total'].'---'.$pkgInfo['5.1']['count'] );
         // return $packages;
         foreach ($packages as $p) {
             $totalCount += 1;
             $statusId = $p->status_id;
             if(isset($pkgInfo[$statusId])){
                 $pkgInfo[$statusId]['count'] += 1;
-                $pkgInfo[$statusId]['total'] += -$p->merchant_total;
+                $pkgInfo[$statusId]['total'] += $p->cod ? $p->price:0;//- $p->merchant_total;
             }
             if(in_array($statusId,[5,6,10])){
                 $pkgInfo[5]['count'] += 1;
-                $pkgInfo[5]['total'] += -$p->merchant_total;
+                $pkgInfo[5]['total'] += $p->cod ? $p->price:0;//- $p->merchant_total;
                 $pkgInfo['5.2']['count'] = $pkgInfo['5.1']['count'] + $pkgInfo[5]['count'];
                 $pkgInfo['5.2']['total'] = $pkgInfo['5.1']['total'] + $pkgInfo[5]['total'];
             }
-            // if($p->status_id == 5){
-            //     $statusId = $p->status_id.'.1';
-            //     return $statusId;
-            //     $pkgInfo[$statusId]['count'] += 1;
-            // }
         }
         if(isset($pkgInfo[9])) $pkgInfo[9]['total'] = Helper::getNumber($pkgInfo[9]['total'],2);
         if(isset($pkgInfo[11])) $pkgInfo[11]['total'] = Helper::getNumber($pkgInfo[11]['total'],2);
@@ -1292,6 +1296,8 @@ class ReportController extends Controller
         if(isset($pkgInfo[10])) $pkgInfo[10]['total'] = Helper::getNumber($pkgInfo[10]['total'],2);
         if(isset($pkgInfo['5.1'])) $pkgInfo['5.1']['total'] = Helper::getNumber($pkgInfo['5.1']['total'],2);
         if(isset($pkgInfo['5.2'])) $pkgInfo['5.2']['total'] = Helper::getNumber($pkgInfo['5.2']['total'],2);
+
+        // \Log::error(array_values($pkgInfo));
         return (object)[
             'package_info' => array_values($pkgInfo),
             'total_count' => $totalCount
