@@ -1383,6 +1383,7 @@ class TransactionService
             'cod' => 'required|in:1,0',
             'price' => 'nullable|numeric',
             'payer' => 'required|in:receiver,sender',
+            'receiver_phone' => 'nullable|string',
             'taxi_fee' => 'nullable|numeric|min:0',
             'zone_code' => 'required',
             'extra_charge' => 'nullable|numeric|min:0'
@@ -1425,7 +1426,7 @@ class TransactionService
             $taxi_fee = 0;
         }
         $zoneCode = $inputs['zone_code'] ?? $package->zone_code;
-        $zone = Zone::where('is_deleted',0)->selectRaw('id,zone_name')->where('zone_code',$zoneCode)->first();
+        $zone = Zone::where('is_deleted',0)->orderByDesc('id')->selectRaw('id,zone_name')->where('zone_code',$zoneCode)->first();
         if(!$zone) return DataResponse::NotFound(__('messages.not_found',[
             'info' => 'Zone',
             'khInfo' => 'ទីតាំង'
