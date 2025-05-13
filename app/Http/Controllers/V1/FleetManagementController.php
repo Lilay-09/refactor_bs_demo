@@ -718,7 +718,7 @@ class FleetManagementController extends Controller
         $xRate = GeneralSettingService::getLatestXRate();
         foreach($packages as $p){
             $driverInfo->total += $p->driver_total;
-            $p->total_kh = (float)Helper::getNumber($p->driver_total * $xRate->sell_rate);
+            $p->total_kh = (float)Helper::getNumber($p->driver_total * $xRate->buy_rate);
         }
         $obj = [
             'company_info' => $companyInfo,

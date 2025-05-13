@@ -1,9 +1,12 @@
 <?php
 
 use App\Http\Controllers\V1\BannerController;
+use App\Http\Controllers\V1\ClientTypeController;
 use App\Http\Controllers\V1\DashboardController;
 use App\Http\Controllers\V1\DefaultAddressController;
+use App\Http\Controllers\V1\DepartmentController;
 use App\Http\Controllers\V1\EmergencyContactController;
+use App\Http\Controllers\V1\EmploymentPositionController;
 use App\Http\Controllers\V1\FeedbackFormController;
 use App\Http\Controllers\V1\FeedbackQuestionController;
 use App\Http\Controllers\V1\ReportController;
@@ -395,6 +398,11 @@ Route::middleware(['jwt','localize','userAccess:admin'])->prefix('admin/v1/{lang
     });
 
 
+    Route::prefix('clientType')->group(function(){
+        Route::post('',[ClientTypeController::class,'saveClientType']);
+        Route::get('',[ClientTypeController::class,'getClientTypes']);
+    });
+
     Route::prefix('reward')->group(function(): void{
         Route::get('/{id}',[ScoringRewardController::class,'getOneScoringReward']);
         Route::post('',[ScoringRewardController::class,'createScoringReward']);
@@ -455,6 +463,22 @@ Route::middleware(['jwt','localize','userAccess:admin'])->prefix('admin/v1/{lang
         Route::delete('/{id}',[PromotionController::class,'deletePromotion']);
     });
 
+    Route::prefix('department')->group(function(){
+        Route::post('',[DepartmentController::class,'createDepartment']);
+        Route::get('',[DepartmentController::class,'getDepartments']);
+        Route::get('/{id}',[DepartmentController::class,'getOneDepartment']);
+        Route::put('/{id}',[DepartmentController::class,'updateDepartment']);
+        Route::delete('/{id}',[DepartmentController::class,'deleteDepartment']);
+    });
+
+
+    Route::prefix('employment')->group(function(){
+        Route::post('position',[EmploymentPositionController::class,'createEmploymentPosition']);
+        Route::get('position',[EmploymentPositionController::class,'getEmploymentPositions']);
+        Route::get('position/{id}',[EmploymentPositionController::class,'getOneEmploymentPosition']);
+        Route::put('position/{id}',[EmploymentPositionController::class,'updateEmploymentPosition']);
+        Route::delete('position/{id}',[EmploymentPositionController::class,'deleteEmploymentPosition']);
+    });
     // Route::prefix('report')->group(function (){
     //     Route::prefix('expense')->group(function(){
     //         Route::get('category',[ReportController::class,'getExpenseByCategory']);
