@@ -18,7 +18,6 @@ return new class extends Migration
             $table->string('name',100)->nullable();
             $table->string('gender',10)->nullable();
             $table->string('position')->default('Salesperson');
-            $table->string('gender',10)->nullable();
             $table->string('phone',25)->nullable();
             $table->string('address')->nullable();
             $table->foreignId('merchant_id')->constrained('users')->cascadeOnDelete();
