@@ -106,7 +106,7 @@ class HomeController extends Controller
             'fail' => $packageCounts->fail ?? 0,
             'return' => $packageCounts->return ?? 0,
             'total' => $totalCount ?? 0,
-            'total_cod' => Helper::getNumber($packageCounts->total_cod,2),
+            'total_cod' => Helper::getNumber($packageCounts->total_cod,2,true),
             'date' => Helper::getDateTime('d-M-Y'),
         ];
 
