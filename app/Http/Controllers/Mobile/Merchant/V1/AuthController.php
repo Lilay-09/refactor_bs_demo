@@ -297,7 +297,7 @@ class AuthController extends Controller
         ->select('name_en','est_pcs','city','commune','district','product_type_id')->first();
         $profile->data['shop_name'] = $userShop->name_en ?? '';
         $profile->data['est_pcs'] = (int) ($userShop->est_pcs ?? 0);
-        $profile->data['product_type_id'] = $userShop->product_type_id;
+        $profile->data['product_type_id'] = $userShop->product_type_id ?? null;
         $profile->data['city'] = $userShop->city ?? '';
         $profile->data['district'] = $userShop->district ?? '';
         return ApiResponse::flex($profile);
