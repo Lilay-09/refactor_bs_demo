@@ -70,8 +70,9 @@ class HomeController extends Controller
     }
     public function trackingActivitySummary(Request $req)
     {
-        $today = now();
-        $dateaAgo = Helper::getDateDaysAgo(0);
+        $today = date('Y-m-d').' 23:59:59';
+        $dateaAgo = Helper::getDateDaysAgo(1) .' 00:00:00';
+        // return $dateaAgo;
         $user = UserService::getAuthUser('merchant');
         // Consolidate counts into a single query for Order and Package models
         $orderCounts = Order::where('merchant_id', $user->id)
@@ -85,6 +86,10 @@ class HomeController extends Controller
     $packageCounts = Package::where('merchant_id', $user->id)
         ->where('is_deleted', 0)
         ->selectRaw('
+            SUM(CASE
+                WHEN cod = TRUE AND status_id IN (6, 9, 10, 11, 19) THEN price
+                ELSE 0
+            END) as total_cod,
             SUM(CASE WHEN cod = TRUE THEN price ELSE 0 END) as total_cod,
             SUM(CASE WHEN status_id = 6 THEN 1 ELSE 0 END) as on_delivery,
             SUM(CASE WHEN status_id = 9 AND delivered_datetime BETWEEN ? AND ? THEN 1 ELSE 0 END) as success,
