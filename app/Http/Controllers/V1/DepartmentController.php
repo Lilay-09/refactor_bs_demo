@@ -31,7 +31,7 @@ class DepartmentController extends Controller
     }
 
     public function getOneDepartment(Request $req){
-        return ApiResponse::flex($this->departmentService->getOneDepartment($$req->id,$this->authUser));
+        return ApiResponse::flex($this->departmentService->getOneDepartment($req->id,$this->authUser));
     }
 
     public function deleteDepartment(Request $req){
