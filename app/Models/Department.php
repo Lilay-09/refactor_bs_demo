@@ -18,6 +18,10 @@ class Department extends Model
         'is_deleted',
         'deleted_datetime',
         'deleted_uid',
-        'deleted_reason'
+        'deleted_reason',
+        'create_uid',
+        'update_uid',
+        'branch_id',
+        'company_id'
     ];
 }
