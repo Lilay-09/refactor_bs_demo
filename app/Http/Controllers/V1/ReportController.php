@@ -1229,33 +1229,37 @@ class ReportController extends Controller
     private function getMerchantSummaryHeader($clonePkg,$merchantId,$startDate,$endDate){
         $startDate = Helper::dateYMD($startDate).' 00:00:00';
         $endDate = Helper::dateYMD($endDate).' 23:59:59';
-        $lastOrder = Package::from('packages as p')->where('p.is_deleted',0)
-        ->whereRaw(
-            "(p.status_id = 5 AND p.arrive_warehouse_datetime BETWEEN ? AND ?)
-            OR (p.status_id = 6 AND p.assign_driver_datetime BETWEEN ? AND ?)
-            OR (p.status_id = 10 AND p.failed_datetime BETWEEN ? AND ?)",
-            [$startDate, $endDate, $startDate, $endDate, $startDate, $endDate]
-        )
-        ->joinSub(
-        Order::select('id as order_id','code')
-            ->where('merchant_id',$merchantId)
-            ->where('status_id',5)
-            ->orderByDesc('id') // Assuming 'id' defines the latest order
-            ->limit(1),
-        'o',
-        'o.order_id',
-        '=',
-        'p.order_id'
-        )
-        ->whereIn('p.status_id',[5,6,10])
-        ->selectRaw('p.id as package_id,p.order_id,p.qr_code,p.merchant_total,p.cod,p.price');
-        // $clLatest = clone $lastOrder;
-        $lastOrder->get();
+        // $lastOrder = Package::from('packages as p')->where('p.is_deleted',0)
+        // ->whereRaw(
+        //     "(p.status_id = 5 AND p.arrive_warehouse_datetime BETWEEN ? AND ?)
+        //     OR (p.status_id = 6 AND p.assign_driver_datetime BETWEEN ? AND ?)
+        //     OR (p.status_id = 10 AND p.failed_datetime BETWEEN ? AND ?)",
+        //     [$startDate, $endDate, $startDate, $endDate, $startDate, $endDate]
+        // )
+        // ->joinSub(
+        // Order::select('id as order_id','code')
+        //     ->where('merchant_id',$merchantId)
+        //     ->where('status_id',5)
+        //     ->orderByDesc('id') // Assuming 'id' defines the latest order
+        //     ->limit(1),
+        // 'o',
+        // 'o.order_id',
+        // '=',
+        // 'p.order_id'
+        // )
+        // ->whereIn('p.status_id',[5,6,10])
+        // ->selectRaw('p.id as package_id,p.order_id,p.qr_code,p.merchant_total,p.cod,p.price')
+        // ->get();
+        $qLastOrder = Package::where('is_deleted',0)
+        ->where('arrive_warehouse_datetime','>=',date('Y-m-d').' 00:00:00')
+        ->where('merchant_id',$merchantId)
+        ->where('outstanding',0)
+        ->selectRaw('id as package_id,order_id,qr_code,merchant_total,cod,price');
+        $clLatest = clone $qLastOrder;
+        $lastOrder = $qLastOrder->get();
 
         // \Log::error($lastOrder);
-        // $excludePkgIds = $clLatest->pluck('package_id')->toArray();
-        // $packages = $clonePkg->whereNotIn('p.id',$excludePkgIds)->get();
-        $packages = $clonePkg->get();
+        $packages = $clonePkg->whereNotIn('p.id',$clLatest->pluck('package_id')->toArray())->get();
         $totalCount = 0;
         $pkgInfo = [
             5 => ['title' => 'ចំនួនកញ្ចប់ដែលនៅសល់ ', 'count' => 0,'total' => 0],
