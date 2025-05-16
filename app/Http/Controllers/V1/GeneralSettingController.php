@@ -34,6 +34,10 @@ class GeneralSettingController extends Controller
         return ApiResponse::JsonResult($this->gs::optionsCountry($user));
     }
 
+    public function getOptionsDeliveryType(){
+        return ApiResponse::JsonResult($this->gs::optionsDeliveryType());
+    }
+
     public function getOptionsCity(Request $req){
         $user = UserService::getAuthUser();
         return ApiResponse::JsonResult($this->gs::optionsCity($user));
