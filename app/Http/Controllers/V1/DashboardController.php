@@ -261,6 +261,7 @@ class DashboardController extends Controller
 
         $totalEarning = 0;
         $dateSet = [];
+        $testDate = [];
 
         foreach ($rows as $p) {
             // Only process if status is 9 (delivered) or 19 (failed with fee)
@@ -270,12 +271,17 @@ class DashboardController extends Controller
                 // Collect unique dates (Carbon parsing only once)
                 if (!empty($p->finished_date)) {
                     $date = Carbon::parse($p->finished_date)->format('Y-m-d');
+                    if(!isset($dateSet[$date])){
+                        $testDate[] = $date;
+                    }
                     $dateSet[$date] = true; // Using associative array as a set
                 }
             }
         }
 
-        $daysCount = count($dateSet) ?: 1; // Avoid division by zero
+        $daysCount = max(count($dateSet) - 1, 1);
+        // Avoid division by zero
+        // \Log::info(array_values($testDate));
         $averageDailyEarning = $totalEarning / $daysCount;
 
         return [
