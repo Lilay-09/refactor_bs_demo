@@ -1248,10 +1248,13 @@ class ReportController extends Controller
         'p.order_id'
         )
         ->whereIn('p.status_id',[5,6,10])
-        ->selectRaw('p.id as package_id,p.order_id,p.qr_code,p.merchant_total,p.cod,p.price')
-        ->get();
+        ->selectRaw('p.id as package_id,p.order_id,p.qr_code,p.merchant_total,p.cod,p.price');
+        // $clLatest = clone $lastOrder;
+        $lastOrder->get();
 
         // \Log::error($lastOrder);
+        // $excludePkgIds = $clLatest->pluck('package_id')->toArray();
+        // $packages = $clonePkg->whereNotIn('p.id',$excludePkgIds)->get();
         $packages = $clonePkg->get();
         $totalCount = 0;
         $pkgInfo = [
