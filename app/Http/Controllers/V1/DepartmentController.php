@@ -21,15 +21,12 @@ class DepartmentController extends Controller
     public function createDepartment(Request $req){
         return ApiResponse::flex($this->departmentService->createDepartment($req,$this->authUser));
     }
-
     public function updateDepartment(Request $req){
         return ApiResponse::flex($this->departmentService->updateDepartment($req,$req->id,$this->authUser));
     }
-
     public function getDepartments(Request $req){
         return ApiResponse::flex($this->departmentService->getDepartments($req,$this->authUser));
     }
-
     public function getOneDepartment(Request $req){
         return ApiResponse::flex($this->departmentService->getOneDepartment($req->id,$this->authUser));
     }
