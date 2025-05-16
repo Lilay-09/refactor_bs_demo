@@ -1272,8 +1272,8 @@ class ReportController extends Controller
             11 => ['title' => 'ត្រឡប់ទៅហាងវិញ ', 'count' => 0, 'total' => 0],
             // 'all' => ['title' => 'ត្រឡប់ទៅហាងវិញ ', 'count' => 0, 'total' => 0],
         ];
-        foreach($lastOrder as $p){
 
+        foreach($lastOrder as $p){
             $pkgInfo['5.1']['count'] += 1;
             $pkgInfo['5.1']['total'] += $p->cod ? $p->price:0;//- $p->merchant_total;
             $totalCount += 1;

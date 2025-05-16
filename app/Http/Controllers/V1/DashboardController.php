@@ -300,6 +300,7 @@ class DashboardController extends Controller
         $currentMonth = Carbon::now()->month;
         $currentYear = Carbon::now()->year;
         $topRiders = DB::table('packages as p')
+        ->where('p.is_deleted',0)
         ->where('p.outstanding',0)
         ->where('p.updated_at', '>=', Carbon::now()->subDays($this->days))
         ->whereIn('p.status_id',[9,10,19])
@@ -363,6 +364,7 @@ class DashboardController extends Controller
     private function merchantPayable(){
         $totalAmount = 0;
         $dailyCollection = Package::fromRaw('packages as p')
+        ->where('p.is_deleted', 0)
         ->whereIn('p.status_id', [9, 19])
         ->where('p.updated_at', '>=', Carbon::now()->subDays($this->days))
         ->join('tracking_statuses as ts', 'ts.id', '=', 'p.status_id')

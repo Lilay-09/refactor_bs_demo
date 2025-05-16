@@ -1383,6 +1383,7 @@ class TransactionService
             'cod' => 'required|in:1,0',
             'price' => 'nullable|numeric',
             'payer' => 'required|in:receiver,sender',
+            'receiver_address' => 'nullable|string|max:100',
             'receiver_phone' => 'nullable|string',
             'taxi_fee' => 'nullable|numeric|min:0',
             'zone_code' => 'required',
@@ -1390,7 +1391,7 @@ class TransactionService
         ]);
         if($validate->fails()) return DataResponse::ValidateFail($validate->errors()->first());
         $inputs = $validate->validated();
-
+        Log::info($req->all());
         $package = Package::where('is_deleted',0)->find($id);
         if(!$package) return DataResponse::NotFound(__('messages.not_found',[
             'info' => 'Package'
@@ -1398,13 +1399,14 @@ class TransactionService
         $driverPayment = $package->driver_payment_id || $package->driver_disbursement_id;
         $merchantPayment = $package->merchant_payment_id || $package->merchant_disbursement_id;
         if($merchantPayment || $driverPayment){
-            if(isset($inputs['remarks'])){
-                $package->update([
-                    'remarks' => $inputs['remarks']
-                ]);
+            if(isset($inputs['remarks']) || isset($inputs['receiver_address'])){
+                $updateArr = [];
+                if(isset($inputs['remarks'])) $updateArr['remarks'] = $inputs['remarks'];
+                if(isset($inputs['receiver_address'])) $updateArr['receiver_address'] = $inputs['receiver_address'];
+                $package->update($updateArr);
                 return DataResponse::JsonResult(null, false, __('messages.info', [
-                    'info' => 'Only remark was updated. Price-related fields cannot be modified for paid packages.',
-                    'khInfo' => 'បានកែសំគាល់តែប៉ុណ្ណោះ។ ពាក់ព័ន្ធនឹងតម្លៃមិនអាចកែប្រែបានទេសម្រាប់កញ្ចប់ដែលបានទូរទាត់ប្រាក់រួច។'
+                    'info' => 'Only remark and receiver address were updated. Price-related fields cannot be modified for paid packages.',
+                    'khInfo' => 'បានកែសំគាល់នឹងទីតាំងតែប៉ុណ្ណោះ។ ពាក់ព័ន្ធនឹងតម្លៃមិនអាចកែប្រែបានទេសម្រាប់កញ្ចប់ដែលបានទូរទាត់ប្រាក់រួច។'
                 ]));
             }
         }
