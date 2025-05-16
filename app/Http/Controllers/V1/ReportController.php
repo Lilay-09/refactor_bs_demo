@@ -1254,7 +1254,7 @@ class ReportController extends Controller
         ->where('arrive_warehouse_datetime','>=',date('Y-m-d').' 00:00:00')
         ->where('merchant_id',$merchantId)
         ->where('outstanding',0)
-        ->selectRaw('id as package_id,order_id,qr_code,merchant_total,cod,price');
+        ->selectRaw('id as package_id,status_id,order_id,qr_code,merchant_total,cod,price');
         $clLatest = clone $qLastOrder;
         $lastOrder = $qLastOrder->get();
 
@@ -1276,7 +1276,11 @@ class ReportController extends Controller
 
             $pkgInfo['5.1']['count'] += 1;
             $pkgInfo['5.1']['total'] += $p->cod ? $p->price:0;//- $p->merchant_total;
-            // $totalCount += 1;
+            $totalCount += 1;
+            if($p->status_id == 6){
+                $pkgInfo[6]['count'] += 1;
+                $pkgInfo[6]['total'] += $p->cod ? $p->price:0;
+            }
             // \Log::info($p->price);
         }
         // \Log::info($pkgInfo['5.1']['total'].'---'.$pkgInfo['5.1']['count'] );
