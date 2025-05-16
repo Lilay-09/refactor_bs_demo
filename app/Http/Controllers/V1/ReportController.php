@@ -1273,14 +1273,43 @@ class ReportController extends Controller
             // 'all' => ['title' => 'ត្រឡប់ទៅហាងវិញ ', 'count' => 0, 'total' => 0],
         ];
 
+        $statuses = [6, 9, 10, 11, 19];
         foreach($lastOrder as $p){
             $pkgInfo['5.1']['count'] += 1;
             $pkgInfo['5.1']['total'] += $p->cod ? $p->price:0;//- $p->merchant_total;
             $totalCount += 1;
-            if($p->status_id == 6){
-                $pkgInfo[6]['count'] += 1;
-                $pkgInfo[6]['total'] += $p->cod ? $p->price:0;
+
+            if (in_array($p->status_id, $statuses)) {
+                if (!isset($pkgInfo[$p->status_id])) {
+                    $pkgInfo[$p->status_id] = ['count' => 0, 'total' => 0];
+                }
+
+                $pkgInfo[$p->status_id]['count'] += 1;
+                $pkgInfo[$p->status_id]['total'] += $p->cod ? $p->price : 0;
             }
+            // if($p->status_id == 6){
+            //     $pkgInfo[6]['count'] += 1;
+            //     $pkgInfo[6]['total'] += $p->cod ? $p->price:0;
+            // }
+
+            // if($p->status_id == 9){
+            //     $pkgInfo[9]['count'] += 1;
+            //     $pkgInfo[9]['total'] += $p->cod ? $p->price:0;
+            // }
+
+            // if($p->status_id == 10){
+            //     $pkgInfo[10]['count'] += 1;
+            //     $pkgInfo[10]['total'] += $p->cod ? $p->price:0;
+            // }
+
+            // if($p->status_id == 19){
+            //     $pkgInfo[19]['count'] += 1;
+            //     $pkgInfo[19]['total'] += $p->cod ? $p->price:0;
+            // }
+            // if($p->status_id == 11){
+            //     $pkgInfo[11]['count'] += 1;
+            //     $pkgInfo[11]['total'] += $p->cod ? $p->price:0;
+            // }
             // \Log::info($p->price);
         }
         // \Log::info($pkgInfo['5.1']['total'].'---'.$pkgInfo['5.1']['count'] );

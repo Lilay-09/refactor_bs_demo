@@ -1391,7 +1391,7 @@ class TransactionService
         ]);
         if($validate->fails()) return DataResponse::ValidateFail($validate->errors()->first());
         $inputs = $validate->validated();
-        Log::info($req->all());
+        // Log::info($req->all());
         $package = Package::where('is_deleted',0)->find($id);
         if(!$package) return DataResponse::NotFound(__('messages.not_found',[
             'info' => 'Package'
