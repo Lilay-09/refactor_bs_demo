@@ -1399,16 +1399,19 @@ class TransactionService
         $driverPayment = $package->driver_payment_id || $package->driver_disbursement_id;
         $merchantPayment = $package->merchant_payment_id || $package->merchant_disbursement_id;
         if($merchantPayment || $driverPayment){
-            if(isset($inputs['remarks']) || isset($inputs['receiver_address'])){
-                $updateArr = [];
-                if(isset($inputs['remarks'])) $updateArr['remarks'] = $inputs['remarks'];
-                if(isset($inputs['receiver_address'])) $updateArr['receiver_address'] = $inputs['receiver_address'];
+            // if(isset($inputs['remarks']) || isset($inputs['receiver_address'])){
+                $updateArr = [
+                    'remarks' => $inputs['remarks'] ?? '',
+                    'receiver_address' => $inputs['receiver_address'] ?? ''
+                ];
+                // if(isset($inputs['remarks'])) $updateArr['remarks'] = $inputs['remarks'];
+                // if(isset($inputs['receiver_address'])) $updateArr['receiver_address'] = $inputs['receiver_address'];
                 $package->update($updateArr);
                 return DataResponse::JsonResult(null, false, __('messages.info', [
                     'info' => 'Only remark and receiver address were updated. Price-related fields cannot be modified for paid packages.',
                     'khInfo' => 'បានកែសំគាល់នឹងទីតាំងតែប៉ុណ្ណោះ។ ពាក់ព័ន្ធនឹងតម្លៃមិនអាចកែប្រែបានទេសម្រាប់កញ្ចប់ដែលបានទូរទាត់ប្រាក់រួច។'
                 ]));
-            }
+            // }
         }
         if($driverPayment) return DataResponse::Duplicated(__('messages.info',[
             'info' => 'It seems like you try to update package which is on payment pending or paid with driver',

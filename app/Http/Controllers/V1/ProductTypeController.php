@@ -6,7 +6,6 @@ use ApiResponse;
 use App\Http\Controllers\Controller;
 use App\Models\ProductType;
 use App\Services\UserService;
-use Helper;
 use Illuminate\Http\Request;
 
 class ProductTypeController extends Controller
