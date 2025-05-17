@@ -49,7 +49,7 @@ class HistoryController extends Controller
                 p.returned_uid, p.driver_id, p.qr_code, p.status_id, trs.name as status_code,
                 d.fleet_tracking_number, m.user_name as merchant_name, m.phone as merchant_phone,
                 p.returned_datetime, p.failed_datetime, p.receiver_name, p.delivered_datetime,
-                p.receiver_address, p.receiver_phone, p.driver_total as total
+                p.receiver_address, p.receiver_phone, p.driver_total as total,p.zone_name
             ')
             ->where([
                 ['dp.delay_count', 0],

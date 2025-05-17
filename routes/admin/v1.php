@@ -9,6 +9,7 @@ use App\Http\Controllers\V1\EmergencyContactController;
 use App\Http\Controllers\V1\EmploymentPositionController;
 use App\Http\Controllers\V1\FeedbackFormController;
 use App\Http\Controllers\V1\FeedbackQuestionController;
+use App\Http\Controllers\V1\MerchantEmployeeController;
 use App\Http\Controllers\V1\ReportController;
 use App\Http\Controllers\V1\AppSettingController;
 use App\Http\Controllers\V1\AuthController;
@@ -175,6 +176,14 @@ Route::middleware(['jwt','localize','userAccess:admin'])->prefix('admin/v1/{lang
         Route::put('/{id}/priceList',[MerchantManagementController::class,'setMerchantPriceList']);
         Route::get('/{id}/default',[MerchantManagementController::class,'getDefaultOptions']);
         Route::post('/{id}/setPassword',[MerchantManagementController::class,'setPassword']);
+
+        Route::prefix('/{id}/employee')->group(function(){
+            Route::post('',[MerchantEmployeeController::class,'createMerchantEmployee']);
+            Route::get('',[MerchantEmployeeController::class,'getMerchantEmployees']);
+            Route::get('/{emp_id}',[MerchantEmployeeController::class,'getOneMerchantEmployee']);
+            Route::put('/{emp_id}',[MerchantEmployeeController::class,'updateMerchantEmployee']);
+            Route::delete('/{emp_id}',[MerchantEmployeeController::class,'deleteMerchantEmployee']);
+        });
 
         Route::prefix('transaction')->group(function(){
             Route::prefix('delivery')->group(function(){
@@ -539,6 +548,7 @@ Route::middleware(['jwt','localize','userAccess:admin'])->prefix('admin/v1/{lang
             Route::get('userStatus',[GeneralSettingController::class,'getOptionsUserStatus']);
             Route::get('payer',[GeneralSettingController::class,'getOptionsPayer']);
             Route::get('dailyMerchant',[GeneralSettingController::class,'getOptionsDailyActiveMerchant']);
+            Route::get('gender',[GeneralSettingController::class,'getOptionsGender']);
         });
 
         Route::prefix('filter')->group(function(){
