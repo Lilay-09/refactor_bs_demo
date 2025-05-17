@@ -61,6 +61,10 @@ class GeneralSettingController extends Controller
         return ApiResponse::JsonResult($this->gs::optionsFeedbackForm($req->lang,[1]));
     }
 
+    public function getOptionsGender(){
+        return ApiResponse::JsonResult($this->gs::optionsGender());
+    }
+
     public function getOptionsOperator(){
         $user = UserService::getAuthUser();
         return ApiResponse::JsonResult($this->gs::optionsOperator($user));

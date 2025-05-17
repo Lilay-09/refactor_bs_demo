@@ -19,22 +19,22 @@ class MerchantEmployeeController extends Controller
     }
 
     public function createMerchantEmployee(Request $req){
-        return ApiResponse::flex($this->merchantEmpService->createMerchantEmployee($req,$this->authUser));
+        return ApiResponse::flex($this->merchantEmpService->createMerchantEmployee($req,$req->id,$this->authUser));
     }
 
     public function getMerchantEmployees(Request $req){
-        return ApiResponse::flex($this->merchantEmpService->getMerchantEmployees($req,$this->authUser));
+        return ApiResponse::flex($this->merchantEmpService->getMerchantEmployees($req,$req->id,$this->authUser));
     }
 
     public function getOneMerchantEmployee(Request $req){
-        return ApiResponse::flex($this->merchantEmpService->getOneMerchantEmployee($req->id,$this->authUser));
+        return ApiResponse::flex($this->merchantEmpService->getOneMerchantEmployee($req->emp_id,$req->id,$this->authUser));
     }
 
     public function updateMerchantEmployee(Request $req){
-        return ApiResponse::flex($this->merchantEmpService->updateMerchantEmployee($req,$req->id,$this->authUser));
+        return ApiResponse::flex($this->merchantEmpService->updateMerchantEmployee($req,$req->emp_id,$req->id,$this->authUser));
     }
 
     public function deleteMerchantEmployee(Request $req){
-        return ApiResponse::flex($this->merchantEmpService->deleteMerchantEmployee($req->id,$this->authUser));
+        return ApiResponse::flex($this->merchantEmpService->deleteMerchantEmployee($req->emp_id,$req->id,$this->authUser));
     }
 }
