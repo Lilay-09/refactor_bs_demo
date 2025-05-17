@@ -127,7 +127,7 @@ class HistoryController extends Controller
             return $pkg;
         })->groupBy('groupKey')->map(function ($group, $fleetNumber) use (&$grandTotal) {
             $group->each(function ($item) {
-                $item->receiver_address = preg_replace('/\x{17D2}$/u', '', $item->receiver_address);
+                $item->receiver_address = $item->receiver_address ? preg_replace('/\x{17D2}$/u', '', $item->receiver_address):$item->zone_name;
                 unset($item->delivery_id, $item->fleet_tracking_number, $item->groupKey);
             });
 
