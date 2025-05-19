@@ -88,6 +88,14 @@ class GeneralSettingController extends Controller
         return ApiResponse::JsonResult($this->gs::optionsRole($req->type));
     }
 
+    public function getDriverCommissionFormOptions(Request $req){
+        $lang = $req->lang;
+        return ApiResponse::JsonResult([
+            'employment_types' => $this->gs::optionsEmployeeType(),
+            'commission_types' => $this->gs::optionsCommissionType($lang),
+        ]);
+    }
+
     public function getAssignZoneFormOptions(Request $req){
         $exceptId = $req->exceptId;
         $pZone = Zone::where('is_deleted',0)

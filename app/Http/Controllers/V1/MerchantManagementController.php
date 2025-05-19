@@ -12,6 +12,7 @@ use App\Services\UserService;
 use DB;
 use Helper;
 use Illuminate\Http\Request;
+use function Laravel\Prompts\select;
 
 class MerchantManagementController extends Controller
 {
@@ -34,6 +35,7 @@ class MerchantManagementController extends Controller
         ->where('account_type',$this->userClass)
         ->with(['merchantType:id,name','bank_accounts:id,bank_name,bank_number,account_name,user_id,is_primary','shop:id,owner_id,name_en as shop_name_en,name_km as shop_name_km,product_type_id,city,district,est_pcs','shop.product_type:id,name']);
         // ->selectRaw('id,cod_fee,code,name_km,user_name,email,gender,business_type,phone,client_type_id,address,cod,pin_address,photo_file_name,lock,has_account,photo_file_name');
+        // ->select(['id','cod_fee','code','name_km','user_name','email','name_en',''])
         if($statusId !== null && $statusId>=0) {
             $query->where('lock',$statusId ? 0 : 1);
         }

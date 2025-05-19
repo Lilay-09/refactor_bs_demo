@@ -113,6 +113,11 @@ class DriverManagementController extends Controller
         $inputs['normal_delivery_commission_type'] = $inputs['normal_delivery_commission_type'] ?? 'amount';
         $inputs['normal_pickup_commission_type'] = $inputs['normal_pickup_commission_type'] ?? 'amount';
 
+        $normal_pickup_commission_type = $inputs['normal_pickup_commission_type'];
+        $normal_delivery_commission_type = $inputs['normal_delivery_commission_type'];
+        $fast_pickup_commission_type = $inputs['fast_pickup_commission_type'];
+        $fast_delivery_commission_type = $inputs['fast_delivery_commission_type'];
+
         $normal_pickup_commissionStartDate = $inputs['normal_pickup_commission_start_date'] ?? null;
         $normal_delivery_commissionStartDate = $inputs['normal_delivery_commission_start_date'] ?? null;
         $fast_pickup_commissionStartDate = $inputs['fast_pickup_commission_start_date'] ?? null;
@@ -122,16 +127,20 @@ class DriverManagementController extends Controller
                 'driver_id' => $driver_id,
                 'delivery_type' => 'normal',
                 'pickup_commission' =>  $normal_pickup_commission,
+                'pickup_commission_type' =>  $normal_pickup_commission_type,
                 'pickup_commission_start_date' => $normal_pickup_commissionStartDate,
                 'delivery_commission' => $normal_delivery_commission,
+                'delivery_commission_type' => $normal_delivery_commission_type,
                 'delivery_commission_start_date' => $normal_delivery_commissionStartDate
             ],
             [
                 'driver_id' => $driver_id,
                 'delivery_type' => 'fast',
                 'pickup_commission' =>  $fast_pickup_commission,
+                'pickup_commission_type' =>  $fast_pickup_commission_type,
                 'pickup_commission_start_date' => $fast_pickup_commissionStartDate,
                 'delivery_commission' => $fast_delivery_commission,
+                'delivery_commission_type' => $fast_delivery_commission_type,
                 'delivery_commission_start_date' => $fast_delivery_commissionStartDate
             ],
         ];
@@ -187,10 +196,14 @@ class DriverManagementController extends Controller
         $dc = (object)[
             'normal_pickup_commission' => 0,
             'normal_delivery_commission' => 0,
+            'normal_pickup_commission_type' => 'percentage',
+            'normal_delivery_commission_type' => 'percentage',
             'normal_pickup_commission_start_date' => 0,
             'normal_delivery_commission_start_date' => 0,
             'fast_pickup_commission' => 0,
+            'fast_pickup_commission_type' => 'percentage',
             'fast_delivery_commission' => 0,
+            'fast_delivery_commission_type' => 'percentage',
             'fast_pickup_commission_start_date' => 0,
             'fast_delivery_commission_start_date' => 0
         ];
@@ -201,13 +214,17 @@ class DriverManagementController extends Controller
         foreach($driverCommissions as $driverComm){
             if($driverComm->delivery_type == 'fast'){
                 $dc->fast_pickup_commission = $driverComm->pickup_commission;
+                $dc->fast_pickup_commission_type = $driverComm->pickup_commission_type;
                 $dc->fast_delivery_commission = $driverComm->delivery_commission;
+                $dc->fast_delivery_commission_type = $driverComm->delivery_commission_type;
                 $dc->fast_pickup_commission_start_date = Helper::dateDMY($driverComm->pickup_commission_start_date) ?? $driverComm->updated_date;
                 $dc->fast_delivery_commission_start_date = Helper::dateDMY($driverComm->delivery_commission_start_date) ?? $driverComm->updated_date;
             }
             if($driverComm->delivery_type == 'normal'){
                 $dc->normal_pickup_commission = $driverComm->pickup_commission;
+                $dc->normal_pickup_commission_type = $driverComm->pickup_commission_type;
                 $dc->normal_delivery_commission = $driverComm->delivery_commission;
+                $dc->normal_delivery_commission_type = $driverComm->delivery_commission_type;
                 $dc->normal_pickup_commission_start_date = Helper::dateDMY($driverComm->pickup_commission_start_date) ?? $driverComm->updated_date;
                 $dc->normal_delivery_commission_start_date = Helper::dateDMY($driverComm->delivery_commission_start_date) ?? $driverComm->updated_date;
             }

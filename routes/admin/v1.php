@@ -575,6 +575,7 @@ Route::middleware(['jwt','localize','userAccess:admin'])->prefix('admin/v1/{lang
             Route::get('finished',[GeneralSettingController::class,'getFormFinished']);
             Route::get('merchant',[GeneralSettingController::class,'getFormMerchant']);
             Route::get('driver',[GeneralSettingController::class,'getFormDriver']);
+            Route::get('driver/commission',[GeneralSettingController::class,'getDriverCommissionFormOptions']);
             Route::get('finished/package',[GeneralSettingController::class,'getFormUpdateFinishedPackage']);
             Route::get('driver/question',[GeneralSettingController::class,'getDriverFormQuestion']);
         });

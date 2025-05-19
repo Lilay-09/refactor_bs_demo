@@ -85,9 +85,9 @@ class PackageTrailController extends Controller
             $query->where('driver_id',$driverId);
         }
         if($search){
-            $query->where(function ($q) use($search){
-                $q->where('qr_code',$search)->orWhere('receiver_phone','ilike','%'.$search.'%');
-            });
+            // $query->where(function ($q) use($search){
+                $query->where('qr_code',$search)->orWhere('receiver_phone','ilike','%'.$search.'%');
+            // });
         }
         if($startDate && $endDate){
             $startDate = Helper::dateYMD($startDate).' 00:00:00';
