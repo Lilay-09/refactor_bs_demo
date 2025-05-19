@@ -138,6 +138,14 @@ class GeneralSettingService
         return $roles;
     }
 
+
+    public static function optionsCommissionType($lang='en'){
+        return Helper::translateOptions([
+            'percentage' => ['en' => '%','km'=>'%'],
+            'amount' => ['en' => '$','km'=>'$'],
+        ],$lang);
+    }
+
     public static function getDefaultMerchantLocation($merchatnId){
         return User::where('id',$merchatnId)->where('is_deleted',0)
         ->where('account_type','merchant')
