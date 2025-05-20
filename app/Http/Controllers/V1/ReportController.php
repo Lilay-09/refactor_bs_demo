@@ -1048,6 +1048,7 @@ class ReportController extends Controller
                 $merchantInfo->bank_number = $b->bank_number;
                 $merchantInfo->account_name = $b->account_name;
             }
+
             if(!$b->bank_account) {
                 $merchantInfo->bank_account = GeneralSettingService::concatBankInfo($b->bank_name,$b->bank_number,$b->account_name);
                 $merchantInfo->bank_name = $b->bank_name;
@@ -1143,7 +1144,7 @@ class ReportController extends Controller
         $groupedPackages = collect($packages)->map(function ($item) use (&$grand)  {
             $item->arrive_warehouse_datetime = Helper::formatCustomDateTime($item->arrive_warehouse_datetime);
             $finishDate = $item->failed_datetime;
-            if($item->status_id == 9 || $item->status_id == 11) {
+            if($item->status_id == 9) {
                 $finishDate = $item->delivered_datetime;
                 // $item->delivery_remarks = '';
             }
