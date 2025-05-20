@@ -1163,10 +1163,9 @@ class ReportController extends Controller
         })->groupBy('groupDate')
         ->map(function ($group, $date) use ($isKm,&$grandTotal){
             $group->each(function ($item) use (&$grand,$isKm,&$totalDeliveryFee) {
+                $item->finished_date = Helper::dateDMY($item->groupDate);//($item->failed_datetime  && $item->status_id != 9) ? Helper::dateDMY($item->failed_datetime): Helper::dateDMY($item->delivered_datetime);
+                $finished_time = Helper::dateDMY($item->groupDate);//$item->failed_datetime ? Helper::formatCustomDateTime($item->failed_datetime,'h:i:s A'):Helper::formatCustomDateTime($item->delivered_datetime,'h:i:s A');
                 unset($item->groupDate);
-
-                $item->finished_date = $item->failed_datetime ? Helper::dateDMY($item->failed_datetime): Helper::dateDMY($item->delivered_datetime);
-                $finished_time = $item->failed_datetime ? Helper::formatCustomDateTime($item->failed_datetime,'h:i:s A'):Helper::formatCustomDateTime($item->delivered_datetime,'h:i:s A');
                 $item->finished_time = $finished_time;
                 $isCal = in_array($item->status_id,[9,19]);
                 $item->price = $item->cod ? $item->price:0;
