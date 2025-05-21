@@ -1264,7 +1264,7 @@ class ReportController extends Controller
         $pkgInfo = [
             5 => ['title' => 'ចំនួនកញ្ចប់ដែលនៅសល់ ', 'count' => 0,'total' => 0],
             "5.1" => ['title' => 'ចំនួនកញ្ចប់​ចូលថ្មី ', 'count' => 0, 'total' => 0],
-            "5.2" => ['title' => 'ចំនួនកញ្ចប់សរុប ',"count" => 0, 'total' => 0],
+            // "5.2" => ['title' => 'ចំនួនកញ្ចប់សរុប ',"count" => 0, 'total' => 0],
             9 => ['title' => 'ជោគជ័យ ', 'count' => 0, 'total' => 0],
             6 => ['title' => 'កំពុងដឹក ', 'count' => 0, 'total' => 0],
             10 => ['title' => 'បរាជ័យ ', 'count' => 0, 'total' => 0],
@@ -1328,8 +1328,10 @@ class ReportController extends Controller
             if(in_array($statusId,[5,6,10])){
                 $pkgInfo[5]['count'] += 1;
                 $pkgInfo[5]['total'] += $p->cod ? $p->price:0;//- $p->merchant_total;
-                $pkgInfo['5.2']['count'] = $pkgInfo['5.1']['count'] + $pkgInfo[5]['count'];
-                $pkgInfo['5.2']['total'] = $pkgInfo['5.1']['total'] + $pkgInfo[5]['total'];
+                if(isset($pkgInfo['5.2'])){
+                    $pkgInfo['5.2']['count'] = $pkgInfo['5.1']['count'] + $pkgInfo[5]['count'];
+                    $pkgInfo['5.2']['total'] = $pkgInfo['5.1']['total'] + $pkgInfo[5]['total'];
+                }
             }
         }
         if(isset($pkgInfo[9])) $pkgInfo[9]['total'] = Helper::getNumber($pkgInfo[9]['total'],2);
