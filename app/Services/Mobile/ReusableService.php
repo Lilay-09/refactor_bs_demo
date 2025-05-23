@@ -410,7 +410,7 @@ class ReusableService
             $package->status_code = $lang === 'km'
                 ? (GeneralSettingService::$statusCodeTrans[$statusId] ?? '')
                 : ($statusNames[$statusId] ?? '');
-            $package->tracking_number = $package->activeDeliveryPackage->delivery->fleet_tracking_number;
+            $package->tracking_number = $package->activeDeliveryPackage->delivery?->fleet_tracking_number;
             // Safely assign driver details
             $package->driver_phone = $driver->phone ?? '';
             $package->driver_name = $driver->user_name ?? '';
