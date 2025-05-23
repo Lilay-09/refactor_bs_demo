@@ -437,6 +437,12 @@ class HomeController extends Controller
 
     public function getConnectWithUs(){
         $user = UserService::getAuthUser('merchant');
+        if(!$user){
+            $user = (object)[
+                'company_id' => 1,
+                'account_type' => 'merchant'
+            ];
+        }
         $socialMedias = SocialMedia::where('is_deleted',0)->selectRaw('id,name,photo_file_name,url')->get();
         $companyInfo = CompanyProfileService::profileInfo((object)[
             'company_id' => 1
