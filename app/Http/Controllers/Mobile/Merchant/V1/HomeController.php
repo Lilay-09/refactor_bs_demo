@@ -438,7 +438,9 @@ class HomeController extends Controller
     public function getConnectWithUs(){
         $user = UserService::getAuthUser('merchant');
         $socialMedias = SocialMedia::where('is_deleted',0)->selectRaw('id,name,photo_file_name,url')->get();
-        $companyInfo = CompanyProfileService::profileInfo($user);
+        $companyInfo = CompanyProfileService::profileInfo((object)[
+            'company_id' => 1
+        ]);
         foreach($socialMedias as $sm){
             $sm->image_url = Helper::getImageUrl($sm->photo_file_name,$user->company_id,'social_media');
         }
