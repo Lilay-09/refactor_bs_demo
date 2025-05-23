@@ -1260,10 +1260,7 @@ class ReportController extends Controller
 
         // \Log::error($lastOrder);
         $packages = $clonePkg->whereNotIn('p.id',$clLatest->pluck('package_id')->toArray())->get();
-        $failedPkgs = Package::where('is_deleted',false)
-        ->where('merchant_id',$merchantId)
-        ->where('status_id',10)
-        ->whereNotIn('id',$packages->pluck('id')->toArray())->get();
+
         $totalCount = 0;
         $pkgInfo = [
             5 => ['title' => 'ចំនួនកញ្ចប់ដែលនៅសល់ ', 'count' => 0,'total' => 0],
@@ -1276,6 +1273,10 @@ class ReportController extends Controller
             11 => ['title' => 'ត្រឡប់ទៅហាងវិញ ', 'count' => 0, 'total' => 0],
             // 'all' => ['title' => 'ត្រឡប់ទៅហាងវិញ ', 'count' => 0, 'total' => 0],
         ];
+        $failedPkgs = Package::where('is_deleted',false)
+        ->where('merchant_id',$merchantId)
+        ->where('status_id',10)
+        ->whereNotIn('id',$packages->pluck('id')->toArray())->get();
 
         foreach($failedPkgs as $p){
             if (!isset($pkgInfo[5])) {
@@ -1302,39 +1303,7 @@ class ReportController extends Controller
 
                 $pkgInfo[$p->status_id]['count'] += 1;
                 $pkgInfo[$p->status_id]['total'] += $p->cod ? $p->price : 0;
-
-                if ($p->status_id == 10) {
-                    if (!isset($pkgInfo[5])) {
-                        $pkgInfo[5] = ['count' => 0, 'total' => 0];
-                    }
-                    $pkgInfo[5]['count'] += 1;
-                    $pkgInfo[5]['total'] += $p->cod ? $p->price : 0;
-                }
             }
-            // if($p->status_id == 6){
-            //     $pkgInfo[6]['count'] += 1;
-            //     $pkgInfo[6]['total'] += $p->cod ? $p->price:0;
-            // }
-
-            // if($p->status_id == 9){
-            //     $pkgInfo[9]['count'] += 1;
-            //     $pkgInfo[9]['total'] += $p->cod ? $p->price:0;
-            // }
-
-            // if($p->status_id == 10){
-            //     $pkgInfo[10]['count'] += 1;
-            //     $pkgInfo[10]['total'] += $p->cod ? $p->price:0;
-            // }
-
-            // if($p->status_id == 19){
-            //     $pkgInfo[19]['count'] += 1;
-            //     $pkgInfo[19]['total'] += $p->cod ? $p->price:0;
-            // }
-            // if($p->status_id == 11){
-            //     $pkgInfo[11]['count'] += 1;
-            //     $pkgInfo[11]['total'] += $p->cod ? $p->price:0;
-            // }
-            // \Log::info($p->price);
         }
         // \Log::info($pkgInfo['5.1']['total'].'---'.$pkgInfo['5.1']['count'] );
         // return $packages;
@@ -1352,6 +1321,13 @@ class ReportController extends Controller
                     $pkgInfo['5.2']['count'] = $pkgInfo['5.1']['count'] + $pkgInfo[5]['count'];
                     $pkgInfo['5.2']['total'] = $pkgInfo['5.1']['total'] + $pkgInfo[5]['total'];
                 }
+            }
+            if ($p->status_id == 10) {
+                if (!isset($pkgInfo[5])) {
+                    $pkgInfo[5] = ['count' => 0, 'total' => 0];
+                }
+                $pkgInfo[5]['count'] += 1;
+                $pkgInfo[5]['total'] += $p->cod ? $p->price : 0;
             }
         }
         if(isset($pkgInfo[9])) $pkgInfo[9]['total'] = Helper::getNumber($pkgInfo[9]['total'],2);
