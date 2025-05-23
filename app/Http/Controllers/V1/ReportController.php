@@ -1261,6 +1261,7 @@ class ReportController extends Controller
         // \Log::error($lastOrder);
         $packages = $clonePkg->whereNotIn('p.id',$clLatest->pluck('package_id')->toArray())->get();
         $failedPkgs = Package::where('is_deleted',false)
+        ->where('merchant_id',$merchantId)
         ->where('status_id',10)
         ->whereNotIn('id',$packages->pluck('id')->toArray())->get();
         $totalCount = 0;
