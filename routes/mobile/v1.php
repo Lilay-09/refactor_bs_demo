@@ -162,6 +162,7 @@ Route::middleware(['jwtMerchant','localize'])->prefix('merchant/v1/{lang}')->gro
             Route::get('zone',[HomeController::class,'getOptionsZone']);
             Route::get('district',[GeneralSettingController::class,'getOptionsDistrict']);
             Route::get('bank',[GeneralSettingController::class,'getOptionBanks']);
+            Route::get('search/status',[GeneralSettingController::class,'getOptionsSearchStatus']);
         });
         Route::prefix('form')->group(function (){
             Route::get('profile',[GeneralSettingController::class,'getProfileFormOptions']);
