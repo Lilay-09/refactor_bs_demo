@@ -1290,6 +1290,14 @@ class ReportController extends Controller
 
                 $pkgInfo[$p->status_id]['count'] += 1;
                 $pkgInfo[$p->status_id]['total'] += $p->cod ? $p->price : 0;
+
+                if ($p->status_id == 10) {
+                    if (!isset($pkgInfo[5])) {
+                        $pkgInfo[5] = ['count' => 0, 'total' => 0];
+                    }
+                    $pkgInfo[5]['count'] += 1;
+                    $pkgInfo[5]['total'] += $p->cod ? $p->price : 0;
+                }
             }
             // if($p->status_id == 6){
             //     $pkgInfo[6]['count'] += 1;
