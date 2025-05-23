@@ -111,6 +111,7 @@ Route::prefix('merchant/v1/{lang}')->middleware('localize')->group(function(){
             Route::post('logout',[AuthMerchantController::class,'logOut']);
         });
     });
+    Route::get('connectWithUs',[HomeController::class,'getConnectWithUs']);
     // Route::get('test',[HomeController::class,'getHomeScreen']);
 });
 
@@ -118,7 +119,6 @@ Route::prefix('merchant/v1/{lang}')->middleware('localize')->group(function(){
 Route::middleware(['jwtMerchant','localize'])->prefix('merchant/v1/{lang}')->group(function(){
     Route::post('notification/subscribe',[AuthMerchantController::class,'subscribeTopics']);
     Route::get('termConditions',[HomeController::class,'getTermConditions']);
-    Route::get('connectWithUs',[HomeController::class,'getConnectWithUs']);
     Route::post('feedback',[HomeController::class,'feedBack']);
     Route::get('bankAccount',[HomeController::class,'getBankAccount']);
     Route::post('bankAccount',[HomeController::class,'saveBankAccount']);
