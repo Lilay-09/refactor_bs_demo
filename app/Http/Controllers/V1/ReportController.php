@@ -1260,6 +1260,9 @@ class ReportController extends Controller
 
         // \Log::error($lastOrder);
         $packages = $clonePkg->whereNotIn('p.id',$clLatest->pluck('package_id')->toArray())->get();
+        $failedPkgs = Package::where('is_deleted',false)
+        ->where('status_id',10)
+        ->whereNotIn('id',$packages->pluck('id')->toArray())->get();
         $totalCount = 0;
         $pkgInfo = [
             5 => ['title' => 'ចំនួនកញ្ចប់ដែលនៅសល់ ', 'count' => 0,'total' => 0],
@@ -1272,6 +1275,14 @@ class ReportController extends Controller
             11 => ['title' => 'ត្រឡប់ទៅហាងវិញ ', 'count' => 0, 'total' => 0],
             // 'all' => ['title' => 'ត្រឡប់ទៅហាងវិញ ', 'count' => 0, 'total' => 0],
         ];
+
+        foreach($failedPkgs as $p){
+            if (!isset($pkgInfo[5])) {
+                $pkgInfo[5] = ['count' => 0, 'total' => 0];
+            }
+            $pkgInfo[5]['count'] += 1;
+            $pkgInfo[5]['total'] += $p->cod ? $p->price : 0;
+        }
 
         $statuses = [6, 9, 10, 11, 19];
         foreach($lastOrder as $p){
