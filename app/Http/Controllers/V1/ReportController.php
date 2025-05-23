@@ -1275,7 +1275,7 @@ class ReportController extends Controller
         ];
         $failedPkgs = Package::where('is_deleted',false)
         ->where('merchant_id',$merchantId)
-        ->where('status_id',10)
+        ->whereIn('status_id',[10,5])
         ->whereNotIn('id',$clLatest->pluck('package_id')->toArray())
         ->whereNotIn('id',$packages->pluck('id')->toArray())->get();
 
