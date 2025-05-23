@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Order;
 use App\Models\Package;
 use App\Models\PackageAttachment;
+use App\Services\AppSetting;
 use App\Services\GeneralSettingService;
 use App\Services\UserService;
 use Helper;
@@ -236,6 +237,7 @@ class HistoryController extends Controller
                     $order->order_date = date('d M Y',$orderDatetime);
                     $order->order_time = date('h:i A',$orderDatetime);
                     $order->render_status = $isKm ? GeneralSettingService::$statusCodeTrans[$order->status_id] : 'Pick Up';
+                    $order->telegram_url = Helper::generateTelegramLink($order->driver->phone);
                     $order->driver_phone = $order->driver->phone ?? null;
                     $order->driver_name = $order->driver->user_name ?? null;
                     unset($order->tracking_status, $order->driver);
@@ -265,7 +267,7 @@ class HistoryController extends Controller
 
         // Load packages once
         $packages = Package::where('merchant_id', $user->id)
-            ->with(['driver:id,user_name', 'status:id,name'])
+            ->with(['driver:id,user_name,phone', 'status:id,name'])
             ->whereIn('status_id', $targetStatusIds)
             ->where('is_deleted', 0)
             ->select($fields)
@@ -289,6 +291,7 @@ class HistoryController extends Controller
 
                 // Split datetime fields based on status_id
                 $this->splitDatetimeFieldsByStatus($pkg, $statusName);
+                $pkg->telegram_url = AppSetting::getTelegramLink('merchant',$pkg->receiver_phone,$pkg->driver?->phone);
                 $items[] = $pkg;
             }
         }
