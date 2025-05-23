@@ -1304,7 +1304,7 @@ class ReportController extends Controller
                 $pkgInfo[$p->status_id]['count'] += 1;
                 $pkgInfo[$p->status_id]['total'] += $p->cod ? $p->price : 0;
 
-                if ($p->status_id == 5) {
+                if (in_array($p->status_id,[5,10])) {
                     if (!isset($pkgInfo[5])) {
                         $pkgInfo[5] = ['count' => 0, 'total' => 0];
                     }
