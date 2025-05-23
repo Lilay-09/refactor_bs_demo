@@ -1290,7 +1290,6 @@ class ReportController extends Controller
         foreach($lastOrder as $p){
             $pkgInfo['5.1']['count'] += 1;
             $pkgInfo['5.1']['total'] += $p->cod ? $p->price:0;//- $p->merchant_total;
-
             // $pkgInfo['5.2']['count'] = $pkgInfo['5.1']['count'] + $pkgInfo[5]['count'];
             // $pkgInfo['5.2']['total'] = $pkgInfo['5.1']['total'] + $pkgInfo[5]['total'];
 
@@ -1303,6 +1302,14 @@ class ReportController extends Controller
 
                 $pkgInfo[$p->status_id]['count'] += 1;
                 $pkgInfo[$p->status_id]['total'] += $p->cod ? $p->price : 0;
+
+                // if ($p->status_id == 10) {
+                //     if (!isset($pkgInfo[5])) {
+                //         $pkgInfo[5] = ['count' => 0, 'total' => 0];
+                //     }
+                //     $pkgInfo[5]['count'] += 1;
+                //     $pkgInfo[5]['total'] += $p->cod ? $p->price : 0;
+                // }
             }
         }
         // \Log::info($pkgInfo['5.1']['total'].'---'.$pkgInfo['5.1']['count'] );
@@ -1321,13 +1328,6 @@ class ReportController extends Controller
                     $pkgInfo['5.2']['count'] = $pkgInfo['5.1']['count'] + $pkgInfo[5]['count'];
                     $pkgInfo['5.2']['total'] = $pkgInfo['5.1']['total'] + $pkgInfo[5]['total'];
                 }
-            }
-            if ($p->status_id == 10) {
-                if (!isset($pkgInfo[5])) {
-                    $pkgInfo[5] = ['count' => 0, 'total' => 0];
-                }
-                $pkgInfo[5]['count'] += 1;
-                $pkgInfo[5]['total'] += $p->cod ? $p->price : 0;
             }
         }
         if(isset($pkgInfo[9])) $pkgInfo[9]['total'] = Helper::getNumber($pkgInfo[9]['total'],2);
