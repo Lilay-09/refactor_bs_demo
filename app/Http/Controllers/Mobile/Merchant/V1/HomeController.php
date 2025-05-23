@@ -437,7 +437,7 @@ class HomeController extends Controller
 
     public function getConnectWithUs(){
         $user = UserService::getAuthUser('merchant');
-        if(!$user){
+        if($user->error){
             $user = (object)[
                 'company_id' => 1,
                 'account_type' => 'merchant'
