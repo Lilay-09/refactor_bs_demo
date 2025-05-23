@@ -430,7 +430,7 @@ class Helper{
         // Return the Telegram link with the correct format
         return [
             'url' => 'https://t.me/+' . $cleanNumber,
-            'deep_link' => 't.me+'.$cleanNumber
+            'deep_link' => 't.me/+'.$cleanNumber
         ];
     }
 
