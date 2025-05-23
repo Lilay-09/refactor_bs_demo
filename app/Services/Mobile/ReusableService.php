@@ -388,7 +388,6 @@ class ReusableService
             ->with(['driver:id,user_name,phone','activeDeliveryPackage:package_id,id,delivery_id','activeDeliveryPackage.delivery:id,fleet_tracking_number']) // Limit driver fields
             ->where('status_id', $statusId)
             ->where('is_deleted', 0)
-
             ->select([
                 'id', 'merchant_id', 'receiver_phone', 'receiver_address', 'taxi_fee',
                 'cod', 'price', 'delivery_fee', 'remarks', 'driver_id',

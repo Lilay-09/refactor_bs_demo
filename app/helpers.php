@@ -413,7 +413,7 @@ class Helper{
         return $countryCode . $cleanNumber;
     }
 
-    static function generateTelegramLink($phoneNumber, $countryCode = '+855',$isDeepLnk=false) {
+    static function generateTelegramLink($phoneNumber, $countryCode = '+855') {
         // Remove all non-numeric characters except '+'
         $cleanNumber = preg_replace('/[^\d+]/', '', $phoneNumber);
 
@@ -430,7 +430,7 @@ class Helper{
         // Return the Telegram link with the correct format
         return [
             'url' => 'https://t.me/+' . $cleanNumber,
-            'deep_link' => 't.me+'.$cleanNumber
+            'deep_link' => 't.me/+'.$cleanNumber
         ];
     }
 
