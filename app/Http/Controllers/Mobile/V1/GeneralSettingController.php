@@ -427,4 +427,9 @@ class GeneralSettingController extends Controller
         $user = UserService::getAuthUser();
         return ApiResponse::JsonResult(GeneralSettingService::optionsBank($user));
     }
+
+    public function getOptionsSearchStatus(){
+        $user = UserService::getAuthUser();
+        return ApiResponse::JsonResult(GeneralSettingService::optionsTrackingStatus($user,[],[6,9,10,11,19]));
+    }
 }
