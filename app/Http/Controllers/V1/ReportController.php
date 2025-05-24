@@ -1289,7 +1289,7 @@ class ReportController extends Controller
             // Log::info('L1');
         }
 
-        $statuses = [6, 9, 11, 19];
+        $statuses = [6, 9,10, 11, 19];
         foreach($lastOrder as $p){
             $pkgInfo['5.1']['count'] += 1;
             $pkgInfo['5.1']['total'] += $p->cod ? $p->price:0;//- $p->merchant_total;
