@@ -1336,7 +1336,7 @@ class ReportController extends Controller
                 if($statusId == 5 || $statusId == 10){
                     $pkgInfo[5]['count'] += 1;
                     $pkgInfo[5]['total'] += $p->cod ? $p->price : 0;
-                    // Log::info('4');
+                    Log::info('4');
                 }//- $p->merchant_total;
 
                 if(isset($pkgInfo['5.2'])){
