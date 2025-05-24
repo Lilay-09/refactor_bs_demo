@@ -1328,11 +1328,10 @@ class ReportController extends Controller
         foreach ($packages as $p) {
             $totalCount += 1;
             $statusId = $p->status_id;
-            if(isset($pkgInfo[$statusId])){
+            if(isset($pkgInfo[$statusId]) && !in_array($statusId,[5,6,10])){
                 $pkgInfo[$statusId]['count'] += 1;
                 $pkgInfo[$statusId]['total'] += $p->cod ? $p->price:0;//- $p->merchant_total;
-            }
-            if(in_array($statusId,[5,6,10])){
+            }else if(in_array($statusId,[5,6,10])){
                 if($statusId == 5 || $statusId == 10){
                     $pkgInfo[5]['count'] += 1;
                     $pkgInfo[5]['total'] += $p->cod ? $p->price : 0;
