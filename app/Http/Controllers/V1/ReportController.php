@@ -1279,7 +1279,7 @@ class ReportController extends Controller
         ->whereIn('status_id',[10,5])
         ->whereNotIn('id',$clLatest->pluck('package_id'))
         ->whereNotIn('id',$packages->pluck('id'))->get();
-
+        // Log::info($lastOrder);
         foreach($failedPkgs as $p){
             if (!isset($pkgInfo[5])) {
                 $pkgInfo[5] = ['count' => 0, 'total' => 0];
@@ -1289,7 +1289,7 @@ class ReportController extends Controller
             // Log::info('L1');
         }
 
-        $statuses = [6, 9, 10, 11, 19];
+        $statuses = [6, 9, 11, 19];
         foreach($lastOrder as $p){
             $pkgInfo['5.1']['count'] += 1;
             $pkgInfo['5.1']['total'] += $p->cod ? $p->price:0;//- $p->merchant_total;
@@ -1314,7 +1314,7 @@ class ReportController extends Controller
                 //     Log::info('L2');
                 // }
             }
-            if ($p->status_id == 5) {
+            if ($p->status_id == 5 || $p->status_id == 10) {
                 if (!isset($pkgInfo[5])) {
                     $pkgInfo[5] = ['count' => 0, 'total' => 0];
                 }
