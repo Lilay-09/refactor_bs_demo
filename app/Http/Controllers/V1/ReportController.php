@@ -1286,7 +1286,7 @@ class ReportController extends Controller
             }
             $pkgInfo[5]['count'] += 1;
             $pkgInfo[5]['total'] += $p->cod ? $p->price : 0;
-            Log::info('L1');
+            // Log::info('L1');
         }
 
         $statuses = [6, 9, 10, 11, 19];
@@ -1305,14 +1305,14 @@ class ReportController extends Controller
 
                 $pkgInfo[$p->status_id]['count'] += 1;
                 $pkgInfo[$p->status_id]['total'] += $p->cod ? $p->price : 0;
-                if($p->status_id == 10){
-                    if (!isset($pkgInfo[5])) {
-                        $pkgInfo[5] = ['count' => 0, 'total' => 0];
-                    }
-                    $pkgInfo[5]['count'] += 1;
-                    $pkgInfo[5]['total'] += $p->cod ? $p->price : 0;
-                    Log::info('L2');
-                }
+                // if($p->status_id == 10){
+                //     if (!isset($pkgInfo[5])) {
+                //         $pkgInfo[5] = ['count' => 0, 'total' => 0];
+                //     }
+                //     $pkgInfo[5]['count'] += 1;
+                //     $pkgInfo[5]['total'] += $p->cod ? $p->price : 0;
+                //     Log::info('L2');
+                // }
             }
             if ($p->status_id == 5) {
                 if (!isset($pkgInfo[5])) {
@@ -1320,7 +1320,7 @@ class ReportController extends Controller
                 }
                 $pkgInfo[5]['count'] += 1;
                 $pkgInfo[5]['total'] += $p->cod ? $p->price : 0;
-                Log::info('L3');
+                // Log::info('L3');
             }
         }
         // \Log::info($pkgInfo['5.1']['total'].'---'.$pkgInfo['5.1']['count'] );
@@ -1336,7 +1336,7 @@ class ReportController extends Controller
                 if($statusId == 5 || $statusId == 10){
                     $pkgInfo[5]['count'] += 1;
                     $pkgInfo[5]['total'] += $p->cod ? $p->price : 0;
-                    Log::info('4');
+                    // Log::info('4');
                 }//- $p->merchant_total;
 
                 if(isset($pkgInfo['5.2'])){
