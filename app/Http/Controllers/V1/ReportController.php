@@ -22,6 +22,7 @@ use App\Services\UserService;
 use DB;
 use Helper;
 use Illuminate\Http\Request;
+use Log;
 
 class ReportController extends Controller
 {
@@ -1285,6 +1286,7 @@ class ReportController extends Controller
             }
             $pkgInfo[5]['count'] += 1;
             $pkgInfo[5]['total'] += $p->cod ? $p->price : 0;
+            Log::info('1');
         }
 
         $statuses = [6, 9, 10, 11, 19];
@@ -1309,6 +1311,7 @@ class ReportController extends Controller
                     }
                     $pkgInfo[5]['count'] += 1;
                     $pkgInfo[5]['total'] += $p->cod ? $p->price : 0;
+                    Log::info('2');
                 }
             }
             if ($p->status_id == 5) {
@@ -1317,6 +1320,7 @@ class ReportController extends Controller
                 }
                 $pkgInfo[5]['count'] += 1;
                 $pkgInfo[5]['total'] += $p->cod ? $p->price : 0;
+                Log::info('3');
             }
         }
         // \Log::info($pkgInfo['5.1']['total'].'---'.$pkgInfo['5.1']['count'] );
@@ -1330,13 +1334,15 @@ class ReportController extends Controller
             }
             if(in_array($statusId,[5,6,10])){
                 $pkgInfo[5]['count'] += 1;
-                $pkgInfo[5]['total'] += $p->cod ? $p->price:0;//- $p->merchant_total;
+                $pkgInfo[5]['total'] += $p->cod ? $p->price : 0;//- $p->merchant_total;
+                Log::info('4');
                 if(isset($pkgInfo['5.2'])){
                     $pkgInfo['5.2']['count'] = $pkgInfo['5.1']['count'] + $pkgInfo[5]['count'];
                     $pkgInfo['5.2']['total'] = $pkgInfo['5.1']['total'] + $pkgInfo[5]['total'];
                 }
             }
         }
+
         if(isset($pkgInfo[9])) $pkgInfo[9]['total'] = Helper::getNumber($pkgInfo[9]['total'],2);
         if(isset($pkgInfo[11])) $pkgInfo[11]['total'] = Helper::getNumber($pkgInfo[11]['total'],2);
         if(isset($pkgInfo[19])) $pkgInfo[19]['total'] = Helper::getNumber($pkgInfo[19]['total'],2);
