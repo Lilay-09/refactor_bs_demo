@@ -1305,14 +1305,14 @@ class ReportController extends Controller
 
                 $pkgInfo[$p->status_id]['count'] += 1;
                 $pkgInfo[$p->status_id]['total'] += $p->cod ? $p->price : 0;
-                if($p->status_id == 10){
-                    if (!isset($pkgInfo[5])) {
-                        $pkgInfo[5] = ['count' => 0, 'total' => 0];
-                    }
-                    $pkgInfo[5]['count'] += 1;
-                    $pkgInfo[5]['total'] += $p->cod ? $p->price : 0;
+                // if($p->status_id == 10){
+                //     if (!isset($pkgInfo[5])) {
+                //         $pkgInfo[5] = ['count' => 0, 'total' => 0];
+                //     }
+                //     $pkgInfo[5]['count'] += 1;
+                //     $pkgInfo[5]['total'] += $p->cod ? $p->price : 0;
                     // Log::info('L2');
-                }
+                // }
             }
             if ($p->status_id == 5 || $p->status_id == 10) {
                 if (!isset($pkgInfo[5])) {
@@ -1328,10 +1328,10 @@ class ReportController extends Controller
         foreach ($packages as $p) {
             $totalCount += 1;
             $statusId = $p->status_id;
-            if(isset($pkgInfo[$statusId]) && !in_array($statusId,[5,6,10])){
+            if(isset($pkgInfo[$statusId])){
                 $pkgInfo[$statusId]['count'] += 1;
                 $pkgInfo[$statusId]['total'] += $p->cod ? $p->price:0;//- $p->merchant_total;
-            }else if(in_array($statusId,[5,6,10])){
+            }else if(in_array($statusId,[5,10])){
                 if($statusId == 5 || $statusId == 10){
                     $pkgInfo[5]['count'] += 1;
                     $pkgInfo[5]['total'] += $p->cod ? $p->price : 0;
