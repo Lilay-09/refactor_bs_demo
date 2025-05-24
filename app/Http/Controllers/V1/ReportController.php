@@ -1286,7 +1286,7 @@ class ReportController extends Controller
             }
             $pkgInfo[5]['count'] += 1;
             $pkgInfo[5]['total'] += $p->cod ? $p->price : 0;
-            // Log::info('1');
+            Log::info('L1');
         }
 
         $statuses = [6, 9, 10, 11, 19];
@@ -1311,7 +1311,7 @@ class ReportController extends Controller
                     }
                     $pkgInfo[5]['count'] += 1;
                     $pkgInfo[5]['total'] += $p->cod ? $p->price : 0;
-                    // Log::info('2');
+                    Log::info('L2');
                 }
             }
             if ($p->status_id == 5) {
@@ -1320,7 +1320,7 @@ class ReportController extends Controller
                 }
                 $pkgInfo[5]['count'] += 1;
                 $pkgInfo[5]['total'] += $p->cod ? $p->price : 0;
-                // Log::info('3');
+                Log::info('L3');
             }
         }
         // \Log::info($pkgInfo['5.1']['total'].'---'.$pkgInfo['5.1']['count'] );
