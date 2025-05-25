@@ -81,6 +81,7 @@ class FleetManagementController extends Controller
             $delivery->failed_count = $details->failed_count;
             $delivery->delivery_count = $details->delivery_count;
             $delivery->failed_with_fee_count = $details->failed_with_fee_count;
+            $delivery->package_count = $details->packages_count;
             $delivery->depart_time = Helper::formatCustomDateTime($delivery->depart_datetime,'h:i:s A');
             $delivery->depart_date = Helper::formatCustomDateTime($delivery->depart_datetime,'d-M-Y',false,$lang);
             unset($delivery->status,$delivery->driver);
@@ -105,6 +106,7 @@ class FleetManagementController extends Controller
         $failedCount = 0;
         $failedWithFeeCount = 0;
         $total_delivered = 0;
+        $deliveredCount = 0;
         $totalFailedWithFee = 0;
         $deliveryCount = 0;
         foreach($packages as $pkg){
@@ -112,7 +114,10 @@ class FleetManagementController extends Controller
                 if(!$pkg->delay_count) {
                     $total += $pkg->driver_total;
                 }
-                if($pkg->status_id == 9) $total_delivered += $pkg->driver_total;
+                if($pkg->status_id == 9) {
+                    $total_delivered += $pkg->driver_total;
+                    $deliveredCount += 1;
+                }
                 if($pkg->status_id == 10) $failedCount +=1;
                 if($pkg->status_id == 19) {
                     $failedWithFeeCount +=1;
@@ -128,7 +133,8 @@ class FleetManagementController extends Controller
             'total_delivered' => Helper::getNumber($total_delivered,2),
             'total_failed_with_fee' => Helper::getNumber($totalFailedWithFee,2),
             'failed_with_fee_count' => $failedWithFeeCount,
-            'delivery_count' => $deliveryCount
+            'delivery_count' => $deliveryCount,
+            'packages_count' => $failedCount + $deliveryCount + $failedWithFeeCount + $deliveredCount
         ];
     }
 
@@ -166,7 +172,7 @@ class FleetManagementController extends Controller
         ->where('dp.is_deleted',0)
         // ->where('dp.delay_count', 0)
         // ->whereIn('dp.status_id',[6,9,10,19])
-        ->whereIn('p.status_id',[6,9,10,11,19])
+        ->whereIn('p.status_id',[6,9,10,19])
         // ->where(function ($q) {
         //     $q->where('dp.status_id', '!=', 6) // Allow other statuses freely
         //     ->orWhere('dp.has_swap', 0); // Only allow status_id = 6 if has_swap = 0
