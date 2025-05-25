@@ -286,7 +286,11 @@ class HomeScreenController extends Controller
     private function getTripTotalAmount($packages,$tripId){
         $total = 0;
         foreach ($packages as $key => $p) {
-            if($p->delivery_id == $tripId) $total += $p->driver_total;
+            if($p->delivery_id == $tripId) {
+                if($p->status_id != 11){
+                    $total += $p->driver_total;
+                }
+            }
         }
         return '$'.$total;
     }
@@ -305,9 +309,21 @@ class HomeScreenController extends Controller
         ->selectRaw('p.driver_display_order,p.payer,p.receiver_address,p.extra_charge,p.id,p.delivered_datetime,p.failed_datetime,p.assign_driver_datetime,p.merchant_id,p.qr_code,p.price,p.cod,p.receiver_name,p.receiver_phone,p.zone_code,p.zone_name,ts.name as status_code,d.user_name as driver_name,d.phone as driver_phone,m.user_name as merchant_name,m.phone as merchant_phone,p.id as package_id,dp.delivery_id,p.zone_code,p.zone_name,p.delivery_fee as base_fee,p.driver_total,p.taxi_fee,p.product_type,p.status_id')
         ->orderBy('p.driver_display_order','asc')
         ->orderByRaw('(p.status_id = ?) DESC', [6]);
-        if($driverId){
-            $qP->where('p.driver_id',$driverId);
+        // if($driverId){
+        //     $qP->where('p.driver_id',$driverId);
+        // }
+        if ($driverId) {
+            $qP->where(function ($query) use ($driverId) {
+                $query->where(function ($q) use ($driverId) {
+                    $q->where('p.status_id', 11)
+                      ->where('p.returned_uid', $driverId);
+                })->orWhere(function ($q) use ($driverId) {
+                    $q->where('p.status_id', '!=', 11)
+                      ->where('p.driver_id', $driverId);
+                });
+            });
         }
+
         if(!empty($tripIds)){
             $qP->whereIn('dp.delivery_id',$tripIds);
         }
