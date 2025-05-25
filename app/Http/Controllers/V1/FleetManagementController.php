@@ -111,7 +111,7 @@ class FleetManagementController extends Controller
         $deliveryCount = 0;
         foreach($packages as $pkg){
             if($pkg->delivery_id == $deliveryId){
-                if(!$pkg->delay_count) {
+                if(!$pkg->delay_count && $pkg->status_id != 11) {
                     $total += $pkg->driver_total;
                 }
                 if($pkg->status_id == 9) {
