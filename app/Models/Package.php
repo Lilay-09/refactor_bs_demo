@@ -46,7 +46,7 @@ class Package extends Model
         'pickup_notes',
         'pickup_datetime',
         'order_id',
-        'return_uid',
+        // 'return_uid',
         'payer',
         'cod',
         'driver_id',
