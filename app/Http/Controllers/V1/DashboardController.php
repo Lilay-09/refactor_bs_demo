@@ -309,7 +309,7 @@ class DashboardController extends Controller
         ->where('p.is_deleted',0)
         ->where('p.outstanding',0)
         ->where('p.updated_at', '>=', Carbon::now()->subDays($this->days))
-        ->whereIn('p.status_id',[9,10,19])
+        ->whereIn('p.status_id',[9,19])
         ->join('users as r', 'p.driver_id', '=', 'r.id')
         ->where('r.account_type','driver') // Updated column name
         ->select('r.id', 'r.user_name as driver_name', DB::raw('COUNT(p.id) as total_packages'))

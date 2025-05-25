@@ -1333,11 +1333,11 @@ class ReportController extends Controller
                 $pkgInfo[$statusId]['total'] += $p->cod ? $p->price:0;//- $p->merchant_total;
             }
             if(in_array($statusId,[5,10])){
-                if($statusId == 5 || $statusId == 10){
+                // if($statusId == 5 || $statusId == 10){
                     $pkgInfo[5]['count'] += 1;
                     $pkgInfo[5]['total'] += $p->cod ? $p->price : 0;
                     // Log::info('4');
-                }//- $p->merchant_total;
+                // }//- $p->merchant_total;
 
                 if(isset($pkgInfo['5.2'])){
                     $pkgInfo['5.2']['count'] = $pkgInfo['5.1']['count'] + $pkgInfo[5]['count'];
