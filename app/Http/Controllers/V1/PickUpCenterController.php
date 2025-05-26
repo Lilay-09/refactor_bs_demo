@@ -136,7 +136,7 @@ class PickUpCenterController extends Controller
             // return ApiResponse::ValidateFail(__('messages.error',['info' => 'Order has '.$status]));
             if($driver_id){
                 return ApiResponse::ValidateFail(__('messages.error',[
-                    'info' => 'If status '.$status.' you must unselect driver !',
+                    'info' => 'If status Available For Pick you must unselect driver !',
                     'khInfo' => 'ប្រសិនបើប្តូរការ Order ទៅទំនេរសូមកុំជ្រើសរើសអ្នកដឹក !'
                 ]));
             }
