@@ -206,8 +206,7 @@ class FleetManagementController extends Controller
         $package_id = $req->package_id;
         $status_id = $req->status_id;
         $failure_notes = $req->failure_notes ?? null;
-        $payer = $req->payer ?? null;
-        Log::info($req->all());
+        // Log::info($req->all());
         $delivery = Delivery::where('is_deleted',0)->select('id','driver_id')->find($trip_id);
         // $tripPackage = DeliveryPackage::where('package_id',$package_id)->where('delivery_id','>',$trip_id)->where('delay_count',0)->orderByDesc('id')->first();
         // if(!$tripPackage) return ApiResponse::NotFound(__('messages.not_found',[
@@ -275,6 +274,7 @@ class FleetManagementController extends Controller
                 'delivered_datetime' => $deliveredDatetime,
                 'status_id' => $status_id
             ];
+            $payer = $req->payer ?? $package->payer;
 
             if($status_id == 19) {
                 $driverTotal = PickupCenterService::getDriverTotal($package->cod,$payer,0,$package->delivery_fee,$package->additional_fee,$package->extra_charge,0);
