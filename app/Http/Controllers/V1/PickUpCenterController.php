@@ -118,7 +118,7 @@ class PickUpCenterController extends Controller
         $id = $req->id;
         $status_id = $req->status_id;
         $driver_id = $req->driver_id;
-        if($status_id == 1 && $driver_id) return ApiResponse::ValidateFail(__('messages.error',['info' => 'Status Available for Pickup cannot assign to driver']));
+        // if($status_id == 1 && $driver_id) return ApiResponse::ValidateFail(__('messages.error',['info' => 'Status Available for Pickup cannot assign to driver']));
         if(!$status_id) return ApiResponse::ValidateFail(__('messages.error',['info' => 'Please']));
         $order = Order::with('tracking_status')->where('is_deleted',0)->where('company_id',$user->company_id)->find($id);
         if(!$order) return ApiResponse::NotFound(__('messages.not_found',['info' => 'Order']));
