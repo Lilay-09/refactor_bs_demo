@@ -124,19 +124,37 @@ class PickUpCenterController extends Controller
         if(!$order) return ApiResponse::NotFound(__('messages.not_found',['info' => 'Order']));
         $status = $order->tracking_status->name;
         if($order->status_id == 5) return ApiResponse::Duplicated(__('messages.error',['info' => 'Order packages have arrived warehouse']));
-        if($order->status_id == 2) return ApiResponse::ValidateFail(__('messages.error',['info' => 'Order has '.$status]));
-        if($order->status_id == 3) return ApiResponse::ValidateFail(__('messages.error',['info' => 'Order has '.$status]));
-        if($order->status_id == 4) return ApiResponse::ValidateFail(__('messages.error',['info' => 'Order has '.$status]));
-        if($status_id == 1){
-            $driver_id = null;
+        if($order->status_id == $status_id){
+            return ApiResponse::Duplicated(__('messages.error',['info' => 'Order has '.$status]));
         }
+        $message = [
+            'info' => 'Status Changed!',
+            'khInfo' => 'បានប្ដូរ!'
+        ];
+        // if($order->status_id == 2) return ApiResponse::ValidateFail(__('messages.error',['info' => 'Order has '.$status]));
+        if($order->status_id != 1 && $status_id == 1) {
+            // return ApiResponse::ValidateFail(__('messages.error',['info' => 'Order has '.$status]));
+            if($driver_id){
+                return ApiResponse::ValidateFail(__('messages.error',[
+                    'info' => 'If status '.$status.' you must unselect driver !',
+                    'khInfo' => 'ប្រសិនបើប្តូរការ Order ទៅទំនេរសូមកុំជ្រើសរើសអ្នកដឹក !'
+                ]));
+            }
+            $message = [
+                'info' => 'Status changed but order is related to a delivery person, suggest contacting the delivery person',
+                'khInfo' => 'ស្ថានភាពត្រូវបានផ្លាស់ប្តូរ ប៉ុន្តែការបញ្ជាទិញនេះទាក់ទងនឹងបុគ្គលិកដឹកជញ្ជូន សូមផ្តល់អនុសាសន៍ឲ្យទាក់ទងបុគ្គលិកដឹកជញ្ជូន'
+            ];
+        }
+        // if($order->status_id == 4) return ApiResponse::ValidateFail(__('messages.error',['info' => 'Order has '.$status]));
+
         $order->update([
             'driver_id' => $driver_id,
             'udpate_uid' => $user->id,
             'status_id' => $status_id,
             'branch_id' => $user->branch_id
         ]);
-        return ApiResponse::JsonResult(null,__('messages.info',['info' => 'Status has changed']));
+
+        return ApiResponse::JsonResult(null,__('messages.info',$message));
     }
 
     public function getOrders(Request $req){
