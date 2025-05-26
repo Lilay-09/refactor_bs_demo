@@ -1287,7 +1287,7 @@ class ReportController extends Controller
             }
             $pkgInfo[5]['count'] += 1;
             $pkgInfo[5]['total'] += $p->cod ? $p->price : 0;
-            Log::info('Failed => '.$p->qr_code);
+            // Log::info('Failed => '.$p->qr_code);
         }
 
         $statuses = [6, 9, 10, 11, 19];
@@ -1313,7 +1313,7 @@ class ReportController extends Controller
                     $pkgInfo[5]['count'] += 1;
                     $pkgInfo[5]['total'] += $p->cod ? $p->price : 0;
                     // Log::info('L2');
-                    Log::info('L2 Failed => '.$p->qr_code);
+                    // Log::info('L2 Failed => '.$p->qr_code);
                 }
             }
             if ($p->status_id == 5) {
@@ -1323,7 +1323,7 @@ class ReportController extends Controller
                 $pkgInfo[5]['count'] += 1;
                 $pkgInfo[5]['total'] += $p->cod ? $p->price : 0;
                 // Log::info('L3');
-                Log::info('L3 At warehouse => '.$p->qr_code);
+                // Log::info('L3 At warehouse => '.$p->qr_code);
             }
         }
         // \Log::info($pkgInfo['5.1']['total'].'---'.$pkgInfo['5.1']['count'] );
@@ -1331,7 +1331,7 @@ class ReportController extends Controller
         foreach ($packages as $p) {
             $totalCount += 1;
             $statusId = $p->status_id;
-            if(isset($pkgInfo[$statusId])){
+            if(isset($pkgInfo[$statusId]) && !in_array($statusId,[5,10])){
                 $pkgInfo[$statusId]['count'] += 1;
                 $pkgInfo[$statusId]['total'] += $p->cod ? $p->price:0;//- $p->merchant_total;
             }
@@ -1339,7 +1339,7 @@ class ReportController extends Controller
                 // if($statusId == 5 || $statusId == 10){
                     $pkgInfo[5]['count'] += 1;
                     $pkgInfo[5]['total'] += $p->cod ? $p->price : 0;
-                    Log::info('L4 Both => '.$p->qr_code);
+                    // Log::info('L4 Both => '.$p->qr_code);
                     // Log::info('4');
                 // }//- $p->merchant_total;
 
