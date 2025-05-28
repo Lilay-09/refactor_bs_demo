@@ -349,9 +349,7 @@ class AuthController extends Controller
         if($errorMsg){
             return ApiResponse::Error($errorMsg);
         }
-        return ApiResponse::JsonResult(null,__('messages.info',[
-            'info' => 'Updated'
-        ]));
+        return ApiResponse::JsonResult(null,__('messages.updated'));
     }
 
     public function resetPassword(Request $req){

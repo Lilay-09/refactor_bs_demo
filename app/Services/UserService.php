@@ -641,7 +641,8 @@ class UserService
         }
 
         return DataResponse::JsonResult(null,false,__('messages.deleted',[
-            'info' => 'Account'
+            'info' => 'Account',
+            'khInfo' => 'គណនី'
         ]));
     }
 
