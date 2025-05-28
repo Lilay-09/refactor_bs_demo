@@ -48,7 +48,8 @@ class HomeController extends Controller
         $create = $pck->createOrder($req,$user);
         if($create->error) return ApiResponse::flex($create);
         return ApiResponse::JsonResult(null,__('messages.info',[
-            'info' => 'Your order has been submitted'
+            'info' => 'Your order has been submitted',
+            'khInfo' => "បានបង្កើត"
         ]));
     }
 
