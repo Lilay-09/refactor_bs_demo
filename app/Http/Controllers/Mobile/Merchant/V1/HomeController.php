@@ -173,9 +173,11 @@ class HomeController extends Controller
         //     $q->whereBetween('order_datetime', [$dateaAgo, $today]);
         // });
         $orders = $qO->orderByDesc('id');
-        $callback = function($order) use($lang){
+        $companyPhone = CompanyProfileService::profileInfo($user->id)?->phone;
+        $callback = function($order) use($lang,$companyPhone){
             if($lang == 'km') $order->status_code = 'រង់ចាំ';
             else $order->status_code = 'Pending';
+            $order->telegram_url = Helper::generateTelegramLink($companyPhone);
             $order->order_date = Helper::formatCustomDateTime($order->order_datetime,'d-M-Y');
             $order->order_time = Helper::formatCustomDateTime($order->order_datetime,'h:i A');
             $order->driver_name = $order->driver?->user_name;
