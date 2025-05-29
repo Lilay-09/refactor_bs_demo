@@ -67,6 +67,10 @@ class CloudMessagingService
                 (object)[
                     'type' => 'private',
                     'name' => $topic->private
+                ],
+                (object)[
+                    'type' => 'general',
+                    'name' => $topic->general
                 ]
             ],
             'merchant' => [
@@ -81,6 +85,10 @@ class CloudMessagingService
                 (object)[
                     'type' => 'private',
                     'name' => $topic->private
+                ],
+                (object)[
+                    'type' => 'general',
+                    'name' => $topic->general
                 ]
             ],
             'admin' => [
@@ -91,6 +99,10 @@ class CloudMessagingService
                 (object)[
                     'type' => 'private',
                     'name' => $topic->private
+                ],
+                (object)[
+                    'type' => 'general',
+                    'name' => $topic->general
                 ]
             ]
         ];
@@ -291,13 +303,14 @@ class CloudMessagingService
         $deviceModel = 'Unknown';
         $platform = 'Unknown';
         $ip = $req->getClientIp();
+        Log::info($userAgent);
 
         // Determine the device type and model
         switch (true) {
             case strpos($userAgent, 'Android') !== false:
                 $deviceType = 'Android';
-                preg_match('/Android.*?; (.*?)(;|$)/', $userAgent, $matches);
-                $deviceModel = isset($matches[1]) ? trim($matches[1]) : 'Unknown Model';
+                $parts = explode($deviceType, $userAgent);
+                $deviceModel = isset($parts[0]) ? trim($parts[0]) : 'Unknown Model';
                 $platform = 'Mobile App'; // Adjusted for mobile applications
                 break;
 

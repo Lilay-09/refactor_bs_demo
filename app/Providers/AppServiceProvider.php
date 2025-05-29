@@ -3,6 +3,8 @@
 namespace App\Providers;
 
 use App\Exceptions\Handler;
+use App\Services\UserNotificationService;
+use App\Services\UserNotificationServiceImpl;
 use Helper;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Contracts\Debug\ExceptionHandler as ExceptionHandlerContract;
@@ -19,7 +21,7 @@ class AppServiceProvider extends ServiceProvider
             config(['cache.default' => 'file']);
         }
         $this->app->singleton(ExceptionHandlerContract::class, Handler::class);
-
+        $this->app->bind(UserNotificationService::class,UserNotificationServiceImpl::class);
     }
 
     /**

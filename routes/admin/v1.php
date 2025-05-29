@@ -40,6 +40,7 @@ use App\Http\Controllers\V1\ScoringRewardController;
 use App\Http\Controllers\V1\SocialMediaController;
 use App\Http\Controllers\V1\UserController;
 use App\Http\Controllers\V1\UserManagementController;
+use App\Http\Controllers\V1\UserNotificationController;
 use App\Http\Controllers\V1\VehicleTypeController;
 use App\Http\Controllers\V1\WarehouseController;
 use App\Http\Controllers\V1\ZoneController;
@@ -74,6 +75,13 @@ Route::middleware(['jwt','localize','userAccess:admin'])->prefix('admin/v1/{lang
         });
 
         Route::prefix('user')->group(function(){
+
+            Route::prefix('notification')->group(function (){
+                Route::prefix('subscribe')->group(function(){
+                    Route::get('',[UserNotificationController::class,'getUserNotificationSubscriptions']);
+                });
+            });
+
             Route::get('', [UserManagementController::class,'getUsers']);
             Route::post('',[UserManagementController::class,'createUser']);
             Route::get('accessability',[UserManagementController::class,'getAccessability']);

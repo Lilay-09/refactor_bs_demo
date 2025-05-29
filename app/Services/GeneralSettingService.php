@@ -562,7 +562,8 @@ class GeneralSettingService
         $topic = env('TOPIC_PREFIX');
         $obj = (object)[
             'private' => $companyId.$topic.$channel.'private'.$userId,
-            'public' => $companyId.$topic.$channel.'public'
+            'public' => $companyId.$topic.$channel.'public',
+            'general' => $topic.'general'
         ];
         return $obj;
     }
