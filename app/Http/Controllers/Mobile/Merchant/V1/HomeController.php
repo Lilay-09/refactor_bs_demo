@@ -144,6 +144,7 @@ class HomeController extends Controller
         $inputs['update_uid'] = $user->id;
         $inputs['branch_id'] = $user->branch_id;
         $inputs['company_id'] = $user->company_id;
+        $inputs['is_primary'] = true;
         if($userBank){
             $userBank->update($inputs);
         }else{
