@@ -136,7 +136,7 @@ class HomeController extends Controller
         $user = UserService::getAuthUser('merchant');
         $validator = $this->bankValidator($req);
         if($validator->fails()) return ApiResponse::ValidateFail($validator->errors()->first());
-        $userBank = UserBank::where('user_id',$user->id)->first();
+        $userBank = UserBank::where('user_id',$user->id)->orderByDesc('is_primary')->first();
         $inputs = $validator->validated();
         $bankInfo = Bank::select('name')->find($inputs['bank_id']);
         if(!$bankInfo) return ApiResponse::ValidateFail('Bank not found');
