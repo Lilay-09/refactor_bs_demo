@@ -147,10 +147,12 @@ class HomeController extends Controller
         $inputs['is_primary'] = true;
         if($userBank){
             $userBank->update($inputs);
+            \Log::info("update");
         }else{
             $inputs['user_id'] = $user->id;
             $inputs['create_uid'] = $user->id;
             Bank::create($inputs);
+            \Log::info("create");
         }
         return ApiResponse::JsonResult(null,__('messages.saved'));
     }
