@@ -147,9 +147,10 @@ class PickUpCenterController extends Controller
                     'khInfo' => 'ប្រសិនបើប្តូរការ Order ទៅទំនេរសូមកុំជ្រើសរើសអ្នកដឹក !'
                 ]));
             }
+            $driverName = $order->driver?->user_name;
             $message = [
-                'info' => 'Status changed but order is related to a delivery person, suggest contacting the delivery person',
-                'khInfo' => 'ស្ថានភាពត្រូវបានផ្លាស់ប្តូរ ប៉ុន្តែការបញ្ជាទិញនេះទាក់ទងនឹងបុគ្គលិកដឹកជញ្ជូន សូមផ្តល់អនុសាសន៍ឲ្យទាក់ទងបុគ្គលិកដឹកជញ្ជូន'
+                'info' => 'Status changed but order is related to a delivery person, suggest contacting the delivery person ('.$driverName.')',
+                'khInfo' => 'ស្ថានភាពត្រូវបានផ្លាស់ប្តូរ ប៉ុន្តែការបញ្ជាទិញនេះទាក់ទងនឹងបុគ្គលិកដឹកជញ្ជូន សូមផ្តល់អនុសាសន៍ឲ្យទាក់ទងបុគ្គលិកដឹកជញ្ជូន ('.$driverName.')'
             ];
         }
         // if($order->status_id == 4) return ApiResponse::ValidateFail(__('messages.error',['info' => 'Order has '.$status]));
