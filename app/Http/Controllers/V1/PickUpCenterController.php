@@ -300,6 +300,12 @@ class PickUpCenterController extends Controller
         if($driverId){
             $driver = GeneralSettingService::getDriverById($driverId);
             if(!$driver) return ApiResponse::ValidateFail('Invalid driver identity!');
+            if($driver->lock) {
+                return ApiResponse::ValidateFail(__('messages.info',[
+                    'info' => 'Driver is currently inactive',
+                    'khInfo' => 'អ្នកដឹកជញ្ជូនត្រូវបានឈប់ដំណើរការ'
+                ]));
+            }
             //* if order status = picked
             if($order->status_id == 2 && $order->driver_id) return ApiResponse::Duplicated(__('messages.info',[
                 'info' => 'Order has already been picked'
