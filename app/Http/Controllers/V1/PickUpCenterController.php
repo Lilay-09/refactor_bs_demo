@@ -127,6 +127,13 @@ class PickUpCenterController extends Controller
         if($order->status_id == $status_id){
             return ApiResponse::Duplicated(__('messages.error',['info' => 'Order has '.$status]));
         }
+        $availableDriver = GeneralSettingService::getDriverById($driver_id);
+        if($availableDriver->lock) {
+            return ApiResponse::ValidateFail(__('messages.info',[
+                'info' => 'Driver is currently inactive',
+                'khInfo' => 'អ្នកដឹកជញ្ជូនត្រូវបានឈប់ដំណើរការ'
+            ]));
+        }
         $message = [
             'info' => 'Status Changed!',
             'khInfo' => 'បានប្ដូរ!'

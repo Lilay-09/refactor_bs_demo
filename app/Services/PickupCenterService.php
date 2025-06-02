@@ -110,6 +110,12 @@ class PickupCenterService
             $inputs['assign_uid'] = $user->id;
             $validDriver = User::where('is_deleted',0)->where('delete_account',0)->where('account_type','driver')->find($driverId);
             if(!$validDriver) return DataResponse::ValidateFail('Invalid driver identity!');
+            if($validDriver->lock) {
+                return ApiResponse::ValidateFail(__('messages.info',[
+                    'info' => 'Driver is currently inactive',
+                    'khInfo' => 'អ្នកដឹកជញ្ជូនត្រូវបានឈប់ដំណើរការ'
+                ]));
+            }
             if($validDriver->vehicle_type != $inputs['vehicle_type']) return DataResponse::ValidateFail(__('messages.error',['info' => 'Driver vehicle type and chosen vehicle type is different!']));
         }
         $dateTime = Helper::getDateTime();
