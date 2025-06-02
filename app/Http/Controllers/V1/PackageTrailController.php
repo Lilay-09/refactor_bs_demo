@@ -376,6 +376,13 @@ class PackageTrailController extends Controller
         $notes = $req->notes;
         $validDriver = GeneralSettingService::getDriverById($driver_id);
         if(!$validDriver) return ApiResponse::NotFound(__('messages.not_found',['info' => 'Driver']));
+        if($validDriver->lock) {
+            return ApiResponse::ValidateFail(__('messages.info',[
+                'info' => 'Driver is currently inactive',
+                'khInfo' => 'អ្នកដឹកជញ្ជូនត្រូវបានឈប់ដំណើរការ'
+            ]));
+        }
+
         $package = Package::where('company_id',$user->company_id)->where('is_deleted',0)
         ->where('outstanding',0)
         ->with('merchant:id,user_name,phone')
