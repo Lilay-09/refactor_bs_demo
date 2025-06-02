@@ -1,12 +1,10 @@
 <?php
 
 namespace App\Services;
-use ApiResponse;
 use App\Jobs\SendNotificationJob;
 use App\Models\Order;
 use App\Models\OrderImage;
 use App\Models\Package;
-use App\Models\PriceList;
 use App\Models\User;
 use App\Models\VehicleType;
 use App\Models\Zone;
@@ -111,7 +109,7 @@ class PickupCenterService
             $validDriver = User::where('is_deleted',0)->where('delete_account',0)->where('account_type','driver')->find($driverId);
             if(!$validDriver) return DataResponse::ValidateFail('Invalid driver identity!');
             if($validDriver->lock) {
-                return ApiResponse::ValidateFail(__('messages.info',[
+                return DataResponse::ValidateFail(__('messages.info',[
                     'info' => 'Driver is currently inactive',
                     'khInfo' => 'អ្នកដឹកជញ្ជូនត្រូវបានឈប់ដំណើរការ'
                 ]));
