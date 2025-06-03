@@ -157,7 +157,8 @@ class TransactionController extends Controller
                 ->where('dp.is_deleted', false);
         });
         $lang = $req->lang;
-        $callback = function ($pkg, $statusCode, $customDateFields = []) use ($lang) {
+        $hisC = new HistoryController();
+        $callback = function ($pkg, $statusCode) use ($lang) {
             $pkg->price = (float) $pkg->price;
             $pkg->cod_fee = $pkg->cod ? $pkg->price : 0;
             $pkg->status_code = $statusCode;
@@ -169,11 +170,20 @@ class TransactionController extends Controller
             $pkg->has_img = isset($attachments[$pkg->package_id]);
             $pkg->render_status = $lang == 'km' ? GeneralSettingService::$statusCodeTrans[$pkg->status_id] : $pkg->status_name;
             $pkg->telegram_url = AppSetting::getTelegramLink('merchant',$pkg->receiver_phone,$pkg->driver?->phone);
-            foreach ($customDateFields as $field) {
-                if (!empty($pkg->$field)) {
-                    $pkg->$field = Helper::formatCustomDateTime($pkg->$field);
-                }
+            // foreach ($customDateFields as $field) {
+            //     if (!empty($pkg->$field)) {
+            //         $pkg->$field = Helper::formatCustomDateTime($pkg->$field);
+            //     }
+            // }
+            if($pkg->status_id == 9){
+                $pkg->arrive_warehouse_date = Helper::formatCustomDateTime($pkg->delivered_datetime,'d/m/Y');
+                $pkg->finished_time = Helper::formatCustomDateTime($pkg->delivered_datetime,'h:i A');
+            }else if($pkg->status_id == 19){
+                $pkg->finished_date = Helper::formatCustomDateTime($pkg->delivered_datetime,'d/m/Y');
+                $pkg->finished_time = Helper::formatCustomDateTime($pkg->delivered_datetime,'h:i A');
             }
+            $pkg->arrive_warehouse_date = Helper::formatCustomDateTime($pkg->arrive_warehouse_datetime,'d/m/Y');outputFormat:
+            $pkg->arrive_warehouse_time = Helper::formatCustomDateTime($pkg->arrive_warehouse_datetime,'h:i A');
 
             unset($pkg->driver, $pkg->status);
             return $pkg;
