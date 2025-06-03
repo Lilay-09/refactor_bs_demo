@@ -240,7 +240,7 @@ class HistoryController extends Controller
                     // $order->status_code = $order->tracking_status->name;
                     $order->status_code = $order->status_id == 3 ? 'Accepted' : $order->tracking_status->name;
                     $orderDatetime = strtotime($order->order_datetime);
-                    $order->order_date = date($this->dateFmt,$orderDatetime);
+                    $order->order_date = date('d/m/Y',$orderDatetime);
                     $order->order_time = date('h:i A',$orderDatetime);
                     $order->render_status = $isKm ? GeneralSettingService::$statusCodeTrans[$order->status_id] : 'Pick Up';
                     $order->telegram_url = Helper::generateTelegramLink($order->driver->phone);
