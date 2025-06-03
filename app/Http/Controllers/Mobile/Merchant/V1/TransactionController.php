@@ -157,7 +157,6 @@ class TransactionController extends Controller
                 ->where('dp.is_deleted', false);
         });
         $lang = $req->lang;
-        $hisC = new HistoryController();
         $callback = function ($pkg, $statusCode) use ($lang) {
             $pkg->price = (float) $pkg->price;
             $pkg->cod_fee = $pkg->cod ? $pkg->price : 0;

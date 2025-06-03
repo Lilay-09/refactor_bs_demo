@@ -15,6 +15,12 @@ use Illuminate\Http\Request;
 
 class HistoryController extends Controller
 {
+
+    protected string $dateFmt;
+
+    public function __construct(){
+        $this->dateFmt = 'd/m/Y';
+    }
     //
     // public function getAllHistories(Request $req){
     //     $today = now();
@@ -234,7 +240,7 @@ class HistoryController extends Controller
                     // $order->status_code = $order->tracking_status->name;
                     $order->status_code = $order->status_id == 3 ? 'Accepted' : $order->tracking_status->name;
                     $orderDatetime = strtotime($order->order_datetime);
-                    $order->order_date = date('d M Y',$orderDatetime);
+                    $order->order_date = date($this->dateFmt,$orderDatetime);
                     $order->order_time = date('h:i A',$orderDatetime);
                     $order->render_status = $isKm ? GeneralSettingService::$statusCodeTrans[$order->status_id] : 'Pick Up';
                     $order->telegram_url = Helper::generateTelegramLink($order->driver->phone);
@@ -349,7 +355,7 @@ class HistoryController extends Controller
     }
 
     // Helper function to split datetime fields based on status_id
-    public function splitDatetimeFieldsByStatus(&$pkg, $statusName)
+    protected function splitDatetimeFieldsByStatus(&$pkg, $statusName)
     {
         // Mapping status to relevant datetime fields
         if ($statusName === 'Success' || $pkg->status_id == 9) {
