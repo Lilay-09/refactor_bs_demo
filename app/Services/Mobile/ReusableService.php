@@ -16,6 +16,7 @@ use Log;
 
 class ReusableService
 {
+    protected static string $dateFmt = 'd/m/Y';
     // Your service methods go here
     public static function getHistoryPackages(Request $req,$user=null,$reqSearch=false,$userClass='driver'){
         $paymentStatus = $req->payment_status_id ?? null;
@@ -324,7 +325,7 @@ class ReusableService
         });
         // $fleetPackages = $qFp->get();
         $callbackMapper = function ($f) use($isKm,$userClass,$attachmentsLookup){
-            $warehouse_datetime = Helper::formatCustomDateTime($f->arrive_warehouse_datetime,'d-M-Y H:i A');
+            $warehouse_datetime = Helper::formatCustomDateTime($f->arrive_warehouse_datetime,self::$dateFmt.' H:i A');
             $finished_date = $f->delivered_datetime;
             $f->total = $userClass == 'merchant' ? ($f->cod ? $f->price:"0"):$f->driver_total;
             $statusId = $f->status_id;
@@ -346,7 +347,7 @@ class ReusableService
             $telegramPhone = $userClass == 'merchant' ? $f->driver_phone : $f->merchant_phone;
             $f->telegram_url = AppSetting::getTelegramLink($userClass,$f->receiver_phone,$telegramPhone);
             // else $f->telegram_url = Helper::generateTelegramLink($f->merchant_phone);
-            $f->finished_datetime = Helper::formatCustomDateTime($finished_date,'d-M-Y h:i A');
+            $f->finished_datetime = Helper::formatCustomDateTime($finished_date,self::$dateFmt.' h:i A');
             $f->arrive_warehouse_datetime = $warehouse_datetime;
             unset($f->failed_datetime,$f->returned_datetime,$f->delivered_datetime);
             return $f;
@@ -418,17 +419,17 @@ class ReusableService
 
             // Format dates
             // $package->arrive_warehouse_datetime = Helper::formatCustomDateTime($package->arrive_warehouse_datetime);
-            $package->arrive_warehouse_date = Helper::formatCustomDateTime($package->arrive_warehouse_datetime,'d-M-Y');
+            $package->arrive_warehouse_date = Helper::formatCustomDateTime($package->arrive_warehouse_datetime,self::$dateFmt);
             $package->arrive_warehouse_time = Helper::formatCustomDateTime($package->arrive_warehouse_datetime,'h:i A');
             // $package->delivered_datetime = Helper::formatCustomDateTime($package->delivered_datetime);
             if(in_array($statusId,[10,19])){
-                $package->failed_date = Helper::formatCustomDateTime($package->failed_datetime,'d-M-Y');
+                $package->failed_date = Helper::formatCustomDateTime($package->failed_datetime,self::$dateFmt);
                 $package->failed_time = Helper::formatCustomDateTime($package->failed_datetime,'h:i A');
             }else if($statusId == 11){
-                $package->returned_date = Helper::formatCustomDateTime($package->returned_datetime,'d-M-Y');
+                $package->returned_date = Helper::formatCustomDateTime($package->returned_datetime,self::$dateFmt);
                 $package->returned_time = Helper::formatCustomDateTime($package->returned_datetime,'h:i A');
             }else if($statusId == 9){
-                $package->delivered_date = Helper::formatCustomDateTime($package->delivered_datetime,'d-M-Y');
+                $package->delivered_date = Helper::formatCustomDateTime($package->delivered_datetime,self::$dateFmt);
                 $package->delivered_time = Helper::formatCustomDateTime($package->delivered_datetime,'h:i A');
             }
             // Generate Telegram URL

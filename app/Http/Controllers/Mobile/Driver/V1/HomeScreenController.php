@@ -37,7 +37,9 @@ class HomeScreenController extends Controller
 {
     //
     protected $user;
+    protected string $dateFmt;
     public function __construct(){
+        $this->dateFmt = 'd/m/Y';
         $this->user = UserService::getAuthUser('driver');
     }
     public function getAvailableOrders(Request $req){
@@ -55,7 +57,7 @@ class HomeScreenController extends Controller
             $order->merchant_phone = $order->merchant->phone;
             $order->warehouse_address = $order->warehouse->address;
             $orderDatetime = $order->order_datetime;
-            $order->order_date = Helper::formatCustomDateTime($orderDatetime,'d M Y');
+            $order->order_date = Helper::formatCustomDateTime($orderDatetime,$this->dateFmt);
             $order->order_time = Helper::formatCustomDateTime($orderDatetime,'h:i A');
             unset($order->merchant,$order->warehouse);
             return $order;
@@ -81,7 +83,7 @@ class HomeScreenController extends Controller
             $order->merchant_name = $order->merchant->user_name;
             $order->merchant_phone = $order->merchant->phone;
             $orderDatetime = $order->order_datetime;
-            $order->order_date = Helper::formatCustomDateTime($orderDatetime,'d M Y');
+            $order->order_date = Helper::formatCustomDateTime($orderDatetime,$this->dateFmt);
             $order->order_time = Helper::formatCustomDateTime($orderDatetime,'h:i A');
             $order->telegram_url = Helper::generateTelegramLink($order->merchant_phone)['url'];
             // $latLng = Helper::getLatLongFromGoogleMapsUrl($order->pickup_address_google_map);
@@ -265,7 +267,7 @@ class HomeScreenController extends Controller
         $groupedPackages = $packages['packages']->groupBy('delivery_id');
         $callback = function ($fleet) use($groupedPackages,$lang){
             // $fleet->status_code = $fleet->status->name == '';
-            $fleet->depart_date = Helper::formatCustomDateTime($fleet->depart_datetime,'d M Y');
+            $fleet->depart_date = Helper::formatCustomDateTime($fleet->depart_datetime,$this->dateFmt);
             $fleet->depart_time = Helper::formatCustomDateTime($fleet->depart_datetime,'h:i A');
             if($fleet->status_id == 14){
                 $fleet->status_code = $lang == 'km' ? 'កំពុងដឹក':'On Trip';
@@ -329,18 +331,18 @@ class HomeScreenController extends Controller
         }
         $packages = $qP->get();
         foreach($packages as $p){
-            $p->date = Helper::formatCustomDateTime($p->assign_driver_datetime,'d-M-Y h:i A');
-            $p->action_date = Helper::formatCustomDateTime($p->assign_driver_datetime,'d M Y ');
+            $p->date = Helper::formatCustomDateTime($p->assign_driver_datetime,$this->dateFmt.' h:i A');
+            $p->action_date = Helper::formatCustomDateTime($p->assign_driver_datetime,$this->dateFmt);
             $p->action_time = Helper::formatCustomDateTime($p->assign_driver_datetime,'h:i A');
             $p->delivery_fee = Helper::getNumber($p->base_fee + $p->extra_charge,2);
             if($p->status_id == 9) {
-                $p->date = Helper::formatCustomDateTime($p->delivered_datetime,'d-M-Y h:i A');
-                $p->action_date = Helper::formatCustomDateTime($p->delivered_datetime,'d M Y');
+                $p->date = Helper::formatCustomDateTime($p->delivered_datetime,$this->dateFmt.' h:i A');
+                $p->action_date = Helper::formatCustomDateTime($p->delivered_datetime,$this->dateFmt);
                 $p->action_time = Helper::formatCustomDateTime($p->delivered_datetime,'h:i A');
             }
             if($p->status_id == 10 || $p->status_id == 19) {
-                $p->date = Helper::formatCustomDateTime($p->failed_datetime,'d-M-Y h:i A');
-                $p->action_date = Helper::formatCustomDateTime($p->failed_datetime,'d M Y');
+                $p->date = Helper::formatCustomDateTime($p->failed_datetime,$this->dateFmt.' h:i A');
+                $p->action_date = Helper::formatCustomDateTime($p->failed_datetime,$this->dateFmt);
                 $p->action_time = Helper::formatCustomDateTime($p->failed_datetime,'h:i A');
             }
             unset($p->assign_driver_datetime,$p->delivered_datetime,$p->failed_datetime);
