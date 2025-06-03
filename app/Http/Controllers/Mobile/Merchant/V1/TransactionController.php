@@ -178,8 +178,8 @@ class TransactionController extends Controller
                 $pkg->arrive_warehouse_date = Helper::formatCustomDateTime($pkg->delivered_datetime,'d/m/Y');
                 $pkg->finished_time = Helper::formatCustomDateTime($pkg->delivered_datetime,'h:i A');
             }else if($pkg->status_id == 19){
-                $pkg->finished_date = Helper::formatCustomDateTime($pkg->delivered_datetime,'d/m/Y');
-                $pkg->finished_time = Helper::formatCustomDateTime($pkg->delivered_datetime,'h:i A');
+                $pkg->finished_date = Helper::formatCustomDateTime($pkg->failed_datetime,'d/m/Y');
+                $pkg->finished_time = Helper::formatCustomDateTime($pkg->failed_datetime,'h:i A');
             }
             $pkg->arrive_warehouse_date = Helper::formatCustomDateTime($pkg->arrive_warehouse_datetime,'d/m/Y');outputFormat:
             $pkg->arrive_warehouse_time = Helper::formatCustomDateTime($pkg->arrive_warehouse_datetime,'h:i A');
