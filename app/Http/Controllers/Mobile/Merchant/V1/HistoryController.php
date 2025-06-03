@@ -349,7 +349,7 @@ class HistoryController extends Controller
     }
 
     // Helper function to split datetime fields based on status_id
-    protected function splitDatetimeFieldsByStatus(&$pkg, $statusName)
+    public function splitDatetimeFieldsByStatus(&$pkg, $statusName)
     {
         // Mapping status to relevant datetime fields
         if ($statusName === 'Success' || $pkg->status_id == 9) {
