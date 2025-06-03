@@ -135,9 +135,10 @@ class TransactionController extends Controller
             'p.id', 'p.status_id', 'p.merchant_id', 'p.receiver_phone', 'p.receiver_address', 'p.receiver_name',
             'p.cod', 'p.price', 'p.delivery_fee', 'p.remarks', 'p.driver_id',
             'p.arrive_warehouse_datetime', 'delivery_remarks as notes',
-            'p.delivered_datetime', 'p.failed_datetime', 'p.returned_datetime', 'p.updated_at'
+            'p.delivered_datetime', 'p.failed_datetime', 'p.returned_datetime', 'p.updated_at','st.name as status_name'
         ];
         $qp = Package::query()->from('packages as p')->where('p.is_deleted',false)
+        ->join('tracking_statuses as st','st.id','p.id')
         ->where('p.merchant_id',$user->id)
         ->whereIn('p.status_id',[9,19]);
         $qp->whereNotExists(function ($sub) {
@@ -165,7 +166,7 @@ class TransactionController extends Controller
             $pkg->delivery_fee = (float) $pkg->delivery_fee;
             $pkg->fee = $pkg->delivery_fee;
             $pkg->has_img = isset($attachments[$pkg->package_id]);
-            $pkg->render_status = $lang == 'km' ? GeneralSettingService::$statusCodeTrans[$pkg->status_id] : $statusCode;
+            $pkg->render_status = $lang == 'km' ? GeneralSettingService::$statusCodeTrans[$pkg->status_id] : $pkg->status_name;
 
             foreach ($customDateFields as $field) {
                 if (!empty($pkg->$field)) {
