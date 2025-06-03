@@ -32,7 +32,9 @@ class HomeController extends Controller
 {
     //
     protected $reuseableService;
+    protected string $dateFmt;
     public function __construct(){
+        $this->dateFmt = 'd/m/Y';
         $this->reuseableService = new ReusableService();
     }
     public function createBooking(Request $req){
@@ -112,7 +114,7 @@ class HomeController extends Controller
             'return' => $packageCounts->return ?? 0,
             'total' => $totalCount ?? 0,
             'total_cod' => Helper::getNumber($packageCounts->total_cod,2,true),
-            'date' => Helper::getDateTime('d-M-Y'),
+            'date' => Helper::getDateTime($this->dateFmt),
         ];
 
         return ApiResponse::JsonResult($obj);
@@ -181,7 +183,7 @@ class HomeController extends Controller
             if($lang == 'km') $order->status_code = 'រង់ចាំ';
             else $order->status_code = 'Pending';
             $order->telegram_url = Helper::generateTelegramLink($companyProfile?->phone);
-            $order->order_date = Helper::formatCustomDateTime($order->order_datetime,'d-M-Y');
+            $order->order_date = Helper::formatCustomDateTime($order->order_datetime,$this->dateFmt);
             $order->order_time = Helper::formatCustomDateTime($order->order_datetime,'h:i A');
             $order->driver_name = $order->driver?->user_name;
             return $order;
@@ -209,7 +211,7 @@ class HomeController extends Controller
             $order->telegram_url = Helper::generateTelegramLink($order->driver->phone);
             $order->driver_name = $order->driver->user_name;
             // $order->order_datetime = Helper::formatCustomDateTime($order->order_datetime);
-            $order->order_date = Helper::formatCustomDateTime($order->order_datetime,'d-M-Y');
+            $order->order_date = Helper::formatCustomDateTime($order->order_datetime,$this->dateFmt);
             $order->order_time = Helper::formatCustomDateTime($order->order_datetime,'h:i A');
             unset($order->tracking_status,$order->driver);
             return $order;
@@ -243,7 +245,7 @@ class HomeController extends Controller
             $package->delivery_fee = (float) $package->delivery_fee;
             $package->fee = $package->delivery_fee;
             $package->arrive_warehouse_datetime = Helper::formatCustomDateTime($package->arrive_warehouse_datetime);
-            $package->arrive_warehouse_date = Helper::formatCustomDateTime($package->arrive_warehouse_datetime,'d-M-Y');
+            $package->arrive_warehouse_date = Helper::formatCustomDateTime($package->arrive_warehouse_datetime,$this->dateFmt);
             $package->arrive_warehouse_time = Helper::formatCustomDateTime($package->arrive_warehouse_datetime,'h:i A');
             // Remove the driver relationship if not needed in the response
             unset($package->driver,$package->activeDeliveryPackage);
@@ -548,7 +550,7 @@ class HomeController extends Controller
             if($rowStatusId == 11) $finished_date = $package->returned_datetime;
             if($rowStatusId == 19 || $rowStatusId == 10) $finished_date = $package->failed_datetime;
             if($rowStatusId == 9) $finished_date = $package->delivered_datetime;
-            $package->finished_datetime = Helper::formatCustomDateTime($finished_date,'d-M-Y h:i A');
+            $package->finished_datetime = Helper::formatCustomDateTime($finished_date,$this->dateFmt.' h:i A');
             unset($package->driver,$package->status,$package->returnUser);
             return $package;
         };
@@ -596,7 +598,7 @@ public function getNotifications(){
         $user = UserService::getAuthUser('merchant');
         $notifications = Notification::where('user_id',$user->id)->where('is_read',0)->orderByDesc('sent_datetime')->selectRaw('id,is_read,title,body,sent_datetime')->get();
         $groupedPackages = collect($notifications)->map(function ($item) {
-            $item->groupKey = date('d-M-Y',strtotime($item->sent_datetime));
+            $item->groupKey = date($this->dateFmt,strtotime($item->sent_datetime));
             $item->time = Helper::formatCustomDateTime($item->sent_datetime,'h:i A');
             return $item;
         })
