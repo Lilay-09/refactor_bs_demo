@@ -298,6 +298,7 @@ class HistoryController extends Controller
                 // Split datetime fields based on status_id
                 $this->splitDatetimeFieldsByStatus($pkg, $statusName);
                 $pkg->telegram_url = AppSetting::getTelegramLink('merchant',$pkg->receiver_phone,$pkg->driver?->phone);
+                $pkg->makeHidden('driver');
                 $items[] = $pkg;
             }
         }
