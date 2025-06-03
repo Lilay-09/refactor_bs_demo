@@ -378,7 +378,7 @@ class HistoryController extends Controller
     {
         if (!empty($pkg->$originalField)) {
             $timestamp = strtotime($pkg->$originalField);
-            $pkg->{$prefix . '_date'} = date('d/m/Y', $timestamp);
+            $pkg->{$prefix . '_date'} = date($this->dateFmt, $timestamp);
             $pkg->{$prefix . '_time'} = date('h:i A', $timestamp);
         }
         unset($pkg->$originalField); // Optionally remove the original field
