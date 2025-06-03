@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Disbursement;
 use App\Models\Package;
 use App\Models\Payment;
+use App\Services\AppSetting;
 use App\Services\GeneralSettingService;
 use App\Services\TransactionService;
 use App\Services\UserService;
@@ -167,7 +168,7 @@ class TransactionController extends Controller
             $pkg->fee = $pkg->delivery_fee;
             $pkg->has_img = isset($attachments[$pkg->package_id]);
             $pkg->render_status = $lang == 'km' ? GeneralSettingService::$statusCodeTrans[$pkg->status_id] : $pkg->status_name;
-
+            $pkg->telegram_url = AppSetting::getTelegramLink('merchant',$pkg->receiver_phone,$pkg->driver?->phone);
             foreach ($customDateFields as $field) {
                 if (!empty($pkg->$field)) {
                     $pkg->$field = Helper::formatCustomDateTime($pkg->$field);
