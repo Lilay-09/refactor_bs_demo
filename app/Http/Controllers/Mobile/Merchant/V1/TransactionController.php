@@ -138,7 +138,7 @@ class TransactionController extends Controller
             'p.delivered_datetime', 'p.failed_datetime', 'p.returned_datetime', 'p.updated_at','st.name as status_name'
         ];
         $qp = Package::query()->from('packages as p')->where('p.is_deleted',false)
-        ->join('tracking_statuses as st','st.id','p.id')
+        ->join('tracking_statuses as st','st.id','p.status_id')
         ->where('p.merchant_id',$user->id)
         ->whereIn('p.status_id',[9,19]);
         $qp->whereNotExists(function ($sub) {
