@@ -19,7 +19,7 @@ class HistoryController extends Controller
     protected string $dateFmt;
 
     public function __construct(){
-        $this->dateFmt = 'd M Y';
+        $this->dateFmt = 'd/m/Y';
     }
     //
     // public function getAllHistories(Request $req){
