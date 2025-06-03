@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Disbursement;
 use App\Models\Package;
 use App\Models\Payment;
+use App\Services\GeneralSettingService;
 use App\Services\TransactionService;
 use App\Services\UserService;
 use Carbon\Carbon;
@@ -153,8 +154,27 @@ class TransactionController extends Controller
                 ->where('dp.type','payment')
                 ->where('dp.is_deleted', false);
         });
-        $callback = function($q){
-            return $q;
+        $lang = $req->lang;
+        $callback = function ($pkg, $statusCode, $customDateFields = []) use ($lang) {
+            $pkg->price = (float) $pkg->price;
+            $pkg->cod_fee = $pkg->cod ? $pkg->price : 0;
+            $pkg->status_code = $statusCode;
+            $pkg->driver_phone = $pkg->driver->phone ?? null;
+            $pkg->driver_name = $pkg->driver->user_name ?? null;
+            $pkg->total = $pkg->cod_fee;
+            $pkg->delivery_fee = (float) $pkg->delivery_fee;
+            $pkg->fee = $pkg->delivery_fee;
+            $pkg->has_img = isset($attachments[$pkg->package_id]);
+            $pkg->render_status = $lang == 'km' ? GeneralSettingService::$statusCodeTrans[$pkg->status_id] : $statusCode;
+
+            foreach ($customDateFields as $field) {
+                if (!empty($pkg->$field)) {
+                    $pkg->$field = Helper::formatCustomDateTime($pkg->$field);
+                }
+            }
+
+            unset($pkg->driver, $pkg->status);
+            return $pkg;
         };
         return ApiResponse::PaginationV1($qp,$req,'',[],100,$callback,$fields);
     }
