@@ -10,6 +10,7 @@ use App\Models\Payment;
 use App\Services\TransactionService;
 use App\Services\UserService;
 use Carbon\Carbon;
+use DB;
 use Helper;
 use Illuminate\Http\Request;
 class TransactionController extends Controller
@@ -126,4 +127,35 @@ class TransactionController extends Controller
         ];
     }
 
+
+    public function getUnpaidPackages(Request $req){
+        $user = UserService::getAuthUser();
+        $fields = [
+            'p.id', 'p.status_id', 'p.merchant_id', 'p.receiver_phone', 'p.receiver_address', 'p.receiver_name',
+            'p.cod', 'p.price', 'p.delivery_fee', 'p.remarks', 'p.driver_id',
+            'p.arrive_warehouse_datetime', 'delivery_remarks as notes',
+            'p.delivered_datetime', 'p.failed_datetime', 'p.returned_datetime', 'p.updated_at'
+        ];
+        $qp = Package::query()->from('packages as p')->where('p.is_deleted',false)
+        ->where('p.merchant_id',$user->id)
+        ->whereIn('p.status_id',[9,19]);
+        $qp->whereNotExists(function ($sub) {
+            $sub->select(DB::raw(1))
+                ->from('payment_packages as pp')
+                ->whereColumn('pp.package_id', 'p.id')
+                ->where('pp.payer_type', 'merchant')
+                ->where('pp.is_deleted', false);
+        })->whereNotExists(function ($sub) {
+            $sub->select(DB::raw(1))
+                ->from('disbursement_packages as dp')
+                ->whereColumn('dp.package_id', 'p.id')
+                ->where('dp.payee_type', 'merchant')
+                ->where('dp.type','payment')
+                ->where('dp.is_deleted', false);
+        });
+        $callback = function($q){
+            return $q;
+        };
+        return ApiResponse::PaginationV1($qp,$req,'',[],100,$callback,$fields);
+    }
 }

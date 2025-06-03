@@ -122,6 +122,7 @@ Route::middleware(['jwtMerchant','localize'])->prefix('merchant/v1/{lang}')->gro
     Route::post('feedback',[HomeController::class,'feedBack']);
     Route::get('bankAccount',[HomeController::class,'getBankAccount']);
     Route::post('bankAccount',[HomeController::class,'saveBankAccount']);
+    Route::get('transaction/unpaid/packages',[MerchantTransactionController::class,'getUnpaidPackages']);
     Route::delete('bankAccount/{id}',[HomeController::class,'deleteBankAccount']);
     Route::get('notification',[HomeController::class,'getNotifications']);
     Route::put('notification/read/{id?}',[HomeController::class,'readNotification']);
