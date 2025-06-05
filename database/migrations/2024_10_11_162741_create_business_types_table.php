@@ -15,8 +15,10 @@ return new class extends Migration
     {
         Schema::create('business_types', function (Blueprint $table) {
             $this->AddBaseFields($table);
-            $table->string('name',50)->nullable();
-            $table->string('description',300)->nullable();
+            $table->string('name_en',50)->nullable();
+            $table->string('name_km',50)->nullable();
+            $table->string('description_en',300)->nullable();
+            $table->string('description_km',300)->nullable();
             $table->boolean('hidden')->default(0);
         });
     }

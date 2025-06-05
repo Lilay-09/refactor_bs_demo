@@ -15,10 +15,6 @@ return new class extends Migration
             //
             $table->unsignedBigInteger('driver_commission_id')->nullable();
         });
-        Schema::table('packages', function (Blueprint $table) {
-            //
-            $table->unsignedBigInteger('driver_commission_id')->nullable();
-        });
         Schema::table('disbursements', function (Blueprint $table) {
             $table->string('type')->default('payment');
             $table->unsignedInteger('receiptionist_uid')->nullable();
@@ -31,11 +27,6 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('orders', function (Blueprint $table) {
-            //
-            $table->dropColumn('driver_commission_id');
-        });
-
-        Schema::table('packages', function (Blueprint $table) {
             //
             $table->dropColumn('driver_commission_id');
         });

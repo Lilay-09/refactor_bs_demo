@@ -10,8 +10,8 @@ class Country extends Model
     use HasFactory;
     protected $fillable = [
         'id',
-        'name',
-        'name_kh',
+        'name_en',
+        'name_km',
         'create_uid',
         'update_uid',
         'branch_id',

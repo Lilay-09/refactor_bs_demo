@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\V1\BannerController;
+use App\Http\Controllers\V1\BranchController;
 use App\Http\Controllers\V1\ClientTypeController;
 use App\Http\Controllers\V1\DashboardController;
 use App\Http\Controllers\V1\DefaultAddressController;
@@ -199,6 +200,7 @@ Route::middleware(['jwt','localize','userAccess:admin'])->prefix('admin/v1/{lang
                 Route::put('package/{id}',[MerchantTransactionController::class,'updateDeliveryPackage']);
                 Route::post('payment',[MerchantTransactionController::class,'receivePackagesPayment']);
             });
+
             Route::prefix('payment')->group(function(){
                 Route::get('',[MerchantTransactionController::class,'getPayments']);
                 Route::put('',[MerchantTransactionController::class,'approvePayments']);
@@ -214,6 +216,12 @@ Route::middleware(['jwt','localize','userAccess:admin'])->prefix('admin/v1/{lang
     });
 
     Route::prefix('company')->group(function(){
+        Route::prefix('branches')->group(function(){
+            Route::get('',[BranchController::class,'getBranches']);
+            Route::get('/{id}',[BranchController::class,'getOneBranch']);
+            Route::put('/{id}',[BranchController::class,'updateBranch']);
+            Route::post('',[BranchController::class,'createBranch']);
+        });
         Route::put('',[CompanyProfileController::class,'update']);
         Route::get('',[CompanyProfileController::class,'getCompanyProfile']);
     });

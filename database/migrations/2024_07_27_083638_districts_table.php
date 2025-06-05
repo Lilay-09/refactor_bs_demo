@@ -18,8 +18,8 @@ class DistrictsTable extends Migration
         //
         Schema::create('districts',function(Blueprint $table){
             $this->AddBaseFields($table);
-            $table->string('name',50)->nullable();
-            $table->string('name_kh',100)->nullable();
+            $table->string('name_en',50)->nullable();
+            $table->string('name_km',100)->nullable();
             $table->unsignedBigInteger('city_id');
 
             //* relationship

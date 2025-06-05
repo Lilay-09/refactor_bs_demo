@@ -105,8 +105,8 @@ class UserService
         return DataResponse::Unauthorized();
     }
 
-    public static function getRolesByUsers($userId){
-        return UserRoles::from('user_roles as ur')->where('ur.user_id',$userId)->join('roles as r','r.id','=','ur.role_id')->selectRaw('r.name as role,ur.role_id,r.description')->get();
+    public static function getRolesByUsers($userId,$lang='en'){
+        return UserRoles::from('user_roles as ur')->where('ur.user_id',$userId)->join('roles as r','r.id','=','ur.role_id')->selectRaw('r.name_'.$lang.' as role,ur.role_id,r.description')->get();
     }
 
     private static function userValidation(Request $req,$userClass){

@@ -12,7 +12,7 @@ class Warehouse extends Model
     protected $table = 'warehouses';
     protected $fillable = [
         'id',
-        'name',
+        'name_en',
         'address',
         'cp_phone',
         'cp_name',

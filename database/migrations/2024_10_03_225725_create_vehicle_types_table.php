@@ -15,7 +15,8 @@ return new class extends Migration
     {
         Schema::create('vehicle_types', function (Blueprint $table) {
             $this->AddBaseFields($table);
-            $table->string('name')->nullable();
+            $table->string('name_en',80)->nullable();
+            $table->string('name_km',80)->nullable();
         });
     }
 

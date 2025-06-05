@@ -83,7 +83,7 @@ class InitialSeeder extends Seeder
         ]);
 
         $comapanyId  = DB::table('companies')->insertGetId([
-            'name' => 'School Root',
+            'name_en' => 'School Root',
             'name_km' => 'ក្រុមហ៊ុន',
             'address' => 'some where',
             'email' => 'school@gmail.com',
@@ -94,12 +94,12 @@ class InitialSeeder extends Seeder
             'update_uid' => $userId
         ]);
         $branchId =  DB::table('branches')->insertGetId([
-            'name' => 'First Branch',
+            'name_en' => 'First Branch',
             'name_km' => 'សាខា',
-            'address' => 'address',
+            'address_en' => 'address',
             'company_id' => $comapanyId,
             'phone' => '092335554',
-            'description' => 'The initail branch',
+            'description_en' => 'The initail branch',
             'create_uid' => $userId,
             'update_uid' => $userId
         ]);
@@ -153,7 +153,7 @@ class InitialSeeder extends Seeder
 
 
         $roleId = DB::table('roles')->insertGetId([
-            'name' => 'Admin',
+            'name_en' => 'Admin',
             'description' => '',
             'create_uid' => $userId,
             'update_uid' => $userId,
@@ -161,7 +161,7 @@ class InitialSeeder extends Seeder
         ]);
 
         $driverRoleId = DB::table('roles')->insertGetId([
-            'name' => 'Driver',
+            'name_en' => 'Driver',
             'description' => '',
             'create_uid' => $userId,
             'update_uid' => $userId,
@@ -169,7 +169,7 @@ class InitialSeeder extends Seeder
         ]);
 
         $merchantRoleId = DB::table('roles')->insertGetId([
-            'name' => 'Merchant',
+            'name_en' => 'Merchant',
             'description' => '',
             'create_uid' => $userId,
             'update_uid' => $userId,
@@ -204,7 +204,7 @@ class InitialSeeder extends Seeder
 
         //warehouse
         DB::table('warehouses')->insert([
-            'name' => 'Main Warehosue',
+            'name_en' => 'Main Warehosue',
             'company_id' => $comapanyId,
             'branch_id' => $branchId
         ]);
@@ -408,7 +408,7 @@ class InitialSeeder extends Seeder
 
         DB::table('vehicle_types')->insert([
             [
-                'name' => 'Motor',
+                'name_en' => 'Motor',
                 'create_uid' => $userId,
                 'update_uid' => $userId,
                 'branch_id' => $branchId,
@@ -418,7 +418,7 @@ class InitialSeeder extends Seeder
 
         //** add default country and cities */
         $countryId = DB::table('countries')->insertGetId([
-            'name' => 'Cambodia',
+            'name_en' => 'Cambodia',
             'create_uid' => $userId,
             'update_uid' => $userId,
             'branch_id' => $branchId,
@@ -428,7 +428,7 @@ class InitialSeeder extends Seeder
         foreach($this->cambodiaCities as $city){
             $cityId = DB::table('cities')->insertGetId([
                 'country_id' => $countryId,
-                'name' => $city,
+                'name_en' => $city,
                 'create_uid' => $userId,
                 'update_uid' => $userId,
                 'branch_id' => $branchId,
@@ -438,7 +438,7 @@ class InitialSeeder extends Seeder
                 foreach($this->phnomPenhDistricts as $district){
                     DB::table('districts')->insert([
                         'city_id' => $cityId,
-                        'name' => $district,
+                        'name_en' => $district,
                         'create_uid' => $userId,
                         'update_uid' => $userId,
                         'branch_id' => $branchId,
@@ -494,7 +494,7 @@ class InitialSeeder extends Seeder
 
          DB::table('business_types')->insert([
             [
-                'name' => 'Cosmetics',
+                'name_en' => 'Cosmetics',
                 'hidden' => false,
                 'create_uid' => $userId,
                 'update_uid' => $userId,
@@ -502,7 +502,7 @@ class InitialSeeder extends Seeder
                 'company_id' => $comapanyId,
             ],
             [
-                'name' => 'Foods and Suplements',
+                'name_en' => 'Foods and Suplements',
                 'hidden' => false,
                 'create_uid' => $userId,
                 'update_uid' => $userId,
@@ -510,7 +510,7 @@ class InitialSeeder extends Seeder
                 'company_id' => $comapanyId,
             ],
             [
-                'name' => 'Foods and Beverage',
+                'name_en' => 'Foods and Beverage',
                 'hidden' => false,
                 'create_uid' => $userId,
                 'update_uid' => $userId,
@@ -518,7 +518,7 @@ class InitialSeeder extends Seeder
                 'company_id' => $comapanyId,
             ],
             [
-                'name' => 'Fashion and Clothing',
+                'name_en' => 'Fashion and Clothing',
                 'hidden' => false,
                 'create_uid' => $userId,
                 'update_uid' => $userId,
@@ -526,7 +526,7 @@ class InitialSeeder extends Seeder
                 'company_id' => $comapanyId,
             ],
             [
-                'name' => 'Eletronics',
+                'name_en' => 'Eletronics',
                 'hidden' => false,
                 'create_uid' => $userId,
                 'update_uid' => $userId,
@@ -534,7 +534,7 @@ class InitialSeeder extends Seeder
                 'company_id' => $comapanyId,
             ],
             [
-                'name' => 'Phone and Accessories',
+                'name_en' => 'Phone and Accessories',
                 'hidden' => false,
                 'create_uid' => $userId,
                 'update_uid' => $userId,
@@ -542,7 +542,7 @@ class InitialSeeder extends Seeder
                 'company_id' => $comapanyId,
             ],
             [
-                'name' => 'Automotive',
+                'name_en' => 'Automotive',
                 'hidden' => false,
                 'create_uid' => $userId,
                 'update_uid' => $userId,
@@ -553,14 +553,14 @@ class InitialSeeder extends Seeder
 
         DB::table('client_types')->insert([
             [
-                'name' => 'Vip',
+                'name_en' => 'Vip',
                 'create_uid' => $userId,
                 'update_uid' => $userId,
                 'branch_id' => $branchId,
                 'company_id' => $comapanyId,
             ],
             [
-                'name' => 'Normal',
+                'name_en' => 'Normal',
                 'create_uid' => $userId,
                 'update_uid' => $userId,
                 'branch_id' => $branchId,

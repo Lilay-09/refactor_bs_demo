@@ -15,7 +15,8 @@ return new class extends Migration
     {
         Schema::create('client_types', function (Blueprint $table) {
             $this->AddBaseFields($table);
-            $table->string('name',50)->nullable();
+            $table->string('name_en',50)->nullable();
+            $table->string('name_km',50)->nullable();
             $table->decimal('discount_percent')->default(0);
         });
     }

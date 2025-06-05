@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::table('companies', function (Blueprint $table) {
             //
             $table->string('address',250)->nullable()->change();
-            $table->string('name',100)->nullable()->change();
+            $table->string('name_en',100)->nullable()->change();
             $table->string('name_km',150)->nullable()->change();
             $table->string('cp_name',150)->nullable();
             $table->string('cp_phone',150)->nullable();
@@ -33,7 +33,7 @@ return new class extends Migration
 
             // Revert the nullable changes
             $table->string('address', 250)->notNullable()->change();
-            $table->string('name', 100)->notNullable()->change();
+            $table->string('name_en', 100)->notNullable()->change();
             $table->string('name_km', 150)->notNullable()->change();
 
             // Drop the additional columns

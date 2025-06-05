@@ -11,7 +11,7 @@ use App\Models\User;
 use App\Services\CloudMessagingService;
 use App\Services\CompanyProfileService;
 use App\Services\GeneralSettingService;
-use App\Services\PickupCenterService;
+use App\Services\PickupCenterServiceImpl;
 use App\Services\UserService;
 use DB;
 use Exception;
@@ -23,27 +23,9 @@ class PickUpCenterController extends Controller
 {
     //
     protected $pkupService;
-    public function __construct(PickupCenterService $pickupCenterService){
+    public function __construct(PickupCenterServiceImpl $pickupCenterService){
         $this->pkupService = $pickupCenterService;
     }
-    // public function orderValidation(Request $req){
-    //     $vehicleTypes = implode(',',VehicleType::where('is_deleted',0)->pluck('name')->toArray());
-    //     return validator($req->all(),[
-    //         'merchant_id' => 'required|int',
-    //         'warehouse_id' => 'required|int|exists:warehouses,id',
-    //         'product_type' => 'nullable|string|exists:product_types,name',
-    //         'qty' => 'required|int|min:1',
-    //         'vehicle_type' => 'required|in:'.$vehicleTypes,
-    //         'driver_id' => 'nullable',
-    //         'pickup_address_google_map' => 'nullable|string',
-    //         'pickup_address' => 'nullable|string|max:300'
-    //     ],[
-    //         'merchant_id.required' => 'Please select the sender',
-    //         'vehicle_type.in' => 'Please select one of ('.$vehicleTypes.')',
-    //         'warehouse_id.required' => 'Please select the warehouse',
-    //         'qty.required' => 'Please enter number of package'
-    //     ]);
-    // }
 
     public function createQuickOrder(Request $req){
         $user = UserService::getAuthUser();

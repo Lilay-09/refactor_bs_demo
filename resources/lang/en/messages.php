@@ -3,13 +3,13 @@ return [
     'get_price_list' => 'Get Price List',
     'get one' => 'Get One :info',
     'not_found' => ':info Not Found',
-    'created' => ':info Created',
-    'deleted' => ':info Deleted',
-    'removed' => ':info Deleted',
-    'arrived' => ':info Arrived',
+    'created' => 'Created',
+    'deleted' => ':Deleted',
+    'removed' => 'Deleted',
+    'arrived' => 'Arrived',
     'updated' => 'Updated',
-    'get_list' => 'Get :info List',
-    'Get List' => 'Get :info List',
+    'get_list' => 'Get List',
+    'Get List' => 'Get List',
     'Get Orders' => 'Get Orders',
     'no_access' => 'No Access :info',
     'no_found' => 'No :info Found',
@@ -28,6 +28,10 @@ return [
     'fast_desc' => 'Instant pick-up & deliver within 1 hour.',
     'normal_desc' => 'Pick-up within 1 hour & deliver within 3 hours.',
     'sender' => 'Sender',
-    'receiver' => 'Receiver'
+    'receiver' => 'Receiver',
+
+
+    //**Branch */
+    'b1' => 'Head Office'
 ];
 

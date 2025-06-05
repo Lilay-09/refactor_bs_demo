@@ -3,6 +3,8 @@
 namespace App\Providers;
 
 use App\Exceptions\Handler;
+use App\Services\BranchService;
+use App\Services\BranchServiceImpl;
 use App\Services\UserNotificationService;
 use App\Services\UserNotificationServiceImpl;
 use Helper;
@@ -22,6 +24,7 @@ class AppServiceProvider extends ServiceProvider
         }
         $this->app->singleton(ExceptionHandlerContract::class, Handler::class);
         $this->app->bind(UserNotificationService::class,UserNotificationServiceImpl::class);
+        $this->app->bind(BranchService::class,BranchServiceImpl::class);
     }
 
     /**

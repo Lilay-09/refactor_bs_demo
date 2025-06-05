@@ -28,26 +28,29 @@ class AuthController extends Controller
         $input = $validate->validated();
         $account = $input['username'];
         $password = $input['password'];
-        date_default_timezone_set('Asia/Phnom_Penh');
+        // date_default_timezone_set('Asia/Phnom_Penh');
         $today = date('Y-m-d H:i:s');
         $user = User::where('account_type','admin')->where(function ($q) use ($account) {
             $q->where('email', $account)
             ->orWhere('phone', $account)
             ->orWhere('login_name', $account);
-        })->selectRaw('photo_file_name,email,phone,id,system_admin,lock,company_id,account_type,login_name')->first();
+        })->selectRaw('photo_file_name,email,phone,id,system_admin,lock,company_id,account_type,login_name,last_login')->first();
         $systemAdmin = $user->system_admin ?? false;
         $isLock = $user->lock ?? false;
         if($isLock) {
             if(!$systemAdmin) return ApiResponse::Unauthorized('You have no access to this application.');
         }
         if(!$user) return  ApiResponse::NotFound('Invalid Username or password');
+        $user->last_login = $today;
+        $user->save();
         if($user){
             if($user->account_type != 'admin') return ApiResponse::Forbidden('You have no access to this application.');
             $user->roles = UserService::getRolesByUsers($user->id);
         }
-        User::find($user->id)->update([
-            'last_login' => $today
-        ]);
+
+        // $user->update([
+        //     'last_login' => $today
+        // ]);
         $credentials = [
             'password' => $password,
             'account_type' => $user->account_type,
@@ -63,7 +66,6 @@ class AuthController extends Controller
         } catch (JWTException $e) {
             return ApiResponse::Unauthorized();
         }
-
         // $refreshTokenFactory = JWTFactory::customClaims([
         //     'sub' => $user->id,
         //     'system_admin' => $user->system_admin,
@@ -82,14 +84,13 @@ class AuthController extends Controller
         $data->phone = $user->phone;
         $data->roles = $user->roles;
         $data->token = $token;
-        $moduleIds = UserModule::join('app_modules as am','am.id','user_app_modules.module_id')->where('user_app_modules.user_id',$user->id)->orderBy('am.display_order')->pluck('user_app_modules.module_id')->toArray();
-        $data->modules = $moduleIds;
-        $permissionIds = UserPermission::where('user_id',$user->id)->pluck('permission_id')->toArray();
-        $data->permissions = $permissionIds;
-        // return response()->json([
-        //     'status_code' => 200,
-        //     'data' => $data,
-        // ],200);
+        if(!$systemAdmin){
+            $moduleIds = UserModule::join('app_modules as am','am.id','user_app_modules.module_id')->where('user_app_modules.user_id',$user->id)->orderBy('am.display_order')->pluck('user_app_modules.module_id')->toArray();
+            $data->modules = $moduleIds;
+            $permissionIds = UserPermission::where('user_id',$user->id)->pluck('permission_id')->toArray();
+            $data->permissions = $permissionIds;
+        }
+
         return ApiResponse::JsonResult($data,'Success');
         // ->withCookie(cookie('session_', $token, config('jwt.ttl'), '/', null, true, false)->withSameSite('None'))
         // ->withCookie(cookie('access_token', $token, config('jwt.ttl'), '/', null, true, true)->withSameSite('None'))

@@ -36,9 +36,11 @@ use Str;
 class HomeScreenController extends Controller
 {
     //
-    protected $user;
+    protected object $user;
     protected string $dateFmt;
-    public function __construct(){
+    public function __construct(
+        private PickupCenterService $pickupCenterService
+    ){
         $this->dateFmt = 'd/m/Y';
         $this->user = UserService::getAuthUser('driver');
     }
@@ -466,8 +468,7 @@ class HomeScreenController extends Controller
             foreach($details as $d){
                 $d['merchant_id'] = $order->merchant_id;
                 $rD = new Request($d);
-                $pkgSvc = new PickupCenterService();
-                $savePkg = $pkgSvc->createOrUpdatePackage($rD,$user,null,$orderId);
+                $savePkg = $this->pickupCenterService->createOrUpdatePackage($rD,$user,null,$orderId);
                 if($savePkg->error) return ApiResponse::flex($savePkg);
             }
         }
@@ -807,8 +808,7 @@ class HomeScreenController extends Controller
 
     public function booking(Request $req){
         $user = UserService::getAuthUser('driver');
-        $pckService = new PickupCenterService();
-        $createOrder = $pckService->createOrder($req,$user);
+        $createOrder = $this->pickupCenterService->createOrder($req,$user);
         return ApiResponse::flex($createOrder);
     }
 

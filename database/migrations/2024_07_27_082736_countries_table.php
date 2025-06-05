@@ -18,8 +18,8 @@ class CountriesTable extends Migration
         //
         Schema::create('countries',function(Blueprint $table){
             $this->AddBaseFields($table);
-            $table->string('name',50)->nullable();
-            $table->string('name_kh',100)->nullable();
+            $table->string('name_en',50)->nullable();
+            $table->string('name_km',100)->nullable();
         });
     }
 

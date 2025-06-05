@@ -11,7 +11,7 @@ class CompanyProfile extends Model
     protected $table = 'companies';
 
     protected $fillable = [
-        'name',
+        'name_en',
         'name_km',
         'address',
         'disclaimer',

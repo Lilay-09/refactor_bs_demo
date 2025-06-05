@@ -42,6 +42,8 @@ return new class extends Migration
             $table->foreign('driver_id')->references('id')->on('users')->onDelete('cascade');
             $table->foreign('warehouse_id')->references('id')->on('warehouses')->onDelete('cascade');
             $table->foreign('status_id')->references('id')->on('tracking_statuses')->onDelete('cascade');
+
+            $table->unsignedBigInteger('assign_uid')->nullable();
         });
     }
 

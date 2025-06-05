@@ -11,9 +11,9 @@ class District extends Model
 
     protected $table = 'districts';
     protected $fillable = [
-        'name',
+        'name_en',
         'id',
-        'name_kh',
+        'name_km',
         'city_id',
         'create_uid',
         'update_uid',
