@@ -80,7 +80,7 @@ class PickupCenterServiceImpl implements PickupCenterService
         $inputs = $validate->validated();
         $merchantId = $inputs['merchant_id'];
         $validMerchant = User::where('is_deleted',0)->where('delete_account',0)->where('account_type','merchant')
-        ->select(['id','user_name','phone'])
+        ->select(['id','username','phone'])
         ->find($merchantId);
         if(!$validMerchant) return DataResponse::ValidateFail('Invalid sender identity!');
         $userType = $user->account_type;
@@ -208,7 +208,7 @@ class PickupCenterServiceImpl implements PickupCenterService
                     'target_uid' => $driverId,
                     'title' => __('notification.assign_order.title'),//$notifTitle,
                     'body' => __('notification.assign_order.body',[
-                        'merchant' => $validMerchant->user_name,
+                        'merchant' => $validMerchant->username,
                         'count' => $inputQty
                     ])
                 ]);
@@ -345,7 +345,7 @@ class PickupCenterServiceImpl implements PickupCenterService
         $inputs['delivery_type'] = $inputs['delivery_type'] ?? 'normal';
         $inputs['booking_channel'] = 'admin';
         $taxiFee = $inputs['taxi_fee'] ?? 0;
-        // $inputs['tracking_notes'] = '['.$user->id.']Admin ('.$user->user_name.') add new package ('.date('d-M-Y h:i:s A').')';
+        // $inputs['tracking_notes'] = '['.$user->id.']Admin ('.$user->username.') add new package ('.date('d-M-Y h:i:s A').')';
         if($user->account_type == 'driver') $inputs['booking_channel'] = 'driver';
         if($user->account_type == 'merchant') {
             $inputs['cod'] = $price > 0 ? true : false;

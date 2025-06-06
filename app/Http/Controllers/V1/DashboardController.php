@@ -167,17 +167,52 @@ class DashboardController extends Controller
     }
 
     private function driverDailyCollection(){
-        $pkgPayments = Package::from('packages as p')->join('payments as pmt','pmt.id','p.driver_payment_id')->where('pmt.approved',1)
-        ->where('p.updated_at', '>=', Carbon::now()->subDays($this->days))
-        ->selectRaw('pmt.exchange_rate,pmt.id as payment_id,DATE(payment_datetime) as payment_date,COUNT(DISTINCT(p.driver_id)) as total_driver,COUNT(DISTINCT(p.merchant_id)) as total_merchant')
-        ->groupBy('payment_id')
-        ->orderByDesc('payment_datetime')
-        ->get();
+        // $pkgPayments = Package::from('packages as p')
+        // ->join('payments as pmt','pmt.id','p.driver_payment_id')->where('pmt.approved',1)
+        // ->where('p.updated_at', '>=', Carbon::now()->subDays($this->days))
+        // ->selectRaw('pmt.exchange_rate,pmt.id as payment_id,DATE(payment_datetime) as payment_date,COUNT(DISTINCT(p.driver_id)) as total_driver,COUNT(DISTINCT(p.merchant_id)) as total_merchant')
+        // ->groupBy('payment_id')
+        // ->orderByDesc('payment_datetime')
+        // ->get();
         // $payments = Payment::where('is_deleted',0)
         // ->selectRaw('id as payment_id,DATE(payment_datetime) as payment_date,COUNT(payer_id) as total_driver')
         // ->groupBy('id')
         // ->get();
         // $disbursements = Disbursement::where('is_deleted',0)->where('payee_type','driver')->where('type','payment')->get();
+        $pkgPayments = DB::table('packages as p')
+            ->join(DB::raw("(
+                SELECT
+                    pp.package_id,
+                    pm.id AS payment_id,
+                    pm.exchange_rate,
+                    pm.payment_datetime
+                FROM payment_packages pp
+                JOIN payments pm ON pm.id = pp.payment_id
+                WHERE pp.payer_type = 'merchant' AND pp.is_deleted = false
+
+                UNION ALL
+
+                SELECT
+                    dp.package_id,
+                    ds.id AS payment_id,
+                    ds.exchange_rate,
+                    ds.payment_datetime
+                FROM disbursement_packages dp
+                JOIN disbursements ds ON ds.id = dp.disbursement_id
+                WHERE dp.payee_type = 'merchant' AND dp.type = 'payment' AND dp.is_deleted = false
+            ) AS unified_payments"), 'p.id', '=', 'unified_payments.package_id')
+            ->where('p.updated_at', '>=', Carbon::now()->subDays($this->days))
+            ->selectRaw('
+                unified_payments.exchange_rate,
+                unified_payments.payment_id,
+                DATE(unified_payments.payment_datetime) as payment_date,
+                COUNT(DISTINCT(p.driver_id)) as total_driver,
+                COUNT(DISTINCT(p.merchant_id)) as total_merchant
+            ')
+            ->groupBy('unified_payments.exchange_rate', 'unified_payments.payment_id', 'unified_payments.payment_datetime')
+            ->orderByDesc('unified_payments.payment_datetime')
+            ->get();
+
         $paymentDetails = PaymentDetail::get();
         $paymentList = [];
         foreach($pkgPayments as $pmt){
@@ -312,7 +347,7 @@ class DashboardController extends Controller
         ->whereIn('p.status_id',[9,19])
         ->join('users as r', 'p.driver_id', '=', 'r.id')
         ->where('r.account_type','driver') // Updated column name
-        ->select('r.id', 'r.user_name as driver_name', DB::raw('COUNT(p.id) as total_packages'))
+        ->select('r.id', 'r.username as driver_name', DB::raw('COUNT(p.id) as total_packages'))
         ->whereIn('p.driver_id', function ($query) {
             $query->select('driver_id')
                 ->from('packages')
@@ -330,7 +365,7 @@ class DashboardController extends Controller
                 ->whereRaw('EXTRACT(YEAR FROM p.failed_datetime) = ?', [$currentYear]);
             });
         })
-        ->groupBy('r.id', 'r.user_name')
+        ->groupBy('r.id', 'r.username')
         ->orderByDesc('total_packages')
         ->limit((int)$top)
         ->get();
@@ -354,12 +389,26 @@ class DashboardController extends Controller
         ->where('p.is_deleted', 0)
         ->where('p.updated_at', '>=', Carbon::now()->subDays($this->days))
         ->whereIn('p.status_id', [9, 19])
-        ->whereNull('p.driver_disbursement_id')
-        ->leftJoin('payments', 'p.driver_payment_id', '=', 'payments.id')
-        ->selectRaw('count(p.id) as qty,d.id,d.user_name as driver_name,d.code'.$SUM)
-        ->where(function ($query) {
-            $query->whereNull('payments.id') // Include rows without matching payments
-                ->orWhere('payments.approved', 0); // Include rows where payments.approved = 0
+        // ->whereNull('p.driver_disbursement_id')
+        // ->leftJoin('payments', 'p.driver_payment_id', '=', 'payments.id')
+        ->selectRaw('count(p.id) as qty,d.id,d.username as driver_name,d.code'.$SUM)
+        // ->where(function ($query) {
+        //     $query->whereNull('payments.id') // Include rows without matching payments
+        //         ->orWhere('payments.approved', 0); // Include rows where payments.approved = 0
+        // })
+        ->whereNotExists(function ($sub) {
+            $sub->select(DB::raw(1))
+                ->from('payment_packages as pp')
+                ->whereColumn('pp.package_id', 'p.id')
+                ->where('pp.payer_type', 'driver')
+                ->where('pp.is_deleted', false);
+        })->whereNotExists(function ($sub) {
+            $sub->select(DB::raw(1))
+                ->from('disbursement_packages as dp')
+                ->whereColumn('dp.package_id', 'p.id')
+                ->where('dp.payee_type', 'driver')
+                ->where('dp.type','payment')
+                ->where('dp.is_deleted', false);
         })
         ->groupBy('d.id')
         ->orderByDesc('amount')
@@ -384,7 +433,7 @@ class DashboardController extends Controller
         //         ->where('dis.approved', '=', 1);
         // })
         ->selectRaw('
-            m.user_name as merchant_name,
+            m.username as merchant_name,
             CASE
                 WHEN p.status_id = 9 THEN p.delivered_datetime::DATE
                 ELSE p.failed_datetime::DATE
@@ -397,28 +446,70 @@ class DashboardController extends Controller
             ) AS cod_amount,
             SUM(
                 CASE
-                    WHEN (p.merchant_payment_id IS NULL AND p.merchant_disbursement_id IS NULL AND p.payer = \'sender\')
-                    THEN p.taxi_fee
+                    WHEN p.payer = \'sender\' THEN p.taxi_fee
                     ELSE 0
                 END
             ) AS taxi_fee,
             SUM(
                 CASE
-                    WHEN (p.merchant_payment_id IS NULL AND p.merchant_disbursement_id IS NULL AND p.payer = \'sender\')
-                    THEN p.delivery_fee + p.extra_charge
+                    WHEN p.payer = \'sender\' THEN p.delivery_fee + p.extra_charge
                     ELSE 0
                 END
             ) AS fees,
             \'unpaid\' AS payment_status,
-            SUM(
-                CASE
-                    WHEN (p.merchant_payment_id IS NULL AND p.merchant_disbursement_id IS NULL) THEN 1
-                    ELSE 0
-                END
-            ) AS package_count
+            SUM(1) AS package_count
         ')
-        ->whereNull('p.merchant_payment_id')
-        ->whereNull('p.merchant_disbursement_id')
+
+        // ->selectRaw('
+        //     m.username as merchant_name,
+        //     CASE
+        //         WHEN p.status_id = 9 THEN p.delivered_datetime::DATE
+        //         ELSE p.failed_datetime::DATE
+        //     END AS finished_date,
+        //     SUM(
+        //         CASE
+        //             WHEN p.cod = TRUE AND p.status_id = 9 THEN p.price
+        //             ELSE 0
+        //         END
+        //     ) AS cod_amount,
+        //     SUM(
+        //         CASE
+        //             WHEN (p.merchant_payment_id IS NULL AND p.merchant_disbursement_id IS NULL AND p.payer = \'sender\')
+        //             THEN p.taxi_fee
+        //             ELSE 0
+        //         END
+        //     ) AS taxi_fee,
+        //     SUM(
+        //         CASE
+        //             WHEN (p.merchant_payment_id IS NULL AND p.merchant_disbursement_id IS NULL AND p.payer = \'sender\')
+        //             THEN p.delivery_fee + p.extra_charge
+        //             ELSE 0
+        //         END
+        //     ) AS fees,
+        //     \'unpaid\' AS payment_status,
+        //     SUM(
+        //         CASE
+        //             WHEN (p.merchant_payment_id IS NULL AND p.merchant_disbursement_id IS NULL) THEN 1
+        //             ELSE 0
+        //         END
+        //     ) AS package_count
+        // ')
+        // ->whereNull('p.merchant_payment_id')
+        // ->whereNull('p.merchant_disbursement_id')
+        ->whereNotExists(function ($sub) {
+            $sub->select(DB::raw(1))
+                ->from('payment_packages as pp')
+                ->whereColumn('pp.package_id', 'p.id')
+                ->where('pp.payer_type', 'merchant')
+                ->where('pp.is_deleted', false);
+        })->whereNotExists(function ($sub) {
+            $sub->select(DB::raw(1))
+                ->from('disbursement_packages as dp')
+                ->whereColumn('dp.package_id', 'p.id')
+                ->where('dp.payee_type', 'merchant')
+                ->where('dp.type','payment')
+                ->where('dp.is_deleted', false);
+        })
         ->groupByRaw('
             m.id,
             CASE

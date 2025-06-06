@@ -124,11 +124,11 @@ class GeneralSettingController extends Controller
 
     public function getMerchants(Request $req){
         $search = $req->search;
-        $mc = User::where('is_deleted',0)->where('account_type','merchant')->selectRaw('id,code,user_name,email,phone,pin_address,address');
+        $mc = User::where('is_deleted',0)->where('account_type','merchant')->selectRaw('id,code,username,email,phone,pin_address,address');
         if($search){
             $mc->where(function($q) use($search){
                 $q->where('code','ilike','%'.$search.'%')
-                ->orWhere('user_name','ilike','%'.$search.'%')
+                ->orWhere('username','ilike','%'.$search.'%')
                 ->orWhere('phone','ilike','%'.$search.'%');
             });
         }

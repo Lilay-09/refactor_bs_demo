@@ -17,11 +17,11 @@ class CompanyProfileService
     }
 
     public function profile($includeSocialMedias=false){
-        return CompanyProfile::selectRaw('id,name,address,email,phone,description')->first();
+        return CompanyProfile::selectRaw('id,name_en as name,name_en,address,email,phone,description')->first();
     }
 
     public static function profileInfo($user,$includeSocialMedias=false){
-        $info = CompanyProfile::selectRaw('id,name,address,email,phone,description,photo_file_name,cp_phone,disclaimer')->where('id',$user->company_id)->first();
+        $info = CompanyProfile::selectRaw('id,name_en as name,name_en,address,email,phone,description,photo_file_name,cp_phone,disclaimer')->where('id',$user->company_id)->first();
         if($info){
             $info->image_url = Helper::getImageUrl($info->photo_file_name,$user->company_id,'company');
             if($includeSocialMedias) {
@@ -36,7 +36,7 @@ class CompanyProfileService
     }
 
     public function info($includeSocialMedias=false){
-        $row = CompanyProfile::selectRaw('id,name,address,email,phone,description')->first();
+        $row = CompanyProfile::selectRaw('id,name_en as name,name_en,address,email,phone,description')->first();
         if($row){
             $branches = self::companyBranches($row->id);
             $row->branches = $branches->list;
@@ -47,7 +47,7 @@ class CompanyProfileService
     }
 
     public static function companyBranches($company_id){
-        $rows = Branch::where('company_id',$company_id)->get();
+        $rows = Branch::where('company_id',$company_id)->select('*','name_en as name,name_en')->get();
         $total_branches = 0;
         foreach($rows as $row){
             $total_branches ++;

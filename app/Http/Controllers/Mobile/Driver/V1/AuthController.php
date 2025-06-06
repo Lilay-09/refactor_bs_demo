@@ -89,7 +89,7 @@ class AuthController extends Controller
         $data = (object)[];
         $data->id = $user->id;
         $data->name = $user->id;
-        $data->user_name = $account;
+        $data->username = $account;
         $data->profile = Helper::getImageUrl($user->photo_file_name,$user->company_id,'user_profile');
         $data->full_name = $user->first_name.' '.$user->last_login;
         $data->phone = $user->phone;
@@ -110,7 +110,7 @@ class AuthController extends Controller
     public function updateProfile(Request $req){
         $authUser = UserService::getAuthUser('merchant');
         $validate = validator($req->all(),[
-            'user_name' => 'required|string',
+            'username' => 'required|string',
             'email' => 'nullable|string',
             'address' => 'nullable|string',
             'photo' => 'nullable',
@@ -121,7 +121,7 @@ class AuthController extends Controller
         // \Log::error(json_encode($req->all()));
         // \Log::info($req->all());
         if($validate->fails()) return ApiResponse::ValidateFail($validate->errors()->first());
-        $user = User::where('account_type',$authUser->account_type)->selectRaw('id,photo_file_name,user_name,phone,email,pin_address,latitude,longitude')->find($authUser->id);
+        $user = User::where('account_type',$authUser->account_type)->selectRaw('id,photo_file_name,username,phone,email,pin_address,latitude,longitude')->find($authUser->id);
         $inputs = $validate->validated();
         $inputs['latitude'] = $inputs['loc_lat'] ?? null;
         $inputs['longitude'] = $inputs['loc_lng'] ?? null;

@@ -100,8 +100,8 @@ class PackageTrailController extends Controller
         }
         $callbackMapper = function($pkg) use ($lang){
             $cod = $pkg->cod;
-            $pkg->driver_name = $pkg->driver?->user_name;
-            $pkg->merhcant_name = $pkg->merchant?->user_name;
+            $pkg->driver_name = $pkg->driver?->username;
+            $pkg->merhcant_name = $pkg->merchant?->username;
             $pkg->merchant_phone = $pkg->merchant?->phone;
             $pkg->cod = $cod == true ? 1:0;
 
@@ -138,7 +138,7 @@ class PackageTrailController extends Controller
         $package->cod = $cod == false ? "0" : "1";
         $driver = $package->driver;
         if($driver){
-            $package->driver_name = $driver->user_name;
+            $package->driver_name = $driver->username;
         }
         // if($isKm) $package->payer = GeneralSettingService::$payerTrans[$package->payer] ?? '';
         $package->base_fee = $package->delivery_fee;
@@ -282,7 +282,7 @@ class PackageTrailController extends Controller
         $user = UserService::getAuthUser();
         $id = $req->id;
         $package = Package::where('is_deleted',0)
-        ->with(['driver:id,user_name,phone','merchant:id,phone,user_name','updateUser:id,user_name'])
+        ->with(['driver:id,username,phone','merchant:id,phone,username','updateUser:id,username'])
         ->where('outstanding',0)
         // ->whereNotIn('status_id',[]) // at warehouse
         ->where('company_id',$user->company_id)
@@ -291,14 +291,14 @@ class PackageTrailController extends Controller
         if(!$package) return ApiResponse::NotFound(trans('messages.not_found',['info' => 'Package','khInfo' => 'កញ្ចប់​']));
         $driver = $package->driver;
         if($driver){
-            $package->driver_name = $driver->user_name;
+            $package->driver_name = $driver->username;
         }
         $package->receiver_address = $package->receiver_address ?? $package->zone_name;
-        $package->merchant_name = $package->merchant->user_name;
+        $package->merchant_name = $package->merchant->username;
         $package->merchant_phone = $package->merchant->phone;
         $package->delivery_fee = $package->delivery_fee + $package->taxi_fee + $package->extra_charge;//($package->cod ? $package->price : 0);
         $package->base_fee = $package->delivery_fee;
-        $package->created_by = $package->updateUser->user_name;
+        $package->created_by = $package->updateUser->username;
         $package->created_date = Helper::formatCustomDateTime($package->created_at,'d-M-Y');
         $package->warehouse_at = Helper::dateDMY($package->arrive_warehouse_datetime);
         $total = 0;
@@ -329,7 +329,7 @@ class PackageTrailController extends Controller
         })
         ->implode(' ');
         $packages = Package::where('is_deleted',0)
-        ->with(['driver:id,user_name,phone','merchant:id,phone,user_name','updateUser:id,user_name'])
+        ->with(['driver:id,username,phone','merchant:id,phone,username','updateUser:id,username'])
         ->where('outstanding',0)
         // ->whereNotIn('status_id',[]) // at warehouse
         ->where('company_id',$user->company_id)
@@ -342,14 +342,14 @@ class PackageTrailController extends Controller
         foreach($packages as $package){
             $driver = $package->driver;
             if($driver){
-                $package->driver_name = $driver->user_name;
+                $package->driver_name = $driver->username;
             }
             $package->receiver_address = $package->receiver_address ?? $package->zone_name;
-            $package->merchant_name = $package->merchant->user_name;
+            $package->merchant_name = $package->merchant->username;
             $package->merchant_phone = $package->merchant->phone;
             $package->delivery_fee = $package->delivery_fee + $package->taxi_fee + $package->extra_charge;//($package->cod ? $package->price : 0);
             $package->base_fee = $package->payer == 'receiver' ? $package->delivery_fee:0;
-            $package->created_by = $package->updateUser->user_name;
+            $package->created_by = $package->updateUser->username;
             $package->created_date = Helper::formatCustomDateTime($package->created_at,'d-M-Y');
             $package->warehouse_at = Helper::dateDMY($package->arrive_warehouse_datetime);
             $total = 0;
@@ -385,7 +385,7 @@ class PackageTrailController extends Controller
 
         $package = Package::where('company_id',$user->company_id)->where('is_deleted',0)
         ->where('outstanding',0)
-        ->with('merchant:id,user_name,phone')
+        ->with('merchant:id,username,phone')
         ->select(['id','status_id','merchant_id','driver_id','assign_uid','assign_driver_datetime','receiver_phone'])
         ->find($id);
         if(!$package) return ApiResponse::NotFound(__('messages.not_found',['info' => 'Package','khInfo' => 'កញ្ចប់']));
@@ -479,7 +479,7 @@ class PackageTrailController extends Controller
                 'target_uid' => $driver_id,
                 'title' => __('notification.assign_package.title'),
                 'body' => __('notification.assign_package.body',[
-                    'merchant' => $package->merchant->user_name,
+                    'merchant' => $package->merchant->username,
                 ])//'You have been assigned to deliver the package('.$package->qr_code.').'
             ]);
             // $notif->sendNotificationByTopic($notifReq,$user);
@@ -510,7 +510,7 @@ class PackageTrailController extends Controller
             'merchant_id' => $merchantId
         ]);
         return ApiResponse::JsonResult(null,__('messages.info',[
-            'info' => 'Merchant('.$merchant->user_name.') has owned package('.$package->qr_code.') now.'
+            'info' => 'Merchant('.$merchant->username.') has owned package('.$package->qr_code.') now.'
         ]));
     }
 

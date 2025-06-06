@@ -27,11 +27,11 @@ class TransactionController extends Controller
         $packageInfo = [];
         $qP = Payment::where('payments.is_deleted',0)->where('payments.payer_id',$user->id)->where('payments.is_settled',1)
         ->join('users as c','c.id','payments.approved_uid')
-        ->selectRaw('payments.remarks,payments.package_count,payments.id,payments.payable_amount,payments.breakdown_notes,c.user_name as cashier_name,payments.payment_datetime')
+        ->selectRaw('payments.remarks,payments.package_count,payments.id,payments.payable_amount,payments.breakdown_notes,c.username as cashier_name,payments.payment_datetime')
         ->orderByDesc('payments.payment_datetime');
         $qD = Disbursement::where('disbursements.type','payment')->where('disbursements.is_deleted',0)->where('disbursements.payee_id',$user->id)->where('disbursements.is_settled',1)
         ->join('users as c','c.id','disbursements.receiptionist_uid')
-        ->selectRaw('disbursements.remarks,disbursements.package_count,disbursements.id,disbursements.payable_amount,disbursements.breakdown_notes,c.user_name as cashier_name,disbursements.payment_datetime')
+        ->selectRaw('disbursements.remarks,disbursements.package_count,disbursements.id,disbursements.payable_amount,disbursements.breakdown_notes,c.username as cashier_name,disbursements.payment_datetime')
         ->orderByDesc('disbursements.payment_datetime');
         if($startDate && $endDate){
             $startDate = Helper::dateYMD($startDate);
@@ -162,7 +162,7 @@ class TransactionController extends Controller
             $pkg->cod_fee = $pkg->cod ? $pkg->price : 0;
             $pkg->status_code = $statusCode;
             $pkg->driver_phone = $pkg->driver->phone ?? null;
-            $pkg->driver_name = $pkg->driver->user_name ?? null;
+            $pkg->driver_name = $pkg->driver->username ?? null;
             $pkg->total = $pkg->cod_fee;
             $pkg->delivery_fee = (float) $pkg->delivery_fee;
             $pkg->fee = $pkg->delivery_fee;

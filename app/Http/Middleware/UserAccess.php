@@ -21,7 +21,7 @@ class UserAccess
      */
     public function handle(Request $request, Closure $next,$class): Response
     {
-        $user = Auth::user()->only(['id', 'user_name', 'email','login_name','system_admin']);
+        $user = Auth::user()->only(['id', 'username', 'email','login_name','system_admin']);
         // Log::info(json_encode($user));
         $validPermission = $this->checkPermission($request,$user['id'],$user['system_admin']);
         if($validPermission->error) return ApiResponse::flex($validPermission);

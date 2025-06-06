@@ -53,7 +53,7 @@ class TransactionService
             ->join('tracking_statuses as ts','ts.id','p.status_id')
             ->join('users as m','m.id','p.merchant_id')
             ->whereIn('p.status_id',[9,19])
-            ->select(['p.extra_charge','p.additional_fee','p.remarks','p.cod','p.price','d.phone as driver_phone','p.taxi_fee','p.payer','p.delivery_fee','p.assign_driver_datetime','p.merchant_total','m.user_name as merchant_name','m.phone as merchant_phone','d.user_name as driver_name','p.status_id','p.id as package_id','d.id as driver_id','p.qr_code','ts.name as status_code','p.delivered_datetime','p.failed_datetime','p.zone_code','p.receiver_phone','p.delivery_type']);
+            ->select(['p.extra_charge','p.additional_fee','p.remarks','p.cod','p.price','d.phone as driver_phone','p.taxi_fee','p.payer','p.delivery_fee','p.assign_driver_datetime','p.merchant_total','m.username as merchant_name','m.phone as merchant_phone','d.username as driver_name','p.status_id','p.id as package_id','d.id as driver_id','p.qr_code','ts.name as status_code','p.delivered_datetime','p.failed_datetime','p.zone_code','p.receiver_phone','p.delivery_type']);
             if($type == 'driver'){
                 $qP->whereNotExists(function ($sub) use ($type) {
                     $sub->select(DB::raw(1))
@@ -184,7 +184,7 @@ class TransactionService
     //     // ->leftJoin('payments as dpmt','dpmt.id','p.'.$fkKey) //** if driver paid or unpaid */
     //     // ->leftJoin('payments as mpmt','mpmt.id','p.merchant_payment_id') //** if driver paid or unpaid */
     //     ->whereIn('p.status_id',[9,19]) //* delivered and failed with fee
-    //     ->selectRaw('p.extra_charge,p.additional_fee,p.remarks,p.cod,p.price,d.phone as driver_phone,p.taxi_fee,p.payer,p.delivery_fee,p.assign_driver_datetime,p.merchant_total,m.user_name as merchant_name,m.phone as merchant_phone,d.user_name as driver_name,p.status_id,p.id as package_id,d.id as driver_id,p.qr_code,ts.name as status_code,p.delivered_datetime,p.failed_datetime,p.zone_code,p.receiver_phone,p.delivery_type,'.$selectKey);
+    //     ->selectRaw('p.extra_charge,p.additional_fee,p.remarks,p.cod,p.price,d.phone as driver_phone,p.taxi_fee,p.payer,p.delivery_fee,p.assign_driver_datetime,p.merchant_total,m.username as merchant_name,m.phone as merchant_phone,d.username as driver_name,p.status_id,p.id as package_id,d.id as driver_id,p.qr_code,ts.name as status_code,p.delivered_datetime,p.failed_datetime,p.zone_code,p.receiver_phone,p.delivery_type,'.$selectKey);
     //     if($type == 'driver'){
     //         $qP->where(function ($q) use($type){
     //             $q->whereNull($type.'_payment_id')->whereNull($type.'_disbursement_id');
@@ -458,7 +458,7 @@ class TransactionService
 
     public function getDriverCommissions($user,$driverId){
         $driver = User::where('is_deleted',0)->where('company_id',$user->company_id)
-        ->selectRaw('code,user_name,employment_date,shift_type,salary')
+        ->selectRaw('code,username,employment_date,shift_type,salary')
         ->where('account_type','driver')->find($driverId);
         if(!$driver) return DataResponse::NotFound(__('messages.not_found',['info' => 'Driver']));
         $dc = (object)[
@@ -704,7 +704,7 @@ class TransactionService
         $allPayments = [];
         $payerOnApprove = '';
         if($isApproved){
-            $payerOnApprove = ',ap.user_name as payer_name';
+            $payerOnApprove = ',ap.username as payer_name';
         }
         $qP = Payment::fromRaw('payments as p')
         ->join('users as d','d.id','p.payer_id')
@@ -712,7 +712,7 @@ class TransactionService
         ->where('p.approved',$isApproved)
         ->join('users as ap','ap.id','p.receiver_uid')
         ->where('payer_type',$type)
-        ->selectRaw('p.trx_code,p.is_settled,p.payment_datetime,p.package_count,ap.user_name as booked_user,p.payable_amount,p.id as payment_id,d.user_name as driver_name,p.exchange_rate,ap.user_name as receiver_name,p.taxi_fee,p.approved,p.breakdown_notes'.$payerOnApprove)
+        ->selectRaw('p.trx_code,p.is_settled,p.payment_datetime,p.package_count,ap.username as booked_user,p.payable_amount,p.id as payment_id,d.username as driver_name,p.exchange_rate,ap.username as receiver_name,p.taxi_fee,p.approved,p.breakdown_notes'.$payerOnApprove)
         ->orderByDesc('p.payment_datetime');
         // if(!$isApproved) $qP->join('users as d','d.id','p.payer_id');
 
@@ -764,7 +764,7 @@ class TransactionService
         ->leftJoin('users as ap','ap.id','dis.receiptionist_uid')
         ->where('payee_type',$type)
         ->leftJoin('users as py','py.id','dis.approved_uid')
-        ->selectRaw('dis.is_settled,dis.payment_datetime,dis.package_count,ap.user_name as booked_user,dis.payable_amount,dis.id as payment_id,d.user_name as driver_name,py.user_name as payer_name,dis.exchange_rate,dis.taxi_fee,dis.approved,dis.breakdown_notes')
+        ->selectRaw('dis.is_settled,dis.payment_datetime,dis.package_count,ap.username as booked_user,dis.payable_amount,dis.id as payment_id,d.username as driver_name,py.username as payer_name,dis.exchange_rate,dis.taxi_fee,dis.approved,dis.breakdown_notes')
         ->orderByDesc('dis.payment_datetime')
         ->get();
         foreach($disbursements as $d){
@@ -800,7 +800,7 @@ class TransactionService
             ->where('p.is_deleted',0)
             ->join('users as ap','ap.id','p.receiver_uid')
             ->where('payer_type',$type)
-            ->selectRaw('p.trx_code,p.is_settled,p.payment_datetime,p.package_count,ap.user_name as booked_user,p.payable_amount,p.id as payment_id,p.delivery_fee,p.cod_amount,d.user_name as payer_name,d.user_name as merchant_name,p.exchange_rate,p.taxi_fee,p.approved,p.breakdown_notes,p.remarks')
+            ->selectRaw('p.trx_code,p.is_settled,p.payment_datetime,p.package_count,ap.username as booked_user,p.payable_amount,p.id as payment_id,p.delivery_fee,p.cod_amount,d.username as payer_name,d.username as merchant_name,p.exchange_rate,p.taxi_fee,p.approved,p.breakdown_notes,p.remarks')
             ->orderByDesc('p.payment_datetime');
             if($payeeOrPayerId) $qP->where('p.payer_id',$payeeOrPayerId);
             if($startDate && $endDate){
@@ -836,7 +836,7 @@ class TransactionService
             ->join('users as d','d.id','dis.payee_id')
             ->join('users as ap','ap.id','dis.receiptionist_uid')
             ->where('payee_type',$type)
-            ->selectRaw('dis.is_settled,dis.payment_datetime,dis.package_count,dis.cod_amount,dis.delivery_fee,ap.user_name as booked_user,dis.payable_amount,dis.id as payment_id,d.user_name as merchant_name,dis.exchange_rate,dis.taxi_fee,dis.approved,dis.breakdown_notes,dis.remarks')
+            ->selectRaw('dis.is_settled,dis.payment_datetime,dis.package_count,dis.cod_amount,dis.delivery_fee,ap.username as booked_user,dis.payable_amount,dis.id as payment_id,d.username as merchant_name,dis.exchange_rate,dis.taxi_fee,dis.approved,dis.breakdown_notes,dis.remarks')
             ->orderByDesc('dis.payment_datetime');
             if($startDate && $endDate){
                 $startDate = Helper::dateYMD($startDate);
@@ -886,7 +886,7 @@ class TransactionService
         ->join('users as r','r.id','p.receiver_uid')
         ->leftJoin('users as st','st.id','p.settled_uid')
         ->orderBy('p.is_settled')
-        ->selectRaw('p.is_deleted,st.user_name as settlement_username,p.is_settled,r.user_name as receiver_name,p.payment_datetime,p.id as payment_id,d.user_name as payer_name,p.exchange_rate,p.amount,p.taxi_fee,p.breakdown_notes as remarks');
+        ->selectRaw('p.is_deleted,st.username as settlement_username,p.is_settled,r.username as receiver_name,p.payment_datetime,p.id as payment_id,d.username as payer_name,p.exchange_rate,p.amount,p.taxi_fee,p.breakdown_notes as remarks');
         $payments = $qP->get();
         $paymentDetails = PaymentDetail::get();
         foreach($payments as $pmt){
@@ -1248,7 +1248,7 @@ class TransactionService
             ->orderByRaw('COALESCE(p.failed_datetime, p.delivered_datetime) DESC NULLS LAST')
             // ->join('payments as pmt','p.driver_payment_id','pmt.id')
             // ->where('pmt.is_settled',0)
-            ->select(['p.additional_fee','p.extra_charge','p.payer','p.cod','p.delivery_fee','p.price','p.taxi_fee','p.extra_charge','p.delivered_datetime','p.failed_datetime','d.id as driver_id','d.id','d.user_name as driver_name','d.code','p.status_id','p.updated_at']);
+            ->select(['p.additional_fee','p.extra_charge','p.payer','p.cod','p.delivery_fee','p.price','p.taxi_fee','p.extra_charge','p.delivered_datetime','p.failed_datetime','d.id as driver_id','d.id','d.username as driver_name','d.code','p.status_id','p.updated_at']);
             // ->groupBy(['d.id','pmt.payable_amount',DB::raw('DATE(p.delivered_datetime)'),DB::raw('DATE(p.failed_datetime)')]);
         if($userId){
             $qP->where('d.id',$userId);

@@ -36,7 +36,7 @@ class UserService
     public static function getUserAuthAccess($class='admin',$action='',$useSpecificClass=true){
         $user = JWTAuth::user();
         if($user){
-            $hasUser = User::where('id',$user->id)->where('is_deleted',0)->selectRaw('id,user_name,phone,account_type,company_id,lock,branch_id,system_admin,vehicle_type,address,delete_account')->first();
+            $hasUser = User::where('id',$user->id)->where('is_deleted',0)->selectRaw('id,username,phone,account_type,company_id,lock,branch_id,system_admin,vehicle_type,address,delete_account')->first();
             if($hasUser){
                 if(!$user->system_admin){
                     if($class != $hasUser->account_type && $useSpecificClass) return DataResponse::Forbidden();
@@ -62,7 +62,7 @@ class UserService
                     'status_code' => 200,
                     'status' => 'OK',
                     'id' => $hasUser->id,
-                    'user_name' => $hasUser->user_name,
+                    'username' => $hasUser->username,
                     'account_type' => $hasUser->account_type,
                     'company_id' => $hasUser->company_id,
                     'branch_id' => $hasUser->branch_id,
@@ -86,8 +86,8 @@ class UserService
                 'status_code' => 200,
                 'status' => 'OK',
                 'id' => $user->id,
-                'user_name' => $user->user_name,
-                'username' => $user->user_name,
+                'username' => $user->username,
+                'username' => $user->username,
                 'account_type' => $user->account_type,
                 'company_id' => $user->company_id,
                 'branch_id' => $user->branch_id,
@@ -113,7 +113,7 @@ class UserService
         $baseFields = [
             'first_name' => 'nullable|string|max:50',
             'last_name' => 'nullable|string|max:50',
-            'user_name' => 'nullable|max:100',
+            'username' => 'nullable|max:100',
             'name_km' => 'nullable|max:100',
             'email' => 'nullable|string|max:100',
             'phone' => 'required|string|regex:/^0[0-9]{8,19}$/',
@@ -149,7 +149,7 @@ class UserService
             $baseFields['relative_address'] = 'nullable|string|max:500';
             $baseFields['salary'] = 'nullable|numeric';
             $baseFields['bank_info'] = 'nullable|array';
-            $baseFields['user_name'] = 'required|max:100';
+            $baseFields['username'] = 'required|max:100';
             if(!$req->id){
                 $baseFields['has_commission'] = 'required|boolean';
             }
@@ -524,7 +524,7 @@ class UserService
     public static function createLoginAccount(Request $req,$userId,$userClass,$authUser){
         $user = User::where('company_id',$authUser->company_id)->where('is_deleted',0)->where('account_type',$userClass)->find($userId);
         if(!$user) return DataResponse::NotFound(__('messages.not_found',['info' => 'User']));
-        if($user->has_account) return DataResponse::Duplicated('User ('.$user->user_name.') already has an account!');
+        if($user->has_account) return DataResponse::Duplicated('User ('.$user->username.') already has an account!');
         $validate = self::createLoginValidation($req);
         if($validate->fails()) return DataResponse::ValidateFail($validate->errors()->first());
         $inputs = $validate->validated();
@@ -577,7 +577,7 @@ class UserService
     public static function setLockUser($authUser,$userId,$type='admin'){
         $user = User::where('is_deleted',0)->where('company_id',$authUser->company_id)
         ->where('account_type',$type)
-        ->selectRaw('id,code,user_name,email,gender,shift_type,vehicle_type,plate_number,phone,national_id,lock')
+        ->selectRaw('id,code,username,email,gender,shift_type,vehicle_type,plate_number,phone,national_id,lock')
         ->find($userId);
         if(!$user) return DataResponse::NotFound(__('messages.not_found',[
             'info' => $type

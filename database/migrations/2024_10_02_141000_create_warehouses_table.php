@@ -17,9 +17,12 @@ return new class extends Migration
             $table->string('name_en',100)->nullable();
             $table->string('address_en',350)->nullable();
             $table->string('bm_phone',30)->nullable();
-            $table->string('bm_name',30)->nullable();
+            $table->string('bm_name_en',50)->nullable();
+            $table->string('bm_name_km',50)->nullable();
             $table->decimal('loc_lat',9,6)->nullable();
             $table->decimal('loc_lng',9,6)->nullable();
+            $table->integer('staff_count')->default(0);
+            $table->boolean('inactive')->default(false);
             $table->text('google_map_link')->nullable();
             $table->unsignedBigInteger('warehouse_type_id')->default(WarehouseType::CENTRAL_WAREHOUSE);
             $table->unsignedBigInteger('create_uid')->nullable();

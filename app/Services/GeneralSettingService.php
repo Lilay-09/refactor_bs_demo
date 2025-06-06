@@ -309,10 +309,13 @@ class GeneralSettingService
     }
 
     public static function optionsBusinessType($user){
-        return BusinessType::where('company_id',$user->company_id)->where('is_deleted',0)->selectRaw('id,name')->get();
+        return BusinessType::where('company_id',$user->company_id)
+        ->where('is_deleted',0)->selectRaw('id,name_en as name')->get();
     }
     public static function optionsClientType($user){
-        return ClientType::where('company_id',$user->company_id)->where('is_deleted',0)->selectRaw('id,name')->get();
+        return ClientType::where('company_id',$user->company_id)
+        ->where('is_deleted',0)
+        ->selectRaw('id,name_en as name')->get();
     }
 
     public static function optionsTrackingStatus($user,$exludeIds=[],$selectIds=[],$stage=null,$selectCols=null,$lang='en'){
@@ -336,7 +339,8 @@ class GeneralSettingService
         return $statuses;
     }
     public static function optionsWarehouse($user){
-        return Warehouse::where('is_deleted',0)->where('company_id',$user->company_id)->selectRaw('name,id')->orderByDesc('id')->get();
+        return Warehouse::where('is_deleted',0)->where('company_id',$user->company_id)
+        ->select('name_en as name','id')->orderByDesc('id')->get();
     }
 
     public static function optionsPickupStatus($user){
@@ -346,12 +350,12 @@ class GeneralSettingService
     }
 
     public static function optionsDriver($user,$vehicleType=null){
-        $qD = User::where('is_deleted',0)->where('company_id',$user->company_id)->where('account_type','driver')->selectRaw('id,user_name,phone,name_km');
+        $qD = User::where('is_deleted',0)->where('company_id',$user->company_id)->where('account_type','driver')->selectRaw('id,username,phone,name_km');
         if($vehicleType) $qD->where('vehicle_type','ilike',$vehicleType);
         $drivers = $qD->orderByDesc('id')->get();
         foreach($drivers as $d){
-            // $d->user_name = $d->user_name . '(' .$d->phone. ')';
-            $d->user_name = $d->user_name.($d->name_km ? (' - '.$d->name_km):'')." ($d->phone)";
+            // $d->username = $d->username . '(' .$d->phone. ')';
+            $d->username = $d->username.($d->name_km ? (' - '.$d->name_km):'')." ($d->phone)";
         }
         return $drivers;
     }
@@ -359,7 +363,7 @@ class GeneralSettingService
     public static function optionsOperator($user){
         $qD = User::where(function($q){
             $q->where('lock',0)->orWhere('is_deleted',0);
-        })->where('has_account',true)->where('company_id',$user->company_id)->where('account_type','admin')->selectRaw('id,user_name,phone');
+        })->where('has_account',true)->where('company_id',$user->company_id)->where('account_type','admin')->selectRaw('id,username,phone');
         $drivers = $qD->orderByDesc('id')->get();
         return $drivers;
     }
@@ -376,7 +380,7 @@ class GeneralSettingService
     public static function optionsDriverByVehicleType($vehicle_type,$user){
         return User::where(function($q){
             $q->where('lock',0)->orWhere('is_deleted',0);
-        })->where('company_id',$user->company_id)->where('account_type','driver')->selectRaw('id,user_name,phone')->where('vehicle_type',$vehicle_type)->orderByDesc('id')->get();
+        })->where('company_id',$user->company_id)->where('account_type','driver')->selectRaw('id,username,phone')->where('vehicle_type',$vehicle_type)->orderByDesc('id')->get();
     }
 
     public static function getDriverById($id){
@@ -436,9 +440,9 @@ class GeneralSettingService
             $q->whereNull('register_status')
             ->orWhere('register_status', '!=', 'in-progress');
         })
-        ->where('company_id',$user->company_id)->where('account_type','merchant')->selectRaw('id,user_name,name_km,phone')->orderByDesc('id')->get();
+        ->where('company_id',$user->company_id)->where('account_type','merchant')->selectRaw('id,username,name_km,phone')->orderByDesc('id')->get();
         foreach($merchants as $m){
-            $m->user_name = $m->user_name.($m->name_km ? (' - '.$m->name_km):'')." ($m->phone)";
+            $m->username = $m->username.($m->name_km ? (' - '.$m->name_km):'')." ($m->phone)";
         }
         return $merchants;
     }
@@ -451,7 +455,7 @@ class GeneralSettingService
         ->where('users.company_id', $user->company_id)
         ->where('users.account_type', 'merchant')
         ->where('users.is_deleted',0)
-        ->selectRaw('DISTINCT users.id, users.user_name, users.name_km, users.phone')
+        ->selectRaw('DISTINCT users.id, users.username, users.name_km, users.phone')
         ->orderByDesc('users.id');
         if($startDate && $endDate){
             $startDatetime = Helper::dateYMD($startDate).' 00:00:00';
@@ -474,7 +478,7 @@ class GeneralSettingService
         //     $q->where('lock',0)->orWhere('is_deleted',0);
         // })->where('company_id',$user->company_id)
         // ->where('account_type','merchant')
-        // ->selectRaw('id,user_name,name_km,phone')->orderByDesc('id');
+        // ->selectRaw('id,username,name_km,phone')->orderByDesc('id');
 
         // if($startDate && $endDate){
         //     $startDatetime = Helper::dateYMD($startDate).' 00:00:00';
@@ -494,7 +498,7 @@ class GeneralSettingService
 
         // $merchants = $query->get();
         foreach($merchants as $m){
-            $m->user_name = $m->user_name.($m->name_km ? (' - '.$m->name_km):'')." ($m->phone)";
+            $m->username = $m->username.($m->name_km ? (' - '.$m->name_km):'')." ($m->phone)";
         }
         return $merchants;
     }
@@ -502,7 +506,7 @@ class GeneralSettingService
     public static function optionsVehicleType($user,$lang='en'){
 
         $userType = $user->account_type;
-        $select = 'name,name as value,id';
+        $select = 'name_en,name_en as value,id';
         if($userType == 'merchant'){
             $select .= ',description_'.$lang.' as description';
             if($lang == 'km'){
@@ -524,7 +528,9 @@ class GeneralSettingService
     }
 
     public static function optionsCityByCountry($countryId,$user){
-        return City::where('is_deleted',0)->where('company_id',$user->company_id)->where('country_id',$countryId)->selectRaw('name,id')->orderByDesc('id')->get();
+        return City::where('is_deleted',0)->where('company_id',$user->company_id)
+        ->where('country_id',$countryId)
+        ->selectRaw('name_en as name,id')->orderByDesc('id')->get();
     }
 
     public static function optionsZoneType(){
@@ -541,15 +547,17 @@ class GeneralSettingService
     }
 
     public static function optionsCountry($user){
-        return Country::where('is_deleted',0)->where('company_id',$user->company_id)->selectRaw('name,id')->orderByDesc('id')->get();
+        return Country::where('is_deleted',0)->where('company_id',$user->company_id)
+        ->selectRaw('name_en as name,id')->orderByDesc('id')->get();
     }
 
     public static function optionsCity($user){
-        return City::where('is_deleted',0)->where('company_id',$user->company_id)->selectRaw('name,id')->orderByDesc('id')->get();
+        return City::where('is_deleted',0)->where('company_id',$user->company_id
+        )->selectRaw('name_en as name,id')->orderByDesc('id')->get();
     }
     public static function optionsDistrict($user,$cityId){
         $q = District::where('is_deleted',0)->where('company_id',$user->company_id)
-        ->selectRaw('name,id')
+        ->selectRaw('name_en as name,id')
         ->orderByDesc('id');
         if($cityId){
             $q->where('city_id',$cityId);

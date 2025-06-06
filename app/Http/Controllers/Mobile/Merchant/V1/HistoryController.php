@@ -47,7 +47,7 @@ class HistoryController extends Controller
     //                 $order->render_status = GeneralSettingService::$statusCodeTrans[$order->status_id];
     //             }else $order->render_status = 'Pick Up';
     //             $order->driver_phone = $order->driver->phone;
-    //             $order->driver_name = $order->driver->user_name;
+    //             $order->driver_name = $order->driver->username;
     //             unset($order->tracking_status,$order->driver);
     //             $items[] = $order;
     //         }
@@ -66,7 +66,7 @@ class HistoryController extends Controller
     //             $package->cod_fee = $package->cod ? $package->price : 0;
     //             $package->status_code = 'On Delivery';
     //             $package->driver_phone = $package->driver->phone ?? null; // Ensure driver relationship exists
-    //             $package->driver_name = $package->driver->user_name ?? null;
+    //             $package->driver_name = $package->driver->username ?? null;
     //             if($isKm){
     //                 $package->render_status = GeneralSettingService::$statusCodeTrans[$package->status_id];
     //             }else $package->render_status = $package->status_code;
@@ -94,7 +94,7 @@ class HistoryController extends Controller
     //             $package->cod_fee = $package->cod ? $package->price : 0;
     //             $package->status_code = 'Delivered';
     //             $package->driver_phone = $package->driver->phone;
-    //             $package->driver_name = $package->driver->user_name;
+    //             $package->driver_name = $package->driver->username;
     //             $package->total = (float) $package->cod_fee;
     //             $package->delivery_fee = (float)$package->delivery_fee;
     //             $package->fee = $package->delivery_fee;
@@ -125,7 +125,7 @@ class HistoryController extends Controller
     //             if($isKm){
     //                 $package->render_status = GeneralSettingService::$statusCodeTrans[$package->status_id];
     //             }else $package->render_status = $package->status_code;
-    //             $package->driver_name = $package->driver->user_name;
+    //             $package->driver_name = $package->driver->username;
     //             $package->arrive_warehouse_datetime = Helper::formatCustomDateTime($package->arrive_warehouse_datetime);
     //             $package->failed_datetime = Helper::formatCustomDateTime($package->failed_datetime);
     //             $package->total = (float) $package->cod_fee;
@@ -151,7 +151,7 @@ class HistoryController extends Controller
     //             if($isKm){
     //                 $package->render_status = GeneralSettingService::$statusCodeTrans[$package->status_id];
     //             }else $package->render_status = $package->status_code;
-    //             $package->driver_name = $package->driver->user_name;
+    //             $package->driver_name = $package->driver->username;
     //             $package->arrive_warehouse_datetime = Helper::formatCustomDateTime($package->arrive_warehouse_datetime);
     //             $package->failed_datetime = Helper::formatCustomDateTime($package->failed_datetime);
     //             $package->total = (float) $package->cod_fee;
@@ -173,7 +173,7 @@ class HistoryController extends Controller
     //             $package->cod_fee = $package->cod ? $package->price : 0;
     //             $package->status_code = $package->status->name;
     //             $package->driver_phone = $package->driver?->phone;
-    //             $package->driver_name = $package->driver?->user_name;
+    //             $package->driver_name = $package->driver?->username;
     //             if($isKm){
     //                 $package->render_status = GeneralSettingService::$statusCodeTrans[$package->status_id];
     //             }else $package->render_status = $package->status_code;
@@ -212,7 +212,7 @@ class HistoryController extends Controller
             $pkg->cod_fee = $pkg->cod ? $pkg->price : 0;
             $pkg->status_code = $statusCode;
             $pkg->driver_phone = $pkg->driver->phone ?? null;
-            $pkg->driver_name = $pkg->driver->user_name ?? null;
+            $pkg->driver_name = $pkg->driver->username ?? null;
             $pkg->total = $pkg->cod_fee;
             $pkg->delivery_fee = (float) $pkg->delivery_fee;
             $pkg->fee = $pkg->delivery_fee;
@@ -245,7 +245,7 @@ class HistoryController extends Controller
                     $order->render_status = $isKm ? GeneralSettingService::$statusCodeTrans[$order->status_id] : 'Pick Up';
                     $order->telegram_url = Helper::generateTelegramLink($order->driver->phone);
                     $order->driver_phone = $order->driver->phone ?? null;
-                    $order->driver_name = $order->driver->user_name ?? null;
+                    $order->driver_name = $order->driver->username ?? null;
                     unset($order->tracking_status, $order->driver);
                     $items[] = $order;
                 });
@@ -273,7 +273,7 @@ class HistoryController extends Controller
 
         // Load packages once
         $packages = Package::where('merchant_id', $user->id)
-            ->with(['driver:id,user_name,phone', 'status:id,name'])
+            ->with(['driver:id,username,phone', 'status:id,name'])
             ->whereIn('status_id', $targetStatusIds)
             ->where('is_deleted', 0)
             ->select($fields)

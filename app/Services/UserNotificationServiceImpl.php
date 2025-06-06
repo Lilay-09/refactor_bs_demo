@@ -15,10 +15,10 @@ class UserNotificationServiceImpl implements UserNotificationService
         ->groupBy('user_id')
         ->pluck('device_count', 'user_id');
         $query = UserNotificationToken::query()
-        ->with('user:id,user_name,phone,account_type');
+        ->with('user:id,username,phone,account_type');
         $select = ['id','service_name','user_id'];
         $callback = function($q) use($deviceCounts){
-            $q->username = $q->user->user_name;
+            $q->username = $q->user->username;
             $q->phone = $q->user->phone;
             $q->device_count = $deviceCounts[$q->user_id] ?? 0;
             $q->makeHidden('user');

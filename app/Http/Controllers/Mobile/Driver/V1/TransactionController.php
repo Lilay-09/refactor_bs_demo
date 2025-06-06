@@ -35,14 +35,14 @@ class TransactionController extends Controller
         $qPmt = Payment::where('payments.is_deleted', 0)
             ->where('payments.payer_id', $user->id)
             ->join('users as c', 'c.id', 'payments.receiver_uid')
-            ->selectRaw('payments.remarks,payments.package_count,payments.id, payments.payable_amount, payments.breakdown_notes, c.user_name as cashier_name, payments.payment_datetime')
+            ->selectRaw('payments.remarks,payments.package_count,payments.id, payments.payable_amount, payments.breakdown_notes, c.username as cashier_name, payments.payment_datetime')
             ->orderByDesc('payment_datetime');
 
         $qDis = Disbursement::where('type', 'payment')
             ->where('disbursements.is_deleted', 0)
             ->where('disbursements.payee_id', $user->id)
             ->join('users as c', 'c.id', 'disbursements.receiptionist_uid')
-            ->selectRaw('disbursements.remarks,disbursements.package_count, disbursements.id, disbursements.payable_amount, disbursements.breakdown_notes, c.user_name as cashier_name, disbursements.payment_datetime')
+            ->selectRaw('disbursements.remarks,disbursements.package_count, disbursements.id, disbursements.payable_amount, disbursements.breakdown_notes, c.username as cashier_name, disbursements.payment_datetime')
             ->orderByDesc('payment_datetime');
 
         if ($startDate && $endDate) {
@@ -166,13 +166,13 @@ class TransactionController extends Controller
     //     $qPmt = Payment::where('payments.is_deleted',0)->where('payments.payer_id',$user->id)
     //     // ->where('payments.approved',1)
     //     ->join('users as c','c.id','payments.receiver_uid')
-    //     ->selectRaw('payments.package_count,payments.id,payments.payable_amount,payments.breakdown_notes,c.user_name as cashier_name,payments.payment_datetime')
+    //     ->selectRaw('payments.package_count,payments.id,payments.payable_amount,payments.breakdown_notes,c.username as cashier_name,payments.payment_datetime')
     //     ->orderByDesc('payment_datetime');
 
     //     $qDis = Disbursement::where('type','payment')->where('disbursements.is_deleted',0)->where('disbursements.payee_id',$user->id)
     //     // ->where('disbursements.approved',1)
     //     ->join('users as c','c.id','disbursements.receiptionist_uid')
-    //     ->selectRaw('disbursements.package_count,disbursements.id,disbursements.payable_amount,disbursements.breakdown_notes,c.user_name as cashier_name,disbursements.payment_datetime')
+    //     ->selectRaw('disbursements.package_count,disbursements.id,disbursements.payable_amount,disbursements.breakdown_notes,c.username as cashier_name,disbursements.payment_datetime')
     //     ->orderByDesc('payment_datetime');
 
     //     if($startDate && $endDate){
@@ -276,7 +276,7 @@ class TransactionController extends Controller
                 ->where('dp.is_deleted', false);
         })
 
-        ->selectRaw('p.driver_id,p.returned_uid,p.payer,p.extra_charge,p.cod,p.price,p.pickup_notes as notes,p.merchant_total,p.receiver_address,p.qr_code,p.status_id,trs.name as status_code,m.user_name as merchant_name,m.phone as merchant_phone,p.receiver_name,p.receiver_phone,p.delivery_fee,p.taxi_fee,p.remarks,p.id as package_id,p.product_type,p.driver_total,p.billed_kg,p.failed_datetime,p.delivered_datetime,p.arrive_warehouse_datetime,p.returned_datetime');
+        ->selectRaw('p.driver_id,p.returned_uid,p.payer,p.extra_charge,p.cod,p.price,p.pickup_notes as notes,p.merchant_total,p.receiver_address,p.qr_code,p.status_id,trs.name as status_code,m.username as merchant_name,m.phone as merchant_phone,p.receiver_name,p.receiver_phone,p.delivery_fee,p.taxi_fee,p.remarks,p.id as package_id,p.product_type,p.driver_total,p.billed_kg,p.failed_datetime,p.delivered_datetime,p.arrive_warehouse_datetime,p.returned_datetime');
         // ->get();
         $callback = function ($p) use($lang){
             if($lang == 'km'){
@@ -510,14 +510,14 @@ class TransactionController extends Controller
         $disbursements = Disbursement::where('payee_type','driver')
         ->where('type','commission')
         ->where('is_deleted',0)
-        ->with('receiptionist:id,user_name')
+        ->with('receiptionist:id,username')
         ->where('payee_id',$user->id)
         ->selectRaw('id,payable_amount,breakdown_notes as method,receiptionist_uid,payment_datetime,remarks')
         ->get();
         foreach($disbursements as $d){
             $d->payment_date = Helper::dateDMY($d->payment_datetime);
             $d->payment_time = Helper::dateDMY($d->payment_datetime,'h:i A');
-            $d->payer_name = $d->receiptionist->user_name;
+            $d->payer_name = $d->receiptionist->username;
             $d->payable_amount = (float)$d->payable_amount;
             unset($d->receiptionist,$d->receiptionist_uid,$d->payment_datetime);
         }

@@ -99,7 +99,7 @@ class AuthController extends Controller
         $data = (object)[];
         $data->id = $user->id;
         $data->name = $user->id;
-        $data->user_name = $account;
+        $data->username = $account;
         $data->profile = Helper::getImageUrl($user->photo_file_name,$user->company_id,'user_profile');
         $data->full_name = $user->first_name.' '.$user->last_login;
         $data->phone = $user->phone;
@@ -157,7 +157,7 @@ class AuthController extends Controller
         $otp = Helper::newOTP();
 
         $newReq = new Request([
-            'user_name' => $inputs['full_name'] ?? null,
+            'username' => $inputs['full_name'] ?? null,
             'phone' => $phone,
             'address' => $inputs['address'] ?? null,
             'account_type' => 'merchant',
@@ -202,7 +202,7 @@ class AuthController extends Controller
         if($found->otp) return ApiResponse::ValidateFail(__('messages.info',['info' => 'Failed']));
         if($found->has_account) return ApiResponse::Duplicated();
         $found->update([
-            'user_name' => $inputs['username'],
+            'username' => $inputs['username'],
             'login_name' => $phone,
             'password' => $hpwd,
             'has_account' => true,
@@ -306,7 +306,7 @@ class AuthController extends Controller
     public function updateProfile(Request $req){
         $authUser = UserService::getAuthUser('merchant');
         $validate = validator($req->all(),[
-            'user_name' => 'required|string',
+            'username' => 'required|string',
             'email' => 'nullable|string',
             'address' => 'nullable|string',
             'photo' => 'nullable',
@@ -316,7 +316,7 @@ class AuthController extends Controller
         ]);
 
         if($validate->fails()) return ApiResponse::ValidateFail($validate->errors()->first());
-        $user = User::where('account_type',$authUser->account_type)->selectRaw('id,photo_file_name,user_name,phone,email,company_id,branch_id')->find($authUser->id);
+        $user = User::where('account_type',$authUser->account_type)->selectRaw('id,photo_file_name,username,phone,email,company_id,branch_id')->find($authUser->id);
         $inputs = $validate->validated();
         $photo = $inputs['photo'] ?? null;
         if($photo instanceof UploadedFile){

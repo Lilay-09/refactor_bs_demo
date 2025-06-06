@@ -137,13 +137,13 @@ class GeneralSettingController extends Controller
         $data = null;
         if(!$diffDriver && $isOnDelivery)
             $data = Package::where('qr_code',$item_ref)
-            ->with(['status:id,name','merchant:id,user_name'])
+            ->with(['status:id,name','merchant:id,username'])
             ->selectRaw('receiver_address,merchant_id,id,qr_code,status_id,assign_driver_datetime,receiver_phone,receiver_name,product_type,cod,zone_name,zone_code,price,delivery_fee,driver_total as total,taxi_fee,additional_fee,extra_charge,payer')
             // ->selectRaw('p.delivered_datetime,p.failed_datetime,p.assign_driver_datetime,p.merchant_id,p.qr_code,p.price,p.cod,p.receiver_name,p.receiver_phone,p.zone_code,p.zone_name,ts.name as status_code
-            // ,d.user_name as driver_name,d.phone as driver_phone,m.user_name as merchant_name,m.phone as merchant_phone,p.id as package_id,dp.delivery_id,p.zone_code,p.zone_name,p.delivery_fee as base_fee,p.driver_total,p.driver_total as delivery_fee,p.taxi_fee,p.product_type,dp.status_id')
+            // ,d.username as driver_name,d.phone as driver_phone,m.username as merchant_name,m.phone as merchant_phone,p.id as package_id,dp.delivery_id,p.zone_code,p.zone_name,p.delivery_fee as base_fee,p.driver_total,p.driver_total as delivery_fee,p.taxi_fee,p.product_type,dp.status_id')
             ->first();
             if($data){
-                $data->merchant_name = $data->merchant?->user_name;
+                $data->merchant_name = $data->merchant?->username;
                 $data->cod = $data->cod ? 'Yes' : 'No';
                 $data->status_code = $data->status->name;
                 $data->fee = PickupCenterService::getFees($data->payer,$data->delivery_fee,$data->extra_charge,$data->taxi_fee);
@@ -220,7 +220,7 @@ class GeneralSettingController extends Controller
             $updateArr['status_id'] = 6;
             $updateArr['driver_id'] = $user->id;
             $updateArr['assign_driver_datetime'] = now();
-            $notes = $package->tracking_notes."|[$user->id]Driver ($user->user_name) scan on delivery (".Helper::getDateTime().")";
+            $notes = $package->tracking_notes."|[$user->id]Driver ($user->username) scan on delivery (".Helper::getDateTime().")";
             // $notifRequpdateArr['tracking_notes'] = $notes;
             $pckTl = new PackageTrailController();
             // DB::beginTransaction();
@@ -254,7 +254,7 @@ class GeneralSettingController extends Controller
                 'info' => 'It seems like you tried to confirm delivery package again'
                 // 'info' => 'This package is already marked as out for delivery. Please check the delivery status before proceeding.'
             ]));
-            $requester = $user->info->phone."($user->user_name)";
+            $requester = $user->info->phone."($user->username)";
             $topics = GeneralSettingService::getGeneralTopics($user->company_id,'driver',$package->driver_id);
             Cache::set($topics->private,(object)[
                 'requester' => $requester,
@@ -274,8 +274,8 @@ class GeneralSettingController extends Controller
             ]);
             // var_dump($requester,$topics->private);
             $cms->sendNotificationByTopic($notifReq,$user);
-            $driverName = $driver->user_name;
-            $updateArr['tracking_notes'] = $package->tracking_notes."|[$user->id]Driver ($user->user_name) ask [$package->driver_id]Driver $driverName to change driver";
+            $driverName = $driver->username;
+            $updateArr['tracking_notes'] = $package->tracking_notes."|[$user->id]Driver ($user->username) ask [$package->driver_id]Driver $driverName to change driver";
         }
         // if(empty($updateArr)) return ApiResponse::JsonResult(null,__('messages.updated'));
         $package->update($updateArr);
@@ -306,7 +306,7 @@ class GeneralSettingController extends Controller
         $requesterTopic = GeneralSettingService::getGeneralTopics($user->company_id,'driver',$requester_id);
         $cms = new CloudMessagingService();
         $notifTitle = 'Confirm';
-        $notifBody = $user->user_name.' has confirmed your request';
+        $notifBody = $user->username.' has confirmed your request';
         if(!$confirm){
             $notifTitle = 'Cancelled';
             $notifBody = 'Your request has been denied';
@@ -381,7 +381,7 @@ class GeneralSettingController extends Controller
             $package->update([
                 'driver_id' => $requester_id,
                 'status_id' => 6,
-                'tracking_notes' => $package->tracking_notes.'|Package tranferred from ['.$package->driver_id.']'.$package->driver->user_name.' to ['.$requester_id.']'.$requester
+                'tracking_notes' => $package->tracking_notes.'|Package tranferred from ['.$package->driver_id.']'.$package->driver->username.' to ['.$requester_id.']'.$requester
             ]);
         }
         // return DeliveryPackage::where('package_id',29)->where('is_deleted',0)->get();
@@ -391,7 +391,7 @@ class GeneralSettingController extends Controller
             'body' => $notifBody,
             'data' => [
                 'action' => 'change-driver',
-                'sender' => $user->user_name,
+                'sender' => $user->username,
             ]
         ]);
         $cms->sendNotificationByTopic($notifReq,$user);

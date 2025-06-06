@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Services\TransactionService;
 use App\Services\UserService;
+use DB;
 use Helper;
 use Illuminate\Http\Request;
 
@@ -68,10 +69,22 @@ class MerchantTransactionController extends Controller
             ->orderByRaw('COALESCE(p.failed_datetime, p.delivered_datetime) DESC NULLS LAST')
             // ->join('payments as pmt','p.driver_payment_id','pmt.id')
             // ->where('pmt.is_settled',0)
-            ->selectRaw('p.taxi_fee,p.extra_charge,p.additional_fee,p.payer,p.delivery_fee,p.cod,p.price,p.delivered_datetime,p.failed_datetime,d.id as driver_id,d.id,d.user_name as merchant_name,d.code,p.status_id,p.updated_at');
+            ->selectRaw('p.taxi_fee,p.extra_charge,p.additional_fee,p.payer,p.delivery_fee,p.cod,p.price,p.delivered_datetime,p.failed_datetime,d.id as driver_id,d.id,d.username as merchant_name,d.code,p.status_id,p.updated_at');
             $qP->where(function ($q) {
-                $q->whereNull('p.merchant_payment_id')
-                ->whereNull('p.merchant_disbursement_id');
+                $q->whereExists(function ($sub) {
+                    $sub->select(DB::raw(1))
+                        ->from('payment_packages as pp')
+                        ->whereColumn('pp.package_id', 'p.id')
+                        ->where('pp.payer_type', 'merchant')
+                        ->where('pp.is_deleted', false);
+                })->orWhereExists(function ($sub) {
+                    $sub->select(DB::raw(1))
+                        ->from('disbursement_packages as dp')
+                        ->whereColumn('dp.package_id', 'p.id')
+                        ->where('dp.payee_type', 'merchant')
+                        ->where('dp.type','payment')
+                        ->where('dp.is_deleted', false);
+                });
             });
             // ->groupBy(['d.id','pmt.payable_amount',DB::raw('DATE(p.delivered_datetime)'),DB::raw('DATE(p.failed_datetime)')]);
         if($userId){

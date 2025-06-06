@@ -29,8 +29,8 @@ class DriverManagementController extends Controller
         $employeeType = $req->employee_type;
         $query = User::where('is_deleted',0)->where('company_id',$user->company_id)
         ->where('account_type','driver')
-        ->with('createUser:id,user_name')
-        ->selectRaw('id,code,address,name_km,name_km as name_kh,user_name,email,gender,shift_type,vehicle_type,plate_number,phone,has_account,lock,photo_file_name,shift_type,employment_date,employee_type,dob,relative_name,national_id,create_uid,login_name');
+        ->with('createUser:id,username')
+        ->selectRaw('id,code,address,name_km,name_km as name_kh,username,email,gender,shift_type,vehicle_type,plate_number,phone,has_account,lock,photo_file_name,shift_type,employment_date,employee_type,dob,relative_name,national_id,create_uid,login_name');
         if($employeeType){
             $query->where('employee_type',$employeeType);
         }
@@ -42,7 +42,7 @@ class DriverManagementController extends Controller
         if($search){
             $query->where(function($q) use ($search){
                 $q->where('code','ilike','%'.$search.'%')
-                ->orWhere('user_name','ilike','%'.$search.'%')
+                ->orWhere('username','ilike','%'.$search.'%')
                 ->orWhere('name_km','ilike','%'.$search.'%')
                 ->orWhere('phone','ilike','%'.$search.'%');
             });
@@ -50,7 +50,7 @@ class DriverManagementController extends Controller
         $query->orderByDesc('id');
 
         $callback = function ($driver) use($user,$lang){
-            $driver->create_by = $driver->createUser->user_name;
+            $driver->create_by = $driver->createUser->username;
             $driver->login_name = $driver->login_name ?? $driver->phone;
             $driver->employment_date = Helper::dateDMY($driver->employment_date,'d M Y',$lang);
             foreach($driver->bank_accounts as $b){
@@ -186,7 +186,7 @@ class DriverManagementController extends Controller
         $user = UserService::getAuthUser();
         $id = $req->id;
         $driver = User::where('is_deleted',0)->where('company_id',$user->company_id)
-        ->selectRaw('code,user_name,employment_date,shift_type,salary,employee_type')
+        ->selectRaw('code,username,employment_date,shift_type,salary,employee_type')
         ->where('account_type','driver')->find($id);
         if(!$driver) return ApiResponse::NotFound(__('messages.not_found',['info' => 'Driver']));
         $userTargetPolicy = UserTargetPolicy::where('user_id',$id)->first();

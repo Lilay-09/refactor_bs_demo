@@ -54,7 +54,7 @@ class HomeScreenController extends Controller
         ->selectRaw('id,loc_lat,loc_lng,order_datetime,merchant_id,warehouse_id,qty,code,pickup_address,pickup_address_google_map,vehicle_type,delivery_type');
         $callback = function ($order){
             $order->delivery_type = trans($order->delivery_type);
-            $order->merchant_name = $order->merchant->user_name;
+            $order->merchant_name = $order->merchant->username;
             $order->merchant_code = $order->merchant->code;
             $order->merchant_phone = $order->merchant->phone;
             $order->warehouse_address = $order->warehouse->address;
@@ -82,7 +82,7 @@ class HomeScreenController extends Controller
         $callback = function($order){
             $order->warehouse_address = $order->warehouse->address;
             $order->status_code = $order->tracking_status->name;
-            $order->merchant_name = $order->merchant->user_name;
+            $order->merchant_name = $order->merchant->username;
             $order->merchant_phone = $order->merchant->phone;
             $orderDatetime = $order->order_datetime;
             $order->order_date = Helper::formatCustomDateTime($orderDatetime,$this->dateFmt);
@@ -98,7 +98,7 @@ class HomeScreenController extends Controller
         // foreach($orders as $order){
         //     $order->warehouse_address = $order->warehouse->address;
         //     $order->status_code = $order->tracking_status->name;
-        //     $order->merchant_name = $order->merchant->user_name;
+        //     $order->merchant_name = $order->merchant->username;
         //     $order->merchant_phone = $order->merchant->phone;
         //     // $latLng = Helper::getLatLongFromGoogleMapsUrl($order->pickup_address_google_map);
         //     $order->latitude = $order->loc_lat ;//? $order->loc_lat : 11.552692;//;
@@ -310,7 +310,7 @@ class HomeScreenController extends Controller
         })
         ->where('p.created_at', '>=', Carbon::now()->subDays(15))
         ->join('tracking_statuses as ts','ts.id','p.status_id')
-        ->selectRaw('p.driver_display_order,p.payer,p.receiver_address,p.extra_charge,p.id,p.delivered_datetime,p.failed_datetime,p.assign_driver_datetime,p.merchant_id,p.qr_code,p.price,p.cod,p.receiver_name,p.receiver_phone,p.zone_code,p.zone_name,ts.name as status_code,d.user_name as driver_name,d.phone as driver_phone,m.user_name as merchant_name,m.phone as merchant_phone,p.id as package_id,dp.delivery_id,p.zone_code,p.zone_name,p.delivery_fee as base_fee,p.driver_total,p.taxi_fee,p.product_type,p.status_id')
+        ->selectRaw('p.driver_display_order,p.payer,p.receiver_address,p.extra_charge,p.id,p.delivered_datetime,p.failed_datetime,p.assign_driver_datetime,p.merchant_id,p.qr_code,p.price,p.cod,p.receiver_name,p.receiver_phone,p.zone_code,p.zone_name,ts.name as status_code,d.username as driver_name,d.phone as driver_phone,m.username as merchant_name,m.phone as merchant_phone,p.id as package_id,dp.delivery_id,p.zone_code,p.zone_name,p.delivery_fee as base_fee,p.driver_total,p.taxi_fee,p.product_type,p.status_id')
         ->orderBy('p.driver_display_order','asc')
         ->orderByRaw('(p.status_id = ?) DESC', [6]);
         // if($driverId){
@@ -612,7 +612,7 @@ class HomeScreenController extends Controller
         }
 
         $todayDt = Helper::getDateTime();
-        $driverName = $user->user_name;
+        $driverName = $user->username;
         $statusCode = $status_id == 9 ? 'Delivered' : ($status_id == 10 ? 'Failed':($status_id == 19 ? 'Failed with fee':''));
         $inputs['tracking_notes'] = $package->tracking_notes."|[$user->id]Driver ($driverName) submit $statusCode ($todayDt)[Remark: $deliveryRemarks]";
         // if($codChange && $package->price != $amount){
@@ -722,7 +722,7 @@ class HomeScreenController extends Controller
         if(!in_array($package->status_id,[6])) return ApiResponse::ValidateFail(__('messages.info',[
             'info' => 'You can not mark as dropped'
         ]));
-        $driverName = $user->user_name;
+        $driverName = $user->username;
         $todayDt = Helper::getDateTime();
         $tracking_notes = $package->tracking_notes."|[$user->id]Driver Marked contact $todayDt";
         $package->update([

@@ -29,7 +29,7 @@ class UserManagementController extends Controller
         $roleId = $req->role_id;
         // $branchId = $req->branch_id;
         $search = $req->search;
-        $query = User::where('is_deleted',0)->with(['user_roles.role'])->selectRaw('id,code,user_name,phone,email,account_type,phone,system_admin,lock,last_login,registered_datetime,branch_id,photo_file_name,login_name,created_at')->orderByDesc('id');
+        $query = User::where('is_deleted',0)->with(['user_roles.role'])->selectRaw('id,code,username,phone,email,account_type,phone,system_admin,lock,last_login,registered_datetime,branch_id,photo_file_name,login_name,created_at')->orderByDesc('id');
         if($role){
             $roleArr = explode(',',$role);
             $query->whereHas('user_roles',function($query) use($roleArr){
@@ -42,7 +42,7 @@ class UserManagementController extends Controller
             });
         }
         if($search){
-            $query->where('user_name','ilike','%'.$search.'%')
+            $query->where('username','ilike','%'.$search.'%')
             ->orWhere('phone','ilike','%'.$search.'%');
         }
         // if($branchId){
@@ -64,7 +64,7 @@ class UserManagementController extends Controller
     public function getOneUser(Request $req){
         $id = $req->id;
         $user = User::with(['user_roles.role'])
-        ->selectRaw('id,code,user_name,phone,email,account_type,phone,system_admin,lock,last_login,registered_datetime,branch_id,photo_file_name,login_name,created_at,company_id,dob')
+        ->selectRaw('id,code,username,phone,email,account_type,phone,system_admin,lock,last_login,registered_datetime,branch_id,photo_file_name,login_name,created_at,company_id,dob')
         ->orderByDesc('id')->find($id);
         if(!$user) return ApiResponse::NotFound(__('messages.not_found',[
             'info' => 'User'

@@ -185,7 +185,7 @@ class HomeController extends Controller
             $order->telegram_url = Helper::generateTelegramLink($companyProfile?->phone);
             $order->order_date = Helper::formatCustomDateTime($order->order_datetime,$this->dateFmt);
             $order->order_time = Helper::formatCustomDateTime($order->order_datetime,'h:i A');
-            $order->driver_name = $order->driver?->user_name;
+            $order->driver_name = $order->driver?->username;
             return $order;
         };
         return ApiResponse::PaginationV1($orders,$req,'',[],100,$callback);
@@ -209,7 +209,7 @@ class HomeController extends Controller
             else $order->status_code = $order->status_id == 3 ? 'Accepted' : $order->tracking_status->name;
             $order->driver_phone = $order->driver->phone;
             $order->telegram_url = Helper::generateTelegramLink($order->driver->phone);
-            $order->driver_name = $order->driver->user_name;
+            $order->driver_name = $order->driver->username;
             // $order->order_datetime = Helper::formatCustomDateTime($order->order_datetime);
             $order->order_date = Helper::formatCustomDateTime($order->order_datetime,$this->dateFmt);
             $order->order_time = Helper::formatCustomDateTime($order->order_datetime,'h:i A');
@@ -225,7 +225,7 @@ class HomeController extends Controller
         $lang = $req->lang;
         $user = UserService::getAuthUser('merchant');
         $qP = Package::where('merchant_id', $user->id)
-        ->with(['driver:id,user_name,phone','activeDeliveryPackage:package_id,id,delivery_id','activeDeliveryPackage.delivery:id,fleet_tracking_number'])
+        ->with(['driver:id,username,phone','activeDeliveryPackage:package_id,id,delivery_id','activeDeliveryPackage.delivery:id,fleet_tracking_number'])
         ->where('status_id', 6)
         ->where('is_deleted', 0)
         ->selectRaw('id,merchant_id,receiver_phone,receiver_address,taxi_fee,receiver_name,cod,price,delivery_fee,remarks,driver_id,arrive_warehouse_datetime')
@@ -240,7 +240,7 @@ class HomeController extends Controller
             else $package->status_code = 'On Delivery';
             $package->driver_phone = $package->driver->phone ?? null; // Ensure driver relationship exists
             $package->telegram_url = AppSetting::getTelegramLink('merchant',$package->receiver_phone,$package->driver->phone);
-            $package->driver_name = $package->driver->user_name ?? null;
+            $package->driver_name = $package->driver->username ?? null;
             $package->total = (float) $package->cod_fee;
             $package->delivery_fee = (float) $package->delivery_fee;
             $package->fee = $package->delivery_fee;
@@ -285,7 +285,7 @@ class HomeController extends Controller
         //     if($lang == 'km') $package->status_code = GeneralSettingService::$statusCodeTrans[9];
         //     else $package->status_code = 'Delivered';
         //     $package->driver_phone = $package->driver->phone;
-        //     $package->driver_name = $package->driver->user_name;
+        //     $package->driver_name = $package->driver->username;
         //     $package->total = (float)$package->cod_fee;
         //     $package->telegram_url = AppSetting::getTelegramLink('merchant',$package->receiver_phone,$package->driver->phone);
         //     $package->delivery_fee = (float)$package->delivery_fee;
@@ -326,7 +326,7 @@ class HomeController extends Controller
         //     if($lang == 'km') $package->status_code = GeneralSettingService::$statusCodeTrans[$package->status_id];
         //     else $package->status_code = $package->status->name;
         //     $package->driver_phone = $package->driver->phone;
-        //     $package->driver_name = $package->driver->user_name;
+        //     $package->driver_name = $package->driver->username;
         //     $package->telegram_url = AppSetting::getTelegramLink('merchant',$package->receiver_phone,$package->driver->phone);
         //     $package->total = (float)$package->code_fee;
         //     $package->fee = (float)$package->delivery_fee;
@@ -346,7 +346,7 @@ class HomeController extends Controller
         $user = UserService::getAuthUser('merchant');
         return ApiResponse::flex($this->reuseableService::getTrackingPackages($req,$user,11));
         // $packages = Package::where('merchant_id',$user->id)
-        // ->with(['returnUser:id,phone,user_name','status'])
+        // ->with(['returnUser:id,phone,username','status'])
         // ->where('status_id',11)
         // ->whereBetween('returned_datetime',[$dateaAgo,$today])
         // ->selectRaw('id,merchant_id,arrive_warehouse_datetime,receiver_phone,receiver_address,receiver_name,cod,price,delivery_fee,status_id,remarks,returned_uid,failed_datetime,returned_datetime,updated_at');
@@ -356,7 +356,7 @@ class HomeController extends Controller
         //     if($lang == 'km') $package->status_code = GeneralSettingService::$statusCodeTrans[$package->status_id];
         //     else $package->status_code = $package->status->name;
         //     $package->driver_phone = $package->returnUser?->phone;
-        //     $package->driver_name = $package->returnUser?->user_name;
+        //     $package->driver_name = $package->returnUser?->username;
         //     $package->telegram_url = AppSetting::getTelegramLink('merchant',$package->receiver_phone,$package->driver_phone);
         //     $package->total = (float)$package->code_fee;
         //     $package->delivery_fee = (float)$package->delivery_fee;
@@ -542,7 +542,7 @@ class HomeController extends Controller
                 //::generateTelegramLink($package->driver?->phone);
             }else $package->telegram_url = $package->telegram_url = AppSetting::getTelegramLink('merchant',$package->receiver_phone,$package->returnUser?->phone);
             Helper::generateTelegramLink($package->returnUser?->phone);
-            $package->driver_name = $package->driver?->user_name;
+            $package->driver_name = $package->driver?->username;
             $package->total = (float)$package->cod_fee + $package->delivery_fee;
             $rowStatusId = $package->status_id;
             $finished_date = null;
