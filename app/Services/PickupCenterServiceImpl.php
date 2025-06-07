@@ -49,7 +49,7 @@ class PickupCenterServiceImpl implements PickupCenterService
         ]);
     }
     public function orderValidation(Request $req){
-        $vehicleTypes = implode(',',VehicleType::where('is_deleted',0)->pluck('name')->toArray());
+        $vehicleTypes = implode(',',VehicleType::where('is_deleted',0)->pluck('name_en')->toArray());
         return validator($req->all(),[
             'merchant_id' => 'required',
             'warehouse_id' => 'nullable|int|exists:warehouses,id',

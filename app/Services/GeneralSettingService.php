@@ -1,6 +1,7 @@
 <?php
 
 namespace App\Services;
+use App\Enums\BranchType;
 use App\Models\AppModule;
 use App\Models\Bank;
 use App\Models\BusinessType;
@@ -506,7 +507,7 @@ class GeneralSettingService
     public static function optionsVehicleType($user,$lang='en'){
 
         $userType = $user->account_type;
-        $select = 'name_en,name_en as value,id';
+        $select = 'name_en as name,name_en as value,id';
         if($userType == 'merchant'){
             $select .= ',description_'.$lang.' as description';
             if($lang == 'km'){
@@ -520,6 +521,10 @@ class GeneralSettingService
         }
         $vehicleTypes = $vT->get();
         return $vehicleTypes;
+    }
+
+    public static function optionsBranchType(){
+        return BranchType::options();
     }
 
     public static function optionsProductType($user){

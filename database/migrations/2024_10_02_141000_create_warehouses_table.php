@@ -1,6 +1,7 @@
 <?php
 
-use App\Enums\Enums\WarehouseType;
+use App\Enums\WarehouseStatus;
+use App\Enums\WarehouseType;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -24,6 +25,7 @@ return new class extends Migration
             $table->integer('staff_count')->default(0);
             $table->boolean('inactive')->default(false);
             $table->text('google_map_link')->nullable();
+            $table->integer('status_id')->default(WarehouseStatus::ACTIVE);
             $table->unsignedBigInteger('warehouse_type_id')->default(WarehouseType::CENTRAL_WAREHOUSE);
             $table->unsignedBigInteger('create_uid')->nullable();
             $table->unsignedBigInteger('update_uid')->nullable();

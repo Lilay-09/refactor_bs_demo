@@ -91,7 +91,9 @@ class Package extends Model
         'priority_level',
         'deleted_uid',
         'deleted_datetime',
-        'arrive_warehouse_datetime'
+        'arrive_warehouse_datetime',
+        'warehouse_id',
+
     ];
 
     public function getAssignDriverDatetimeAttribute($value)

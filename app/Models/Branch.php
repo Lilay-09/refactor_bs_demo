@@ -2,7 +2,7 @@
 
 namespace App\Models;
 
-use App\Enums\Enums\BranchType;
+use App\Enums\BranchType;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 

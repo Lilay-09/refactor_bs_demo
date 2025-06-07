@@ -333,6 +333,10 @@ class GeneralSettingController extends Controller
         return ApiResponse::JsonResult($obj);
     }
 
+    public function getOptionsBranchType(){
+        return ApiResponse::JsonResult($this->gs::optionsBranchType());
+    }
+
     public function getOptionsZoneByPriceListNameId(Request $req){
         $user = UserService::getAuthUser();
         $id = $req->id ?? null;
