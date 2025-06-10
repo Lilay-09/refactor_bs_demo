@@ -7,7 +7,6 @@ use App\Http\Controllers\Controller;
 use App\Models\PriceList;
 use App\Models\PriceListname;
 use App\Models\PriceListZone;
-use App\Models\ProductType;
 use App\Models\Zone;
 use App\Services\UserService;
 use DB;
@@ -24,7 +23,9 @@ class PriceListController extends Controller
             'price_list_name_id' => 'required|int',
             'key' => 'required|string',
             'base_fee' => 'required|numeric',
-            'below_kg' => 'nullable|numeric',
+            'below_kg' => 'nullable|numeric|min:0',
+            'taxi_fee' => 'nullable|numeric|min:0',
+            'other_fee' => 'nullable|numeric|min:0',
             'below_kg_price' => 'nullable|numeric',
             'above_kg' => 'nullable|numeric',
             'above_kg_price' => 'nullable|numeric',
@@ -153,38 +154,11 @@ class PriceListController extends Controller
         }
     }
 
-    // public function createOrUpdatePriceList(Request $req){
-    //     $user = UserService::getAuthUser();
-    //     $validate = validator($req->all(),[
-    //         'id' => 'nullable|int',
-    //         'delivery_type' => 'required|string',
-    //         'base_fee' => 'nullable|numeric',
-    //         'additional_fee' => 'nullable|numeric',
-    //         'key' => 'required|in:below,above'
-    //     ],[
-    //         'key.in' => 'Key must be one of below,above'
-    //     ]);
-    //     if($validate->fails()) return ApiResponse::ValidateFail($validate->errors()->first());
-    //     $inputs = $validate->validated();
-    //     $id = $inputs['id'] ?? null;
-    //     $deliveryType = $inputs['delivery_type'];
-    //     $baseFee = $inputs[ 'base_fee'] ?? 0;
-    //     $insertOrUpdateArr = [
-    //         'base_fee' => $baseFee,
-    //     ];
-
-    //     if($id){
-    //         $priceList = PriceList::where('delivery_type',$deliveryType)->find($id);
-    //         if(!$priceList) return ApiResponse::NotFound(__('messages.not_found',['info' => 'Price List']));
-    //         $priceList->update($insertOrUpdateArr);
-    //     }else{
-    //         PriceList::create($inputs);
-    //     }
-    // }
 
 
     public function updatePriceList(Request $req){
         $user = UserService::getAuthUser();
+        // Log::info($req->all());
         $id = $req->id ?? null;
         $validate = $this->priceListValidation($req);
         if($validate->fails()) return ApiResponse::ValidateFail($validate->errors()->first());
@@ -205,6 +179,8 @@ class PriceListController extends Controller
             $newPriceList = PriceList::create([
                 'delivery_type' => $deliveryType,
                 'base_fee' => $inputs['base_fee'],
+                'taxi_fee' => $inputs['taxi_fee'],
+                'other_fee' => $inputs['other_fee'],
                 'additional_fee' => $inputs['additional_fee'],
                 'below_kg' => $priceListName->kg_marker,
                 'below_kg_price' => $inputs['additional_fee'] ?? 0,
@@ -225,29 +201,28 @@ class PriceListController extends Controller
         }
         unset($inputs['zones']);
         $uniqueKeys = $inputs['identifier'] ?? uniqid('PZ');
+
+        $plzKey = PriceListZone::where('price_list_id',$id)->where('identifier',$uniqueKeys)->whereIn('zone_id',$zones)->get()->keyBy('identifier');
+
         if(!empty($zones)){
             foreach($zones as $zoneId){
                 if (!$uniqueKeys) {
                     $uniqueKeys = uniqid('PZ');
                 }
-                $exists = PriceListZone::where('price_list_id',$id)->where('identifier',$uniqueKeys)->where('zone_id',$zoneId)->first();
+                // $exists = PriceListZone::where('price_list_id',$id)->where('identifier',$uniqueKeys)->where('zone_id',$zoneId)->first();
+                $exists = !empty($plzKey[$uniqueKeys]);
                 if(!$exists) {
                     // $uniqueKeys = uniqid('PZ');
                     PriceListZone::create([
                         'zone_id' => $zoneId,
                         'price_list_id' => $id,
-                        'identifier' => $uniqueKeys
-                        // 'base_fee' => $inputs['base_fee'] ?? 0,
+                        'identifier' => $uniqueKeys,
+                        'base_fee' => $inputs['base_fee'] ?? 0,
+                        'taxi_fee' => $inputs['taxi_fee'] ?? 0,
+                        'other_fee' => $inputs['other_fee'] ?? 0,
                         // 'additional_fee' => $inputs['additional_fee'] ?? 0
                     ]);
                 }
-                // else{
-                    // $exists->update([
-                    //     'zone_id' => $zoneId,
-                    //     'price_list_id' => $id,
-                    //     'identifier' => $uniqueKeys
-                    // ]);
-                // }
             }
             PriceListZone::where('price_list_id',$id)->where('identifier',$uniqueKeys)->whereNotIn('zone_id',$zones)->delete();
         }
@@ -337,14 +312,15 @@ class PriceListController extends Controller
 
         $priceList = PriceList::where('price_list_name_id',$priceListNameId)
         ->where('is_deleted',0)
-        ->selectRaw('base_fee,below_kg,below_kg_price,above_kg,above_kg_price,delivery_type,id')
+        ->selectRaw('taxi_fee,other_fee,base_fee,below_kg,below_kg_price,above_kg,above_kg_price,delivery_type,id')
         ->orderBy('id')
         ->orderByRaw("delivery_type = 'normal' DESC")->get();
         $pZ = PriceListZone::whereHas('priceList',function($q) use($priceListNameId){
             $q->where('price_list_name_id',$priceListNameId)->where('is_deleted',0);
         });
         $pzClone = clone $pZ;
-        $pzList = $pzClone->where('is_deleted',0)->selectRaw('price_list_id,identifier,zone_id')
+        $pzList = $pzClone->where('is_deleted',0)
+        ->select('price_list_id','identifier','zone_id','taxi_fee','other_fee')
         ->with('zone')->get();
         $priceZones = $pZ->with(['priceList:id,delivery_type'])
         ->selectRaw('price_list_id, identifier')
@@ -408,7 +384,7 @@ class PriceListController extends Controller
 
                 // Process each grouped price zone
                 foreach ($groupedPriceZones as &$zone) {
-                    $existingDeliveryTypes = array_column($zone['delivery_types'], 'delivery_type');
+                    // $existingDeliveryTypes = array_column($zone['delivery_types'], 'delivery_type');
                     $entriesWithId = [];
 
                     // Remove entries with `id = null` if there are valid entries for the same delivery type
@@ -447,9 +423,6 @@ class PriceListController extends Controller
                 $arr['list'] = array_values($groupedPriceZones);
             }
         }
-
-
-
 
         // foreach ($arrObj as &$arr) {
         //     if ($arr['key'] === 'below' || $arr['key'] === 'above') {

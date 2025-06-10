@@ -112,7 +112,7 @@ Route::middleware(['jwt','localize','userAccess:admin'])->prefix('admin/v1/{lang
         });
 
         Route::prefix('warehouse')->group(function (){
-            Route::put('/{id}',[WarehouseController::class,'updateWarehouse']);
+            // Route::put('/{id}',[WarehouseController::class,'updateWarehouse']);
         });
     });
 
@@ -217,10 +217,20 @@ Route::middleware(['jwt','localize','userAccess:admin'])->prefix('admin/v1/{lang
 
     Route::prefix('company')->group(function(){
         Route::prefix('branches')->group(function(){
+            Route::prefix('warehouses')->group(function (){
+                Route::post('/',[WarehouseController::class,'createWarehouse']);
+                Route::put('/{id}',[WarehouseController::class,'updateWarehouse']);
+                Route::get('',[WarehouseController::class,'getWarehouses']);
+                Route::get('/{id}',[WarehouseController::class,'getOneWarehouse']);
+                Route::delete('/{id}',[WarehouseController::class,'getOneWarehouse']);
+            });
+            Route::get('{branchId}/warehouses',[WarehouseController::class,'getWarehousesByBranch']);
+
             Route::get('',[BranchController::class,'getBranches']);
             Route::get('/{id}',[BranchController::class,'getOneBranch']);
             Route::put('/{id}',[BranchController::class,'updateBranch']);
             Route::post('',[BranchController::class,'createBranch']);
+            Route::delete('/{id}',[BranchController::class,'deleteBranch']);
         });
         Route::put('',[CompanyProfileController::class,'update']);
         Route::get('',[CompanyProfileController::class,'getCompanyProfile']);
@@ -527,6 +537,7 @@ Route::middleware(['jwt','localize','userAccess:admin'])->prefix('admin/v1/{lang
 
     Route::prefix('setting')->group(function(){
         Route::prefix('option')->group(function(){
+            Route::get('branch/type',[GeneralSettingController::class,'getOptionsBranchType']);
             Route::get('deliveryType',action: [GeneralSettingController::class,'getOptionsDeliveryType']);
             Route::get('merchant/{id}/address',[GeneralSettingController::class,'getMerchantLocation']);
             Route::get('unpaidMerchant',[GeneralSettingController::class,'getOptionsUnpaidMerchant']);
@@ -573,6 +584,7 @@ Route::middleware(['jwt','localize','userAccess:admin'])->prefix('admin/v1/{lang
             Route::get('merchant/transaction',[GeneralSettingController::class,'getMerchantTransactionTabFilter']);
         });
         Route::prefix('form')->group(function(){
+            Route::get('warehouse',[GeneralSettingController::class,'getFormWarehouse']);
             Route::get('zone/{exceptId}/assign',[GeneralSettingController::class,'getAssignZoneFormOptions']);
             Route::get('fleet/package/trackingStatus',[GeneralSettingController::class,'getFormOptionsFleetPackageTrackingStatus']);
             Route::get('banner',[GeneralSettingController::class,'getFormBanner']);

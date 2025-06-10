@@ -15,5 +15,7 @@ interface WarehouseService
 
     public function getWarehouses(Request $req,object $authUser):object;
 
+    public function getWarehousesByBranch(int $branchId,object $authUser):object;
+
     public function deleteWarehouse(int $id,object $authUser):object;
 }

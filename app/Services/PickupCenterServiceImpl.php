@@ -49,7 +49,7 @@ class PickupCenterServiceImpl implements PickupCenterService
         ]);
     }
     public function orderValidation(Request $req){
-        $vehicleTypes = implode(',',VehicleType::where('is_deleted',0)->pluck('name')->toArray());
+        $vehicleTypes = implode(',',VehicleType::where('is_deleted',0)->pluck('name_en')->toArray());
         return validator($req->all(),[
             'merchant_id' => 'required',
             'warehouse_id' => 'nullable|int|exists:warehouses,id',
@@ -316,7 +316,7 @@ class PickupCenterServiceImpl implements PickupCenterService
      *
      *  => ------ for reusable on action update package --------
      */
-    public function createOrUpdatePackage(Request $req,$user,?int $packageId,?int $orderId,array $statusIds=[1,7],?callable $whereClause): object{
+    public function createOrUpdatePackage(Request $req,$user,?int $packageId,?int $orderId,array $statusIds=[1,7],callable $whereClause=null): object{
         if($orderId){
             $order = Order::where('is_deleted',0)->select(['merchant_id','delivery_type'])->find($orderId);
             $req->merge(['merchant_id' => $order->merchant_id,'delivery_type' => $req->delivery_type ?? $order->delivery_type,'product_type' => $req->product_type ?? $order->product_type]);
@@ -340,6 +340,15 @@ class PickupCenterServiceImpl implements PickupCenterService
         $inputs['pickup_datetime'] = now();
         $inputs['billed_kg'] = $actualKg;
         $cod = $inputs['cod'];
+        $codUsd = $inputs['cod_usd'] ?? 0;
+        $inputs['cod_usd'] = $codUsd;
+        $codKhr = $inputs['cod_khr'] ?? 0;
+        $inputs['cod_khr'] = $codKhr;
+        $dCodUsd = $inputs['driver_cod_usd'] ?? 0;
+        $inputs['driver_cod_usd'] = $dCodUsd;
+        $dCodKhr = $inputs['driver_cod_khr'] ?? 0;
+        $inputs['driver_cod_khr'] = $dCodKhr;
+
         $inputs['extra_charge'] = $inputs['extra_charge'] ?? 0;
         $zoneCode = $inputs['zone_code'];
         $inputs['delivery_type'] = $inputs['delivery_type'] ?? 'normal';

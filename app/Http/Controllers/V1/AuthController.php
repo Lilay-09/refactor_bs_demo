@@ -90,6 +90,10 @@ class AuthController extends Controller
             $permissionIds = UserPermission::where('user_id',$user->id)->pluck('permission_id')->toArray();
             $data->permissions = $permissionIds;
         }
+        else{
+            $data->modules = [];
+            $data->permissions = [];
+        }
 
         return ApiResponse::JsonResult($data,'Success');
         // ->withCookie(cookie('session_', $token, config('jwt.ttl'), '/', null, true, false)->withSameSite('None'))

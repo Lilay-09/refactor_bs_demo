@@ -1,6 +1,9 @@
 <?php
 
 namespace App\Services;
+use App\Enums\BranchType;
+use App\Enums\WarehouseStatus;
+use App\Enums\WarehouseType;
 use App\Models\AppModule;
 use App\Models\Bank;
 use App\Models\BusinessType;
@@ -506,7 +509,7 @@ class GeneralSettingService
     public static function optionsVehicleType($user,$lang='en'){
 
         $userType = $user->account_type;
-        $select = 'name_en,name_en as value,id';
+        $select = 'name_en as name,name_en as value,id';
         if($userType == 'merchant'){
             $select .= ',description_'.$lang.' as description';
             if($lang == 'km'){
@@ -520,6 +523,17 @@ class GeneralSettingService
         }
         $vehicleTypes = $vT->get();
         return $vehicleTypes;
+    }
+
+    public static function optionsBranchType(){
+        return BranchType::options();
+    }
+
+    public static function optionsWarehouseType(){
+        return WarehouseType::options();
+    }
+    public static function optionsWarehouseStatus(){
+        return WarehouseStatus::options();
     }
 
     public static function optionsProductType($user){
@@ -577,17 +591,19 @@ class GeneralSettingService
     }
 
     public static function optionsCommune($user){
-        return Commune::where('is_deleted',0)->where('company_id',$user->company_id)->selectRaw('name,id')->orderByDesc('id')->get();
+        return Commune::where('is_deleted',0)->where('company_id',$user->company_id)
+        ->selectRaw('name_en as name,id')->orderByDesc('id')->get();
     }
 
-
-
     public static function optionsDistrictByCity($cityId,$user){
-        return District::where('is_deleted',0)->where('company_id',$user->company_id)->where('city_id',$cityId)->selectRaw('name,id')->orderByDesc('id')->get();
+        return District::where('is_deleted',0)->where('company_id',$user->company_id)->where('city_id',$cityId)
+        ->selectRaw('name_en as name,id')->orderByDesc('id')->get();
     }
 
     public static function optionsCommuneByDistrict($cityId,$user){
-        return Commune::where('is_deleted',0)->where('company_id',$user->company_id)->where('district_id',$cityId)->selectRaw('name,id')->orderByDesc('id')->get();
+        return Commune::where('is_deleted',0)->where('company_id',$user->company_id)
+        ->where('district_id',$cityId)
+        ->selectRaw('name_en as name,id')->orderByDesc('id')->get();
     }
 
     public static function optionsStatusPackageOnDelivery(){

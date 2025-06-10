@@ -2,7 +2,7 @@
 
 namespace App\Models;
 
-use App\Enums\Enums\BranchType;
+use App\Enums\BranchType;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
@@ -20,6 +20,7 @@ class Branch extends Model
         'staff_count',
         'description_en',
         'description_km',
+        'emergency_phone',
         'bm_name_en',
         'bm_name_km',
         'bm_phone',

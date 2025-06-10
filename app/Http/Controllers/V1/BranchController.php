@@ -31,4 +31,8 @@ class BranchController extends Controller
     public function createBranch(Request $req){
         return ApiResponse::flex($this->branchService->createBranch($req,$this->authUser));
     }
+
+    public function deleteBranch(Request $req){
+        return ApiResponse::flex($this->branchService->deleteBranch($req->id,$this->authUser));
+    }
 }

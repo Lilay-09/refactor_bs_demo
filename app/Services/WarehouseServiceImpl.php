@@ -16,6 +16,8 @@ class WarehouseServiceImpl implements WarehouseService
         return validator($req->all(),[
             'name_en' => 'required|string|max:50',
             'warehouse_type_id' => 'required|int',
+            'branch_id' => 'required|int',
+            'status_id' => 'required|int',
             'bm_name_en' => 'nullable|string|max:50',
             'bm_name_km' => 'nullable|string|max:50',
             'bm_phone' => 'nullable|string|max:25|min:9',
@@ -31,7 +33,6 @@ class WarehouseServiceImpl implements WarehouseService
         $inputs = $validator->validated();
         $inputs['create_uid'] = $authUser->id;
         $inputs['update_uid'] = $authUser->id;
-        $inputs['branch_id'] = $authUser->branch_id;
         $inputs['company_id'] = $authUser->company_id;
 
         if(Warehouse::where('is_deleted',false)->where('branch_id',$authUser->branch_id)->exists()){
@@ -45,7 +46,7 @@ class WarehouseServiceImpl implements WarehouseService
     }
     public function getOneWarehouse(int $id, object $authUser): object{
         $warehouse = Warehouse::where('is_deleted',false)
-        ->select('branch_id','id','name_en','bm_name_en','bm_phone','staff_count')
+        ->select('branch_id','id','name_en','bm_name_en','bm_phone','staff_count','warehouse_type_id','status_id')
         ->find($id);
         return DataResponse::JsonResult($warehouse,false);
     }
@@ -61,6 +62,7 @@ class WarehouseServiceImpl implements WarehouseService
         if($validator->fails()){
             return DataResponse::ValidateFail($validator->errors()->first());
         }
+
         $inputs = $validator->validated();
         $inputs['create_uid'] = $authUser->id;
         $inputs['update_uid'] = $authUser->id;
@@ -75,6 +77,14 @@ class WarehouseServiceImpl implements WarehouseService
         }
         Warehouse::create($inputs);
         return DataResponse::JsonResult(null,false,__('messages.created'));
+    }
+
+
+    public function getWarehousesByBranch(int $branchId, object $authUser): object{
+        $warehouse = Warehouse::where('is_deleted',false)
+        ->select('branch_id','id','name_en','bm_name_en','bm_phone','staff_count','warehouse_type_id')
+        ->where('branch_id',$branchId)->get();
+        return DataResponse::JsonResult($warehouse);
     }
 
     public function deleteWarehouse(int $id,object $authUser):object{

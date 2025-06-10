@@ -401,6 +401,15 @@ class InitialSeeder extends Seeder
                 'update_uid' => $userId,
                 'branch_id' => $branchId,
                 'company_id' => $comapanyId,
+            ],
+            [
+                'name' => 'In Transit',
+                'stage' => 'transfer',
+                'hidden' => false,
+                'create_uid' => $userId,
+                'update_uid' => $userId,
+                'branch_id' => $branchId,
+                'company_id' => $comapanyId,
             ]
         ]);
 
