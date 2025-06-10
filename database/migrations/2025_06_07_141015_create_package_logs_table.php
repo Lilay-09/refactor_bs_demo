@@ -15,6 +15,7 @@ return new class extends Migration
             $table->id();
             $table->unsignedBigInteger('driver_id')->nullable();
             $table->unsignedBigInteger('status_id');
+            $table->unsignedBigInteger('order_id');
             $table->string('product_type',35)->nullable();
             $table->decimal('price',10,2)->default(0);
             $table->string('payer',50);

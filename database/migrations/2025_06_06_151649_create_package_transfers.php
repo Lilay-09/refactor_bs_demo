@@ -19,6 +19,7 @@ return new class extends Migration
             $table->dateTimeTz('transfer_datetime')->nullable();
             $table->dateTimeTz('est_arrive_datetime')->nullable();
             $table->integer('transfer_qty')->default(0);
+            $table->string('remarks',300)->nullable();
             $table->integer('transfer_out_qty')->default(0);
             $table->unsignedBigInteger('status_id')->default(TransferStatus::PENDING);
             $table->unsignedBigInteger('transfer_uid');

@@ -26,6 +26,10 @@ class WarehouseController extends Controller
         return ApiResponse::flex($this->warehouseService->getWarehouses($req,$this->authUser));
     }
 
+    public function getWarehousesByBranch(Request $req){
+        return ApiResponse::flex($this->warehouseService->getWarehousesByBranch($req->branchId,$this->authUser));
+    }
+
     public function updateWarehouse(Request $req){
         return ApiResponse::flex($this->warehouseService->updateWarehouse($req->id,$req,$this->authUser));
     }

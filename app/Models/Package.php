@@ -94,6 +94,11 @@ class Package extends Model
         'arrive_warehouse_datetime',
         'warehouse_id',
 
+        'cod_khr',
+        'cod_usd',
+        'driver_cod_usd',
+        'driver_cod_khr'
+
     ];
 
     public function getAssignDriverDatetimeAttribute($value)

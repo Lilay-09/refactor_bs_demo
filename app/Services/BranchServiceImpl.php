@@ -80,8 +80,8 @@ class BranchServiceImpl implements BranchService
         }
         if(User::where('is_deleted',false)->where('branch_id',$id)->exists()){
             return DataResponse::Forbidden(__('messages.info',[
-                'Please ensure there is no staff under branch before proceed this!',
-                'Please ensure there is no staff under branch before proceed this!'
+                'info' => 'Please ensure there is no staff under branch before proceed this!',
+                'khInfo' => 'Please ensure there is no staff under branch before proceed this!'
             ]));
         }
 

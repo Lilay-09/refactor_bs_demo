@@ -26,7 +26,7 @@ return new class extends Migration
             $table->boolean('inactive')->default(false);
             $table->text('google_map_link')->nullable();
             $table->integer('status_id')->default(WarehouseStatus::ACTIVE);
-            $table->unsignedBigInteger('warehouse_type_id')->default(WarehouseType::CENTRAL_WAREHOUSE);
+            $table->unsignedBigInteger('warehouse_type_id')->default(WarehouseType::MAIN);
             $table->unsignedBigInteger('create_uid')->nullable();
             $table->unsignedBigInteger('update_uid')->nullable();
             $table->unsignedBigInteger('company_id')->nullable();

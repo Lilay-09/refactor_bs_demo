@@ -15,6 +15,8 @@ return new class extends Migration
             //
             $table->unsignedBigInteger('price_list_name_id')->nullable();
             $table->foreign('price_list_name_id')->references('id')->on('price_list_names');
+            $table->decimal('taxi_fee')->default(0);
+            $table->decimal('other_fee')->default(0);
         });
     }
 
@@ -24,10 +26,10 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('price_list', function (Blueprint $table) {
-            //
-            // $table->dropForeign('price_list_name_id');
             $table->dropColumn([
-                'price_list_name_id'
+                'price_list_name_id',
+                'taxi_fee',
+                'other_fee'
             ]);
         });
     }

@@ -16,6 +16,8 @@ return new class extends Migration
             $table->id();
             $table->string('address')->nullable();
             $table->text('google_map_url')->nullable();
+            $table->string('photo_file_name')->nullable();
+            $table->boolean('is_editable');
             $table->unsignedBigInteger('create_uid');
             $table->unsignedBigInteger('update_uid');
             $table->unsignedBigInteger('deleted_uid')->nullable();
