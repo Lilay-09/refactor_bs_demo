@@ -71,16 +71,13 @@ class Package extends Model
         'exchange_rate',
         'merchant_total',
         'driver_total',
-        'company_id',
-        'branch_id',
-        'create_uid',
+
         'kick_notes',
         'update_uid',
         'delivery_remarks',
         'extra_charge',
         'kick_reason',
         'kick_uid',
-        'is_deleted',
         'driver_payment_id',
         'merchant_payment_id',
         'driver_disbursement_id',
@@ -89,15 +86,22 @@ class Package extends Model
         'is_contact',
         'contact_reason',
         'priority_level',
-        'deleted_uid',
-        'deleted_datetime',
         'arrive_warehouse_datetime',
         'warehouse_id',
 
         'cod_khr',
         'cod_usd',
         'driver_cod_usd',
-        'driver_cod_khr'
+        'driver_cod_khr',
+
+        'company_id',
+        'branch_id',
+        'create_uid',
+        'is_deleted',
+        'deleted_uid',
+        'deleted_datetime',
+
+        'location_type'
 
     ];
 

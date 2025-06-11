@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\PackageLogType;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -45,6 +46,7 @@ return new class extends Migration
             $table->decimal('taxi_fee',10,2)->default(0);
 
             $table->string('remarks',500)->nullable();
+
             $table->string('main_zone_name',50)->nullable();
             $table->string('main_zone_code')->nullable();
             $table->decimal('receiver_lat',19,7)->default(0);
@@ -60,6 +62,8 @@ return new class extends Migration
             $table->foreign('driver_id')->references('id')->on('users')->onDelete('cascade');
             $table->foreign('merchant_id')->references('id')->on('users')->onDelete('cascade');
             $table->unsignedBigInteger('action_uid')->nullable();
+
+            $table->string('log_type',50)->default(PackageLogType::TRANSFER);
         });
     }
 

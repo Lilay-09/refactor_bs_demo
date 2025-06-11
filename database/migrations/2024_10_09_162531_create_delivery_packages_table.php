@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\LocationType;
 use App\Traits\BaseMigrationField;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
@@ -105,6 +106,8 @@ return new class extends Migration
             $table->boolean('is_completed')->default(0);
 
             $table->boolean('has_swap')->default(false);
+
+            $table->string('location_type',50)->default(LocationType::WAREHOUSE);
         });
     }
 

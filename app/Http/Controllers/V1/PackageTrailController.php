@@ -12,11 +12,9 @@ use App\Models\Package;
 use App\Models\PackageAttachment;
 use App\Models\User;
 use App\Models\Zone;
-use App\Services\CloudMessagingService;
 use App\Services\CompanyProfileService;
 use App\Services\GeneralSettingService;
 use App\Services\PickupCenterService;
-use App\Services\PickupCenterServiceImpl;
 use App\Services\UserService;
 use DataResponse;
 use DB;
@@ -29,7 +27,7 @@ class PackageTrailController extends Controller
 {
     //
     private $cacheTags;
-    public function __construct(){
+    public function __construct(private PickupCenterService $pickupCenterService){
         $this->cacheTags = ['package_trail'];
     }
     public function getPackages(Request $req){
@@ -178,9 +176,8 @@ class PackageTrailController extends Controller
         if($package->merchant_payment_id || $package->merchant_disbursement_id) return DataResponse::Duplicated(__('messages.info',[
             'info' => 'It seems like you try to update package which is on payment pending or paid with merchant'
         ]));
-        $pkupService = new PickupCenterServiceImpl();
         $req->merge(['merchant_id' => $package->merchant_id]);
-        $validate = $pkupService->packageValidation($req);
+        $validate = $this->pickupCenterService->packageValidation($req);
         if($validate->fails()) return ApiResponse::ValidateFail($validate->errors()->first());
         $inputs = $validate->validated();
         $inputs['company_id'] = $user->company_id;
@@ -205,18 +202,18 @@ class PackageTrailController extends Controller
         $deliveryFee = $calPrice->delivery_fee;
         $inputs['delivery_fee'] = $calPrice->delivery_fee;
         // $inputs['driver_total'] = ($package->status_id == 19 && $package->cod) ? abs($package->price - $calPrice->driver_total):$calPrice->driver_total;
-        $driverTotal = PickupCenterServiceImpl::getDriverTotal($cod,$payer,$price,$deliveryFee,$package->additional_fee,$extra_charge,$taxiFee);
+        $driverTotal = $this->pickupCenterService::getDriverTotal($cod,$payer,$price,$deliveryFee,$package->additional_fee,$extra_charge,$taxiFee);
         $inputs['driver_total'] = $driverTotal;
-        $inputs['merchant_total'] = PickupCenterServiceImpl::getTotal('merchant',$cod,$payer,$price,$deliveryFee,$package->additional_fee,$extra_charge,$taxiFee);
+        $inputs['merchant_total'] = $this->pickupCenterService::getTotal('merchant',$cod,$payer,$price,$deliveryFee,$package->additional_fee,$extra_charge,$taxiFee);
         if($package->status_id == 19){
-            $driverTotal = PickupCenterServiceImpl::getDriverTotal($cod,$payer,0,$deliveryFee,$package->additional_fee,$extra_charge,0);
+            $driverTotal = $this->pickupCenterService::getDriverTotal($cod,$payer,0,$deliveryFee,$package->additional_fee,$extra_charge,0);
             if($payer == 'receiver') {
                 $inputs['driver_total'] = $driverTotal;
                 $inputs['merchant_total'] = 0;
             }
             else {
                 $inputs['driver_total'] = 0;
-                $inputs['merchant_total'] = PickupCenterServiceImpl::getTotal('merchant',$cod,$payer,0,$deliveryFee,$package->additional_fee,$extra_charge,0);
+                $inputs['merchant_total'] = $this->pickupCenterService::getTotal('merchant',$cod,$payer,0,$deliveryFee,$package->additional_fee,$extra_charge,0);
             }
         }
         Helper::clearCacheByTags($this->cacheTags);

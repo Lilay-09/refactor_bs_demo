@@ -18,6 +18,7 @@ class WarehouseServiceImpl implements WarehouseService
             'warehouse_type_id' => 'required|int',
             'branch_id' => 'required|int',
             'status_id' => 'required|int',
+            'shortcut' => ['required', 'string', 'max:5', 'regex:/^[A-Z0-9]+$/'],
             'bm_name_en' => 'nullable|string|max:50',
             'bm_name_km' => 'nullable|string|max:50',
             'bm_phone' => 'nullable|string|max:25|min:9',
@@ -35,7 +36,7 @@ class WarehouseServiceImpl implements WarehouseService
         $inputs['update_uid'] = $authUser->id;
         $inputs['company_id'] = $authUser->company_id;
 
-        if(Warehouse::where('is_deleted',false)->where('branch_id',$authUser->branch_id)->exists()){
+        if(Warehouse::where('is_deleted',false)->where('branch_id',$inputs['branch_id'])->exists()){
             return DataResponse::Duplicated(__('messages.info',[
                 'info' => 'You already have warehouse under this branch',
                 'khInfo' => 'ឃ្លាំងមានរួចហើយ'
@@ -66,17 +67,19 @@ class WarehouseServiceImpl implements WarehouseService
         $inputs = $validator->validated();
         $inputs['create_uid'] = $authUser->id;
         $inputs['update_uid'] = $authUser->id;
-        $inputs['branch_id'] = $authUser->branch_id;
         $inputs['company_id'] = $authUser->company_id;
 
-        if(Warehouse::where('is_deleted',false)->where('id','!=',$id)->where('branch_id',$authUser->branch_id)->exists()){
+        $warehouse = Warehouse::where('is_deleted',false)->where('branch_id',$inputs['branch_id'])->find($id);
+        if(Warehouse::where('is_deleted',false)
+        ->where('id','!=',$id)
+        ->where('branch_id',$inputs['branch_id'])->exists()){
             return DataResponse::Duplicated(__('messages.info',[
                 'info' => 'You already have warehouse under this branch',
                 'khInfo' => 'ឃ្លាំងមានរួចហើយ'
             ]));
         }
-        Warehouse::create($inputs);
-        return DataResponse::JsonResult(null,false,__('messages.created'));
+        $warehouse->update($inputs);
+        return DataResponse::JsonResult(null,false,__('messages.updated'));
     }
 
 

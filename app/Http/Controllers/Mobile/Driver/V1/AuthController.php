@@ -30,6 +30,7 @@ class AuthController extends Controller
         $input = $validate->validated();
         $account = $input['username'];
         $password = $input['password'];
+        // \Log::info('sdf');
         date_default_timezone_set('Asia/Phnom_Penh');
         $today = date('Y-m-d H:i:s');
         $user = User::where('account_type','driver')->where('is_deleted',0)->where(function ($q) use ($account) {

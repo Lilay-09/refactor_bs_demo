@@ -135,9 +135,9 @@ class GeneralSettingService
     }
 
     public static function optionsRole($type=null){
-        $qR = Role::selectRaw('id,name');
+        $qR = Role::selectRaw('id,name_en as name');
         if($type) $qR->where('group', $type);
-        $roles = $qR->get();
+        $roles = $qR->limit(1)->orderBy('id')->get();
         return $roles;
     }
 
@@ -171,7 +171,7 @@ class GeneralSettingService
     }
 
     public static function getWarehouse($user){
-        return Warehouse::where('company_id',$user->company_id)->first();
+        return Warehouse::where('is_deleted',false)->where('company_id',$user->company_id)->where('branch_id',$user->branch_id)->first();
     }
 
     static function optionsRemarkCategory(){
