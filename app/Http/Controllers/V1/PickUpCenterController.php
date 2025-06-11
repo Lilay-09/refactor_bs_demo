@@ -11,7 +11,7 @@ use App\Models\User;
 use App\Services\CloudMessagingService;
 use App\Services\CompanyProfileService;
 use App\Services\GeneralSettingService;
-use App\Services\PickupCenterServiceImpl;
+use App\Services\PickupCenterService;
 use App\Services\UserService;
 use DB;
 use Exception;
@@ -22,14 +22,12 @@ use Log;
 class PickUpCenterController extends Controller
 {
     //
-    protected $pkupService;
-    public function __construct(PickupCenterServiceImpl $pickupCenterService){
-        $this->pkupService = $pickupCenterService;
+    public function __construct(private PickupCenterService $pickupCenterService){
     }
 
     public function createQuickOrder(Request $req){
         $user = UserService::getAuthUser();
-        $createOrder = $this->pkupService->createOrder($req,$user);
+        $createOrder = $this->pickupCenterService->createOrder($req,$user);
         return ApiResponse::flex($createOrder);
     }
 
@@ -63,7 +61,7 @@ class PickUpCenterController extends Controller
         $order = Order::where('is_deleted',0)->find($id);
         if(!$order) return ApiResponse::NotFound(__('messages.not_found',['info' => 'Order']));
         if($order->status_id == 5) return ApiResponse::Duplicated(__('messages.error',['info' => 'Order has already inputed details!']));
-        $validate = $this->pkupService->orderValidation($req);
+        $validate = $this->pickupCenterService->orderValidation($req);
         if($validate->fails()) return ApiResponse::ValidateFail($validate->errors()->first());
         $inputs = $validate->validated();
         $merchantId = $inputs['merchant_id'];
@@ -350,7 +348,7 @@ class PickUpCenterController extends Controller
     public function addPackage(Request $req){
         $user = UserService::getAuthUser();
         $orderId = $req->order_id;
-        $create = $this->pkupService->createOrUpdatePackage($req,$user,null,$orderId);
+        $create = $this->pickupCenterService->createOrUpdatePackage($req,$user,null,$orderId);
         return ApiResponse::flex($create);
     }
 
@@ -437,7 +435,7 @@ class PickUpCenterController extends Controller
         $user = UserService::getAuthUser();
         $orderId = $req->order_id;
         $packageId = $req->id;
-        $update = $this->pkupService->createOrUpdatePackage($req,$user,$packageId,$orderId);
+        $update = $this->pickupCenterService->createOrUpdatePackage($req,$user,$packageId,$orderId);
         return ApiResponse::flex($update);
     }
 
@@ -530,7 +528,7 @@ class PickUpCenterController extends Controller
             'deleted_uid' => $user->id,
             'deleted_datetime' => now()
         ]);
-        $this->pkupService->updateOrderQty($package->order_id);
+        $this->pickupCenterService->updateOrderQty($package->order_id);
         return ApiResponse::JsonResult(null,__('messages.deleted',['info' => 'Package','khInfo'=>'កញ្ចប់']));
     }
 }

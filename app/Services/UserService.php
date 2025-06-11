@@ -28,9 +28,9 @@ class UserService
     // Your service methods go here
 
     protected static $user_prefix = [
-        'admin' => 'AZA',
-        'driver' => 'AZD',
-        'merchant' => 'AZM'
+        'admin' => 'NGA',
+        'driver' => 'NGD',
+        'merchant' => 'NGM'
     ];
 
     public static function getUserAuthAccess($class='admin',$action='',$useSpecificClass=true){
@@ -86,7 +86,7 @@ class UserService
                 'status_code' => 200,
                 'status' => 'OK',
                 'id' => $user->id,
-                'username' => $user->username,
+                // 'username' => $user->username,
                 'username' => $user->username,
                 'account_type' => $user->account_type,
                 'company_id' => $user->company_id,
@@ -123,6 +123,7 @@ class UserService
             'address' => 'nullable|string|max:500',
             'register_channel' => 'nullable|string',
             'login_name' => 'nullable|string|max:20',
+            'branch_id' => 'nullable|int'
         ];
 
         $baseMsgs = [
@@ -222,18 +223,18 @@ class UserService
         if($pwd) $inputs['password'] = Hash::make($pwd);
         unset($inputs['bank_info'],$inputs['photo'],$inputs['role_id'],$inputs['zone_id']);
         $prefix = self::$user_prefix[$user_class];
-        if($user_class == 'driver'){
-            if(isset($inputs['has_commission'])){
-                $prefix .= 'PB'.$branchId;
-            }else {
-                $prefix .= 'FB'.$branchId;
-            }
-        }else if($user_class == 'merchant'){
-            $prefix .= 'B'.$branchId;
-        }
-        else{
-            $prefix .= 'B'.$branchId;
-        }
+        // if($user_class == 'driver'){
+        //     if(isset($inputs['has_commission'])){
+        //         $prefix .= 'PB'.$branchId;
+        //     }else {
+        //         $prefix .= 'FB'.$branchId;
+        //     }
+        // }else if($user_class == 'merchant'){
+        //     $prefix .= 'B'.$branchId;
+        // }
+        // else{
+        //     $prefix .= 'B'.$branchId;
+        // }
         DB::beginTransaction();
         try{
             if($id){

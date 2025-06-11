@@ -39,6 +39,7 @@ use App\Http\Controllers\V1\ProductTypeController;
 use App\Http\Controllers\V1\PromotionController;
 use App\Http\Controllers\V1\ScoringRewardController;
 use App\Http\Controllers\V1\SocialMediaController;
+use App\Http\Controllers\V1\TransferController;
 use App\Http\Controllers\V1\UserController;
 use App\Http\Controllers\V1\UserManagementController;
 use App\Http\Controllers\V1\UserNotificationController;
@@ -234,6 +235,16 @@ Route::middleware(['jwt','localize','userAccess:admin'])->prefix('admin/v1/{lang
         });
         Route::put('',[CompanyProfileController::class,'update']);
         Route::get('',[CompanyProfileController::class,'getCompanyProfile']);
+    });
+
+    Route::prefix('transfer')->group(function(){
+        Route::prefix('package')->group(function (){
+            Route::post('',[TransferController::class,'createTransfer']);
+            Route::get('',[TransferController::class,'getXRates']);
+            Route::get('{id}',[TransferController::class,'getXRate']);
+            Route::put('{id}',[TransferController::class,'update']);
+            Route::delete('{id}',[TransferController::class,'delete']);
+        });
     });
 
     Route::prefix('xrate')->group(function(){

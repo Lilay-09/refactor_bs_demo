@@ -18,6 +18,7 @@ return new class extends Migration
             $table->string('name_en',100)->nullable();
             $table->string('address_en',350)->nullable();
             $table->string('bm_phone',30)->nullable();
+            $table->string('shortcut',30)->nullable();
             $table->string('bm_name_en',50)->nullable();
             $table->string('bm_name_km',50)->nullable();
             $table->decimal('loc_lat',9,6)->nullable();

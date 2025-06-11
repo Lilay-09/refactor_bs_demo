@@ -17,8 +17,8 @@ class CountryController extends Controller
 
     function countryValidation(Request $req){
         return validator($req->all(),[
-            'name' => 'required|string|max:50',
-            'name_kh' => 'nullable|string|max:100'
+            'name_en' => 'required|string|max:50',
+            'name_km' => 'nullable|string|max:100'
         ]);
     }
 
@@ -31,8 +31,8 @@ class CountryController extends Controller
         $inputs['company_id'] = $user->company_id;
         $inputs['create_uid'] = $user->id;
         $inputs['update_uid'] = $user->id;
-        $existCountry = Country::where('name',$req->name)->where('is_deleted',0)->where('company_id',$user->company_id)->take(1)->value('id');
-        if($existCountry) return ApiResponse::Duplicated('Country ('.$req->name.') is already exists.');
+        $existCountry = Country::where('name_en',$req->name_en)->where('is_deleted',0)->where('company_id',$user->company_id)->take(1)->value('id');
+        if($existCountry) return ApiResponse::Duplicated('Country ('.$req->name_en.') is already exists.');
 
         $create = Country::create($inputs);
         if($create) return ApiResponse::JsonResult(null,'Created');
@@ -52,7 +52,7 @@ class CountryController extends Controller
 
     public function country(Request $req){
         $user = UserService::getAuthUser();
-        $country = Country::selectRaw('id,name,name_kh')->where('is_deleted',0)->where('company_id',$user->company_id)->where('id',$req->id)->first();
+        $country = Country::selectRaw('id,name_en as name,name_en,name_km')->where('is_deleted',0)->where('company_id',$user->company_id)->where('id',$req->id)->first();
         return ApiResponse::JsonResult($country);
     }
 
@@ -69,7 +69,8 @@ class CountryController extends Controller
         $countryId = $req->id;
         $city_id = $req->query('city_id');
         $cityIds = City::where('country_id',$countryId)->where('company_id',$user->company_id)->where('is_deleted',0)->pluck('id')->toArray();
-        $qD = District::where('is_deleted',0)->whereIn('city_id',$cityIds)->selectRaw('id,name,updated_at');
+        $qD = District::where('is_deleted',0)->whereIn('city_id',$cityIds)
+        ->selectRaw('id,name_en as name,updated_at');
         if($city_id) $qD->where('city_id',$city_id);
         $disctricts = $qD->get();
 
@@ -87,7 +88,8 @@ class CountryController extends Controller
         $qDistrictIds = District::where('is_deleted',0)->whereIn('city_id',$cityIds);
         if($district_id) $qDistrictIds->where('id',$district_id);
         $districtIds = $qDistrictIds->pluck('id')->toArray();
-        $qC = Commune::where('is_deleted',0)->whereIn('district_id',$districtIds)->selectRaw('id,name,updated_at');
+        $qC = Commune::where('is_deleted',0)->whereIn('district_id',$districtIds)
+        ->selectRaw('id,name_en as name,updated_at');
         $communes = $qC->get();
         return ApiResponse::JsonResult($communes);
     }
@@ -103,8 +105,8 @@ class CountryController extends Controller
         $inputs['update_uid'] = $user->id;
         $country = Country::where('company_id',$user->company_id)->where('is_deleted',0)->find($id);
         if(!$country) return ApiResponse::NotFound(__('messages.not_found'));
-        $existCountry = Country::where('name',$req->name)->where('company_id',$user->company_id)->where('id','!=',$id)->take(1)->value('id');
-        if($existCountry) return ApiResponse::Duplicated('Country ('.$req->name.') is already exists.');
+        $existCountry = Country::where('name_en',$req->name_en)->where('company_id',$user->company_id)->where('id','!=',$id)->take(1)->value('id');
+        if($existCountry) return ApiResponse::Duplicated('Country ('.$req->name_en.') is already exists.');
         $update = $country->update($inputs);
         if($update) return ApiResponse::JsonResult(null,'Updated');
         return ApiResponse::Error('Fail to update');

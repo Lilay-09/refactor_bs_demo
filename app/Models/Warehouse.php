@@ -16,6 +16,7 @@ class Warehouse extends Model
         'address',
         'bm_name_en',
         'bm_name_km',
+        'shortcut',
         'bm_phone',
         'loc_lat',
         'loc_lng',

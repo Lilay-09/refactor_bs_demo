@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\LocationType;
 use App\Enums\TransferStatus;
 use App\Traits\BaseMigrationField;
 use Illuminate\Database\Migrations\Migration;
@@ -28,6 +29,8 @@ return new class extends Migration
             $table->string('driver_phone',25)->nullable();
             $table->unsignedBigInteger('from_location_id')->nullable();
             $table->unsignedBigInteger('to_location_id')->nullable();
+            $table->string('from_location_type',50)->default(LocationType::WAREHOUSE);
+            $table->string('to_location_type',50)->default(LocationType::WAREHOUSE);
         });
     }
 

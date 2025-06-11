@@ -18,6 +18,13 @@ use Log;
 class PickupCenterServiceImpl implements PickupCenterService
 {
     // Your service methods go here
+    private string $orderCodePrefix;
+    private string $packageCodePrefix;
+
+    public function __construct(){
+        $this->orderCodePrefix = 'NGXO';
+        $this->packageCodePrefix = 'NGXP';
+    }
 
     public function packageValidation(Request $req){
         return validator($req->all(),[
@@ -145,7 +152,7 @@ class PickupCenterServiceImpl implements PickupCenterService
             $createOrder = Order::create($inputs);
             if(!$createOrder) return DataResponse::Error('Fail to create order!');
             $orderId = $createOrder->id;
-            $code = Helper::generateCode('ARZ',$orderId,'',8);
+            $code = Helper::generateCode($this->orderCodePrefix,$orderId,'',8);
 
             // $statusId = $inputs['status_id'];
             if(isset($details[0])){
@@ -327,6 +334,8 @@ class PickupCenterServiceImpl implements PickupCenterService
         $inputs = $validate->validated();
         $inputs['company_id'] = $user->company_id;
         $inputs['branch_id'] = $user->branch_id;
+        $warehouse = GeneralSettingService::getWarehouse($user);
+        $inputs['warehouse_id'] = $warehouse->id;
         if($orderId) $inputs['merchant_id'] = $order->merchant_id;
         $inputs['update_uid'] = $user->id;
         if($orderId) $inputs['order_id'] = $orderId;
@@ -383,7 +392,7 @@ class PickupCenterServiceImpl implements PickupCenterService
             }
             $createPackage = Package::create($inputs);
             if(!$createPackage) return DataResponse::Error(__('messages.Fail to create package'));
-            $qrCode = Helper::generateBarcodeString($createPackage->id,$user->company_id,'ARZ');
+            $qrCode = Helper::generateBarcodeString($createPackage->id,$user->company_id,$this->packageCodePrefix.$warehouse->shortcut);
             $createPackage->update([
                 'qr_code' => $qrCode
             ]);
