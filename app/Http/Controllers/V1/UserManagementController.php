@@ -145,7 +145,7 @@ class UserManagementController extends Controller
     }
 
     public function getUserRole(Request $req){
-        $roles = Role::selectRaw('name,id')->get();
+        $roles = Role::selectRaw('name_en as name,id')->get();
         $userId = $req->id;
         $user = User::where('id',$userId)->selectRaw('system_admin,account_type')->first();
         if(!$user) return ApiResponse::NotFound(__('messages.not_found',[
