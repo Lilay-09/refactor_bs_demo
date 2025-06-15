@@ -2,6 +2,7 @@
 
 namespace App\Services;
 use App\Enums\BranchType;
+use App\Enums\TransferStatus;
 use App\Enums\WarehouseStatus;
 use App\Enums\WarehouseType;
 use App\Models\AppModule;
@@ -21,6 +22,7 @@ use App\Models\FeedbackForm;
 use App\Models\MerchantPriceList;
 use App\Models\Order;
 use App\Models\Package;
+use App\Models\PackageTransfer;
 use App\Models\Permission;
 use App\Models\PriceList;
 use App\Models\PriceListname;
@@ -342,8 +344,17 @@ class GeneralSettingService
         return $statuses;
     }
     public static function optionsWarehouse($user){
-        return Warehouse::where('is_deleted',0)->where('company_id',$user->company_id)
-        ->select('name_en as name','id')->orderByDesc('id')->get();
+        $qW = Warehouse::where('is_deleted',0)->where('company_id',$user->company_id)
+        ->select('name_en as name','id')->orderByDesc('id');
+        if(!$user->system_admin){
+            $qW->where('branch_id',$user->branch_id);
+        }
+
+        return $qW->get();
+    }
+
+    public static function optionsTransferStatus(){
+        return TransferStatus::options();
     }
 
     public static function optionsPickupStatus($user){
@@ -360,6 +371,15 @@ class GeneralSettingService
             // $d->username = $d->username . '(' .$d->phone. ')';
             $d->username = $d->username.($d->name_km ? (' - '.$d->name_km):'')." ($d->phone)";
         }
+        return $drivers;
+    }
+
+    public static function optionsDriverinfo($user,$vehicleType=null){
+        $qD = User::where('is_deleted',0)->where('company_id',$user->company_id)
+        ->where('account_type','driver')
+        ->selectRaw('id,username,phone,name_km,vehicle_type');
+        if($vehicleType) $qD->where('vehicle_type','ilike',$vehicleType);
+        $drivers = $qD->orderByDesc('id')->get();
         return $drivers;
     }
 
@@ -684,6 +704,12 @@ class GeneralSettingService
         return ClientType::where('is_deleted',0)->selectRaw('id,name')->get();
     }
 
+
+    public function getAvailableTransfer(){
+        return PackageTransfer::where('')->get();
+    }
+
+
     public static function optionsPayer($lang){
             return [
                 [
@@ -700,8 +726,20 @@ class GeneralSettingService
     public static function optionsDeliveryType(){
         return [
             ['value' => 'normal', 'label' => __('messages.normal'), 'description' => __('messages.normal_desc')],
-            ['value' => 'fast', 'label' => __('messages.fast'), 'description' => __('messages.fast_desc')]
+            // ['value' => 'fast', 'label' => __('messages.fast'), 'description' => __('messages.fast_desc')]
         ];
+    }
+
+    public static function optionsPackage(int $locationId,array $statusIds=[5,6,10]){
+        return Package::where('is_deleted',false)
+        ->whereIn('status_id',$statusIds)
+        ->where('warehouse_id',$locationId)
+        ->with(['merchant:id,username'])
+        ->select('id','qr_code','driver_id','receiver_address','receiver_phone','cod','merchant_id')
+        ->get()->each(function ($q){
+            $q->merchant_name = $q->merchant->username;
+            $q->makeHidden('merchant');
+        });
     }
 
     public static function optionCurrencyPair(){

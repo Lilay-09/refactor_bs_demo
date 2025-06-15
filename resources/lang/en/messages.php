@@ -32,6 +32,17 @@ return [
 
 
     //**Branch */
-    'b1' => 'Head Office'
+    'b1' => 'Head Office',
+
+    //** Transfer Status */
+    'transfer_pending' => 'Pending',
+    'transfer_in_transit' => 'In Transit',
+    'transfer_delivered' => 'Delivered',
+
+    //** Vehicle Type */
+    'van' => 'Van',
+    'moto' => 'Moto',
+    'tuktuk' => 'Tuk Tuk'
+
 ];
 

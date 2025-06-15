@@ -358,6 +358,19 @@ class GeneralSettingController extends Controller
         ]);
     }
 
+    public function getFormTransfer(){
+        $user = auth()->user();
+        return ApiResponse::JsonResult([
+            'warehouses' => $this->gs::optionsWarehouse($user),
+            'statuses' => $this->gs::optionsTransferStatus(),
+            'drivers' => $this->gs::optionsDriverinfo($user),
+        ]);
+    }
+
+    public function getOptionsPackage(Request $req){
+        return ApiResponse::JsonResult($this->gs::optionsPackage($req->location_id));
+    }
+
     public function getFormPackageTrail(Request $req){
         $user = UserService::getAuthUser();
         $obj = (object)[

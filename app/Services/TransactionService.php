@@ -1954,28 +1954,43 @@ class TransactionService
         ];
 
         $targeUId = $targetUser.'_id';
-        $pUid = $targetUser.'_payment_id';
-        $dUid = $targetUser.'_disbursement_id';
+        // $pUid = $targetUser.'_payment_id';
+        // $dUid = $targetUser.'_disbursement_id';
 
-        $qP = Package::where('is_deleted',0)
-        ->where('created_at', '>=', Carbon::now()->subMonths(3))
-        ->whereIn('status_id',[9,19])
+        $qP = Package::from('packages as p')->where('p.is_deleted',0)
+        ->where('p.created_at', '>=', Carbon::now()->subMonths(3))
+        ->whereIn('p.status_id',[9,19])
         // ->selectRaw('*')
         ->where($targeUId,$user->id)
-        ->orderBy($pUid,'desc')
-        ->orderBy($dUid,'desc')
-        ->where(function ($q) use($pUid,$dUid) {
-            $q->whereNull($pUid)
-            ->whereNull($dUid);
+        ->whereNotExists(function ($sub) use ($targetUser) {
+            $sub->select(DB::raw(1))
+                ->from('payment_packages as pp')
+                ->whereColumn('pp.package_id', 'p.id')
+                ->where('pp.payer_type', $targetUser)
+                ->where('pp.is_deleted', false);
+        })
+        ->whereNotExists(function ($sub) use ($targetUser) {
+            $sub->select(DB::raw(1))
+                ->from('disbursement_packages as dp')
+                ->whereColumn('dp.package_id', 'p.id')
+                ->where('dp.payee_type', $targetUser)
+                ->where('dp.type','payment')
+                ->where('dp.is_deleted', false);
         });
+        // ->orderBy($pUid,'desc')
+        // ->orderBy($dUid,'desc')
+        // ->where(function ($q) use($pUid,$dUid) {
+        //     $q->whereNull($pUid)
+        //     ->whereNull($dUid);
+        // });
         if($targetUser == 'merchant'){
             $qP->where(function($query) {
-            $query->where('status_id', 9)
-                    ->whereDate('delivered_datetime', Carbon::today());
+            $query->where('p.status_id', 9)
+                    ->whereDate('p.delivered_datetime', Carbon::today());
             })
             ->orWhere(function($query) {
-                $query->where('status_id', 19)
-                    ->whereDate('failed_datetime', Carbon::today());
+                $query->where('p.status_id', 19)
+                    ->whereDate('p.failed_datetime', Carbon::today());
             });
         }
         $packages = $qP->get();

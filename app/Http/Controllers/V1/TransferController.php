@@ -25,5 +25,9 @@ class TransferController extends Controller
         return ApiResponse::flex($this->transferService->getTransfers($req,$this->authUser));
     }
 
+    public function getOneTransfer(Request $req){
+        return ApiResponse::flex($this->transferService->getOneTransfer($req->id,$this->authUser));
+    }
+
 
 }

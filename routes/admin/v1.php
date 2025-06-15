@@ -240,10 +240,10 @@ Route::middleware(['jwt','localize','userAccess:admin'])->prefix('admin/v1/{lang
     Route::prefix('transfer')->group(function(){
         Route::prefix('package')->group(function (){
             Route::post('',[TransferController::class,'createTransfer']);
-            Route::get('',[TransferController::class,'getXRates']);
-            Route::get('{id}',[TransferController::class,'getXRate']);
-            Route::put('{id}',[TransferController::class,'update']);
-            Route::delete('{id}',[TransferController::class,'delete']);
+            Route::get('',[TransferController::class,'getTransfers']);
+            Route::get('{id}',[TransferController::class,'getOneTransfer']);
+            Route::put('{id}',[TransferController::class,'updateTransfer']);
+            Route::delete('{id}',[TransferController::class,'deleteTransfer']);
         });
     });
 
@@ -587,6 +587,7 @@ Route::middleware(['jwt','localize','userAccess:admin'])->prefix('admin/v1/{lang
             Route::get('payer',[GeneralSettingController::class,'getOptionsPayer']);
             Route::get('dailyMerchant',[GeneralSettingController::class,'getOptionsDailyActiveMerchant']);
             Route::get('gender',[GeneralSettingController::class,'getOptionsGender']);
+            Route::get('warehouse/{location_id}/package',[GeneralSettingController::class,'getOptionsPackage']);
         });
 
         Route::prefix('filter')->group(function(){
@@ -595,6 +596,7 @@ Route::middleware(['jwt','localize','userAccess:admin'])->prefix('admin/v1/{lang
             Route::get('merchant/transaction',[GeneralSettingController::class,'getMerchantTransactionTabFilter']);
         });
         Route::prefix('form')->group(function(){
+            Route::get('transfer',[GeneralSettingController::class,'getFormTransfer']);
             Route::get('warehouse',[GeneralSettingController::class,'getFormWarehouse']);
             Route::get('zone/{exceptId}/assign',[GeneralSettingController::class,'getAssignZoneFormOptions']);
             Route::get('fleet/package/trackingStatus',[GeneralSettingController::class,'getFormOptionsFleetPackageTrackingStatus']);

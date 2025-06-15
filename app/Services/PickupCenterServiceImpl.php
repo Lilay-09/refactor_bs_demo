@@ -357,7 +357,6 @@ class PickupCenterServiceImpl implements PickupCenterService
         $inputs['driver_cod_usd'] = $dCodUsd;
         $dCodKhr = $inputs['driver_cod_khr'] ?? 0;
         $inputs['driver_cod_khr'] = $dCodKhr;
-
         $inputs['extra_charge'] = $inputs['extra_charge'] ?? 0;
         $zoneCode = $inputs['zone_code'];
         $inputs['delivery_type'] = $inputs['delivery_type'] ?? 'normal';

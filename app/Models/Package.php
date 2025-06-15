@@ -91,6 +91,7 @@ class Package extends Model
 
         'cod_khr',
         'cod_usd',
+        'cod_fee',
         'driver_cod_usd',
         'driver_cod_khr',
 

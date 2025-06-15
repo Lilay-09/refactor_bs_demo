@@ -2,7 +2,10 @@
 
 namespace App\Services;
 
+use App\Enums\Enums\TrackingStatus;
 use App\Models\Package;
+use App\Models\PackageTransfer;
+use App\Models\PackageTransferDetail;
 use App\Models\Warehouse;
 use DataResponse;
 use Illuminate\Http\Request;
@@ -47,14 +50,14 @@ class WarehouseServiceImpl implements WarehouseService
     }
     public function getOneWarehouse(int $id, object $authUser): object{
         $warehouse = Warehouse::where('is_deleted',false)
-        ->select('branch_id','id','name_en','bm_name_en','bm_phone','staff_count','warehouse_type_id','status_id')
+        ->select('branch_id','shortcut','id','name_en','bm_name_en','bm_phone','staff_count','warehouse_type_id','status_id')
         ->find($id);
         return DataResponse::JsonResult($warehouse,false);
     }
     public function getWarehouses(Request $req,object $authUser): object{
         $qW = Warehouse::query()
         ->where('is_deleted',false);
-        $select = ['branch_id','id','name_en','bm_name_en','bm_phone','staff_count','address_en'];
+        $select = ['branch_id','id','shortcut','name_en','bm_name_en','bm_phone','staff_count','address_en'];
         return DataResponse::PaginationV1($qW,$req,'',[],100,null,$select);
     }
 
@@ -75,7 +78,7 @@ class WarehouseServiceImpl implements WarehouseService
         ->where('branch_id',$inputs['branch_id'])->exists()){
             return DataResponse::Duplicated(__('messages.info',[
                 'info' => 'You already have warehouse under this branch',
-                'khInfo' => 'ឃ្លាំងមានរួចហើយ'
+                'khInfo' => 'ឃ្លាំងមានរួចហើយក្នុងសាខានេះ'
             ]));
         }
         $warehouse->update($inputs);
@@ -85,7 +88,7 @@ class WarehouseServiceImpl implements WarehouseService
 
     public function getWarehousesByBranch(int $branchId, object $authUser): object{
         $warehouse = Warehouse::where('is_deleted',false)
-        ->select('branch_id','id','name_en','bm_name_en','bm_phone','staff_count','warehouse_type_id')
+        ->select('branch_id','id','name_en','bm_name_en','bm_phone','staff_count','warehouse_type_id','shortcut')
         ->where('branch_id',$branchId)->get();
         return DataResponse::JsonResult($warehouse);
     }
@@ -108,6 +111,10 @@ class WarehouseServiceImpl implements WarehouseService
         ]);
 
         return DataResponse::JsonResult(null,false,__('messages.deleted'));
+    }
+
+    public function removeItemFromTransfer(array $packages,object $authUser){
+        $package = PackageTransferDetail::whereIn('package_id',$packages)->where('status_id',TrackingStatus::IN_TRANSIT->value)->get()->keyBy('');
     }
 
 }

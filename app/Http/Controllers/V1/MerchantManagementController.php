@@ -130,8 +130,9 @@ class MerchantManagementController extends Controller
         $merchant->login_name = $merchant->login_name ?? $merchant->phone;
         if($priceList){
             $merchant->price_list_id = $priceList->id;
-            $cod = $merchant->cod;
+
         }
+        $cod = $merchant->cod;
         $merchant->cod = $cod ? "1":"0";
         unset($m->merchantType,$m->bank_accounts);
         return ApiResponse::JsonResult($merchant,__('messages.get one'));

@@ -66,7 +66,8 @@ class InitialSeeder extends Seeder
     public function run()
     {
         $userId  = DB::table('users')->insertGetId([
-            'first_name' => 'NG',
+            // 'id' => 1,
+            'first_name' => '',
             'last_name' => 'ADMIN',
             'has_account' => true,
             'username' => 'Admin',
@@ -83,7 +84,8 @@ class InitialSeeder extends Seeder
             'company_id' => 1 //* just default val
         ]);
 
-        $userId  = DB::table('users')->insertGetId([
+        DB::table('users')->insertGetId([
+            // 'id' => 2,
             'first_name' => 'NG',
             'last_name' => 'ADMIN',
             'has_account' => true,
@@ -100,6 +102,8 @@ class InitialSeeder extends Seeder
             'branch_id'=>1, //* just default val
             'company_id' => 1 //* just default val
         ]);
+
+
 
         $comapanyId  = DB::table('companies')->insertGetId([
             'name_en' => 'School Root',
@@ -122,6 +126,8 @@ class InitialSeeder extends Seeder
             'create_uid' => $userId,
             'update_uid' => $userId
         ]);
+
+        Helper::setRefCode('user_code_control','users','code',$branchId,$comapanyId,1,null,'NGA');
 
         $branchId2 =  DB::table('branches')->insertGetId([
             'name_en' => 'Second Branch',
@@ -157,7 +163,7 @@ class InitialSeeder extends Seeder
             'salary' => '450',
             'company_id' => $comapanyId
         ]);
-        Helper::setRefCode('user_code_control','users','code',$branchId,$comapanyId,$driverId,null,'JSD');
+        Helper::setRefCode('user_code_control','users','code',$branchId,$comapanyId,$driverId,null,'NGD');
 
         //** Create Merchant */
 
@@ -179,7 +185,7 @@ class InitialSeeder extends Seeder
             'company_id' => $comapanyId
         ]);
 
-        Helper::setRefCode('user_code_control','users','code',$branchId,$comapanyId,$merchantId,null,'JSM');
+        Helper::setRefCode('user_code_control','users','code',$branchId,$comapanyId,$merchantId,null,'NGM');
 
 
         $roleId = DB::table('roles')->insertGetId([
@@ -206,10 +212,17 @@ class InitialSeeder extends Seeder
             'company_id' => $comapanyId,
         ]);
 
-        $userRoles = DB::table('user_roles')->insert([
+        // user ROLE
+        DB::table('user_roles')->insert([
             'user_id' => $userId,
             'role_id' => $roleId
         ]);
+
+        DB::table('user_roles')->insert([
+            'user_id' => 2,
+            'role_id' => $roleId
+        ]);
+        //
 
         DB::table('user_roles')->insert([
             'user_id' => $driverId,
@@ -230,7 +243,7 @@ class InitialSeeder extends Seeder
             'branch_id' => $branchId,
             'company_id' => $comapanyId,
         ]);
-        Helper::setRefCode('user_code_control','users','code',$branchId,$comapanyId,$userId,null,'JSA');
+        Helper::setRefCode('user_code_control','users','code',$branchId,$comapanyId,2,null,'NGA');
 
         //warehouse
         DB::table('warehouses')->insert([
