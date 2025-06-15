@@ -135,6 +135,7 @@ class UserService
             $baseFields['confirm_password'] = 'nullable';
             $baseFields['login_name'] = 'nullable';
             $baseFields['role_id'] = 'required|exists:roles,id';
+            $baseFields['branch_id'] = 'required|int';
             return validator($req->all(),$baseFields);
         }else if($userClass == 'driver'){
             $baseFields['employment_date'] = 'nullable|string|max:100';

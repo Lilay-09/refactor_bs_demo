@@ -15,9 +15,9 @@ class CityController extends Controller
 
     function cityValidation(Request $req){
         return validator($req->all(),[
-            'name' => 'required|string',
+            'name_en' => 'required|string',
             'country_id' => 'required|int',
-            'name_kh' => 'nullable|string'
+            'name_km' => 'nullable|string'
         ]);
     }
     public function createCity(Request $req){
@@ -25,13 +25,13 @@ class CityController extends Controller
         if($validate->fails()) return ApiResponse::ValidateFail($validate->errors()->first());
         $inputs = $validate->validated();
         $user = UserService::getAuthUser();
-        $name = $inputs['name'];
+        $name = $inputs['name_en'];
         $country_id = $inputs['country_id'];
         $inputs['create_uid'] = $user->id;
         $inputs['update_uid'] = $user->id;
         $inputs['branch_id'] = $user->branch_id;
         $inputs['company_id'] = $user->company_id;
-        $existCity = City::where('name',$name)->where('company_id',$user->company_id)->where('is_deleted',0)->where('country_id',$country_id)->take(1)->value('id');
+        $existCity = City::where('name_en',$name)->where('company_id',$user->company_id)->where('is_deleted',0)->where('country_id',$country_id)->take(1)->value('id');
         if($existCity) return ApiResponse::Duplicated('City ('.$name.') is already exists.');
         $create = City::create($inputs);
 
@@ -72,7 +72,7 @@ class CityController extends Controller
         $user = UserService::getAuthUser();
         $city = City::where('is_deleted',0)->where('company_id',$user->company_id)->find($id);
         if(!$city) return ApiResponse::NotFound(__('messages.not_found'));
-        $existCity = City::where('name',$req->name)->where('is_deleted',0)->where('company_id',$user->company_id)->where('country_id',$country_id)->where('id','!=',$id)->take(1)->value('id');
+        $existCity = City::where('name_en',$req->name_en)->where('is_deleted',0)->where('company_id',$user->company_id)->where('country_id',$country_id)->where('id','!=',$id)->take(1)->value('id');
         if($existCity) return ApiResponse::Duplicated('City('.$name.') is already taken.');
         // return $user;
         $inputs['update_uid'] = $user->id;
@@ -90,7 +90,7 @@ class CityController extends Controller
         $city = City::where('company_id',$user->company_id)->where('is_deleted',0)->find($id);
         if(!$city) return ApiResponse::NotFound(__('messages.not_found'));
         $city->update([
-            'is_deleted' => 1,
+            'is_deleted' => true,
             'deleted_uid' => $user->id,
             'deleted_datetime' => now()
         ]);

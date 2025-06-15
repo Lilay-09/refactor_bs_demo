@@ -37,7 +37,7 @@ class AuthController extends Controller
             $q->where('email', $account)
             // ->orWhere('phone', $account)
             ->orWhere('login_name', $account);
-        })->selectRaw('photo_file_name,email,phone,id,password,system_admin,lock,company_id,account_type,login_name,delete_account')->first();
+        })->selectRaw('photo_file_name,username,email,phone,id,password,system_admin,lock,company_id,account_type,login_name,delete_account')->first();
         if(!$user) return  ApiResponse::NotFound('Invalid Username or Password');
         $systemAdmin = $user->system_admin ?? false;
         $isLock = $user->lock ?? false;
@@ -86,11 +86,11 @@ class AuthController extends Controller
         //     'type' => 'refresh'
         // ])->setTTL(config('jwt.refresh_ttl'));
         // $refreshToken = JWTAuth::encode($refreshTokenFactory->make())->get();
-        $data['token'] = $token;
+        // $data['token'] = $token;
         $data = (object)[];
         $data->id = $user->id;
         $data->name = $user->id;
-        $data->username = $account;
+        $data->username = $user->username;
         $data->profile = Helper::getImageUrl($user->photo_file_name,$user->company_id,'user_profile');
         $data->full_name = $user->first_name.' '.$user->last_login;
         $data->phone = $user->phone;
@@ -136,7 +136,9 @@ class AuthController extends Controller
             Helper::deleteImageFile($user->photo_file_name,$authUser->company_id,'user_profile');
         }else if(!$photo) Helper::deleteImageFile($user->photo_file_name,$authUser->company_id,'user_profile');
         $user->update($inputs);
-        return ApiResponse::JsonResult(null,__('messages.info',[
+        return ApiResponse::JsonResult([
+            'image_url' => Helper::getImageUrl($user->photo_file_name,$authUser->company_id,'user_profile')
+        ],__('messages.info',[
             'info' => 'Updated'
         ]));
     }

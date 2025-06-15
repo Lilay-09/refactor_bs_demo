@@ -12,8 +12,9 @@ class VehicleType extends Model
     protected $table = 'vehicle_types';
     protected $fillable = [
         'id',
-        'name',
+        'name_en',
         'name_km',
+        'type',
         'description_en',
         'description_km',
         'create_uid',

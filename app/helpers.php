@@ -675,7 +675,7 @@ class Helper{
     }
 
     static function generateBarcodeString($uniqueKey,$companyId,$prefix='JPK'){
-        $genCode = substr(strtoupper(string: uniqid($prefix)).self::generateRandomPrefix(5),0,12-strlen($uniqueKey));
+        $genCode = substr(strtoupper(string: uniqid($prefix)).self::generateRandomPrefix(8),0,18-strlen($uniqueKey));
         $barcode = $genCode.$companyId.$uniqueKey;
         return $barcode;
     }

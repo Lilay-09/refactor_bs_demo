@@ -96,6 +96,7 @@ return new class extends Migration
 
             $table->decimal('cod_usd',15,2);
             $table->decimal('cod_khr',15,2);
+            $table->decimal('cod_fee')->default(0);
             $table->decimal('driver_cod_usd',15,2);
             $table->decimal('driver_cod_khr',15,2);
 

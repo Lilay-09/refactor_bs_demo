@@ -29,7 +29,8 @@ class UserManagementController extends Controller
         $roleId = $req->role_id;
         // $branchId = $req->branch_id;
         $search = $req->search;
-        $query = User::where('is_deleted',0)->with(['user_roles.role'])->selectRaw('id,code,username,phone,email,account_type,phone,system_admin,lock,last_login,registered_datetime,branch_id,photo_file_name,login_name,created_at')->orderByDesc('id');
+        $query = User::where('is_deleted',0)->with(['user_roles.role'])
+        ->selectRaw('id,code,username,phone,email,account_type,phone,system_admin,lock,last_login,registered_datetime,branch_id,photo_file_name,login_name,created_at')->orderByDesc('id');
         if($role){
             $roleArr = explode(',',$role);
             $query->whereHas('user_roles',function($query) use($roleArr){
@@ -49,16 +50,17 @@ class UserManagementController extends Controller
         //     $branchArr = explode(',',$branchId);
         //     $query->whereIn('branch_id',$branchArr);
         // }
-        $userList = $query->get();
-        foreach($userList as $u){
+        $userList = $query;
+        $callback = function ($u) use($user){
             $u->create_date = Helper::formatCustomDateTime($u->created_at);
             $u->role = $u->user_roles[0]?->role?->name ?? null;
             $u->login_name = $u->login_name ?? $u->phone;
             $u->last_login = Helper::formatCustomDateTime($u->last_login);
             $u->image_url = Helper::getImageUrl($u->photo_file_name,$user->company_id,$this->userProfileDir);
             unset($u->user_roles,$u->created_date);
-        }
-        return ApiResponse::Pagination($userList, $req);
+            return $u;
+        };
+        return ApiResponse::PaginationV1($userList, $req,'',[],200,$callback);
     }
 
     public function getOneUser(Request $req){
@@ -77,7 +79,7 @@ class UserManagementController extends Controller
 
     public function getApplications() {
         return Application::selectRaw('id,app_type,name,is_mobile_app,user_class')
-                        ->get();
+                ->get();
     }
 
     public function logout(Request $req){
