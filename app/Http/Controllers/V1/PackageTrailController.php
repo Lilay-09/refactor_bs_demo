@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\V1;
 
 use ApiResponse;
+use App\Enums\Enums\TrackingStatus;
 use App\Http\Controllers\Controller;
 use App\Jobs\SendNotificationJob;
 use App\Models\Delivery;
@@ -168,11 +169,11 @@ class PackageTrailController extends Controller
         $id = $req->id;
         $package = Package::where('company_id',$user->company_id)->where('is_deleted',0)->where('outstanding',0)->find($id);
         if(!$package) return ApiResponse::NotFound(__('messages.not_found',['info' => 'Package','khInfo' => 'កញ្ចប់']));
-        if($package->status_id == 13) return ApiResponse::Forbidden(__('messages.no_access',['info' => 'This package is already assigned to driver']));
-        if($package->status_id == 14) return ApiResponse::Forbidden(__('messages.no_access',['info' => 'This package is on delivery']));
-        if($package->driver_payment_id || $package->driver_disbursement_id) return DataResponse::Duplicated(__('messages.info',[
-            'info' => 'It seems like you try to update package which is on payment pending or paid with driver'
-        ]));
+        if($package->status_id == TrackingStatus::ACCEPTED_FOR_PICKUP_DEL->value) return ApiResponse::Forbidden(__('messages.no_access',['info' => 'This package is already assigned to driver']));
+        if($package->status_id == TrackingStatus::ON_DELIVERY_TRIP->value) return ApiResponse::Forbidden(__('messages.no_access',['info' => 'This package is on delivery']));
+        // if($package->driver_payment_id || $package->driver_disbursement_id) return DataResponse::Duplicated(__('messages.info',[
+        //     'info' => 'It seems like you try to update package which is on payment pending or paid with driver'
+        // ]));
         if($package->merchant_payment_id || $package->merchant_disbursement_id) return DataResponse::Duplicated(__('messages.info',[
             'info' => 'It seems like you try to update package which is on payment pending or paid with merchant'
         ]));
@@ -205,7 +206,7 @@ class PackageTrailController extends Controller
         $driverTotal = $this->pickupCenterService::getDriverTotal($cod,$payer,$price,$deliveryFee,$package->additional_fee,$extra_charge,$taxiFee);
         $inputs['driver_total'] = $driverTotal;
         $inputs['merchant_total'] = $this->pickupCenterService::getTotal('merchant',$cod,$payer,$price,$deliveryFee,$package->additional_fee,$extra_charge,$taxiFee);
-        if($package->status_id == 19){
+        if($package->status_id == TrackingStatus::FAILED_WITH_FEE->value){
             $driverTotal = $this->pickupCenterService::getDriverTotal($cod,$payer,0,$deliveryFee,$package->additional_fee,$extra_charge,0);
             if($payer == 'receiver') {
                 $inputs['driver_total'] = $driverTotal;
@@ -259,8 +260,38 @@ class PackageTrailController extends Controller
         ]));
         $package = Package::where('company_id',$user->company_id)->where('is_deleted',0)->where('outstanding',0)->find($id);
         if(!$package) return ApiResponse::NotFound(trans('messages.not_found',['info' => 'Package','khInfo' => 'កញ្ចប់​']));
-        if(!in_array($package->status_id,[5,10,19])) return ApiResponse::ValidateFail(__('messages.info',[
+        if(!in_array($package->status_id,[
+            TrackingStatus::returnable()
+        ])) return ApiResponse::ValidateFail(__('messages.info',[
             'info' => 'Only failed package or at warehouse can be returned'
+        ]));
+        $statusId = TrackingStatus::RETURNING;
+        if($package->status_id == TrackingStatus::FAILED_WITH_FEE->value){
+            //** not change status but use returned_uid for tracking */
+            $statusId = TrackingStatus::FAILED_WITH_FEE->value;
+        }
+        $package->update([
+            'returned_uid' => $driverId,
+            'status_id' => $statusId, // returned
+            // 'returned_datetime' => now(),
+            'update_uid' => $user->id,
+        ]);
+        Helper::clearCacheByTags($this->cacheTags);
+        return ApiResponse::JsonResult(null,__('messages.info',['info' => 'Returned']));
+    }
+
+    public function setReturnPackageDrop(Request $req){
+        $user = UserService::getAuthUser();
+        $id = $req->id;
+        $driverId = $req->driver_id;
+        if(!$driverId) return ApiResponse::ValidateFail(__('messages.info',[
+            'info' => 'Please choose driver'
+        ]));
+        $package = Package::where('company_id',$user->company_id)->where('is_deleted',0)->where('outstanding',0)->find($id);
+        if(!$package) return ApiResponse::NotFound(trans('messages.not_found',['info' => 'Package','khInfo' => 'កញ្ចប់​']));
+        if($package->status_id != TrackingStatus::RETURNING->value) return ApiResponse::ValidateFail(__('messages.info',[
+            'info' => 'Please ensure package is returning before setting drop point',
+            'khInfo' => 'សូមបញ្ជាក់កញ្ចប់ត្រូវបានដាក់កំពុងត្រលប់​មុនពេលកំណត់ចំណុចទម្លាក់'
         ]));
         $statusId = 11;
         if($package->status_id == 19){
@@ -268,7 +299,7 @@ class PackageTrailController extends Controller
         }
         $package->update([
             'returned_uid' => $driverId,
-            'status_id' => $statusId, // returned
+            'status_id' => TrackingStatus::RETURNED, // returned
             'returned_datetime' => now(),
             'update_uid' => $user->id,
         ]);

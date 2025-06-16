@@ -28,7 +28,6 @@ class TransactionService
 {
 
     public function getDeliveryPackages(Request $req,$type,$user){
-        $selectKey = $type.'_payment_id,'.$type.'_disbursement_id';
         $driverId = $req->driver_id;
         $merchantId = $req->merchant_id;
         $pmtStatusId = $req->payment_status_id;
@@ -646,15 +645,46 @@ class TransactionService
             'total_package_price'=>0,
             'total_amount' => 0
         ];
-        foreach($packageIds as $key=>$id){
-            $package = Package::where('is_deleted',0)->whereIn('status_id',[9,19])->find($id);
-            if(!$package){
-                return DataResponse::ValidateFail(__('messages.info',['info' => 'Invalid package'.' on row ('.($key+1).')']));
-            }
-            if($package->{$type.'_payment_id'} > 0 || $package->{$type.'_disbursement_id'}) return DataResponse::ValidateFail(__('messages.error',[
-                'info' => 'Check list might include package that has been paid',
-            ]));
+        $packages = Package::where('is_deleted', 0)
+        ->whereIn('status_id', [9, 19])
+        ->whereIn('id', $packageIds)
+        ->get()
+        ->keyBy('id');
 
+        $paidPackageIds = DB::table('payment_packages')
+            ->whereIn('package_id', $packageIds)
+            ->where('payer_type', $type)  // 'driver' or 'merchant'
+            ->where('is_deleted', false)
+            ->pluck('package_id')
+            ->toArray();
+
+        $disbursedPackageIds = DB::table('disbursement_packages')
+            ->whereIn('package_id', $packageIds)
+            ->where('payee_type', $type)  // 'driver' or 'merchant'
+            ->where('is_deleted', false)
+            ->where('type', 'payment')
+            ->pluck('package_id')
+            ->toArray();
+
+        // Combine to one array of package IDs that are paid or disbursed
+        $paidOrDisbursedPackageIds = array_unique(array_merge($paidPackageIds, $disbursedPackageIds));
+
+
+        foreach($packageIds as $index=>$id){
+            $package = $packages->get($id);
+
+            if (!$package) {
+                return DataResponse::ValidateFail(__('messages.info', [
+                    'info' => 'Invalid package on row (' . ($index + 1) . ')',
+                    'khInfo' => 'កញ្ចប់មិនត្រឹមត្រូវនៅជួរលេខ (' . ($index + 1) . ')',
+                ]));
+            }
+            if (in_array($id, $paidOrDisbursedPackageIds)) {
+                return DataResponse::ValidateFail(__('messages.error', [
+                    'info' => 'Check list might include package that has been paid',
+                    'khInfo' => 'សូមពិនិត្យមើលថាតើបញ្ជីនេះមានកញ្ចប់ដែលបានបង់ប្រាក់រួចហើយ',
+                ]));
+            }
             if($package->status_id == 9) $obj->delivered_package_count += 1;
             if($package->status_id == 19) $obj->failed_with_fee_count +=1;
             // $obj->total_delivery_fee += ($package->cod ? $package->delivery_fee : 0) + $package->extra_charge + $package->additional_fee;
@@ -1396,31 +1426,49 @@ class TransactionService
         if(!$package) return DataResponse::NotFound(__('messages.not_found',[
             'info' => 'Package'
         ]));
-        $driverPayment = $package->driver_payment_id || $package->driver_disbursement_id;
-        $merchantPayment = $package->merchant_payment_id || $package->merchant_disbursement_id;
-        if($merchantPayment || $driverPayment){
-            // if(isset($inputs['remarks']) || isset($inputs['receiver_address'])){
-                $updateArr = [
-                    'remarks' => $inputs['remarks'] ?? '',
-                    'receiver_address' => $inputs['receiver_address'] ?? ''
-                ];
-                // if(isset($inputs['remarks'])) $updateArr['remarks'] = $inputs['remarks'];
-                // if(isset($inputs['receiver_address'])) $updateArr['receiver_address'] = $inputs['receiver_address'];
-                $package->update($updateArr);
-                return DataResponse::JsonResult(null, false, __('messages.info', [
-                    'info' => 'Only remark and receiver address were updated. Price-related fields cannot be modified for paid packages.',
-                    'khInfo' => 'បានកែសំគាល់នឹងទីតាំងតែប៉ុណ្ណោះ។ ពាក់ព័ន្ធនឹងតម្លៃមិនអាចកែប្រែបានទេសម្រាប់កញ្ចប់ដែលបានទូរទាត់ប្រាក់រួច។'
-                ]));
-            // }
+        $hasPayment = $package->hasAnyPayment();
+        if($hasPayment){
+            $updateArr = [
+                'remarks' => $inputs['remarks'] ?? '',
+                'receiver_address' => $inputs['receiver_address'] ?? ''
+            ];
+            // if(isset($inputs['remarks'])) $updateArr['remarks'] = $inputs['remarks'];
+            // if(isset($inputs['receiver_address'])) $updateArr['receiver_address'] = $inputs['receiver_address'];
+            $package->update($updateArr);
+            return DataResponse::JsonResult(null, false, __('messages.info', [
+                'info' => 'Only remark and receiver address were updated. Price-related fields cannot be modified for paid packages.',
+                'khInfo' => 'បានកែសំគាល់នឹងទីតាំងតែប៉ុណ្ណោះ។ ពាក់ព័ន្ធនឹងតម្លៃមិនអាចកែប្រែបានទេសម្រាប់កញ្ចប់ដែលបានទូរទាត់ប្រាក់រួច។'
+            ]));
         }
-        if($driverPayment) return DataResponse::Duplicated(__('messages.info',[
-            'info' => 'It seems like you try to update package which is on payment pending or paid with driver',
-            'khInfo' => 'មិនអាចកែកញ្ចប់បានទេ, កញ្ចប់បានទូរទាត់ជាមួយអ្នកដឹករួចហើយ (Driver)'
-        ]));
-        if($merchantPayment) return DataResponse::Duplicated(__('messages.info',[
-            'info' => 'It seems like you try to update package which is on payment pending or paid with merchant',
-            'khInfo' => 'មិនអាចកែកញ្ចប់បានទេ, កញ្ចប់បានទូរទាត់ជាមួយអ្នកផ្ញើរួចហើយ (Merchant)'
-        ]));
+        // return DataResponse::Duplicated(__('messages.info',[
+        //     'info' => 'Package has already been paid, cannot update price-related fields',
+        //     'khInfo' => 'កញ្ចប់បានទូរទាត់ប្រាក់រួចហើយ, មិនអាចកែប្រែតម្លៃបានទេ'
+        // ]));
+        // $driverPayment = $package->driver_payment_id || $package->driver_disbursement_id;
+        // $merchantPayment = $package->merchant_payment_id || $package->merchant_disbursement_id;
+        // if($merchantPayment || $driverPayment){
+        //     // if(isset($inputs['remarks']) || isset($inputs['receiver_address'])){
+                // $updateArr = [
+                //     'remarks' => $inputs['remarks'] ?? '',
+                //     'receiver_address' => $inputs['receiver_address'] ?? ''
+                // ];
+                // // if(isset($inputs['remarks'])) $updateArr['remarks'] = $inputs['remarks'];
+                // // if(isset($inputs['receiver_address'])) $updateArr['receiver_address'] = $inputs['receiver_address'];
+                // $package->update($updateArr);
+                // return DataResponse::JsonResult(null, false, __('messages.info', [
+                //     'info' => 'Only remark and receiver address were updated. Price-related fields cannot be modified for paid packages.',
+                //     'khInfo' => 'បានកែសំគាល់នឹងទីតាំងតែប៉ុណ្ណោះ។ ពាក់ព័ន្ធនឹងតម្លៃមិនអាចកែប្រែបានទេសម្រាប់កញ្ចប់ដែលបានទូរទាត់ប្រាក់រួច។'
+                // ]));
+        //     // }
+        // }
+        // if($driverPayment) return DataResponse::Duplicated(__('messages.info',[
+        //     'info' => 'It seems like you try to update package which is on payment pending or paid with driver',
+        //     'khInfo' => 'មិនអាចកែកញ្ចប់បានទេ, កញ្ចប់បានទូរទាត់ជាមួយអ្នកដឹករួចហើយ (Driver)'
+        // ]));
+        // if($merchantPayment) return DataResponse::Duplicated(__('messages.info',[
+        //     'info' => 'It seems like you try to update package which is on payment pending or paid with merchant',
+        //     'khInfo' => 'មិនអាចកែកញ្ចប់បានទេ, កញ្ចប់បានទូរទាត់ជាមួយអ្នកផ្ញើរួចហើយ (Merchant)'
+        // ]));
         $cod = $inputs['cod'] ?? $package->cod;
         $payer = $inputs['payer'] ?? $package->payer;
         $extraCharge = $inputs['extra_charge'] ?? $package->extra_charge;
@@ -1579,9 +1627,9 @@ class TransactionService
                     ]);
                 }
             }
-            Package::whereIn('id',$packageIds)->update([
-                $type.'_disbursement_id' => $disbursementId
-            ]);
+            // Package::whereIn('id',$packageIds)->update([
+            //     $type.'_disbursement_id' => $disbursementId
+            // ]);
 
             // DisbursementPackage::insert($packageIds);
             $disbursementPackagesArr = collect($packageIds)->map(fn($id) => [
