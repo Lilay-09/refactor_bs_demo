@@ -142,7 +142,7 @@ class UserService
             $baseFields['shift_type'] = 'nullable|string|max:35';
             $baseFields['national_id'] = 'nullable|string|max:35';
             $baseFields['employee_type'] = 'nullable|string|max:35';
-            $baseFields['vehicle_type'] = 'required|string|exists:vehicle_types,name';
+            $baseFields['vehicle_type'] = 'required|string|exists:vehicle_types,name_en';
             $baseFields['plate_number'] = 'nullable|string|max:50';
             $baseFields['warehouse_id'] = 'nullable';
             $baseFields['relative_name'] = 'nullable|string|max:50';
