@@ -612,6 +612,13 @@ class PackageTrailController extends Controller
             $dPackage = DeliveryPackage::create([
                 'order_id' => $package->order_id,
                 'payer' => $package->payer,
+                'receiver_phone' => $package->receiver_phone,
+                'receiver_address' => $package->receiver_address,
+                'zone_code' => $package->zone_code,
+                'zone_name' => $package->zone_name,
+                'merchant_id' => $package->merchant_id,
+                'delivery_type' => $package->delivery_type,
+                'product_type' => $package->product_type,
                 'notes' => $notes,
                 'assign_uid' => $action == 'assign' ? $user->id : null,
                 'driver_id' => $driverId,
