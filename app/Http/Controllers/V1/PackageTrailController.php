@@ -384,7 +384,7 @@ class PackageTrailController extends Controller
         $package = Package::where('company_id',$user->company_id)->where('is_deleted',0)
         ->where('outstanding',0)
         ->with('merchant:id,username,phone')
-        ->select(['id','status_id','merchant_id','driver_id','assign_uid','assign_driver_datetime','receiver_phone','order_id'])
+        // ->select(['id','status_id','merchant_id','driver_id','assign_uid','assign_driver_datetime','receiver_phone','order_id'])
         ->find($id);
         if(!$package) return ApiResponse::NotFound(__('messages.not_found',['info' => 'Package','khInfo' => 'កញ្ចប់']));
         if($package->status_id == 9) return ApiResponse::Duplicated(__('messages.error',['info' => 'This package is already delivered']));
@@ -466,7 +466,7 @@ class PackageTrailController extends Controller
                 'status_id' => 6, // On Delivery
                 'assign_driver_datetime' => now(),
             ]);
-            $trip = $this->createOrUpdateTrip($driver_id,$id,$validDriver->vehicle_type,$user,$notes,6,'assign',$package->order_id);
+            $trip = $this->createOrUpdateTrip($driver_id,$id,$validDriver->vehicle_type,$user,$notes,6,'assign',$package);
             if($trip->error) return ApiResponse::flex($trip);
             // $notif = new CloudMessagingService();
             $topics = GeneralSettingService::getGeneralTopics($user->company_id,'driver',$driver_id);
@@ -512,7 +512,7 @@ class PackageTrailController extends Controller
         ]));
     }
 
-    public function createOrUpdateTrip($driverId,$packageId,$vehicleType,$user,$notes,$statusId,$action=null,$orderId=null){
+    public function createOrUpdateTrip($driverId,$packageId,$vehicleType,$user,$notes,$statusId,$action=null,$package=null){
         $today = date('Y-m-d');
         $isNewPkg = true;
         $pendingTrip = Delivery::where(function($query) {
@@ -610,7 +610,8 @@ class PackageTrailController extends Controller
         //** add delivery tracking */
         if($isNewPkg) {
             $dPackage = DeliveryPackage::create([
-                'order_id' => $orderId,
+                'order_id' => $package->order_id,
+                'payer' => $package->payer,
                 'notes' => $notes,
                 'assign_uid' => $action == 'assign' ? $user->id : null,
                 'driver_id' => $driverId,
