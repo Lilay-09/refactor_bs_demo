@@ -178,6 +178,7 @@ Route::middleware(['jwt','localize','userAccess:admin'])->prefix('admin/v1/{lang
     Route::prefix('merchant')->group(function(){
         Route::post('',[MerchantManagementController::class,'createMerchant']);
         Route::get('',[MerchantManagementController::class,'getMerchants']);
+        Route::get('daily',[MerchantManagementController::class,'getMerchantListByDate']);
         Route::get('/{id}',[MerchantManagementController::class,'getOneMerchant']);
         Route::put('/{id}',[MerchantManagementController::class,'updateMerchant']);
         Route::delete('/{id}',[MerchantManagementController::class,'deleteMerchant']);
@@ -186,6 +187,7 @@ Route::middleware(['jwt','localize','userAccess:admin'])->prefix('admin/v1/{lang
         Route::put('/{id}/priceList',[MerchantManagementController::class,'setMerchantPriceList']);
         Route::get('/{id}/default',[MerchantManagementController::class,'getDefaultOptions']);
         Route::post('/{id}/setPassword',[MerchantManagementController::class,'setPassword']);
+
 
         Route::prefix('/{id}/employee')->group(function(){
             Route::post('',[MerchantEmployeeController::class,'createMerchantEmployee']);

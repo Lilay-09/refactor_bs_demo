@@ -147,6 +147,66 @@ class MerchantManagementController extends Controller
         return null;
     }
 
+    public function getMerchantListByDate(Request $req){
+        $user = UserService::getAuthUser();
+        $startDate = $req->startDate ? Helper::dateDMY($req->startDate) : null;
+        $endDate = $req->endDate ? Helper::dateDMY($req->endDate) : null;
+        if(!$startDate || !$endDate) return ApiResponse::ValidateFail('Please select a date range to view this report');
+        $query = User::join('packages', 'users.id', '=', 'packages.merchant_id')
+        ->where('packages.is_deleted',0)
+        ->where('packages.outstanding',0)
+        ->where('users.company_id', $user->company_id)
+        ->where('users.account_type', 'merchant')
+        ->where('users.is_deleted',0)
+        // ->selectRaw('DISTINCT users.id, users.username, users.name_km, users.phone')
+        ->distinct()
+        ->orderByDesc('users.id');
+        if($startDate && $endDate){
+            $startDatetime = Helper::dateYMD($startDate).' 00:00:00';
+            $endDatetime = Helper::dateYMD($endDate).' 23:59:59';
+            $query->where(function ($q) use ($startDatetime, $endDatetime) {
+                $q->where(function ($q) use ($startDatetime, $endDatetime) {
+                    $q->where(function ($q) use ($startDatetime, $endDatetime) {
+                        $q->where('status_id', 5)
+                          ->whereBetween('arrive_warehouse_datetime', [$startDatetime, $endDatetime]);
+                    })->orWhere(function ($q) use ($startDatetime, $endDatetime) {
+                        $q->where('status_id', 6)
+                          ->whereBetween('assign_driver_datetime', [$startDatetime, $endDatetime]);
+                    })->orWhere(function ($q) use ($startDatetime, $endDatetime) {
+                        $q->where('status_id', 10)
+                          ->whereBetween('failed_datetime', [$startDatetime, $endDatetime]);
+                    })->orWhere(function ($q) use ($startDatetime, $endDatetime) {
+                        $q->where('status_id', 19)
+                          ->whereBetween('failed_datetime', [$startDatetime, $endDatetime]);
+                    })->orWhere(function ($q) use ($startDatetime, $endDatetime) {
+                        $q->where('status_id', 9)
+                          ->whereBetween('delivered_datetime', [$startDatetime, $endDatetime]);
+                    })->orWhere(function ($q) use ($startDatetime, $endDatetime) {
+                        $q->where('status_id', 11)
+                          ->whereBetween('returned_datetime', [$startDatetime, $endDatetime]);
+                    });
+                });
+
+                // $q->whereRaw(
+                //     '(packages.status_id = 5 AND packages.arrive_warehouse_datetime BETWEEN ? AND ?)
+                //     OR (packages.status_id = 6 AND packages.assign_driver_datetime BETWEEN ? AND ?)
+                //     OR (packages.status_id = 10 AND packages.failed_datetime BETWEEN ? AND ?)
+                //     OR (packages.status_id = 19 AND packages.failed_datetime BETWEEN ? AND ?)
+                //     OR (packages.status_id = 9 AND packages.delivered_datetime BETWEEN ? AND ?)
+                //     OR (packages.status_id = 11 AND packages.returned_datetime BETWEEN ? AND ?)',
+                //     [$startDatetime, $endDatetime, $startDatetime, $endDatetime, $startDatetime, $endDatetime, $startDatetime, $endDatetime, $startDatetime, $endDatetime, $startDatetime, $endDatetime]
+                // );
+            });
+        }
+
+        $select = ['id', 'user_name as username', 'name_km', 'phone'];
+        $callback = function ($q){
+            return $q;
+        };
+
+        return ApiResponse::PaginationV1($query,$req, 'Get Merchant List By Date',[],1000,$callback,$select);
+    }
+
     public function updateMerchant(Request $req){
         $user = UserService::getAuthUser();
         $id = $req->id;

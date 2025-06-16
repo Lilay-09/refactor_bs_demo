@@ -181,7 +181,7 @@ class TransactionController extends Controller
                 $pkg->finished_date = Helper::formatCustomDateTime($pkg->failed_datetime,'d/m/Y');
                 $pkg->finished_time = Helper::formatCustomDateTime($pkg->failed_datetime,'h:i A');
             }
-            $pkg->arrive_warehouse_date = Helper::formatCustomDateTime($pkg->arrive_warehouse_datetime,'d/m/Y');outputFormat:
+            $pkg->arrive_warehouse_date = Helper::formatCustomDateTime($pkg->arrive_warehouse_datetime,'d/m/Y');
             $pkg->arrive_warehouse_time = Helper::formatCustomDateTime($pkg->arrive_warehouse_datetime,'h:i A');
 
             unset($pkg->driver, $pkg->status);
