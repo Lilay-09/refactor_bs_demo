@@ -226,7 +226,7 @@ class FleetManagementController extends Controller
         if(!$delivery) return ApiResponse::NotFound(__('messages.not_found',['info' => 'Trip']));
         if(!$status_id || !in_array($status_id,[9,10,19])) return ApiResponse::ValidateFail(__('messages.not_found',['info' => 'Status']));
         $package = Package::where('company_id',$user->company_id)->where('is_deleted',0)
-        ->selectRaw('tracking_notes,payer,id,status_id,driver_id,cod,delivery_fee,price,additional_fee,extra_charge,taxi_fee,driver_disbursement_id,merchant_disbursement_id,driver_payment_id,merchant_payment_id')
+        ->selectRaw('tracking_notes,payer,id,status_id,driver_id,cod,delivery_fee,price,additional_fee,extra_charge,taxi_fee')
         ->find($package_id);
         if(!$package) return ApiResponse::NotFound(__('messages.not_found',['info' => 'Package','khInfo' => 'កញ្ចប់']));
         if($package->driver_id != $delivery->driver_id){
@@ -238,11 +238,44 @@ class FleetManagementController extends Controller
                 ]));
             }
         }
-        if($package->driver_disbursement_id || $package->merchant_disbursement_id || $package->driver_payment_id || $package->merchant_payment_id)
-            return ApiResponse::ValidateFail(__('messages.info',[
+        $hasPaymentLink = DB::table('payment_packages as pp')
+            ->where('pp.package_id', $package->id)
+            ->whereIn('pp.payer_type', ['driver', 'merchant'])
+            ->where('pp.is_deleted', false)
+            ->exists();
+
+        $hasDisbursementLink = DB::table('disbursement_packages as dp')
+            ->where('dp.package_id', $package->id)
+            ->whereIn('dp.payee_type', ['driver', 'merchant'])
+            ->where('dp.is_deleted', false)
+            ->exists();
+
+        if ($hasPaymentLink || $hasDisbursementLink) {
+            return ApiResponse::ValidateFail(__('messages.info', [
                 'info' => 'Package has link to payment you cannot make change!',
                 'khInfo' => 'កញ្ចប់មានការទូរទាត់ មិនអាចផ្លាស់ប្ដូរបានទេ!'
             ]));
+        }
+        // if($package->driver_disbursement_id || $package->merchant_disbursement_id || $package->driver_payment_id || $package->merchant_payment_id)
+        //     return ApiResponse::ValidateFail(__('messages.info',[
+        //         'info' => 'Package has link to payment you cannot make change!',
+        //         'khInfo' => 'កញ្ចប់មានការទូរទាត់ មិនអាចផ្លាស់ប្ដូរបានទេ!'
+        //     ]));
+        //     ->whereNotExists(function ($sub) {
+        //         $sub->select(DB::raw(1))
+        //             ->from('payment_packages as pp')
+        //             ->whereColumn('pp.package_id', 'p.id')
+        //             ->where('pp.payer_type', 'driver')
+        //             ->where('pp.is_deleted', false);
+        //     })
+        //     ->whereNotExists(function ($sub) {
+        //         $sub->select(DB::raw(1))
+        //             ->from('disbursement_packages as dp')
+        //             ->whereColumn('dp.package_id', 'p.id')
+        //             ->where('dp.payee_type', 'driver')
+        //             ->where('dp.is_deleted', false);
+        //     })
+
 
         if($package->status_id == $status_id) {
             if($status_id == 9) return ApiResponse::Duplicated(__('messages.submitDuplicatedPackage',[

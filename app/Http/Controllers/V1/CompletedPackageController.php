@@ -89,7 +89,7 @@ class CompletedPackageController extends Controller
             $query->where('p.status_id', '!=', 19)    // wxclude status 19
                     ->orWhereNotNull('p.returned_uid'); // Include 19 only if returned_uid is not null
         });
-        $select = ['p.driver_id','p.arrive_warehouse_datetime','p.returned_uid','p.receiver_address','p.driver_disbursement_id','p.driver_payment_id','p.delivered_datetime','m.username as merchant_name','m.phone as merchant_phone','d.username as driver_name','p.status_id','p.returned_datetime','p.id as package_id','d.id as driver_id','p.qr_code','p.price','ts.name as status_code','p.product_type','p.delivered_datetime','p.failed_datetime','p.taxi_fee','p.payer','p.cod','p.zone_code','p.zone_name','p.receiver_phone','p.delivery_type','p.delivery_fee','p.driver_total','p.merchant_total'];
+        $select = ['p.driver_id','p.arrive_warehouse_datetime','p.returned_uid','p.receiver_address','p.delivered_datetime','m.username as merchant_name','m.phone as merchant_phone','d.username as driver_name','p.status_id','p.returned_datetime','p.id as package_id','d.id as driver_id','p.qr_code','p.price','ts.name as status_code','p.product_type','p.delivered_datetime','p.failed_datetime','p.taxi_fee','p.payer','p.cod','p.zone_code','p.zone_name','p.receiver_phone','p.delivery_type','p.delivery_fee','p.driver_total','p.merchant_total'];
         // ->selectRaw('p.arrive_warehouse_datetime,p.returned_uid,p.receiver_address,p.driver_disbursement_id,p.driver_payment_id,p.delivered_datetime,m.username as merchant_name,m.phone as merchant_phone,d.username as driver_name,p.status_id,p.returned_datetime,p.id as package_id,d.id as driver_id,p.qr_code,p.price,ts.name as status_code,p.product_type,p.delivered_datetime,p.failed_datetime,p.taxi_fee,p.payer,p.cod,p.zone_code,p.zone_name,p.receiver_phone,p.delivery_type,p.delivery_fee,p.driver_total,p.merchant_total'.$driverSettled.$merchantSettled);
         // ->select('p.driver_id','p.arrive_warehouse_datetime','p.returned_uid','p.receiver_address','p.driver_disbursement_id','p.driver_payment_id','p.delivered_datetime','m.username as merchant_name','m.phone as merchant_phone','d.username as driver_name','p.status_id','p.returned_datetime','p.id as package_id','d.id as driver_id','p.qr_code','p.price','ts.name as status_code','p.product_type','p.delivered_datetime','p.failed_datetime','p.taxi_fee','p.payer','p.cod','p.zone_code','p.zone_name','p.receiver_phone','p.delivery_type','p.delivery_fee','p.driver_total','p.merchant_total');
         //** Filter */
@@ -164,23 +164,55 @@ class CompletedPackageController extends Controller
     }
 
     private function finishPackagePaymentStatus($query,$driverId,$merchantId,$paymentStatusId){
-        if($driverId && $paymentStatusId == 2 && !$merchantId){
-            $query->where(function ($q): void {
-                $q->whereNotNull('p.driver_payment_id')->orWhereNotNull('p.driver_disbursement_id')->orWhere('dpmt.approved',1)->orWhere('dbur.approved',1);
-            });
-        }else if($driverId && $paymentStatusId == 1 && !$merchantId){
-            $query->where(function ($q): void {
-                $q->whereNull('p.driver_payment_id')->whereNull('p.driver_disbursement_id');
-            });
-        }else if($merchantId && $paymentStatusId == 2 && !$driverId){
-            $query->where(function ($q): void {
-                $q->whereNotNull('p.merchant_payment_id')->orWhereNotNull('p.merchant_disbursement_id')->orWhere('dpmt.approved',1)->orWhere('dbur.approved',1);
-            });
-        }else if($merchantId && $paymentStatusId == 1 && !$driverId){
-            $query->where(function ($q): void {
-                $q->whereNull('p.merchant_payment_id')->whereNull('p.merchant_disbursement_id');
-            });
+        $role = null;
+
+        if ($driverId && !$merchantId) {
+            $role = 'driver';
+        } elseif ($merchantId && !$driverId) {
+            $role = 'merchant';
         }
+
+        if (!$role || !in_array($paymentStatusId, [1, 2])) {
+            return; // no filter needed
+        }
+
+        $queryMethod = $paymentStatusId == 2 ? 'whereExists' : 'whereNotExists';
+
+        // Payment check
+        $query->{$queryMethod}(function ($sub) use ($role) {
+            $sub->select(DB::raw(1))
+                ->from('payment_packages as pp')
+                ->whereColumn('pp.package_id', 'p.id')
+                ->where('pp.payer_type', $role)
+                ->where('pp.is_deleted', false);
+        });
+
+        // Disbursement check
+        $query->{$queryMethod}(function ($sub) use ($role) {
+            $sub->select(DB::raw(1))
+                ->from('disbursement_packages as dp')
+                ->whereColumn('dp.package_id', 'p.id')
+                ->where('dp.payee_type', $role)
+                ->where('dp.is_deleted', false);
+        });
+        // if($driverId && $paymentStatusId == 2 && !$merchantId){
+        //     $query->where(function ($q): void {
+        //         $q->whereNotNull('p.driver_payment_id')->orWhereNotNull('p.driver_disbursement_id')->orWhere('dpmt.approved',1)->orWhere('dbur.approved',1);
+        //     });
+        // }else if($driverId && $paymentStatusId == 1 && !$merchantId){
+        //     $query->where(function ($q): void {
+        //         $q->whereNull('p.driver_payment_id')->whereNull('p.driver_disbursement_id');
+        //     });
+        // }else if($merchantId && $paymentStatusId == 2 && !$driverId){
+        //     $query->where(function ($q): void {
+        //         $q->whereNotNull('p.merchant_payment_id')->orWhereNotNull('p.merchant_disbursement_id')->orWhere('dpmt.approved',1)->orWhere('dbur.approved',1);
+        //     });
+        // }else if($merchantId && $paymentStatusId == 1 && !$driverId){
+        //     $query->where(function ($q): void {
+        //         $q->whereNull('p.merchant_payment_id')->whereNull('p.merchant_disbursement_id');
+        //     });
+        // }
+
     }
 
     public function getOneFinishedPackage(Request $req){
@@ -190,11 +222,20 @@ class CompletedPackageController extends Controller
         ->leftJoin('users as d','d.id','p.driver_id')
         ->join('tracking_statuses as ts','ts.id','p.status_id')
         ->join('users as m','m.id','p.merchant_id')
-        ->leftJoin('payments as dpmt','dpmt.id','p.driver_payment_id') //** if driver paid or unpaid */
-        ->leftJoin('payments as mpmt','mpmt.id','p.merchant_payment_id') //** if driver paid or unpaid */
+        // ->leftJoin('payments as dpmt','dpmt.id','p.driver_payment_id') //** if driver paid or unpaid */
+        // ->leftJoin('payments as mpmt','mpmt.id','p.merchant_payment_id') //** if driver paid or unpaid */
         ->orderByDesc('p.id')
         ->whereIn('p.status_id',[9,11,19]) //* delivered and failed with fee
-        ->selectRaw('p.delivered_datetime,m.username as merchant_name,m.phone as merchant_phone,dpmt.approved as approved_driver_pmt,mpmt.approved as approved_merchant_pmt,d.username as driver_name,p.status_id,p.id as package_id,d.id as driver_id,p.qr_code,p.price,ts.name as status_code,p.product_type,p.delivered_datetime,p.failed_datetime,p.taxi_fee,p.payer,p.cod,p.zone_code,p.zone_name,p.receiver_phone,p.delivery_type,p.delivery_fee as base_fee,p.driver_total,p.merchant_total,p.extra_charge,p.actual_kg,p.billed_kg,p.receiver_address,p.additional_fee,p.dim_z,p.dim_x,p.dim_y,p.remarks,p.receiver_name')
+        ->select([
+            'p.delivered_datetime','m.username as merchant_name','m.phone as merchant_phone',
+            // 'dpmt.approved as approved_driver_pmt',
+            // 'mpmt.approved as approved_merchant_pmt',
+            'd.username as driver_name','p.status_id','p.id as package_id',
+            'd.id as driver_id','p.qr_code','p.price','ts.name as status_code','p.product_type','p.delivered_datetime',
+            'p.failed_datetime','p.taxi_fee','p.payer','p.cod','p.zone_code','p.zone_name','p.receiver_phone','p.delivery_type',
+            'p.delivery_fee as base_fee','p.driver_total','p.merchant_total','p.extra_charge','p.actual_kg','p.billed_kg',
+            'p.receiver_address','p.additional_fee','p.dim_z','p.dim_x','p.dim_y','p.remarks','p.receiver_name'
+        ])
         ->where('p.id',$packageId)->first();
         if(!$package) return ApiResponse::NotFound();
         $package->cod = $package->cod ? 1 : 0;
