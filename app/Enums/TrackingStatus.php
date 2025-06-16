@@ -43,4 +43,13 @@ enum TrackingStatus:int
     case IN_TRANSIT = 22;
 
     case RETURNED = 23;
+
+
+    public static function returnable():array{
+        return [
+            self::FAILED->value,
+            self::FAILED_WITH_FEE->value,
+            self::AT_WAREHOUSE->value,
+        ];
+    }
 }
