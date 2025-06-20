@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Enums\Enums;
+namespace App\Enums;
 
 enum TrackingStatus:int
 {
@@ -18,7 +18,7 @@ enum TrackingStatus:int
 
     case FAILED = 10;
 
-    case RETURNING;
+    case RETURNING = 11;
 
     case PENDING_DEL = 12;
 

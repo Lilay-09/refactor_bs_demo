@@ -23,7 +23,6 @@ class UserAccess
     public function handle(Request $request, Closure $next): Response
     {
         $user = auth()->user();
-        // Log::info(json_encode($user));
         if ($user['system_admin']) {
             return $next($request);
         }

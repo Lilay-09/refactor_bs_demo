@@ -599,6 +599,7 @@ Route::middleware(['jwt','localize','userAccess:admin'])->prefix('admin/v1/{lang
         });
         Route::prefix('form')->group(function(){
             Route::get('transfer',[GeneralSettingController::class,'getFormTransfer']);
+            Route::get('user',[GeneralSettingController::class,'getFormUser']);
             Route::get('warehouse',[GeneralSettingController::class,'getFormWarehouse']);
             Route::get('zone/{exceptId}/assign',[GeneralSettingController::class,'getAssignZoneFormOptions']);
             Route::get('fleet/package/trackingStatus',[GeneralSettingController::class,'getFormOptionsFleetPackageTrackingStatus']);

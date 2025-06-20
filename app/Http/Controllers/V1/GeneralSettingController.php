@@ -358,6 +358,13 @@ class GeneralSettingController extends Controller
         ]);
     }
 
+    public function getFormUser(Request $req){
+        return ApiResponse::JsonResult([
+            'roles' => $this->gs::optionsRole(),
+            'branches' => $this->gs::optionsBranch($req->lang)
+        ]);
+    }
+
     public function getFormTransfer(){
         $user = auth()->user();
         return ApiResponse::JsonResult([

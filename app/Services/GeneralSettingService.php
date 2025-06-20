@@ -7,6 +7,7 @@ use App\Enums\WarehouseStatus;
 use App\Enums\WarehouseType;
 use App\Models\AppModule;
 use App\Models\Bank;
+use App\Models\Branch;
 use App\Models\BusinessType;
 use App\Models\City;
 use App\Models\ClientType;
@@ -143,6 +144,12 @@ class GeneralSettingService
         return $roles;
     }
 
+    public static function optionsBranch($lang='en'){
+        return Branch::where('is_deleted',false)
+        ->select(['name_'.$lang.' as name','id'])
+        ->get();
+    }
+
 
     public static function optionsCommissionType($lang='en'){
         return Helper::translateOptions([
@@ -173,7 +180,9 @@ class GeneralSettingService
     }
 
     public static function getWarehouse($user){
-        return Warehouse::where('is_deleted',false)->where('company_id',$user->company_id)->where('branch_id',$user->branch_id)->first();
+        return Warehouse::where('is_deleted',false)
+        ->where('company_id',$user->company_id)
+        ->where('branch_id',$user->branch_id)->first();
     }
 
     static function optionsRemarkCategory(){
@@ -377,7 +386,7 @@ class GeneralSettingService
     public static function optionsDriverinfo($user,$vehicleType=null){
         $qD = User::where('is_deleted',0)->where('company_id',$user->company_id)
         ->where('account_type','driver')
-        ->selectRaw('id,username,phone,name_km,vehicle_type');
+        ->selectRaw('id,username,phone,name_km,vehicle_type,plate_number');
         if($vehicleType) $qD->where('vehicle_type','ilike',$vehicleType);
         $drivers = $qD->orderByDesc('id')->get();
         return $drivers;
@@ -735,7 +744,10 @@ class GeneralSettingService
         ->whereIn('status_id',$statusIds)
         ->where('warehouse_id',$locationId)
         ->with(['merchant:id,username'])
-        ->select('id','qr_code','driver_id','receiver_address','receiver_phone','cod','merchant_id')
+        ->select([
+            'id','qr_code','driver_id','receiver_address','receiver_phone','cod','merchant_id',
+            'price','remarks','driver_total as total','zone_name','zone_code'
+        ])
         ->get()->each(function ($q){
             $q->merchant_name = $q->merchant->username;
             $q->makeHidden('merchant');

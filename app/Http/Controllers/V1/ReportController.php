@@ -1132,7 +1132,15 @@ class ReportController extends Controller
                 WHEN p.status_id = ? THEN 6
                 ELSE 7
             END', [9, 19, 11, 6, 10, 5]
-        )->orderByRaw('DATE(p.failed_datetime) DESC,DATE(p.delivered_datetime) DESC');
+        )
+        ->orderByRaw("
+            GREATEST(
+                COALESCE(DATE(p.failed_datetime), '1970-01-01'),
+                COALESCE(DATE(p.delivered_datetime), '1970-01-01')
+            ) DESC
+        ");
+
+        // ->orderByRaw('DATE(p.failed_datetime) DESC,DATE(p.delivered_datetime) DESC');
         $clonePkg = clone $qP;
         $packages = $qP->get();
         // return $packages;

@@ -2,7 +2,7 @@
 
 namespace App\Services;
 
-use App\Enums\Enums\TrackingStatus;
+use App\Enums\TrackingStatus;
 use App\Enums\TransferStatus;
 use App\Models\Package;
 use App\Models\PackageTransfer;
@@ -10,6 +10,7 @@ use App\Models\PackageTransferDetail;
 use DataResponse;
 use DB;
 use Exception;
+use Helper;
 use Illuminate\Http\Request;
 use Log;
 
@@ -24,8 +25,9 @@ class TransferServiceImpl implements TransferService
             'transfer_date' => 'required|string',
             'est_arrive_date' => 'nullable|string',
             'driver_id' => 'nullable',
-            'driver_name' => 'required|string',
-            'driver_phone' => 'required|string',
+            'driver_name' => 'required|string|max:50',
+            'driver_phone' => 'required|string|max:15',
+            'plate_number' => 'required|string|max:9',
             'status_id' => 'nullable',
             'location_type' => 'nullable',
             'transfer_items' => 'required|array',
@@ -51,6 +53,7 @@ class TransferServiceImpl implements TransferService
         $inputs['transfer_uid'] = $userId;
         $inputs['status_id'] = $inputs['status_id'] ?? TransferStatus::PENDING->value;
         $transferItemIds = $inputs['transfer_items'];
+        Log::info($req->all());
         $packagesByKey = Package::where('is_deleted',false)
         ->where('warehouse_id',$inputs['from_location_id'])
         ->whereIn('status_id',[5,10])
@@ -84,7 +87,10 @@ class TransferServiceImpl implements TransferService
         try{
             DB::beginTransaction();
             $pkTransfer = PackageTransfer::create($inputs);
+
             if ($pkTransfer && !empty($insertTransferItems)) {
+                $pkTransfer->code = Helper::generateCode('TRX',$pkTransfer->id);
+                $pkTransfer->save();
                 // Assign transfer ID in one map pass
                 $pkTransferId = $pkTransfer->id;
                 foreach ($insertTransferItems as &$item) {
@@ -124,7 +130,8 @@ class TransferServiceImpl implements TransferService
             'fromWarehouse',
             'toWarehouse'
         ]);
-        $select = ['id','transfer_qty','transfer_out_qty','from_location_id','to_location_id','status_id','remarks'];
+        // $select = ['id','','code','transfer_qty','transfer_out_qty','from_location_id','to_location_id','status_id','remarks'];
+        $select = ['*'];
         $callback = function ($q){
             $q->append('remaining_qty');
             $q->append('status');
