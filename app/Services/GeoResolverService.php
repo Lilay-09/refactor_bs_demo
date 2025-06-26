@@ -100,12 +100,15 @@ class GeoResolverService
     /**
      * Accept raw lat/lng, return lat, lng, address.
      */
-    public function fromCoords(float $lat, float $lng): array
+    public function fromCoords(float $lat, float $lng,$isReverseAddress=false): array
     {
         return [
             'lat'     => $lat,
             'lng'     => $lng,
-            'address' => $this->reverseGeocode($lat, $lng),
+            'address' => ($isReverseAddress && $lat && $lng) ?$this->reverseGeocode($lat, $lng):null,
+            'mapUrl'  => ($lat && $lng)
+            ? "https://www.google.com/maps/search/?api=1&query={$lat},{$lng}"
+            : null,
         ];
     }
 }
