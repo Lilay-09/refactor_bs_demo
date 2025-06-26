@@ -52,4 +52,33 @@ enum TrackingStatus:int
             self::AT_WAREHOUSE->value,
         ];
     }
+
+    public function label(): string
+    {
+        return match($this) {
+            self::AVAILABLE_FOR_PICK => __('messages.tracking.available_for_pick'),
+            self::PICKED => __('messages.tracking.picked'),
+            self::ACCEPTED_FOR_PICKUP => __('messages.tracking.accepted_for_pickup'),
+            self::PICKED_AND_BOOKED => __('messages.tracking.picked_and_booked'),
+            self::AT_WAREHOUSE => __('messages.tracking.at_warehouse'),
+            self::ON_DELIVERY => __('messages.tracking.on_delivery'),
+            self::PENDING_PICK => __('messages.tracking.pending_pick'),
+            self::DELAYED => __('messages.tracking.delayed'),
+            self::DELIVERED => __('messages.tracking.delivered'),
+            self::FAILED => __('messages.tracking.failed'),
+            self::RETURNING => __('messages.tracking.returning'),
+            self::PENDING_DEL => __('messages.tracking.pending_del'),
+            self::ACCEPTED_FOR_PICKUP_DEL => __('messages.tracking.accepted_for_pickup_del'),
+            self::ON_DELIVERY_TRIP => __('messages.tracking.on_delivery_trip'),
+            self::ALL_COMPLETED => __('messages.tracking.all_completed'),
+            self::DONE_TRIP => __('messages.tracking.done_trip'),
+            self::FAILED_TRIP => __('messages.tracking.failed_trip'),
+            self::CANCELED_DEL => __('messages.tracking.canceled_del'),
+            self::FAILED_WITH_FEE => __('messages.tracking.failed_with_fee'),
+            self::CANCELD_PICK => __('messages.tracking.canceled_pick'),
+            self::DROPPED_PICK => __('messages.tracking.dropped_pick'),
+            self::IN_TRANSIT => __('messages.tracking.in_transit'),
+            self::RETURNED => __('messages.tracking.returned'),
+        };
+    }
 }

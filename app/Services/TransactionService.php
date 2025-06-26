@@ -1640,7 +1640,6 @@ class TransactionService
             ])->toArray();
             DisbursementPackage::insert($disbursementPackagesArr);
 
-
             $notif = new CloudMessagingService();
             $topics = GeneralSettingService::getGeneralTopics($user->company_id,'driver',$payeeId);
             // return $topics;
@@ -1779,9 +1778,16 @@ class TransactionService
                     ]);
                 }
             }
-            Package::whereIn('id',$packageIds)->update([
-                $type.'_commission_id' => $paymentId
-            ]);
+            // Package::whereIn('id',$packageIds)->update([
+            //     $type.'_commission_id' => $paymentId
+            // ]);
+            DisbursementPackage::insert(collect($packageIds)->map(fn($id) => [
+                'package_id' => $id,
+                'disbursement_id' => $paymentId,
+                'type' => 'commission',
+                'payee_type' => $type
+            ])->toArray());
+
             Order::whereIn('id',$orderIds)->update([
                 $type.'_commission_id' => $paymentId
             ]);

@@ -48,6 +48,7 @@ Route::middleware(['jwtDriver','localize'])->prefix('driver/v1/{lang}')->group(f
 
     Route::prefix('home')->group(function(){
         Route::get('balance',[HomeScreenController::class,'getDriverBalance']);
+        Route::get('package/returning',[HomeScreenController::class,'getReturningPackage']);
         Route::post('booking',[HomeScreenController::class,'booking']);
         Route::get('availableOrders',[HomeScreenController::class,'getAvailableOrders']);
         Route::get('accepted/pickup',[HomeScreenController::class,'getAcceptedPickup']);
