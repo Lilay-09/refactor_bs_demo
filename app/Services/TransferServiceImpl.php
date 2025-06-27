@@ -7,6 +7,8 @@ use App\Enums\TransferStatus;
 use App\Models\Package;
 use App\Models\PackageTransfer;
 use App\Models\PackageTransferDetail;
+use App\Models\PackageTransferReceive;
+use App\Models\PackageTransferReceiveItem;
 use DataResponse;
 use DB;
 use Exception;
@@ -19,21 +21,24 @@ class TransferServiceImpl implements TransferService
     // Your service methods go here
 
     private function transferValidator(Request $req){
-        return validator($req->all(),[
+        $rules = [
             'from_location_id' => 'required|int',
             'to_location_id' => 'required|int',
             'transfer_date' => 'required|string',
             'est_arrive_date' => 'nullable|string',
-            'driver_id' => 'nullable',
-            'driver_name' => 'required|string|max:50',
-            'driver_phone' => 'required|string|max:15',
-            'plate_number' => 'required|string|max:9',
             'status_id' => 'nullable',
             'location_type' => 'nullable',
             'transfer_items' => 'required|array',
             'remarks' => 'nullable|string|max:250'
             // 'transfer_items.*.package_id' => 'required|int',
-        ]);
+        ];
+
+        $rules['driver_id'] = 'nullable';
+        $rules['driver_name'] = 'required|string|max:50';
+        $rules['driver_phone'] = 'required|string|max:15';
+        $rules['plate_number'] = 'required|string|max:9';
+
+        return validator($req->all(),$rules);
     }
     public function createTransfer(Request $req,object $authUser):object{
 
@@ -51,14 +56,16 @@ class TransferServiceImpl implements TransferService
         $inputs['branch_id'] = $branchId;
         $inputs['update_uid'] = $userId;
         $inputs['transfer_uid'] = $userId;
+        $inputs['transfer_datetime'] = Helper::dateYMD($inputs['transfer_date']);
         $inputs['status_id'] = $inputs['status_id'] ?? TransferStatus::PENDING->value;
         $transferItemIds = $inputs['transfer_items'];
-        Log::info($req->all());
+        // Log::info($req->all());
         $packagesByKey = Package::where('is_deleted',false)
         ->where('warehouse_id',$inputs['from_location_id'])
         ->whereIn('status_id',[5,10])
         ->whereIn('id',$transferItemIds)->get()->keyBy('id');
         $insertTransferItems = [];
+        $logPck = [];
         $inputs['transfer_qty'] = 0;
         if($inputs['from_location_id'] == $inputs['to_location_id']){
             return DataResponse::Duplicated(__('messages.info',[
@@ -80,14 +87,17 @@ class TransferServiceImpl implements TransferService
                 'branch_id' => $branchId,
                 'package_id' => $itemId
             ];
+            $logPck[] = [
+
+            ];
             $inputs['transfer_qty'] +=1;
         }
         unset($inputs['transfer_items']);
         // return DataResponse::JsonResult($inputs);
+
         try{
             DB::beginTransaction();
             $pkTransfer = PackageTransfer::create($inputs);
-
             if ($pkTransfer && !empty($insertTransferItems)) {
                 $pkTransfer->code = Helper::generateCode('TRX',$pkTransfer->id);
                 $pkTransfer->save();
@@ -120,7 +130,92 @@ class TransferServiceImpl implements TransferService
     }
 
     public function updateTransfer(int $id, Request $req, object $authUser): object{
+        $validator = $this->transferValidator($req);
+        if($validator->fails()){
+            return DataResponse::ValidateFail($validator->errors()->first());
+        }
 
+        $inputs = $validator->validated();
+        $branchId = $authUser->branch_id;
+        $companyId = $authUser->company_id;
+        $userId = $authUser->id;
+        $inputs['company_id'] = $companyId;
+        $inputs['branch_id'] = $branchId;
+        $inputs['update_uid'] = $userId;
+        $inputs['transfer_uid'] = $userId;
+        $inputs['status_id'] = $inputs['status_id'] ?? TransferStatus::PENDING->value;
+        $inputs['transfer_datetime'] = Helper::dateYMD($inputs['transfer_date']);
+        $transferItemIds = $inputs['transfer_items'];
+        $packagesByKey = Package::where('is_deleted',false)
+        ->where('warehouse_id',$inputs['from_location_id'])
+        ->whereIn('status_id',[5,10])
+        ->whereIn('id',$transferItemIds)->get()->keyBy('id');
+        $existsPackageByKey = PackageTransferDetail::where('is_deleted',false)
+        ->where('package_transfer_id',$id)
+        ->whereIn('package_id',$transferItemIds)->get()->keyBy('package_id');
+        $insertTransferItems = [];
+        // return DataResponse::JsonResult($existsPackageByKey);
+        $inputs['transfer_qty'] = 0;
+        if($inputs['from_location_id'] == $inputs['to_location_id']){
+            return DataResponse::Duplicated(__('messages.info',[
+                'info' => 'It seems like you try to transfer to the same location',
+                'khInfo' => 'មិនអាចផ្ទេរទៅឃ្លាំងដូចគ្នា!'
+            ]));
+        }
+        $transfer = PackageTransfer::where('is_deleted',false)->find($id);
+        if(!$transfer){
+            return DataResponse::NotFound();
+        }
+        Log::info($req->all());
+        foreach($transferItemIds as $idx => $itemId){
+            if(isset($existsPackageByKey[$itemId])){
+                continue;
+            }
+            if(!isset($packagesByKey[$itemId])){
+                return DataResponse::NotFound(__('messages.info',[
+                    'info' => 'Item not found on row => '.($idx+1),
+                    'khInfo' => 'រកមិនឃើញកញ្ចប់ជួរទី => '.($idx+1)
+                ]));
+            }
+            $insertTransferItems[] = [
+                'update_uid' => $userId,
+                'create_uid' => $userId,
+                'company_id' => $companyId,
+                'branch_id' => $branchId,
+                'package_id' => $itemId
+            ];
+            $transfer->transfer_qty += 1;
+        }
+        unset($inputs['transfer_items']);
+
+        try{
+            DB::beginTransaction();
+            if (!empty($insertTransferItems)) {
+                // Assign transfer ID in one map pass
+                foreach ($insertTransferItems as &$item) {
+                    $item['package_transfer_id'] = $id;
+                }
+                unset($item);
+                PackageTransferDetail::insert($insertTransferItems);
+                if($inputs['status_id'] == TransferStatus::IN_TRANSIT->value){
+                    Package::where('is_deleted',false)
+                    ->where('warehouse_id',$inputs['from_location_id'])
+                    ->whereIn('id',$transferItemIds)
+                    ->update([
+                        'status_id' => TrackingStatus::IN_TRANSIT->value
+                    ]);
+                }
+            }
+            $transfer->transfer_datetime = $inputs['transfer_datetime'];
+            $transfer->remarks = $inputs['remarks'] ?? null;
+            $transfer->save();
+            DB::commit();
+            return DataResponse::JsonResult(null,false,__('messages.updated'));
+        }catch(Exception $e){
+            DB::rollBack();
+            Log::error($e->getMessage());
+            return DataResponse::Error(__('messages.error'));
+        }
     }
 
     public function getTransfers(Request $req, object $authUser): object{
@@ -129,7 +224,7 @@ class TransferServiceImpl implements TransferService
         ->with([
             'fromWarehouse',
             'toWarehouse'
-        ]);
+        ])->orderByDesc('id');
         // $select = ['id','','code','transfer_qty','transfer_out_qty','from_location_id','to_location_id','status_id','remarks'];
         $select = ['*'];
         $callback = function ($q){
@@ -148,7 +243,7 @@ class TransferServiceImpl implements TransferService
 
     public function getOneTransfer(int $id, object $authUser): object{
         $transfer = PackageTransfer::where('is_deleted',false)
-        ->select(['id','transfer_qty','transfer_out_qty','from_location_id','status_id','to_location_id'])
+        ->select(['id','remarks','transfer_datetime as transfer_date','driver_name','driver_id','driver_phone','plate_number','transfer_qty','transfer_out_qty','from_location_id','status_id','to_location_id'])
         ->with([
             'transfer_items:id,package_transfer_id,package_id'
         ])
@@ -177,17 +272,108 @@ class TransferServiceImpl implements TransferService
 
     private function receivePackageValidator(Request $req){
         return validator($req->all(),[
-            'transfer_id' => 'required',
             'receive_items' => 'required|array',
-            'location_id' => 'required|int',
-            'status_id' => 'required|int'
+            // 'location_id' => 'required|int',
+            // 'status_id' => 'required|int'
         ]);
     }
 
-    public function receivePackage(){
+    public function createReceive(int $id, Request $req, object $authUser): object{
+        $validate = $this->receivePackageValidator($req);
+        if($validate->fails()){
+            return DataResponse::ValidateFail($validate->errors()->first());
+        }
+        $inputs = $validate->validated();
+        $userId = $authUser->id;
+        $companyId = $authUser->company_id;
+        $branchId = $authUser->branch_id;
+        $inputs['create_uid'] = $userId;
+        $inputs['update_uid'] = $userId;
+        $inputs['company_id'] = $companyId;
+        $inputs['branch_id'] = $branchId;
+        $transfer = PackageTransfer::where('is_deleted',false)
+        ->find($id);
+        if(!$transfer){
+            return DataResponse::NotFound();
+        }
+
+        if($transfer->status_id == TransferStatus::DELIVERED->value){
+            return DataResponse::Duplicated(__('messages.info',[
+                'info' => 'This transfer is already completed',
+                'khInfo' => 'This transfer is already completed'
+            ]));
+        }
+        // if($inputs['location_id'] == $transfer->from_location_id){
+        //     return DataResponse::Duplicated(__('info',[
+        //         'info' => "Can't receive the same warehouse as transfer warehouse"
+        //     ]));
+        // }
+        $receiveItemIds = $inputs['receive_items'];
+        $existsPackageByKey = PackageTransferDetail::where('is_deleted',false)
+        ->where('package_transfer_id',$id)
+        ->orWhereIn('package_id',$receiveItemIds)->get()->keyBy('package_id');
+        $packagesByKey = Package::where('is_deleted',false)
+        ->where('warehouse_id',$transfer->from_location_id)
+        ->where('status_id',23)
+        ->whereIn('id',$receiveItemIds)->get()->keyBy('id');
+        $updatePkg = [];
+        $allReceive = 0;
+        foreach($receiveItemIds as $itemId){
+            if(!isset($existsPackageByKey[$itemId])){
+                $stillAvailable += 1;
+                continue;
+            }
+            $availablePkg = $packagesByKey[$itemId] ?? null;
+            if($availablePkg){
+                $updatePkg[] = [
+                    'package_id' => $itemId,
+                    'create_uid' => $userId,
+                    'company_id' => $companyId,
+                    'branch_id' => $branchId
+                ];
+                $transfer->transfer_out_qty +=1;
+                $remainingQty = $transfer->transfer_qty - $transfer->transfer_out_qty;
+                if($remainingQty>0){
+                    $allReceive +=1;
+                }
+            }
+        }
+        $inputs['qty'] = $transfer->transfer_out_qty;
+        $inputs['receive_uid'] = $authUser->id;
+        $inputs['from_location_id'] = $transfer->from_location_id;
+        $inputs['location_id'] = $transfer->to_location_id;
+        try{
+            DB::beginTransaction();
+            $receive = PackageTransferReceive::create($inputs);
+            if($receive){
+                $receive->code = Helper::generateCode('TRX',$receive->id);
+                $receive->save();
+                if(!empty($updatePkg)){
+                    Package::where('is_deleted',false)
+                    ->whereIn('id',$receiveItemIds)
+                    ->update([
+                        'status_id' => TrackingStatus::AT_WAREHOUSE->value,
+                        'warehouse_id' => $transfer->to_location_id
+                    ]);
+                    foreach($updatePkg as &$pkg){
+                        $pkg['package_transfer_receive_id'] = $receive->id;
+                    }
+                    unset($pkg);
+                }
+                PackageTransferReceiveItem::insert($updatePkg);
+            }
+            if($allReceive == count($receiveItemIds)){
+                $transfer->status_id = TransferStatus::DELIVERED->value;
+            }
+            $transfer->save();
+            // DB::commit();
+            return DataResponse::JsonResult(Package::where('warehouse_id',$transfer->to_location_id)->select('id','warehouse_id','status_id')->get(),false,__('messages.updated'));
+        }catch(Exception $e){
+            DB::rollBack();
+            Log::error($e->getMessage());
+            return DataResponse::Error(__('messages.error'));
+        }
+
 
     }
-    // public function getAvailableTransfer(Request $req, object $authUser): object{
-
-    // }
 }

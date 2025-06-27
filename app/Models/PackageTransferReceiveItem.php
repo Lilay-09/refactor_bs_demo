@@ -8,13 +8,14 @@ use Illuminate\Database\Eloquent\Model;
 class PackageTransferReceiveItem extends Model
 {
     // use HasFactory;
-    protected $table = 'package_transfer_details';
+    protected $table = 'package_transfer_receive_items';
     protected $fillable = [
-        'pacakge_transfer_id',
+        'package_transfer_receive_id'.
         'package_id',
         'create_uid',
         'update_uid',
         'branch_id',
+        'remarks',
         'company_id',
         'is_deleted',
         'deleted_uid',

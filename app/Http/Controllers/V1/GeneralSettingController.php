@@ -378,6 +378,10 @@ class GeneralSettingController extends Controller
         return ApiResponse::JsonResult($this->gs::optionsPackage($req->location_id));
     }
 
+    public function getOptionsTransferByLocations(Request $req){
+        return ApiResponse::JsonResult($this->gs::optionsTransferByLocation($req->from_id,$req->to_id));
+    }
+
     public function getFormPackageTrail(Request $req){
         $user = UserService::getAuthUser();
         $obj = (object)[

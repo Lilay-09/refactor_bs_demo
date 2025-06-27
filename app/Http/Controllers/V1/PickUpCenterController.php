@@ -448,7 +448,7 @@ class PickUpCenterController extends Controller
         ->with(['driver:id,username,phone','merchant:id,phone,username','updateUser:id,username'])
         // ->whereNotIn('status_id',[]) // at warehouse
         // ->where('company_id',$user->company_id)
-        ->selectRaw('cod,extra_charge,taxi_fee,delivery_fee,zone_name,zone_code,merchant_id,driver_id,receiver_phone,receiver_address,created_at,arrive_warehouse_datetime,qr_code,remarks,price,update_uid,payer')
+        ->selectRaw('id as package_id,cod,extra_charge,taxi_fee,delivery_fee,zone_name,zone_code,merchant_id,driver_id,receiver_phone,receiver_address,created_at,arrive_warehouse_datetime,qr_code,remarks,price,update_uid,payer')
         ->where('order_id',$id)
         // ->orderByRaw("CASE $orderByCase END")
         ->get();

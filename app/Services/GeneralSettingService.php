@@ -279,7 +279,7 @@ class GeneralSettingService
         return $remarks;
     }
 
-    public static function optionsZone($user,$identity=null,$parentId=null,Request $filter=null){
+    public static function optionsZone($user,$identity='child',$parentId=null,Request $filter=null){
         $qZ = Zone::where('status',1)->where('company_id',$user->company_id)->where('is_deleted',0);
         if($identity){
             $qZ->where('identity',$identity);
@@ -363,7 +363,7 @@ class GeneralSettingService
     }
 
     public static function optionsTransferStatus(){
-        return TransferStatus::options();
+        return TransferStatus::optionsTransfer();
     }
 
     public static function optionsPickupStatus($user){
@@ -739,7 +739,7 @@ class GeneralSettingService
         ];
     }
 
-    public static function optionsPackage(int $locationId,array $statusIds=[5,6,10]){
+    public static function optionsPackage(int $locationId,array $statusIds=[5,6,10,22]){
         return Package::where('is_deleted',false)
         ->whereIn('status_id',$statusIds)
         ->where('warehouse_id',$locationId)
@@ -761,6 +761,14 @@ class GeneralSettingService
                 'value' => 'USD-KHR'
             ]
         ];
+    }
+
+    public static function optionsTransferByLocation(int $fromLocationId,int $toLocationId){
+        return ($fromLocationId && $toLocationId) ? PackageTransfer::where('is_deleted',false)
+        ->where('from_location_id',$fromLocationId)
+        ->where('to_location_id',$toLocationId)
+        ->select('id','code')
+        ->get():[];
     }
 
     public static function paymentStatus($lang='en'){

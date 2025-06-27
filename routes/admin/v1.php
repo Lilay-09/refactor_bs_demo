@@ -247,6 +247,7 @@ Route::middleware(['jwt','localize','userAccess:admin'])->prefix('admin/v1/{lang
             Route::put('{id}',[TransferController::class,'updateTransfer']);
             Route::delete('{id}',[TransferController::class,'deleteTransfer']);
         });
+        Route::post('{id}/receive',[TransferController::class,'createReceive']);
     });
 
     Route::prefix('xrate')->group(function(){
@@ -590,6 +591,7 @@ Route::middleware(['jwt','localize','userAccess:admin'])->prefix('admin/v1/{lang
             Route::get('dailyMerchant',[GeneralSettingController::class,'getOptionsDailyActiveMerchant']);
             Route::get('gender',[GeneralSettingController::class,'getOptionsGender']);
             Route::get('warehouse/{location_id}/package',[GeneralSettingController::class,'getOptionsPackage']);
+            Route::get('transfer',[GeneralSettingController::class,'getOptionsTransferByLocations']);
         });
 
         Route::prefix('filter')->group(function(){

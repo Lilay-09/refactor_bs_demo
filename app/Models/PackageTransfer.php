@@ -12,6 +12,7 @@ class PackageTransfer extends Model
     protected $table = 'package_transfers';
     protected $fillable = [
         'transfer_datetime',
+        'code',
         'est_arrive_datetime',
         'transfer_datetime',
         'transfer_qty',
