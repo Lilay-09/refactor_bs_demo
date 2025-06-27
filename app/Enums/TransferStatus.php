@@ -26,4 +26,17 @@ enum TransferStatus: int
             self::cases()
         );
     }
+
+    public static function optionsTransfer():array{
+        return array_map(
+            fn($case) => [
+                'value' => $case->value,
+                'label' => $case->label(),
+            ],
+            [
+                self::PENDING,
+                self::IN_TRANSIT
+            ]
+        );
+    }
 }

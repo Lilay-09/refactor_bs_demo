@@ -12,6 +12,7 @@ interface TransferService
     public function getOneTransfer(int $id,object $authUser):object;
     public function deleteTransfer(int $id,object $authuser):object;
     public function getTransfers(Request $req,object $authUser):object;
+    public function createReceive(int $id,Request $req,object $authUser):object;
     // public function getAvailableTransfer(Request $req,object $authUser):object;
 }
 
