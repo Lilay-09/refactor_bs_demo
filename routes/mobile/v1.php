@@ -54,8 +54,10 @@ Route::middleware(['jwtDriver','localize'])->prefix('driver/v1/{lang}')->group(f
         Route::get('accepted/pickup',[HomeScreenController::class,'getAcceptedPickup']);
         Route::get('accepted/pickup/{order_id}',[HomeScreenController::class,'getOneAcceptedPickup']);
         Route::get('accepted/delivery',[HomeScreenController::class,'getDelivery']);
+        Route::get('accepted/deliveries/packages',[HomeScreenController::class,'getDeliveriesPackages']);
         Route::get('accepted/delivery/{trip_id}/package',[HomeScreenController::class,'getDeliveryItems']);
-        Route::put('accepted/delivery/{trip_id}/package/sort',[HomeScreenController::class,'sortPackages']);
+        Route::put('accepted/delivery/package/{id}/self-notes',[HomeScreenController::class,'editSelfNotes']);
+        Route::put('accepted/delivery/package/sort',[HomeScreenController::class,'sortPackages']);
         Route::put('accepted/delivery/{order_id}/package/{package_ref}/contact',[HomeScreenController::class,'markPackageContact']);
         Route::post('accepted/pickup/{order_id}',[HomeScreenController::class,'updateAcceptedOrder']);
         Route::post('acceptOrder/{order_id}',[HomeScreenController::class,'acceptOrder']);

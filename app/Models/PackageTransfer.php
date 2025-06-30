@@ -22,6 +22,7 @@ class PackageTransfer extends Model
         'driver_phone',
         'plate_number',
         'transfer_uid',
+        'vehicle_type',
         'remarks',
         'location_type',
         'status_id',
@@ -43,7 +44,6 @@ class PackageTransfer extends Model
     public function getStatusAttribute(): string{
         return TransferStatus::tryFrom($this->status_id)->label();
     }
-
 
     public function fromWarehouse(){
         return $this->belongsTo(Warehouse::class,'from_location_id','id');

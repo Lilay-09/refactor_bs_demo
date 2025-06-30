@@ -99,6 +99,7 @@ return new class extends Migration
             $table->decimal('cod_fee')->default(0);
             $table->decimal('driver_cod_usd',15,2);
             $table->decimal('driver_cod_khr',15,2);
+            $table->unsignedBigInteger('prev_status_id')->nullable();
 
             $table->foreign('status_id')->references('id')->on('tracking_statuses')->onDelete('cascade');
             $table->foreign('order_id')->references('id')->on('orders')->onDelete('cascade');

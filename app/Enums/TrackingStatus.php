@@ -43,6 +43,8 @@ enum TrackingStatus:int
     case IN_TRANSIT = 22;
 
     case RETURNED = 23;
+    case DRAFT = 24;
+    case RESERVE = 25;
 
 
     public static function returnable():array{

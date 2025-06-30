@@ -27,4 +27,8 @@ class PackageTransferReceive extends Model
         'deleted_uid',
         'deleted_datetime'
     ];
+
+    public function receiveItems(){
+        return $this->hasMany(PackageTransferReceiveItem::class,'package_transfer_receive_id');
+    }
 }

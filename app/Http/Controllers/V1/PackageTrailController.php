@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\V1;
 
 use ApiResponse;
-use App\Enums\Enums\TrackingStatus;
+use App\Enums\TrackingStatus;
 use App\Http\Controllers\Controller;
 use App\Jobs\SendNotificationJob;
 use App\Models\Delivery;
@@ -51,7 +51,7 @@ class PackageTrailController extends Controller
         // ->whereNotIn('status_id',[]) // at warehouse
         ->where('company_id',$user->company_id)
         ->where(function($q){
-            $q->whereNotIn('status_id',[9,11])->whereNull('returned_uid');
+            $q->whereNotIn('status_id',[9,11,12])->whereNull('returned_uid');
         })
         // ->selectRaw('merchant_id,order_id,id,taxi_fee,delivery_type,qr_code,price,driver_id,product_type,dim_z,dim_x,dim_y,status_id,failed_datetime,failure_notes,payer,cod,delivery_fee,receiver_address,zone_code,zone_name,receiver_name,receiver_phone,delivered_datetime,assign_driver_datetime,arrive_warehouse_datetime,driver_total,merchant_total,billed_kg,actual_kg,created_at')
         ->orderByRaw('(status_id = ?) DESC', [5])
@@ -65,9 +65,10 @@ class PackageTrailController extends Controller
         ");
         $select = ['merchant_id','order_id','id','taxi_fee','delivery_type','qr_code','price','driver_id','product_type','dim_z','dim_x','dim_y','status_id','failed_datetime','failure_notes','payer','cod','delivery_fee','receiver_address','zone_code','zone_name','receiver_name','receiver_phone','delivered_datetime','assign_driver_datetime','arrive_warehouse_datetime','driver_total','merchant_total','billed_kg','actual_kg','created_at'];
         if($warehouse_id){
-            $query->whereHas('order',function($q) use($warehouse_id){
-                $q->where('warehouse_id',$warehouse_id);
-            });
+            $query->where('warehouse_id',$warehouse_id);
+            // $query->whereHas('order',function($q) use($warehouse_id){
+            //     $q->where('warehouse_id',$warehouse_id);
+            // });
         }
         if($zoneCode) {
             $query->where('zone_code',$zoneCode);
@@ -299,7 +300,7 @@ class PackageTrailController extends Controller
         }
         $package->update([
             'returned_uid' => $driverId,
-            'status_id' => TrackingStatus::RETURNED, // returned
+            'status_id' => TrackingStatus::RETURNED->value, // returned
             'returned_datetime' => now(),
             'update_uid' => $user->id,
         ]);
@@ -417,10 +418,29 @@ class PackageTrailController extends Controller
         ->with('merchant:id,username,phone')
         // ->select(['id','status_id','merchant_id','driver_id','assign_uid','assign_driver_datetime','receiver_phone','order_id'])
         ->find($id);
-        if(!$package) return ApiResponse::NotFound(__('messages.not_found',['info' => 'Package','khInfo' => 'កញ្ចប់']));
-        if($package->status_id == 9) return ApiResponse::Duplicated(__('messages.error',['info' => 'This package is already delivered']));
-        if($package->status_id == 19) return ApiResponse::Duplicated(__('messages.error',['info' => 'This package is already marked as failed with fee']));
-        if($package->status_id == 11) return ApiResponse::Duplicated(__('messages.error',['info' => 'This package is already returned']));
+        if(!$package) {
+            return ApiResponse::NotFound(__('messages.not_found',['info' => 'Package','khInfo' => 'កញ្ចប់']));
+        }
+        if($package->status_id == 9) {
+            return ApiResponse::Duplicated(__('messages.error',[
+                'info' => 'This package is already delivered'
+            ]));
+        }
+        if($package->status_id == 19) {
+            return ApiResponse::Duplicated(__('messages.error',[
+                'info' => 'This package is already marked as failed with fee'
+            ]));
+        }
+        if($package->status_id == 11) {
+            return ApiResponse::Duplicated(__('messages.error',[
+                'info' => 'This package is already returned'
+            ]));
+        }
+        if($package->status_id == 12) {
+            return ApiResponse::Duplicated(__('messages.error',[
+                'info' => 'This package is in transit'
+            ]));
+        }
         if($package->driver_id == $driver_id && $package->status_id == 6) return ApiResponse::Duplicated(__('messages.error',[
             'info' => 'It seems like you are trying to assign this package to the same driver',
             'khInfo' => 'កញ្ចប់បានចាត់តាំងរួចម្ដងហើយ'
