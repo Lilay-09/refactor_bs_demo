@@ -14,7 +14,9 @@ use App\Models\PackageAttachment;
 use App\Services\CloudMessagingService;
 use App\Services\GeneralSettingService;
 use App\Services\PickupCenterService;
+use App\Services\PickupCenterServiceImpl;
 use App\Services\UserService;
+use App\Services\V1\FleetServiceImpl;
 use Cache;
 use DataResponse;
 use DB;
@@ -22,6 +24,7 @@ use Exception;
 use Helper;
 use Illuminate\Http\Request;
 use Log;
+use WebSocket\Client;
 
 
 class GeneralSettingController extends Controller
@@ -222,10 +225,10 @@ class GeneralSettingController extends Controller
             $updateArr['assign_driver_datetime'] = now();
             $notes = $package->tracking_notes."|[$user->id]Driver ($user->username) scan on delivery (".Helper::getDateTime().")";
             // $notifRequpdateArr['tracking_notes'] = $notes;
-            $pckTl = new PackageTrailController();
+            $pckTl = new PickupCenterServiceImpl();
             // DB::beginTransaction();
             // try{
-                $trip = $pckTl->createOrUpdateTrip($user->id,$package->id,$package->drivervehicle_type,$user,$notes,6,'assign');
+                $trip = $pckTl->createOrUpdateTrip($user->id,$package->id,$package->drivervehicle_type,$user,$notes,6,'assign',$package);
                 if($trip->error) return ApiResponse::flex($trip);
                 // DB::commit();
             // }catch(Exception $e){
@@ -279,6 +282,13 @@ class GeneralSettingController extends Controller
         }
         // if(empty($updateArr)) return ApiResponse::JsonResult(null,__('messages.updated'));
         $package->update($updateArr);
+        $client = new Client("ws://192.168.18.135:3000/api/ws");
+        $client->send(json_encode([
+            'topic' => 'arrizon',
+            'type' => 'receive',
+            'message' => 17
+        ]));
+        $client->close();
         return ApiResponse::JsonResult(null,__('messages.updated'));
     }
 
@@ -313,7 +323,7 @@ class GeneralSettingController extends Controller
         }else{
             // $today = now();
             // return $requester_id;
-            $fleet = new FleetManagementController();
+            $fleet = new FleetServiceImpl();
             $fleetArr = new Request([
                 'packages' => [
                     [

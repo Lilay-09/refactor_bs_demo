@@ -123,7 +123,7 @@ class TransferServiceImpl implements TransferService
                     'status_id' => $isTransit ? TrackingStatus::IN_TRANSIT->value : TrackingStatus::PENDING_DEL->value,
                 ]);
             }
-            // DB::commit();
+            DB::commit();
             return DataResponse::JsonResult(null,false,__('messages.created'));
         }catch(Exception $e){
             DB::rollBack();
@@ -446,16 +446,20 @@ class TransferServiceImpl implements TransferService
         $qR = PackageTransferReceive::query()
         ->where('is_deleted',false)
         ->with([
-            'transfer:id,transfer_datetime',
+            'transfer:id,transfer_datetime,status_id',
             'warehouse:id,name_en',
             'fromWarehouse:id,name_en'
         ])
         ->orderByDesc('id');
         $select = ['id','code','location_id','from_location_id','qty','receive_date','package_transfer_id'];
         $callback = function($q){
-            $q->transfer_date = Helper::dateDMY($q->transfer_datetime);
             $q->warehouse_name = $q->warehouse->name_en;
             $q->from_warehouse_name = $q->fromWarehouse->name_en;
+            if($q->transfer){
+                $q->transfer_date = Helper::dateDMY($q->transfer->transfer_datetime);
+                $q->status = TransferStatus::tryFrom($q->transfer->status_id)->label();
+                $q->status_id = $q->transfer->status_id;
+            }
             $q->makeHidden(['transfer','warehouse','fromWarehouse']);
             return $q;
         };

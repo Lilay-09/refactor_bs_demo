@@ -346,6 +346,11 @@ class GeneralSettingController extends Controller
         ]);
     }
 
+    public function getOptionsWarehouseByBranch(Request $req){
+        $user = auth()->user();
+        return ApiResponse::JsonResult($this->gs::optionsWarehouse($user,$req->branch_id));
+    }
+
     public function getOptionsZoneByPriceListNameId(Request $req){
         $user = UserService::getAuthUser();
         $id = $req->id ?? null;

@@ -17,6 +17,7 @@
         "mpdf/mpdf": "^8.2",
         "picqer/php-barcode-generator": "^2.4",
         "predis/predis": "^2.3",
+        "textalk/websocket": "^1.5",
         "tymon/jwt-auth": "^2.1"
     },
     "require-dev": {
