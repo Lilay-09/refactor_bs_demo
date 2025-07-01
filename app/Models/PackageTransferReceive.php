@@ -11,6 +11,7 @@ class PackageTransferReceive extends Model
 
     protected $table = 'package_transfer_receives';
     protected $fillable = [
+        'package_transfer_id',
         'location_id',
         'from_location_id',
         'receive_uid',
@@ -30,5 +31,16 @@ class PackageTransferReceive extends Model
 
     public function receiveItems(){
         return $this->hasMany(PackageTransferReceiveItem::class,'package_transfer_receive_id');
+    }
+
+    public function transfer(){
+        return $this->belongsTo(PackageTransfer::class,'package_transfer_id');
+    }
+
+    public function warehouse(){
+        return $this->belongsTo(Warehouse::class,'location_id');
+    }
+    public function fromWarehouse(){
+        return $this->belongsTo(Warehouse::class,'from_location_id');
     }
 }

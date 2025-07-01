@@ -14,7 +14,6 @@ class PackageTransfer extends Model
         'transfer_datetime',
         'code',
         'est_arrive_datetime',
-        'transfer_datetime',
         'transfer_qty',
         'transfer_out_qty',
         'driver_id',

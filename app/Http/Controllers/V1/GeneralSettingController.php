@@ -388,6 +388,10 @@ class GeneralSettingController extends Controller
         return ApiResponse::JsonResult($this->gs::optionsPackage($req->location_id,[5,10,12]));
     }
 
+    public function getOptionsPackageTransfer(Request $req){
+        return ApiResponse::JsonResult($this->gs::optionsPackage($req->location_id,[5,10]));
+    }
+
     public function getOptionsTransferByLocations(Request $req){
         return ApiResponse::JsonResult($this->gs::optionsTransferByLocation($req->from_id,$req->to_id));
     }

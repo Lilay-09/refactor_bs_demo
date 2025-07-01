@@ -593,7 +593,7 @@ Route::middleware(['jwt','localize','userAccess:admin'])->prefix('admin/v1/{lang
             Route::get('payer',[GeneralSettingController::class,'getOptionsPayer']);
             Route::get('dailyMerchant',[GeneralSettingController::class,'getOptionsDailyActiveMerchant']);
             Route::get('gender',[GeneralSettingController::class,'getOptionsGender']);
-            Route::get('warehouse/{location_id}/package',[GeneralSettingController::class,'getOptionsPackage']);
+            Route::get('warehouse/{location_id}/package',[GeneralSettingController::class,'getOptionsPackageTransfer']);
             Route::get('transfer/location',[GeneralSettingController::class,'getOptionsTransferByLocations']);
         });
 

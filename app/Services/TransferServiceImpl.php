@@ -95,6 +95,7 @@ class TransferServiceImpl implements TransferService
         }
         unset($inputs['transfer_items']);
         // return DataResponse::JsonResult($inputs);
+        // Log::info($req->all());
 
         try{
             DB::beginTransaction();
@@ -122,7 +123,7 @@ class TransferServiceImpl implements TransferService
                     'status_id' => $isTransit ? TrackingStatus::IN_TRANSIT->value : TrackingStatus::PENDING_DEL->value,
                 ]);
             }
-            DB::commit();
+            // DB::commit();
             return DataResponse::JsonResult(null,false,__('messages.created'));
         }catch(Exception $e){
             DB::rollBack();
@@ -443,9 +444,22 @@ class TransferServiceImpl implements TransferService
 
     public function getReceiveTransfers(Request $req, object $authUser): object{
         $qR = PackageTransferReceive::query()
-        ->where('is_deleted',false);
-        $select = ['*'];
-        return DataResponse::PaginationV1($qR,$req,'',[],1000,null,$select);
+        ->where('is_deleted',false)
+        ->with([
+            'transfer:id,transfer_datetime',
+            'warehouse:id,name_en',
+            'fromWarehouse:id,name_en'
+        ])
+        ->orderByDesc('id');
+        $select = ['id','code','location_id','from_location_id','qty','receive_date','package_transfer_id'];
+        $callback = function($q){
+            $q->transfer_date = Helper::dateDMY($q->transfer_datetime);
+            $q->warehouse_name = $q->warehouse->name_en;
+            $q->from_warehouse_name = $q->fromWarehouse->name_en;
+            $q->makeHidden(['transfer','warehouse','fromWarehouse']);
+            return $q;
+        };
+        return DataResponse::PaginationV1($qR,$req,'',[],1000,$callback,$select);
     }
 
     public function getReceiveTransferById(int $id, object $authUser): object{
