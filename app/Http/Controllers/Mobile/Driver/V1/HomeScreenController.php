@@ -36,6 +36,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Log;
 use Str;
+use WebSocket\Client;
 
 class HomeScreenController extends Controller
 {

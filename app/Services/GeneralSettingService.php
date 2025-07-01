@@ -352,11 +352,14 @@ class GeneralSettingService
         }
         return $statuses;
     }
-    public static function optionsWarehouse($user){
+    public static function optionsWarehouse($user,$branch_id=null){
         $qW = Warehouse::where('is_deleted',0)->where('company_id',$user->company_id)
         ->select('name_en as name','id')->orderByDesc('id');
         if(!$user->system_admin){
             $qW->where('branch_id',$user->branch_id);
+        }
+        if($branch_id){
+            $qW->where('branch_id',$branch_id);
         }
 
         return $qW->get();
