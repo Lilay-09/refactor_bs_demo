@@ -574,6 +574,7 @@ class ReportController extends Controller
         $user = UserService::getAuthUser();
         $obj =(object)[
             'operators' => GeneralSettingService::optionsOperator($user),
+            'branches' => GeneralSettingService::optionsBranch()
         ];
         return ApiResponse::JsonResult($obj);
     }
@@ -581,6 +582,7 @@ class ReportController extends Controller
         $user = UserService::getAuthUser();
         $obj =(object)[
             'statuses' => GeneralSettingService::optionsTrackingStatus($user,[],[5,6,9,10,11,19]),
+            'branches' => GeneralSettingService::optionsBranch()
         ];
         return ApiResponse::JsonResult($obj);
     }
@@ -590,6 +592,7 @@ class ReportController extends Controller
         $obj =(object)[
             'warehouses' => GeneralSettingService::optionsWarehouse($user),
             'merchants' => GeneralSettingService::optionsMerchant($user),
+            'branches' => GeneralSettingService::optionsBranch()
         ];
         return ApiResponse::JsonResult($obj);
     }
@@ -598,6 +601,7 @@ class ReportController extends Controller
         $user = UserService::getAuthUser();
         $obj =(object)[
             'merchants' => GeneralSettingService::optionsMerchant($user),
+            'branches' => GeneralSettingService::optionsBranch()
         ];
         return ApiResponse::JsonResult($obj);
     }
@@ -1549,7 +1553,8 @@ class ReportController extends Controller
         $user = UserService::getAuthUser();
         $obj = [
             'warehouses' => GeneralSettingService::optionsWarehouse($user),
-            'drivers' => GeneralSettingService::optionsDriver($user)
+            'drivers' => GeneralSettingService::optionsDriver($user),
+            'branches' => GeneralSettingService::optionsBranch()
         ];
         return ApiResponse::JsonResult($obj);
     }
@@ -1559,6 +1564,7 @@ class ReportController extends Controller
         $obj = [
             'warehouses' => GeneralSettingService::optionsWarehouse($user),
             // 'merchants' => GeneralSettingService::optionsMerchant($user)
+            'branches' => GeneralSettingService::optionsBranch()
         ];
         return ApiResponse::JsonResult($obj);
     }
@@ -1566,7 +1572,8 @@ class ReportController extends Controller
         $user = UserService::getAuthUser();
         $obj = [
             'warehouses' => GeneralSettingService::optionsWarehouse($user),
-            'transaction_types' => GeneralSettingService::optionsTransactionType()
+            'transaction_types' => GeneralSettingService::optionsTransactionType(),
+            'branches' => GeneralSettingService::optionsBranch()
         ];
         return ApiResponse::JsonResult($obj);
     }
@@ -1575,7 +1582,8 @@ class ReportController extends Controller
         $user = UserService::getAuthUser();
         $obj = [
             'warehouses' => GeneralSettingService::optionsWarehouse($user),
-            'statuses' => GeneralSettingService::optionsUserStatus()
+            'statuses' => GeneralSettingService::optionsUserStatus(),
+            'branches' => GeneralSettingService::optionsBranch()
         ];
         return ApiResponse::JsonResult($obj);
     }

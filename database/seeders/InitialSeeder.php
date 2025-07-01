@@ -61,8 +61,6 @@ class InitialSeeder extends Seeder
         'Khan Kandal',
     ];
 
-
-
     public function run()
     {
         $userId  = DB::table('users')->insertGetId([
@@ -248,13 +246,13 @@ class InitialSeeder extends Seeder
         //warehouse
         DB::table('warehouses')->insert([
             [
-                'name_en' => 'Main Warehosue',
+                'name_en' => 'Main Warehosue 1',
                 'shortcut' => 'NGW1',
                 'company_id' => $comapanyId,
                 'branch_id' => $branchId
             ],
             [
-                'name_en' => 'Main Warehosue',
+                'name_en' => 'Main Warehosue 2',
                 'shortcut' => 'NGW2',
                 'company_id' => $comapanyId,
                 'branch_id' => 2
@@ -488,6 +486,26 @@ class InitialSeeder extends Seeder
                 'id' => 23,
                 'name' => 'Returned',
                 'stage' => 'delivery',
+                'hidden' => false,
+                'create_uid' => $userId,
+                'update_uid' => $userId,
+                'branch_id' => $branchId,
+                'company_id' => $comapanyId,
+            ],
+            [
+                'id' => 24,
+                'name' => 'Draft',
+                'stage' => 'prepare',
+                'hidden' => false,
+                'create_uid' => $userId,
+                'update_uid' => $userId,
+                'branch_id' => $branchId,
+                'company_id' => $comapanyId,
+            ],
+            [
+                'id' => 25,
+                'name' => 'Reserve',
+                'stage' => 'prepare',
                 'hidden' => false,
                 'create_uid' => $userId,
                 'update_uid' => $userId,

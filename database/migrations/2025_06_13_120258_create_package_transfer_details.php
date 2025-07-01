@@ -16,6 +16,7 @@ return new class extends Migration
         Schema::create('package_transfer_details', function (Blueprint $table) {
             $this->AddBaseFields($table);
             $table->unsignedBigInteger('package_transfer_id');
+            $table->unsignedBigInteger('status_id');
             $table->unsignedBigInteger('package_id');
         });
     }

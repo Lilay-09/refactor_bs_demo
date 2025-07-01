@@ -37,7 +37,7 @@ class AuthController extends Controller
             $q->where('email', $account)
             // ->orWhere('phone', $account)
             ->orWhere('login_name', $account);
-        })->selectRaw('photo_file_name,username,email,phone,id,password,system_admin,lock,company_id,account_type,login_name,delete_account')->first();
+        })->selectRaw('code,photo_file_name,username,email,phone,id,password,system_admin,lock,company_id,account_type,login_name,delete_account')->first();
         if(!$user) return  ApiResponse::NotFound('Invalid Username or Password');
         $systemAdmin = $user->system_admin ?? false;
         $isLock = $user->lock ?? false;
@@ -89,6 +89,7 @@ class AuthController extends Controller
         // $data['token'] = $token;
         $data = (object)[];
         $data->id = $user->id;
+        $data->code = $user->code;
         $data->name = $user->id;
         $data->username = $user->username;
         $data->profile = Helper::getImageUrl($user->photo_file_name,$user->company_id,'user_profile');

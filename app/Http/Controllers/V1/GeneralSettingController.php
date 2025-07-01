@@ -170,7 +170,8 @@ class GeneralSettingController extends Controller
         $user = UserService::getAuthUser();
         $obj = [
             'statuses' => $this->gs::optionsUserStatus(),
-            'employee_types' => $this->gs::optionsEmployeeType()
+            'employee_types' => $this->gs::optionsEmployeeType(),
+            'branches' => $this->gs::optionsBranch()
         ];
         return ApiResponse::JsonResult($obj);
     }
@@ -328,7 +329,8 @@ class GeneralSettingController extends Controller
             'vehicle_types' => $this->gs::optionsVehicleType($user),
             'drivers' => $this->gs::optionsDriver($user),
             'product_types' => $this->gs::optionsProductType($user),
-            'default_addresses' => $this->gs::optionsDefaultAddress()
+            'default_addresses' => $this->gs::optionsDefaultAddress(),
+            'branches' => $this->gs::optionsBranch()
         ];
         return ApiResponse::JsonResult($obj);
     }
@@ -374,8 +376,20 @@ class GeneralSettingController extends Controller
         ]);
     }
 
+    public function getFormReceive(){
+        $user = auth()->user();
+        return ApiResponse::JsonResult([
+            'warehouses' => $this->gs::optionsWarehouse($user),
+            'statuses' => $this->gs::optionsTransferStatus()
+        ]);
+    }
+
     public function getOptionsPackage(Request $req){
-        return ApiResponse::JsonResult($this->gs::optionsPackage($req->location_id));
+        return ApiResponse::JsonResult($this->gs::optionsPackage($req->location_id,[5,10,12]));
+    }
+
+    public function getOptionsPackageTransfer(Request $req){
+        return ApiResponse::JsonResult($this->gs::optionsPackage($req->location_id,[5,10]));
     }
 
     public function getOptionsTransferByLocations(Request $req){
@@ -390,7 +404,8 @@ class GeneralSettingController extends Controller
             'statuses' => $this->gs::optionsTrackingStatus($user,[],[5,6,10,19],null,null,$req->lang),
             'warehouses' => $this->gs::optionsWarehouse($user),
             'drivers' => $this->gs::optionsDriver($user),
-            'zones' => $this->gs::optionsZone($user)
+            'zones' => $this->gs::optionsZone($user),
+            'branches' => $this->gs::optionsBranch()
         ];
         return ApiResponse::JsonResult($obj);
     }
@@ -400,6 +415,7 @@ class GeneralSettingController extends Controller
         $obj = (object)[
             'merchants' => $this->gs::optionsMerchant($user),
             'statuses' => $this->gs::paymentStatus(),
+            'branches' => $this->gs::optionsBranch()
         ];
         return ApiResponse::JsonResult($obj);
     }
@@ -409,6 +425,7 @@ class GeneralSettingController extends Controller
         $obj = (object)[
             'merchants' => $this->gs::optionsMerchant($user),
             'transaction_types' => $this->gs::optionsTransactionType(),
+            'branches' => $this->gs::optionsBranch()
         ];
         return ApiResponse::JsonResult($obj);
     }
@@ -419,7 +436,8 @@ class GeneralSettingController extends Controller
             'statuses' => $this->gs::optionsTrackingStatus($user,[15,17],[],'fleet',null,$req->lang),
             'warehouses' => $this->gs::optionsWarehouse($user),
             'drivers' => $this->gs::optionsDriver($user),
-            'zones' => $this->gs::optionsZone($user)
+            'zones' => $this->gs::optionsZone($user),
+            'branches' => $this->gs::optionsBranch()
         ];
         return ApiResponse::JsonResult($obj);
     }
@@ -443,7 +461,8 @@ class GeneralSettingController extends Controller
             'referrers' => $this->gs::optionsMerchant($user),
             'banks' => $this->gs::optionsBank($user),
             'cities' => $this->gs::optionsCity($user),
-            'product_types' => $this->gs::optionsProductType($user)
+            'product_types' => $this->gs::optionsProductType($user),
+            'branches' => $this->gs::optionsBranch()
         ];
         return ApiResponse::JsonResult($obj);
     }
@@ -462,7 +481,8 @@ class GeneralSettingController extends Controller
             'vehicle_types' => $this->gs::optionsVehicleType($user),
             'warehouses' => $this->gs::optionsWarehouse($user),
             'banks' => $this->gs::optionsBank($user),
-            'apply_commissions' => $this->gs::optionsApplyCommission()
+            'apply_commissions' => $this->gs::optionsApplyCommission(),
+            'branches' => $this->gs::optionsBranch()
         ];
         return ApiResponse::JsonResult($obj);
     }
@@ -507,6 +527,7 @@ class GeneralSettingController extends Controller
             'drivers' => $this->gs::optionsDriver($user),
             'delivery_types' => $this->gs::optionsDeliveryType(),
             'payment_statuses' => $this->gs::paymentStatus(),
+            'branches' => $this->gs::optionsBranch(),
             'statuses' => $this->gs::optionsTrackingStatus($user,[],[9,11,19],'delivery',null,$req->lang)
         ];
         return ApiResponse::JsonResult($obj);

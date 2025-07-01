@@ -9,9 +9,11 @@ class PackageTransferDetail extends Model
 {
     // use HasFactory;
     protected $table = 'package_transfer_details';
+
     protected $fillable = [
         'id',
         'package_transfer_id',
+        'status_id',
         'package_id',
         'create_uid',
         'update_uid',
@@ -21,4 +23,8 @@ class PackageTransferDetail extends Model
         'deleted_uid',
         'deleted_datetime'
     ];
+
+    public function packageInfo(){
+        return $this->belongsTo(Package::class,'package_id');
+    }
 }

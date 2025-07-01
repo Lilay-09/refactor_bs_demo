@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Mobile\Driver\V1;
 
 use ApiResponse;
+use App\DTO\Mobile\DeliveryTripsPackagesDTO;
 use App\DTO\Mobile\HomePaymentDTO;
 use App\DTO\Mobile\HomeReturnPackageDTO;
 use App\Enums\TrackingStatus;
@@ -10,7 +11,6 @@ use App\Http\Controllers\Controller;
 use App\Http\Controllers\Mobile\V1\GeneralSettingController;
 use App\Models\Delivery;
 use App\Models\DeliveryPackage;
-use App\Models\DriverCommission;
 use App\Models\EmergencyContact;
 use App\Models\FeedbackAnswer;
 use App\Models\FeedbackQuestion;
@@ -321,6 +321,65 @@ class HomeScreenController extends Controller
         };
 
         return ApiResponse::PaginationV1($query,$req,'',[],100,$callback);
+    }
+
+    public function getDeliveriesPackages(Request $req){
+        $user = UserService::getAuthUser();
+        $driverId = $user->id;
+        $qP = Package::query()
+        ->from('packages as p')
+        ->where('p.driver_id', $driverId)
+        ->whereIn('p.status_id', [6,9,10,19])
+        ->where('p.created_at', '>=', Carbon::now()->subDays(15))
+        ->whereExists(function ($q) {
+            $q->select(DB::raw(1))
+                ->from('delivery_packages as dp')
+                ->join('deliveries as d', 'd.id', 'dp.delivery_id')
+                ->whereColumn('dp.package_id', 'p.id')
+                ->where('dp.is_deleted', 0)
+                ->where('dp.has_swap', 0)
+                ->where('dp.delay_count', 0)
+                ->where(function ($q2) {
+                    $q2->where('d.finished', 0)
+                        ->orWhereDate('d.depart_datetime', Carbon::today());
+                });
+        })
+        ->join('users as d', 'd.id', 'p.driver_id')
+        ->join('users as m', 'm.id', 'p.merchant_id')
+        // ->join('tracking_statuses as ts', 'ts.id', 'p.status_id')
+        ->orderBy('p.driver_display_order', 'asc')
+        ->orderBy('p.status_id', 'desc');
+        $select = [
+            'p.driver_display_order','p.payer','p.receiver_address','p.extra_charge','p.id','p.delivered_datetime','p.failed_datetime',
+            'p.assign_driver_datetime','p.merchant_id','p.qr_code','p.price','p.cod','p.receiver_name','p.receiver_phone','p.zone_code',
+            'p.zone_name','d.username as driver_name','d.phone as driver_phone','m.username as merchant_name',
+            'm.phone as merchant_phone','p.id as package_id','p.zone_code','p.zone_name','p.delivery_fee as base_fee','p.driver_total',
+            'p.taxi_fee','p.product_type','p.status_id','p.driver_notes'
+        ];
+        $callback = function($q){
+            $q->status = TrackingStatus::tryFrom($q->status_id)->label();
+            $q->self_notes = $q->driver_notes;
+            $q->total = $q->driver_total;
+            return DeliveryTripsPackagesDTO::fromModel($q);
+        };
+
+        return ApiResponse::PaginationV1($qP,$req,'',[],250,$callback,$select);
+    }
+
+    public function editSelfNotes(Request $req){
+        $id = $req->id;
+        $driverId = $this->user->id;
+        $package = Package::where('is_deleted',false)
+        ->where('driver_id',$driverId)
+        ->find($id);
+        $notes = $req->notes ?? null;
+        if(!$package){
+            return ApiResponse::NotFound();
+        }
+        $package->update([
+            'driver_notes' => $notes
+        ]);
+        return ApiResponse::JsonResult(null,__('messages.saved'));
     }
 
     private function getTripTotalAmount($packages,$tripId){
@@ -804,42 +863,39 @@ class HomeScreenController extends Controller
     }
 
     public function sortPackages(Request $req){
-        $user = UserService::getAuthUser('driver');
-        $sortListIds = $req->sort_list;
+        // $user = UserService::getAuthUser('driver');
+        Log::info($req->all());
+        $sortListIds = $req->input('sort_list');
         if(empty($sortListIds)) return ApiResponse::ValidateFail(__('messages.info',[
             'info' => 'Sort list is required'
         ]));
         // $packageIds = Helper::pluckArrValue($sortList);
-        $packages = Package::where('is_deleted',0)->whereIn('id',$sortListIds)
+        $packages = Package::where('is_deleted',0)
+        ->whereIn('id',$sortListIds)
         ->select('id','driver_display_order')
         ->get()->keyBy('id');
         // return $packages;
+        $lastIdx = 1;
         DB::beginTransaction();
         try {
             foreach (array_values($sortListIds) as $index => $pkgId) {
                 if (!isset($packages[$pkgId])) {
-                    DB::rollBack();
+                    // DB::rollBack();
                     return ApiResponse::NotFound("Package row (" . ($index + 1) . ") not found!");
                 }
+                $lastIdx += $index + 1;
                 $packages[$pkgId]->update(['driver_display_order' => $index + 1]); // Efficient batch update
             }
+            Package::whereNotIn('id', $sortListIds)
+            ->where('driver_id',$this->user->id)
+            ->update(['driver_display_order' => $lastIdx]);
             DB::commit();
             return ApiResponse::JsonResult(null, 'Sorted');
         } catch (Exception $e) {
             DB::rollBack();
+            Log::error($e->getMessage());
             return ApiResponse::Error('Failed');
         }
-        // foreach($sortList as $sl){
-        //     if(!isset($sl['package_id'])) return ApiResponse::ValidateFail(__('messages.info',[
-        //         'info' => 'Package Identity is required'
-        //     ]));
-        //     $id = $sl['package_id'];
-        //     $package = Package::where('is_deleted',0)->where('driver_id',$user->id)->find($id);
-        //     if(!$package) return ApiResponse::ValidateFail(__('messages.not_found',[
-        //         'info' => 'Package'
-        //     ]));
-        // }
-        // $package = PackageService::getPackage($sl['package_id']);
     }
 
     public function booking(Request $req){

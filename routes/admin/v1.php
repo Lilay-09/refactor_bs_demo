@@ -247,7 +247,10 @@ Route::middleware(['jwt','localize','userAccess:admin'])->prefix('admin/v1/{lang
             Route::put('{id}',[TransferController::class,'updateTransfer']);
             Route::delete('{id}',[TransferController::class,'deleteTransfer']);
         });
-        Route::post('{id}/receive',[TransferController::class,'createReceive']);
+        Route::get('/receives',[TransferController::class,'getReceiveTransfers']);
+        Route::get('/receives/{id}',[TransferController::class,'getReceiveTransferById']);
+        Route::post('{id}/receives',[TransferController::class,'createReceive']);
+
     });
 
     Route::prefix('xrate')->group(function(){
@@ -590,8 +593,8 @@ Route::middleware(['jwt','localize','userAccess:admin'])->prefix('admin/v1/{lang
             Route::get('payer',[GeneralSettingController::class,'getOptionsPayer']);
             Route::get('dailyMerchant',[GeneralSettingController::class,'getOptionsDailyActiveMerchant']);
             Route::get('gender',[GeneralSettingController::class,'getOptionsGender']);
-            Route::get('warehouse/{location_id}/package',[GeneralSettingController::class,'getOptionsPackage']);
-            Route::get('transfer',[GeneralSettingController::class,'getOptionsTransferByLocations']);
+            Route::get('warehouse/{location_id}/package',[GeneralSettingController::class,'getOptionsPackageTransfer']);
+            Route::get('transfer/location',[GeneralSettingController::class,'getOptionsTransferByLocations']);
         });
 
         Route::prefix('filter')->group(function(){
@@ -601,6 +604,7 @@ Route::middleware(['jwt','localize','userAccess:admin'])->prefix('admin/v1/{lang
         });
         Route::prefix('form')->group(function(){
             Route::get('transfer',[GeneralSettingController::class,'getFormTransfer']);
+            Route::get('transfer/receive',[GeneralSettingController::class,'getFormReceive']);
             Route::get('user',[GeneralSettingController::class,'getFormUser']);
             Route::get('warehouse',[GeneralSettingController::class,'getFormWarehouse']);
             Route::get('zone/{exceptId}/assign',[GeneralSettingController::class,'getAssignZoneFormOptions']);

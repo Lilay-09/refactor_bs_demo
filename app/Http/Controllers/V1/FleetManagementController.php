@@ -84,6 +84,7 @@ class FleetManagementController extends Controller
             $delivery->total = $details->total;
             $delivery->total_delivered = Helper::getNumber($details->total_delivered + $details->total_failed_with_fee,2);//number_format($details->total_delivered + $details->total_failed_with_fee,2);
             $delivery->failed_count = $details->failed_count;
+            $delivery->delivered_count = $details->delivered_count;
             $delivery->delivery_count = $details->delivery_count;
             $delivery->failed_with_fee_count = $details->failed_with_fee_count;
             $delivery->package_count = $details->packages_count;
@@ -139,6 +140,7 @@ class FleetManagementController extends Controller
             'total_failed_with_fee' => Helper::getNumber($totalFailedWithFee,2),
             'failed_with_fee_count' => $failedWithFeeCount,
             'delivery_count' => $deliveryCount,
+            'delivered_count' => $deliveredCount,
             'packages_count' => $failedCount + $deliveryCount + $failedWithFeeCount + $deliveredCount
         ];
     }

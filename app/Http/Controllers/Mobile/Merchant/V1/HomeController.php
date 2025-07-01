@@ -20,7 +20,7 @@ use App\Services\AppSetting;
 use App\Services\CompanyProfileService;
 use App\Services\GeneralSettingService;
 use App\Services\Mobile\ReusableService;
-use App\Services\PickupCenterService;
+use App\Services\PickupCenterServiceImpl;
 use App\Services\TransactionService;
 use App\Services\UserService;
 use Cache;
@@ -39,7 +39,7 @@ class HomeController extends Controller
     }
     public function createBooking(Request $req){
         $user = UserService::getAuthUser('merchant');
-        $pck = new PickupCenterService();
+        $pck = new PickupCenterServiceImpl();
         $details = $req->details ?? [];
         $req->merge(['merchant_id' => $user->id]);
         if($details){

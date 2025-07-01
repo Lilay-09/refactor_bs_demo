@@ -74,7 +74,7 @@ class GeneralSettingService
         6 => 'កំពុងដឹក',
         9 => 'ជេាគជ័យ',
         10 => 'បរាជ័យ',
-        11 => 'ត្រឡប់',
+        11 => 'កំពុងត្រឡប់',
         19 => 'បរាជ័យគិតសេវា',
         16 => 'រូចរាល់​',
         14 => 'កំពុងដឹក'
@@ -650,6 +650,7 @@ class GeneralSettingService
 
     public static function priceByZone($zone_id,$user,$merchant_id=null,$delivery_type='normal'): object|null{
         if(!$delivery_type) $delivery_type = 'normal';
+        Log::info($zone_id);
         $priceList = PriceList::with(['zones'])
             ->where('status',1)
             // ->where('company_id',$user->company_id)
@@ -739,7 +740,7 @@ class GeneralSettingService
         ];
     }
 
-    public static function optionsPackage(int $locationId,array $statusIds=[5,6,10,22]){
+    public static function optionsPackage(int $locationId,array $statusIds=[5,6,10,12]){
         return Package::where('is_deleted',false)
         ->whereIn('status_id',$statusIds)
         ->where('warehouse_id',$locationId)
@@ -767,6 +768,7 @@ class GeneralSettingService
         return ($fromLocationId && $toLocationId) ? PackageTransfer::where('is_deleted',false)
         ->where('from_location_id',$fromLocationId)
         ->where('to_location_id',$toLocationId)
+        ->where('status_id','!=',TransferStatus::DELIVERED->value)
         ->select('id','code')
         ->get():[];
     }
