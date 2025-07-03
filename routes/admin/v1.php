@@ -575,6 +575,7 @@ Route::middleware(['jwt','localize','userAccess:admin'])->prefix('admin/v1/{lang
             Route::get('zone/{id}/subZone',[GeneralSettingController::class,'getOptionsSubZone']);
             Route::get('pickup/status',[GeneralSettingController::class,'getOptionsPickupStatus']);
             Route::get('driver',[GeneralSettingController::class,'getOptionsDriver']);
+            Route::get('warehouse/{warehouseId}/driver',[GeneralSettingController::class,'getOptionsDriver']);
             Route::get('zone/price/{zone_id}',[GeneralSettingController::class,'getPriceByZone']);
             Route::get('country',[GeneralSettingController::class,'getOptionsCountry']);
             Route::get('city',[GeneralSettingController::class,'getOptionsCity']);
