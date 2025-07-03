@@ -329,6 +329,22 @@ class TransferServiceImpl implements TransferService
         ]);
     }
 
+    public function driverScanReceive(object $authUser,int $packageId){
+        $isInTransitPkg = PackageTransferDetail::where('package_id',$packageId)
+        ->where('is_deleted',false)
+        ->orderByDesc('id')
+        ->first();
+        if(!$isInTransitPkg){
+            return DataResponse::JsonResult(null,false,'Passed');
+        }
+        $receiveTransfer = $this->createReceive($isInTransitPkg->package_transfer_id,new Request([
+            'receive_items' => [$packageId]
+        ]),$authUser);
+        if($receiveTransfer->error) return $receiveTransfer;
+        return DataResponse::JsonResult(null);
+
+    }
+
     public function createReceive(int $id, Request $req, object $authUser): object{
         $validate = $this->receivePackageValidator($req);
         if($validate->fails()){
@@ -379,10 +395,12 @@ class TransferServiceImpl implements TransferService
         $allReceive = 0;
         foreach($receiveItemIds as $itemId){
             if(!isset($existsPackageByKey[$itemId])){
+                ;
                 $allReceive += 1;
                 continue;
             }
             $availablePkg = $packagesByKey[$itemId] ?? null;
+
             if($availablePkg){
                 $updatePkg[] = [
                     'package_id' => $itemId,
@@ -392,6 +410,7 @@ class TransferServiceImpl implements TransferService
                 if($remainingQty>0){
                     $allReceive +=1;
                 }
+
             }
         }
         $inputs['qty'] = $transfer->transfer_out_qty;
@@ -399,7 +418,6 @@ class TransferServiceImpl implements TransferService
         $inputs['from_location_id'] = $transfer->from_location_id;
         $toLocationId = $transfer->to_location_id;
         $inputs['location_id'] = $toLocationId;
-        // Log::info($toLocationId);
         try{
             DB::beginTransaction();
             $receive = PackageTransferReceive::create($inputs);
@@ -430,10 +448,8 @@ class TransferServiceImpl implements TransferService
                 $transfer->status_id = TransferStatus::IN_TRANSIT->value;
             }
 
-            // $pkgs = Package::select('id','warehouse_id','status_id')->get();
             $transfer->save();
             DB::commit();
-            // Log::info($req->all());
             return DataResponse::JsonResult(null,false,__('messages.updated'));
         }catch(Exception $e){
             DB::rollBack();

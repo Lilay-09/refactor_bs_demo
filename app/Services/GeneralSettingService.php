@@ -375,9 +375,10 @@ class GeneralSettingService
         })->where('stage','pick')->selectRaw('id,name')->orderByDesc('id')->get();
     }
 
-    public static function optionsDriver($user,$vehicleType=null){
+    public static function optionsDriver($user,$vehicleType=null,$warehousId=null){
         $qD = User::where('is_deleted',0)->where('company_id',$user->company_id)->where('account_type','driver')->selectRaw('id,username,phone,name_km');
         if($vehicleType) $qD->where('vehicle_type','ilike',$vehicleType);
+        if($warehousId) $qD->where('warehouse_id',$warehousId);
         $drivers = $qD->orderByDesc('id')->get();
         foreach($drivers as $d){
             // $d->username = $d->username . '(' .$d->phone. ')';
