@@ -47,7 +47,7 @@ class HistoryController extends Controller
             ->join('tracking_statuses as trs', 'trs.id', 'p.status_id')
             ->selectRaw('
                 p.returned_uid, p.driver_id, p.qr_code, p.status_id, trs.name as status_code,
-                d.fleet_tracking_number, m.user_name as merchant_name, m.phone as merchant_phone,
+                d.fleet_tracking_number, m.username as merchant_name, m.phone as merchant_phone,
                 p.returned_datetime, p.failed_datetime, p.receiver_name, p.delivered_datetime,
                 p.receiver_address, p.receiver_phone, p.driver_total as total,p.zone_name
             ')
@@ -195,7 +195,7 @@ class HistoryController extends Controller
     //     // ->where('dp.has_swap',0)
     //     ->leftJoin('payments as pmt','pmt.id','p.driver_payment_id')
     //     ->join('tracking_statuses as trs','trs.id','p.status_id')
-    //     ->selectRaw('p.returned_uid,p.driver_id,p.qr_code,p.status_id,trs.name as status_code,d.fleet_tracking_number,m.user_name as merchant_name,m.phone as merchant_phone,p.returned_datetime,p.failed_datetime,p.receiver_name,p.delivered_datetime,p.receiver_address,p.receiver_phone,p.driver_total as total')
+    //     ->selectRaw('p.returned_uid,p.driver_id,p.qr_code,p.status_id,trs.name as status_code,d.fleet_tracking_number,m.username as merchant_name,m.phone as merchant_phone,p.returned_datetime,p.failed_datetime,p.receiver_name,p.delivered_datetime,p.receiver_address,p.receiver_phone,p.driver_total as total')
     //     ->where(function ($q) use ($userId,$statuses) {
     //         $q->whereIn('p.status_id', $statuses)
     //         ->orWhere(function ($subQuery) use ($userId) {

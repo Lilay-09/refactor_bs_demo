@@ -37,7 +37,7 @@ class CloudMessagingController extends Controller
     }
     public function getUserToken(Request $req){
         $user = UserService::getAuthUser();
-        $userToken = UserNotificationToken::orderByDesc('user_notification_tokens.id')->join('users as u','u.id','user_notification_tokens.user_id')->selectRaw('user_notification_tokens.id,user_notification_tokens.token,u.account_type,u.user_name,user_notification_tokens.os_name,user_notification_tokens.device_id')->get();
+        $userToken = UserNotificationToken::orderByDesc('user_notification_tokens.id')->join('users as u','u.id','user_notification_tokens.user_id')->selectRaw('user_notification_tokens.id,user_notification_tokens.token,u.account_type,u.username,user_notification_tokens.os_name,user_notification_tokens.device_id')->get();
         return ApiResponse::JsonResult($userToken);
     }
 }

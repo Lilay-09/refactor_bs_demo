@@ -13,7 +13,7 @@ class BranchServiceImpl implements BranchService
     public function getBranches(Request $req, object $authUser): object{
         $qB = Branch::query()
         ->where('is_deleted',false);
-        $select = ['id','name_en','address_en','staff_count','emergency_phone','branch_type_id'];
+        $select = ['id','name_en','address_en','bm_name_en','bm_phone','staff_count','emergency_phone','branch_type_id'];
         $callback = function ($q){
             $q->append('branch_type');
             return $q;
@@ -23,7 +23,7 @@ class BranchServiceImpl implements BranchService
 
     public function getOneBranch(int $id, object $authUser): object{
         $branch = Branch::where('is_deleted',false)
-        ->select(['id','name_en','address_en','staff_count','emergency_phone','branch_type_id'])
+        ->select(['id','name_en','address_en','bm_name_en','bm_phone','staff_count','emergency_phone','branch_type_id'])
         ->find($id);
         return DataResponse::JsonResult($branch,false,__('messages.Get List'));
     }
@@ -78,9 +78,10 @@ class BranchServiceImpl implements BranchService
         if(!$branch){
             return DataResponse::NotFound(__('messages.not_found'));
         }
-        if(User::where('is_deleted',false)->exists()){
+        if(User::where('is_deleted',false)->where('branch_id',$id)->exists()){
             return DataResponse::Forbidden(__('messages.info',[
-                'Please ensure there is no staff under branch before proceed this!'
+                'info' => 'Please ensure there is no staff under branch before proceed this!',
+                'khInfo' => 'Please ensure there is no staff under branch before proceed this!'
             ]));
         }
 

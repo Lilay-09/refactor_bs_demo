@@ -61,16 +61,16 @@ class InitialSeeder extends Seeder
         'Khan Kandal',
     ];
 
-
-
     public function run()
     {
         $userId  = DB::table('users')->insertGetId([
-            'first_name' => 'JS',
+            // 'id' => 1,
+            'first_name' => '',
             'last_name' => 'ADMIN',
             'has_account' => true,
-            'user_name' => 'JS Admin',
+            'username' => 'Admin',
             'phone' => '092335554',
+            'login_name' => 'admin',
             'email' => 'admin@gmail.com',
             'account_type' => 'admin',
             'gender' => 'M',
@@ -81,6 +81,27 @@ class InitialSeeder extends Seeder
             'branch_id'=>1, //* just default val
             'company_id' => 1 //* just default val
         ]);
+
+        DB::table('users')->insertGetId([
+            // 'id' => 2,
+            'first_name' => 'NG',
+            'last_name' => 'ADMIN',
+            'has_account' => true,
+            'username' => 'ngadmin',
+            'phone' => '093691531',
+            'login_name' => 'ngadmin',
+            'email' => 'ngadmin@gmail.com',
+            'account_type' => 'admin',
+            'gender' => 'M',
+            'password' => \Hash::make('ngx@123456'),
+            'system_admin' => true,
+            'create_uid' => 1, //* just default val
+            'update_uid' => 1, //* just default val
+            'branch_id'=>1, //* just default val
+            'company_id' => 1 //* just default val
+        ]);
+
+
 
         $comapanyId  = DB::table('companies')->insertGetId([
             'name_en' => 'School Root',
@@ -104,14 +125,27 @@ class InitialSeeder extends Seeder
             'update_uid' => $userId
         ]);
 
+        Helper::setRefCode('user_code_control','users','code',$branchId,$comapanyId,1,null,'NGA');
+
+        $branchId2 =  DB::table('branches')->insertGetId([
+            'name_en' => 'Second Branch',
+            'name_km' => 'សាខា2',
+            'address_en' => 'address',
+            'company_id' => $comapanyId,
+            'phone' => '092335554',
+            'description_en' => 'The initail branch',
+            'create_uid' => $userId,
+            'update_uid' => $userId
+        ]);
+
         //** Create Driver */
 
         $driverId = DB::table('users')->insertGetId([
             'first_name' => 'Driver',
             'has_account' => true,
-            'login_name' => 'driver',
+            'login_name' => '092233445',
             'last_name' => '',
-            'user_name' => 'Driver',
+            'username' => 'Driver',
             'phone' => '092233445',
             'email' => 'driver@gmail.com',
             'account_type' => 'driver',
@@ -127,7 +161,7 @@ class InitialSeeder extends Seeder
             'salary' => '450',
             'company_id' => $comapanyId
         ]);
-        Helper::setRefCode('user_code_control','users','code',$branchId,$comapanyId,$driverId,null,'JSD');
+        Helper::setRefCode('user_code_control','users','code',$branchId,$comapanyId,$driverId,null,'NGD');
 
         //** Create Merchant */
 
@@ -136,7 +170,7 @@ class InitialSeeder extends Seeder
             'last_name' => '',
             'login_name' => 'merchant',
             'has_account' => true,
-            'user_name' => 'Merchant',
+            'username' => 'Merchant',
             'phone' => '012465653',
             'email' => 'merchant@gmail.com',
             'account_type' => 'merchant',
@@ -149,7 +183,7 @@ class InitialSeeder extends Seeder
             'company_id' => $comapanyId
         ]);
 
-        Helper::setRefCode('user_code_control','users','code',$branchId,$comapanyId,$merchantId,null,'JSM');
+        Helper::setRefCode('user_code_control','users','code',$branchId,$comapanyId,$merchantId,null,'NGM');
 
 
         $roleId = DB::table('roles')->insertGetId([
@@ -176,10 +210,17 @@ class InitialSeeder extends Seeder
             'company_id' => $comapanyId,
         ]);
 
-        $userRoles = DB::table('user_roles')->insert([
+        // user ROLE
+        DB::table('user_roles')->insert([
             'user_id' => $userId,
             'role_id' => $roleId
         ]);
+
+        DB::table('user_roles')->insert([
+            'user_id' => 2,
+            'role_id' => $roleId
+        ]);
+        //
 
         DB::table('user_roles')->insert([
             'user_id' => $driverId,
@@ -200,19 +241,29 @@ class InitialSeeder extends Seeder
             'branch_id' => $branchId,
             'company_id' => $comapanyId,
         ]);
-        Helper::setRefCode('user_code_control','users','code',$branchId,$comapanyId,$userId,null,'JSA');
+        Helper::setRefCode('user_code_control','users','code',$branchId,$comapanyId,2,null,'NGA');
 
         //warehouse
         DB::table('warehouses')->insert([
-            'name_en' => 'Main Warehosue',
-            'company_id' => $comapanyId,
-            'branch_id' => $branchId
+            [
+                'name_en' => 'Main Warehosue 1',
+                'shortcut' => 'NGW1',
+                'company_id' => $comapanyId,
+                'branch_id' => $branchId
+            ],
+            [
+                'name_en' => 'Main Warehosue 2',
+                'shortcut' => 'NGW2',
+                'company_id' => $comapanyId,
+                'branch_id' => 2
+            ]
         ]);
 
         //** Tracking Status */
 
         DB::table('tracking_statuses')->insert([
             [
+                'id' => 1,
                 'name' => 'Available For Pick',
                 'stage' => 'pick',
                 'hidden' => false,
@@ -222,6 +273,7 @@ class InitialSeeder extends Seeder
                 'company_id' => $comapanyId,
             ],
             [
+                'id' => 2,
                 'name' => 'Picked',
                 'stage' => 'pick',
                 'hidden' => false,
@@ -231,6 +283,7 @@ class InitialSeeder extends Seeder
                 'company_id' => $comapanyId,
             ],
             [
+                'id' => 3,
                 'name' => 'Accepted For Pickup',
                 'stage' => 'pick',
                 'hidden' => false,
@@ -240,6 +293,7 @@ class InitialSeeder extends Seeder
                 'company_id' => $comapanyId,
             ],
             [
+                'id' => 4,
                 'name' => 'Picked And Booked',
                 'stage' => 'pick',
                 'hidden' => false,
@@ -249,6 +303,7 @@ class InitialSeeder extends Seeder
                 'company_id' => $comapanyId,
             ],
             [
+                'id' => 5,
                 'name' => 'At Warehouse',
                 'stage' => 'delivery',
                 'hidden' => false,
@@ -258,6 +313,7 @@ class InitialSeeder extends Seeder
                 'company_id' => $comapanyId,
             ],
             [
+                'id' => 6,
                 'name' => 'On Delivery',
                 'stage' => 'delivery',
                 'hidden' => false,
@@ -267,6 +323,7 @@ class InitialSeeder extends Seeder
                 'company_id' => $comapanyId,
             ],
             [
+                'id' => 7,
                 'name' => 'Pending',
                 'stage' => 'pick',
                 'hidden' => true,
@@ -276,6 +333,7 @@ class InitialSeeder extends Seeder
                 'company_id' => $comapanyId,
             ],
             [
+                'id' => 8,
                 'name' => 'Delayed',
                 'stage' => 'delivery',
                 'hidden' => false,
@@ -285,6 +343,7 @@ class InitialSeeder extends Seeder
                 'company_id' => $comapanyId,
             ],
             [
+                'id' => 9,
                 'name' => 'Delivered',
                 'stage' => 'delivery',
                 'hidden' => false,
@@ -294,6 +353,7 @@ class InitialSeeder extends Seeder
                 'company_id' => $comapanyId,
             ],
             [
+                'id' => 10,
                 'name' => 'Failed',
                 'stage' => 'delivery',
                 'hidden' => false,
@@ -303,7 +363,8 @@ class InitialSeeder extends Seeder
                 'company_id' => $comapanyId,
             ],
             [
-                'name' => 'Returned',
+                'id' => 11,
+                'name' => 'Returning',
                 'stage' => 'delivery',
                 'hidden' => false,
                 'create_uid' => $userId,
@@ -312,6 +373,7 @@ class InitialSeeder extends Seeder
                 'company_id' => $comapanyId,
             ],
             [
+                'id' => 12,
                 'name' => 'Pending',
                 'stage' => 'delivery',
                 'hidden' => false,
@@ -321,6 +383,7 @@ class InitialSeeder extends Seeder
                 'company_id' => $comapanyId,
             ],
             [
+                'id' => 13,
                 'name' => 'Accepted for Pickup',
                 'stage' => 'delivery',
                 'hidden' => false,
@@ -330,6 +393,7 @@ class InitialSeeder extends Seeder
                 'company_id' => $comapanyId,
             ],
             [
+                'id' => 14,
                 'name' => 'On Delivery',
                 'stage' => 'fleet',
                 'hidden' => false,
@@ -339,6 +403,7 @@ class InitialSeeder extends Seeder
                 'company_id' => $comapanyId,
             ],
             [
+                'id' => 15,
                 'name' => 'All Completed',
                 'stage' => 'fleet',
                 'hidden' => false,
@@ -348,6 +413,7 @@ class InitialSeeder extends Seeder
                 'company_id' => $comapanyId,
             ],
             [
+                'id' => 16,
                 'name' => 'Done',
                 'stage' => 'fleet',
                 'hidden' => false,
@@ -357,6 +423,7 @@ class InitialSeeder extends Seeder
                 'company_id' => $comapanyId,
             ],
             [
+                'id' => 17,
                 'name' => 'Failed',
                 'stage' => 'fleet',
                 'hidden' => false,
@@ -366,6 +433,7 @@ class InitialSeeder extends Seeder
                 'company_id' => $comapanyId,
             ],
             [
+                'id' => 18,
                 'name' => 'Canceled',
                 'stage' => 'delivery',
                 'hidden' => false,
@@ -375,6 +443,7 @@ class InitialSeeder extends Seeder
                 'company_id' => $comapanyId,
             ],
             [
+                'id' => 19,
                 'name' => 'Failed With Fee',
                 'stage' => 'delivery',
                 'hidden' => false,
@@ -384,6 +453,7 @@ class InitialSeeder extends Seeder
                 'company_id' => $comapanyId,
             ],
             [
+                'id' => 20,
                 'name' => 'Canceled',
                 'stage' => 'pick',
                 'hidden' => false,
@@ -393,6 +463,7 @@ class InitialSeeder extends Seeder
                 'company_id' => $comapanyId,
             ],
             [
+                'id' => 21,
                 'name' => 'Dropped',
                 'stage' => 'pick',
                 'hidden' => false,
@@ -400,7 +471,47 @@ class InitialSeeder extends Seeder
                 'update_uid' => $userId,
                 'branch_id' => $branchId,
                 'company_id' => $comapanyId,
-            ]
+            ],
+            [
+                'id' => 22,
+                'name' => 'In Transit',
+                'stage' => 'transfer',
+                'hidden' => false,
+                'create_uid' => $userId,
+                'update_uid' => $userId,
+                'branch_id' => $branchId,
+                'company_id' => $comapanyId,
+            ],
+            [
+                'id' => 23,
+                'name' => 'Returned',
+                'stage' => 'delivery',
+                'hidden' => false,
+                'create_uid' => $userId,
+                'update_uid' => $userId,
+                'branch_id' => $branchId,
+                'company_id' => $comapanyId,
+            ],
+            [
+                'id' => 24,
+                'name' => 'Draft',
+                'stage' => 'prepare',
+                'hidden' => false,
+                'create_uid' => $userId,
+                'update_uid' => $userId,
+                'branch_id' => $branchId,
+                'company_id' => $comapanyId,
+            ],
+            [
+                'id' => 25,
+                'name' => 'Reserve',
+                'stage' => 'prepare',
+                'hidden' => false,
+                'create_uid' => $userId,
+                'update_uid' => $userId,
+                'branch_id' => $branchId,
+                'company_id' => $comapanyId,
+            ],
         ]);
 
         //_______
@@ -454,6 +565,22 @@ class InitialSeeder extends Seeder
             'zone_type' => 'local',
             'zone_code' => 'Def',
             'zone_name' => 'Default Zone',
+            'district' => 'Chroy Changvar',
+            'city' => 'Phnom Penh',
+            'country_id' => $countryId,
+            'description' => 'description',
+            'create_uid' => $userId,
+            'update_uid' => $userId,
+            'branch_id' => $branchId,
+            'company_id' => $comapanyId,
+        ]);
+
+        $chZoneId = DB::table('zones')->insertGetId([
+            'parent_id' => 300,
+            'zone_type' => 'local',
+            'zone_code' => 'TC',
+            'zone_name' => 'Test Child',
+            'identity' => 'child',
             'district' => 'Chroy Changvar',
             'city' => 'Phnom Penh',
             'country_id' => $countryId,

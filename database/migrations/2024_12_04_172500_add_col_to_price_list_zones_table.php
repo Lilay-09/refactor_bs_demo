@@ -15,6 +15,8 @@ return new class extends Migration
             //
             $table->decimal('base_fee')->default(0);
             $table->decimal('additional_fee')->default(0);
+            $table->decimal('taxi_fee')->default(0);
+            $table->decimal('other_fee')->default(0);
         });
     }
 
@@ -26,7 +28,7 @@ return new class extends Migration
         Schema::table('price_list_zones', function (Blueprint $table) {
             //
             $table->dropColumn([
-                'base_fee','additional_fee'
+                'base_fee','additional_fee','taxi_fee','other_fee'
             ]);
         });
     }

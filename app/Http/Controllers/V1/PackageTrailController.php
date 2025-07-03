@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\V1;
 
 use ApiResponse;
+use App\Enums\TrackingStatus;
 use App\Http\Controllers\Controller;
 use App\Jobs\SendNotificationJob;
 use App\Models\Delivery;
@@ -12,7 +13,6 @@ use App\Models\Package;
 use App\Models\PackageAttachment;
 use App\Models\User;
 use App\Models\Zone;
-use App\Services\CloudMessagingService;
 use App\Services\CompanyProfileService;
 use App\Services\GeneralSettingService;
 use App\Services\PickupCenterService;
@@ -28,7 +28,7 @@ class PackageTrailController extends Controller
 {
     //
     private $cacheTags;
-    public function __construct(){
+    public function __construct(private PickupCenterService $pickupCenterService){
         $this->cacheTags = ['package_trail'];
     }
     public function getPackages(Request $req){
@@ -51,7 +51,7 @@ class PackageTrailController extends Controller
         // ->whereNotIn('status_id',[]) // at warehouse
         ->where('company_id',$user->company_id)
         ->where(function($q){
-            $q->whereNotIn('status_id',[9,11])->whereNull('returned_uid');
+            $q->whereNotIn('status_id',[9,11,12])->whereNull('returned_uid');
         })
         // ->selectRaw('merchant_id,order_id,id,taxi_fee,delivery_type,qr_code,price,driver_id,product_type,dim_z,dim_x,dim_y,status_id,failed_datetime,failure_notes,payer,cod,delivery_fee,receiver_address,zone_code,zone_name,receiver_name,receiver_phone,delivered_datetime,assign_driver_datetime,arrive_warehouse_datetime,driver_total,merchant_total,billed_kg,actual_kg,created_at')
         ->orderByRaw('(status_id = ?) DESC', [5])
@@ -65,9 +65,10 @@ class PackageTrailController extends Controller
         ");
         $select = ['merchant_id','order_id','id','taxi_fee','delivery_type','qr_code','price','driver_id','product_type','dim_z','dim_x','dim_y','status_id','failed_datetime','failure_notes','payer','cod','delivery_fee','receiver_address','zone_code','zone_name','receiver_name','receiver_phone','delivered_datetime','assign_driver_datetime','arrive_warehouse_datetime','driver_total','merchant_total','billed_kg','actual_kg','created_at'];
         if($warehouse_id){
-            $query->whereHas('order',function($q) use($warehouse_id){
-                $q->where('warehouse_id',$warehouse_id);
-            });
+            $query->where('warehouse_id',$warehouse_id);
+            // $query->whereHas('order',function($q) use($warehouse_id){
+            //     $q->where('warehouse_id',$warehouse_id);
+            // });
         }
         if($zoneCode) {
             $query->where('zone_code',$zoneCode);
@@ -100,8 +101,8 @@ class PackageTrailController extends Controller
         }
         $callbackMapper = function($pkg) use ($lang){
             $cod = $pkg->cod;
-            $pkg->driver_name = $pkg->driver?->user_name;
-            $pkg->merhcant_name = $pkg->merchant?->user_name;
+            $pkg->driver_name = $pkg->driver?->username;
+            $pkg->merhcant_name = $pkg->merchant?->username;
             $pkg->merchant_phone = $pkg->merchant?->phone;
             $pkg->cod = $cod == true ? 1:0;
 
@@ -138,7 +139,7 @@ class PackageTrailController extends Controller
         $package->cod = $cod == false ? "0" : "1";
         $driver = $package->driver;
         if($driver){
-            $package->driver_name = $driver->user_name;
+            $package->driver_name = $driver->username;
         }
         // if($isKm) $package->payer = GeneralSettingService::$payerTrans[$package->payer] ?? '';
         $package->base_fee = $package->delivery_fee;
@@ -169,17 +170,16 @@ class PackageTrailController extends Controller
         $id = $req->id;
         $package = Package::where('company_id',$user->company_id)->where('is_deleted',0)->where('outstanding',0)->find($id);
         if(!$package) return ApiResponse::NotFound(__('messages.not_found',['info' => 'Package','khInfo' => 'កញ្ចប់']));
-        if($package->status_id == 13) return ApiResponse::Forbidden(__('messages.no_access',['info' => 'This package is already assigned to driver']));
-        if($package->status_id == 14) return ApiResponse::Forbidden(__('messages.no_access',['info' => 'This package is on delivery']));
-        if($package->driver_payment_id || $package->driver_disbursement_id) return DataResponse::Duplicated(__('messages.info',[
-            'info' => 'It seems like you try to update package which is on payment pending or paid with driver'
-        ]));
+        if($package->status_id == TrackingStatus::ACCEPTED_FOR_PICKUP_DEL->value) return ApiResponse::Forbidden(__('messages.no_access',['info' => 'This package is already assigned to driver']));
+        if($package->status_id == TrackingStatus::ON_DELIVERY_TRIP->value) return ApiResponse::Forbidden(__('messages.no_access',['info' => 'This package is on delivery']));
+        // if($package->driver_payment_id || $package->driver_disbursement_id) return DataResponse::Duplicated(__('messages.info',[
+        //     'info' => 'It seems like you try to update package which is on payment pending or paid with driver'
+        // ]));
         if($package->merchant_payment_id || $package->merchant_disbursement_id) return DataResponse::Duplicated(__('messages.info',[
             'info' => 'It seems like you try to update package which is on payment pending or paid with merchant'
         ]));
-        $pkupService = new PickupCenterService();
         $req->merge(['merchant_id' => $package->merchant_id]);
-        $validate = $pkupService->packageValidation($req);
+        $validate = $this->pickupCenterService->packageValidation($req);
         if($validate->fails()) return ApiResponse::ValidateFail($validate->errors()->first());
         $inputs = $validate->validated();
         $inputs['company_id'] = $user->company_id;
@@ -204,18 +204,18 @@ class PackageTrailController extends Controller
         $deliveryFee = $calPrice->delivery_fee;
         $inputs['delivery_fee'] = $calPrice->delivery_fee;
         // $inputs['driver_total'] = ($package->status_id == 19 && $package->cod) ? abs($package->price - $calPrice->driver_total):$calPrice->driver_total;
-        $driverTotal = PickupCenterService::getDriverTotal($cod,$payer,$price,$deliveryFee,$package->additional_fee,$extra_charge,$taxiFee);
+        $driverTotal = $this->pickupCenterService::getDriverTotal($cod,$payer,$price,$deliveryFee,$package->additional_fee,$extra_charge,$taxiFee);
         $inputs['driver_total'] = $driverTotal;
-        $inputs['merchant_total'] = PickupCenterService::getTotal('merchant',$cod,$payer,$price,$deliveryFee,$package->additional_fee,$extra_charge,$taxiFee);
-        if($package->status_id == 19){
-            $driverTotal = PickupCenterService::getDriverTotal($cod,$payer,0,$deliveryFee,$package->additional_fee,$extra_charge,0);
+        $inputs['merchant_total'] = $this->pickupCenterService::getTotal('merchant',$cod,$payer,$price,$deliveryFee,$package->additional_fee,$extra_charge,$taxiFee);
+        if($package->status_id == TrackingStatus::FAILED_WITH_FEE->value){
+            $driverTotal = $this->pickupCenterService::getDriverTotal($cod,$payer,0,$deliveryFee,$package->additional_fee,$extra_charge,0);
             if($payer == 'receiver') {
                 $inputs['driver_total'] = $driverTotal;
                 $inputs['merchant_total'] = 0;
             }
             else {
                 $inputs['driver_total'] = 0;
-                $inputs['merchant_total'] = PickupCenterService::getTotal('merchant',$cod,$payer,0,$deliveryFee,$package->additional_fee,$extra_charge,0);
+                $inputs['merchant_total'] = $this->pickupCenterService::getTotal('merchant',$cod,$payer,0,$deliveryFee,$package->additional_fee,$extra_charge,0);
             }
         }
         Helper::clearCacheByTags($this->cacheTags);
@@ -261,8 +261,38 @@ class PackageTrailController extends Controller
         ]));
         $package = Package::where('company_id',$user->company_id)->where('is_deleted',0)->where('outstanding',0)->find($id);
         if(!$package) return ApiResponse::NotFound(trans('messages.not_found',['info' => 'Package','khInfo' => 'កញ្ចប់​']));
-        if(!in_array($package->status_id,[5,10,19])) return ApiResponse::ValidateFail(__('messages.info',[
+        if(!in_array($package->status_id,[
+            TrackingStatus::returnable()
+        ])) return ApiResponse::ValidateFail(__('messages.info',[
             'info' => 'Only failed package or at warehouse can be returned'
+        ]));
+        $statusId = TrackingStatus::RETURNING;
+        if($package->status_id == TrackingStatus::FAILED_WITH_FEE->value){
+            //** not change status but use returned_uid for tracking */
+            $statusId = TrackingStatus::FAILED_WITH_FEE->value;
+        }
+        $package->update([
+            'returned_uid' => $driverId,
+            'status_id' => $statusId, // returned
+            // 'returned_datetime' => now(),
+            'update_uid' => $user->id,
+        ]);
+        Helper::clearCacheByTags($this->cacheTags);
+        return ApiResponse::JsonResult(null,__('messages.info',['info' => 'Returned']));
+    }
+
+    public function setReturnPackageDrop(Request $req){
+        $user = UserService::getAuthUser();
+        $id = $req->id;
+        $driverId = $req->driver_id;
+        if(!$driverId) return ApiResponse::ValidateFail(__('messages.info',[
+            'info' => 'Please choose driver'
+        ]));
+        $package = Package::where('company_id',$user->company_id)->where('is_deleted',0)->where('outstanding',0)->find($id);
+        if(!$package) return ApiResponse::NotFound(trans('messages.not_found',['info' => 'Package','khInfo' => 'កញ្ចប់​']));
+        if($package->status_id != TrackingStatus::RETURNING->value) return ApiResponse::ValidateFail(__('messages.info',[
+            'info' => 'Please ensure package is returning before setting drop point',
+            'khInfo' => 'សូមបញ្ជាក់កញ្ចប់ត្រូវបានដាក់កំពុងត្រលប់​មុនពេលកំណត់ចំណុចទម្លាក់'
         ]));
         $statusId = 11;
         if($package->status_id == 19){
@@ -270,7 +300,7 @@ class PackageTrailController extends Controller
         }
         $package->update([
             'returned_uid' => $driverId,
-            'status_id' => $statusId, // returned
+            'status_id' => TrackingStatus::RETURNED->value, // returned
             'returned_datetime' => now(),
             'update_uid' => $user->id,
         ]);
@@ -282,23 +312,23 @@ class PackageTrailController extends Controller
         $user = UserService::getAuthUser();
         $id = $req->id;
         $package = Package::where('is_deleted',0)
-        ->with(['driver:id,user_name,phone','merchant:id,phone,user_name','updateUser:id,user_name'])
+        ->with(['driver:id,username,phone','merchant:id,phone,username','updateUser:id,username'])
         ->where('outstanding',0)
         // ->whereNotIn('status_id',[]) // at warehouse
         ->where('company_id',$user->company_id)
-        ->selectRaw('cod,extra_charge,taxi_fee,delivery_fee,zone_name,zone_code,merchant_id,driver_id,receiver_phone,receiver_address,created_at,arrive_warehouse_datetime,qr_code,remarks,price,update_uid,payer')
+        ->selectRaw('id as package_id,cod,extra_charge,taxi_fee,delivery_fee,zone_name,zone_code,merchant_id,driver_id,receiver_phone,receiver_address,created_at,arrive_warehouse_datetime,qr_code,remarks,price,update_uid,payer')
         ->find($id);
         if(!$package) return ApiResponse::NotFound(trans('messages.not_found',['info' => 'Package','khInfo' => 'កញ្ចប់​']));
         $driver = $package->driver;
         if($driver){
-            $package->driver_name = $driver->user_name;
+            $package->driver_name = $driver->username;
         }
         $package->receiver_address = $package->receiver_address ?? $package->zone_name;
-        $package->merchant_name = $package->merchant->user_name;
+        $package->merchant_name = $package->merchant->username;
         $package->merchant_phone = $package->merchant->phone;
         $package->delivery_fee = $package->delivery_fee + $package->taxi_fee + $package->extra_charge;//($package->cod ? $package->price : 0);
         $package->base_fee = $package->delivery_fee;
-        $package->created_by = $package->updateUser->user_name;
+        $package->created_by = $package->updateUser->username;
         $package->created_date = Helper::formatCustomDateTime($package->created_at,'d-M-Y');
         $package->warehouse_at = Helper::dateDMY($package->arrive_warehouse_datetime);
         $total = 0;
@@ -329,11 +359,11 @@ class PackageTrailController extends Controller
         })
         ->implode(' ');
         $packages = Package::where('is_deleted',0)
-        ->with(['driver:id,user_name,phone','merchant:id,phone,user_name','updateUser:id,user_name'])
+        ->with(['driver:id,username,phone','merchant:id,phone,username','updateUser:id,username'])
         ->where('outstanding',0)
         // ->whereNotIn('status_id',[]) // at warehouse
         ->where('company_id',$user->company_id)
-        ->selectRaw('cod,extra_charge,taxi_fee,delivery_fee,zone_name,zone_code,merchant_id,driver_id,receiver_phone,receiver_address,created_at,arrive_warehouse_datetime,qr_code,remarks,price,update_uid,payer')
+        ->selectRaw('id as package_id,cod,extra_charge,taxi_fee,delivery_fee,zone_name,zone_code,merchant_id,driver_id,receiver_phone,receiver_address,created_at,arrive_warehouse_datetime,qr_code,remarks,price,update_uid,payer')
         ->whereIn('id',$packageIds)
         ->orderByRaw("CASE $orderByCase END")
         ->get();
@@ -342,14 +372,14 @@ class PackageTrailController extends Controller
         foreach($packages as $package){
             $driver = $package->driver;
             if($driver){
-                $package->driver_name = $driver->user_name;
+                $package->driver_name = $driver->username;
             }
             $package->receiver_address = $package->receiver_address ?? $package->zone_name;
-            $package->merchant_name = $package->merchant->user_name;
+            $package->merchant_name = $package->merchant->username;
             $package->merchant_phone = $package->merchant->phone;
             $package->delivery_fee = $package->delivery_fee + $package->taxi_fee + $package->extra_charge;//($package->cod ? $package->price : 0);
             $package->base_fee = $package->payer == 'receiver' ? $package->delivery_fee:0;
-            $package->created_by = $package->updateUser->user_name;
+            $package->created_by = $package->updateUser->username;
             $package->created_date = Helper::formatCustomDateTime($package->created_at,'d-M-Y');
             $package->warehouse_at = Helper::dateDMY($package->arrive_warehouse_datetime);
             $total = 0;
@@ -385,13 +415,32 @@ class PackageTrailController extends Controller
 
         $package = Package::where('company_id',$user->company_id)->where('is_deleted',0)
         ->where('outstanding',0)
-        ->with('merchant:id,user_name,phone')
-        ->select(['id','status_id','merchant_id','driver_id','assign_uid','assign_driver_datetime','receiver_phone'])
+        ->with('merchant:id,username,phone')
+        // ->select(['id','status_id','merchant_id','driver_id','assign_uid','assign_driver_datetime','receiver_phone','order_id'])
         ->find($id);
-        if(!$package) return ApiResponse::NotFound(__('messages.not_found',['info' => 'Package','khInfo' => 'កញ្ចប់']));
-        if($package->status_id == 9) return ApiResponse::Duplicated(__('messages.error',['info' => 'This package is already delivered']));
-        if($package->status_id == 19) return ApiResponse::Duplicated(__('messages.error',['info' => 'This package is already marked as failed with fee']));
-        if($package->status_id == 11) return ApiResponse::Duplicated(__('messages.error',['info' => 'This package is already returned']));
+        if(!$package) {
+            return ApiResponse::NotFound(__('messages.not_found',['info' => 'Package','khInfo' => 'កញ្ចប់']));
+        }
+        if($package->status_id == 9) {
+            return ApiResponse::Duplicated(__('messages.error',[
+                'info' => 'This package is already delivered'
+            ]));
+        }
+        if($package->status_id == 19) {
+            return ApiResponse::Duplicated(__('messages.error',[
+                'info' => 'This package is already marked as failed with fee'
+            ]));
+        }
+        if($package->status_id == 11) {
+            return ApiResponse::Duplicated(__('messages.error',[
+                'info' => 'This package is already returned'
+            ]));
+        }
+        if($package->status_id == 12) {
+            return ApiResponse::Duplicated(__('messages.error',[
+                'info' => 'This package is in transit'
+            ]));
+        }
         if($package->driver_id == $driver_id && $package->status_id == 6) return ApiResponse::Duplicated(__('messages.error',[
             'info' => 'It seems like you are trying to assign this package to the same driver',
             'khInfo' => 'កញ្ចប់បានចាត់តាំងរួចម្ដងហើយ'
@@ -468,7 +517,7 @@ class PackageTrailController extends Controller
                 'status_id' => 6, // On Delivery
                 'assign_driver_datetime' => now(),
             ]);
-            $trip = $this->createOrUpdateTrip($driver_id,$id,$validDriver->vehicle_type,$user,$notes,6,'assign');
+            $trip = $this->createOrUpdateTrip($driver_id,$id,$validDriver->vehicle_type,$user,$notes,6,'assign',$package);
             if($trip->error) return ApiResponse::flex($trip);
             // $notif = new CloudMessagingService();
             $topics = GeneralSettingService::getGeneralTopics($user->company_id,'driver',$driver_id);
@@ -479,7 +528,7 @@ class PackageTrailController extends Controller
                 'target_uid' => $driver_id,
                 'title' => __('notification.assign_package.title'),
                 'body' => __('notification.assign_package.body',[
-                    'merchant' => $package->merchant->user_name,
+                    'merchant' => $package->merchant->username,
                 ])//'You have been assigned to deliver the package('.$package->qr_code.').'
             ]);
             // $notif->sendNotificationByTopic($notifReq,$user);
@@ -510,11 +559,11 @@ class PackageTrailController extends Controller
             'merchant_id' => $merchantId
         ]);
         return ApiResponse::JsonResult(null,__('messages.info',[
-            'info' => 'Merchant('.$merchant->user_name.') has owned package('.$package->qr_code.') now.'
+            'info' => 'Merchant('.$merchant->username.') has owned package('.$package->qr_code.') now.'
         ]));
     }
 
-    public function createOrUpdateTrip($driverId,$packageId,$vehicleType,$user,$notes,$statusId,$action=null){
+    public function createOrUpdateTrip($driverId,$packageId,$vehicleType,$user,$notes,$statusId,$action=null,$package=null){
         $today = date('Y-m-d');
         $isNewPkg = true;
         $pendingTrip = Delivery::where(function($query) {
@@ -612,6 +661,15 @@ class PackageTrailController extends Controller
         //** add delivery tracking */
         if($isNewPkg) {
             $dPackage = DeliveryPackage::create([
+                'order_id' => $package->order_id,
+                'payer' => $package->payer,
+                'receiver_phone' => $package->receiver_phone,
+                'receiver_address' => $package->receiver_address,
+                'zone_code' => $package->zone_code,
+                'zone_name' => $package->zone_name,
+                'merchant_id' => $package->merchant_id,
+                'delivery_type' => $package->delivery_type,
+                'product_type' => $package->product_type,
                 'notes' => $notes,
                 'assign_uid' => $action == 'assign' ? $user->id : null,
                 'driver_id' => $driverId,

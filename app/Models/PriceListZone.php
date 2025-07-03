@@ -14,12 +14,13 @@ class PriceListZone extends Model
 
     public $incrementing = false;
 
-    // public $timestamps = false;
 
     protected $fillable = [
         'zone_id',
         'price_list_id',
         'identifier',
+        'taxi_fee',
+        'other_fee',
         'base_fee',
         'additional_fee',
         'is_deleted',

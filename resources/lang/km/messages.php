@@ -4,11 +4,11 @@ return [
     'not_found' => 'រក:khInfoមិនឃើញ',
     'error' => ':khInfo',
     'info' => ':khInfo',
-    'created' => ':khInfo',
+    'created' => 'បានបង្កើត',
     'updated' => 'បានកែ',
     'cancel' => 'បោះបង់',
     'deleted' => 'បានលុប',
-    'assigned' => ':khInfo',
+    // 'assigned' => ':khInfo',
     'all' => 'ទាំងអស់',
     'saved' => 'បានរក្សាទុក',
     'normal' => 'ជម្រើសសេវាធម្មតា',
@@ -21,5 +21,32 @@ return [
 
 
     //**Branch Type */
-    'b1' => 'សាខាធំ'
+    'b1' => 'សាខាធំ',
+
+
+    'tracking' => [
+        'available_for_pick' => 'កំពុងរង់​ចាំ',
+        'picked' => 'បានប្រមូល',
+        'accepted_for_pickup' => 'Accepted for Pickup',
+        'picked_and_booked' => 'Picked and Booked',
+        'at_warehouse' => 'At Warehouse',
+        'on_delivery' => 'កំពុងដឹក',
+        'pending_pick' => 'Pending Pickup',
+        'delayed' => 'Delayed',
+        'delivered' => 'ជេាគជ័យ',
+        'failed' => 'បរាជ័យ',
+        'returning' => 'កំពុងត្រឡប់',
+        'pending_del' => 'Pending Delivery',
+        'accepted_for_pickup_del' => 'Accepted for Delivery Pickup',
+        'on_delivery_trip' => 'កំពុងដឹក',
+        'all_completed' => 'All Completed',
+        'done_trip' => 'Done Trip',
+        'failed_trip' => 'Failed Trip',
+        'canceled_del' => 'Canceled Delivery',
+        'failed_with_fee' => 'បរាជ័យគិតសេវា',
+        'canceled_pick' => 'Canceled Pickup',
+        'dropped_pick' => 'Dropped Pickup',
+        'in_transit' => 'In Transit',
+        'returned' => 'Returned',
+    ],
 ];

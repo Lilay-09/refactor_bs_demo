@@ -3,11 +3,14 @@
 namespace App\Http\Controllers\Mobile\Driver\V1;
 
 use ApiResponse;
+use App\DTO\Mobile\DeliveryTripsPackagesDTO;
+use App\DTO\Mobile\HomePaymentDTO;
+use App\DTO\Mobile\HomeReturnPackageDTO;
+use App\Enums\TrackingStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Mobile\V1\GeneralSettingController;
 use App\Models\Delivery;
 use App\Models\DeliveryPackage;
-use App\Models\DriverCommission;
 use App\Models\EmergencyContact;
 use App\Models\FeedbackAnswer;
 use App\Models\FeedbackQuestion;
@@ -22,6 +25,7 @@ use App\Models\UserScoringReward;
 use App\Services\AppSetting;
 use App\Services\CloudMessagingService;
 use App\Services\GeneralSettingService;
+use App\Services\GeoResolverService;
 use App\Services\PickupCenterService;
 use App\Services\TransactionService;
 use App\Services\UserService;
@@ -32,18 +36,27 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Log;
 use Str;
+use WebSocket\Client;
 
 class HomeScreenController extends Controller
 {
     //
-    protected object $user;
-    protected string $dateFmt;
+    private object $user;
+    private string $dateFmt;
     public function __construct(
         private PickupCenterService $pickupCenterService
     ){
         $this->dateFmt = 'd/m/Y';
         $this->user = UserService::getAuthUser('driver');
     }
+
+
+    // public function  getAssignReturnPackages(){
+    //     $data = (object)[
+    //         'unpaid_amount' => 0
+    //     ];
+    //     return ApiResponse::JsonResult(HomePaymentDTO::fromModel($data));
+    // }
     public function getAvailableOrders(Request $req){
         $user = UserService::getAuthUser('driver');
         $query = Order::query()->where('is_deleted',0)
@@ -54,7 +67,7 @@ class HomeScreenController extends Controller
         ->selectRaw('id,loc_lat,loc_lng,order_datetime,merchant_id,warehouse_id,qty,code,pickup_address,pickup_address_google_map,vehicle_type,delivery_type');
         $callback = function ($order){
             $order->delivery_type = trans($order->delivery_type);
-            $order->merchant_name = $order->merchant->user_name;
+            $order->merchant_name = $order->merchant->username;
             $order->merchant_code = $order->merchant->code;
             $order->merchant_phone = $order->merchant->phone;
             $order->warehouse_address = $order->warehouse->address;
@@ -82,7 +95,7 @@ class HomeScreenController extends Controller
         $callback = function($order){
             $order->warehouse_address = $order->warehouse->address;
             $order->status_code = $order->tracking_status->name;
-            $order->merchant_name = $order->merchant->user_name;
+            $order->merchant_name = $order->merchant->username;
             $order->merchant_phone = $order->merchant->phone;
             $orderDatetime = $order->order_datetime;
             $order->order_date = Helper::formatCustomDateTime($orderDatetime,$this->dateFmt);
@@ -98,7 +111,7 @@ class HomeScreenController extends Controller
         // foreach($orders as $order){
         //     $order->warehouse_address = $order->warehouse->address;
         //     $order->status_code = $order->tracking_status->name;
-        //     $order->merchant_name = $order->merchant->user_name;
+        //     $order->merchant_name = $order->merchant->username;
         //     $order->merchant_phone = $order->merchant->phone;
         //     // $latLng = Helper::getLatLongFromGoogleMapsUrl($order->pickup_address_google_map);
         //     $order->latitude = $order->loc_lat ;//? $order->loc_lat : 11.552692;//;
@@ -111,59 +124,49 @@ class HomeScreenController extends Controller
     public function getDriverBalance(Request $req){
         $user = UserService::getAuthUser('driver');
         $lang = $req->lang;
-        $driverCommissions = DriverCommission::where('driver_id',$user->id)->where('is_deleted',0)
-        ->selectRaw('id,driver_id,delivery_type,pickup_commission,delivery_commission,delivery_commission_start_date,pickup_commission_start_date,DATE(updated_at) as updated_date')
-        ->get();
+        // $driverCommissions = DriverCommission::where('driver_id',$user->id)->where('is_deleted',0)
+        // ->selectRaw('id,driver_id,delivery_type,pickup_commission,delivery_commission,delivery_commission_start_date,pickup_commission_start_date,DATE(updated_at) as updated_date')
+        // ->get();
 
-        // $delivery = Delivery::where('driver_id', $user->id)
-        // ->where('is_deleted', 0)
-        // ->where(function ($q) {
-        //     $q->where('finished', 0)
-        //     ->orWhereDate('depart_datetime', Carbon::today());
-        // })
-        // ->select('depart_datetime')
-        // ->orderBy('depart_datetime', 'asc')
-        // ->first();
-        // $totalEarning = (float)Disbursement::where('payee_id',$user->id)->where('type','commission')->where('is_deleted',0)->sum('payable_amount');
-        $commissionInfo = TransactionService::getDriverCommissionInfo($driverCommissions,$user->id);
-        // return $commissionInfo;
+        // $commissionInfo = TransactionService::getDriverCommissionInfo($driverCommissions,$user->id);
+        // // return $commissionInfo;
 
-        $normalStartDatetime = $commissionInfo->normal_delivery_commission_start_date
-            ? Helper::dateYMD($commissionInfo->normal_delivery_commission_start_date) . ' 00:00:00'
-            : null;
+        // $normalStartDatetime = $commissionInfo->normal_delivery_commission_start_date
+        //     ? Helper::dateYMD($commissionInfo->normal_delivery_commission_start_date) . ' 00:00:00'
+        //     : null;
 
-        $fastStartDatetime = $commissionInfo->fast_delivery_commission_start_date
-            ? Helper::dateYMD($commissionInfo->fast_delivery_commission_start_date) . ' 00:00:00'
-            : null;
+        // $fastStartDatetime = $commissionInfo->fast_delivery_commission_start_date
+        //     ? Helper::dateYMD($commissionInfo->fast_delivery_commission_start_date) . ' 00:00:00'
+        //     : null;
 
         $qP = Package::where('is_deleted', 0)
             ->where('driver_id', $user->id)
             ->whereIn('status_id', [6, 9, 19]);
 
-        if ($normalStartDatetime || $fastStartDatetime) {
-            $qP->where(function ($q) use ($normalStartDatetime, $fastStartDatetime) {
-                if ($normalStartDatetime) {
-                    $q->orWhere(function ($q) use ($normalStartDatetime) {
-                        $q->where('delivery_type', 'normal')
-                        ->where(function ($q) use ($normalStartDatetime) {
-                            $q->where('delivered_datetime', '>=', $normalStartDatetime)
-                                ->orWhere('failed_datetime', '>=', $normalStartDatetime)
-                                ->orWhere('assign_driver_datetime', '>=', $normalStartDatetime);
-                        });
-                    });
-                }
-                if ($fastStartDatetime) {
-                    $q->orWhere(function ($q) use ($fastStartDatetime) {
-                        $q->where('delivery_type', 'fast')
-                        ->where(function ($q) use ($fastStartDatetime) {
-                            $q->where('delivered_datetime', '>=', $fastStartDatetime)
-                                ->orWhere('failed_datetime', '>=', $fastStartDatetime)
-                                ->orWhere('assign_driver_datetime', '>=', $fastStartDatetime);
-                        });
-                    });
-                }
-            });
-        }
+        // if ($normalStartDatetime || $fastStartDatetime) {
+        //     $qP->where(function ($q) use ($normalStartDatetime, $fastStartDatetime) {
+        //         if ($normalStartDatetime) {
+        //             $q->orWhere(function ($q) use ($normalStartDatetime) {
+        //                 $q->where('delivery_type', 'normal')
+        //                 ->where(function ($q) use ($normalStartDatetime) {
+        //                     $q->where('delivered_datetime', '>=', $normalStartDatetime)
+        //                         ->orWhere('failed_datetime', '>=', $normalStartDatetime)
+        //                         ->orWhere('assign_driver_datetime', '>=', $normalStartDatetime);
+        //                 });
+        //             });
+        //         }
+        //         if ($fastStartDatetime) {
+        //             $q->orWhere(function ($q) use ($fastStartDatetime) {
+        //                 $q->where('delivery_type', 'fast')
+        //                 ->where(function ($q) use ($fastStartDatetime) {
+        //                     $q->where('delivered_datetime', '>=', $fastStartDatetime)
+        //                         ->orWhere('failed_datetime', '>=', $fastStartDatetime)
+        //                         ->orWhere('assign_driver_datetime', '>=', $fastStartDatetime);
+        //                 });
+        //             });
+        //         }
+        //     });
+        // }
 
         $counts = $qP->selectRaw("
             COUNT(CASE WHEN status_id = 9 AND delivery_type = 'normal' THEN 1 END) AS delivered_normal_pkg,
@@ -191,13 +194,13 @@ class HomeScreenController extends Controller
         $fastFailedWithFeePkg = $counts->failed_with_fee_fast_pkg;
 
         //** Normal Commission */
-        $normalDeliveryComm = $normalDeliveredPkg * $commissionInfo->normal_delivery_commission;
-        $normalFailedWithFeeComm = $normalFailedWithFeePkg * $commissionInfo->normal_delivery_commission;
+        // $normalDeliveryComm = $normalDeliveredPkg * $commissionInfo->normal_delivery_commission;
+        // $normalFailedWithFeeComm = $normalFailedWithFeePkg * $commissionInfo->normal_delivery_commission;
 
-        //** Fast Commission */
+        // //** Fast Commission */
 
-        $fastDeliveryComm = $fastDeliveredPkg * $commissionInfo->fast_delivery_commission;
-        $fastFailedWithFeeComm = $fastFailedWithFeePkg * $commissionInfo->fast_delivery_commission;
+        // $fastDeliveryComm = $fastDeliveredPkg * $commissionInfo->fast_delivery_commission;
+        // $fastFailedWithFeeComm = $fastFailedWithFeePkg * $commissionInfo->fast_delivery_commission;
 
         // $orderCount = Order::whereNull('driver_commission_id')->count();
         $orderCounts = Order::whereNull('driver_commission_id')
@@ -210,33 +213,67 @@ class HomeScreenController extends Controller
         ")
         ->first();
 
-        // return $commissionInfo;
-        // $totalOrders = $counts->total_orders;
+        // // return $commissionInfo;
+        // // $totalOrders = $counts->total_orders;
         $pickupCount = $orderCounts->pickup_count;
         $pickedUpCount = $orderCounts->picked_up_count;
 
         $balanceDues = TransactionService::getMobileUserBalance($req,$user,'driver');
         // $totalSettledDisburment = Disbursement::where('payee_id',$user->id)->where('type','payment')->where('is_deleted',0)->where('is_settled',1)->sum('payable_amount');
         $pcsUnitLng = $lang == 'km' ? 'កញ្ចប់': 'PCS';
-        $totalEearning = $normalDeliveryComm + $normalFailedWithFeeComm + $fastDeliveryComm + $fastFailedWithFeeComm;
+        // $totalEearning = $normalDeliveryComm + $normalFailedWithFeeComm + $fastDeliveryComm + $fastFailedWithFeeComm;
         $totalDeliveredPkg = $normalDeliveredPkg + $normalFailedWithFeePkg + $fastDeliveredPkg + $fastFailedWithFeePkg;
         $maxSettlement = $balanceDues['total'] > 150
             ? ((int) ceil($balanceDues['total'] / 100)) * 100
             : 800;
 
-        $percentSettlement = round($balanceDues['total'] / $maxSettlement * 100, 1);
+        // $percentSettlement = round($balanceDues['total'] / $maxSettlement * 100, 1);
 
-        $obj = [
-            'max_settlement' => $maxSettlement,
-            'percent_settlement' => $percentSettlement,
-            'earning' => (string)Helper::getNumber($totalEearning,2,true),
-            'delivered_count' => (string)$totalDeliveredPkg.$pcsUnitLng,
-            'pickedup_count' => (string)$pickedUpCount.$pcsUnitLng,
-            'pickup_count' => (string)$pickupCount,
-            'delivery' => (string)$allDeliveryPkg,
-            'settlement' => (string)Helper::getNumber($balanceDues['total'],2,true),
-        ];
-        return ApiResponse::JsonResult($obj);
+        // $obj = [
+            // 'max_settlement' => $maxSettlement,
+            // 'percent_settlement' => $percentSettlement,
+            // 'earning' => (string)Helper::getNumber($totalEearning,2,true),
+            // 'delivered_count' => (string)$totalDeliveredPkg.$pcsUnitLng,
+            // 'pickedup_count' => (string)$pickedUpCount.$pcsUnitLng,
+            // 'pickup_count' => (string)$pickupCount,
+            // 'delivery' => (string)$allDeliveryPkg,
+            // 'settlement' => (string)Helper::getNumber($balanceDues['total'],2,true),
+        // ];
+        return ApiResponse::JsonResult(HomePaymentDTO::fromModel((object)[
+            "unpaid_amt" => $maxSettlement,
+            "accepted_order_count" => $pickedUpCount.$pcsUnitLng,
+            "delivered_pkg_count" => $totalDeliveredPkg.$pcsUnitLng,
+            "salary" => 0,
+            "pickup_count" => $pickupCount,
+            "on_delivery_count" => $allDeliveryPkg
+        ]));
+    }
+
+    public function getReturningPackage(Request $req){
+        $pk = Package::query()
+        ->with([
+            'merchant:id,username,phone',
+            'order:id,loc_lat,loc_lng'
+        ]);
+        $geoResolver = new GeoResolverService();
+        $callback = function ($pkg) use($geoResolver){
+            $pkg->status = TrackingStatus::tryFrom($pkg->status_id)->label();
+            $pkg->merchant_name = $pkg->merchant->username;
+            $pkg->merchant_phone = $pkg->merchant->phone;
+            $pkg->remarks = $pkg->delivery_remarks;
+            $pkg->date = Helper::dateDMY($pkg->created_at,'d M, Y');
+            $pkg->time = Helper::dateDMY($pkg->created_at,'h:i A');
+
+            $locLat = (float)($pkg->order->loc_lat ?? 0);
+            $locLng = (float) ($pkg->order->loc_lng ?? 0);
+            $geoMap = $geoResolver->fromCoords($locLat,$locLng);
+            $pkg->map_address = $geoMap['address'];
+            $pkg->map_url = $geoMap['mapUrl'];
+            $pkg->telegram_link = Helper::generateTelegramLink($pkg->merchant_phone);
+            return HomeReturnPackageDTO::fromModel($pkg);
+        };
+        $select = ['id','merchant_id','status_id','order_id','delivery_remarks','returned_datetime','created_at'];
+        return ApiResponse::PaginationV1($pk,$req,'',[],300,$callback,$select);
     }
 
     public function getOneAcceptedPickup(Request $req){
@@ -287,6 +324,65 @@ class HomeScreenController extends Controller
         return ApiResponse::PaginationV1($query,$req,'',[],100,$callback);
     }
 
+    public function getDeliveriesPackages(Request $req){
+        $user = UserService::getAuthUser();
+        $driverId = $user->id;
+        $qP = Package::query()
+        ->from('packages as p')
+        ->where('p.driver_id', $driverId)
+        ->whereIn('p.status_id', [6,9,10,19])
+        ->where('p.created_at', '>=', Carbon::now()->subDays(15))
+        ->whereExists(function ($q) {
+            $q->select(DB::raw(1))
+                ->from('delivery_packages as dp')
+                ->join('deliveries as d', 'd.id', 'dp.delivery_id')
+                ->whereColumn('dp.package_id', 'p.id')
+                ->where('dp.is_deleted', 0)
+                ->where('dp.has_swap', 0)
+                ->where('dp.delay_count', 0)
+                ->where(function ($q2) {
+                    $q2->where('d.finished', 0)
+                        ->orWhereDate('d.depart_datetime', Carbon::today());
+                });
+        })
+        ->join('users as d', 'd.id', 'p.driver_id')
+        ->join('users as m', 'm.id', 'p.merchant_id')
+        // ->join('tracking_statuses as ts', 'ts.id', 'p.status_id')
+        ->orderBy('p.driver_display_order', 'asc')
+        ->orderBy('p.status_id', 'desc');
+        $select = [
+            'p.driver_display_order','p.payer','p.receiver_address','p.extra_charge','p.id','p.delivered_datetime','p.failed_datetime',
+            'p.assign_driver_datetime','p.merchant_id','p.qr_code','p.price','p.cod','p.receiver_name','p.receiver_phone','p.zone_code',
+            'p.zone_name','d.username as driver_name','d.phone as driver_phone','m.username as merchant_name',
+            'm.phone as merchant_phone','p.id as package_id','p.zone_code','p.zone_name','p.delivery_fee as base_fee','p.driver_total',
+            'p.taxi_fee','p.product_type','p.status_id','p.driver_notes'
+        ];
+        $callback = function($q){
+            $q->status = TrackingStatus::tryFrom($q->status_id)->label();
+            $q->self_notes = $q->driver_notes;
+            $q->total = $q->driver_total;
+            return DeliveryTripsPackagesDTO::fromModel($q);
+        };
+
+        return ApiResponse::PaginationV1($qP,$req,'',[],250,$callback,$select);
+    }
+
+    public function editSelfNotes(Request $req){
+        $id = $req->id;
+        $driverId = $this->user->id;
+        $package = Package::where('is_deleted',false)
+        ->where('driver_id',$driverId)
+        ->find($id);
+        $notes = $req->notes ?? null;
+        if(!$package){
+            return ApiResponse::NotFound();
+        }
+        $package->update([
+            'driver_notes' => $notes
+        ]);
+        return ApiResponse::JsonResult(null,__('messages.saved'));
+    }
+
     private function getTripTotalAmount($packages,$tripId){
         $total = 0;
         foreach ($packages as $key => $p) {
@@ -310,7 +406,7 @@ class HomeScreenController extends Controller
         })
         ->where('p.created_at', '>=', Carbon::now()->subDays(15))
         ->join('tracking_statuses as ts','ts.id','p.status_id')
-        ->selectRaw('p.driver_display_order,p.payer,p.receiver_address,p.extra_charge,p.id,p.delivered_datetime,p.failed_datetime,p.assign_driver_datetime,p.merchant_id,p.qr_code,p.price,p.cod,p.receiver_name,p.receiver_phone,p.zone_code,p.zone_name,ts.name as status_code,d.user_name as driver_name,d.phone as driver_phone,m.user_name as merchant_name,m.phone as merchant_phone,p.id as package_id,dp.delivery_id,p.zone_code,p.zone_name,p.delivery_fee as base_fee,p.driver_total,p.taxi_fee,p.product_type,p.status_id')
+        ->selectRaw('p.driver_display_order,p.payer,p.receiver_address,p.extra_charge,p.id,p.delivered_datetime,p.failed_datetime,p.assign_driver_datetime,p.merchant_id,p.qr_code,p.price,p.cod,p.receiver_name,p.receiver_phone,p.zone_code,p.zone_name,ts.name as status_code,d.username as driver_name,d.phone as driver_phone,m.username as merchant_name,m.phone as merchant_phone,p.id as package_id,dp.delivery_id,p.zone_code,p.zone_name,p.delivery_fee as base_fee,p.driver_total,p.taxi_fee,p.product_type,p.status_id')
         ->orderBy('p.driver_display_order','asc')
         ->orderByRaw('(p.status_id = ?) DESC', [6]);
         // if($driverId){
@@ -612,7 +708,7 @@ class HomeScreenController extends Controller
         }
 
         $todayDt = Helper::getDateTime();
-        $driverName = $user->user_name;
+        $driverName = $user->username;
         $statusCode = $status_id == 9 ? 'Delivered' : ($status_id == 10 ? 'Failed':($status_id == 19 ? 'Failed with fee':''));
         $inputs['tracking_notes'] = $package->tracking_notes."|[$user->id]Driver ($driverName) submit $statusCode ($todayDt)[Remark: $deliveryRemarks]";
         // if($codChange && $package->price != $amount){
@@ -722,7 +818,7 @@ class HomeScreenController extends Controller
         if(!in_array($package->status_id,[6])) return ApiResponse::ValidateFail(__('messages.info',[
             'info' => 'You can not mark as dropped'
         ]));
-        $driverName = $user->user_name;
+        $driverName = $user->username;
         $todayDt = Helper::getDateTime();
         $tracking_notes = $package->tracking_notes."|[$user->id]Driver Marked contact $todayDt";
         $package->update([
@@ -768,42 +864,39 @@ class HomeScreenController extends Controller
     }
 
     public function sortPackages(Request $req){
-        $user = UserService::getAuthUser('driver');
-        $sortListIds = $req->sort_list;
+        // $user = UserService::getAuthUser('driver');
+        Log::info($req->all());
+        $sortListIds = $req->input('sort_list');
         if(empty($sortListIds)) return ApiResponse::ValidateFail(__('messages.info',[
             'info' => 'Sort list is required'
         ]));
         // $packageIds = Helper::pluckArrValue($sortList);
-        $packages = Package::where('is_deleted',0)->whereIn('id',$sortListIds)
+        $packages = Package::where('is_deleted',0)
+        ->whereIn('id',$sortListIds)
         ->select('id','driver_display_order')
         ->get()->keyBy('id');
         // return $packages;
+        $lastIdx = 1;
         DB::beginTransaction();
         try {
             foreach (array_values($sortListIds) as $index => $pkgId) {
                 if (!isset($packages[$pkgId])) {
-                    DB::rollBack();
+                    // DB::rollBack();
                     return ApiResponse::NotFound("Package row (" . ($index + 1) . ") not found!");
                 }
+                $lastIdx += $index + 1;
                 $packages[$pkgId]->update(['driver_display_order' => $index + 1]); // Efficient batch update
             }
+            Package::whereNotIn('id', $sortListIds)
+            ->where('driver_id',$this->user->id)
+            ->update(['driver_display_order' => $lastIdx]);
             DB::commit();
             return ApiResponse::JsonResult(null, 'Sorted');
         } catch (Exception $e) {
             DB::rollBack();
+            Log::error($e->getMessage());
             return ApiResponse::Error('Failed');
         }
-        // foreach($sortList as $sl){
-        //     if(!isset($sl['package_id'])) return ApiResponse::ValidateFail(__('messages.info',[
-        //         'info' => 'Package Identity is required'
-        //     ]));
-        //     $id = $sl['package_id'];
-        //     $package = Package::where('is_deleted',0)->where('driver_id',$user->id)->find($id);
-        //     if(!$package) return ApiResponse::ValidateFail(__('messages.not_found',[
-        //         'info' => 'Package'
-        //     ]));
-        // }
-        // $package = PackageService::getPackage($sl['package_id']);
     }
 
     public function booking(Request $req){

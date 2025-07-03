@@ -30,13 +30,14 @@ class AuthController extends Controller
         $input = $validate->validated();
         $account = $input['username'];
         $password = $input['password'];
+        // \Log::info('sdf');
         date_default_timezone_set('Asia/Phnom_Penh');
         $today = date('Y-m-d H:i:s');
         $user = User::where('account_type','driver')->where('is_deleted',0)->where(function ($q) use ($account) {
             $q->where('email', $account)
             // ->orWhere('phone', $account)
             ->orWhere('login_name', $account);
-        })->selectRaw('photo_file_name,email,phone,id,password,system_admin,lock,company_id,account_type,login_name,delete_account')->first();
+        })->selectRaw('code,photo_file_name,username,email,phone,id,password,system_admin,lock,company_id,account_type,login_name,delete_account')->first();
         if(!$user) return  ApiResponse::NotFound('Invalid Username or Password');
         $systemAdmin = $user->system_admin ?? false;
         $isLock = $user->lock ?? false;
@@ -85,11 +86,12 @@ class AuthController extends Controller
         //     'type' => 'refresh'
         // ])->setTTL(config('jwt.refresh_ttl'));
         // $refreshToken = JWTAuth::encode($refreshTokenFactory->make())->get();
-        $data['token'] = $token;
+        // $data['token'] = $token;
         $data = (object)[];
         $data->id = $user->id;
+        $data->code = $user->code;
         $data->name = $user->id;
-        $data->user_name = $account;
+        $data->username = $user->username;
         $data->profile = Helper::getImageUrl($user->photo_file_name,$user->company_id,'user_profile');
         $data->full_name = $user->first_name.' '.$user->last_login;
         $data->phone = $user->phone;
@@ -110,7 +112,7 @@ class AuthController extends Controller
     public function updateProfile(Request $req){
         $authUser = UserService::getAuthUser('merchant');
         $validate = validator($req->all(),[
-            'user_name' => 'required|string',
+            'username' => 'required|string',
             'email' => 'nullable|string',
             'address' => 'nullable|string',
             'photo' => 'nullable',
@@ -121,7 +123,7 @@ class AuthController extends Controller
         // \Log::error(json_encode($req->all()));
         // \Log::info($req->all());
         if($validate->fails()) return ApiResponse::ValidateFail($validate->errors()->first());
-        $user = User::where('account_type',$authUser->account_type)->selectRaw('id,photo_file_name,user_name,phone,email,pin_address,latitude,longitude')->find($authUser->id);
+        $user = User::where('account_type',$authUser->account_type)->selectRaw('id,photo_file_name,username,phone,email,pin_address,latitude,longitude')->find($authUser->id);
         $inputs = $validate->validated();
         $inputs['latitude'] = $inputs['loc_lat'] ?? null;
         $inputs['longitude'] = $inputs['loc_lng'] ?? null;
@@ -135,7 +137,9 @@ class AuthController extends Controller
             Helper::deleteImageFile($user->photo_file_name,$authUser->company_id,'user_profile');
         }else if(!$photo) Helper::deleteImageFile($user->photo_file_name,$authUser->company_id,'user_profile');
         $user->update($inputs);
-        return ApiResponse::JsonResult(null,__('messages.info',[
+        return ApiResponse::JsonResult([
+            'image_url' => Helper::getImageUrl($user->photo_file_name,$authUser->company_id,'user_profile')
+        ],__('messages.info',[
             'info' => 'Updated'
         ]));
     }

@@ -28,9 +28,9 @@ class ZoneController extends Controller
             'zone_code' => 'nullable|string|max:30',
             'zone_name' => 'required|string|max:50',
             'zone_type' => 'required|string|max:30',
-            'district' => "nullable|string|exists:districts,name",
-            'commune' => "nullable|string|exists:communes,name",
-            'city' => "required|string|exists:cities,name",
+            'district' => "nullable|string",
+            'commune' => "nullable|string",
+            'city' => "required|string",
             'country_id' => "required|exists:countries,id",
             'description' => "nullable|string|max:250",
             'loc_lat' => 'nullable|numeric',
@@ -49,7 +49,7 @@ class ZoneController extends Controller
         $inputs['update_uid'] = $user->id;
         $inputs['branch_id'] = $user->branch_id;
         $inputs['company_id'] = $user->company_id;
-        $inputs['identify'] = isset($inputs['parent_id']) ? 'child':'parent';
+        $inputs['identity'] = isset($inputs['parent_id']) ? 'child':'parent';
         $inputZoneCode = $inputs['zone_code'] ?? null;
         if($inputZoneCode){
             $existZone = Zone::where('is_deleted',0)->where('zone_code',$inputs['zone_code'])->first();
@@ -61,7 +61,7 @@ class ZoneController extends Controller
         if($existZoneName) return ApiResponse::Duplicated(__('messages.error',[
             'info' => 'Zone name ('.$inputs['zone_name'].'- '.$existZoneName->zone_code.') is already exists.'
         ]));
-        // Log::info($inputs);
+        Log::info($req->all());
         $create = Zone::create($inputs);
         // if(!$create) return ApiResponse::Error('Fail to create zone');
         if(!$inputZoneCode) $create->update([

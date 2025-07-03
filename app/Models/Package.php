@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use DB;
 use Helper;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -26,6 +27,7 @@ class Package extends Model
         'receiver_lat',
         'receiver_lng',
         'qr_code',
+        'driver_notes',
         'last_submit_uid',
         'driver_display_order',
         'last_remark_user',
@@ -39,6 +41,8 @@ class Package extends Model
         'dim_z',
         'remarks',
         'status_id',
+        'prev_status_id',
+        'current_status_id',
         'failure_notes',
         'merchant_id',
         'failed_datetime',
@@ -71,16 +75,12 @@ class Package extends Model
         'exchange_rate',
         'merchant_total',
         'driver_total',
-        'company_id',
-        'branch_id',
-        'create_uid',
         'kick_notes',
         'update_uid',
         'delivery_remarks',
         'extra_charge',
         'kick_reason',
         'kick_uid',
-        'is_deleted',
         'driver_payment_id',
         'merchant_payment_id',
         'driver_disbursement_id',
@@ -89,9 +89,24 @@ class Package extends Model
         'is_contact',
         'contact_reason',
         'priority_level',
+        'arrive_warehouse_datetime',
+        'warehouse_id',
+
+        'cod_khr',
+        'cod_usd',
+        'cod_fee',
+        'driver_cod_usd',
+        'driver_cod_khr',
+
+        'company_id',
+        'branch_id',
+        'create_uid',
+        'is_deleted',
         'deleted_uid',
         'deleted_datetime',
-        'arrive_warehouse_datetime'
+
+        'location_type'
+
     ];
 
     public function getAssignDriverDatetimeAttribute($value)
@@ -193,6 +208,53 @@ class Package extends Model
     public function disbursement()
     {
         return $this->belongsTo(DisbursementPackage::class, 'package_id','package_id');
+    }
+
+    public function hasDriverPayment(): bool
+    {
+        return DB::table('payment_packages')
+            ->where('package_id', $this->id)
+            ->where('payer_type', 'driver')
+            ->where('is_deleted', false)
+            ->exists()
+            ||
+            DB::table('disbursement_packages')
+            ->where('package_id', $this->id)
+            ->where('payee_type', 'driver')
+            ->where('is_deleted', false)
+            ->exists();
+    }
+
+    // Check if merchant payment or disbursement exists for this package
+    public function hasMerchantPayment(): bool
+    {
+        return DB::table('payment_packages')
+            ->where('package_id', $this->id)
+            ->where('payer_type', 'merchant')
+            ->where('is_deleted', false)
+            ->exists()
+            ||
+            DB::table('disbursement_packages')
+            ->where('package_id', $this->id)
+            ->where('payee_type', 'merchant')
+            ->where('is_deleted', false)
+            ->exists();
+    }
+
+    public function hasDriverCommissionPayment(): bool
+    {
+        return DB::table('disbursement_packages')
+            ->where('package_id', $this->id)
+            ->where('payee_type', 'driver')
+            ->where('type', 'commission')
+            ->where('is_deleted', false)
+            ->exists();
+    }
+
+    // Optional: Combined check
+    public function hasAnyPayment(): bool
+    {
+        return $this->hasDriverPayment() || $this->hasMerchantPayment();
     }
 
 

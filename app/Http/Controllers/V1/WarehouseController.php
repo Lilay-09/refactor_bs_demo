@@ -6,23 +6,39 @@ use ApiResponse;
 use App\Http\Controllers\Controller;
 use App\Models\Warehouse;
 use App\Services\UserService;
+use App\Services\WarehouseService;
 use Illuminate\Http\Request;
 
 class WarehouseController extends Controller
 {
     //
 
-    public function updateWarehouse(Request $req){
-        $user = UserService::getAuthUser();
-        $id = $req->id;
-        $warehouse = Warehouse::where('company_id',$user->company_id)->find($id);
-        if(!$warehouse) return ApiResponse::NotFound();
-        $warehouse->update([
-            'address' => $req->address,
-            'cp_phone' => $req->cp_phone,
-            'cp_name' => $req->cp_name,
-        ]);
+    private object $authUser;
+    public function __construct(private WarehouseService $warehouseService){
+        $this->authUser = auth()->user();
+    }
 
-        return ApiResponse::JsonResult(null,'Updated');
+    public function createWarehouse(Request $req){
+        return ApiResponse::flex($this->warehouseService->createWarehouse($req,$this->authUser));
+    }
+
+    public function getWarehouses(Request $req){
+        return ApiResponse::flex($this->warehouseService->getWarehouses($req,$this->authUser));
+    }
+
+    public function getWarehousesByBranch(Request $req){
+        return ApiResponse::flex($this->warehouseService->getWarehousesByBranch($req->branchId,$this->authUser));
+    }
+
+    public function updateWarehouse(Request $req){
+        return ApiResponse::flex($this->warehouseService->updateWarehouse($req->id,$req,$this->authUser));
+    }
+
+    public function getOneWarehouse(Request $req){
+        return ApiResponse::flex($this->warehouseService->getOneWarehouse($req->id,$this->authUser));
+    }
+
+    public function deleteWarehouse(Request $req){
+        return ApiResponse::flex($this->warehouseService->deleteWarehouse($req->id,$this->authUser));
     }
 }

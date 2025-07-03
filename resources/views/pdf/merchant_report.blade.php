@@ -203,7 +203,7 @@
         <!-- Right Section (Profile) -->
         <div class="profile" style="float: right; width: 45%; text-align: right;">
             <p>ដៃគូសហការធម្មតា</p>
-            <p>{{$merchant['user_name']}}</p>
+            <p>{{$merchant['username']}}</p>
             <p>{{$merchant['phone']}}</p>
         </div>
 
@@ -346,7 +346,7 @@
 <body>
     <h3 class="header">{{ $title ?? 'History Packages' }}</h3>
     <p>Date: {{ $date ?? now()->format('Y-m-d') }}</p>
-    <p>Merchant: {{ $merchant['user_name'] ?? 'N/A' }} ({{ $merchant['phone'] ?? '' }})</p>
+    <p>Merchant: {{ $merchant['username'] ?? 'N/A' }} ({{ $merchant['phone'] ?? '' }})</p>
     <div class="content">
 
         @if(isset($data[0]))

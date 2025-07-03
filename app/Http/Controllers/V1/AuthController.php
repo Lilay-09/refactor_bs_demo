@@ -78,7 +78,7 @@ class AuthController extends Controller
         $data->id = $user->id;
         $data->name = $user->id;
         $data->system_admin = $user->system_admin;
-        $data->user_name = $account;
+        $data->username = $account;
         $data->profile = Helper::getImageUrl($user->photo_file_name,$user->company_id,'user_profile');
         $data->full_name = $user->first_name.' '.$user->last_login;
         $data->phone = $user->phone;
@@ -89,6 +89,10 @@ class AuthController extends Controller
             $data->modules = $moduleIds;
             $permissionIds = UserPermission::where('user_id',$user->id)->pluck('permission_id')->toArray();
             $data->permissions = $permissionIds;
+        }
+        else{
+            $data->modules = [];
+            $data->permissions = [];
         }
 
         return ApiResponse::JsonResult($data,'Success');

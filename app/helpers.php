@@ -675,7 +675,7 @@ class Helper{
     }
 
     static function generateBarcodeString($uniqueKey,$companyId,$prefix='JPK'){
-        $genCode = substr(strtoupper(string: uniqid($prefix)).self::generateRandomPrefix(5),0,12-strlen($uniqueKey));
+        $genCode = substr(strtoupper(string: uniqid($prefix)).self::generateRandomPrefix(8),0,18-strlen($uniqueKey));
         $barcode = $genCode.$companyId.$uniqueKey;
         return $barcode;
     }
@@ -1609,7 +1609,7 @@ class DataResponse //extends Model
         $filter = (object) $filter;
         $perPage = isset($filter->per_page) ? ($filter->per_page == 0 ? 1 : min($filter->per_page, $limit)) : min(10, $limit);
         $currentPage = isset($filter->page_no) ? $filter->page_no : 1;
-
+        // $query->take($limit);
         // Generate unique cache key from filter
         $cacheKey = 'pagination_' . md5(json_encode($filter));
 

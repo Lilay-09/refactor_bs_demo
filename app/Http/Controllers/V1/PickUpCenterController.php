@@ -11,7 +11,7 @@ use App\Models\User;
 use App\Services\CloudMessagingService;
 use App\Services\CompanyProfileService;
 use App\Services\GeneralSettingService;
-use App\Services\PickupCenterServiceImpl;
+use App\Services\PickupCenterService;
 use App\Services\UserService;
 use DB;
 use Exception;
@@ -22,14 +22,12 @@ use Log;
 class PickUpCenterController extends Controller
 {
     //
-    protected $pkupService;
-    public function __construct(PickupCenterServiceImpl $pickupCenterService){
-        $this->pkupService = $pickupCenterService;
+    public function __construct(private PickupCenterService $pickupCenterService){
     }
 
     public function createQuickOrder(Request $req){
         $user = UserService::getAuthUser();
-        $createOrder = $this->pkupService->createOrder($req,$user);
+        $createOrder = $this->pickupCenterService->createOrder($req,$user);
         return ApiResponse::flex($createOrder);
     }
 
@@ -63,7 +61,7 @@ class PickUpCenterController extends Controller
         $order = Order::where('is_deleted',0)->find($id);
         if(!$order) return ApiResponse::NotFound(__('messages.not_found',['info' => 'Order']));
         if($order->status_id == 5) return ApiResponse::Duplicated(__('messages.error',['info' => 'Order has already inputed details!']));
-        $validate = $this->pkupService->orderValidation($req);
+        $validate = $this->pickupCenterService->orderValidation($req);
         if($validate->fails()) return ApiResponse::ValidateFail($validate->errors()->first());
         $inputs = $validate->validated();
         $merchantId = $inputs['merchant_id'];
@@ -129,7 +127,7 @@ class PickUpCenterController extends Controller
                     'khInfo' => 'ប្រសិនបើប្តូរការ Order ទៅទំនេរសូមកុំជ្រើសរើសអ្នកដឹក !'
                 ]));
             }
-            $driverName = $order->driver?->user_name;
+            $driverName = $order->driver?->username;
             $message = [
                 'info' => 'Status changed but order is related to a delivery person, suggest contacting the delivery person ('.$driverName.')',
                 'khInfo' => 'ស្ថានភាពត្រូវបានផ្លាស់ប្តូរ ប៉ុន្តែការបញ្ជាទិញនេះទាក់ទងនឹងបុគ្គលិកដឹកជញ្ជូន សូមផ្តល់អនុសាសន៍ឲ្យទាក់ទងបុគ្គលិកដឹកជញ្ជូន ('.$driverName.')'
@@ -193,11 +191,11 @@ class PickUpCenterController extends Controller
         $packages = Package::where('outstanding',1)->where('is_deleted',0)->get();
         // $orders = $query->get();
         $callbackMapper = function($order) use($lang,$packages){
-            $order->created_user = $order->createdBy?->user_name;
+            $order->created_user = $order->createdBy?->username;
             $order->order_date = Helper::dateDMY($order->order_datetime);
             // $order->created_at = Helper::formatCustomDateTime($order->created_at);
             $order->order_time = Helper::formatCustomDateTime($order->order_datetime,'h:i:s A');
-            $order->merchant_name = $order->merchant->user_name;
+            $order->merchant_name = $order->merchant->username;
             $order->merchant_code = $order->merchant->code;
             $order->merchant_code = $order->merchant->code;
             $order->default = [
@@ -211,18 +209,18 @@ class PickUpCenterController extends Controller
                 $order->status_code = $statusCode;
             }else $order->status_code = $order->tracking_status->name;
             // $order->status_code_kh = $order->tracking_status->name;
-            $order->driver_name = $order->driver?->user_name;
+            $order->driver_name = $order->driver?->username;
             $order->driver_code = $order->driver?->code;
             $order->package_count = $this->getPackageCountByOrder($packages,$order->id);
             unset($order->merchant,$order->driver,$order->tracking_status,$order->createdBy);
             return $order;
         };
         // foreach($orders as $order){
-        //     $order->created_user = $order->createdBy?->user_name;
+        //     $order->created_user = $order->createdBy?->username;
         //     $order->order_date = Helper::dateDMY($order->order_datetime);
         //     // $order->created_at = Helper::formatCustomDateTime($order->created_at);
         //     $order->order_time = Helper::formatCustomDateTime($order->order_datetime,'h:i:s A');
-        //     $order->merchant_name = $order->merchant->user_name;
+        //     $order->merchant_name = $order->merchant->username;
         //     $order->merchant_code = $order->merchant->code;
         //     $order->merchant_code = $order->merchant->code;
         //     $order->default = [
@@ -236,7 +234,7 @@ class PickUpCenterController extends Controller
         //         $order->status_code = $statusCode;
         //     }else $order->status_code = $order->tracking_status->name;
         //     // $order->status_code_kh = $order->tracking_status->name;
-        //     $order->driver_name = $order->driver?->user_name;
+        //     $order->driver_name = $order->driver?->username;
         //     $order->driver_code = $order->driver?->code;
         //     $order->package_count = $this->getPackageCountByOrder($packages,$order->id);
         //     unset($order->merchant,$order->driver,$order->tracking_status,$order->createdBy);
@@ -328,11 +326,11 @@ class PickUpCenterController extends Controller
                 'type' => 'private',
                 'target_uid' => $driverId,
                 'title' => 'Assigned Order',
-                'body' => 'You have been assigned to pickup the order('.$order->code.'). Merchant:'.$order->merchant->user_name
+                'body' => 'You have been assigned to pickup the order('.$order->code.'). Merchant:'.$order->merchant->username
             ]);
             $notif->sendNotificationByTopic($notifReq,$user);
         if(!$driverId) return ApiResponse::JsonResult(null,__('Order '.$order->code.' is available now'));
-        return ApiResponse::JsonResult(null,__('Order '.$order->code.' has assigned to '.$driver->user_name));
+        return ApiResponse::JsonResult(null,__('Order '.$order->code.' has assigned to '.$driver->username));
     }
 
     public function setAtWarehouse(Request $req){
@@ -350,7 +348,7 @@ class PickUpCenterController extends Controller
     public function addPackage(Request $req){
         $user = UserService::getAuthUser();
         $orderId = $req->order_id;
-        $create = $this->pkupService->createOrUpdatePackage($req,$user,null,$orderId);
+        $create = $this->pickupCenterService->createOrUpdatePackage($req,$user,null,$orderId);
         return ApiResponse::flex($create);
     }
 
@@ -437,7 +435,7 @@ class PickUpCenterController extends Controller
         $user = UserService::getAuthUser();
         $orderId = $req->order_id;
         $packageId = $req->id;
-        $update = $this->pkupService->createOrUpdatePackage($req,$user,$packageId,$orderId);
+        $update = $this->pickupCenterService->createOrUpdatePackage($req,$user,$packageId,$orderId);
         return ApiResponse::flex($update);
     }
 
@@ -447,10 +445,10 @@ class PickUpCenterController extends Controller
         $order = Order::where('is_deleted',0)->find($id);
         if(!$order) return ApiResponse::NotFound();
         $packages = Package::where('is_deleted',0)
-        ->with(['driver:id,user_name,phone','merchant:id,phone,user_name','updateUser:id,user_name'])
+        ->with(['driver:id,username,phone','merchant:id,phone,username','updateUser:id,username'])
         // ->whereNotIn('status_id',[]) // at warehouse
         // ->where('company_id',$user->company_id)
-        ->selectRaw('cod,extra_charge,taxi_fee,delivery_fee,zone_name,zone_code,merchant_id,driver_id,receiver_phone,receiver_address,created_at,arrive_warehouse_datetime,qr_code,remarks,price,update_uid,payer')
+        ->selectRaw('id as package_id,cod,extra_charge,taxi_fee,delivery_fee,zone_name,zone_code,merchant_id,driver_id,receiver_phone,receiver_address,created_at,arrive_warehouse_datetime,qr_code,remarks,price,update_uid,payer')
         ->where('order_id',$id)
         // ->orderByRaw("CASE $orderByCase END")
         ->get();
@@ -459,14 +457,14 @@ class PickUpCenterController extends Controller
         foreach($packages as $package){
             $driver = $package->driver;
             if($driver){
-                $package->driver_name = $driver->user_name;
+                $package->driver_name = $driver->username;
             }
-            $package->merchant_name = $package->merchant->user_name;
+            $package->merchant_name = $package->merchant->username;
             $package->merchant_phone = $package->merchant->phone;
             $package->receiver_address = $package->receiver_address ?? $package->zone_name;
             $package->delivery_fee = $package->delivery_fee + $package->taxi_fee + $package->extra_charge;//($package->cod ? $package->price : 0);
             $package->base_fee = $package->payer == 'receiver' ? $package->delivery_fee:0;
-            $package->created_by = $package->updateUser->user_name;
+            $package->created_by = $package->updateUser->username;
             $package->created_date = Helper::formatCustomDateTime($package->created_at,'d-M-Y');
             $package->warehouse_at = Helper::dateDMY($package->arrive_warehouse_datetime);
             $total = 0;
@@ -530,7 +528,7 @@ class PickUpCenterController extends Controller
             'deleted_uid' => $user->id,
             'deleted_datetime' => now()
         ]);
-        $this->pkupService->updateOrderQty($package->order_id);
+        $this->pickupCenterService->updateOrderQty($package->order_id);
         return ApiResponse::JsonResult(null,__('messages.deleted',['info' => 'Package','khInfo'=>'កញ្ចប់']));
     }
 }

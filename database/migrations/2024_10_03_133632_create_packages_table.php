@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\LocationType;
 use App\Traits\BaseMigrationField;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
@@ -90,16 +91,22 @@ return new class extends Migration
             $table->string('main_zone_code')->nullable();
             $table->decimal('receiver_lat',19,7)->default(0);
             $table->decimal('receiver_lng',19,7)->default(0);
+
             $table->unsignedBigInteger('warehouse_id')->nullable();
+
             $table->decimal('cod_usd',15,2);
             $table->decimal('cod_khr',15,2);
+            $table->decimal('cod_fee')->default(0);
             $table->decimal('driver_cod_usd',15,2);
             $table->decimal('driver_cod_khr',15,2);
+            $table->unsignedBigInteger('prev_status_id')->nullable();
 
             $table->foreign('status_id')->references('id')->on('tracking_statuses')->onDelete('cascade');
             $table->foreign('order_id')->references('id')->on('orders')->onDelete('cascade');
             $table->foreign('driver_id')->references('id')->on('users')->onDelete('cascade');
             $table->foreign('merchant_id')->references('id')->on('users')->onDelete('cascade');
+
+            $table->string('location_type',50)->default(LocationType::WAREHOUSE);
         });
     }
 

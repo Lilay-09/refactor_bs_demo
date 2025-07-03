@@ -32,11 +32,13 @@ class ReportController extends Controller
         $totalCount = 0;
         $startDate = $req->startDate;
         $endDate = $req->endDate;
+
         $qP = Package::where('is_deleted',0)
         ->whereIn('status_id',[9,10,19,11])
         ->where('merchant_id',$user->id)
-        ->with(['driver:id,user_name,phone','returnUser:id,user_name,phone'])
+        ->with(['driver:id,username,phone','returnUser:id,username,phone'])
         ->selectRaw('id,payer,cod,driver_id,qr_code,extra_charge,delivery_fee,extra_charge,price,status_id,failed_datetime,delivered_datetime,returned_datetime,receiver_phone,receiver_address,remarks,delivery_remarks as notes');
+
         $qP->orderByRaw('
             CASE
                 WHEN status_id = 9 THEN delivered_datetime
@@ -102,10 +104,10 @@ class ReportController extends Controller
         })->groupBy('groupDate')
         ->map(function ($group, $date) use (&$grandTotal,&$totalCount,&$packageInfo,$isKm){
             $group->each(function ($item) use (&$grandTotal,&$totalCount,&$packageInfo,$isKm,&$totalDeliveryFee) {
-                $item->driver_name = $item->driver?->user_name;
+                $item->driver_name = $item->driver?->username;
                 $item->driver_phone = $item->driver?->phone;
                 if(!$item->driver) {
-                    $item->driver_name = $item->returnUser?->user_name;
+                    $item->driver_name = $item->returnUser?->username;
                     $item->driver_phone = $item->returnUser?->phone;
                 }
                 $item->finished_date = $item->failed_datetime ? Helper::dateDMY($item->failed_datetime): Helper::dateDMY($item->delivered_datetime);
@@ -181,11 +183,11 @@ class ReportController extends Controller
         // $paymentStatus = $req->payment_status_id ?? null;
         $statusId = $req->status_id ?? null;
         // $search = $req->search ?? null;
-        $merchantInfo = GeneralSettingService::getMerchantById($userId,['user_name','phone','id']);
+        $merchantInfo = GeneralSettingService::getMerchantById($userId,['username','phone','id']);
         $qP = Package::where('is_deleted',0)
         ->whereIn('status_id',[9,10,19,11])
         ->where('merchant_id',$userId)
-        // ->with(['driver:id,user_name,phone','returnUser:id,user_name,phone'])
+        // ->with(['driver:id,username,phone','returnUser:id,username,phone'])
         // ->selectRaw('id,payer,cod,driver_id,qr_code,extra_charge,delivery_fee,extra_charge,price,status_id,failed_datetime,delivered_datetime,returned_datetime,receiver_phone,receiver_address,remarks');
         ->selectRaw('id,payer,remarks,cod,zone_name,driver_id,qr_code,extra_charge,delivery_fee,extra_charge,price,status_id,failed_datetime,delivered_datetime,returned_datetime,receiver_phone,receiver_address');
         $qP->orderByRaw('
@@ -247,10 +249,10 @@ class ReportController extends Controller
             $totalPrice = 0;
             $totalFees = 0;
             $group->each(function ($item) use ($lang,&$totalDeliveryFee,&$totalPrice,&$totalFees,&$grandTotal) {
-                // $item->driver_name = $item->driver?->user_name;
+                // $item->driver_name = $item->driver?->username;
                 // $item->driver_phone = $item->driver?->phone;
                 if(!$item->driver) {
-                    $item->driver_name = $item->returnUser?->user_name;
+                    $item->driver_name = $item->returnUser?->username;
                     $item->driver_phone = $item->returnUser?->phone;
                 }
                 $item->finished_date = $item->failed_datetime ? Helper::dateDMY($item->failed_datetime): Helper::dateDMY($item->delivered_datetime);

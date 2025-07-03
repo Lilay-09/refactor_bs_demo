@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Mobile\V1;
 
 use ApiResponse;
+use App\Enums\TrackingStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\V1\FleetManagementController;
 use App\Http\Controllers\V1\PackageTrailController;
@@ -11,10 +12,14 @@ use App\Models\DeliveryPackage;
 use App\Models\Notification;
 use App\Models\Package;
 use App\Models\PackageAttachment;
+use App\Models\PackageTransferDetail;
 use App\Services\CloudMessagingService;
 use App\Services\GeneralSettingService;
 use App\Services\PickupCenterService;
+use App\Services\PickupCenterServiceImpl;
+use App\Services\TransferServiceImpl;
 use App\Services\UserService;
+use App\Services\V1\FleetServiceImpl;
 use Cache;
 use DataResponse;
 use DB;
@@ -22,6 +27,7 @@ use Exception;
 use Helper;
 use Illuminate\Http\Request;
 use Log;
+use WebSocket\Client;
 
 
 class GeneralSettingController extends Controller
@@ -108,54 +114,142 @@ class GeneralSettingController extends Controller
         return ApiResponse::JsonResult($obj);
     }
 
-    public function scanPackage(Request $req){
+    public function scanPackage(Request $req)
+    {
         $user = UserService::getAuthUser('driver');
-        $item_ref = $req->item_ref;
-        $package = Package::where('qr_code',$item_ref)->where('is_deleted',0)->selectRaw('status_id,driver_id,merchant_id,is_contact')->first();
-        if(!$package && is_numeric($item_ref)) $package = Package::where('is_deleted',0)->find($item_ref);
-        if(!$package) return ApiResponse::NotFound();
-        if($package->status_id == 9) return ApiResponse::Duplicated(__('messages.info',[
-            'info' => 'Package is already delivered.',
-            'khInfo' => 'កញ្ចប់បានដឹករួចហើយ'
-        ]));
-        if($package->status_id == 11) return ApiResponse::Duplicated(__('messages.info',[
-            'info' => 'Package has returned.',
-            'khInfo' => 'កញ្ចប់បានយកត្រឡប់ទៅហាងរួចហើយ'
-        ]));
-        if($package->status_id == 19) return ApiResponse::Duplicated(__('messages.info',[
-            'info' => 'Package is already failed with fee.',
-            'khInfo' => 'កញ្ចប់ធ្លាប់បរាជ័យគិតសេវា'
-        ]));
-        if($package->status_id == 7) {
-            return ApiResponse::ValidateFail(__('messages.info',[
+        $itemRef = $req->item_ref;
+
+        // Get basic package data; avoid loading unnecessary relations yet
+        $package = Package::query()
+            ->when(is_numeric($itemRef), fn($q) => $q->where(function ($q2) use ($itemRef) {
+                $q2->where('qr_code', $itemRef)->orWhere('id', $itemRef);
+            }), fn($q) => $q->where('qr_code', $itemRef))
+            ->where('is_deleted', 0)
+            ->first([
+                'id', 'qr_code', 'status_id', 'driver_id', 'merchant_id', 'is_contact',
+                'assign_driver_datetime', 'receiver_address', 'receiver_phone', 'receiver_name',
+                'product_type', 'cod', 'zone_name', 'zone_code', 'price', 'delivery_fee',
+                'driver_total as total', 'taxi_fee', 'additional_fee', 'extra_charge', 'payer'
+            ]);
+
+        if (!$package) {
+            return ApiResponse::NotFound();
+        }
+
+        // Status validation
+        $statusMap = [
+            TrackingStatus::DELIVERED->value => ['Package is already delivered.', 'កញ្ចប់បានដឹករួចហើយ'],
+            TrackingStatus::RETURNED->value => ['Package has returned.', 'កញ្ចប់បានយកត្រឡប់ទៅហាងរួចហើយ'],
+            TrackingStatus::FAILED_WITH_FEE->value => ['Package is already failed with fee.', 'កញ្ចប់ធ្លាប់បរាជ័យគិតសេវា'],
+        ];
+
+        if (isset($statusMap[$package->status_id])) {
+            [$info, $khInfo] = $statusMap[$package->status_id];
+            return ApiResponse::Duplicated(__('messages.info', compact('info', 'khInfo')));
+        }
+
+        if ($package->status_id === TrackingStatus::PENDING_PICK->value) {
+            return ApiResponse::ValidateFail(__('messages.info', [
                 'info' => 'Please ensure package has arrived warehouse',
-                'khInfo' => 'កញ្ចប់ត្រូវបញ្ចាក់ថាមកដល់​ឃ្លាំងទើបអាចដឹកបាន'
+                'khInfo' => 'កញ្ចប់ត្រូវបញ្ចាក់ថាមកដល់​ឃ្លាំងទើបអាចដឹកបាន',
             ]));
         }
-        $diffDriver = $package->driver_id ? ($user->id != $package->driver_id) : false;
-        $isOnDelivery = $package->status_id == 6;
-        $data = null;
-        if(!$diffDriver && $isOnDelivery)
-            $data = Package::where('qr_code',$item_ref)
-            ->with(['status:id,name','merchant:id,user_name'])
-            ->selectRaw('receiver_address,merchant_id,id,qr_code,status_id,assign_driver_datetime,receiver_phone,receiver_name,product_type,cod,zone_name,zone_code,price,delivery_fee,driver_total as total,taxi_fee,additional_fee,extra_charge,payer')
-            // ->selectRaw('p.delivered_datetime,p.failed_datetime,p.assign_driver_datetime,p.merchant_id,p.qr_code,p.price,p.cod,p.receiver_name,p.receiver_phone,p.zone_code,p.zone_name,ts.name as status_code
-            // ,d.user_name as driver_name,d.phone as driver_phone,m.user_name as merchant_name,m.phone as merchant_phone,p.id as package_id,dp.delivery_id,p.zone_code,p.zone_name,p.delivery_fee as base_fee,p.driver_total,p.driver_total as delivery_fee,p.taxi_fee,p.product_type,dp.status_id')
-            ->first();
-            if($data){
-                $data->merchant_name = $data->merchant?->user_name;
-                $data->cod = $data->cod ? 'Yes' : 'No';
-                $data->status_code = $data->status->name;
-                $data->fee = PickupCenterService::getFees($data->payer,$data->delivery_fee,$data->extra_charge,$data->taxi_fee);
-                unset($data->status,$data->merchant);
-            }
+
+        $diffDriver = $package->driver_id && $user->id !== $package->driver_id;
+        $isOnDelivery = $package->status_id === TrackingStatus::ON_DELIVERY->value;
+        $isReturning = $package->status_id === TrackingStatus::RETURNING->value;
+
+        $info = null;
+
+        if (!$diffDriver && $isOnDelivery) {
+            $package->load(['status:id,name', 'merchant:id,username']);
+            $info = [
+                'id' => $package->id,
+                'qr_code' => $package->qr_code,
+                'receiver_address' => $package->receiver_address,
+                'receiver_phone' => $package->receiver_phone,
+                'receiver_name' => $package->receiver_name,
+                'assign_driver_datetime' => $package->assign_driver_datetime,
+                'product_type' => $package->product_type,
+                'cod' => $package->cod ? 'Yes' : 'No',
+                'zone_name' => $package->zone_name,
+                'zone_code' => $package->zone_code,
+                'price' => $package->price,
+                'delivery_fee' => $package->delivery_fee,
+                'total' => $package->total,
+                'taxi_fee' => $package->taxi_fee,
+                'additional_fee' => $package->additional_fee,
+                'extra_charge' => $package->extra_charge,
+                'payer' => $package->payer,
+                'merchant_name' => $package->merchant?->username,
+                'status_code' => $package->status?->name,
+                'fee' => PickupCenterService::getFees(
+                    $package->payer,
+                    $package->delivery_fee,
+                    $package->extra_charge,
+                    $package->taxi_fee
+                ),
+            ];
+        }
+
         return ApiResponse::JsonResult([
             'is_contact' => $package->is_contact,
             'diff_driver' => $diffDriver,
             'is_delivery' => $isOnDelivery,
-            'info' => $data
+            'is_returning' => $isReturning,
+            'info' => $info,
         ]);
     }
+
+
+    // public function scanPackage(Request $req){
+    //     $user = UserService::getAuthUser('driver');
+    //     $item_ref = $req->item_ref;
+    //     $package = Package::where('qr_code',$item_ref)->where('is_deleted',0)->selectRaw('status_id,driver_id,merchant_id,is_contact')->first();
+    //     if(!$package && is_numeric($item_ref)) $package = Package::where('is_deleted',0)->find($item_ref);
+    //     if(!$package) return ApiResponse::NotFound();
+    //     if($package->status_id == 9) return ApiResponse::Duplicated(__('messages.info',[
+    //         'info' => 'Package is already delivered.',
+    //         'khInfo' => 'កញ្ចប់បានដឹករួចហើយ'
+    //     ]));
+    //     if($package->status_id == 11) return ApiResponse::Duplicated(__('messages.info',[
+    //         'info' => 'Package has returned.',
+    //         'khInfo' => 'កញ្ចប់បានយកត្រឡប់ទៅហាងរួចហើយ'
+    //     ]));
+    //     if($package->status_id == 19) return ApiResponse::Duplicated(__('messages.info',[
+    //         'info' => 'Package is already failed with fee.',
+    //         'khInfo' => 'កញ្ចប់ធ្លាប់បរាជ័យគិតសេវា'
+    //     ]));
+    //     if($package->status_id == 7) {
+    //         return ApiResponse::ValidateFail(__('messages.info',[
+    //             'info' => 'Please ensure package has arrived warehouse',
+    //             'khInfo' => 'កញ្ចប់ត្រូវបញ្ចាក់ថាមកដល់​ឃ្លាំងទើបអាចដឹកបាន'
+    //         ]));
+    //     }
+    //     $diffDriver = $package->driver_id ? ($user->id != $package->driver_id) : false;
+    //     $isOnDelivery = $package->status_id == 6;
+    //     $data = null;
+    //     if(!$diffDriver && $isOnDelivery)
+    //         $data = Package::where('qr_code',$item_ref)
+    //         ->with(['status:id,name','merchant:id,username'])
+    //         ->selectRaw('receiver_address,merchant_id,id,qr_code,status_id,assign_driver_datetime,receiver_phone,receiver_name,product_type,cod,zone_name,zone_code,price,delivery_fee,driver_total as total,taxi_fee,additional_fee,extra_charge,payer')
+    //         // ->selectRaw('p.delivered_datetime,p.failed_datetime,p.assign_driver_datetime,p.merchant_id,p.qr_code,p.price,p.cod,p.receiver_name,p.receiver_phone,p.zone_code,p.zone_name,ts.name as status_code
+    //         // ,d.username as driver_name,d.phone as driver_phone,m.username as merchant_name,m.phone as merchant_phone,p.id as package_id,dp.delivery_id,p.zone_code,p.zone_name,p.delivery_fee as base_fee,p.driver_total,p.driver_total as delivery_fee,p.taxi_fee,p.product_type,dp.status_id')
+    //         ->first();
+    //         if($data){
+    //             $data->merchant_name = $data->merchant?->username;
+    //             $data->cod = $data->cod ? 'Yes' : 'No';
+    //             $data->status_code = $data->status->name;
+    //             $data->fee = PickupCenterService::getFees($data->payer,$data->delivery_fee,$data->extra_charge,$data->taxi_fee);
+    //             unset($data->status,$data->merchant);
+    //         }
+    //     return ApiResponse::JsonResult([
+    //         'is_contact' => $package->is_contact,
+    //         'diff_driver' => $diffDriver,
+    //         'is_delivery' => $isOnDelivery,
+    //         'info' => $data
+    //     ]);
+    // }
 
     public static function markReadNotification(Request $req,$user){
         $id = $req->id ?? null;
@@ -220,12 +314,12 @@ class GeneralSettingController extends Controller
             $updateArr['status_id'] = 6;
             $updateArr['driver_id'] = $user->id;
             $updateArr['assign_driver_datetime'] = now();
-            $notes = $package->tracking_notes."|[$user->id]Driver ($user->user_name) scan on delivery (".Helper::getDateTime().")";
+            $notes = $package->tracking_notes."|[$user->id]Driver ($user->username) scan on delivery (".Helper::getDateTime().")";
             // $notifRequpdateArr['tracking_notes'] = $notes;
-            $pckTl = new PackageTrailController();
+            $pckTl = new PickupCenterServiceImpl();
             // DB::beginTransaction();
             // try{
-                $trip = $pckTl->createOrUpdateTrip($user->id,$package->id,$package->drivervehicle_type,$user,$notes,6,'assign');
+                $trip = $pckTl->createOrUpdateTrip($user->id,$package->id,$package->drivervehicle_type,$user,$notes,6,'assign',$package);
                 if($trip->error) return ApiResponse::flex($trip);
                 // DB::commit();
             // }catch(Exception $e){
@@ -249,37 +343,57 @@ class GeneralSettingController extends Controller
             // $cms->sendNotificationByTopic($notifReq,$user);
         }
 
-        if($changeDriver){
-            if($user->id == $package->driver_id) return ApiResponse::Duplicated(__('messages.info',[
-                'info' => 'It seems like you tried to confirm delivery package again'
-                // 'info' => 'This package is already marked as out for delivery. Please check the delivery status before proceeding.'
-            ]));
-            $requester = $user->info->phone."($user->user_name)";
-            $topics = GeneralSettingService::getGeneralTopics($user->company_id,'driver',$package->driver_id);
-            Cache::set($topics->private,(object)[
-                'requester' => $requester,
-                'requester_id' => $user->id,
-            ],250);
-            $notifReq = new Request([
-                'topic' => $topics->private,
-                'title' => 'Change Driver',
-                'body' => "$requester request change package ",
-                'data' => [
-                    'action' => 'change-driver',
+        try{
+            if($changeDriver){
+                if($user->id == $package->driver_id) return ApiResponse::Duplicated(__('messages.info',[
+                    'info' => 'It seems like you tried to confirm delivery package again'
+                    // 'info' => 'This package is already marked as out for delivery. Please check the delivery status before proceeding.'
+                ]));
+                $requester = $user->info->phone."($user->username)";
+                $topics = GeneralSettingService::getGeneralTopics($user->company_id,'driver',$package->driver_id);
+                Cache::set($topics->private,(object)[
                     'requester' => $requester,
-                    'barcode' => $item_ref,
-                    "en_message" => "$requester request change package ",//$requester." request swap the package",
-                    "km_message" => $requester." ស្នើរសុំកញ្ចប់"
-                ]
-            ]);
-            // var_dump($requester,$topics->private);
-            $cms->sendNotificationByTopic($notifReq,$user);
-            $driverName = $driver->user_name;
-            $updateArr['tracking_notes'] = $package->tracking_notes."|[$user->id]Driver ($user->user_name) ask [$package->driver_id]Driver $driverName to change driver";
+                    'requester_id' => $user->id,
+                ],250);
+                $notifReq = new Request([
+                    'topic' => $topics->private,
+                    'title' => 'Change Driver',
+                    'body' => "$requester request change package ",
+                    'data' => [
+                        'action' => 'change-driver',
+                        'requester' => $requester,
+                        'barcode' => $item_ref,
+                        "en_message" => "$requester request change package ",//$requester." request swap the package",
+                        "km_message" => $requester." ស្នើរសុំកញ្ចប់"
+                    ]
+                ]);
+                // var_dump($requester,$topics->private);
+                $cms->sendNotificationByTopic($notifReq,$user);
+                $driverName = $driver->username;
+                $updateArr['tracking_notes'] = $package->tracking_notes."|[$user->id]Driver ($user->username) ask [$package->driver_id]Driver $driverName to change driver";
+            }
+            // if(empty($updateArr)) return ApiResponse::JsonResult(null,__('messages.updated'));
+            DB::beginTransaction();
+            $trxSImpl = new TransferServiceImpl();
+            $rct = $trxSImpl->driverScanReceive($user,$package->id);
+            if($rct->error) return $rct;
+            $package->update($updateArr);
+            $client = new Client(config('app.cl_socket'));
+            $client->send(json_encode([
+                'topic' => 'arrizon',
+                'type' => 'receive',
+                'message' => $package->id
+            ]));
+            $client->close();
+            // Log::info(PackageTransferDetail::where('package_id',$package->id)->get());
+            DB::commit();
+            return ApiResponse::JsonResult(null,__('messages.updated'));
+        }catch(Exception $e){
+            DB::rollBack();
+            Log::error($e->getMessage());
+            return ApiResponse::Error(__('messages.error'));
         }
-        // if(empty($updateArr)) return ApiResponse::JsonResult(null,__('messages.updated'));
-        $package->update($updateArr);
-        return ApiResponse::JsonResult(null,__('messages.updated'));
+
     }
 
     public function confirmOrCancelSwapPackage(Request $req){
@@ -306,14 +420,14 @@ class GeneralSettingController extends Controller
         $requesterTopic = GeneralSettingService::getGeneralTopics($user->company_id,'driver',$requester_id);
         $cms = new CloudMessagingService();
         $notifTitle = 'Confirm';
-        $notifBody = $user->user_name.' has confirmed your request';
+        $notifBody = $user->username.' has confirmed your request';
         if(!$confirm){
             $notifTitle = 'Cancelled';
             $notifBody = 'Your request has been denied';
         }else{
             // $today = now();
             // return $requester_id;
-            $fleet = new FleetManagementController();
+            $fleet = new FleetServiceImpl();
             $fleetArr = new Request([
                 'packages' => [
                     [
@@ -381,7 +495,7 @@ class GeneralSettingController extends Controller
             $package->update([
                 'driver_id' => $requester_id,
                 'status_id' => 6,
-                'tracking_notes' => $package->tracking_notes.'|Package tranferred from ['.$package->driver_id.']'.$package->driver->user_name.' to ['.$requester_id.']'.$requester
+                'tracking_notes' => $package->tracking_notes.'|Package tranferred from ['.$package->driver_id.']'.$package->driver->username.' to ['.$requester_id.']'.$requester
             ]);
         }
         // return DeliveryPackage::where('package_id',29)->where('is_deleted',0)->get();
@@ -391,7 +505,7 @@ class GeneralSettingController extends Controller
             'body' => $notifBody,
             'data' => [
                 'action' => 'change-driver',
-                'sender' => $user->user_name,
+                'sender' => $user->username,
             ]
         ]);
         $cms->sendNotificationByTopic($notifReq,$user);

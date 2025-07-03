@@ -64,7 +64,7 @@
 <body>
     <h3 class="header">{{ $title ?? 'History Packages' }}</h3>
     <p>Date: {{ $date ?? now()->format('Y-m-d') }}</p>
-    <p>Driver: {{ $driver['user_name'] ?? 'N/A' }} ({{ $driver['phone'] ?? '' }})</p>
+    <p>Driver: {{ $driver['username'] ?? 'N/A' }} ({{ $driver['phone'] ?? '' }})</p>
     <h3>Summary</h3>
     <p style="margin-left: 8px;padding:0px">Delivered: {{$deliveredCount}} pcs</p>
     <p style="margin-left: 8px;padding:0px">Failed With Fee: {{$failedWithFeeCount}} pcs</p>

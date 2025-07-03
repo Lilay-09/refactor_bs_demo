@@ -14,6 +14,8 @@ class PriceList extends Model
         'id',
         'price',
         'base_fee',
+        'taxi_fee',
+        'other_fee',
         'below_kg',
         'below_kg_price',
         'price_list_name_id',

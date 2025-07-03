@@ -30,8 +30,44 @@ return [
     'sender' => 'Sender',
     'receiver' => 'Receiver',
 
-
     //**Branch */
-    'b1' => 'Head Office'
+    'b1' => 'Head Office',
+
+    //** Transfer Status */
+    'transfer_pending' => 'Pending',
+    'transfer_in_transit' => 'In Transit',
+    'transfer_delivered' => 'Delivered',
+
+    //** Vehicle Type */
+    'van' => 'Van',
+    'moto' => 'Moto',
+    'tuktuk' => 'Tuk Tuk',
+
+    //Tracking Status
+    'tracking' => [
+        'available_for_pick' => 'Available for Pickup',
+        'picked' => 'Picked',
+        'accepted_for_pickup' => 'Accepted for Pickup',
+        'picked_and_booked' => 'Picked and Booked',
+        'at_warehouse' => 'At Warehouse',
+        'on_delivery' => 'On Delivery',
+        'pending_pick' => 'Pending Pickup',
+        'delayed' => 'Delayed',
+        'delivered' => 'Delivered',
+        'failed' => 'Failed',
+        'returning' => 'Returning',
+        'pending_del' => 'Pending Delivery',
+        'accepted_for_pickup_del' => 'Accepted for Delivery Pickup',
+        'on_delivery_trip' => 'On Delivery Trip',
+        'all_completed' => 'All Completed',
+        'done_trip' => 'Done Trip',
+        'failed_trip' => 'Failed Trip',
+        'canceled_del' => 'Canceled Delivery',
+        'failed_with_fee' => 'Failed with Fee',
+        'canceled_pick' => 'Canceled Pickup',
+        'dropped_pick' => 'Dropped Pickup',
+        'in_transit' => 'In Transit',
+        'returned' => 'Returned',
+    ],
 ];
 

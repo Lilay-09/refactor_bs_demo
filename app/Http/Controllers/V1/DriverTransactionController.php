@@ -11,6 +11,7 @@ use App\Models\User;
 use App\Services\GeneralSettingService;
 use App\Services\TransactionService;
 use App\Services\UserService;
+use DB;
 use Helper;
 use Illuminate\Http\Request;
 
@@ -27,13 +28,22 @@ class DriverTransactionController extends Controller
         $driverId = $req->driver_id;
 
         // \Log::info($req->all());
-        $qD = User::query()->selectRaw('code,id,user_name as driver_name,phone as driver_phone')->where('account_type','driver');
+        $qD = User::query()->selectRaw('code,id,username as driver_name,phone as driver_phone')->where('account_type','driver');
         if($driverId) $qD->where('id',$driverId);
         // $driverInfo = $qD->get();
-        $qP = Package::query()->selectRaw('status_id,driver_id,delivery_type')
-        ->whereIn('status_id',[9,19])
-        ->where('is_deleted',0)
-        ->whereNull('driver_commission_id');
+        $qP = Package::query()->from('packages as p')
+        ->select('p.status_id','p.driver_id','p.delivery_type')
+        ->whereIn('p.status_id',[9,19])
+        ->where('p.is_deleted',0)
+        // ->whereNull('driver_commission_id');
+        ->whereNotExists(function ($sub) {
+            $sub->select(DB::raw(1))
+                ->from('disbursement_packages as dp')
+                ->whereColumn('dp.package_id', 'p.id')
+                ->where('dp.payee_type', 'driver')
+                ->where('dp.type','commission')
+                ->where('dp.is_deleted', false);
+        });
         $qO = Order::query()->where('is_deleted',0)
         ->whereNull('driver_commission_id')
         ->where('status_id',5);
@@ -73,12 +83,12 @@ class DriverTransactionController extends Controller
         if($normalDeliveryStartDate && $endDate){
             $qP->where(function ($q) use ($normalDeliveryStartDate,$fastDeliveryStartDate, $endDate) {
                 $q->where(function ($q) use ($normalDeliveryStartDate, $endDate) {
-                    $q->where('delivery_type', 'normal')
+                    $q->where('p.delivery_type', 'normal')
                     ->whereRaw("
                             (
-                                (status_id = 19 AND failed_datetime BETWEEN ? AND ?)
+                                (p.status_id = 19 AND p.failed_datetime BETWEEN ? AND ?)
                                 OR
-                                (status_id = 9 AND delivered_datetime BETWEEN ? AND ?)
+                                (p.status_id = 9 AND p.delivered_datetime BETWEEN ? AND ?)
                             )
                         ", [
                             $normalDeliveryStartDate, $endDate,
@@ -87,12 +97,12 @@ class DriverTransactionController extends Controller
                 })
 
                 ->orWhere(function ($q) use ($fastDeliveryStartDate, $endDate) {
-                    $q->where('delivery_type', 'fast')
+                    $q->where('p.delivery_type', 'fast')
                     ->whereRaw("
                             (
-                                (status_id = 19 AND failed_datetime BETWEEN ? AND ?)
+                                (p.status_id = 19 AND p.failed_datetime BETWEEN ? AND ?)
                                 OR
-                                (status_id = 9 AND delivered_datetime BETWEEN ? AND ?)
+                                (p.status_id = 9 AND p.delivered_datetime BETWEEN ? AND ?)
                             )
                         ", [
                             $fastDeliveryStartDate, $endDate,
@@ -171,7 +181,7 @@ class DriverTransactionController extends Controller
         ->join('users as rc','rc.id','dis.receiptionist_uid')
         ->where('dis.is_deleted',0)
         ->orderByDesc('dis.id')
-        ->selectRaw('d.id as driver_id,dis.id as payment_id,d.user_name as driver_name,d.phone,d.code,dis.pickup_rate,dis.delivery_rate,dis.payment_datetime,dis.breakdown_notes,rc.user_name as receiptionist,payable_amount,package_count,delivered_package_count,pickup_package_count');
+        ->selectRaw('d.id as driver_id,dis.id as payment_id,d.username as driver_name,d.phone,d.code,dis.pickup_rate,dis.delivery_rate,dis.payment_datetime,dis.breakdown_notes,rc.username as receiptionist,payable_amount,package_count,delivered_package_count,pickup_package_count');
         if($driverId) $qD->where('d.id',$driverId);
         $driverInfo = $qD->get();
         foreach($driverInfo as $d){
