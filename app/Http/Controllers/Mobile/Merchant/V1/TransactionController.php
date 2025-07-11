@@ -80,10 +80,12 @@ class TransactionController extends Controller
         foreach($packages as $key => $p){
             $price = $p->price;
             $taxiFee = $p->taxi_fee;
+
             if($p->status_id == 19){
                 $price = 0;
                 $taxiFee = 0;
             }
+
             if (isset($disbursementPackages[$p->id])) {
                 foreach ($disbursementPackages[$p->id] as $dp) {
                     $disbursementId = $dp->disbursement_id;
@@ -114,10 +116,9 @@ class TransactionController extends Controller
 
             // Check if package is unpaid
             $isPaid = isset($paymentPackages[$p->id]) || isset($disbursementPackages[$p->id]);
-
             if (!$isPaid) {
                 $count += 1;
-                $total += Helper::getNumber(TransactionService::getPackageTotal(
+                $total += -Helper::getNumber(TransactionService::getPackageTotal(
                     'merchant',
                     $p->cod,
                     $price,
