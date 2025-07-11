@@ -5,8 +5,10 @@ namespace App\Http\Controllers\Mobile\Merchant\V1;
 use ApiResponse;
 use App\Http\Controllers\Controller;
 use App\Models\Disbursement;
+use App\Models\DisbursementDetails;
 use App\Models\Package;
 use App\Models\Payment;
+use App\Models\PaymentDetail;
 use App\Services\AppSetting;
 use App\Services\GeneralSettingService;
 use App\Services\TransactionService;
@@ -24,7 +26,6 @@ class TransactionController extends Controller
         $endDate = $req->endDate;
         $count = 0;
         $total = 0;
-        $packageInfo = [];
         $qP = Payment::where('payments.is_deleted',0)->where('payments.payer_id',$user->id)->where('payments.is_settled',1)
         ->join('users as c','c.id','payments.approved_uid')
         ->selectRaw('payments.remarks,payments.package_count,payments.id,payments.payable_amount,payments.breakdown_notes,c.username as cashier_name,payments.payment_datetime')
@@ -51,11 +52,31 @@ class TransactionController extends Controller
         ->whereIn('status_id',[9,19])
         // ->selectRaw('*')
         ->where('merchant_id',$user->id)
-        ->orderBy('merchant_payment_id','desc')
-        ->orderBy('merchant_disbursement_id','desc')
+        // ->orderBy('merchant_payment_id','desc')
+        // ->orderBy('merchant_disbursement_id','desc')
         ->get();
+
+        $paymentPackages = DB::table('payment_packages')
+            ->where('payer_type', 'merchant')
+            ->where('is_deleted', false)
+            ->whereIn('package_id', $packages->pluck('id'))
+            ->get()
+            ->groupBy('package_id');
+
+        // Map of package_id => disbursement_id
+        $disbursementPackages = DB::table('disbursement_packages')
+            ->where('payee_type', 'merchant')
+            ->where('type','payment')
+            ->where('is_deleted', false)
+            ->whereIn('package_id', $packages->pluck('id'))
+            ->get()
+            ->groupBy('package_id');
+
+        $paymentDetails = PaymentDetail::whereIn('payment_id', $payments->keys())->get()->groupBy('payment_id');
+        $disbursementDetails = DisbursementDetails::whereIn('disbursement_id', $disbursements->keys())->get()->groupBy('disbursement_id');
         $samePmtId = [];
         $sameDisId = [];
+        $paidTrx = [];
         foreach($packages as $key => $p){
             $price = $p->price;
             $taxiFee = $p->taxi_fee;
@@ -63,39 +84,83 @@ class TransactionController extends Controller
                 $price = 0;
                 $taxiFee = 0;
             }
-            if(!isset($samePmtId[$p->merchant_payment_id]) && $p->merchant_payment_id){
-                $pmt = TransactionService::getTrxDetails($payments,$p->merchant_payment_id);
-                if($pmt) {
-                    $pmt->payment_status = 'Paid';
-                    $pmt->status = 'Disbursement';
-                    $total += ($count > 0 && $key == 0) ?(float)$pmt->payable_amount : 0;
-                    $packageInfo[] = $pmt;
-                    $count -= ($count > 0 && $key == 0) ? $pmt->package_count : 0;
+            if (isset($disbursementPackages[$p->id])) {
+                foreach ($disbursementPackages[$p->id] as $dp) {
+                    $disbursementId = $dp->disbursement_id;
+                    if (!isset($sameDisId[$disbursementId])) {
+                        $dis = TransactionService::getTrxDetails($disbursements, $disbursementId, $disbursementDetails);
+                        if ($dis) {
+                            // $dis->remarks = 'Receive';
+                            $paidTrx[] = $dis;
+                            $sameDisId[$disbursementId] = true;
+                        }
+                    }
                 }
-                $samePmtId[$p->merchant_payment_id] = true;
             }
 
-            if(!isset($sameDisId[$p->merchant_disbursement_id]) && $p->merchant_disbursement_id){
-                $dis = TransactionService::getTrxDetails($disbursements,$p->merchant_disbursement_id);
-                if($dis) {
-                    $dis->payment_status = 'Paid';
-                    // \Log::error($total);
-                    $total -= ($count > 0 && $key == 0) ? (float)$dis->payable_amount : 0;
-                    $dis->status = 'Receive';
-                    $packageInfo[] = $dis;
-                    // $count -= $dis->package_count;
-                    $count -= ($count > 0 && $key == 0) ? $dis->package_count : 0;
+            if (isset($paymentPackages[$p->id])) {
+                foreach ($paymentPackages[$p->id] as $pp) {
+                    $paymentId = $pp->payment_id;
+                    if (!isset($samePmtId[$paymentId])) {
+                        $pmt = TransactionService::getTrxDetails($payments, $paymentId, $paymentDetails);
+                        if ($pmt) {
+                            // $pmt->remarks = 'Disbursement'; // This might be better named "Payment"
+                            $paidTrx[] = $pmt;
+                            $samePmtId[$paymentId] = true;
+                        }
+                    }
                 }
-                $sameDisId[$p->merchant_disbursement_id] = true;
             }
 
-            if(!$p->merchant_disbursement_id && !$p->merchant_payment_id){
-                $total -= Helper::getNumber(TransactionService::getPackageTotal('merchant',$p->cod,$price,$taxiFee,$p->extra_charge,$p->additional_fee,$p->delivery_fee,$p->payer));
-                $count +=1;
+            // Check if package is unpaid
+            $isPaid = isset($paymentPackages[$p->id]) || isset($disbursementPackages[$p->id]);
+
+            if (!$isPaid) {
+                $count += 1;
+                $total += Helper::getNumber(TransactionService::getPackageTotal(
+                    'merchant',
+                    $p->cod,
+                    $price,
+                    $taxiFee,
+                    $p->extra_charge,
+                    $p->additional_fee,
+                    $p->delivery_fee,
+                    $p->payer
+                ));
             }
+            // if(!isset($samePmtId[$p->merchant_payment_id]) && $p->merchant_payment_id){
+            //     $pmt = TransactionService::getTrxDetails($payments,$p->merchant_payment_id);
+            //     if($pmt) {
+            //         $pmt->payment_status = 'Paid';
+            //         $pmt->status = 'Disbursement';
+            //         $total += ($count > 0 && $key == 0) ?(float)$pmt->payable_amount : 0;
+            //         $packageInfo[] = $pmt;
+            //         $count -= ($count > 0 && $key == 0) ? $pmt->package_count : 0;
+            //     }
+            //     $samePmtId[$p->merchant_payment_id] = true;
+            // }
+
+            // if(!isset($sameDisId[$p->merchant_disbursement_id]) && $p->merchant_disbursement_id){
+            //     $dis = TransactionService::getTrxDetails($disbursements,$p->merchant_disbursement_id);
+            //     if($dis) {
+            //         $dis->payment_status = 'Paid';
+            //         // \Log::error($total);
+            //         $total -= ($count > 0 && $key == 0) ? (float)$dis->payable_amount : 0;
+            //         $dis->status = 'Receive';
+            //         $packageInfo[] = $dis;
+            //         // $count -= $dis->package_count;
+            //         $count -= ($count > 0 && $key == 0) ? $dis->package_count : 0;
+            //     }
+            //     $sameDisId[$p->merchant_disbursement_id] = true;
+            // }
+
+            // if(!$p->merchant_disbursement_id && !$p->merchant_payment_id){
+            //     $total -= Helper::getNumber(TransactionService::getPackageTotal('merchant',$p->cod,$price,$taxiFee,$p->extra_charge,$p->additional_fee,$p->delivery_fee,$p->payer));
+            //     $count +=1;
+            // }
 
         }
-        usort($packageInfo, function ($a, $b) {
+        usort($paidTrx, function ($a, $b) {
             return strtotime($b['payment_datetime']) <=> strtotime($a['payment_datetime']);
         });
 
@@ -103,7 +168,7 @@ class TransactionController extends Controller
             'balance_due' => (float)Helper::getNumber($total,2),
             'count' => $count,
             'total' => (float)Helper::getNumber($total,2),
-            'payment_transaction' => $packageInfo
+            'payment_transaction' => $paidTrx
         ];
 
         // $payments =

@@ -61,7 +61,7 @@ class ZoneController extends Controller
         if($existZoneName) return ApiResponse::Duplicated(__('messages.error',[
             'info' => 'Zone name ('.$inputs['zone_name'].'- '.$existZoneName->zone_code.') is already exists.'
         ]));
-        Log::info($req->all());
+        // Log::info($req->all());
         $create = Zone::create($inputs);
         // if(!$create) return ApiResponse::Error('Fail to create zone');
         if(!$inputZoneCode) $create->update([

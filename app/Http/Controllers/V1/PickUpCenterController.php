@@ -51,7 +51,6 @@ class PickUpCenterController extends Controller
             'deleted_uid' => $user->id,
             'deleted_datetime' => now()
         ]);
-
         return ApiResponse::JsonResult(null,__('messages.deleted',['info' => 'Order']));
     }
 
