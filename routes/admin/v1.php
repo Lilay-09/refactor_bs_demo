@@ -40,7 +40,6 @@ use App\Http\Controllers\V1\PromotionController;
 use App\Http\Controllers\V1\ScoringRewardController;
 use App\Http\Controllers\V1\SocialMediaController;
 use App\Http\Controllers\V1\TransferController;
-use App\Http\Controllers\V1\UserController;
 use App\Http\Controllers\V1\UserManagementController;
 use App\Http\Controllers\V1\UserNotificationController;
 use App\Http\Controllers\V1\VehicleTypeController;
@@ -48,7 +47,7 @@ use App\Http\Controllers\V1\WarehouseController;
 use App\Http\Controllers\V1\ZoneController;
 use Illuminate\Support\Facades\Route;
 
-Route::prefix('admin/v1/auth')->group(function(){
+Route::prefix('admin/v1/auth')->middleware('rateLimit')->group(function(){
     Route::post('login',[AuthController::class,'login']);
     Route::middleware(['jwt'])->group(function(){
         Route::post('logout',[UserManagementController::class,'logout']);
@@ -57,7 +56,7 @@ Route::prefix('admin/v1/auth')->group(function(){
 
 Route::get('mapInfo',[AppSettingController::class,'mapInfo']);
 
-Route::middleware(['jwt','localize','userAccess:admin'])->prefix('admin/v1/{lang}')->group(function(){
+Route::middleware(['jwt','localize','userAccess:admin','rateLimit'])->prefix('admin/v1/{lang}')->group(function(){
     Route::prefix('management')->group(function(){
         Route::prefix('module')->group(function(){
             Route::post('',[UserManagementController::class,'saveModule']);
@@ -554,6 +553,7 @@ Route::middleware(['jwt','localize','userAccess:admin'])->prefix('admin/v1/{lang
 
     Route::prefix('setting')->group(function(){
         Route::prefix('option')->group(function(){
+            Route::get('branch',[GeneralSettingController::class,'getOptionsBranch']);
             Route::get('branch/{branch_id}/warehouse',[GeneralSettingController::class,'getOptionsWarehouseByBranch']);
             Route::get('branch/type',[GeneralSettingController::class,'getOptionsBranchType']);
             Route::get('deliveryType',action: [GeneralSettingController::class,'getOptionsDeliveryType']);
@@ -601,8 +601,10 @@ Route::middleware(['jwt','localize','userAccess:admin'])->prefix('admin/v1/{lang
 
         Route::prefix('filter')->group(function(){
             Route::get('driver',[GeneralSettingController::class,'getDriverFilterOptions']);
+            Route::get('merchant',[GeneralSettingController::class,'getMerchantFilterOptions']);
             Route::get('merchant/trx',[GeneralSettingController::class,'getMerchantTrxFilter']);
             Route::get('merchant/transaction',[GeneralSettingController::class,'getMerchantTransactionTabFilter']);
+            Route::get('fleet',[GeneralSettingController::class,'getOptionsFilterFleet']);
         });
         Route::prefix('form')->group(function(){
             Route::get('transfer',[GeneralSettingController::class,'getFormTransfer']);
