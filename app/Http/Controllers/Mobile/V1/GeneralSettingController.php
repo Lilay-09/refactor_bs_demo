@@ -369,7 +369,7 @@ class GeneralSettingController extends Controller
                 ]);
                 // var_dump($requester,$topics->private);
                 $cms->sendNotificationByTopic($notifReq,$user);
-                $driverName = $driver->username;
+                $driverName = $driver?->username;
                 $updateArr['tracking_notes'] = $package->tracking_notes."|[$user->id]Driver ($user->username) ask [$package->driver_id]Driver $driverName to change driver";
             }
             // if(empty($updateArr)) return ApiResponse::JsonResult(null,__('messages.updated'));
@@ -391,6 +391,7 @@ class GeneralSettingController extends Controller
         }catch(Exception $e){
             DB::rollBack();
             Log::error($e->getMessage());
+            Log::error($e->getTraceAsString());
             return ApiResponse::Error(__('messages.error'));
         }
 

@@ -65,9 +65,9 @@ class GeneralSettingController extends Controller
         return ApiResponse::JsonResult($this->gs::optionsGender());
     }
 
-    public function getOptionsOperator(){
+    public function getOptionsOperator(Request $req){
         $user = UserService::getAuthUser();
-        return ApiResponse::JsonResult($this->gs::optionsOperator($user));
+        return ApiResponse::JsonResult($this->gs::optionsOperator($user,$req->branch_id));
     }
 
     public function getOptionsPayer(Request $req){
@@ -76,7 +76,6 @@ class GeneralSettingController extends Controller
 
     public function getFormZone(){
         $user = UserService::getAuthUser();
-
         $obj = [
             'zone_types' => $this->gs::optionsZoneType(),
             'countries' => $this->gs::optionsCountry($user)
@@ -104,6 +103,7 @@ class GeneralSettingController extends Controller
         if(!$pZone){
             return ApiResponse::NotFound();
         }
+
         $qZ = Zone::where('is_deleted',0)->where('id','!=',$exceptId)
         ->where('country_id',$pZone->country_id)
         ->where('city',$pZone->city)
@@ -124,6 +124,7 @@ class GeneralSettingController extends Controller
 
     public function getMerchants(Request $req){
         $search = $req->search;
+        $branchId = $req->branch_id;
         $mc = User::where('is_deleted',0)->where('account_type','merchant')->selectRaw('id,code,username,email,phone,pin_address,address');
         if($search){
             $mc->where(function($q) use($search){
@@ -131,6 +132,9 @@ class GeneralSettingController extends Controller
                 ->orWhere('username','ilike','%'.$search.'%')
                 ->orWhere('phone','ilike','%'.$search.'%');
             });
+        }
+        if($branchId){
+            $mc->where('branch_id',$branchId);
         }
         $merchants = $mc->get();
         return ApiResponse::JsonResult($merchants);
@@ -171,6 +175,14 @@ class GeneralSettingController extends Controller
         $obj = [
             'statuses' => $this->gs::optionsUserStatus(),
             'employee_types' => $this->gs::optionsEmployeeType(),
+            'branches' => $this->gs::optionsBranch()
+        ];
+        return ApiResponse::JsonResult($obj);
+    }
+
+    public function getMerchantFilterOptions(){
+        $obj = [
+            'statuses' => $this->gs::optionsUserStatus(),
             'branches' => $this->gs::optionsBranch()
         ];
         return ApiResponse::JsonResult($obj);
@@ -346,6 +358,10 @@ class GeneralSettingController extends Controller
         ]);
     }
 
+    public function getOptionsBranch(){
+        return ApiResponse::JsonResult($this->gs::optionsBranch());
+    }
+
     public function getOptionsWarehouseByBranch(Request $req){
         $user = auth()->user();
         return ApiResponse::JsonResult($this->gs::optionsWarehouse($user,$req->branch_id));
@@ -418,7 +434,6 @@ class GeneralSettingController extends Controller
     public function getMerchantTrxFilter(Request $req){
         $user = UserService::getAuthUser();
         $obj = (object)[
-            'merchants' => $this->gs::optionsMerchant($user),
             'statuses' => $this->gs::paymentStatus(),
             'branches' => $this->gs::optionsBranch()
         ];
@@ -435,13 +450,22 @@ class GeneralSettingController extends Controller
         return ApiResponse::JsonResult($obj);
     }
 
-    public function getFormFleet(Request $req){
+    public function getOptionsFilterFleet(Request $req){
         $user = UserService::getAuthUser();
         $obj = (object)[
             'statuses' => $this->gs::optionsTrackingStatus($user,[15,17],[],'fleet',null,$req->lang),
             'warehouses' => $this->gs::optionsWarehouse($user),
             'drivers' => $this->gs::optionsDriver($user),
             'zones' => $this->gs::optionsZone($user),
+            'branches' => $this->gs::optionsBranch()
+        ];
+        return ApiResponse::JsonResult($obj);
+    }
+
+    public function getFormFleet(Request $req){
+        $user = UserService::getAuthUser();
+        $obj = (object)[
+            'vehicle_types' => $this->gs::optionsVehicleType($user,$req->lang),
             'branches' => $this->gs::optionsBranch()
         ];
         return ApiResponse::JsonResult($obj);

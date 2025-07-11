@@ -215,30 +215,6 @@ class PickUpCenterController extends Controller
             unset($order->merchant,$order->driver,$order->tracking_status,$order->createdBy);
             return $order;
         };
-        // foreach($orders as $order){
-        //     $order->created_user = $order->createdBy?->username;
-        //     $order->order_date = Helper::dateDMY($order->order_datetime);
-        //     // $order->created_at = Helper::formatCustomDateTime($order->created_at);
-        //     $order->order_time = Helper::formatCustomDateTime($order->order_datetime,'h:i:s A');
-        //     $order->merchant_name = $order->merchant->username;
-        //     $order->merchant_code = $order->merchant->code;
-        //     $order->merchant_code = $order->merchant->code;
-        //     $order->default = [
-        //         'cod' => $order->merchant->cod ? 1:0,
-        //         'code' => $order->merchant->merchantPriceList?->zone_code
-        //     ];
-        //     if(!$order->product_type) $order->product_type = 'Others';
-
-        //     if($lang != 'en'){
-        //         $statusCode = GeneralSettingService::$statusCodeTrans[$order->status_id] ?? null;
-        //         $order->status_code = $statusCode;
-        //     }else $order->status_code = $order->tracking_status->name;
-        //     // $order->status_code_kh = $order->tracking_status->name;
-        //     $order->driver_name = $order->driver?->username;
-        //     $order->driver_code = $order->driver?->code;
-        //     $order->package_count = $this->getPackageCountByOrder($packages,$order->id);
-        //     unset($order->merchant,$order->driver,$order->tracking_status,$order->createdBy);
-        // }
         return ApiResponse::PaginationV1($query,$req,__('messages.Get Orders'),[],1000,$callbackMapper);
     }
 
@@ -336,7 +312,6 @@ class PickUpCenterController extends Controller
     public function setAtWarehouse(Request $req){
         $user = UserService::getAuthUser();
         $orderId = $req->order_id;
-
         $order = Order::where('is_deleted',0)->find($orderId);
         if(!$order) return ApiResponse::NotFound(trans('messages.not_found',['info' => 'Order']));
         $order->update([

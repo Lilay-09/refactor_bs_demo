@@ -46,7 +46,12 @@ class PackageTrailController extends Controller
 
 
         $query = Package::query()->where('is_deleted',0)
-        ->with(['status','merchant','driver'])
+        ->with([
+            'status',
+            'merchant',
+            'driver',
+            'warehouse:id,name_en'
+        ])
         ->where('outstanding',0)
         // ->whereNotIn('status_id',[]) // at warehouse
         ->where('company_id',$user->company_id)
@@ -63,7 +68,7 @@ class PackageTrailController extends Controller
                 ELSE NULL
             END DESC
         ");
-        $select = ['merchant_id','order_id','id','taxi_fee','delivery_type','qr_code','price','driver_id','product_type','dim_z','dim_x','dim_y','status_id','failed_datetime','failure_notes','payer','cod','delivery_fee','receiver_address','zone_code','zone_name','receiver_name','receiver_phone','delivered_datetime','assign_driver_datetime','arrive_warehouse_datetime','driver_total','merchant_total','billed_kg','actual_kg','created_at'];
+        $select = ['merchant_id','order_id','id','taxi_fee','delivery_type','qr_code','price','driver_id','product_type','dim_z','dim_x','dim_y','status_id','failed_datetime','failure_notes','payer','cod','delivery_fee','receiver_address','zone_code','zone_name','receiver_name','receiver_phone','delivered_datetime','assign_driver_datetime','arrive_warehouse_datetime','driver_total','merchant_total','billed_kg','actual_kg','created_at','warehouse_id'];
         if($warehouse_id){
             $query->where('warehouse_id',$warehouse_id);
             // $query->whereHas('order',function($q) use($warehouse_id){

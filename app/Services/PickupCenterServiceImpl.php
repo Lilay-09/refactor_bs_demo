@@ -9,6 +9,7 @@ use App\Models\OrderImage;
 use App\Models\Package;
 use App\Models\User;
 use App\Models\VehicleType;
+use App\Models\Warehouse;
 use App\Models\Zone;
 use DataResponse;
 use DB;
@@ -43,6 +44,8 @@ class PickupCenterServiceImpl implements PickupCenterService
             'failure_notes' => 'nullable|string|max:250',
             'payer' => 'required|in:sender,receiver',
             'cod' => 'required|in:0,1',
+            'branch_id' => 'int',
+            'warehouse_id' => 'int',
             'receiver_address' => 'nullable|string',
             'zone_code' => 'required|string|exists:zones,zone_code',
             // 'zone_id' => 'required|string',
@@ -61,10 +64,11 @@ class PickupCenterServiceImpl implements PickupCenterService
         $vehicleTypes = implode(',',VehicleType::where('is_deleted',0)->pluck('name_en')->toArray());
         return validator($req->all(),[
             'merchant_id' => 'required',
-            'warehouse_id' => 'nullable|int|exists:warehouses,id',
+            'warehouse_id' => 'required|int|exists:warehouses,id',
             'product_type' => 'nullable|string|exists:product_types,name',
             'qty' => 'required|int|min:1',
             'vehicle_type' => 'required|in:'.$vehicleTypes,
+            'branch_id' => 'required',
             'driver_id' => 'nullable',
             'loc_lat' => 'nullable|numeric',
             'loc_lng' => 'nullable|numeric',
@@ -78,6 +82,7 @@ class PickupCenterServiceImpl implements PickupCenterService
             'merchant_id.required' => 'Please select the sender',
             'vehicle_type.in' => 'Please select one of ('.$vehicleTypes.')',
             'warehouse_id.required' => 'Please select the warehouse',
+            'branch_id.required' => 'Please select the branch',
             'qty.required' => 'Please enter number of package'
         ]);
     }
@@ -95,7 +100,7 @@ class PickupCenterServiceImpl implements PickupCenterService
         $userType = $user->account_type;
         $inputs['create_uid'] = $user->id;
         $inputs['update_uid'] = $user->id;
-        $inputs['branch_id'] = $user->branch_id;
+        // $inputs['branch_id'] = $user->branch_id;
         $inputs['company_id'] = $user->company_id;
         $inputs['booking_channel'] = $userType;
         $details = $inputs['details'] ?? [];
@@ -146,7 +151,7 @@ class PickupCenterServiceImpl implements PickupCenterService
             $inputs['loc_lat'] = (float) ($inputs['loc_lat'] ?? $latLng->latitude);
             $inputs['loc_lng'] = (float) ($inputs['loc_lng'] ?? $latLng->longitude);
         }
-        $lang = $req->lang;
+        // $lang = $req->lang;
         $inputs['delivery_type'] = $inputs['delivery_type'] ?? 'normal';
         if(!$pickupAddress) $inputs['pickup_address'] = $latLng->address;
         DB::beginTransaction();
@@ -172,9 +177,7 @@ class PickupCenterServiceImpl implements PickupCenterService
                 'code' => $code,
                 'status_id' => $statusId
             ]);
-
             $saveOrderImages = [];
-
             if(isset($images[0])){
                 foreach($images as $idx => $photo){
                     $isValidUpload = Helper::isValidUploadImage($photo,0.8);
@@ -327,17 +330,25 @@ class PickupCenterServiceImpl implements PickupCenterService
      */
     public function createOrUpdatePackage(Request $req,$user,?int $packageId,?int $orderId,array $statusIds=[1,7],callable $whereClause=null): object{
         if($orderId){
-            $order = Order::where('is_deleted',0)->select(['merchant_id','delivery_type'])->find($orderId);
-            $req->merge(['merchant_id' => $order->merchant_id,'delivery_type' => $req->delivery_type ?? $order->delivery_type,'product_type' => $req->product_type ?? $order->product_type]);
+            $order = Order::where('is_deleted',0)->select(['merchant_id','delivery_type','warehouse_id','branch_id'])->find($orderId);
+            $req->merge([
+                'merchant_id' => $order->merchant_id,
+                'delivery_type' => $req->delivery_type ?? $order->delivery_type,
+                'product_type' => $req->product_type ?? $order->product_type,
+                'warehouse_id' => $order->warehouse_id,
+                'branch_id' => $order->branch_id
+            ]);
             if(!$order) return DataResponse::NotFound('Order not found');
         }
         $validate = $this->packageValidation($req);
         if($validate->fails()) return DataResponse::ValidateFail($validate->errors()->first());
         $inputs = $validate->validated();
         $inputs['company_id'] = $user->company_id;
-        $inputs['branch_id'] = $user->branch_id;
-        $warehouse = GeneralSettingService::getWarehouse($user);
-        $inputs['warehouse_id'] = $warehouse->id;
+        // $warehouse = GeneralSettingService::getWarehouse($user);
+        // $inputs['warehouse_id'] = $warehouse->id;
+        $warehouse = Warehouse::where('branch_id',$inputs['branch_id'])
+        ->where('is_deleted',false)
+        ->find($inputs['warehouse_id']);
         if($orderId) $inputs['merchant_id'] = $order->merchant_id;
         $inputs['update_uid'] = $user->id;
         if($orderId) $inputs['order_id'] = $orderId;

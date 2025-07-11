@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\CustomRateLimit;
 use App\Http\Middleware\JwtAuthMiddleware;
 use App\Http\Middleware\JwtDriverMiddleware;
 use App\Http\Middleware\JwtMerchantMiddleware;
@@ -23,7 +24,8 @@ return Application::configure(basePath: dirname(__DIR__))
             'jwtDriver' => JwtDriverMiddleware::class,
             'jwtMerchant' => JwtMerchantMiddleware::class,
             'userAccess' => UserAccess::class,
-            'localize' => Localization::class
+            'localize' => Localization::class,
+            'rateLimit' => CustomRateLimit::class
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
