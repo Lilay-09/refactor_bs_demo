@@ -47,6 +47,7 @@ class DriverManagementController extends Controller
                 ->orWhere('phone','ilike','%'.$search.'%');
             });
         }
+
         $query->orderByDesc('id');
 
         $callback = function ($driver) use($user,$lang){

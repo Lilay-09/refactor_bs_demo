@@ -15,8 +15,8 @@ class DistrictController extends Controller
 
     function districtValidation(Request $req){
         return validator($req->all(),[
-            'name' => 'required|string|max:50',
-            'name_kh' => 'nullable|string|max:100',
+            'name_en' => 'required|string|max:50',
+            'name_km' => 'nullable|string|max:100',
             'city_id' => 'required|int|exists:cities,id'
         ]);
     }
@@ -30,9 +30,9 @@ class DistrictController extends Controller
         $inputs['branch_id'] = $user->branch_id;
         $inputs['company_id'] = $user->company_id;
         $existDistrict = District::where('city_id',$inputs['city_id'])->where('is_deleted',0)
-        ->where('name',$inputs['name'])->first();
+        ->where('name_en',$inputs['name_en'])->first();
         if($existDistrict) return ApiResponse::Duplicated(__('messages.info',[
-            'info' => 'District ('.$inputs['name'].') is already exists'
+            'info' => 'District ('.$inputs['name_en'].') is already exists'
         ]));
         $create = District::create($inputs);
         if($create) return ApiResponse::JsonResult(null,'Created');
@@ -44,7 +44,7 @@ class DistrictController extends Controller
         $user = UserService::getAuthUser();
         $districts = District::where('company_id',$user->company_id)->where('is_deleted',0)
         ->orderByDesc('id')
-        ->selectRaw('name,id,name_kh,city_id')->get();
+        ->selectRaw('name_en,id,name_km,city_id')->get();
         return ApiResponse::Pagination($districts,$req,'get all districts');
     }
 
@@ -57,7 +57,7 @@ class DistrictController extends Controller
     public function district(Request $req){
         $id = $req->id;
         $user = UserService::getAuthUser();
-        $districts = District::where('company_id',$user->company_id)->where('is_deleted',0)->selectRaw('name,id,name_kh,city_id')->find($id);
+        $districts = District::where('company_id',$user->company_id)->where('is_deleted',0)->selectRaw('name,id,name_km,city_id')->find($id);
         if(!$districts) return ApiResponse::NotFound(__('messages.not_found'));
         return ApiResponse::JsonResult($districts,'get one district');
     }
@@ -72,9 +72,9 @@ class DistrictController extends Controller
         $district = District::where('company_id',$user->company_id)->where('is_deleted',0)->find($id);
         if(!$district) return ApiResponse::NotFound(__('messages.not_found'));
         $existDistrict = District::where('city_id',$inputs['city_id'])->where('id','!=',$id)->where('is_deleted',0)
-        ->where('name',$inputs['name'])->first();
+        ->where('name_en',$inputs['name_en'])->first();
         if($existDistrict) return ApiResponse::Duplicated(__('messages.info',[
-            'info' => 'District ('.$inputs['name'].') is already exists'
+            'info' => 'District ('.$inputs['name_en'].') is already exists'
         ]));
         $inputs['update_uid'] = $user->id;
         $inputs['branch_id'] = $user->branch_id;

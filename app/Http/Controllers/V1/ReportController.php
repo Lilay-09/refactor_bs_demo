@@ -617,6 +617,7 @@ class ReportController extends Controller
         $startDate = $req->startDate;
         $endDate = $req->endDate;
         $qD = User::where('account_type','driver')
+        ->where('is_deleted',false)
         ->selectRaw('code,username,gender,shift_type,phone,address,vehicle_type,plate_number,lock,employment_date');
         $drivers = $qD->get();
         foreach($drivers as $driver){
@@ -626,7 +627,7 @@ class ReportController extends Controller
             'title' => 'Daily Packages Summary',
             'status' => 'All Driver',
             'date' => Helper::dateDMY($startDate).' to '.Helper::dateDMY($endDate),
-            'total' => 1,
+            'total' => $drivers->count(),
             'company_profile' => CompanyProfileService::profileInfo($user),
             'list' => $drivers
         ];

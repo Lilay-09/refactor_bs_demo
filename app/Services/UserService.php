@@ -685,14 +685,37 @@ class UserService
             $type = $user->account_type;
             if($user->system_admin) return DataResponse::Forbidden();
             if($user->account_type != 'admin'){
-                $disKey = $type.'_disbursement_id';
-                $pmtKey = $type.'_payment_id';
-                $package = Package::where('is_deleted',0)->where('driver_id',$id)->where('outstanding',0)
-                ->selectRaw('id,driver_id,'.$disKey.','.$pmtKey)
-                ->first();
-                if($package) if(!$package->{$disKey} && !$package->{$pmtKey}) return DataResponse::ValidateFail($type.' still has payment that is not paid.');
-                $payment = Payment::where('is_deleted',0)->where('payer_id',$id)->where('approved',0)->first();
-                $disbursement = Disbursement::where('is_deleted',0)->where('payee_id',$id)->where('approved',0)->where('type','payment')->first();
+                $exists = Package::query()
+                    ->from('packages as p')
+                    ->where('p.is_deleted', 0)
+                    ->where('p.driver_id', $user->id)
+                    ->whereNotExists(function ($sub) {
+                        $sub->select(DB::raw(1))
+                            ->from('payment_packages as pp')
+                            ->whereColumn('pp.package_id', 'p.id')
+                            ->where('pp.payer_type', 'driver')
+                            ->where('pp.is_deleted', false);
+                    })
+                    ->whereNotExists(function ($sub) {
+                        $sub->select(DB::raw(1))
+                            ->from('disbursement_packages as dp')
+                            ->whereColumn('dp.package_id', 'p.id')
+                            ->where('dp.payee_type', 'driver')
+                            ->where('dp.is_deleted', false);
+                    })
+                    ->exists();
+
+                if ($exists) {
+                    return DataResponse::ValidateFail($type.' still has payment that is not paid.');
+                }
+                // $disKey = $type.'_disbursement_id';
+                // $pmtKey = $type.'_payment_id';
+                // $package = Package::where('is_deleted',0)->where('driver_id',$id)->where('outstanding',0)
+                // ->selectRaw('id,driver_id,'.$disKey.','.$pmtKey)
+                // ->first();
+                // if($package) if(!$package->{$disKey} && !$package->{$pmtKey}) return DataResponse::ValidateFail($type.' still has payment that is not paid.');
+                $payment = Payment::where('is_deleted',0)->where('payer_id',$id)->where('approved',0)->exists();
+                $disbursement = Disbursement::where('is_deleted',0)->where('payee_id',$id)->where('approved',0)->where('type','payment')->exists();
                 if($payment || $disbursement) return DataResponse::ValidateFail('Found some payments that are not paid yet!');
                 if($type == 'driver' && self::hasCommission($id)) return DataResponse::ValidateFail($type.' still has commission to settle');
             }
@@ -731,12 +754,20 @@ class UserService
         $driverCommissions = $qDc->get();
         $comm = TransactionService::getDriverCommissionInfo($driverCommissions,$driverId);
         $deliveryCommStartDate = $comm->normal_delivery_commission_start_date;
-        $qP = Package::selectRaw('status_id,driver_id')
+        $qP = Package::from('packages as p')
+        ->selectRaw('p.status_id,p.driver_id')
         // ->whereIn('status_id',[9,19])
-        ->where('status_id',9)
-        ->where('driver_id',$driverId)
-        ->where('is_deleted',0)
-        ->whereNull('driver_commission_id');
+        ->where('p.status_id',9)
+        ->where('p.driver_id',$driverId)
+        ->where('p.is_deleted',0)
+        ->whereNotExists(function ($sub) {
+            $sub->select(DB::raw(1))
+                ->from('disbursement_packages as dp')
+                ->whereColumn('dp.package_id', 'p.id')
+                ->where('dp.type','commission')
+                ->where('dp.payee_type', 'driver')
+                ->where('dp.is_deleted', false);
+        });
         if($deliveryCommStartDate){
             $startDate = Helper::dateYMD($deliveryCommStartDate);
             $startDatetime = $startDate.' 00:00:00';
@@ -752,7 +783,7 @@ class UserService
             //         ->where('status_id', 9);
             //     });
             // });
-            $qP->where('delivered_datetime', '>=' ,$startDatetime);
+            $qP->where('p.delivered_datetime', '>=' ,$startDatetime);
         }
         $packages = $qP->get();
 
