@@ -396,10 +396,13 @@ class GeneralSettingService
         return $drivers;
     }
 
-    public static function optionsOperator($user){
+    public static function optionsOperator($user,int $branchId=null){
         $qD = User::where(function($q){
             $q->where('lock',0)->orWhere('is_deleted',0);
         })->where('has_account',true)->where('company_id',$user->company_id)->where('account_type','admin')->selectRaw('id,username,phone');
+        if($branchId){
+            $qD->where('branch_id',$branchId);
+        }
         $drivers = $qD->orderByDesc('id')->get();
         return $drivers;
     }
@@ -483,7 +486,7 @@ class GeneralSettingService
         return $merchants;
     }
 
-    public static function optionsDailyActiveMerchant($user,$startDate=null,$endDate=null){
+    public static function optionsDailyActiveMerchant($user,$startDate=null,$endDate=null,int $branchId = null){
         // Log::error($startDate.'---'.$endDate);
         $query = User::join('packages', 'users.id', '=', 'packages.merchant_id')
         ->where('packages.is_deleted',0)
@@ -493,6 +496,9 @@ class GeneralSettingService
         ->where('users.is_deleted',0)
         ->selectRaw('DISTINCT users.id, users.username, users.name_km, users.phone')
         ->orderByDesc('users.id');
+        if($branchId){
+            $query->where('users.branch_id',$branchId);
+        }
         if($startDate && $endDate){
             $startDatetime = Helper::dateYMD($startDate).' 00:00:00';
             $endDatetime = Helper::dateYMD($endDate).' 23:59:59';

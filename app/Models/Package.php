@@ -132,6 +132,9 @@ class Package extends Model
     //     return $this->formatDatetime($value);
     // }
 
+    public function warehouse(){
+        return $this->belongsTo(Warehouse::class,'warehouse_id');
+    }
 
     public function activeDeliveryPackage()
 {

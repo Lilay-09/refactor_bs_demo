@@ -21,19 +21,20 @@ class DashboardController extends Controller
         $this->days = 90;
     }
     public function getDashboardSummary(Request $req){
+        $branchId = $req->branch_id;
         $obj = [
-            'monthly' => $this->getMonthlyEarning(),
-            'top_rider' => $this->topRiders(),
-            'unpaid_rider' => $this->unpaidRiders(),
-            'merchant_payable' => $this->merchantPayable(),
-            'driver_daily_collection' => $this->driverDailyCollection(),
-            'merchants_by_category' => $this->merchantsByCategory(),
-            'bar_charts' => $this->barChart()
+            'monthly' => $this->getMonthlyEarning($branchId),
+            'top_rider' => $this->topRiders(5,$branchId),
+            'unpaid_rider' => $this->unpaidRiders($branchId),
+            'merchant_payable' => $this->merchantPayable($branchId),
+            'driver_daily_collection' => $this->driverDailyCollection($branchId),
+            'merchants_by_category' => $this->merchantsByCategory($branchId),
+            'bar_charts' => $this->barChart($branchId)
         ];
         return ApiResponse::JsonResult($obj);
     }
 
-    private function getMonthlyEarning(){
+    private function getMonthlyEarning(int $branchId){
 
         // $payments = Payment::where('is_deleted',0)
         // ->where('payment_datetime', '>=', Carbon::now()->subDays($this->days))->get();
@@ -150,7 +151,7 @@ class DashboardController extends Controller
         ];
     }
 
-    private function merchantsByCategory(){
+    private function merchantsByCategory(int $branchId){
         $packageCount = Package::where('is_deleted',0)->where('outstanding',0)
         ->where('updated_at', '>=', Carbon::now()->subDays($this->days))
         ->selectRaw('
@@ -166,19 +167,7 @@ class DashboardController extends Controller
 
     }
 
-    private function driverDailyCollection(){
-        // $pkgPayments = Package::from('packages as p')
-        // ->join('payments as pmt','pmt.id','p.driver_payment_id')->where('pmt.approved',1)
-        // ->where('p.updated_at', '>=', Carbon::now()->subDays($this->days))
-        // ->selectRaw('pmt.exchange_rate,pmt.id as payment_id,DATE(payment_datetime) as payment_date,COUNT(DISTINCT(p.driver_id)) as total_driver,COUNT(DISTINCT(p.merchant_id)) as total_merchant')
-        // ->groupBy('payment_id')
-        // ->orderByDesc('payment_datetime')
-        // ->get();
-        // $payments = Payment::where('is_deleted',0)
-        // ->selectRaw('id as payment_id,DATE(payment_datetime) as payment_date,COUNT(payer_id) as total_driver')
-        // ->groupBy('id')
-        // ->get();
-        // $disbursements = Disbursement::where('is_deleted',0)->where('payee_type','driver')->where('type','payment')->get();
+    private function driverDailyCollection(int $branchId){
         $pkgPayments = DB::table('packages as p')
             ->join(DB::raw("(
                 SELECT
@@ -217,9 +206,7 @@ class DashboardController extends Controller
         $paymentList = [];
         foreach($pkgPayments as $pmt){
             $pmtDetails = $this->getPaymentDetails($pmt->payment_id,$paymentDetails);
-
             if($pmtDetails){
-                // \Log::info($paymentDetails[0]);
                 $amountConverted = TransactionService::amountToOneCurrency('USD',$pmtDetails['cash_usd'],$pmtDetails['cash_khr'],$pmtDetails['bank_usd'],$pmtDetails['bank_khr'],$pmt->exchange_rate);
                 $pmt->cash = $amountConverted['cash'];
                 $pmt->bank_amount = $amountConverted['bank'];
@@ -228,8 +215,6 @@ class DashboardController extends Controller
             $paymentList[] = $pmt;
         }
         return $paymentList;
-
-
     }
 
     private function getPaymentDetails($paymentId,$rows){
@@ -239,8 +224,6 @@ class DashboardController extends Controller
         $cashUsd = 0;
         foreach($rows as $row) {
             if($row->payment_id == $paymentId){
-                // \Log::info($row);
-                // return $row;
                 if($row->method == 'cash' && $row->currency_code == 'KHR'){
                     $cashKhr += $row->amount;
                 }else if($row->method == 'cash' && $row->currency_code == 'USD'){
@@ -337,7 +320,7 @@ class DashboardController extends Controller
     //     }
     // }
 
-    private function topRiders($top=5){
+    private function topRiders(int $top=5,int $branchId){
         $currentMonth = Carbon::now()->month;
         $currentYear = Carbon::now()->year;
         $topRiders = DB::table('packages as p')
@@ -372,7 +355,7 @@ class DashboardController extends Controller
        return $topRiders;
     }
 
-    private function unpaidRiders(){
+    private function unpaidRiders(int $branchId){
         $SUM = ',SUM(
                 CASE
                     WHEN (p.cod = TRUE AND p.status_id != 19) THEN p.price
@@ -416,7 +399,7 @@ class DashboardController extends Controller
         return $balanceDues;
     }
 
-    private function merchantPayable(){
+    private function merchantPayable(int $branchId56){
         $totalAmount = 0;
         $dailyCollection = Package::fromRaw('packages as p')
         ->where('p.is_deleted', 0)
