@@ -14,6 +14,7 @@ use App\Services\GeneralSettingService;
 use App\Services\UserService;
 use Helper;
 use Illuminate\Http\Request;
+use Log;
 
 class GeneralSettingController extends Controller
 {
@@ -45,6 +46,7 @@ class GeneralSettingController extends Controller
 
     public function getOptionsDailyActiveMerchant(Request $req){
         $user = UserService::getAuthUser();
+        // Log::info($req->all());
         return ApiResponse::JsonResult($this->gs::optionsDailyActiveMerchant($user,$req->startDate,$req->endDate));
     }
 
@@ -539,6 +541,10 @@ class GeneralSettingController extends Controller
     public function getOptionsDriver(Request $req){
         $user = UserService::getAuthUser();
         return ApiResponse::JsonResult($this->gs::optionsDriver($user,$req->vehicle_type));
+    }
+    public function getOptionsDriverByWarehouse(Request $req){
+        $user = UserService::getAuthUser();
+        return ApiResponse::JsonResult($this->gs::optionsDriver($user,$req->vehicle_type,$req->warehouseId));
     }
 
     public function getOptionsCurrencyPair(){
