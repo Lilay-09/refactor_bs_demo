@@ -660,7 +660,7 @@ class GeneralSettingService
 
     public static function priceByZone($zone_id,$user,$merchant_id=null,$delivery_type='normal'): object|null{
         if(!$delivery_type) $delivery_type = 'normal';
-        Log::info($zone_id);
+        // Log::info($zone_id);
         $priceList = PriceList::with(['zones'])
             ->where('status',1)
             // ->where('company_id',$user->company_id)
