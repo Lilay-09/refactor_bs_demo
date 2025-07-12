@@ -605,6 +605,7 @@ Route::middleware(['jwt','localize','userAccess:admin','rateLimit'])->prefix('ad
             Route::get('merchant/trx',[GeneralSettingController::class,'getMerchantTrxFilter']);
             Route::get('merchant/transaction',[GeneralSettingController::class,'getMerchantTransactionTabFilter']);
             Route::get('fleet',[GeneralSettingController::class,'getOptionsFilterFleet']);
+            Route::get('user',[GeneralSettingController::class,'getOptionsFilterUser']);
         });
         Route::prefix('form')->group(function(){
             Route::get('transfer',[GeneralSettingController::class,'getFormTransfer']);

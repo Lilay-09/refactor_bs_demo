@@ -182,6 +182,14 @@ class GeneralSettingController extends Controller
         return ApiResponse::JsonResult($obj);
     }
 
+    public function getOptionsFilterUser(){
+        $obj = [
+            'roles' => $this->gs::optionsRole(),
+            'branches' => $this->gs::optionsBranch()
+        ];
+        return ApiResponse::JsonResult($obj);
+    }
+
     public function getMerchantFilterOptions(){
         $obj = [
             'statuses' => $this->gs::optionsUserStatus(),
