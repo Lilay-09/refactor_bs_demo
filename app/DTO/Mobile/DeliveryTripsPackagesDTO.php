@@ -6,7 +6,7 @@ use App\Models\Package;
 class DeliveryTripsPackagesDTO{
     public function __construct(
         public readonly int $id,
-        public readonly string $qr_code,
+        public readonly ?string $qr_code,
         public readonly string $merchant_name,
         public readonly string $merchant_phone,
         public readonly int $status_id,

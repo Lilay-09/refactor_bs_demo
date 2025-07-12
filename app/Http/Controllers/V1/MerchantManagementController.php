@@ -27,6 +27,7 @@ class MerchantManagementController extends Controller
     public function getMerchants(Request $req){
         $user = UserService::getAuthUser();
         $statusId = $req->status_id ?? null;
+        $branchId = $req->branch_id ?? null;
         $search = $req->search;
         $priceList = DB::table('price_list_names as n')
         ->selectRaw('n.id,n.name,mpl.merchant_id,mpl.zone_code,mpl.zone_id')->join('merchant_price_list as mpl','mpl.price_list_id','n.id')
@@ -38,6 +39,9 @@ class MerchantManagementController extends Controller
         // ->select(['id','cod_fee','code','name_km','username','email','name_en',''])
         if($statusId !== null && $statusId>=0) {
             $query->where('lock',$statusId ? 0 : 1);
+        }
+        if($branchId){
+            $query->where('branch_id',$branchId);
         }
 
         if($search){

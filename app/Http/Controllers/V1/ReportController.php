@@ -33,10 +33,18 @@ class ReportController extends Controller
         $user = UserService::getAuthUser();
         $startDate = $req->startDate;
         $endDate = $req->endDate;
+        $branchId = $req->branch_id;
+        $warehouseId = $req->warehouse_id;
         $qO = Order::whereNotNull('driver_id')->with(['merchant','driver'])
         ->where('status_id',5)
         ->where('company_id',$user->company_id)
         ->selectRaw('merchant_id,code,product_type,pickup_address,qty,vehicle_type,driver_id');
+        if($branchId){
+            $qO->where('branch_id',$branchId);
+        }
+        if($warehouseId){
+            $qO->where('warehouse_id',$warehouseId);
+        }
         $orders = $qO->orderByDesc('id')->get();
         foreach($orders as $order){
             $order->product_type = $order->product_type ? $order->product_type : 'Others';
@@ -77,10 +85,19 @@ class ReportController extends Controller
         $endDate = $req->endDate;
         $lang = $req->lang;
         $statusId = $req->status_id;
+        $branchId = $req->branch_id;
+        $warehouseId = $req->warehouse_id;
         $qP = Package::where('is_deleted',0)
         ->with(['status','driver','merchant'])
         ->where('outstanding',0)
         ->selectRaw('qr_code,merchant_id,driver_id,payer,product_type,receiver_address,remarks,receiver_phone,cod,price,delivery_fee,additional_fee,driver_total,merchant_total,status_id,remarks,arrive_warehouse_datetime,assign_driver_datetime,updated_at,failed_datetime,returned_datetime,delivered_datetime,extra_charge,created_at');
+
+        if($branchId){
+            $qP->where('branch_id',$branchId);
+        }
+        if($warehouseId){
+            $qP->where('warehouse_id',$warehouseId);
+        }
 
         if($statusId) $qP->where('status_id',$statusId);
         if($startDate && $endDate){
@@ -175,9 +192,17 @@ class ReportController extends Controller
         $startDate = $req->startDate ? Helper::dateDMY($req->startDate) : null;
         $endDate = $req->endDate ? Helper::dateDMY($req->endDate) : null;
         $merchantId = $req->merchant_id;
+        $branchId = $req->branch_id;
+        $warehouseId = $req->warehouse_id;
         $qP = Package::where('is_deleted',0)
         ->where('outstanding',0)
         ->with(['merchant']);
+        if($branchId){
+            $qP->where('branch_id',$branchId);
+        }
+        if($warehouseId){
+            $qP->where('warehouse_id',$warehouseId);
+        }
         if($merchantId) $qP->where('merchant_id',$merchantId);
         if($startDate && $endDate){
             $startDatetime = Helper::dateYMD($startDate).' 00:00:00';
@@ -246,6 +271,8 @@ class ReportController extends Controller
         $user = UserService::getAuthUser();
         $startDate = $req->startDate;
         $endDate = $req->endDate;
+        $branchId = $req->branch_id;
+        $warehouseId = $req->warehouse_id;
         $qP = Payment::fromRaw('payments as p')
         ->join('users as d','d.id','p.payer_id')
         ->where('p.is_deleted',0)
@@ -254,6 +281,10 @@ class ReportController extends Controller
         ->join('users as st','st.id','p.settled_uid')
         ->selectRaw('p.payable_amount,p.id as payment_id,d.username as payer_name,ap.username as receiver_name,p.exchange_rate,p.taxi_fee,p.approved,p.payment_datetime,p.is_settled,st.username as settlement_user,p.payer_id')
         ->orderByDesc('payment_datetime');
+
+        if($branchId){
+            $qP->where('p.branch_id',$branchId);
+        }
 
         if($startDate && $endDate){
             $startDate = Helper::dateYMD($startDate);
@@ -309,7 +340,7 @@ class ReportController extends Controller
         //         ],
         //     ];
         // })->values();
-        $obj =(object)[
+        $obj = (object)[
             'title' => 'Daily Packages Summary',
             'sub_title' => 'Arrivate Date:',
             'status' => 'All Drivers',
@@ -324,7 +355,9 @@ class ReportController extends Controller
         $user = UserService::getAuthUser();
         $startDate = $req->startDate;
         $endDate = $req->endDate;
-        $summary = $this->getOperationSummary($startDate, $endDate);
+        $branchId = $req->branch_id;
+        // $warehouseId = $req->warehouse_id;
+        $summary = $this->getOperationSummary($startDate, $endDate,$branchId);
         $operationSummary = $summary->operation;
         $financialSummary = $summary->financial;
 
@@ -333,6 +366,9 @@ class ReportController extends Controller
             $startDatetime = Helper::dateYMD($startDate). ' 00:00:00'; //
             $endDatetime = Helper::dateYMD($endDate). ' 23:59:59';
             $qPmt->whereBetween('payment_datetime',[$startDatetime,$endDatetime]);
+        }
+        if($branchId){
+            $qPmt->where('branch_id',$branchId);
         }
         $payments = $qPmt->get();
         $closedFinancialSummary = [
@@ -382,7 +418,7 @@ class ReportController extends Controller
         return ApiResponse::JsonResult($obj,'Get Settle Statement');
     }
 
-    private function getOperationSummary($startDate,$endDate){
+    private function getOperationSummary($startDate,$endDate,$branchId){
         $startDate = $startDate ? Helper::dateYMD($startDate):null;
         $endDate = $endDate ? Helper::dateYMD($endDate):null;
         $qP = Package::where('is_deleted',0)
@@ -391,6 +427,11 @@ class ReportController extends Controller
         $clonePkg->whereIn('status_id',[9,19]);
 
         $qO = Order::where('status_id',5)->where('is_deleted',0);
+
+        if($branchId){
+            $qP->where('branch_id',$branchId);
+            $qO->where('branch_id',$branchId);
+        }
         if($startDate && $endDate){
             $startDatetime = Helper::dateYMD($startDate) . ' 00:00:00';
             $endDatetime = Helper::dateYMD($endDate) . ' 23:59:59';
@@ -537,10 +578,13 @@ class ReportController extends Controller
         $user = UserService::getAuthUser();
         $startDate = $req->startDate;
         $endDate = $req->endDate;
+        $branchId = $req->branch_id;
         $qP = FeedBack::where('is_deleted',0)
         ->selectRaw('id,create_uid,rate,created_at,comments')
         ->with('merchant');
-
+        if($branchId){
+            $qP->where('branch_id',$branchId);
+        }
         if($startDate && $endDate){
             $startDatetime = Helper::dateYMD($startDate). ' 00:00:00';
             $endDatetime = Helper::dateYMD($endDate). ' 23:59:59';
@@ -616,9 +660,19 @@ class ReportController extends Controller
         $user = UserService::getAuthUser();
         $startDate = $req->startDate;
         $endDate = $req->endDate;
+        $branchId = $req->branch_id;
+        $warehouseId = $req->warehouse_id;
         $qD = User::where('account_type','driver')
         ->where('is_deleted',false)
         ->selectRaw('code,username,gender,shift_type,phone,address,vehicle_type,plate_number,lock,employment_date');
+
+        if($branchId){
+            $qD->where('branch_id',$branchId);
+        }
+        if($warehouseId){
+            $qD->where('warehouse_id',$warehouseId);
+        }
+
         $drivers = $qD->get();
         foreach($drivers as $driver){
             $driver->status_code = $driver->lock ? 'Inactive' : 'Active';
@@ -639,11 +693,24 @@ class ReportController extends Controller
         $startDate = $req->startDate;
         $endDate = $req->endDate;
         $driverId = $req->driver_id;
+        $branchId = $req->branch_id;
+        $warehouseId = $req->warehouse_id;
         $qP = Package::where('is_deleted',0)
         ->whereIn('status_id',[9,10,11,19]);
         $qD = User::where('account_type','driver')
         ->selectRaw('id,code,username,gender,shift_type,phone,address,vehicle_type,plate_number,lock');
         $oD = Order::where('status_id',5)->where('is_deleted',0)->selectRaw('qty,driver_id');
+
+        if($branchId){
+            $qP->where('branch_id',$branchId);
+            $qD->where('branch_id',$branchId);
+            $oD->where('branch_id',$branchId);
+        }
+        if($warehouseId){
+            $qP->where('warehouse_id',$warehouseId);
+            $qD->where('warehouse_id',$warehouseId);
+            $oD->where('warehouse_id',$warehouseId);
+        }
         if($driverId){
             // $qP->where('driver_id',$driverId);
             if ($driverId) {
@@ -727,13 +794,13 @@ class ReportController extends Controller
         return ApiResponse::JsonResult($obj);
     }
 
-    public function getDailyMerchantActivities(Request $req){
-        $startDate = $req->startDate;
-        $endDate = $req->endDate;
-        $merchantId = $req->merchant_id;
-        $mP = Package::from('packages as p')->where('p.is_deleted',0)->where('p.outstanding',0)->join('users as m','m.id','p.merchant_id');
-        // $merchantPackages =
-    }
+    // public function getDailyMerchantActivities(Request $req){
+    //     $startDate = $req->startDate;
+    //     $endDate = $req->endDate;
+    //     $merchantId = $req->merchant_id;
+    //     $mP = Package::from('packages as p')->where('p.is_deleted',0)->where('p.outstanding',0)->join('users as m','m.id','p.merchant_id');
+    //     // $merchantPackages =
+    // }
 
     public function getDriverPaymentReport(Request $req){
         $user = UserService::getAuthUser();
@@ -744,9 +811,19 @@ class ReportController extends Controller
         $amount = 0;
         $amountKh = 0;
         $total = 0;
+        $branchId = $req->branch_id;
+        $warehouseId = $req->warehouse_id;
         $xRate = GeneralSettingService::getLatestXRate()->buy_rate;
         $qP = Payment::with(['driver:id,username,code','cashier:id,username'])->where('is_deleted',0)->where('payer_type','driver')->selectRaw('id,payer_id,payment_datetime,breakdown_notes,exchange_rate,payable_amount as amount,approved_uid');
         $qD = Disbursement::with(['driver:id,username,code','cashier:id,username'])->where('is_deleted',0)->where('payee_type','driver')->where('type','payment')->selectRaw('id,payee_id,payment_datetime,breakdown_notes,exchange_rate,payable_amount as amount,approved_uid');
+
+        if($branchId){
+            $qP->where('branch_id',$branchId);
+        }
+        if($warehouseId){
+            $qD->where('warehouse_id',$warehouseId);
+        }
+
         if($startDate && $endDate){
             $startDate = Helper::dateYMD($startDate);
             $endDate = Helper::dateYMD($endDate);
@@ -818,10 +895,20 @@ class ReportController extends Controller
         $endDate = $req->endDate ? Helper::dateYMD($req->endDate) : null;
         $driverId = $req->driver_id;
         $isKm = $req->lang == 'km';
+        $branchId = $req->branch_id;
+        $warehouseId = $req->warehouse_id;
         $qP = Package::where('is_deleted',0)->where('outstanding',0)
         ->with(['merchant:id,username','status:id,name'])
         ->orderByDesc('id')
         ->selectRaw('status_id,qr_code,merchant_id,receiver_phone,receiver_name,receiver_address,cod,delivery_fee,taxi_fee,driver_total,remarks,zone_code,zone_name,payer,driver_id,price');
+
+        if($branchId){
+            $qP->where('branch_id',$branchId);
+        }
+        if($warehouseId){
+            $qP->where('warehouse_id',$warehouseId);
+        }
+
         if($driverId){
             $qP->where('driver_id',$driverId);
         }
@@ -889,6 +976,8 @@ class ReportController extends Controller
         $user = UserService::getAuthUser();
         $startDate = $req->startDate;
         $endDate = $req->endDate;
+        $branchId = $req->branch_id;
+        $warehouseId = $req->warehouse_id;
         $qD = User::from('users as d')->where('d.account_type','driver')
         ->join('disbursements as dis','dis.payee_id','d.id')
         ->join('users as r','r.id','dis.receiptionist_uid')
@@ -899,6 +988,13 @@ class ReportController extends Controller
             $startDateTime = Helper::dateYMD($startDate) . ' 00:00:00';
             $endDateTime = Helper::dateYMD($endDate) . ' 23:59:59'; // Corrected here
             $qD->whereBetween('dis.payment_datetime', [$startDateTime, $endDateTime]);
+        }
+
+        if($branchId){
+            $qD->where('d.branch_id',$branchId);
+        }
+        if($warehouseId){
+            $qD->where('d.warehouse_id',$warehouseId);
         }
 
         $drivers = $qD->get()->map(function($d){
@@ -1002,10 +1098,18 @@ class ReportController extends Controller
         $startDate = $req->startDate ? Helper::dateDMY($req->startDate) : null;
         $endDate = $req->endDate ? Helper::dateDMY($req->endDate) : null;
         $totalMerchant = 0;
+        $branchId = $req->branch_id;
+        $warehouseId = $req->warehouse_id;
         $q = User::where('is_deleted',0)
         ->where('account_type','merchant')
         ->with('bank_accounts:user_id,bank_name,bank_number,account_name')
         ->selectRaw('username,business_type,phone,created_at,address,code,lock,id');
+        if($branchId){
+            $q->where('branch_id',$branchId);
+        }
+        if($warehouseId){
+            $q->where('warehouse_id',$warehouseId);
+        }
         $merchants = $q->get();
         foreach($merchants as $m){
             $m->registered_date = Helper::dateDMY($m->created_at);
@@ -1044,6 +1148,8 @@ class ReportController extends Controller
         $startDate = $req->startDate ? Helper::dateDMY($req->startDate) : null;
         $endDate = $req->endDate ? Helper::dateDMY($req->endDate) : null;
         $merchantId = $req->merchant_id;
+        $branchId = $req->branch_id;
+        $warehouseId = $req->warehouse_id;
         $merchantInfo = User::where('is_deleted',0)->where('account_type','merchant')
         ->selectRaw('id,username as merchant_name,phone as merchant_phone,address')->find($merchantId);
         if(!$merchantInfo) return ApiResponse::NotFound('Please select a merchant to view this report');
@@ -1089,6 +1195,12 @@ class ReportController extends Controller
         })
         ->selectRaw('p.order_id,p.merchant_total,p.merchant_id,p.remarks,p.delivery_remarks,p.status_id,p.id,p.qr_code,p.delivered_datetime,p.failed_datetime,p.delivery_remarks,p.remarks,p.taxi_fee,p.extra_charge,p.delivery_fee,p.cod,p.price,p.payer,
         p.returned_datetime,p.arrive_warehouse_datetime,p.assign_driver_datetime,p.receiver_phone,p.receiver_name,p.receiver_address,p.zone_name,p.delivery_remarks,p.merchant_disbursement_id,p.merchant_payment_id'.$pmtCase);
+        if($branchId){
+            $qP->where('p.branch_id',$branchId);
+        }
+        if($warehouseId){
+            $qP->where('p.warehouse_id',$warehouseId);
+        }
 
         if ($startDate && $endDate) {
             // Concatenate start and end dates with the times
@@ -1240,7 +1352,7 @@ class ReportController extends Controller
         return ApiResponse::JsonResult($obj);
     }
 
-    private function getMerchantSummaryHeader($clonePkg,$merchantId,$startDate,$endDate){
+    private function getMerchantSummaryHeader($clonePkg,$merchantId,$startDate,$endDate,$branchId,$warehouseId){
         $startDate = Helper::dateYMD($startDate).' 00:00:00';
         $endDate = Helper::dateYMD($endDate).' 23:59:59';
         // $lastOrder = Package::from('packages as p')->where('p.is_deleted',0)
@@ -1269,6 +1381,12 @@ class ReportController extends Controller
         ->where('merchant_id',$merchantId)
         ->where('outstanding',0)
         ->selectRaw('id as package_id,status_id,order_id,qr_code,merchant_total,cod,price');
+        if($branchId){
+            $qLastOrder->where('branch_id',$branchId);
+        }
+        if($warehouseId){
+            $qLastOrder->where('warehouse_id',$warehouseId);
+        }
         $clLatest = clone $qLastOrder;
         $lastOrder = $qLastOrder->get();
 
@@ -1287,12 +1405,19 @@ class ReportController extends Controller
             11 => ['title' => 'ត្រឡប់ទៅហាងវិញ ', 'count' => 0, 'total' => 0],
             // 'all' => ['title' => 'ត្រឡប់ទៅហាងវិញ ', 'count' => 0, 'total' => 0],
         ];
-        $failedPkgs = Package::where('is_deleted',false)
+        $qFpkg = Package::where('is_deleted',false)
         ->where('merchant_id',$merchantId)
         ->whereIn('status_id',[10,5])
         ->whereNotIn('id',$clLatest->pluck('package_id'))
         ->select('id','qr_code','status_id')
-        ->whereNotIn('id',$packages->pluck('id'))->get();
+        ->whereNotIn('id',$packages->pluck('id'));
+        if($branchId){
+            $qFpkg->where('branch_id',$branchId);
+        }
+        if($warehouseId){
+            $qFpkg->where('warehouse_id',$warehouseId);
+        }
+        $failedPkgs = $qFpkg->get();
         // Log::info($lastOrder);
         foreach($failedPkgs as $p){
             if (!isset($pkgInfo[5])) {
@@ -1309,9 +1434,7 @@ class ReportController extends Controller
             $pkgInfo['5.1']['total'] += $p->cod ? $p->price:0;//- $p->merchant_total;
             // $pkgInfo['5.2']['count'] = $pkgInfo['5.1']['count'] + $pkgInfo[5]['count'];
             // $pkgInfo['5.2']['total'] = $pkgInfo['5.1']['total'] + $pkgInfo[5]['total'];
-
             $totalCount += 1;
-
             if (in_array($p->status_id, $statuses)) {
                 if (!isset($pkgInfo[$p->status_id])) {
                     $pkgInfo[$p->status_id] = ['count' => 0, 'total' => 0];
@@ -1383,6 +1506,8 @@ class ReportController extends Controller
         $startDate = $req->startDate ? Helper::dateDMY($req->startDate) : null;
         $endDate = $req->endDate ? Helper::dateDMY($req->endDate) : null;
         $allPayments = [];
+        $branchId = $req->branch_id;
+        // $warehouseId = $req->warehouse_id;
         $pQ = Payment::where('payments.is_deleted',0)->where('payments.is_settled',1)
         ->with(['merchant'])
         ->where('payer_type','merchant')
@@ -1393,6 +1518,14 @@ class ReportController extends Controller
         ->where('payee_type','merchant')
         ->join('users as b','disbursements.settled_uid','b.id')
         ->selectRaw('disbursements.id,disbursements.package_count,disbursements.payable_amount,disbursements.breakdown_notes,b.username as booked_user,disbursements.remarks,disbursements.payment_datetime,payee_id');
+
+        if($branchId){
+            $pQ->where('payments.branch_id',$branchId);
+            $dQ->where('disbursements.branch_id',$branchId);
+        }
+        // if($warehouseId){
+        //     $dQ->where('warehouse_id',$warehouseId);
+        // }
 
         if($startDate && $endDate){
             $startDateTime = Helper::dateYMD($startDate).' 00:00:00';
