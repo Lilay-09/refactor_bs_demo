@@ -402,12 +402,13 @@ class PickupCenterServiceImpl implements PickupCenterService
             }else if($user->account_type == 'driver'){
                 $inputs['tracking_notes'] = 'Driver add new package ('.date('d-M-Y h:i:s A').')';
             }
-            $createPackage = Package::create($inputs);
-            if(!$createPackage) return DataResponse::Error(__('messages.Fail to create package'));
             $shortcut = $warehouse?->shortcut ?? null;
             if(!$shortcut){
                 return DataResponse::ValidateFail("Please set a shortcut for your warehouse — it’ll be used when generating package codes.");
             }
+            $createPackage = Package::create($inputs);
+            if(!$createPackage) return DataResponse::Error(__('messages.Fail to create package'));
+
             $qrCode = Helper::generateBarcodeString($createPackage->id,$user->company_id,$this->packageCodePrefix.$warehouse->shortcut);
             $createPackage->update([
                 'qr_code' => $qrCode
