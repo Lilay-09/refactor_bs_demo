@@ -22,6 +22,7 @@ return [
     'plasgate_sender' => env('PLASGATE_SENDER','PlasGateUAT'),
     'cl_socket' => env('CL_SOCKET'),
     'use_redis' => env('USE_REDIS','false'),
+    'fcm_topic_prefix' => env('TOPIC_PREFIX'),
     /*
     |--------------------------------------------------------------------------
     | Application Environment

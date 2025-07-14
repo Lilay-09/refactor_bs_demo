@@ -164,10 +164,15 @@ class PickupCenterServiceImpl implements PickupCenterService
             // $statusId = $inputs['status_id'];
             if(isset($details[0])){
                 if($userType == 'driver') $statusId = 4;
+                $isMobile = $userType !== 'admin';
                 // if($inputs['qty'] != count($details)) return DataResponse::ValidateFail('Your quantity is not matching the details');
                 foreach($details as $d){
                     $d['merchant_id'] = $merchantId;
                     $d['product_type'] = $productType;
+                    $price = $d['price'] ?? 0;
+                    if($isMobile && $price > 0){
+                        $d['cod'] = true;
+                    }
                     $dReq = new Request($d);
                     $savePkg = $this->createOrUpdatePackage($dReq,$user,null,$orderId);
                     if($savePkg->error) return $savePkg;
@@ -211,7 +216,11 @@ class PickupCenterServiceImpl implements PickupCenterService
                 'type' => 'private',
                 'target_uid' => $merchantId
             ]);
-            SendNotificationJob::dispatch($clmsgReq, $user);
+            // SendNotificationJob::dispatch($clmsgReq, $user);
+            $queueFCMName = config('queue_job_names.'.config('app.env').'.notification');
+            // Log::info(config('queue_job_names.development.notification').'---'.config('app.env'));
+            // Log::info($queueFCMName);
+            SendNotificationJob::dispatch($clmsgReq, $user)->onQueue($queueFCMName);
             if($driverId){
                 $topics = GeneralSettingService::getGeneralTopics($user->company_id,'driver',$driverId);
                 $notifReq = new Request([
@@ -225,7 +234,8 @@ class PickupCenterServiceImpl implements PickupCenterService
                     ])
                 ]);
                 // $clmsg->sendNotificationByTopic($notifReq,$user);
-                SendNotificationJob::dispatch($notifReq, $user);
+                // SendNotificationJob::dispatch($notifReq, $user);
+                SendNotificationJob::dispatch($notifReq, $user)->onQueue($queueFCMName);
             }
             DB::commit();
             return DataResponse::JsonResult(null,false,__('messages.info',[

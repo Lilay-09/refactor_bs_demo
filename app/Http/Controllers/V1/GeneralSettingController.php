@@ -300,7 +300,7 @@ class GeneralSettingController extends Controller
         $user = UserService::getAuthUser();
         $obj = [
             'statuses' => $this->gs::optionsTrackingStatus($user,[20],[],'pick',null,$req->lang),
-            'drivers' => $this->gs::optionsDriver($user)
+            'drivers' => $this->gs::optionsDriver($user,null,$req->warehouse_id)
         ];
         return ApiResponse::JsonResult($obj,'get form set order status');
     }

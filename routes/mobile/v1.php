@@ -53,6 +53,8 @@ Route::middleware(['jwtDriver','localize'])->prefix('driver/v1/{lang}')->group(f
         Route::get('availableOrders',[HomeScreenController::class,'getAvailableOrders']);
         Route::get('accepted/pickup',[HomeScreenController::class,'getAcceptedPickup']);
         Route::get('accepted/pickup/{order_id}',[HomeScreenController::class,'getOneAcceptedPickup']);
+        Route::post('accepted/pickup/{order_id}/merchant/{merchantId}',[HomeScreenController::class,'editMerchantShopLocation']);
+        Route::get('accepted/pickup/{order_id}/merchant/{merchantId}',[HomeScreenController::class,'getMerchantShopLocation']);
         Route::get('accepted/delivery',[HomeScreenController::class,'getDelivery']);
         Route::get('accepted/deliveries/packages',[HomeScreenController::class,'getDeliveriesPackages']);
         Route::get('accepted/delivery/{trip_id}/package',[HomeScreenController::class,'getDeliveryItems']);
