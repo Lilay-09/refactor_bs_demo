@@ -53,8 +53,8 @@ class UserShopService
         return DataResponse::JsonResult(null,false,'Saved');
     }
 
-    public function editMerchantShopLocation($authUser,int $merchantId,$data){
-        $validator = validator($data,[
+    public function editMerchantShopLocation($authUser,int $merchantId,Request $data){
+        $validator = validator($data->all(),[
             'image' => 'nullable',
             'pin_address' => 'nullable',
             'address' => 'required',
@@ -66,11 +66,11 @@ class UserShopService
         }
         $inputs = $validator->validated();
         $userShop = UserShop::where('owner_id',$merchantId)->first();
-        $image = $inputs['image'];
+        $image = $inputs['image'] ?? null;
         unset($inputs['image']);
         if($userShop){
             if(Helper::isValidBase64Image($image) || !$image){
-                $inputs['image'] = Helper::saveImageFile($image,1,ImageDirectory::SHOP->value);
+                $inputs['image'] = Helper::saveImageFileOrBase64($image,1,ImageDirectory::SHOP->value);
                 Helper::deleteImageFile($userShop->image,1,ImageDirectory::SHOP->value);
             }
             $userShop->update($inputs);
