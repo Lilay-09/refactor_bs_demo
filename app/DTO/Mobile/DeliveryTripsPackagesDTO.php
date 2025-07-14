@@ -11,6 +11,7 @@ class DeliveryTripsPackagesDTO{
         public readonly string $merchant_phone,
         public readonly int $status_id,
         public readonly float $total,
+        public readonly? float $total_khr,
         public readonly ?string $zone_name,
         public readonly ?string $zone_code,
         public readonly ?string $status,
@@ -18,7 +19,9 @@ class DeliveryTripsPackagesDTO{
         public readonly ?string $time,
         public readonly ?string $receiver_phone,
         public readonly ?string $receiver_address,
-        public readonly ?string $self_notes
+        public readonly ?string $self_notes,
+        public readonly ?bool $is_contact,
+        public readonly ?float $exchange_rate
     ) {}
     public static function fromModel(Package $data): self
     {
@@ -37,6 +40,9 @@ class DeliveryTripsPackagesDTO{
             receiver_phone: $data->receiver_phone ?? null,
             receiver_address: $data->receiver_address ?? null,
             self_notes: $data->self_notes ?? null,
+            is_contact: $data->is_contact ?? null,
+            exchange_rate: $data->exchange_rate,
+            total_khr: $data->total_khr ?? 0
         );
     }
 

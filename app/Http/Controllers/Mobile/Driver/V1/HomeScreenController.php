@@ -356,12 +356,15 @@ class HomeScreenController extends Controller
             'p.assign_driver_datetime','p.merchant_id','p.qr_code','p.price','p.cod','p.receiver_name','p.receiver_phone','p.zone_code',
             'p.zone_name','d.username as driver_name','d.phone as driver_phone','m.username as merchant_name',
             'm.phone as merchant_phone','p.id as package_id','p.zone_code','p.zone_name','p.delivery_fee as base_fee','p.driver_total',
-            'p.taxi_fee','p.product_type','p.status_id','p.driver_notes'
+            'p.taxi_fee','p.product_type','p.status_id','p.driver_notes','p.is_contact'
         ];
-        $callback = function($q){
+        $xRate = GeneralSettingService::getLatestXRate()->sell_rate;
+        $callback = function($q) use($xRate){
             $q->status = TrackingStatus::tryFrom($q->status_id)->label();
             $q->self_notes = $q->driver_notes;
             $q->total = $q->driver_total;
+            $q->total_khr = (float)number_format($q->driver_total * $xRate,2,'.','');
+            $q->exchange_rate = $xRate;
             return DeliveryTripsPackagesDTO::fromModel($q);
         };
 
@@ -646,6 +649,8 @@ class HomeScreenController extends Controller
             'status_id' => 'required|in:9,10,19',
             'delivery_remarks' => 'nullable|string',
             'images' => 'nullable',
+            'driver_cod_usd' => 'nullable',
+            'driver_cod_khr' => 'nullable',
             // 'amount' => 'nullable|numeric',
             'payer' => 'nullable|in:sender,receiver'
         ]);
@@ -653,6 +658,8 @@ class HomeScreenController extends Controller
         $inputs = $validate->validated();
         $status_id = $inputs['status_id'];
         $inputs['last_submit_uid'] = $user->id;
+        $inputs['driver_cod_usd'] = $inputs['driver_cod_usd'] ?? 0;
+        $inputs['driver_cod_khr'] = $inputs['driver_cod_khr'] ?? 0;
         // $amount = $inputs['amount'] ?? 0;
         // $inputs['price'] = $amount;
         // $inputs['cod'] = $amount > 0 ? true:false;
@@ -818,22 +825,19 @@ class HomeScreenController extends Controller
 
     public function markPackageContact(Request $req){
         $user = UserService::getAuthUser('driver');
-        $orderId = $req->order_id;
         $packageRef = $req->package_ref;
-        $order = Order::where('is_deleted',0)->find($orderId);
-        if(!$order) return ApiResponse::NotFound(__('messages.not_found'));
-        $package = Package::where('is_deleted',0)->where('order_id',$orderId)->where('driver_id',$user->id)->find($packageRef);
-        if(!$package) Package::where('is_deleted',0)->where('order_id',$orderId)->where('driver_id',$user->id)->where('qr_code',$packageRef);
+        $package = Package::where('is_deleted',0)->where('driver_id',$user->id)->find($packageRef);
+        if(!$package) Package::where('is_deleted',0)->where('driver_id',$user->id)->where('qr_code',$packageRef);
         if(!$package) return ApiResponse::NotFound(__('messages.not_found',[
             'info' => 'Package'
         ]));
         if($package->is_contact) return ApiResponse::Duplicated(__('messages.info',[
             'info' => 'This package has already contacted'
         ]));
-        if(!in_array($package->status_id,[6])) return ApiResponse::ValidateFail(__('messages.info',[
-            'info' => 'You can not mark as dropped'
-        ]));
-        $driverName = $user->username;
+        // if(!in_array($package->status_id,[6])) return ApiResponse::ValidateFail(__('messages.info',[
+        //     'info' => 'You can not mark as dropped'
+        // ]));
+        // $driverName = $user->username;
         $todayDt = Helper::getDateTime();
         $tracking_notes = $package->tracking_notes."|[$user->id]Driver Marked contact $todayDt";
         $package->update([
@@ -844,7 +848,7 @@ class HomeScreenController extends Controller
 
         //** Send Notif */
         $notif = new CloudMessagingService();
-        $topics = GeneralSettingService::getGeneralTopics($user->company_id,'merchant',$order->merchant_id);
+        $topics = GeneralSettingService::getGeneralTopics($user->company_id,'merchant',$package->merchant_id);
         $notifReq = new Request([
             'topic' => $topics->private,
             'type' => 'private',

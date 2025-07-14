@@ -299,10 +299,10 @@ class PackageTrailController extends Controller
             'info' => 'Please ensure package is returning before setting drop point',
             'khInfo' => 'សូមបញ្ជាក់កញ្ចប់ត្រូវបានដាក់កំពុងត្រលប់​មុនពេលកំណត់ចំណុចទម្លាក់'
         ]));
-        $statusId = 11;
-        if($package->status_id == 19){
-            $statusId = 19;
-        }
+        // $statusId = 11;
+        // if($package->status_id == 19){
+        //     $statusId = 19;
+        // }
         $package->update([
             'returned_uid' => $driverId,
             'status_id' => TrackingStatus::RETURNED->value, // returned
@@ -409,6 +409,13 @@ class PackageTrailController extends Controller
         $id = $req->id;
         $driver_id = $req->driver_id;
         $notes = $req->notes;
+
+
+        $package = Package::where('company_id',$user->company_id)->where('is_deleted',0)
+        ->where('outstanding',0)
+        ->with('merchant:id,username,phone')
+        // ->select(['id','status_id','merchant_id','driver_id','assign_uid','assign_driver_datetime','receiver_phone','order_id'])
+        ->find($id);
         $validDriver = GeneralSettingService::getDriverById($driver_id);
         if(!$validDriver) return ApiResponse::NotFound(__('messages.not_found',['info' => 'Driver']));
         if($validDriver->lock) {
@@ -417,12 +424,6 @@ class PackageTrailController extends Controller
                 'khInfo' => 'អ្នកដឹកជញ្ជូនត្រូវបានឈប់ដំណើរការ'
             ]));
         }
-
-        $package = Package::where('company_id',$user->company_id)->where('is_deleted',0)
-        ->where('outstanding',0)
-        ->with('merchant:id,username,phone')
-        // ->select(['id','status_id','merchant_id','driver_id','assign_uid','assign_driver_datetime','receiver_phone','order_id'])
-        ->find($id);
         if(!$package) {
             return ApiResponse::NotFound(__('messages.not_found',['info' => 'Package','khInfo' => 'កញ្ចប់']));
         }
@@ -537,7 +538,8 @@ class PackageTrailController extends Controller
                 ])//'You have been assigned to deliver the package('.$package->qr_code.').'
             ]);
             // $notif->sendNotificationByTopic($notifReq,$user);
-            SendNotificationJob::dispatch($notifReq, $user);
+            $queueFCMName = config('queue_job_names.'.config('app.env').'.notification');
+            SendNotificationJob::dispatch($notifReq, $user)->onQueue($queueFCMName);
             Helper::clearCacheByTags($this->cacheTags);
             DB::commit();
             return ApiResponse::JsonResult(null,__('messages.assigned',['info' => '']));

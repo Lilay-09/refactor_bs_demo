@@ -12,7 +12,6 @@ Route::middleware(['web'])->group(function () {
             file_put_contents($logFile, ''); // Clear the log
             return response()->json(['message' => 'Laravel log file cleared.']);
         }
-
         return response()->json(['message' => 'Log file not found.'], 404);
     });
 
