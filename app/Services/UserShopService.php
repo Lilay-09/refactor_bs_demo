@@ -7,6 +7,7 @@ use App\Models\UserShop;
 use DataResponse;
 use Helper;
 use Illuminate\Http\Request;
+use Log;
 
 class UserShopService
 {
@@ -70,8 +71,14 @@ class UserShopService
         unset($inputs['image']);
         if($userShop){
             // if(Helper::isValidBase64Image($image) || !$image){
-            $inputs['image'] = Helper::saveImageFileOrBase64($image,1,ImageDirectory::SHOP->value)->filename;
-            Helper::deleteImageFile($userShop->image,1,ImageDirectory::SHOP->value);
+            $imgFile = Helper::saveImageFileOrBase64($image,1,ImageDirectory::SHOP->value)->filename;
+            if($imgFile){
+                $inputs['image'] = $imgFile;
+            }
+            if(!$image){
+                Log::info("Test");
+                Helper::deleteImageFile($userShop->image,1,ImageDirectory::SHOP->value);
+            }
             $userShop->update($inputs);
         }else {
             $inputs['create_uid'] = $authUser->id;
