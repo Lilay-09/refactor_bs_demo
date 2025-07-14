@@ -2,8 +2,10 @@
 
 namespace App\Services;
 
+use App\Enums\ImageDirectory;
 use App\Models\UserShop;
 use DataResponse;
+use Helper;
 use Illuminate\Http\Request;
 
 class UserShopService
@@ -49,5 +51,45 @@ class UserShopService
             $userShop = UserShop::create($inputs);
         }
         return DataResponse::JsonResult(null,false,'Saved');
+    }
+
+    public function editMerchantShopLocation($authUser,int $merchantId,$data){
+        $validator = validator([
+            'image' => 'nullable',
+            'pin_address' => 'nullable',
+            'address' => 'required',
+            'loc_lat' => 'required',
+            'loc_lng' => 'required',
+        ],$data);
+        if($validator->fails()){
+            return DataResponse::ValidateFail($validator->errors()->first());
+        }
+        $inputs = $validator->validated();
+        $userShop = UserShop::where('owner_id',$merchantId)->first();
+        $image = $inputs['image'];
+        unset($inputs['image']);
+        if($userShop){
+            if(Helper::isValidBase64Image($image) || !$image){
+                $inputs['image'] = Helper::saveImageFile($image,1,ImageDirectory::SHOP->value);
+                Helper::deleteImageFile($userShop->image,1,ImageDirectory::SHOP->value);
+            }
+            $userShop->update($inputs);
+        }else {
+            $inputs['create_uid'] = $authUser->id;
+            $inputs['owner_id'] = $merchantId;
+            $userShop = UserShop::create($inputs);
+        }
+        return DataResponse::JsonResult(null,false,__('messages.saved'));
+    }
+
+    public function getPickUpLocation(int $merchantId){
+        $userShop = UserShop::where('owner_id',$merchantId)
+        ->select(['pin_address','address','loc_lat','loc_lng','image'])
+        ->first();
+        if(!$userShop){
+            return DataResponse::NotFound(__('messages.not_found'));
+        }
+        $userShop->image = Helper::getImageUrl($userShop->image,1,ImageDirectory::SHOP->value);
+        return DataResponse::JsonResult($userShop);
     }
 }

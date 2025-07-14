@@ -29,6 +29,7 @@ use App\Services\GeoResolverService;
 use App\Services\PickupCenterService;
 use App\Services\TransactionService;
 use App\Services\UserService;
+use App\Services\UserShopService;
 use DB;
 use Exception;
 use Helper;
@@ -601,6 +602,20 @@ class HomeScreenController extends Controller
             // 'khInfo' => 'បានបញ្ចូលទិន្នន័យកញ្ចប់',
             'khInfo' => 'បានទទួល'
         ]));
+    }
+
+    public function editMerchantShopLocation(Request $req){
+        $authUser = auth()->user();
+        $userShopService = new UserShopService();
+        $editable = $userShopService->editMerchantShopLocation($authUser,$req->merchantId,$req);
+        return ApiResponse::flex($editable);
+    }
+
+    public function getMerchantShopLocation(Request $req){
+        $authUser = auth()->user();
+        $userShopService = new UserShopService();
+        $editable = $userShopService->getPickUpLocation($req->merchantId);
+        return ApiResponse::flex($editable);
     }
 
 
