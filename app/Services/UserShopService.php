@@ -69,10 +69,9 @@ class UserShopService
         $image = $inputs['image'] ?? null;
         unset($inputs['image']);
         if($userShop){
-            if(Helper::isValidBase64Image($image) || !$image){
-                $inputs['image'] = Helper::saveImageFileOrBase64($image,1,ImageDirectory::SHOP->value);
-                Helper::deleteImageFile($userShop->image,1,ImageDirectory::SHOP->value);
-            }
+            // if(Helper::isValidBase64Image($image) || !$image){
+            $inputs['image'] = Helper::saveImageFileOrBase64($image,1,ImageDirectory::SHOP->value)->filename;
+            Helper::deleteImageFile($userShop->image,1,ImageDirectory::SHOP->value);
             $userShop->update($inputs);
         }else {
             $inputs['create_uid'] = $authUser->id;
