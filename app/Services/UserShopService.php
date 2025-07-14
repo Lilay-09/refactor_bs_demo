@@ -54,13 +54,13 @@ class UserShopService
     }
 
     public function editMerchantShopLocation($authUser,int $merchantId,$data){
-        $validator = validator([
+        $validator = validator($data,[
             'image' => 'nullable',
             'pin_address' => 'nullable',
             'address' => 'required',
             'loc_lat' => 'required',
             'loc_lng' => 'required',
-        ],$data);
+        ]);
         if($validator->fails()){
             return DataResponse::ValidateFail($validator->errors()->first());
         }
