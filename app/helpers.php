@@ -794,7 +794,10 @@ class Helper{
         } elseif ($imageOrBase64 instanceof UploadedFile) {
             return self::saveImageFile($imageOrBase64, $companyId, $dirName,$subDir);
         } else {
-            throw new \Exception("Invalid image format.");
+            return (object)[
+                'filename' => null,
+                'ext' => null
+            ];
         }
     }
 
