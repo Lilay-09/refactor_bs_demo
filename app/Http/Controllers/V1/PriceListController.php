@@ -124,6 +124,7 @@ class PriceListController extends Controller
                 $priceListIds[] = $create->id;
             }
             // $useIds = [];
+            // Log::info($req->all());
             $uniqueKeys = $identifier ?? uniqid('PZ');
             foreach($priceListIds as $plId){
                 foreach($zoneIds as $idx=>$id){
@@ -435,6 +436,7 @@ class PriceListController extends Controller
                         return $a['delivery_type'] === 'normal' ? -1 : ($b['delivery_type'] === 'normal' ? 1 : 0);
                     });
                 }
+                unset($zone);
 
                 // Flatten the grouped price zones into the list
                 $arr['list'] = array_values($groupedPriceZones);

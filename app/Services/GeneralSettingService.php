@@ -673,10 +673,10 @@ class GeneralSettingService
             ->where('delivery_type',$delivery_type)
             // ->orderByDesc('id')
             ->where('base_fee','>',0)
-            ->selectRaw('base_fee,below_kg,below_kg_price,id,price,above_kg_price,above_kg,delivery_type')
+            ->selectRaw('base_fee,taxi_fee,other_fee,below_kg,below_kg_price,id,price,above_kg_price,above_kg,delivery_type')
             ->first();
             // Log::info('$plid' .$priceListId.'Zid'.$zone_id);
-            $plZone = PriceListZone::with('priceList:base_fee,below_kg,below_kg_price,id,price,above_kg_price,above_kg,delivery_type')->where('zone_id',$zone_id)->where('price_list_id',$priceList?->id)->first();
+            $plZone = PriceListZone::with('priceList:taxi_fee,other_fee,base_fee,below_kg,below_kg_price,id,price,above_kg_price,above_kg,delivery_type')->where('zone_id',$zone_id)->where('price_list_id',$priceList?->id)->first();
             if($merchant_id){
                 // Log::info('merchant');
                 $plNameId = MerchantPriceList::where('merchant_id',$merchant_id)->take(1)->value('price_list_id');
@@ -686,7 +686,7 @@ class GeneralSettingService
                     ->where('delivery_type',$delivery_type)
                     ->pluck('id')->toArray();
                     if(!empty($plIds)){
-                        $plZone = PriceListZone::with('priceList:base_fee,below_kg,below_kg_price,id,price,above_kg_price,above_kg,delivery_type')->where('zone_id',$zone_id)->whereIn('price_list_id',$plIds)->first();
+                        $plZone = PriceListZone::with('priceList:taxi_fee,other_fee,base_fee,below_kg,below_kg_price,id,price,above_kg_price,above_kg,delivery_type')->where('zone_id',$zone_id)->whereIn('price_list_id',$plIds)->first();
                         // Log::info($row);
                     }
                 }
@@ -701,6 +701,8 @@ class GeneralSettingService
                 $row->below_kg = $plZone->priceList->below_kg;
                 $row->below_kg_price = $plZone->priceList->below_kg_price;
                 $row->delivery_type = $plZone->priceList->delivery_type;
+                $row->taxi_fee = $plZone->priceList->taxi_fee;
+                $row->other_fee = $plZone->priceList->other_fee;
                 unset($plZone->zones,$plZone->price,$plZone->priceList);
             }else if($priceList){
                 $row->base_fee = $priceList->base_fee;
@@ -710,6 +712,8 @@ class GeneralSettingService
                 $row->below_kg = $priceList->below_kg;
                 $row->delivery_type = $priceList->delivery_type;
                 $row->below_kg_price = $priceList->below_kg_price;
+                $row->taxi_fee = $priceList->taxi_fee;
+                $row->other_fee = $priceList->other_fee;
             }else $row=null;
         return $row;
     }
