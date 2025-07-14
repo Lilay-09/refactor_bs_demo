@@ -424,8 +424,14 @@ class GeneralSettingService
         })->where('company_id',$user->company_id)->where('account_type','driver')->selectRaw('id,username,phone')->where('vehicle_type',$vehicle_type)->orderByDesc('id')->get();
     }
 
-    public static function getDriverById($id){
-        return User::where('is_deleted',0)->where('delete_account',0)->where('account_type','driver')->orderByDesc('id')->find($id);
+    public static function getDriverById($id,$warehouseId=null){
+        $qD = User::where('is_deleted',0)->where('delete_account',0)
+        ->where('account_type','driver')->orderByDesc('id');
+        if($warehouseId){
+            $qD->where('warehouse_id',$warehouseId);
+        }
+
+        return $qD->find($id);
     }
     public static function getMerchantById($id,$select=['*']){
         return User::where('is_deleted',0)->where('delete_account',0)
@@ -834,7 +840,7 @@ class GeneralSettingService
         return $info;
     }
 
-    public static function calculatePackageFee($zone_code,$price,$billedKg,$actualKg,$payer,$cod,$extraCharge,$user,$taxi_fee=0,$merchant_id=null,$status_id=null){
+    public static function calculatePackageFee($zone_code,$price,$billedKg,$actualKg,$payer,$cod,$extraCharge,$user,$taxi_fee=0,$merchant_id=null,$status_id=null,$otherFee=0){
         // $priceList = GeneralSettingService::getZonePriceByCode($zone_code,$user);
         $zoneId = Zone::where('zone_code',$zone_code)->where('is_deleted',0)->take(1)->value('id');
         $priceList = GeneralSettingService::priceByZone($zoneId,$user,$merchant_id);
@@ -861,8 +867,10 @@ class GeneralSettingService
             $total += $zPrice;
             $merchant_total = 0;
             $driverTotal += $zPrice;
+            $driverTotal += $otherFee;
         }
         $driverTotal -= $taxi_fee;
+
         return (object)[
             "error" => false,
             'message' => 'Success',

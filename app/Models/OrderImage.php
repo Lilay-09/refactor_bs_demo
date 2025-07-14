@@ -14,6 +14,7 @@ class OrderImage extends Model
         'photo_file_name',
         'original_name',
         'order_id',
+        'package_id',
         'size',
         'create_uid',
         'update_uid',

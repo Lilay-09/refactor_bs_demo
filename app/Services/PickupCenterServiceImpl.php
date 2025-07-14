@@ -34,6 +34,7 @@ class PickupCenterServiceImpl implements PickupCenterService
             'photo_id' => 'nullable|int',
             'package_name' => 'nullable|string|max:100',
             'merchant_id' => 'required',
+            'image_id' => 'nullable',
             'product_type' => 'nullable|string',
             'price' => 'nullable|numeric|min:0',
             'dim_z' => 'nullable|numeric',
@@ -41,6 +42,7 @@ class PickupCenterServiceImpl implements PickupCenterService
             'dim_x' => 'nullable|numeric',
             'status_id' => 'nullable|int',
             'taxi_fee' => 'nullable|numeric',
+            'other_fee' => 'nullable|numeric',
             'failure_notes' => 'nullable|string|max:250',
             'payer' => 'required|in:sender,receiver',
             'cod' => 'required|in:0,1',
@@ -354,6 +356,7 @@ class PickupCenterServiceImpl implements PickupCenterService
         if($validate->fails()) return DataResponse::ValidateFail($validate->errors()->first());
         $inputs = $validate->validated();
         $inputs['company_id'] = $user->company_id;
+        // Log::info($req->all());
         // $warehouse = GeneralSettingService::getWarehouse($user);
         // $inputs['warehouse_id'] = $warehouse->id;
         $warehouse = Warehouse::where('branch_id',$inputs['branch_id'])
@@ -385,6 +388,7 @@ class PickupCenterServiceImpl implements PickupCenterService
         $inputs['delivery_type'] = $inputs['delivery_type'] ?? 'normal';
         $inputs['booking_channel'] = 'admin';
         $taxiFee = $inputs['taxi_fee'] ?? 0;
+        $imageId = $inputs['image_id'] ?? null;
         // $inputs['tracking_notes'] = '['.$user->id.']Admin ('.$user->username.') add new package ('.date('d-M-Y h:i:s A').')';
         if($user->account_type == 'driver') $inputs['booking_channel'] = 'driver';
         if($user->account_type == 'merchant') {
@@ -394,7 +398,8 @@ class PickupCenterServiceImpl implements PickupCenterService
         $zoneName = Zone::where('zone_code',$zoneCode)->take(1)->where('is_deleted',0)->value('zone_name');
         $inputs['zone_name'] = $zoneName;
         $extraCharge = $inputs['extra_charge'] ?? 0;
-        $calPrice = GeneralSettingService::calculatePackageFee($zoneCode,$price,$billedKg,$actualKg,$payer,$cod,$extraCharge,$user,$taxiFee,$inputs['merchant_id']);
+        $otherFee = $inputs['other_fee'] ?? 0;
+        $calPrice = GeneralSettingService::calculatePackageFee($zoneCode,$price,$billedKg,$actualKg,$payer,$cod,$extraCharge,$user,$taxiFee,$inputs['merchant_id'],null,$otherFee);
         if($calPrice->error) return $calPrice;
         // Log::info($calPrice->driver_total);
         $inputs['driver_total'] = $calPrice->driver_total;
@@ -418,7 +423,11 @@ class PickupCenterServiceImpl implements PickupCenterService
             }
             $createPackage = Package::create($inputs);
             if(!$createPackage) return DataResponse::Error(__('messages.Fail to create package'));
-
+            if($imageId){
+                OrderImage::find($imageId)->update([
+                    'package_id' => $createPackage->id
+                ]);
+            }
             $qrCode = Helper::generateBarcodeString($createPackage->id,$user->company_id,$this->packageCodePrefix.$warehouse->shortcut);
             $createPackage->update([
                 'qr_code' => $qrCode

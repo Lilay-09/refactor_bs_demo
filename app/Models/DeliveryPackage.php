@@ -91,6 +91,7 @@ class DeliveryPackage extends Model
         'cod_usd',
         'driver_cod_usd',
         'driver_cod_khr',
+        'other_fee',
 
         'is_completed',
         'delay_count',
