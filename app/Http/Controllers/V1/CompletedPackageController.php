@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\V1;
 
 use ApiResponse;
+use App\Enums\TrackingStatus;
 use App\Http\Controllers\Controller;
 use App\Models\Delivery;
 use App\Models\DeliveryPackage;
@@ -84,7 +85,7 @@ class CompletedPackageController extends Controller
         ")
         ->orderByDesc('p.id')
 
-        ->whereIn('p.status_id',[9,11,19]) //* delivered and failed with fee
+        ->whereIn('p.status_id',[9,11,19,23]) //* delivered and failed with fee
         ->where(function ($query) {
             $query->where('p.status_id', '!=', 19)    // wxclude status 19
                     ->orWhereNotNull('p.returned_uid'); // Include 19 only if returned_uid is not null
@@ -126,16 +127,21 @@ class CompletedPackageController extends Controller
                 $endDateTime = "$endDate 23:59:59";
                 // Check for status_id = 9, delivered_datetime should be within the date range
                 $q->where(function ($q) use ($startDateTime, $endDateTime) {
-                    $q->where('p.status_id', 9)
+                    $q->where('p.status_id', TrackingStatus::DELIVERED->value)
                     ->whereBetween('p.delivered_datetime', [$startDateTime, $endDateTime]);
                 })
                 // Check for status_id = 19, failed_datetime should be within the date range
                 ->orWhere(function ($q) use ($startDateTime, $endDateTime) {
-                    $q->where('p.status_id', 19)
+                    $q->where('p.status_id', TrackingStatus::FAILED_WITH_FEE->value)
                     ->whereBetween('p.failed_datetime', [$startDateTime, $endDateTime]);
                 })
                 ->orWhere(function ($q) use ($startDateTime, $endDateTime,$driverId) {
-                    $q->where('p.status_id', 11)
+                    $q->where('p.status_id', TrackingStatus::RETURNING->value)
+                    ->whereBetween('p.assigned_return_at', [$startDateTime, $endDateTime]);
+                    if($driverId) $q->where('p.returned_uid',$driverId);
+                })
+                ->orWhere(function ($q) use ($startDateTime, $endDateTime,$driverId) {
+                    $q->where('p.status_id', TrackingStatus::RETURNED->value)
                     ->whereBetween('p.returned_datetime', [$startDateTime, $endDateTime]);
                     if($driverId) $q->where('p.returned_uid',$driverId);
                 });
