@@ -380,7 +380,7 @@ class PickUpCenterController extends Controller
         ]));
         $package->update([
             'image_file_name' => $orderImage->photo_file_name,
-            'image_date' => $orderImage->created_at,
+            'image_date' => now(),
             'package_id' => $packageId,
             'update_uid' => $user->id
         ]);

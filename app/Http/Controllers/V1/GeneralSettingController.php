@@ -417,7 +417,7 @@ class GeneralSettingController extends Controller
         $obj = (object)[
             'packages' => Package::where('is_deleted',false)
                 ->where('order_id',$orderId)
-                ->select(['*'])
+                ->select(['id','qr_code'])
                 ->where('company_id',$user->company_id)
                 ->get(),
             'images' => OrderImage::where('is_deleted',0)
@@ -437,6 +437,21 @@ class GeneralSettingController extends Controller
             'warehouses' => $this->gs::optionsWarehouse($user),
             'statuses' => $this->gs::optionsTransferStatus()
         ]);
+    }
+
+    public function getOptionsPackageById(Request $req){
+        $pkg = Package::where('is_deleted',false)
+        ->with(['merchant:id,username'])
+        ->select([
+            'id','qr_code','driver_id','receiver_address','receiver_phone','cod','merchant_id',
+            'price','remarks','driver_total as total','zone_name','zone_code','delivery_type',
+            'other_fee','delivery_fee','payer','additional_fee','taxi_fee','driver_total as total'
+        ])
+        ->find($req->packageId);
+        $pkg->merchant_name = $pkg->merchant->username;
+        $pkg->fees = $pkg->other_fee + $pkg->delivery_fee + $pkg->additional_fee;
+        $pkg->makeHidden('merchant');
+        return ApiResponse::JsonResult($pkg);
     }
 
     public function getOptionsPackage(Request $req){
