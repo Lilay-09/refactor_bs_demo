@@ -368,7 +368,7 @@ class PickUpCenterController extends Controller
         $orderId = $req->order_id;
         $packageId = $req->package_id;
         $imageId = $req->image_id;
-        $orderImage = OrderImage::where('id',$imageId)->where('order_id',$orderId)->where('company_id',$user->company_id)->first();
+        $orderImage = OrderImage::where('id',$imageId)->where('order_id',$orderId)->first();
         if(!$orderImage) return ApiResponse::ValidateFail(__('messages.error',[
             'info' => 'Invalid image identity',
             'khInfo' => 'អត្តសញ្ញាណរូបភាពមិនត្រឹមត្រូវ'
@@ -397,11 +397,17 @@ class PickUpCenterController extends Controller
     public function getOrderImages(Request $req){
         $orderId = $req->order_id;
         $user = UserService::getAuthUser();
-        $orderImages = OrderImage::where('order_id',$orderId)->selectRaw('photo_file_name,created_at,package_id')->get();
+        $orderImages = OrderImage::where('order_id',$orderId)
+        ->with(['package:id,qr_code,receiver_phone,zone_name'])
+        ->selectRaw('photo_file_name,created_at,package_id')->get();
         foreach($orderImages as $img){
             $imageAt = Helper::dateYMD($img->created_at);
             $img->is_link = $img->package_id ? true : false;
+            $img->qr_code = $img->package?->qr_code;
+            $img->receiver_phone = $img->package?->receiver_phone;
+            $img->zone_name = $img->package?->zone_name;
             $img->image_url = Helper::getImageUrl($img->photo_file_name,$user->company_id,'order_image',$imageAt);
+            $img->makeHidden(['package']);
         }
         return ApiResponse::JsonResult($orderImages);
     }

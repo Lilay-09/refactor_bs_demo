@@ -610,7 +610,7 @@ class GeneralSettingController extends Controller
             'delivery_types' => $this->gs::optionsDeliveryType(),
             'payment_statuses' => $this->gs::paymentStatus(),
             'branches' => $this->gs::optionsBranch(),
-            'statuses' => $this->gs::optionsTrackingStatus($user,[],[9,11,19],'delivery',null,$req->lang)
+            'statuses' => $this->gs::optionsTrackingStatus($user,[],[9,11,19,23],'delivery',null,$req->lang)
         ];
         return ApiResponse::JsonResult($obj);
     }

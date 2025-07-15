@@ -282,7 +282,7 @@ Route::middleware(['jwt','localize','userAccess:admin','rateLimit'])->prefix('ad
         Route::put('{order_id}/package/{id}',[PickUpCenterController::class,'updatePackage']);
         Route::delete('{order_id}/package/{id}',[PickUpCenterController::class,'deletePackage']);
         Route::get('{order_id}/image/',[PickUpCenterController::class,'getOrderImages']);
-        Route::post('{order_id}/image/link',[PickUpCenterController::class,'linkImageToPackage']);
+        Route::post('{order_id}/link/image',[PickUpCenterController::class,'linkImageToPackage']);
     });
 
     Route::prefix('package')->group(function(){
@@ -450,7 +450,6 @@ Route::middleware(['jwt','localize','userAccess:admin','rateLimit'])->prefix('ad
         // Route::delete('/{id}',[BannerController::class,'deleteBanner']);
     });
 
-
     Route::prefix('clientType')->group(function(){
         Route::post('',[ClientTypeController::class,'saveClientType']);
         Route::get('',[ClientTypeController::class,'getClientTypes']);
@@ -464,13 +463,11 @@ Route::middleware(['jwt','localize','userAccess:admin','rateLimit'])->prefix('ad
         Route::delete('/{id}',[ScoringRewardController::class,'deleteScoringReward']);
     });
 
-
     Route::prefix('feedback')->group(function(): void{
         Route::get('form',[FeedbackFormController::class,'getFeedbackForms']);
         Route::get('form/{id}',[FeedbackFormController::class,'getOneFeedbackForm']);
         Route::post('form',[FeedbackFormController::class,'createFeedbackForm']);
         Route::put('form/{id}',[FeedbackFormController::class,'updateFeedbackForm']);
-
 
         // Question
         Route::put('question/reorder',[FeedbackQuestionController::class,'reoderQuestion']);
@@ -479,7 +476,6 @@ Route::middleware(['jwt','localize','userAccess:admin','rateLimit'])->prefix('ad
         Route::post('question',[FeedbackQuestionController::class,'createFeedbackQuestion']);
         Route::put('question/{id}',[FeedbackQuestionController::class,'updateFeedbackQuestion']);
         Route::delete('question/{id}',[FeedbackQuestionController::class,'deleteFeedbackQuestion']);
-
     });
 
     Route::prefix('emergencyContact')->group(function(){

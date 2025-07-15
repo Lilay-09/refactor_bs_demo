@@ -25,4 +25,9 @@ class OrderImage extends Model
         'company_id',
         'branch_id',
     ];
+
+    public function package()
+    {
+        return $this->belongsTo(Package::class, 'package_id', 'id');
+    }
 }

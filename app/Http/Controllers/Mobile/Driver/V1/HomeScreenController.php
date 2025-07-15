@@ -6,6 +6,7 @@ use ApiResponse;
 use App\DTO\Mobile\DeliveryTripsPackagesDTO;
 use App\DTO\Mobile\HomePaymentDTO;
 use App\DTO\Mobile\HomeReturnPackageDTO;
+use App\Enums\ImageDirectory;
 use App\Enums\TrackingStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Mobile\V1\GeneralSettingController;
@@ -720,7 +721,7 @@ class HomeScreenController extends Controller
 
         if(isset($photos[0])) {
             foreach($photos as $p){
-                $dirName = 'submit_package';
+                $dirName = ImageDirectory::SUBMIT_PACKAGE->value;
                 $today = date('Y-m-d');
                 $fileName = Helper::saveImageFileOrBase64($p,$user->company_id,$dirName,$today)->filename;
                 if($fileName){
