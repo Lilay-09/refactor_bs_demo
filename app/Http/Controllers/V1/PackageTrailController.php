@@ -266,9 +266,9 @@ class PackageTrailController extends Controller
         ]));
         $package = Package::where('company_id',$user->company_id)->where('is_deleted',0)->where('outstanding',0)->find($id);
         if(!$package) return ApiResponse::NotFound(trans('messages.not_found',['info' => 'Package','khInfo' => 'កញ្ចប់​']));
-        if(!in_array($package->status_id,[
+        if(!in_array($package->status_id,
             TrackingStatus::returnable()
-        ])) return ApiResponse::ValidateFail(__('messages.info',[
+        )) return ApiResponse::ValidateFail(__('messages.info',[
             'info' => 'Only failed package or at warehouse can be returned'
         ]));
         $statusId = TrackingStatus::RETURNING;

@@ -15,6 +15,7 @@ class OrderImage extends Model
         'original_name',
         'order_id',
         'package_id',
+        'user_type', // Added user_type to track who uploaded the image
         'size',
         'create_uid',
         'update_uid',
