@@ -162,7 +162,8 @@ class GeneralSettingController extends Controller
         $info = null;
 
         if ((!$diffDriver && $isOnDelivery) || $isReturning) {
-            $package->load(['status:id,name', 'merchant:id,username']);
+            $package->load(['status:id,name', 'merchant:id,username,phone']);
+            $telegram = Helper::generateTelegramLink($package->merchant->phone);
             $info = [
                 'id' => $package->id,
                 'qr_code' => $package->qr_code,
@@ -184,6 +185,7 @@ class GeneralSettingController extends Controller
                 'delivery_remarks' => $package->delivery_remarks ?? null,
                 'merchant_name' => $package->merchant?->username,
                 'status_code' => $package->status?->name,
+                'telegram_links' => $telegram,
                 'fee' => PickupCenterServiceImpl::getFees(
                     $package->payer,
                     $package->delivery_fee,
