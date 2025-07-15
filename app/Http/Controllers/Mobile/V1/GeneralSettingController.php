@@ -96,12 +96,6 @@ class GeneralSettingController extends Controller
         // $imageUrls = array_map(fn($img) => Helper::getImageUrl($img, $user->company_id, 'submit_package'), $images);
         $imageUrls = $images->map(fn($img) => Helper::getImageUrl($img->file_name, $user->company_id, 'submit_package',$img->date))
                     ->toArray();
-        // $images = PackageAttachment::where('package_id', $id)
-        // ->take(2)  // Limit to the 2 most recent images
-        // ->where('hidden',0)
-        // ->pluck('file_name')
-        // ->toArray();
-        // $imageUrls = array_map(fn($img) => Helper::getImageUrl($img, $user->company_id, 'submit_package'), $images);
         return ApiResponse::JsonResult($imageUrls);
     }
 
@@ -441,6 +435,7 @@ class GeneralSettingController extends Controller
             $package->update($updateArr);
             PackageAttachment::insert([
                 'package_id' => $package->id,
+                'file_dir' => $isReturn ? ImageDirectory::RETURNED_IMAGE->value:ImageDirectory::SUBMIT_PACKAGE->value,
                 'file_name' => $returnImg,
             ]);
 
