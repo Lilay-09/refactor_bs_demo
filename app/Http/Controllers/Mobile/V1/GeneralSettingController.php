@@ -161,7 +161,7 @@ class GeneralSettingController extends Controller
 
         $info = null;
 
-        if (!$diffDriver && $isOnDelivery) {
+        if ((!$diffDriver && $isOnDelivery) || $isReturning) {
             $package->load(['status:id,name', 'merchant:id,username']);
             $info = [
                 'id' => $package->id,
