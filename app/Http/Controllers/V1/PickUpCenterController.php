@@ -363,12 +363,44 @@ class PickUpCenterController extends Controller
         }
     }
 
+    public function linkImageToPackage(Request $req){
+        $user = UserService::getAuthUser();
+        $orderId = $req->order_id;
+        $packageId = $req->package_id;
+        $imageId = $req->image_id;
+        $orderImage = OrderImage::where('id',$imageId)->where('order_id',$orderId)->where('company_id',$user->company_id)->first();
+        if(!$orderImage) return ApiResponse::ValidateFail(__('messages.error',[
+            'info' => 'Invalid image identity',
+            'khInfo' => 'អត្តសញ្ញាណរូបភាពមិនត្រឹមត្រូវ'
+        ]));
+        $package = Package::where('id',$packageId)->where('order_id',$orderId)->where('company_id',$user->company_id)->first();
+        if(!$package) return ApiResponse::ValidateFail(__('messages.error',[
+            'info' => 'Invalid package identity',
+            'khInfo' => 'អត្តសញ្ញាណកញ្ចប់មិនត្រឹមត្រូវ'
+        ]));
+        $package->update([
+            'image_file_name' => $orderImage->photo_file_name,
+            'image_date' => $orderImage->created_at,
+            'package_id' => $packageId,
+            'update_uid' => $user->id
+        ]);
+        $orderImage->update([
+            'package_id' => $packageId,
+            'update_uid' => $user->id
+        ]);
+        return ApiResponse::JsonResult(null,__('messages.updated',[
+            'info' => 'Image has linked to package',
+            'khInfo' => 'រូបភាពត្រូវបានភ្ជាប់ទៅកញ្ចប់'
+        ]));
+    }
+
     public function getOrderImages(Request $req){
         $orderId = $req->order_id;
         $user = UserService::getAuthUser();
-        $orderImages = OrderImage::where('order_id',$orderId)->selectRaw('photo_file_name,created_at')->get();
+        $orderImages = OrderImage::where('order_id',$orderId)->selectRaw('photo_file_name,created_at,package_id')->get();
         foreach($orderImages as $img){
             $imageAt = Helper::dateYMD($img->created_at);
+            $img->is_link = $img->package_id ? true : false;
             $img->image_url = Helper::getImageUrl($img->photo_file_name,$user->company_id,'order_image',$imageAt);
         }
         return ApiResponse::JsonResult($orderImages);
