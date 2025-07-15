@@ -161,11 +161,11 @@ class PackageTrailController extends Controller
         ->where('hidden', 0)
         ->orderBy('created_at', 'desc') // Ensure most recent images are fetched
         ->take(2) // Limit to 2 images
-        ->selectRaw('file_name, DATE(created_at) as date') // Correct usage of DATE()
+        ->selectRaw('file_name,file_dir, DATE(created_at) as date') // Correct usage of DATE()
         ->get();
         // ->toArray();
         // $imageUrls = array_map(fn($img) => Helper::getImageUrl($img, $user->company_id, 'submit_package'), $images);
-        $imageUrls = $images->map(fn($img) => Helper::getImageUrl($img->file_name, $user->company_id, 'submit_package',$img->date))
+        $imageUrls = $images->map(fn($img) => Helper::getImageUrl($img->file_name, $user->company_id,$img->file_dir,$img->date))
                     ->toArray();
         return ApiResponse::JsonResult($imageUrls);
     }

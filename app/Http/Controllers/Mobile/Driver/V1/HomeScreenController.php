@@ -726,6 +726,7 @@ class HomeScreenController extends Controller
                 if($fileName){
                     PackageAttachment::create([
                         'package_id' => $id,
+                        'file_dir' => $dirName,
                         'submit_uid' => $user->id,
                         'file_name' => $fileName
                     ]);
