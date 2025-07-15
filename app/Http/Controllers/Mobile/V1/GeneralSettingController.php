@@ -128,7 +128,7 @@ class GeneralSettingController extends Controller
             ->first([
                 'id', 'qr_code', 'status_id', 'driver_id', 'merchant_id', 'is_contact',
                 'assign_driver_datetime', 'receiver_address', 'receiver_phone', 'receiver_name',
-                'product_type', 'cod', 'zone_name', 'zone_code', 'price', 'delivery_fee',
+                'product_type', 'cod', 'zone_name', 'zone_code', 'price', 'delivery_fee','delivery_remarks',
                 'driver_total as total', 'taxi_fee', 'additional_fee', 'extra_charge', 'payer'
             ]);
 
@@ -181,6 +181,7 @@ class GeneralSettingController extends Controller
                 'additional_fee' => $package->additional_fee,
                 'extra_charge' => $package->extra_charge,
                 'payer' => $package->payer,
+                'delivery_remarks' => $package->delivery_remarks ?? null,
                 'merchant_name' => $package->merchant?->username,
                 'status_code' => $package->status?->name,
                 'fee' => PickupCenterServiceImpl::getFees(
