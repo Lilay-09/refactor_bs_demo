@@ -130,7 +130,7 @@ class GeneralSettingController extends Controller
                 'id', 'qr_code', 'status_id', 'driver_id', 'merchant_id', 'is_contact',
                 'assign_driver_datetime', 'receiver_address', 'receiver_phone', 'receiver_name',
                 'product_type', 'cod', 'zone_name', 'zone_code', 'price', 'delivery_fee','delivery_remarks',
-                'driver_total as total', 'taxi_fee', 'additional_fee', 'extra_charge', 'payer'
+                'driver_total as total', 'taxi_fee', 'additional_fee', 'extra_charge', 'payer','assigned_return_at'
             ]);
 
         if (!$package) {
@@ -172,6 +172,8 @@ class GeneralSettingController extends Controller
                 'receiver_phone' => $package->receiver_phone,
                 'receiver_name' => $package->receiver_name,
                 'assign_driver_datetime' => $package->assign_driver_datetime,
+                'return_date' => $package->assigned_return_at ? Helper::formatCustomDateTime($package->assigned_return_at,'d M,Y') : null,
+                'return_time' => $package->assigned_return_at ? Helper::formatCustomDateTime($package->assigned_return_at,'h:i A') : null,
                 'product_type' => $package->product_type,
                 'cod' => $package->cod ? 'Yes' : 'No',
                 'zone_name' => $package->zone_name,
@@ -384,6 +386,8 @@ class GeneralSettingController extends Controller
             $updateArr['returned_datetime'] = now();
             $updateArr['tracking_notes'] = $package->tracking_notes."|[$user->id]Driver ($user->username) scan returning (".Helper::getDateTime().")";
             if($returnImg){
+                $maxSize = Helper::validTotalImageSize([$returnImg]);
+                if($maxSize->error) return ApiResponse::ValidateFail($maxSize->message);
                 $img = Helper::saveImageFileOrBase64($returnImg,$user->company_id,ImageDirectory::RETURNED_IMAGE->value,date('Y-m-d'));
                 $returnImg = $img->filename;
             }
