@@ -328,6 +328,7 @@ class HomeScreenController extends Controller
     public function getDeliveriesPackages(Request $req){
         $user = UserService::getAuthUser();
         $driverId = $user->id;
+        $statusId = $req->query('status_id');
         $qP = Package::query()
         ->from('packages as p')
         ->where('p.driver_id', $driverId)
@@ -351,6 +352,9 @@ class HomeScreenController extends Controller
         // ->join('tracking_statuses as ts', 'ts.id', 'p.status_id')
         ->orderBy('p.driver_display_order', 'asc')
         ->orderBy('p.status_id', 'desc');
+        if ($statusId) {
+            $qP->where('p.status_id', $statusId);
+        }
         $select = [
             'p.driver_display_order','p.payer','p.receiver_address','p.extra_charge','p.id','p.delivered_datetime','p.failed_datetime',
             'p.assign_driver_datetime','p.merchant_id','p.qr_code','p.price','p.cod','p.receiver_name','p.receiver_phone','p.zone_code',
