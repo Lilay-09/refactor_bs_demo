@@ -3,8 +3,12 @@
 namespace App\Http\Controllers\V1;
 
 use ApiResponse;
+use App\Enums\ImageDirectory;
 use App\Http\Controllers\Controller;
 use App\Models\DeliveryPackage;
+use App\Models\Order;
+use App\Models\OrderImage;
+use App\Models\Package;
 use App\Models\StockLocation;
 use App\Models\Tax;
 use App\Models\User;
@@ -405,6 +409,26 @@ class GeneralSettingController extends Controller
             'statuses' => $this->gs::optionsTransferStatus(),
             'drivers' => $this->gs::optionsDriverinfo($user),
         ]);
+    }
+
+    public function getFormLinkImage(Request $req){
+        $user = UserService::getAuthUser();
+        $orderId = $req->orderId;
+        $obj = (object)[
+            'packages' => Package::where('is_deleted',false)
+                ->where('order_id',$orderId)
+                ->select(['*'])
+                ->where('company_id',$user->company_id)
+                ->get(),
+            'images' => OrderImage::where('is_deleted',0)
+                ->where('order_id',$orderId)
+                ->where('company_id',$user->company_id)
+                ->select(['id','photo_file_name','created_at'])
+                ->get()->each(function($q){
+                    $q->image = Helper::getImageUrl($q->photo_file_name,auth()->user()->company_id,ImageDirectory::ORDER_IMAGE->value,Helper::dateYMD($q->created_at));
+                })
+        ];
+        return ApiResponse::JsonResult($obj);
     }
 
     public function getFormReceive(){

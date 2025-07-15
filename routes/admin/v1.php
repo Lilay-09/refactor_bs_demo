@@ -281,6 +281,7 @@ Route::middleware(['jwt','localize','userAccess:admin','rateLimit'])->prefix('ad
         Route::put('{id}/arrive',[PickUpCenterController::class,'arriveWarehouse']);
         Route::put('{order_id}/package/{id}',[PickUpCenterController::class,'updatePackage']);
         Route::delete('{order_id}/package/{id}',[PickUpCenterController::class,'deletePackage']);
+        Route::get('{order_id}/image/',[PickUpCenterController::class,'getOrderImages']);
     });
 
     Route::prefix('package')->group(function(){
@@ -608,6 +609,7 @@ Route::middleware(['jwt','localize','userAccess:admin','rateLimit'])->prefix('ad
             Route::get('user',[GeneralSettingController::class,'getOptionsFilterUser']);
         });
         Route::prefix('form')->group(function(){
+            Route::get('order/{orderId}/link/image',[GeneralSettingController::class,'getFormLinkImage']);
             Route::get('transfer',[GeneralSettingController::class,'getFormTransfer']);
             Route::get('transfer/receive',[GeneralSettingController::class,'getFormReceive']);
             Route::get('user',[GeneralSettingController::class,'getFormUser']);

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Mobile\V1;
 
 use ApiResponse;
+use App\Enums\ImageDirectory;
 use App\Enums\TrackingStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\V1\FleetManagementController;
@@ -282,20 +283,34 @@ class GeneralSettingController extends Controller
         $changeDriver = $req->change_driver;
         $markContact = $req->mark_contact ?? 0;
         $confirmDelivery = $req->confirm_delivery ?? 0;
-        $confirmDelivery = $req->returned ?? false;
+        $isReturn = $req->returned ?? false;
         $returnImg = $req->image ?? null;
         $cms = new CloudMessagingService();
-        $package = Package::where('qr_code',$item_ref)->where('is_deleted',0)
-        ->with('driver')->first();
-        if(!$package) $package = Package::where('is_deleted',0)->find($item_ref);
-        if(!$package) return ApiResponse::NotFound();
+        $package = Package::where('is_deleted', false)
+        ->with('driver')
+        ->when(is_int($item_ref), function ($query) use ($item_ref) {
+            return $query->where('id', $item_ref);
+        }, function ($query) use ($item_ref) {
+            return $query->where('qr_code', $item_ref);
+        })
+        ->first();
+        // return ApiResponse::NotFound($package, __('messages.info', [
+        //     'info' => 'Package not found',
+        //     'khInfo' => 'រកមិនឃើញកញ្ចប់'
+        // ]));
+
+        if(!$package) return ApiResponse::NotFound(__('messages.info',[
+            'info' => 'Package not found',
+            'khInfo' => 'រកមិនឃើញកញ្ចប់'
+        ]));
         if($package->outstanding == 1) return ApiResponse::ValidateFail(__('messages.info',[
             'info' => 'Please ensure that the package has marked as arrived before scan',
             'khInfo' => 'កញ្ចប់ត្រូវតែបញ្ចាក់ថាមកដល់ឃ្លាំងមុនចេញដឹក'
         ]));
 
-        if($package->status_id == TrackingStatus::DELIVERED->value) return ApiResponse::Duplicated(__('messages.arrived',[
-            'info' => 'Package'
+        if($package->status_id == TrackingStatus::DELIVERED->value) return ApiResponse::Duplicated(__('messages.info',[
+            'info' => 'Package is already delivered.',
+            'khInfo' => 'កញ្ចប់បានដឹករួចហើយ'
         ]));
 
         if($package->status_id == TrackingStatus::FAILED_WITH_FEE->value) return ApiResponse::Duplicated(__('messages.info',[
@@ -343,7 +358,7 @@ class GeneralSettingController extends Controller
             Helper::clearCacheByTags([
                 'package_trail'
             ]);
-        }else $confirmDelivery = ($package->status_id == 6);
+        } else $confirmDelivery = ($package->status_id == 6);
         if($markContact && !$confirmDelivery) return ApiResponse::ValidateFail(__('messages.info',[
             'info' => 'You cannot mark contact on package which is not on delivery',
             'khInfo' => 'អ្នកមិនអាចបញ្ជាក់ថាមានទំនាក់ទំនងនៅលើកញ្ចប់ដែលមិនបានដឹកទេ'
@@ -357,6 +372,21 @@ class GeneralSettingController extends Controller
             // ]);
 
             // $cms->sendNotificationByTopic($notifReq,$user);
+        }
+        if($isReturn){
+            if($package->status_id !== TrackingStatus::RETURNING->value) {
+                return ApiResponse::ValidateFail(__('messages.info',[
+                    'info' => 'Package is not on returning status',
+                    'khInfo' => 'កញ្ចប់មិននៅលើស្ថានភាពត្រឡប់ទេ'
+                ]));
+            }
+            $updateArr['status_id'] = TrackingStatus::RETURNED->value;
+            $updateArr['returned_datetime'] = now();
+            $updateArr['tracking_notes'] = $package->tracking_notes."|[$user->id]Driver ($user->username) scan returning (".Helper::getDateTime().")";
+            if($returnImg){
+                $img = Helper::saveImageFileOrBase64($returnImg,$user->company_id,ImageDirectory::RETURNED_IMAGE->value,date('Y-m-d'));
+                $returnImg = $img->filename;
+            }
         }
 
         try{
@@ -390,17 +420,27 @@ class GeneralSettingController extends Controller
             }
             // if(empty($updateArr)) return ApiResponse::JsonResult(null,__('messages.updated'));
             DB::beginTransaction();
-            $trxSImpl = new TransferServiceImpl();
-            $rct = $trxSImpl->driverScanReceive($user,$package->id);
-            if($rct->error) return $rct;
+            if(!$isReturn){
+                $trxSImpl = new TransferServiceImpl();
+                $rct = $trxSImpl->driverScanReceive($user,$package->id);
+                if($rct->error) return $rct;
+                else{
+                    $client = new Client(config('app.cl_socket'));
+                    $client->send(json_encode([
+                        'topic' => 'ng_express',
+                        'type' => 'receive',
+                        'message' => $package->id
+                    ]));
+                    $client->close();
+                }
+            }
             $package->update($updateArr);
-            $client = new Client(config('app.cl_socket'));
-            $client->send(json_encode([
-                'topic' => 'ng_express',
-                'type' => 'receive',
-                'message' => $package->id
-            ]));
-            $client->close();
+            PackageAttachment::insert([
+                'package_id' => $package->id,
+                'file_name' => $returnImg,
+            ]);
+
+
             // Log::info(PackageTransferDetail::where('package_id',$package->id)->get());
             DB::commit();
             return ApiResponse::JsonResult(null,__('messages.updated'));
@@ -408,6 +448,7 @@ class GeneralSettingController extends Controller
             DB::rollBack();
             Log::error($e->getMessage());
             Log::error($e->getTraceAsString());
+            Helper::deleteImageFile($returnImg,$user->company_id,ImageDirectory::ORDER_IMAGE->value,date('Y-m-d'));
             return ApiResponse::Error(__('messages.error'));
         }
 
