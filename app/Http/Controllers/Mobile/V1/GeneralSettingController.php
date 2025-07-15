@@ -183,7 +183,7 @@ class GeneralSettingController extends Controller
                 'payer' => $package->payer,
                 'merchant_name' => $package->merchant?->username,
                 'status_code' => $package->status?->name,
-                'fee' => PickupCenterService::getFees(
+                'fee' => PickupCenterServiceImpl::getFees(
                     $package->payer,
                     $package->delivery_fee,
                     $package->extra_charge,
@@ -279,6 +279,8 @@ class GeneralSettingController extends Controller
         $changeDriver = $req->change_driver;
         $markContact = $req->mark_contact ?? 0;
         $confirmDelivery = $req->confirm_delivery ?? 0;
+        $confirmDelivery = $req->returned ?? false;
+        $returnImg = $req->image ?? null;
         $cms = new CloudMessagingService();
         $package = Package::where('qr_code',$item_ref)->where('is_deleted',0)
         ->with('driver')->first();
@@ -288,16 +290,17 @@ class GeneralSettingController extends Controller
             'info' => 'Please ensure that the package has marked as arrived before scan',
             'khInfo' => 'កញ្ចប់ត្រូវតែបញ្ចាក់ថាមកដល់ឃ្លាំងមុនចេញដឹក'
         ]));
-        if($package->status_id == 9) return ApiResponse::Duplicated(__('messages.arrived',[
+
+        if($package->status_id == TrackingStatus::DELIVERED->value) return ApiResponse::Duplicated(__('messages.arrived',[
             'info' => 'Package'
         ]));
 
-        if($package->status_id == 19) return ApiResponse::Duplicated(__('messages.info',[
+        if($package->status_id == TrackingStatus::FAILED_WITH_FEE->value) return ApiResponse::Duplicated(__('messages.info',[
             'info' => 'Package is already failed with fee.',
             'khInfo' => 'កញ្ចប់ធ្លាប់បរាជ័យគិតសេវា'
         ]));
 
-        if($package->status_id == 11)  return ApiResponse::Duplicated(__('messages.info',[
+        if($package->status_id == TrackingStatus::RETURNED->value)  return ApiResponse::Duplicated(__('messages.info',[
             'info' => 'Package has been returned.',
             'khInfo' => 'កញ្ចប់បានយកត្រឡប់ទៅហាងរួចហើយ'
         ]));
@@ -305,11 +308,20 @@ class GeneralSettingController extends Controller
         $driver = $package->driver;
         $updateArr = [];
         if($confirmDelivery){
-            if($package->status_id == 6) return ApiResponse::Duplicated(__('messages.info',[
-                'info' => 'Package is already on delivery'
+            if($package->status_id == TrackingStatus::RETURNED->value){
+                return ApiResponse::ValidateFail(__('messages.info',[
+                    'info' => 'Package is already returned',
+                    'khInfo' => 'កញ្ចប់បានយកត្រឡប់ទៅហាងរួចហើយ'
+                ]));
+            }
+
+            if($package->status_id == TrackingStatus::ON_DELIVERY->value) return ApiResponse::Duplicated(__('messages.info',[
+                'info' => 'Package is already on delivery',
+                'khInfo' => 'កញ្ចប់បានដឹករួចហើយ'
             ]));
             if($changeDriver) return ApiResponse::ValidateFail(__('messages.info',[
                 'info' => 'You cannot change the driver and confirm delivery the same time!',
+                'khInfo' => 'អ្នកមិនអាចផ្លាស់ប្តូរនៅពេលដែលអ្នកបញ្ជាក់ថាកញ្ចប់បានដឹកទេ!'
             ]));
             $updateArr['status_id'] = 6;
             $updateArr['driver_id'] = $user->id;
@@ -330,7 +342,8 @@ class GeneralSettingController extends Controller
             ]);
         }else $confirmDelivery = ($package->status_id == 6);
         if($markContact && !$confirmDelivery) return ApiResponse::ValidateFail(__('messages.info',[
-            'info' => 'You cannot mark contact on package which is not on delivery'
+            'info' => 'You cannot mark contact on package which is not on delivery',
+            'khInfo' => 'អ្នកមិនអាចបញ្ជាក់ថាមានទំនាក់ទំនងនៅលើកញ្ចប់ដែលមិនបានដឹកទេ'
         ])); else {
             $updateArr['is_contact'] = true;
             // $topics = GeneralSettingService::getGeneralTopics($user->company_id,'merchant',$package->merchant_id);
@@ -380,7 +393,7 @@ class GeneralSettingController extends Controller
             $package->update($updateArr);
             $client = new Client(config('app.cl_socket'));
             $client->send(json_encode([
-                'topic' => 'arrizon',
+                'topic' => 'ng_express',
                 'type' => 'receive',
                 'message' => $package->id
             ]));

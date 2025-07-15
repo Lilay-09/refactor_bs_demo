@@ -73,6 +73,7 @@ class Package extends Model
         'delivered_date',
         'assign_driver_datetime',
         'exchange_rate',
+        'image_date',
         'merchant_total',
         'driver_total',
         'kick_notes',

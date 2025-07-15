@@ -1,6 +1,7 @@
 <?php
 
 namespace App\Services;
+use App\Enums\ImageDirectory;
 use App\Jobs\SendNotificationJob;
 use App\Models\Delivery;
 use App\Models\DeliveryPackage;
@@ -35,6 +36,7 @@ class PickupCenterServiceImpl implements PickupCenterService
             'package_name' => 'nullable|string|max:100',
             'merchant_id' => 'required',
             'image_id' => 'nullable',
+            'image' => 'nullable',
             'product_type' => 'nullable|string',
             'price' => 'nullable|numeric|min:0',
             'dim_z' => 'nullable|numeric',
@@ -189,7 +191,7 @@ class PickupCenterServiceImpl implements PickupCenterService
                 foreach($images as $idx => $photo){
                     $isValidUpload = Helper::isValidUploadImage($photo,0.8);
                     if($isValidUpload->error) return DataResponse::ValidateFail($isValidUpload->message.', check your Image #'.($idx + 1));
-                    $img = Helper::saveImageFile($photo,$companyId,'order_image',date('Y-m-d'));
+                    $img = Helper::saveImageFile($photo,$companyId,ImageDirectory::ORDER_IMAGE->value,date('Y-m-d'));
                     //** if something went wrong so this will take action on catch block */
                     $deleteImgs[] = $img->filename;
                     $saveOrderImages[] = [
@@ -389,6 +391,7 @@ class PickupCenterServiceImpl implements PickupCenterService
         $inputs['booking_channel'] = 'admin';
         $taxiFee = $inputs['taxi_fee'] ?? 0;
         $imageId = $inputs['image_id'] ?? null;
+        $image = $inputs['image'] ?? null;
         // $inputs['tracking_notes'] = '['.$user->id.']Admin ('.$user->username.') add new package ('.date('d-M-Y h:i:s A').')';
         if($user->account_type == 'driver') $inputs['booking_channel'] = 'driver';
         if($user->account_type == 'merchant') {
@@ -407,8 +410,7 @@ class PickupCenterServiceImpl implements PickupCenterService
         $inputs['delivery_fee'] = $calPrice->delivery_fee;
         $productType = $inputs['product_type'] ?? ($orderId ? $order->product_type:null);
         $inputs['product_type'] = $productType;
-        // if(!$productType) unset($inputs['product_type']);
-        // Log::error($productType);
+
         if(!$packageId){
             $inputs['status_id'] = 7;
             $inputs['create_uid'] = $user->id;
@@ -425,8 +427,25 @@ class PickupCenterServiceImpl implements PickupCenterService
             if(!$createPackage) return DataResponse::Error(__('messages.Fail to create package'));
             if($imageId){
                 OrderImage::find($imageId)->update([
-                    'package_id' => $createPackage->id
+                    'package_id' => $createPackage->id,
+                    'user_type' => $user->account_type,
                 ]);
+            }
+            if($image){
+                $isValidUpload = Helper::isValidUploadImage($image,0.8);
+                if($isValidUpload->error) return DataResponse::ValidateFail($isValidUpload->message);
+                $imageDate = date('Y-m-d');
+                $img = Helper::saveImageFileOrBase64($image,$user->company_id,ImageDirectory::ORDER_IMAGE->value,$imageDate);
+                $createPackage->update([
+                    'photo_file_name' => $img->filename,
+                    'image_date' => $imageDate,
+                ]);
+                if($img->filename){
+                    OrderImage::insert([
+                        'package_id' => $createPackage->id,
+                        'user_type' => $user->account_type,
+                    ]);
+                }
             }
             $qrCode = Helper::generateBarcodeString($createPackage->id,$user->company_id,$this->packageCodePrefix.$warehouse->shortcut);
             $createPackage->update([
@@ -442,7 +461,35 @@ class PickupCenterServiceImpl implements PickupCenterService
             if($whereClause){
                 $qP->$whereClause;
             }
+
+            if($imageId){
+                OrderImage::find($imageId)->update([
+                    'package_id' => $packageId,
+                    'user_type' => $user->account_type,
+                ]);
+            }
+
             $package = $qP->find($packageId);
+            if($image){
+                $isValidUpload = Helper::isValidUploadImage($image,0.8);
+                if($isValidUpload->error) return DataResponse::ValidateFail($isValidUpload->message);
+                $imageDate = date('Y-m-d');
+                $img = Helper::saveImageFileOrBase64($image,$user->company_id,ImageDirectory::ORDER_IMAGE->value,$imageDate);
+                // $package->update([
+                //     'photo_file_name' => $img->filename,
+                //     'image_date' => $imageDate,
+                // ]);
+                if($img->filename){
+                    $inputs['file_name'] = $img->filename;
+                    $inputs['image_date'] = $imageDate;
+                }
+                if($img->filename){
+                    OrderImage::insert([
+                        'package_id' => $packageId,
+                        'user_type' => $user->account_type,
+                    ]);
+                }
+            }
             $inputs['status_id'] = $package->status_id;
             if(!$package) return DataResponse::NotFound(trans('messages.not_found',['info' => 'Package','khInfo' => 'កញ្ចប់']));
             // if($package->status_id == 5) return DataResponse::Forbidden(__('messages.no_access',['info' => 'This package has already assigned to driver']));
