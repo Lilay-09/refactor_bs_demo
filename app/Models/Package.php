@@ -71,6 +71,7 @@ class Package extends Model
         'actual_kg',
         'billed_kg',
         'delivered_date',
+        'assigned_return_at',
         'assign_driver_datetime',
         'exchange_rate',
         'image_date',

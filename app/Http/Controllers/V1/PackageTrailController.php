@@ -279,7 +279,7 @@ class PackageTrailController extends Controller
         $package->update([
             'returned_uid' => $driverId,
             'status_id' => $statusId, // returned
-            // 'returned_datetime' => now(),
+            'assigned_return_at' => now(),
             'update_uid' => $user->id,
         ]);
         Helper::clearCacheByTags($this->cacheTags);
