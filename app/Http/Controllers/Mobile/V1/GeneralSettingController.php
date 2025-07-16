@@ -279,7 +279,7 @@ class GeneralSettingController extends Controller
         $changeDriver = $req->change_driver;
         $markContact = $req->mark_contact ?? 0;
         $confirmDelivery = $req->confirm_delivery ?? 0;
-        $isReturn = $req->returned ?? false;
+        $isReturn = $req->returned == 1 ? true : false;
         $returnImg = $req->image ?? null;
         $cms = new CloudMessagingService();
         $package = Package::where('is_deleted', false)

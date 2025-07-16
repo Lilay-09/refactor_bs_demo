@@ -77,7 +77,7 @@ class GeneralSettingService
         11 => 'កំពុងត្រឡប់',
         19 => 'បរាជ័យគិតសេវា',
         16 => 'រូចរាល់​',
-        14 => 'កំពុងដឹក'
+        14 => 'កំពុងដឹក',
     ];
 
     public static $channels = [

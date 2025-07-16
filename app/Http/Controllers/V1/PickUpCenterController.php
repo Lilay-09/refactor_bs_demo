@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\V1;
 
 use ApiResponse;
+use App\Enums\ImageDirectory;
 use App\Http\Controllers\Controller;
 use App\Models\Order;
 use App\Models\OrderImage;
@@ -343,6 +344,7 @@ class PickUpCenterController extends Controller
                 OrderImage::create([
                     'order_id' => $orderId,
                     'photo_file_name' => $img->filename,
+                    'user_type' => $user->account_type,
                     'create_uid' => $user->id,
                     'update_uid' => $user->id,
                     'company_id' => $companyId,
@@ -363,43 +365,163 @@ class PickUpCenterController extends Controller
         }
     }
 
-    public function linkImageToPackage(Request $req){
+    public function linkImageToPackage(Request $req)
+    {
         $user = UserService::getAuthUser();
         $orderId = $req->order_id;
         $packageId = $req->package_id;
-        $imageId = $req->image_id;
-        $orderImage = OrderImage::where('id',$imageId)->where('order_id',$orderId)->first();
-        if(!$orderImage) return ApiResponse::ValidateFail(__('messages.error',[
-            'info' => 'Invalid image identity',
-            'khInfo' => 'អត្តសញ្ញាណរូបភាពមិនត្រឹមត្រូវ'
-        ]));
-        $package = Package::where('id',$packageId)->where('order_id',$orderId)->where('company_id',$user->company_id)->first();
-        if(!$package) return ApiResponse::ValidateFail(__('messages.error',[
-            'info' => 'Invalid package identity',
-            'khInfo' => 'អត្តសញ្ញាណកញ្ចប់មិនត្រឹមត្រូវ'
-        ]));
-        $package->update([
-            'image_file_name' => $orderImage->photo_file_name,
-            'image_date' => now(),
-            'package_id' => $packageId,
-            'update_uid' => $user->id
-        ]);
-        $orderImage->update([
-            'package_id' => $packageId,
-            'update_uid' => $user->id
-        ]);
-        return ApiResponse::JsonResult(null,__('messages.updated',[
+
+        // Validate package
+        $package = Package::where('id', $packageId)
+            ->where('order_id', $orderId)
+            ->where('company_id', $user->company_id)
+            ->first();
+
+        if (!$package) {
+            return ApiResponse::ValidateFail(__('messages.error', [
+                'info' => 'Invalid package identity',
+                'khInfo' => 'អត្តសញ្ញាណកញ្ចប់មិនត្រឹមត្រូវ'
+            ]));
+        }
+
+        // If linking by existing image ID
+        if ($req->filled('image_id')) {
+            $imageId = $req->image_id;
+
+            $orderImage = OrderImage::where('id', $imageId)
+                ->where('order_id', $orderId)
+                ->first();
+
+            if (!$orderImage) {
+                return ApiResponse::ValidateFail(__('messages.error', [
+                    'info' => 'Invalid image identity',
+                    'khInfo' => 'អត្តសញ្ញាណរូបភាពមិនត្រឹមត្រូវ'
+                ]));
+            }
+
+            $package->update([
+                'image_file_name' => $orderImage->photo_file_name,
+                'image_date' => now(),
+                'update_uid' => $user->id
+            ]);
+
+            $orderImage->update([
+                'package_id' => $packageId,
+                'update_uid' => $user->id
+            ]);
+
+        } elseif ($req->filled('image')) {
+            $image = $req->image;
+
+            $validImg = Helper::validTotalImageSize([$image]);
+            if ($validImg->error) {
+                return ApiResponse::flex($validImg);
+            }
+
+            $imageDate = date('Y-m-d');
+            $saved = Helper::saveImageFileOrBase64($image, $user->company_id, ImageDirectory::ORDER_IMAGE->value, $imageDate);
+
+            if (!$saved->filename) {
+                return ApiResponse::ValidateFail(__('messages.error', [
+                    'info' => 'Fail to save image',
+                    'khInfo' => 'រកមិនឃើញរូបភាព'
+                ]));
+            }
+
+            $orderImage = OrderImage::create([
+                'order_id' => $orderId,
+                'package_id' => $packageId,
+                'photo_file_name' => $saved->filename,
+                'user_type' => $user->account_type,
+                'create_uid' => $user->id,
+                'update_uid' => $user->id,
+                'company_id' => $user->company_id,
+                'branch_id' => $user->branch_id,
+            ]);
+
+            $package->update([
+                'photo_id' => $orderImage->id,
+                'image_date' => now(),
+            ]);
+        }
+
+        return ApiResponse::JsonResult(null, __('messages.updated', [
             'info' => 'Image has linked to package',
             'khInfo' => 'រូបភាពត្រូវបានភ្ជាប់ទៅកញ្ចប់'
         ]));
     }
+
+
+    // public function linkImageToPackage(Request $req){
+    //     $user = UserService::getAuthUser();
+    //     $orderId = $req->order_id;
+    //     $packageId = $req->package_id;
+    //     $imageId = $req->image_id;
+    //     $image = $req->image;
+    //     if($imageId){
+    //         $orderImage = OrderImage::where('id',$imageId)->where('order_id',$orderId)->first();
+    //         if(!$orderImage) return ApiResponse::ValidateFail(__('messages.error',[
+    //             'info' => 'Invalid image identity',
+    //             'khInfo' => 'អត្តសញ្ញាណរូបភាពមិនត្រឹមត្រូវ'
+    //         ]));
+    //         $package = Package::where('id',$packageId)->where('order_id',$orderId)->where('company_id',$user->company_id)->first();
+    //         if(!$package) return ApiResponse::ValidateFail(__('messages.error',[
+    //             'info' => 'Invalid package identity',
+    //             'khInfo' => 'អត្តសញ្ញាណកញ្ចប់មិនត្រឹមត្រូវ'
+    //         ]));
+    //         $package->update([
+    //             'image_file_name' => $orderImage->photo_file_name,
+    //             'image_date' => now(),
+    //             'package_id' => $packageId,
+    //             'update_uid' => $user->id
+    //         ]);
+    //         $orderImage->update([
+    //             'package_id' => $packageId,
+    //             'update_uid' => $user->id
+    //         ]);
+    //     }else if($image){
+    //         $validImg = Helper::validTotalImageSize([$image]);
+    //         if($validImg->error) {
+    //             return ApiResponse::flex($validImg);
+    //         }
+    //         $imageDate = date('Y-m-d');
+    //         $img = Helper::saveImageFileOrBase64($image,$user->company_id,ImageDirectory::ORDER_IMAGE->value,$imageDate);
+    //         if(!$img->filename) return ApiResponse::ValidateFail(__('messages.error',[
+    //             'info' => 'Fail to save image',
+    //             'khInfo' => 'រកមិនឃើញរូបភាព'
+    //         ]));
+    //         $orderImage = OrderImage::create([
+    //             'order_id' => $orderId,
+    //             'package_id' => $packageId,
+    //             'photo_file_name' => $img->filename,
+    //             'user_type' => $user->account_type,
+    //             'create_uid' => $user->id,
+    //             'update_uid' => $user->id,
+    //             'company_id' => $user->company_id,
+    //             'branch_id' => $user->branch_id,
+    //         ]);
+    //         $package = Package::where('id',$packageId)->where('order_id',$orderId)->where('company_id',$user->company_id)->first();
+    //         if(!$package) return ApiResponse::ValidateFail(__('messages.error',[
+    //             'info' => 'Invalid package identity',
+    //             'khInfo' => 'អត្តសញ្ញាណកញ្ចប់មិនត្រឹមត្រូវ'
+    //         ]));
+    //         $package->update([
+    //             'photo_id' => $orderImage->id,
+    //             'image_date' => now(),
+    //         ]);
+    //     }
+    //     return ApiResponse::JsonResult(null,__('messages.updated',[
+    //         'info' => 'Image has linked to package',
+    //         'khInfo' => 'រូបភាពត្រូវបានភ្ជាប់ទៅកញ្ចប់'
+    //     ]));
+    // }
 
     public function getOrderImages(Request $req){
         $orderId = $req->order_id;
         $user = UserService::getAuthUser();
         $orderImages = OrderImage::where('order_id',$orderId)
         ->with(['package:id,qr_code,receiver_phone,zone_name'])
-        ->selectRaw('photo_file_name,created_at,package_id')->get();
+        ->selectRaw('photo_file_name,created_at,package_id,id')->get();
         foreach($orderImages as $img){
             $imageAt = Helper::dateYMD($img->created_at);
             $img->is_link = $img->package_id ? true : false;
