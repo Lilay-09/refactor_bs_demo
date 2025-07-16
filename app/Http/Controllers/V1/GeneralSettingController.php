@@ -419,12 +419,15 @@ class GeneralSettingController extends Controller
                 ->where('order_id',$orderId)
                 ->select(['id','qr_code'])
                 ->where('company_id',$user->company_id)
+                ->orderByDesc('id')
                 ->get(),
             'images' => OrderImage::where('is_deleted',0)
                 ->where('order_id',$orderId)
                 ->where('company_id',$user->company_id)
-                ->select(['id','photo_file_name','created_at'])
+                ->select(['id','photo_file_name','created_at','package_id'])
+                ->orderByDesc('id')
                 ->get()->each(function($q){
+                    $q->is_link = $q->package_id ? true : false;
                     $q->image = Helper::getImageUrl($q->photo_file_name,auth()->user()->company_id,ImageDirectory::ORDER_IMAGE->value,Helper::dateYMD($q->created_at));
                 })
         ];

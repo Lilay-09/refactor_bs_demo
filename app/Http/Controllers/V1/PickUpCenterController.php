@@ -451,6 +451,16 @@ class PickUpCenterController extends Controller
         ]));
     }
 
+    public function replaceOrderImage(Request $req){
+        $user = UserService::getAuthUser();
+        $updateImg = $this->pickupCenterService->replaceOrderImage($user,$req);
+        if($updateImg->error) return ApiResponse::flex($updateImg);
+        return ApiResponse::JsonResult(null,__('messages.updated',[
+            'info' => 'Image has replaced',
+            'khInfo' => 'រូបភាពត្រូវបានជំនួស'
+        ]));
+    }
+
 
     // public function linkImageToPackage(Request $req){
     //     $user = UserService::getAuthUser();
@@ -521,7 +531,9 @@ class PickUpCenterController extends Controller
         $user = UserService::getAuthUser();
         $orderImages = OrderImage::where('order_id',$orderId)
         ->with(['package:id,qr_code,receiver_phone,zone_name'])
-        ->selectRaw('photo_file_name,created_at,package_id,id')->get();
+        ->selectRaw('photo_file_name,created_at,package_id,id')
+        ->orderByDesc('id')
+        ->get();
         foreach($orderImages as $img){
             $imageAt = Helper::dateYMD($img->created_at);
             $img->is_link = $img->package_id ? true : false;

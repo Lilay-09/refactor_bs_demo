@@ -253,6 +253,8 @@ class HomeScreenController extends Controller
 
     public function getReturningPackage(Request $req){
         $pk = Package::query()
+        ->where('is_deleted',0)
+        ->where('status_id',11)
         ->with([
             'merchant:id,username,phone',
             'order:id,loc_lat,loc_lng'
@@ -274,7 +276,7 @@ class HomeScreenController extends Controller
             $pkg->telegram_link = Helper::generateTelegramLink($pkg->merchant_phone);
             return HomeReturnPackageDTO::fromModel($pkg);
         };
-        $select = ['id','merchant_id','status_id','order_id','delivery_remarks','returned_datetime','created_at'];
+        $select = ['id','merchant_id','status_id','order_id','delivery_remarks','returned_datetime','created_at','qr_code'];
         return ApiResponse::PaginationV1($pk,$req,'',[],300,$callback,$select);
     }
 
