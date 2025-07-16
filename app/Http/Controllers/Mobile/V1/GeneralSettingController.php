@@ -90,11 +90,11 @@ class GeneralSettingController extends Controller
         ->where('hidden', 0)
         ->orderBy('created_at', 'desc') // Ensure most recent images are fetched
         ->take(2) // Limit to 2 images
-        ->selectRaw("file_name, TO_CHAR(created_at, 'YYYY-MM-DD') as date") // Correct usage of DATE()
+        ->selectRaw("file_name,file_dir, TO_CHAR(created_at, 'YYYY-MM-DD') as date") // Correct usage of DATE()
         ->get();
         // ->toArray();
         // $imageUrls = array_map(fn($img) => Helper::getImageUrl($img, $user->company_id, 'submit_package'), $images);
-        $imageUrls = $images->map(fn($img) => Helper::getImageUrl($img->file_name, $user->company_id, 'submit_package',$img->date))
+        $imageUrls = $images->map(fn($img) => Helper::getImageUrl($img->file_name, $user->company_id,$img->file_dir,$img->date))
                     ->toArray();
         return ApiResponse::JsonResult($imageUrls);
     }
@@ -279,7 +279,7 @@ class GeneralSettingController extends Controller
         $changeDriver = $req->change_driver;
         $markContact = $req->mark_contact ?? 0;
         $confirmDelivery = $req->confirm_delivery ?? 0;
-        $isReturn = $req->returned ?? false;
+        $isReturn = $req->returned == 1 ? true : false;
         $returnImg = $req->image ?? null;
         $cms = new CloudMessagingService();
         $package = Package::where('is_deleted', false)

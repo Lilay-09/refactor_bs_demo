@@ -261,6 +261,7 @@ class TransactionController extends Controller
         ->join('users as m','m.id','p.merchant_id')
         ->join('tracking_statuses as trs','p.status_id','trs.id')
         ->where('p.driver_id',$user->id)
+        ->whereIn('p.status_id',[9,19])
         ->whereNotExists(function ($sub) {
             $sub->select(DB::raw(1))
                 ->from('payment_packages as pp')

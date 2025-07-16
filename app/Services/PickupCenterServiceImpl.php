@@ -430,20 +430,29 @@ class PickupCenterServiceImpl implements PickupCenterService
                     'package_id' => $createPackage->id,
                     'user_type' => $user->account_type,
                 ]);
+                $inputs['photo_id'] = $imageId;
+                $inputs['image_date'] = now();
             }
             if($image){
                 $isValidUpload = Helper::isValidUploadImage($image,0.8);
                 if($isValidUpload->error) return DataResponse::ValidateFail($isValidUpload->message);
                 $imageDate = date('Y-m-d');
                 $img = Helper::saveImageFileOrBase64($image,$user->company_id,ImageDirectory::ORDER_IMAGE->value,$imageDate);
-                $createPackage->update([
-                    'photo_file_name' => $img->filename,
-                    'image_date' => $imageDate,
-                ]);
+
                 if($img->filename){
-                    OrderImage::insert([
+                    $imgId = OrderImage::insertGetId([
                         'package_id' => $createPackage->id,
+                        'order_id' => $orderId,
                         'user_type' => $user->account_type,
+                        'photo_file_name' => $img->filename,
+                        'create_uid' => $user->id,
+                        'update_uid' => $user->id,
+                        'company_id' => $user->company_id,
+                        'branch_id' => $user->branch_id,
+                    ]);
+                    $createPackage->update([
+                        'photo_id' => $imgId,
+                        'image_date' => $imageDate,
                     ]);
                 }
             }
@@ -467,6 +476,8 @@ class PickupCenterServiceImpl implements PickupCenterService
                     'package_id' => $packageId,
                     'user_type' => $user->account_type,
                 ]);
+                $inputs['photo_id'] = $imageId;
+                $inputs['image_date'] = now();
             }
 
             $package = $qP->find($packageId);
@@ -475,19 +486,19 @@ class PickupCenterServiceImpl implements PickupCenterService
                 if($isValidUpload->error) return DataResponse::ValidateFail($isValidUpload->message);
                 $imageDate = date('Y-m-d');
                 $img = Helper::saveImageFileOrBase64($image,$user->company_id,ImageDirectory::ORDER_IMAGE->value,$imageDate);
-                // $package->update([
-                //     'photo_file_name' => $img->filename,
-                //     'image_date' => $imageDate,
-                // ]);
                 if($img->filename){
-                    $inputs['file_name'] = $img->filename;
-                    $inputs['image_date'] = $imageDate;
-                }
-                if($img->filename){
-                    OrderImage::insert([
+                    $imgId = OrderImage::insertGetId([
                         'package_id' => $packageId,
+                        'order_id' => $orderId,
                         'user_type' => $user->account_type,
+                        'photo_file_name' => $img->filename,
+                        'create_uid' => $user->id,
+                        'update_uid' => $user->id,
+                        'company_id' => $user->company_id,
+                        'branch_id' => $user->branch_id,
                     ]);
+                    $inputs['photo_id'] = $imgId;
+                    $inputs['image_date'] = $imageDate;
                 }
             }
             $inputs['status_id'] = $package->status_id;
