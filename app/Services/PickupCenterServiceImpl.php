@@ -15,6 +15,7 @@ use App\Models\Zone;
 use DataResponse;
 use DB;
 use Exception;
+use GuzzleHttp\Psr7\UploadedFile;
 use Helper;
 use Illuminate\Http\Request;
 use Log;
@@ -239,9 +240,11 @@ class PickupCenterServiceImpl implements PickupCenterService
                 ]);
                 // $clmsg->sendNotificationByTopic($notifReq,$user);
                 // SendNotificationJob::dispatch($notifReq, $user);
+                Log::info($queueFCMName);
+                Log::info(json_encode($topics));
                 SendNotificationJob::dispatch($notifReq, $user)->onQueue($queueFCMName);
             }
-            DB::commit();
+            // DB::commit();
             return DataResponse::JsonResult(null,false,__('messages.info',[
                 'info' => 'Order created ('.$code.')',
                 'khInfo' => 'បានបង្កើតការកម្មង់លេខ ('.$code.')'
@@ -633,5 +636,47 @@ class PickupCenterServiceImpl implements PickupCenterService
 
         GeneralSettingService::updateTripStatus($deliveryId,$user);
         return DataResponse::JsonResult(null);
+    }
+
+    public function replaceOrderImage(object $user,Request $req): object{
+        $image = $req->image ?? null;
+        $packageId = $req->package_id ?? null;
+        if(!$image) {
+            return DataResponse::ValidateFail(__('messages.error',[
+                'info' => 'Please provide an image',
+                'khInfo' => 'សូមផ្ដល់រូបភាព'
+            ]));
+        }
+        $isValidUpload = Helper::isValidUploadImage($image,0.8);
+        if($isValidUpload->error) {
+            return DataResponse::ValidateFail($isValidUpload->message);
+        }
+        $imageDate = date('Y-m-d');
+        $img = Helper::saveImageFileOrBase64($image,$user->company_id,ImageDirectory::ORDER_IMAGE->value,$imageDate);
+        if(!$img->filename) {
+            return DataResponse::Error(__('messages.error',[
+                'info' => 'Fail to save image',
+                'khInfo' => 'រក្សាទុករូបភាពមិនបាន'
+            ]));
+        }
+        $foundImage = OrderImage::find($req->image_id);
+        if(!$foundImage) {
+            return DataResponse::NotFound(__('messages.not_found',[
+                'info' => 'Image',
+                'khInfo' => 'រូបភាព'
+            ]));
+        }
+        Helper::deleteImageFile($foundImage->photo_file_name,$user->company_id,ImageDirectory::ORDER_IMAGE->value,$foundImage->created_at->format('Y-m-d'));
+        $foundImage->update([
+            'photo_file_name' => $img->filename,
+            'package_id' => $packageId,
+            'update_uid' => $user->id,
+            'image_date' => $imageDate,
+        ]);
+        Log::info($foundImage->created_at->format('Y-m-d'));
+        return DataResponse::JsonResult(null,false,__('messages.info',[
+            'info' => 'Image replaced successfully',
+            'khInfo' => 'បានជំនួសរូបភាពដោយជោគជ័យ'
+        ]));
     }
 }

@@ -802,7 +802,7 @@ class Helper{
     }
 
 
-    static function getImageInfo($image): object
+    static function getImageInfo($image,$lang='en'): object
     {
         try {
             // Check if base64 image
@@ -814,7 +814,9 @@ class Helper{
                 $img = imagecreatefromstring($binaryData);
                 if (!$img) return (object)[
                     'error' => false,
-                    'message' => 'Invalid image size'
+                    'message' => $lang == 'en' ?
+                            'Invalid image size'
+                            : 'ទំហំរូបភាពមិនត្រឹមត្រូវ'
                 ];
 
                 $width = imagesx($img);
@@ -841,7 +843,9 @@ class Helper{
                 if (!$path || !file_exists($path)) {
                     return (object)[
                         'error' => true,
-                        'message' => 'Image file not found or path is empty'
+                        'message' => $lang == 'en' ?
+                                'Image file not found or path is empty'
+                                : 'ឯកសាររូបភាពមិនត្រូវបានរកឃើញ ឬផ្លូវទទេ'
                     ];
                 }
 
@@ -849,7 +853,9 @@ class Helper{
                 if ($imageSize === false) {
                     return (object)[
                         'error' => true,
-                        'message' => 'Failed to read image dimensions'
+                        'message' => $lang == 'en' ?
+                                'Failed to read image dimensions'
+                                : 'មិនអាចអានទំហំរូបភាពបាន'
                     ];
                 }
 
@@ -867,13 +873,17 @@ class Helper{
 
             return (object)[
                 'error' => true,
-                'message' => 'Invalid image size'
+                'message' => $lang == 'en' ?
+                        'Invalid image size'
+                        : 'ទំហំរូបភាពមិនត្រឹមត្រូវ'
             ]; // Not valid
         } catch (\Exception $e) {
             Log::error($e->getMessage());
             return (object)[
                 'error' => true,
-                'message' => 'fallback'
+                'message' => $lang == 'en' ?
+                        'fallback'
+                        : 'ទិន្នន័យរូបភាពមិនត្រឹមត្រូវ។'
             ]; // Safe fallback
         }
     }
@@ -887,40 +897,50 @@ class Helper{
      * @param  int|null  $maxHeight
      * @return bool
      */
-    static function isValidUploadImage($image, float $maxSizeMB = 2.0, int $maxWidth = null, int $maxHeight = null): object
+    static function isValidUploadImage($image, float $maxSizeMB = 2.0, int $maxWidth = null, int $maxHeight = null,$lang='en'): object
     {
-        $info = self::getImageInfo($image);
+        $info = self::getImageInfo($image,$lang);
         if ($info->error) {
             return (object)[
                 'error' => true,
-                'message' => $info->message ?? 'Invalid image data.'
+                'message' => $lang == 'en' ?
+                        ($info->message ?? 'Invalid image data.')
+                        : ($info->message ?? 'ទិន្នន័យរូបភាពមិនត្រឹមត្រូវ។')
             ];
         }
 
         if ($info->size_kb > ($maxSizeMB * 1024)) {
             return (object)[
                 'error' => true,
-                'message' => "Image size exceeds the maximum allowed limit of {$maxSizeMB}MB."
+                'message' => $lang == 'en' ?
+                        "Image size exceeds the maximum allowed limit of {$maxSizeMB}MB."
+                        : "ទំហំរូបភាពលើសកំណត់អនុញ្ញាតខ្ពស់បំផុត {$maxSizeMB}MB។"
             ];
         }
 
         if ($maxWidth && $info->width > $maxWidth) {
             return (object)[
                 'error' => true,
-                'message' => "Image width ({$info->width}px) exceeds the maximum allowed width of {$maxWidth}px."
+                'message' => $lang == 'en' ?
+                        "Image width ({$info->width}px) exceeds the maximum allowed width of {$maxWidth}px."
+                        : "ទទឹងរូបភាព ({$info->width}px) លើសកំណត់អនុញ្ញាតខ្ពស់បំផុត {$maxWidth}px។"
             ];
         }
 
         if ($maxHeight && $info->height > $maxHeight) {
             return (object)[
                 'error' => true,
-                'message' => "Image height ({$info->height}px) exceeds the maximum allowed height of {$maxHeight}px."
+                'message' => $lang == 'en' ?
+                        "Image height ({$info->height}px) exceeds the maximum allowed height of {$maxHeight}px."
+                        : "កម្ពស់រូបភាព ({$info->height}px) លើសកំណត់អនុញ្ញាតខ្ពស់បំផុត {$maxHeight}px។"
             ];
         }
 
         return (object)[
             'error' => false,
-            'message' => 'Image is valid.',
+            'message' => $lang == 'en' ?
+                    'Image is valid.'
+                    : 'រូបភាពត្រឹមត្រូវ។',
             'info' => $info
         ];
     }

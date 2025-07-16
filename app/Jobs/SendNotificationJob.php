@@ -12,6 +12,7 @@ use Illuminate\Http\Request;
 
 class SendNotificationJob implements ShouldQueue
 {
+
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     /**
@@ -19,15 +20,19 @@ class SendNotificationJob implements ShouldQueue
      */protected $clmsgReq;
     protected $user;
 
-    public function __construct(Request $clmsgReq, $user)
+    public function __construct(Request $clmsgReq, $user = null)
     {
         $this->clmsgReq = $clmsgReq;
-        $this->user = $user;
+        $this->user = $user ;
     }
 
     public function handle()
     {
         $clmsg = new CloudMessagingService();
-        $clmsg->sendNotificationByTopic($this->clmsgReq, $this->user);
+        if($this->clmsgReq->topic){
+            $clmsg->sendNotificationByTopic($this->clmsgReq, $this->user);
+        }else if($this->clmsgReq->token){
+            $clmsg->sendNotificationByToken($this->clmsgReq);
+        }
     }
 }

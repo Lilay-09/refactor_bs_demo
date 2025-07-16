@@ -283,6 +283,7 @@ Route::middleware(['jwt','localize','userAccess:admin','rateLimit'])->prefix('ad
         Route::delete('{order_id}/package/{id}',[PickUpCenterController::class,'deletePackage']);
         Route::get('{order_id}/image/',[PickUpCenterController::class,'getOrderImages']);
         Route::post('{order_id}/link/image',[PickUpCenterController::class,'linkImageToPackage']);
+        Route::post('{order_id}/replace/image',[PickUpCenterController::class,'replaceOrderImage']);
     });
 
     Route::prefix('package')->group(function(){
