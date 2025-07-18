@@ -244,7 +244,7 @@ class PickupCenterServiceImpl implements PickupCenterService
                 Log::info(json_encode($topics));
                 SendNotificationJob::dispatch($notifReq, $user)->onQueue($queueFCMName);
             }
-            // DB::commit();
+            DB::commit();
             return DataResponse::JsonResult(null,false,__('messages.info',[
                 'info' => 'Order created ('.$code.')',
                 'khInfo' => 'បានបង្កើតការកម្មង់លេខ ('.$code.')'

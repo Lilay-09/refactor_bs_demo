@@ -6,8 +6,8 @@ trait BaseMigrationField{
         $table->id();
         $table->timestampTz("created_at")->useCurrent();
         $table->timestampTz("updated_at")->useCurrent()->useCurrentOnUpdate();
-        $table->unsignedBigInteger('create_uid');
-        $table->unsignedBigInteger('update_uid');
+        $table->unsignedBigInteger('create_uid')->nullable();
+        $table->unsignedBigInteger('update_uid')->nullable();
         $table->unsignedBigInteger('branch_id')->nullable();
         $table->unsignedBigInteger('company_id');
 

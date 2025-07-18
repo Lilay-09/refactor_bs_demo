@@ -5,6 +5,8 @@ namespace App\Providers;
 use App\Exceptions\Handler;
 use App\Services\BranchService;
 use App\Services\BranchServiceImpl;
+use App\Services\CommentService;
+use App\Services\CommentServiceImpl;
 use App\Services\PickupCenterService;
 use App\Services\PickupCenterServiceImpl;
 use App\Services\TransferService;
@@ -34,6 +36,7 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(WarehouseService::class,WarehouseServiceImpl::class);
         $this->app->bind(PickupCenterService::class,PickupCenterServiceImpl::class);
         $this->app->bind(TransferService::class,TransferServiceImpl::class);
+        $this->app->bind(CommentService::class,CommentServiceImpl::class);
     }
 
     /**
