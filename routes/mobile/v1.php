@@ -13,6 +13,7 @@ use App\Http\Controllers\Mobile\Merchant\V1\HomeController;
 use App\Http\Controllers\Mobile\V1\GeneralSettingController;
 use App\Http\Controllers\Mobile\V1\ReportController;
 use App\Http\Controllers\Mobile\V1\SpecialOfferController;
+use App\Http\Controllers\V1\CommentController;
 use Illuminate\Support\Facades\Route;
 
 //BEGIN::Driver
@@ -28,6 +29,11 @@ Route::prefix('driver/v1/{lang}/auth')->middleware('localize')->group(function()
 });
 
 Route::middleware(['jwtDriver','localize'])->prefix('driver/v1/{lang}')->group(function(){
+    Route::prefix('comment')->group(function(){
+        Route::post('package',[CommentController::class,'addComment']);
+        Route::get('package/{packageId}',[CommentController::class,'getPackageComments']);
+    });
+
     Route::post('notification/subscribe',[AuthController::class,'subscribeTopics']);
     Route::post('notification/unsubscribe',[AuthController::class,'unsubscribeTopics']);
     Route::get('termConditions',[HomeScreenController::class,'getTermConditions']);
@@ -96,8 +102,6 @@ Route::middleware(['jwtDriver','localize'])->prefix('driver/v1/{lang}')->group(f
 
 
 //BEGIN::Merchant
-
-
 Route::prefix('merchant/v1/{lang}')->middleware('localize')->group(function(){
     Route::prefix('auth')->group(function(){
         Route::post('login',[AuthMerchantController::class,'login']);
