@@ -240,6 +240,13 @@ class UserService
         DB::beginTransaction();
         try{
             if($id){
+                 $existLoginName = User::where('company_id',$user->company_id)
+                    ->where('id','!=',$id)
+                    ->where('login_name',$inputs['login_name'])
+                    ->where('is_deleted',0)
+                    ->orderByDesc('id')
+                    ->where('account_type',$user_class)->first();
+                if($existLoginName) return DataResponse::Duplicated('Please use another login name!, this one is already taken.');
                 unset($inputs['password'],$inputs['register_status']);
                 $updateUser = User::where('account_type',$user_class)->where('is_deleted',0)->find($id);
                 if(!$updateUser) return DataResponse::NotFound(__('messages.not_found',['info' => 'User']));
@@ -534,7 +541,11 @@ class UserService
         $loginName = $inputs['login_name'];
         $pwd = $inputs['password'];
         $cfPwd = $inputs['confirm_password'];
-        $existLoginName = User::where('company_id',$authUser->company_id)->where('id','!=',$userId)->where('login_name',$loginName)->where('is_deleted',0)->where('account_type',$userClass)->first();
+        $existLoginName = User::where('company_id',$authUser->company_id)
+        ->where('id','!=',$userId)
+        ->where('login_name',$loginName)
+        ->where('is_deleted',0)
+        ->where('account_type',$userClass)->first();
         if($existLoginName) return DataResponse::Duplicated('Please use another login name!, this one is already taken.');
         if($pwd !== $cfPwd) return DataResponse::ValidateFail(__('messages.error',['info' => 'Password not match !']));
         $hpwd = Hash::make($pwd);

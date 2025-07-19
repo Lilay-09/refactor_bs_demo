@@ -42,13 +42,16 @@ class HomeController extends Controller
         $pck = new PickupCenterServiceImpl();
         $details = $req->details ?? [];
         $req->merge([
-            'warehouse_id' => GeneralSettingService::getWarehouse($user)->id,
+            'warehouse_id' => GeneralSettingService::getWarehouse($user)?->id,
             'branch_id' => $user->branch_id,
             'merchant_id' => $user->id
         ]);
         if($details){
             $details = Helper::convertJsonTextToJson($details);
-            if($details->error) return ApiResponse::ValidateFail($details->message);
+            if($details->error) return ApiResponse::ValidateFail(__('messages.info',[
+                'info' => 'Please check your details again',
+                'khInfo' => "សូមពិនិត្យព័ត៌មានលម្អិតរបស់អ្នកម្តងទៀត"
+            ]));
             $req->merge(['details' => $details->result]);//$details->result;
         }
         $create = $pck->createOrder($req,$user);
