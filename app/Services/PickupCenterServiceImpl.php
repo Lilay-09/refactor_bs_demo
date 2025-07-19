@@ -365,9 +365,13 @@ class PickupCenterServiceImpl implements PickupCenterService
         // Log::info($req->all());
         // $warehouse = GeneralSettingService::getWarehouse($user);
         // $inputs['warehouse_id'] = $warehouse->id;
+        $warehouseId = $inputs['warehouse_id'] ?? null;
         $warehouse = Warehouse::where('branch_id',$inputs['branch_id'])
         ->where('is_deleted',false)
-        ->find($inputs['warehouse_id']);
+        ->find($warehouseId);
+        if(!$warehouse){
+            return DataResponse::NotFound(__('messages.not_found',['info' => 'Warehouse','khInfo' => 'ឃ្លាំង']));
+        }
         if($orderId) $inputs['merchant_id'] = $order->merchant_id;
         $inputs['update_uid'] = $user->id;
         if($orderId) $inputs['order_id'] = $orderId;
