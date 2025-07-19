@@ -113,7 +113,6 @@ class PickupCenterServiceImpl implements PickupCenterService
         $inputs['original_qty'] = $inputs['qty'];
         $inputs['order_datetime'] = now();
         $productType = $inputs['product_type'] ?? null;
-        $inputs['warehouse_id'] = GeneralSettingService::getWarehouse($user)->id;
         if($userType == 'driver') $inputs['driver_id'] = $user->id;
         $driverId = $inputs['driver_id'] ?? null;
         if($driverId == 0){
@@ -240,8 +239,6 @@ class PickupCenterServiceImpl implements PickupCenterService
                 ]);
                 // $clmsg->sendNotificationByTopic($notifReq,$user);
                 // SendNotificationJob::dispatch($notifReq, $user);
-                Log::info($queueFCMName);
-                Log::info(json_encode($topics));
                 SendNotificationJob::dispatch($notifReq, $user)->onQueue($queueFCMName);
             }
             DB::commit();
@@ -357,16 +354,13 @@ class PickupCenterServiceImpl implements PickupCenterService
             ]);
             if(!$order) return DataResponse::NotFound('Order not found');
         }
-        Log::info($req->all());
         $validate = $this->packageValidation($req);
         if($validate->fails()) return DataResponse::ValidateFail($validate->errors()->first());
         $inputs = $validate->validated();
         $inputs['company_id'] = $user->company_id;
-        // Log::info($req->all());
-        // $warehouse = GeneralSettingService::getWarehouse($user);
-        // $inputs['warehouse_id'] = $warehouse->id;
         $warehouseId = $inputs['warehouse_id'] ?? null;
-        $warehouse = Warehouse::where('branch_id',$inputs['branch_id'])
+        $branchId = $inputs['branch_id'];
+        $warehouse = Warehouse::where('branch_id',$branchId)
         ->where('is_deleted',false)
         ->find($warehouseId);
         if(!$warehouse){
@@ -678,7 +672,6 @@ class PickupCenterServiceImpl implements PickupCenterService
             'update_uid' => $user->id,
             'image_date' => $imageDate,
         ]);
-        Log::info($foundImage->created_at->format('Y-m-d'));
         return DataResponse::JsonResult(null,false,__('messages.info',[
             'info' => 'Image replaced successfully',
             'khInfo' => 'បានជំនួសរូបភាពដោយជោគជ័យ'
