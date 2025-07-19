@@ -95,6 +95,7 @@ class UserService
                 'info'=> (object)[
                     'phone' => $user->phone,
                     'address' => $user->address,
+                    'warehouse_id' => $user->driver_warehouse_id ?? null,
                     'pin_address' => $user?->pin_address,
                     'vehicle_type' => $user?->vehicle_type,
                     'latitude' => $user?->latitude,

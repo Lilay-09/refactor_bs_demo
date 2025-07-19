@@ -928,6 +928,10 @@ class HomeScreenController extends Controller
 
     public function booking(Request $req){
         $user = UserService::getAuthUser('driver');
+        $req->merge([
+            'warehouse_id' => $user->info->warehouse_id,
+            'branch_id' => $user->branch_id,
+        ]);
         $createOrder = $this->pickupCenterService->createOrder($req,$user);
         return ApiResponse::flex($createOrder);
     }

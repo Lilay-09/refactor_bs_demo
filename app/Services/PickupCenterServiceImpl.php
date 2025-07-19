@@ -15,7 +15,6 @@ use App\Models\Zone;
 use DataResponse;
 use DB;
 use Exception;
-use GuzzleHttp\Psr7\UploadedFile;
 use Helper;
 use Illuminate\Http\Request;
 use Log;
@@ -406,7 +405,6 @@ class PickupCenterServiceImpl implements PickupCenterService
         $otherFee = $inputs['other_fee'] ?? 0;
         $calPrice = GeneralSettingService::calculatePackageFee($zoneCode,$price,$billedKg,$actualKg,$payer,$cod,$extraCharge,$user,$taxiFee,$inputs['merchant_id'],null,$otherFee);
         if($calPrice->error) return $calPrice;
-        // Log::info($calPrice->driver_total);
         $inputs['driver_total'] = $calPrice->driver_total;
         $inputs['merchant_total'] = $calPrice->merchant_total;
         $inputs['delivery_fee'] = $calPrice->delivery_fee;
