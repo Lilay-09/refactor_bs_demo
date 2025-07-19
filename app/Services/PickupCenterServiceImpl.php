@@ -357,6 +357,7 @@ class PickupCenterServiceImpl implements PickupCenterService
             ]);
             if(!$order) return DataResponse::NotFound('Order not found');
         }
+        Log::info($req->all());
         $validate = $this->packageValidation($req);
         if($validate->fails()) return DataResponse::ValidateFail($validate->errors()->first());
         $inputs = $validate->validated();
