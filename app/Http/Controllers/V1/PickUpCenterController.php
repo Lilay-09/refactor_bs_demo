@@ -155,6 +155,7 @@ class PickUpCenterController extends Controller
         $driverId = $req->driver_id;
         $merchantId = $req->merchant_id;
         $warehouseId = $req->warehouse_id;
+        $branchId = $req->branch_id;
         $query = Order::query()->with(['merchant','tracking_status','driver','createdBy'])->where('is_deleted',0)
             ->whereIn('status_id',[1,2,3,4,21])
             ->where('company_id',$user->company_id)
@@ -172,6 +173,9 @@ class PickUpCenterController extends Controller
         }
         if($driverId){
             $query->where('driver_id',$driverId);
+        }
+        if($branchId){
+            $query->where('branch_id',$branchId);
         }
         if($merchantId){
             $query->where('merchant_id',$merchantId);
