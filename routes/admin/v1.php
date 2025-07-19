@@ -281,6 +281,9 @@ Route::middleware(['jwt','localize','userAccess:admin','rateLimit'])->prefix('ad
         Route::put('{id}/arrive',[PickUpCenterController::class,'arriveWarehouse']);
         Route::put('{order_id}/package/{id}',[PickUpCenterController::class,'updatePackage']);
         Route::delete('{order_id}/package/{id}',[PickUpCenterController::class,'deletePackage']);
+        Route::get('{order_id}/image/',[PickUpCenterController::class,'getOrderImages']);
+        Route::post('{order_id}/link/image',[PickUpCenterController::class,'linkImageToPackage']);
+        Route::post('{order_id}/replace/image',[PickUpCenterController::class,'replaceOrderImage']);
     });
 
     Route::prefix('package')->group(function(){
@@ -448,7 +451,6 @@ Route::middleware(['jwt','localize','userAccess:admin','rateLimit'])->prefix('ad
         // Route::delete('/{id}',[BannerController::class,'deleteBanner']);
     });
 
-
     Route::prefix('clientType')->group(function(){
         Route::post('',[ClientTypeController::class,'saveClientType']);
         Route::get('',[ClientTypeController::class,'getClientTypes']);
@@ -462,13 +464,11 @@ Route::middleware(['jwt','localize','userAccess:admin','rateLimit'])->prefix('ad
         Route::delete('/{id}',[ScoringRewardController::class,'deleteScoringReward']);
     });
 
-
     Route::prefix('feedback')->group(function(): void{
         Route::get('form',[FeedbackFormController::class,'getFeedbackForms']);
         Route::get('form/{id}',[FeedbackFormController::class,'getOneFeedbackForm']);
         Route::post('form',[FeedbackFormController::class,'createFeedbackForm']);
         Route::put('form/{id}',[FeedbackFormController::class,'updateFeedbackForm']);
-
 
         // Question
         Route::put('question/reorder',[FeedbackQuestionController::class,'reoderQuestion']);
@@ -477,7 +477,6 @@ Route::middleware(['jwt','localize','userAccess:admin','rateLimit'])->prefix('ad
         Route::post('question',[FeedbackQuestionController::class,'createFeedbackQuestion']);
         Route::put('question/{id}',[FeedbackQuestionController::class,'updateFeedbackQuestion']);
         Route::delete('question/{id}',[FeedbackQuestionController::class,'deleteFeedbackQuestion']);
-
     });
 
     Route::prefix('emergencyContact')->group(function(){
@@ -553,6 +552,7 @@ Route::middleware(['jwt','localize','userAccess:admin','rateLimit'])->prefix('ad
 
     Route::prefix('setting')->group(function(){
         Route::prefix('option')->group(function(){
+            Route::get('package/{packageId}',[GeneralSettingController::class,'getOptionsPackageById']);
             Route::get('branch',[GeneralSettingController::class,'getOptionsBranch']);
             Route::get('branch/{branch_id}/warehouse',[GeneralSettingController::class,'getOptionsWarehouseByBranch']);
             Route::get('branch/type',[GeneralSettingController::class,'getOptionsBranchType']);
@@ -575,7 +575,7 @@ Route::middleware(['jwt','localize','userAccess:admin','rateLimit'])->prefix('ad
             Route::get('zone/{id}/subZone',[GeneralSettingController::class,'getOptionsSubZone']);
             Route::get('pickup/status',[GeneralSettingController::class,'getOptionsPickupStatus']);
             Route::get('driver',[GeneralSettingController::class,'getOptionsDriver']);
-            Route::get('warehouse/{warehouseId}/driver',[GeneralSettingController::class,'getOptionsDriver']);
+            Route::get('warehouse/{warehouseId}/driver',[GeneralSettingController::class,'getOptionsDriverByWarehouse']);
             Route::get('zone/price/{zone_id}',[GeneralSettingController::class,'getPriceByZone']);
             Route::get('country',[GeneralSettingController::class,'getOptionsCountry']);
             Route::get('city',[GeneralSettingController::class,'getOptionsCity']);
@@ -605,8 +605,10 @@ Route::middleware(['jwt','localize','userAccess:admin','rateLimit'])->prefix('ad
             Route::get('merchant/trx',[GeneralSettingController::class,'getMerchantTrxFilter']);
             Route::get('merchant/transaction',[GeneralSettingController::class,'getMerchantTransactionTabFilter']);
             Route::get('fleet',[GeneralSettingController::class,'getOptionsFilterFleet']);
+            Route::get('user',[GeneralSettingController::class,'getOptionsFilterUser']);
         });
         Route::prefix('form')->group(function(){
+            Route::get('order/{orderId}/link/image',[GeneralSettingController::class,'getFormLinkImage']);
             Route::get('transfer',[GeneralSettingController::class,'getFormTransfer']);
             Route::get('transfer/receive',[GeneralSettingController::class,'getFormReceive']);
             Route::get('user',[GeneralSettingController::class,'getFormUser']);

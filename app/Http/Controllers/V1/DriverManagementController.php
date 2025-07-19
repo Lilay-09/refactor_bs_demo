@@ -26,6 +26,7 @@ class DriverManagementController extends Controller
         $search = $req->search;
         $lang = $req->lang;
         $statusId = $req->status_id;
+        $branchId = $req->branch_id;
         $employeeType = $req->employee_type;
         $query = User::where('is_deleted',0)->where('company_id',$user->company_id)
         ->where('account_type','driver')
@@ -33,6 +34,9 @@ class DriverManagementController extends Controller
         ->selectRaw('id,code,address,name_km,name_km as name_kh,username,email,gender,shift_type,vehicle_type,plate_number,phone,has_account,lock,photo_file_name,shift_type,employment_date,employee_type,dob,relative_name,national_id,create_uid,login_name');
         if($employeeType){
             $query->where('employee_type',$employeeType);
+        }
+        if($branchId){
+            $query->where('branch_id',$branchId);
         }
 
         if($statusId !== null && $statusId>=0) {
@@ -47,6 +51,7 @@ class DriverManagementController extends Controller
                 ->orWhere('phone','ilike','%'.$search.'%');
             });
         }
+
         $query->orderByDesc('id');
 
         $callback = function ($driver) use($user,$lang){

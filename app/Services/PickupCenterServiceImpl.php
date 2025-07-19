@@ -1,6 +1,7 @@
 <?php
 
 namespace App\Services;
+use App\Enums\ImageDirectory;
 use App\Jobs\SendNotificationJob;
 use App\Models\Delivery;
 use App\Models\DeliveryPackage;
@@ -34,6 +35,8 @@ class PickupCenterServiceImpl implements PickupCenterService
             'photo_id' => 'nullable|int',
             'package_name' => 'nullable|string|max:100',
             'merchant_id' => 'required',
+            'image_id' => 'nullable',
+            'image' => 'nullable',
             'product_type' => 'nullable|string',
             'price' => 'nullable|numeric|min:0',
             'dim_z' => 'nullable|numeric',
@@ -41,6 +44,7 @@ class PickupCenterServiceImpl implements PickupCenterService
             'dim_x' => 'nullable|numeric',
             'status_id' => 'nullable|int',
             'taxi_fee' => 'nullable|numeric',
+            'other_fee' => 'nullable|numeric',
             'failure_notes' => 'nullable|string|max:250',
             'payer' => 'required|in:sender,receiver',
             'cod' => 'required|in:0,1',
@@ -108,7 +112,6 @@ class PickupCenterServiceImpl implements PickupCenterService
         $inputs['original_qty'] = $inputs['qty'];
         $inputs['order_datetime'] = now();
         $productType = $inputs['product_type'] ?? null;
-        $inputs['warehouse_id'] = GeneralSettingService::getWarehouse($user)->id;
         if($userType == 'driver') $inputs['driver_id'] = $user->id;
         $driverId = $inputs['driver_id'] ?? null;
         if($driverId == 0){
@@ -164,10 +167,15 @@ class PickupCenterServiceImpl implements PickupCenterService
             // $statusId = $inputs['status_id'];
             if(isset($details[0])){
                 if($userType == 'driver') $statusId = 4;
+                $isMobile = $userType !== 'admin';
                 // if($inputs['qty'] != count($details)) return DataResponse::ValidateFail('Your quantity is not matching the details');
                 foreach($details as $d){
                     $d['merchant_id'] = $merchantId;
                     $d['product_type'] = $productType;
+                    $price = $d['price'] ?? 0;
+                    if($isMobile && $price > 0){
+                        $d['cod'] = true;
+                    }
                     $dReq = new Request($d);
                     $savePkg = $this->createOrUpdatePackage($dReq,$user,null,$orderId);
                     if($savePkg->error) return $savePkg;
@@ -182,7 +190,7 @@ class PickupCenterServiceImpl implements PickupCenterService
                 foreach($images as $idx => $photo){
                     $isValidUpload = Helper::isValidUploadImage($photo,0.8);
                     if($isValidUpload->error) return DataResponse::ValidateFail($isValidUpload->message.', check your Image #'.($idx + 1));
-                    $img = Helper::saveImageFile($photo,$companyId,'order_image',date('Y-m-d'));
+                    $img = Helper::saveImageFile($photo,$companyId,ImageDirectory::ORDER_IMAGE->value,date('Y-m-d'));
                     //** if something went wrong so this will take action on catch block */
                     $deleteImgs[] = $img->filename;
                     $saveOrderImages[] = [
@@ -211,7 +219,11 @@ class PickupCenterServiceImpl implements PickupCenterService
                 'type' => 'private',
                 'target_uid' => $merchantId
             ]);
-            SendNotificationJob::dispatch($clmsgReq, $user);
+            // SendNotificationJob::dispatch($clmsgReq, $user);
+            $queueFCMName = config('queue_job_names.'.config('app.env').'.notification');
+            // Log::info(config('queue_job_names.development.notification').'---'.config('app.env'));
+            // Log::info($queueFCMName);
+            SendNotificationJob::dispatch($clmsgReq, $user)->onQueue($queueFCMName);
             if($driverId){
                 $topics = GeneralSettingService::getGeneralTopics($user->company_id,'driver',$driverId);
                 $notifReq = new Request([
@@ -225,7 +237,8 @@ class PickupCenterServiceImpl implements PickupCenterService
                     ])
                 ]);
                 // $clmsg->sendNotificationByTopic($notifReq,$user);
-                SendNotificationJob::dispatch($notifReq, $user);
+                // SendNotificationJob::dispatch($notifReq, $user);
+                SendNotificationJob::dispatch($notifReq, $user)->onQueue($queueFCMName);
             }
             DB::commit();
             return DataResponse::JsonResult(null,false,__('messages.info',[
@@ -344,11 +357,14 @@ class PickupCenterServiceImpl implements PickupCenterService
         if($validate->fails()) return DataResponse::ValidateFail($validate->errors()->first());
         $inputs = $validate->validated();
         $inputs['company_id'] = $user->company_id;
-        // $warehouse = GeneralSettingService::getWarehouse($user);
-        // $inputs['warehouse_id'] = $warehouse->id;
-        $warehouse = Warehouse::where('branch_id',$inputs['branch_id'])
+        $warehouseId = $inputs['warehouse_id'] ?? null;
+        $branchId = $inputs['branch_id'];
+        $warehouse = Warehouse::where('branch_id',$branchId)
         ->where('is_deleted',false)
-        ->find($inputs['warehouse_id']);
+        ->find($warehouseId);
+        if(!$warehouse){
+            return DataResponse::NotFound(__('messages.not_found',['info' => 'Warehouse','khInfo' => 'ឃ្លាំង']));
+        }
         if($orderId) $inputs['merchant_id'] = $order->merchant_id;
         $inputs['update_uid'] = $user->id;
         if($orderId) $inputs['order_id'] = $orderId;
@@ -375,6 +391,8 @@ class PickupCenterServiceImpl implements PickupCenterService
         $inputs['delivery_type'] = $inputs['delivery_type'] ?? 'normal';
         $inputs['booking_channel'] = 'admin';
         $taxiFee = $inputs['taxi_fee'] ?? 0;
+        $imageId = $inputs['image_id'] ?? null;
+        $image = $inputs['image'] ?? null;
         // $inputs['tracking_notes'] = '['.$user->id.']Admin ('.$user->username.') add new package ('.date('d-M-Y h:i:s A').')';
         if($user->account_type == 'driver') $inputs['booking_channel'] = 'driver';
         if($user->account_type == 'merchant') {
@@ -384,16 +402,15 @@ class PickupCenterServiceImpl implements PickupCenterService
         $zoneName = Zone::where('zone_code',$zoneCode)->take(1)->where('is_deleted',0)->value('zone_name');
         $inputs['zone_name'] = $zoneName;
         $extraCharge = $inputs['extra_charge'] ?? 0;
-        $calPrice = GeneralSettingService::calculatePackageFee($zoneCode,$price,$billedKg,$actualKg,$payer,$cod,$extraCharge,$user,$taxiFee,$inputs['merchant_id']);
+        $otherFee = $inputs['other_fee'] ?? 0;
+        $calPrice = GeneralSettingService::calculatePackageFee($zoneCode,$price,$billedKg,$actualKg,$payer,$cod,$extraCharge,$user,$taxiFee,$inputs['merchant_id'],null,$otherFee);
         if($calPrice->error) return $calPrice;
-        // Log::info($calPrice->driver_total);
         $inputs['driver_total'] = $calPrice->driver_total;
         $inputs['merchant_total'] = $calPrice->merchant_total;
         $inputs['delivery_fee'] = $calPrice->delivery_fee;
         $productType = $inputs['product_type'] ?? ($orderId ? $order->product_type:null);
         $inputs['product_type'] = $productType;
-        // if(!$productType) unset($inputs['product_type']);
-        // Log::error($productType);
+
         if(!$packageId){
             $inputs['status_id'] = 7;
             $inputs['create_uid'] = $user->id;
@@ -402,8 +419,43 @@ class PickupCenterServiceImpl implements PickupCenterService
             }else if($user->account_type == 'driver'){
                 $inputs['tracking_notes'] = 'Driver add new package ('.date('d-M-Y h:i:s A').')';
             }
+            $shortcut = $warehouse?->shortcut ?? null;
+            if(!$shortcut){
+                return DataResponse::ValidateFail("Please set a shortcut for your warehouse — it’ll be used when generating package codes.");
+            }
             $createPackage = Package::create($inputs);
             if(!$createPackage) return DataResponse::Error(__('messages.Fail to create package'));
+            if($imageId){
+                OrderImage::find($imageId)->update([
+                    'package_id' => $createPackage->id,
+                    'user_type' => $user->account_type,
+                ]);
+                $inputs['photo_id'] = $imageId;
+                $inputs['image_date'] = now();
+            }
+            if($image){
+                $isValidUpload = Helper::isValidUploadImage($image,0.8);
+                if($isValidUpload->error) return DataResponse::ValidateFail($isValidUpload->message);
+                $imageDate = date('Y-m-d');
+                $img = Helper::saveImageFileOrBase64($image,$user->company_id,ImageDirectory::ORDER_IMAGE->value,$imageDate);
+
+                if($img->filename){
+                    $imgId = OrderImage::insertGetId([
+                        'package_id' => $createPackage->id,
+                        'order_id' => $orderId,
+                        'user_type' => $user->account_type,
+                        'photo_file_name' => $img->filename,
+                        'create_uid' => $user->id,
+                        'update_uid' => $user->id,
+                        'company_id' => $user->company_id,
+                        'branch_id' => $user->branch_id,
+                    ]);
+                    $createPackage->update([
+                        'photo_id' => $imgId,
+                        'image_date' => $imageDate,
+                    ]);
+                }
+            }
             $qrCode = Helper::generateBarcodeString($createPackage->id,$user->company_id,$this->packageCodePrefix.$warehouse->shortcut);
             $createPackage->update([
                 'qr_code' => $qrCode
@@ -418,7 +470,37 @@ class PickupCenterServiceImpl implements PickupCenterService
             if($whereClause){
                 $qP->$whereClause;
             }
+
+            if($imageId){
+                OrderImage::find($imageId)->update([
+                    'package_id' => $packageId,
+                    'user_type' => $user->account_type,
+                ]);
+                $inputs['photo_id'] = $imageId;
+                $inputs['image_date'] = now();
+            }
+
             $package = $qP->find($packageId);
+            if($image){
+                $isValidUpload = Helper::isValidUploadImage($image,0.8);
+                if($isValidUpload->error) return DataResponse::ValidateFail($isValidUpload->message);
+                $imageDate = date('Y-m-d');
+                $img = Helper::saveImageFileOrBase64($image,$user->company_id,ImageDirectory::ORDER_IMAGE->value,$imageDate);
+                if($img->filename){
+                    $imgId = OrderImage::insertGetId([
+                        'package_id' => $packageId,
+                        'order_id' => $orderId,
+                        'user_type' => $user->account_type,
+                        'photo_file_name' => $img->filename,
+                        'create_uid' => $user->id,
+                        'update_uid' => $user->id,
+                        'company_id' => $user->company_id,
+                        'branch_id' => $user->branch_id,
+                    ]);
+                    $inputs['photo_id'] = $imgId;
+                    $inputs['image_date'] = $imageDate;
+                }
+            }
             $inputs['status_id'] = $package->status_id;
             if(!$package) return DataResponse::NotFound(trans('messages.not_found',['info' => 'Package','khInfo' => 'កញ្ចប់']));
             // if($package->status_id == 5) return DataResponse::Forbidden(__('messages.no_access',['info' => 'This package has already assigned to driver']));
@@ -551,5 +633,46 @@ class PickupCenterServiceImpl implements PickupCenterService
 
         GeneralSettingService::updateTripStatus($deliveryId,$user);
         return DataResponse::JsonResult(null);
+    }
+
+    public function replaceOrderImage(object $user,Request $req): object{
+        $image = $req->image ?? null;
+        $packageId = $req->package_id ?? null;
+        if(!$image) {
+            return DataResponse::ValidateFail(__('messages.error',[
+                'info' => 'Please provide an image',
+                'khInfo' => 'សូមផ្ដល់រូបភាព'
+            ]));
+        }
+        $isValidUpload = Helper::isValidUploadImage($image,0.8);
+        if($isValidUpload->error) {
+            return DataResponse::ValidateFail($isValidUpload->message);
+        }
+        $imageDate = date('Y-m-d');
+        $img = Helper::saveImageFileOrBase64($image,$user->company_id,ImageDirectory::ORDER_IMAGE->value,$imageDate);
+        if(!$img->filename) {
+            return DataResponse::Error(__('messages.error',[
+                'info' => 'Fail to save image',
+                'khInfo' => 'រក្សាទុករូបភាពមិនបាន'
+            ]));
+        }
+        $foundImage = OrderImage::find($req->image_id);
+        if(!$foundImage) {
+            return DataResponse::NotFound(__('messages.not_found',[
+                'info' => 'Image',
+                'khInfo' => 'រូបភាព'
+            ]));
+        }
+        Helper::deleteImageFile($foundImage->photo_file_name,$user->company_id,ImageDirectory::ORDER_IMAGE->value,$foundImage->created_at->format('Y-m-d'));
+        $foundImage->update([
+            'photo_file_name' => $img->filename,
+            'package_id' => $packageId,
+            'update_uid' => $user->id,
+            'image_date' => $imageDate,
+        ]);
+        return DataResponse::JsonResult(null,false,__('messages.info',[
+            'info' => 'Image replaced successfully',
+            'khInfo' => 'បានជំនួសរូបភាពដោយជោគជ័យ'
+        ]));
     }
 }

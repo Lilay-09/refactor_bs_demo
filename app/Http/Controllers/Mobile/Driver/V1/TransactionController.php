@@ -261,6 +261,7 @@ class TransactionController extends Controller
         ->join('users as m','m.id','p.merchant_id')
         ->join('tracking_statuses as trs','p.status_id','trs.id')
         ->where('p.driver_id',$user->id)
+        ->whereIn('p.status_id',[9,19])
         ->whereNotExists(function ($sub) {
             $sub->select(DB::raw(1))
                 ->from('payment_packages as pp')
@@ -276,12 +277,15 @@ class TransactionController extends Controller
                 ->where('dp.is_deleted', false);
         })
 
-        ->selectRaw('p.driver_id,p.returned_uid,p.payer,p.extra_charge,p.cod,p.price,p.pickup_notes as notes,p.merchant_total,p.receiver_address,p.qr_code,p.status_id,trs.name as status_code,m.username as merchant_name,m.phone as merchant_phone,p.receiver_name,p.receiver_phone,p.delivery_fee,p.taxi_fee,p.remarks,p.id as package_id,p.product_type,p.driver_total,p.billed_kg,p.failed_datetime,p.delivered_datetime,p.arrive_warehouse_datetime,p.returned_datetime');
+        ->selectRaw('p.driver_id,p.returned_uid,p.payer,p.extra_charge,p.cod,p.price,p.pickup_notes as notes,p.merchant_total,p.receiver_address,p.qr_code,p.status_id,trs.name as status_code,m.username as merchant_name,m.phone as merchant_phone,p.receiver_name,p.receiver_phone,p.delivery_fee,p.taxi_fee,p.remarks,p.id as package_id,p.product_type,p.driver_total,p.billed_kg,p.failed_datetime,p.delivered_datetime');
         // ->get();
         $callback = function ($p) use($lang){
             if($lang == 'km'){
                 $p->status_code = GeneralSettingService::$statusCodeTrans[$p->status_id];
             }
+            $date = $p->status_id == 9 ? $p->delivered_datetime : $p->failed_datetime;
+            $p->date = Helper::formatCustomDateTime($date,'d M,Y');
+            $p->time = Helper::formatCustomDateTime($date,'h:i A');
             return $p;
         };
         return ApiResponse::PaginationV1($qP,$req,'',[],200,$callback);

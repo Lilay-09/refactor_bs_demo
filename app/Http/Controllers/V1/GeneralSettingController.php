@@ -3,8 +3,12 @@
 namespace App\Http\Controllers\V1;
 
 use ApiResponse;
+use App\Enums\ImageDirectory;
 use App\Http\Controllers\Controller;
 use App\Models\DeliveryPackage;
+use App\Models\Order;
+use App\Models\OrderImage;
+use App\Models\Package;
 use App\Models\StockLocation;
 use App\Models\Tax;
 use App\Models\User;
@@ -14,6 +18,7 @@ use App\Services\GeneralSettingService;
 use App\Services\UserService;
 use Helper;
 use Illuminate\Http\Request;
+use Log;
 
 class GeneralSettingController extends Controller
 {
@@ -45,6 +50,7 @@ class GeneralSettingController extends Controller
 
     public function getOptionsDailyActiveMerchant(Request $req){
         $user = UserService::getAuthUser();
+        // Log::info($req->all());
         return ApiResponse::JsonResult($this->gs::optionsDailyActiveMerchant($user,$req->startDate,$req->endDate));
     }
 
@@ -180,6 +186,14 @@ class GeneralSettingController extends Controller
         return ApiResponse::JsonResult($obj);
     }
 
+    public function getOptionsFilterUser(){
+        $obj = [
+            'roles' => $this->gs::optionsRole(),
+            'branches' => $this->gs::optionsBranch()
+        ];
+        return ApiResponse::JsonResult($obj);
+    }
+
     public function getMerchantFilterOptions(){
         $obj = [
             'statuses' => $this->gs::optionsUserStatus(),
@@ -290,7 +304,7 @@ class GeneralSettingController extends Controller
         $user = UserService::getAuthUser();
         $obj = [
             'statuses' => $this->gs::optionsTrackingStatus($user,[20],[],'pick',null,$req->lang),
-            'drivers' => $this->gs::optionsDriver($user)
+            'drivers' => $this->gs::optionsDriver($user,null,$req->warehouse_id)
         ];
         return ApiResponse::JsonResult($obj,'get form set order status');
     }
@@ -397,12 +411,50 @@ class GeneralSettingController extends Controller
         ]);
     }
 
+    public function getFormLinkImage(Request $req){
+        $user = UserService::getAuthUser();
+        $orderId = $req->orderId;
+        $obj = (object)[
+            'packages' => Package::where('is_deleted',false)
+                ->where('order_id',$orderId)
+                ->select(['id','qr_code'])
+                ->where('company_id',$user->company_id)
+                ->orderByDesc('id')
+                ->get(),
+            'images' => OrderImage::where('is_deleted',0)
+                ->where('order_id',$orderId)
+                ->where('company_id',$user->company_id)
+                ->select(['id','photo_file_name','created_at','package_id'])
+                ->orderByDesc('id')
+                ->get()->each(function($q){
+                    $q->is_link = $q->package_id ? true : false;
+                    $q->image = Helper::getImageUrl($q->photo_file_name,auth()->user()->company_id,ImageDirectory::ORDER_IMAGE->value,Helper::dateYMD($q->created_at));
+                })
+        ];
+        return ApiResponse::JsonResult($obj);
+    }
+
     public function getFormReceive(){
         $user = auth()->user();
         return ApiResponse::JsonResult([
             'warehouses' => $this->gs::optionsWarehouse($user),
             'statuses' => $this->gs::optionsTransferStatus()
         ]);
+    }
+
+    public function getOptionsPackageById(Request $req){
+        $pkg = Package::where('is_deleted',false)
+        ->with(['merchant:id,username'])
+        ->select([
+            'id','qr_code','driver_id','receiver_address','receiver_phone','cod','merchant_id',
+            'price','remarks','driver_total as total','zone_name','zone_code','delivery_type',
+            'other_fee','delivery_fee','payer','additional_fee','taxi_fee','driver_total as total'
+        ])
+        ->find($req->packageId);
+        $pkg->merchant_name = $pkg->merchant->username;
+        $pkg->fees = $pkg->other_fee + $pkg->delivery_fee + $pkg->additional_fee;
+        $pkg->makeHidden('merchant');
+        return ApiResponse::JsonResult($pkg);
     }
 
     public function getOptionsPackage(Request $req){
@@ -540,6 +592,10 @@ class GeneralSettingController extends Controller
         $user = UserService::getAuthUser();
         return ApiResponse::JsonResult($this->gs::optionsDriver($user,$req->vehicle_type));
     }
+    public function getOptionsDriverByWarehouse(Request $req){
+        $user = UserService::getAuthUser();
+        return ApiResponse::JsonResult($this->gs::optionsDriver($user,$req->vehicle_type,$req->warehouseId));
+    }
 
     public function getOptionsCurrencyPair(){
         return ApiResponse::JsonResult($this->gs::optionCurrencyPair());
@@ -557,7 +613,7 @@ class GeneralSettingController extends Controller
             'delivery_types' => $this->gs::optionsDeliveryType(),
             'payment_statuses' => $this->gs::paymentStatus(),
             'branches' => $this->gs::optionsBranch(),
-            'statuses' => $this->gs::optionsTrackingStatus($user,[],[9,11,19],'delivery',null,$req->lang)
+            'statuses' => $this->gs::optionsTrackingStatus($user,[],[9,11,19,23],'delivery',null,$req->lang)
         ];
         return ApiResponse::JsonResult($obj);
     }

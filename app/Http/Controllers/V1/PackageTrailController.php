@@ -161,11 +161,11 @@ class PackageTrailController extends Controller
         ->where('hidden', 0)
         ->orderBy('created_at', 'desc') // Ensure most recent images are fetched
         ->take(2) // Limit to 2 images
-        ->selectRaw('file_name, DATE(created_at) as date') // Correct usage of DATE()
+        ->selectRaw('file_name,file_dir, DATE(created_at) as date') // Correct usage of DATE()
         ->get();
         // ->toArray();
         // $imageUrls = array_map(fn($img) => Helper::getImageUrl($img, $user->company_id, 'submit_package'), $images);
-        $imageUrls = $images->map(fn($img) => Helper::getImageUrl($img->file_name, $user->company_id, 'submit_package',$img->date))
+        $imageUrls = $images->map(fn($img) => Helper::getImageUrl($img->file_name, $user->company_id,$img->file_dir,$img->date))
                     ->toArray();
         return ApiResponse::JsonResult($imageUrls);
     }
@@ -266,9 +266,9 @@ class PackageTrailController extends Controller
         ]));
         $package = Package::where('company_id',$user->company_id)->where('is_deleted',0)->where('outstanding',0)->find($id);
         if(!$package) return ApiResponse::NotFound(trans('messages.not_found',['info' => 'Package','khInfo' => 'កញ្ចប់​']));
-        if(!in_array($package->status_id,[
+        if(!in_array($package->status_id,
             TrackingStatus::returnable()
-        ])) return ApiResponse::ValidateFail(__('messages.info',[
+        )) return ApiResponse::ValidateFail(__('messages.info',[
             'info' => 'Only failed package or at warehouse can be returned'
         ]));
         $statusId = TrackingStatus::RETURNING;
@@ -279,7 +279,7 @@ class PackageTrailController extends Controller
         $package->update([
             'returned_uid' => $driverId,
             'status_id' => $statusId, // returned
-            // 'returned_datetime' => now(),
+            'assigned_return_at' => now(),
             'update_uid' => $user->id,
         ]);
         Helper::clearCacheByTags($this->cacheTags);
@@ -299,10 +299,10 @@ class PackageTrailController extends Controller
             'info' => 'Please ensure package is returning before setting drop point',
             'khInfo' => 'សូមបញ្ជាក់កញ្ចប់ត្រូវបានដាក់កំពុងត្រលប់​មុនពេលកំណត់ចំណុចទម្លាក់'
         ]));
-        $statusId = 11;
-        if($package->status_id == 19){
-            $statusId = 19;
-        }
+        // $statusId = 11;
+        // if($package->status_id == 19){
+        //     $statusId = 19;
+        // }
         $package->update([
             'returned_uid' => $driverId,
             'status_id' => TrackingStatus::RETURNED->value, // returned
@@ -409,6 +409,13 @@ class PackageTrailController extends Controller
         $id = $req->id;
         $driver_id = $req->driver_id;
         $notes = $req->notes;
+
+
+        $package = Package::where('company_id',$user->company_id)->where('is_deleted',0)
+        ->where('outstanding',0)
+        ->with('merchant:id,username,phone')
+        // ->select(['id','status_id','merchant_id','driver_id','assign_uid','assign_driver_datetime','receiver_phone','order_id'])
+        ->find($id);
         $validDriver = GeneralSettingService::getDriverById($driver_id);
         if(!$validDriver) return ApiResponse::NotFound(__('messages.not_found',['info' => 'Driver']));
         if($validDriver->lock) {
@@ -417,12 +424,6 @@ class PackageTrailController extends Controller
                 'khInfo' => 'អ្នកដឹកជញ្ជូនត្រូវបានឈប់ដំណើរការ'
             ]));
         }
-
-        $package = Package::where('company_id',$user->company_id)->where('is_deleted',0)
-        ->where('outstanding',0)
-        ->with('merchant:id,username,phone')
-        // ->select(['id','status_id','merchant_id','driver_id','assign_uid','assign_driver_datetime','receiver_phone','order_id'])
-        ->find($id);
         if(!$package) {
             return ApiResponse::NotFound(__('messages.not_found',['info' => 'Package','khInfo' => 'កញ្ចប់']));
         }
@@ -537,7 +538,8 @@ class PackageTrailController extends Controller
                 ])//'You have been assigned to deliver the package('.$package->qr_code.').'
             ]);
             // $notif->sendNotificationByTopic($notifReq,$user);
-            SendNotificationJob::dispatch($notifReq, $user);
+            $queueFCMName = config('queue_job_names.'.config('app.env').'.notification');
+            SendNotificationJob::dispatch($notifReq, $user)->onQueue($queueFCMName);
             Helper::clearCacheByTags($this->cacheTags);
             DB::commit();
             return ApiResponse::JsonResult(null,__('messages.assigned',['info' => '']));

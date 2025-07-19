@@ -397,11 +397,6 @@ class TransactionService
                 }
             }
 
-
-            $fkField = [
-                    $type.'_payment_id' => $paymentId
-                ];
-            Package::whereIn('id',$packageIds)->update($fkField);
             $paymentPackageArr = collect($packageIds)->map(fn($id) => [
                 'package_id' => $id,
                 'payment_id' => $paymentId,
@@ -668,7 +663,6 @@ class TransactionService
 
         // Combine to one array of package IDs that are paid or disbursed
         $paidOrDisbursedPackageIds = array_unique(array_merge($paidPackageIds, $disbursedPackageIds));
-
 
         foreach($packageIds as $index=>$id){
             $package = $packages->get($id);
@@ -1627,11 +1621,7 @@ class TransactionService
                     ]);
                 }
             }
-            // Package::whereIn('id',$packageIds)->update([
-            //     $type.'_disbursement_id' => $disbursementId
-            // ]);
 
-            // DisbursementPackage::insert($packageIds);
             $disbursementPackagesArr = collect($packageIds)->map(fn($id) => [
                 'package_id' => $id,
                 'disbursement_id' => $disbursementId,

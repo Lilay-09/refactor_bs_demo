@@ -13,6 +13,7 @@ use App\Http\Controllers\Mobile\Merchant\V1\HomeController;
 use App\Http\Controllers\Mobile\V1\GeneralSettingController;
 use App\Http\Controllers\Mobile\V1\ReportController;
 use App\Http\Controllers\Mobile\V1\SpecialOfferController;
+use App\Http\Controllers\V1\CommentController;
 use Illuminate\Support\Facades\Route;
 
 //BEGIN::Driver
@@ -28,6 +29,11 @@ Route::prefix('driver/v1/{lang}/auth')->middleware('localize')->group(function()
 });
 
 Route::middleware(['jwtDriver','localize'])->prefix('driver/v1/{lang}')->group(function(){
+    Route::prefix('comment')->group(function(){
+        Route::post('package',[CommentController::class,'addComment']);
+        Route::get('package/{packageId}',[CommentController::class,'getPackageComments']);
+    });
+
     Route::post('notification/subscribe',[AuthController::class,'subscribeTopics']);
     Route::post('notification/unsubscribe',[AuthController::class,'unsubscribeTopics']);
     Route::get('termConditions',[HomeScreenController::class,'getTermConditions']);
@@ -53,12 +59,14 @@ Route::middleware(['jwtDriver','localize'])->prefix('driver/v1/{lang}')->group(f
         Route::get('availableOrders',[HomeScreenController::class,'getAvailableOrders']);
         Route::get('accepted/pickup',[HomeScreenController::class,'getAcceptedPickup']);
         Route::get('accepted/pickup/{order_id}',[HomeScreenController::class,'getOneAcceptedPickup']);
+        Route::post('accepted/pickup/{order_id}/merchant/{merchantId}',[HomeScreenController::class,'editMerchantShopLocation']);
+        Route::get('accepted/pickup/{order_id}/merchant/{merchantId}',[HomeScreenController::class,'getMerchantShopLocation']);
         Route::get('accepted/delivery',[HomeScreenController::class,'getDelivery']);
         Route::get('accepted/deliveries/packages',[HomeScreenController::class,'getDeliveriesPackages']);
         Route::get('accepted/delivery/{trip_id}/package',[HomeScreenController::class,'getDeliveryItems']);
         Route::put('accepted/delivery/package/{id}/self-notes',[HomeScreenController::class,'editSelfNotes']);
         Route::put('accepted/delivery/package/sort',[HomeScreenController::class,'sortPackages']);
-        Route::put('accepted/delivery/{order_id}/package/{package_ref}/contact',[HomeScreenController::class,'markPackageContact']);
+        Route::put('accepted/delivery/package/{package_ref}/contact',[HomeScreenController::class,'markPackageContact']);
         Route::post('accepted/pickup/{order_id}',[HomeScreenController::class,'updateAcceptedOrder']);
         Route::post('acceptOrder/{order_id}',[HomeScreenController::class,'acceptOrder']);
         Route::get('option/status',[HomeScreenController::class,'getOptionsStatus']);
@@ -94,8 +102,6 @@ Route::middleware(['jwtDriver','localize'])->prefix('driver/v1/{lang}')->group(f
 
 
 //BEGIN::Merchant
-
-
 Route::prefix('merchant/v1/{lang}')->middleware('localize')->group(function(){
     Route::prefix('auth')->group(function(){
         Route::post('login',[AuthMerchantController::class,'login']);

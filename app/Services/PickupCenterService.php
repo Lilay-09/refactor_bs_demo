@@ -21,7 +21,7 @@ interface PickupCenterService
     public static function getDriverTotal($cod,$payer,$price,$deliveryFee,$additional_fee,$extra_charge,$taxi=0);
 
     public static function getTotal($type,$cod,$payer,$price,$deliveryFee,$additional_fee,$extra_charge,$taxi=0);
-
+    public function replaceOrderImage(object $user,Request $req):object;
 
     public static function getFees($payer,$deliveryFee,$additional_fee,$extra_charge,$pair='receiver');
 }

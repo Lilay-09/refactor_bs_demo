@@ -20,6 +20,7 @@ class UserShop extends Model
         'loc_lat',
         'loc_lng',
         'phone',
+        'image',
         'email',
         'disclaimer',
         'country_id',

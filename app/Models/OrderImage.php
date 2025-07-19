@@ -14,6 +14,8 @@ class OrderImage extends Model
         'photo_file_name',
         'original_name',
         'order_id',
+        'package_id',
+        'user_type', // Added user_type to track who uploaded the image
         'size',
         'create_uid',
         'update_uid',
@@ -23,4 +25,9 @@ class OrderImage extends Model
         'company_id',
         'branch_id',
     ];
+
+    public function package()
+    {
+        return $this->belongsTo(Package::class, 'package_id', 'id');
+    }
 }

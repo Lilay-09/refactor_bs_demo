@@ -50,7 +50,7 @@ class CloudMessagingService
 
     private function sendNotifValidation(Request $req,$type){
         return validator($req->all(),[
-            $type => 'required|string',
+            $type => 'required',
             'title' => 'required|string',
             'body' => 'nullable|string'
         ]);
@@ -200,58 +200,41 @@ class CloudMessagingService
         return DataResponse::JsonResult(null,false,'unsubscribed');
     }
 
-    private function sendNotification($target,$targetValue,$title,$body,$data=[]){
-        $message = CloudMessage::withTarget($target, $targetValue)
-            ->withNotification([
-                'title' => $title,
-                'body' => $body,
-            ]);
-            // if(isset($data)) $message->withData($data);
-            if (isset($data)) {
-                $message = $message->withData($data);
-            }
+    private function sendNotification($target, $targetValue,Request $notificationReq, $data = [])
+    {
         try {
-            // Log the message data for debugging purposes (optional)
+            // Normalize targetValue to array if needed
+            $targetValues = is_array($targetValue) ? $targetValue : [$targetValue];
+            // Build messages
+            $messages = [];
+            // Log::info('Sending messages: ' . json_encode($targetValues));
+            foreach ($targetValues as $value) {
+                $message = CloudMessage::withTarget($target, $value)
+                    ->withNotification($notificationReq->all());
 
-            // Ensure the message is sent only once
-            $response = $this->messaging->send($message);
+                if (!empty($data)) {
+                    $message = $message->withData($data);
+                }
+                $messages[] = $message;
+            }
 
-            // Handle success
+
+            // Send: if multiple, use sendAll
+            count($messages) > 1
+                ? $this->messaging->sendAll($messages)
+                : $this->messaging->send($messages[0]);
+
             return DataResponse::JsonResult([
                 'action' => 'Sent',
-                'response' => $response,  // You can log or return the response for debugging purposes
+                // 'response' => $response,
             ]);
-        } catch (InvalidMessage $e) {
-            // Handle specific invalid message errors
-            return DataResponse::error('Invalid message');
-        } catch (Exception $e) {
-            // Catch all other exceptions
-            return DataResponse::error('Failed to send notification');
-        }
-        // isset($data) ? CloudMessage::withTarget($target, $targetValue)
-        //     ->withNotification([
-        //         'title' => $title,
-        //         'body' => $body,
-        //     ])->withData($data) :
-        // $message =  CloudMessage::withTarget($target, $targetValue)
-        //     ->withNotification([
-        //         'title' => $title,
-        //         'body' => $body,
-        //     ]);
-        // try {
-        //     // Send the message
-        //     $this->messaging->send($message);
-        //     // Handle success
-        //     return DataResponse::JsonResult([
-        //         'action'=> 'Sent',
-        //     ]);
-        // } catch (InvalidMessage $e) {
 
-        //     return DataResponse::error('Invalid message');
-        // } catch (Exception $e) {
-        //     // Handle other exceptions
-        //     return DataResponse::error('Failed to send notification');
-        // }
+        } catch (InvalidMessage $e) {
+            return DataResponse::error('Invalid message: ' . $e->getMessage());
+        } catch (Exception $e) {
+            Log::error($e->getMessage());
+            return DataResponse::error('Failed to send notification: ' . $e->getMessage());
+        }
     }
 
     private function saveNotification($targetUid,$type,$title,$body,$user,$status='sent'): void{
@@ -287,13 +270,13 @@ class CloudMessagingService
         if($targetUid){
             $this->saveNotification($targetUid,$type,$title,$body,$authUser);
         }
-        return $this->sendNotification('topic',$req->topic,$req->title,$req->body,$req->data);
+        return $this->sendNotification('topic',$req->topic,$req);
     }
 
     public function sendNotificationByToken(Request $req){
         $validate = $this->sendNotifValidation($req,'token');
         if($validate->fails()) return DataResponse::ValidateFail($validate->errors()->first());
-        return $this->sendNotification('token',$req->token,$req->title,$req->body);
+        return $this->sendNotification('token',$req->token,$req);
     }
 
     private function getUserDevice(Request $req)

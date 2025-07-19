@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\V1;
 
 use ApiResponse;
+use App\Enums\ImageDirectory;
 use App\Http\Controllers\Controller;
 use App\Models\Order;
 use App\Models\OrderImage;
@@ -51,7 +52,6 @@ class PickUpCenterController extends Controller
             'deleted_uid' => $user->id,
             'deleted_datetime' => now()
         ]);
-
         return ApiResponse::JsonResult(null,__('messages.deleted',['info' => 'Order']));
     }
 
@@ -155,6 +155,7 @@ class PickUpCenterController extends Controller
         $driverId = $req->driver_id;
         $merchantId = $req->merchant_id;
         $warehouseId = $req->warehouse_id;
+        $branchId = $req->branch_id;
         $query = Order::query()->with(['merchant','tracking_status','driver','createdBy'])->where('is_deleted',0)
             ->whereIn('status_id',[1,2,3,4,21])
             ->where('company_id',$user->company_id)
@@ -172,6 +173,9 @@ class PickUpCenterController extends Controller
         }
         if($driverId){
             $query->where('driver_id',$driverId);
+        }
+        if($branchId){
+            $query->where('branch_id',$branchId);
         }
         if($merchantId){
             $query->where('merchant_id',$merchantId);
@@ -344,6 +348,7 @@ class PickUpCenterController extends Controller
                 OrderImage::create([
                     'order_id' => $orderId,
                     'photo_file_name' => $img->filename,
+                    'user_type' => $user->account_type,
                     'create_uid' => $user->id,
                     'update_uid' => $user->id,
                     'company_id' => $companyId,
@@ -364,13 +369,183 @@ class PickUpCenterController extends Controller
         }
     }
 
+    public function linkImageToPackage(Request $req)
+    {
+        $user = UserService::getAuthUser();
+        $orderId = $req->order_id;
+        $packageId = $req->package_id;
+
+        // Validate package
+        $package = Package::where('id', $packageId)
+            ->where('order_id', $orderId)
+            ->where('company_id', $user->company_id)
+            ->first();
+
+        if (!$package) {
+            return ApiResponse::ValidateFail(__('messages.error', [
+                'info' => 'Invalid package identity',
+                'khInfo' => 'អត្តសញ្ញាណកញ្ចប់មិនត្រឹមត្រូវ'
+            ]));
+        }
+
+        // If linking by existing image ID
+        if ($req->filled('image_id')) {
+            $imageId = $req->image_id;
+
+            $orderImage = OrderImage::where('id', $imageId)
+                ->where('order_id', $orderId)
+                ->first();
+
+            if (!$orderImage) {
+                return ApiResponse::ValidateFail(__('messages.error', [
+                    'info' => 'Invalid image identity',
+                    'khInfo' => 'អត្តសញ្ញាណរូបភាពមិនត្រឹមត្រូវ'
+                ]));
+            }
+
+            $package->update([
+                'image_file_name' => $orderImage->photo_file_name,
+                'image_date' => now(),
+                'update_uid' => $user->id
+            ]);
+
+            $orderImage->update([
+                'package_id' => $packageId,
+                'update_uid' => $user->id
+            ]);
+
+        } elseif ($req->filled('image')) {
+            $image = $req->image;
+
+            $validImg = Helper::validTotalImageSize([$image]);
+            if ($validImg->error) {
+                return ApiResponse::flex($validImg);
+            }
+
+            $imageDate = date('Y-m-d');
+            $saved = Helper::saveImageFileOrBase64($image, $user->company_id, ImageDirectory::ORDER_IMAGE->value, $imageDate);
+
+            if (!$saved->filename) {
+                return ApiResponse::ValidateFail(__('messages.error', [
+                    'info' => 'Fail to save image',
+                    'khInfo' => 'រកមិនឃើញរូបភាព'
+                ]));
+            }
+
+            $orderImage = OrderImage::create([
+                'order_id' => $orderId,
+                'package_id' => $packageId,
+                'photo_file_name' => $saved->filename,
+                'user_type' => $user->account_type,
+                'create_uid' => $user->id,
+                'update_uid' => $user->id,
+                'company_id' => $user->company_id,
+                'branch_id' => $user->branch_id,
+            ]);
+
+            $package->update([
+                'photo_id' => $orderImage->id,
+                'image_date' => now(),
+            ]);
+        }
+
+        return ApiResponse::JsonResult(null, __('messages.updated', [
+            'info' => 'Image has linked to package',
+            'khInfo' => 'រូបភាពត្រូវបានភ្ជាប់ទៅកញ្ចប់'
+        ]));
+    }
+
+    public function replaceOrderImage(Request $req){
+        $user = UserService::getAuthUser();
+        $updateImg = $this->pickupCenterService->replaceOrderImage($user,$req);
+        if($updateImg->error) return ApiResponse::flex($updateImg);
+        return ApiResponse::JsonResult(null,__('messages.updated',[
+            'info' => 'Image has replaced',
+            'khInfo' => 'រូបភាពត្រូវបានជំនួស'
+        ]));
+    }
+
+
+    // public function linkImageToPackage(Request $req){
+    //     $user = UserService::getAuthUser();
+    //     $orderId = $req->order_id;
+    //     $packageId = $req->package_id;
+    //     $imageId = $req->image_id;
+    //     $image = $req->image;
+    //     if($imageId){
+    //         $orderImage = OrderImage::where('id',$imageId)->where('order_id',$orderId)->first();
+    //         if(!$orderImage) return ApiResponse::ValidateFail(__('messages.error',[
+    //             'info' => 'Invalid image identity',
+    //             'khInfo' => 'អត្តសញ្ញាណរូបភាពមិនត្រឹមត្រូវ'
+    //         ]));
+    //         $package = Package::where('id',$packageId)->where('order_id',$orderId)->where('company_id',$user->company_id)->first();
+    //         if(!$package) return ApiResponse::ValidateFail(__('messages.error',[
+    //             'info' => 'Invalid package identity',
+    //             'khInfo' => 'អត្តសញ្ញាណកញ្ចប់មិនត្រឹមត្រូវ'
+    //         ]));
+    //         $package->update([
+    //             'image_file_name' => $orderImage->photo_file_name,
+    //             'image_date' => now(),
+    //             'package_id' => $packageId,
+    //             'update_uid' => $user->id
+    //         ]);
+    //         $orderImage->update([
+    //             'package_id' => $packageId,
+    //             'update_uid' => $user->id
+    //         ]);
+    //     }else if($image){
+    //         $validImg = Helper::validTotalImageSize([$image]);
+    //         if($validImg->error) {
+    //             return ApiResponse::flex($validImg);
+    //         }
+    //         $imageDate = date('Y-m-d');
+    //         $img = Helper::saveImageFileOrBase64($image,$user->company_id,ImageDirectory::ORDER_IMAGE->value,$imageDate);
+    //         if(!$img->filename) return ApiResponse::ValidateFail(__('messages.error',[
+    //             'info' => 'Fail to save image',
+    //             'khInfo' => 'រកមិនឃើញរូបភាព'
+    //         ]));
+    //         $orderImage = OrderImage::create([
+    //             'order_id' => $orderId,
+    //             'package_id' => $packageId,
+    //             'photo_file_name' => $img->filename,
+    //             'user_type' => $user->account_type,
+    //             'create_uid' => $user->id,
+    //             'update_uid' => $user->id,
+    //             'company_id' => $user->company_id,
+    //             'branch_id' => $user->branch_id,
+    //         ]);
+    //         $package = Package::where('id',$packageId)->where('order_id',$orderId)->where('company_id',$user->company_id)->first();
+    //         if(!$package) return ApiResponse::ValidateFail(__('messages.error',[
+    //             'info' => 'Invalid package identity',
+    //             'khInfo' => 'អត្តសញ្ញាណកញ្ចប់មិនត្រឹមត្រូវ'
+    //         ]));
+    //         $package->update([
+    //             'photo_id' => $orderImage->id,
+    //             'image_date' => now(),
+    //         ]);
+    //     }
+    //     return ApiResponse::JsonResult(null,__('messages.updated',[
+    //         'info' => 'Image has linked to package',
+    //         'khInfo' => 'រូបភាពត្រូវបានភ្ជាប់ទៅកញ្ចប់'
+    //     ]));
+    // }
+
     public function getOrderImages(Request $req){
         $orderId = $req->order_id;
         $user = UserService::getAuthUser();
-        $orderImages = OrderImage::where('order_id',$orderId)->selectRaw('photo_file_name,created_at')->get();
+        $orderImages = OrderImage::where('order_id',$orderId)
+        ->with(['package:id,qr_code,receiver_phone,zone_name'])
+        ->selectRaw('photo_file_name,created_at,package_id,id')
+        ->orderByDesc('id')
+        ->get();
         foreach($orderImages as $img){
             $imageAt = Helper::dateYMD($img->created_at);
+            $img->is_link = $img->package_id ? true : false;
+            $img->qr_code = $img->package?->qr_code;
+            $img->receiver_phone = $img->package?->receiver_phone;
+            $img->zone_name = $img->package?->zone_name;
             $img->image_url = Helper::getImageUrl($img->photo_file_name,$user->company_id,'order_image',$imageAt);
+            $img->makeHidden(['package']);
         }
         return ApiResponse::JsonResult($orderImages);
     }
@@ -390,7 +565,7 @@ class PickUpCenterController extends Controller
         $user = UserService::getAuthUser();
         $orderId = $req->order_id;
         $qP = Package::query()->where('order_id',$orderId)->whereIn('status_id',[1,3,7])->with(['status'])->where('company_id',$user->company_id)
-                ->selectRaw('merchant_id,order_id,id,id as package_id,taxi_fee,delivery_type,qr_code,price,driver_id,product_type,dim_z,dim_x,dim_y,status_id,failure_notes,payer,cod,delivery_fee,receiver_address,zone_code,zone_name,receiver_name,receiver_phone,delivered_datetime,assign_driver_datetime,arrive_warehouse_datetime,driver_total,merchant_total,extra_charge,additional_fee,remarks,billed_kg,actual_kg,pickup_notes')
+                ->selectRaw('other_fee,merchant_id,order_id,id,id as package_id,taxi_fee,delivery_type,qr_code,price,driver_id,product_type,dim_z,dim_x,dim_y,status_id,failure_notes,payer,cod,delivery_fee,receiver_address,zone_code,zone_name,receiver_name,receiver_phone,delivered_datetime,assign_driver_datetime,arrive_warehouse_datetime,driver_total,merchant_total,extra_charge,additional_fee,remarks,billed_kg,actual_kg,pickup_notes')
                 ->orderByDesc('id')
         ->where('is_deleted',0);
         $count = $qP->count();

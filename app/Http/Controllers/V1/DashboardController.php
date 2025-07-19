@@ -12,6 +12,7 @@ use Carbon\Carbon;
 use DB;
 use Helper;
 use Illuminate\Http\Request;
+use Log;
 
 class DashboardController extends Controller
 {
@@ -22,6 +23,7 @@ class DashboardController extends Controller
     }
     public function getDashboardSummary(Request $req){
         $branchId = $req->branch_id;
+        Log::info($branchId);
         $obj = [
             'monthly' => $this->getMonthlyEarning($branchId),
             'top_rider' => $this->topRiders(5,$branchId),
@@ -38,10 +40,11 @@ class DashboardController extends Controller
 
         // $payments = Payment::where('is_deleted',0)
         // ->where('payment_datetime', '>=', Carbon::now()->subDays($this->days))->get();
-        $startDate = Carbon::now()->subDays($this->days)->startOfDay();
+        // $startDate = Carbon::now()->subDays($this->days)->startOfDay();
         $today = Carbon::today();
-
-        $results = User::selectRaw("
+        $results = User::where('branch_id',$branchId)
+        ->where('is_deleted',false)
+        ->selectRaw("
             SUM(CASE WHEN account_type = 'merchant' AND register_channel = 'mobile' THEN 1 ELSE 0 END) as register_count,
             SUM(CASE WHEN is_deleted = FALSE AND account_type = 'driver' AND lock = FALSE AND has_account = TRUE THEN 1 ELSE 0 END) as total_active_driver,
             SUM(CASE WHEN is_deleted = FALSE AND account_type = 'merchant' THEN 1 ELSE 0 END) as total_merchant
@@ -53,6 +56,7 @@ class DashboardController extends Controller
         $todayEarning = 0;
         $packages = Package::where('is_deleted',0)
         // ->where('outstanding',0)
+        ->where('branch_id',$branchId)
         ->select(['id','status_id','delivery_fee','extra_charge','failed_datetime','delivered_datetime'])
         ->where('updated_at', '>=', Carbon::now()->subDays($this->days))->get();
 
@@ -152,7 +156,9 @@ class DashboardController extends Controller
     }
 
     private function merchantsByCategory(int $branchId){
-        $packageCount = Package::where('is_deleted',0)->where('outstanding',0)
+        $packageCount = Package::where('is_deleted',0)
+        ->where('branch_id',$branchId)
+        ->where('outstanding',0)
         ->where('updated_at', '>=', Carbon::now()->subDays($this->days))
         ->selectRaw('
             SUM(CASE WHEN status_id = 5 THEN 1 ELSE 0 END) as at_warehouse_count,
@@ -169,6 +175,8 @@ class DashboardController extends Controller
 
     private function driverDailyCollection(int $branchId){
         $pkgPayments = DB::table('packages as p')
+            ->where('p.is_deleted',false)
+            ->where('p.branch_id',$branchId)
             ->join(DB::raw("(
                 SELECT
                     pp.package_id,
@@ -328,6 +336,7 @@ class DashboardController extends Controller
         ->where('p.outstanding',0)
         ->where('p.updated_at', '>=', Carbon::now()->subDays($this->days))
         ->whereIn('p.status_id',[9,19])
+        ->where('p.branch_id',$branchId)
         ->join('users as r', 'p.driver_id', '=', 'r.id')
         ->where('r.account_type','driver') // Updated column name
         ->select('r.id', 'r.username as driver_name', DB::raw('COUNT(p.id) as total_packages'))
@@ -379,6 +388,7 @@ class DashboardController extends Controller
         //     $query->whereNull('payments.id') // Include rows without matching payments
         //         ->orWhere('payments.approved', 0); // Include rows where payments.approved = 0
         // })
+        ->where('p.branch_id',$branchId)
         ->whereNotExists(function ($sub) {
             $sub->select(DB::raw(1))
                 ->from('payment_packages as pp')
@@ -399,11 +409,12 @@ class DashboardController extends Controller
         return $balanceDues;
     }
 
-    private function merchantPayable(int $branchId56){
+    private function merchantPayable(int $branchId){
         $totalAmount = 0;
         $dailyCollection = Package::fromRaw('packages as p')
         ->where('p.is_deleted', 0)
         ->whereIn('p.status_id', [9, 19])
+        ->where('p.branch_id',$branchId)
         ->where('p.updated_at', '>=', Carbon::now()->subDays($this->days))
         ->join('tracking_statuses as ts', 'ts.id', '=', 'p.status_id')
         ->join('users as m', 'm.id', '=', 'p.merchant_id')
@@ -512,12 +523,12 @@ class DashboardController extends Controller
         ];
     }
 
-    private function barChart()
+    private function barChart(int $branchId)
     {
-
         $packagesData = Package::where('is_deleted', 0)
             ->where('is_deleted', 0)
             ->whereYear('created_at', now()->year)
+            ->where('branch_id',$branchId)
             ->selectRaw('EXTRACT(MONTH FROM created_at) AS month, COUNT(*) AS count, COUNT(DISTINCT merchant_id) AS merchant_count')
             ->groupByRaw('EXTRACT(MONTH FROM created_at)')
             ->orderByRaw('month')

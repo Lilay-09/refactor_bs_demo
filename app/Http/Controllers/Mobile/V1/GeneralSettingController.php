@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Mobile\V1;
 
 use ApiResponse;
+use App\Enums\ImageDirectory;
 use App\Enums\TrackingStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\V1\FleetManagementController;
@@ -89,18 +90,12 @@ class GeneralSettingController extends Controller
         ->where('hidden', 0)
         ->orderBy('created_at', 'desc') // Ensure most recent images are fetched
         ->take(2) // Limit to 2 images
-        ->selectRaw("file_name, TO_CHAR(created_at, 'YYYY-MM-DD') as date") // Correct usage of DATE()
+        ->selectRaw("file_name,file_dir, TO_CHAR(created_at, 'YYYY-MM-DD') as date") // Correct usage of DATE()
         ->get();
         // ->toArray();
         // $imageUrls = array_map(fn($img) => Helper::getImageUrl($img, $user->company_id, 'submit_package'), $images);
-        $imageUrls = $images->map(fn($img) => Helper::getImageUrl($img->file_name, $user->company_id, 'submit_package',$img->date))
+        $imageUrls = $images->map(fn($img) => Helper::getImageUrl($img->file_name, $user->company_id,$img->file_dir,$img->date))
                     ->toArray();
-        // $images = PackageAttachment::where('package_id', $id)
-        // ->take(2)  // Limit to the 2 most recent images
-        // ->where('hidden',0)
-        // ->pluck('file_name')
-        // ->toArray();
-        // $imageUrls = array_map(fn($img) => Helper::getImageUrl($img, $user->company_id, 'submit_package'), $images);
         return ApiResponse::JsonResult($imageUrls);
     }
 
@@ -128,8 +123,8 @@ class GeneralSettingController extends Controller
             ->first([
                 'id', 'qr_code', 'status_id', 'driver_id', 'merchant_id', 'is_contact',
                 'assign_driver_datetime', 'receiver_address', 'receiver_phone', 'receiver_name',
-                'product_type', 'cod', 'zone_name', 'zone_code', 'price', 'delivery_fee',
-                'driver_total as total', 'taxi_fee', 'additional_fee', 'extra_charge', 'payer'
+                'product_type', 'cod', 'zone_name', 'zone_code', 'price', 'delivery_fee','delivery_remarks',
+                'driver_total as total', 'taxi_fee', 'additional_fee', 'extra_charge', 'payer','assigned_return_at'
             ]);
 
         if (!$package) {
@@ -161,8 +156,9 @@ class GeneralSettingController extends Controller
 
         $info = null;
 
-        if (!$diffDriver && $isOnDelivery) {
-            $package->load(['status:id,name', 'merchant:id,username']);
+        if ((!$diffDriver && $isOnDelivery) || $isReturning) {
+            $package->load(['status:id,name', 'merchant:id,username,phone']);
+            $telegram = Helper::generateTelegramLink($package->merchant->phone);
             $info = [
                 'id' => $package->id,
                 'qr_code' => $package->qr_code,
@@ -170,6 +166,8 @@ class GeneralSettingController extends Controller
                 'receiver_phone' => $package->receiver_phone,
                 'receiver_name' => $package->receiver_name,
                 'assign_driver_datetime' => $package->assign_driver_datetime,
+                'return_date' => $package->assigned_return_at ? Helper::formatCustomDateTime($package->assigned_return_at,'d M,Y') : null,
+                'return_time' => $package->assigned_return_at ? Helper::formatCustomDateTime($package->assigned_return_at,'h:i A') : null,
                 'product_type' => $package->product_type,
                 'cod' => $package->cod ? 'Yes' : 'No',
                 'zone_name' => $package->zone_name,
@@ -181,9 +179,11 @@ class GeneralSettingController extends Controller
                 'additional_fee' => $package->additional_fee,
                 'extra_charge' => $package->extra_charge,
                 'payer' => $package->payer,
+                'delivery_remarks' => $package->delivery_remarks ?? null,
                 'merchant_name' => $package->merchant?->username,
                 'status_code' => $package->status?->name,
-                'fee' => PickupCenterService::getFees(
+                'telegram_links' => $telegram,
+                'fee' => PickupCenterServiceImpl::getFees(
                     $package->payer,
                     $package->delivery_fee,
                     $package->extra_charge,
@@ -279,25 +279,42 @@ class GeneralSettingController extends Controller
         $changeDriver = $req->change_driver;
         $markContact = $req->mark_contact ?? 0;
         $confirmDelivery = $req->confirm_delivery ?? 0;
+        $isReturn = $req->returned == 1 ? true : false;
+        $returnImg = $req->image ?? null;
         $cms = new CloudMessagingService();
-        $package = Package::where('qr_code',$item_ref)->where('is_deleted',0)
-        ->with('driver')->first();
-        if(!$package) $package = Package::where('is_deleted',0)->find($item_ref);
-        if(!$package) return ApiResponse::NotFound();
+        $package = Package::where('is_deleted', false)
+        ->with('driver')
+        ->when(is_int($item_ref), function ($query) use ($item_ref) {
+            return $query->where('id', $item_ref);
+        }, function ($query) use ($item_ref) {
+            return $query->where('qr_code', $item_ref);
+        })
+        ->first();
+        // return ApiResponse::NotFound($package, __('messages.info', [
+        //     'info' => 'Package not found',
+        //     'khInfo' => 'រកមិនឃើញកញ្ចប់'
+        // ]));
+
+        if(!$package) return ApiResponse::NotFound(__('messages.info',[
+            'info' => 'Package not found',
+            'khInfo' => 'រកមិនឃើញកញ្ចប់'
+        ]));
         if($package->outstanding == 1) return ApiResponse::ValidateFail(__('messages.info',[
             'info' => 'Please ensure that the package has marked as arrived before scan',
             'khInfo' => 'កញ្ចប់ត្រូវតែបញ្ចាក់ថាមកដល់ឃ្លាំងមុនចេញដឹក'
         ]));
-        if($package->status_id == 9) return ApiResponse::Duplicated(__('messages.arrived',[
-            'info' => 'Package'
+
+        if($package->status_id == TrackingStatus::DELIVERED->value) return ApiResponse::Duplicated(__('messages.info',[
+            'info' => 'Package is already delivered.',
+            'khInfo' => 'កញ្ចប់បានដឹករួចហើយ'
         ]));
 
-        if($package->status_id == 19) return ApiResponse::Duplicated(__('messages.info',[
+        if($package->status_id == TrackingStatus::FAILED_WITH_FEE->value) return ApiResponse::Duplicated(__('messages.info',[
             'info' => 'Package is already failed with fee.',
             'khInfo' => 'កញ្ចប់ធ្លាប់បរាជ័យគិតសេវា'
         ]));
 
-        if($package->status_id == 11)  return ApiResponse::Duplicated(__('messages.info',[
+        if($package->status_id == TrackingStatus::RETURNED->value)  return ApiResponse::Duplicated(__('messages.info',[
             'info' => 'Package has been returned.',
             'khInfo' => 'កញ្ចប់បានយកត្រឡប់ទៅហាងរួចហើយ'
         ]));
@@ -305,11 +322,20 @@ class GeneralSettingController extends Controller
         $driver = $package->driver;
         $updateArr = [];
         if($confirmDelivery){
-            if($package->status_id == 6) return ApiResponse::Duplicated(__('messages.info',[
-                'info' => 'Package is already on delivery'
+            if($package->status_id == TrackingStatus::RETURNED->value){
+                return ApiResponse::ValidateFail(__('messages.info',[
+                    'info' => 'Package is already returned',
+                    'khInfo' => 'កញ្ចប់បានយកត្រឡប់ទៅហាងរួចហើយ'
+                ]));
+            }
+
+            if($package->status_id == TrackingStatus::ON_DELIVERY->value) return ApiResponse::Duplicated(__('messages.info',[
+                'info' => 'Package is already on delivery',
+                'khInfo' => 'កញ្ចប់បានដឹករួចហើយ'
             ]));
             if($changeDriver) return ApiResponse::ValidateFail(__('messages.info',[
                 'info' => 'You cannot change the driver and confirm delivery the same time!',
+                'khInfo' => 'អ្នកមិនអាចផ្លាស់ប្តូរនៅពេលដែលអ្នកបញ្ជាក់ថាកញ្ចប់បានដឹកទេ!'
             ]));
             $updateArr['status_id'] = 6;
             $updateArr['driver_id'] = $user->id;
@@ -328,9 +354,10 @@ class GeneralSettingController extends Controller
             Helper::clearCacheByTags([
                 'package_trail'
             ]);
-        }else $confirmDelivery = ($package->status_id == 6);
+        } else $confirmDelivery = ($package->status_id == 6);
         if($markContact && !$confirmDelivery) return ApiResponse::ValidateFail(__('messages.info',[
-            'info' => 'You cannot mark contact on package which is not on delivery'
+            'info' => 'You cannot mark contact on package which is not on delivery',
+            'khInfo' => 'អ្នកមិនអាចបញ្ជាក់ថាមានទំនាក់ទំនងនៅលើកញ្ចប់ដែលមិនបានដឹកទេ'
         ])); else {
             $updateArr['is_contact'] = true;
             // $topics = GeneralSettingService::getGeneralTopics($user->company_id,'merchant',$package->merchant_id);
@@ -341,6 +368,23 @@ class GeneralSettingController extends Controller
             // ]);
 
             // $cms->sendNotificationByTopic($notifReq,$user);
+        }
+        if($isReturn){
+            if($package->status_id !== TrackingStatus::RETURNING->value) {
+                return ApiResponse::ValidateFail(__('messages.info',[
+                    'info' => 'Package is not on returning status',
+                    'khInfo' => 'កញ្ចប់មិននៅលើស្ថានភាពត្រឡប់ទេ'
+                ]));
+            }
+            $updateArr['status_id'] = TrackingStatus::RETURNED->value;
+            $updateArr['returned_datetime'] = now();
+            $updateArr['tracking_notes'] = $package->tracking_notes."|[$user->id]Driver ($user->username) scan returning (".Helper::getDateTime().")";
+            if($returnImg){
+                $maxSize = Helper::validTotalImageSize([$returnImg]);
+                if($maxSize->error) return ApiResponse::ValidateFail($maxSize->message);
+                $img = Helper::saveImageFileOrBase64($returnImg,$user->company_id,ImageDirectory::RETURNED_IMAGE->value,date('Y-m-d'));
+                $returnImg = $img->filename;
+            }
         }
 
         try{
@@ -374,17 +418,28 @@ class GeneralSettingController extends Controller
             }
             // if(empty($updateArr)) return ApiResponse::JsonResult(null,__('messages.updated'));
             DB::beginTransaction();
-            $trxSImpl = new TransferServiceImpl();
-            $rct = $trxSImpl->driverScanReceive($user,$package->id);
-            if($rct->error) return $rct;
+            if(!$isReturn){
+                $trxSImpl = new TransferServiceImpl();
+                $rct = $trxSImpl->driverScanReceive($user,$package->id);
+                if($rct->error) return $rct;
+                else{
+                    $client = new Client(config('app.cl_socket'));
+                    $client->send(json_encode([
+                        'topic' => 'ng_express',
+                        'type' => 'receive',
+                        'message' => $package->id
+                    ]));
+                    $client->close();
+                }
+            }
             $package->update($updateArr);
-            $client = new Client(config('app.cl_socket'));
-            $client->send(json_encode([
-                'topic' => 'arrizon',
-                'type' => 'receive',
-                'message' => $package->id
-            ]));
-            $client->close();
+            PackageAttachment::insert([
+                'package_id' => $package->id,
+                'file_dir' => $isReturn ? ImageDirectory::RETURNED_IMAGE->value:ImageDirectory::SUBMIT_PACKAGE->value,
+                'file_name' => $returnImg,
+            ]);
+
+
             // Log::info(PackageTransferDetail::where('package_id',$package->id)->get());
             DB::commit();
             return ApiResponse::JsonResult(null,__('messages.updated'));
@@ -392,6 +447,7 @@ class GeneralSettingController extends Controller
             DB::rollBack();
             Log::error($e->getMessage());
             Log::error($e->getTraceAsString());
+            Helper::deleteImageFile($returnImg,$user->company_id,ImageDirectory::ORDER_IMAGE->value,date('Y-m-d'));
             return ApiResponse::Error(__('messages.error'));
         }
 
