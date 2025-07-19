@@ -41,7 +41,11 @@ class HomeController extends Controller
         $user = UserService::getAuthUser('merchant');
         $pck = new PickupCenterServiceImpl();
         $details = $req->details ?? [];
-        $req->merge(['merchant_id' => $user->id]);
+        $req->merge([
+            'warehouse_id' => GeneralSettingService::getWarehouse($user)->id,
+            'branch_id' => $user->branch_id,
+            'merchant_id' => $user->id
+        ]);
         if($details){
             $details = Helper::convertJsonTextToJson($details);
             if($details->error) return ApiResponse::ValidateFail($details->message);
