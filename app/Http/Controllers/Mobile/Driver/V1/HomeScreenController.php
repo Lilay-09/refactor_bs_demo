@@ -356,12 +356,7 @@ class HomeScreenController extends Controller
         ->orderBy('p.driver_display_order', 'asc')
         ->orderBy('p.status_id', 'desc');
         if ($statusId) {
-            $qP->where(function($q) use($statusId){
-                $q->where('p.status_id', $statusId);
-                if($statusId != 6){
-                    $q->orWhere('status_id',6);
-                }
-            });
+            $qP->where('p.status_id', $statusId);
         }
         $totalOnDelivery = (clone $qP)->where('p.status_id', 6)->count();
         $select = [
