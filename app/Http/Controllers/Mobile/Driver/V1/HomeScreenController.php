@@ -355,10 +355,10 @@ class HomeScreenController extends Controller
         // ->join('tracking_statuses as ts', 'ts.id', 'p.status_id')
         ->orderBy('p.driver_display_order', 'asc')
         ->orderBy('p.status_id', 'desc');
+        $totalOnDelivery = (clone $qP)->where('p.status_id', 6)->count();
         if ($statusId) {
             $qP->where('p.status_id', $statusId);
         }
-        $totalOnDelivery = (clone $qP)->where('p.status_id', 6)->count();
         $select = [
             'p.driver_display_order','p.payer','p.receiver_address','p.extra_charge','p.id','p.delivered_datetime','p.failed_datetime',
             'p.assign_driver_datetime','p.merchant_id','p.qr_code','p.price','p.cod','p.receiver_name','p.receiver_phone','p.zone_code',
