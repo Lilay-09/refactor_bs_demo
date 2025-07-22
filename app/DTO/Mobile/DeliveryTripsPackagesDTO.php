@@ -11,7 +11,7 @@ class DeliveryTripsPackagesDTO{
         public readonly string $merchant_phone,
         public readonly int $status_id,
         public readonly float $total,
-        public readonly? float $total_khr,
+        public readonly ?float $total_khr,
         public readonly ?string $zone_name,
         public readonly ?string $zone_code,
         public readonly ?string $status,

@@ -356,8 +356,14 @@ class HomeScreenController extends Controller
         ->orderBy('p.driver_display_order', 'asc')
         ->orderBy('p.status_id', 'desc');
         if ($statusId) {
-            $qP->where('p.status_id', $statusId);
+            $qP->where(function($q) use($statusId){
+                $q->where('p.status_id', $statusId);
+                if($statusId != 6){
+                    $q->orWhere('status_id',6);
+                }
+            });
         }
+        $totalOnDelivery = (clone $qP)->where('p.status_id', 6)->count();
         $select = [
             'p.driver_display_order','p.payer','p.receiver_address','p.extra_charge','p.id','p.delivered_datetime','p.failed_datetime',
             'p.assign_driver_datetime','p.merchant_id','p.qr_code','p.price','p.cod','p.receiver_name','p.receiver_phone','p.zone_code',
@@ -374,8 +380,9 @@ class HomeScreenController extends Controller
             $q->exchange_rate = $xRate;
             return DeliveryTripsPackagesDTO::fromModel($q);
         };
-
-        return ApiResponse::PaginationV1($qP,$req,'',[],250,$callback,$select);
+        return ApiResponse::PaginationV1($qP,$req,'',[
+            'total_on_delivery' => $totalOnDelivery
+        ],250,$callback,$select);
     }
 
     public function editSelfNotes(Request $req){
