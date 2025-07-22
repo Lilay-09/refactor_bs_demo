@@ -423,13 +423,16 @@ class GeneralSettingController extends Controller
                 $rct = $trxSImpl->driverScanReceive($user,$package->id);
                 if($rct->error) return $rct;
                 else{
-                    $client = new Client(config('app.cl_socket'));
-                    $client->send(json_encode([
-                        'topic' => 'ng_express',
-                        'type' => 'receive',
-                        'message' => $package->id
-                    ]));
-                    $client->close();
+                    $hasSocket = config('app.cl_socket');
+                    if($hasSocket){
+                        $client = new Client($hasSocket);
+                        $client->send(json_encode([
+                            'topic' => 'ng_express',
+                            'type' => 'receive',
+                            'message' => $package->id
+                        ]));
+                        $client->close();
+                    }
                 }
             }
             $package->update($updateArr);
