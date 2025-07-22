@@ -425,13 +425,18 @@ class GeneralSettingController extends Controller
                 else{
                     $hasSocket = config('app.cl_socket');
                     if($hasSocket){
-                        $client = new Client($hasSocket);
-                        $client->send(json_encode([
-                            'topic' => 'ng_express',
-                            'type' => 'receive',
-                            'message' => $package->id
-                        ]));
-                        $client->close();
+                        try{
+                            $client = new Client($hasSocket);
+                            $client->send(json_encode([
+                                'topic' => 'ng_express',
+                                'type' => 'receive',
+                                'message' => $package->id
+                            ]));
+                            $client->close();
+                        }catch(Exception $e){
+                            Log::error($e->getMessage());
+                            Log::error($e->getTraceAsString());
+                        }
                     }
                 }
             }
