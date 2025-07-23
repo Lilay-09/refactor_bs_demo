@@ -192,7 +192,7 @@ class FleetManagementController extends Controller
         ->selectRaw('p.assign_driver_datetime,dp.has_swap,p.qr_code,p.price,p.cod,p.receiver_name,p.receiver_phone,p.zone_code,p.zone_name,ts.name as status_code,d.username as driver_name,d.phone as driver_phone,m.username as merchant_name,m.phone as merchant_phone,p.id as package_id,dp.delivery_id,p.zone_code,p.zone_name,p.delivery_fee as base_fee,p.driver_total,p.taxi_fee,p.product_type,p.status_id,p.payer,'.$caseHistory)
         // ->orderByRaw('(dp.status_id = ?) DESC', [6]);
         ->orderByRaw('(p.status_id = ?) DESC', [6]);
-        if ($search && str_starts_with($search, 'JPK')) {
+        if ($search && str_starts_with($search, 'NG')) {
             $qP->where('p.qr_code',$search);
         }
         // $packages = $qP->get();

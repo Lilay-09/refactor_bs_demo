@@ -723,18 +723,19 @@ class HomeScreenController extends Controller
             'hidden' => 1
         ]);
 
+        $attactmentImgs = [];
         if(isset($photos[0])) {
             foreach($photos as $p){
                 $dirName = ImageDirectory::SUBMIT_PACKAGE->value;
                 $today = date('Y-m-d');
                 $fileName = Helper::saveImageFileOrBase64($p,$user->company_id,$dirName,$today)->filename;
                 if($fileName){
-                    PackageAttachment::create([
+                    $attactmentImgs[] = [
                         'package_id' => $id,
                         'file_dir' => $dirName,
                         'submit_uid' => $user->id,
                         'file_name' => $fileName
-                    ]);
+                    ];
                 }
             }
         }
@@ -769,20 +770,29 @@ class HomeScreenController extends Controller
             $inputs['driver_total'] = $calucalteFee->driver_total;
         }
 
-        $package->update($inputs);
-        $dp = DeliveryPackage::where('package_id',$id)->where('driver_id',$user->id)
-        ->where('is_deleted',0)
-        ->where('has_swap',0)
-        ->orderByDesc('id')->where('delay_count',0)->first();
-        $dp->update([
-            'notes' => $inputs['tracking_notes'],
-            'status_id' => $status_id
-        ]);
-        GeneralSettingService::updateTripStatus($dp->delivery_id,$user);
-        return ApiResponse::JsonResult(null,__('messages.submitted',[
-            'info' => 'Package has',
-            'khInfo' => 'បានបញ្ចូន'
-        ]));
+        try{
+            DB::beginTransaction();
+            $package->update($inputs);
+            $dp = DeliveryPackage::where('package_id',$id)->where('driver_id',$user->id)
+            ->where('is_deleted',0)
+            ->where('has_swap',0)
+            ->orderByDesc('id')->where('delay_count',0)->first();
+            $dp->update([
+                'notes' => $inputs['tracking_notes'],
+                'status_id' => $status_id
+            ]);
+            GeneralSettingService::updateTripStatus($dp->delivery_id,$user);
+            // DB::commit();
+            return ApiResponse::JsonResult(null,__('messages.submitted',[
+                'info' => 'Package has',
+                'khInfo' => 'បានបញ្ចូន'
+            ]));
+        }catch(Exception $e){
+            DB::rollBack();
+            Log::error($e->getMessage());
+            return ApiResponse::Error('It will get back soon!');
+        }
+
     }
 
     public function cancelOrder(Request $req){

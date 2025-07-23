@@ -922,9 +922,17 @@ class GeneralSettingService
         $trip = Delivery::where('is_deleted',0)->where('company_id',$user->company_id)->find($id);
         if($trip){
             $queryDeliveryPackage = DeliveryPackage::where('delivery_id',$id)
+            ->whereHas('package',function($q) use($user){
+                $q->where('driver_id',$user->id)
+                ->whereIn('status_id',[6,9,10,19]);
+            })
+            ->whereIn('status_id',[6,9,10,19])
+            ->where('driver_id',$user->id)
+            ->with(['package:id,qr_code,is_deleted,status_id,driver_id'])
             ->where('has_swap',0)
             ->where('is_deleted',0)
-            ->where('delay_count',0);
+            ->where('delay_count',0)
+            ->orderByDesc('id');
             // ->where(function ($q){
             //     $q->where('is_deleted',0)->orWhere('delay_count',0);
             // });
@@ -935,6 +943,7 @@ class GeneralSettingService
             $stillOnDelivery = 0;
             $status_id = 16;
             $packages = $queryDeliveryPackage->get();
+            // Log::info('Count pkgs'.count($packages));
             foreach($packages as $pck){
                 if($pck->status_id == 9){
                     $deliveredCount += 1;

@@ -6,17 +6,13 @@ use ApiResponse;
 use App\Enums\ImageDirectory;
 use App\Enums\TrackingStatus;
 use App\Http\Controllers\Controller;
-use App\Http\Controllers\V1\FleetManagementController;
-use App\Http\Controllers\V1\PackageTrailController;
 use App\Models\Delivery;
 use App\Models\DeliveryPackage;
 use App\Models\Notification;
 use App\Models\Package;
 use App\Models\PackageAttachment;
-use App\Models\PackageTransferDetail;
 use App\Services\CloudMessagingService;
 use App\Services\GeneralSettingService;
-use App\Services\PickupCenterService;
 use App\Services\PickupCenterServiceImpl;
 use App\Services\TransferServiceImpl;
 use App\Services\UserService;
@@ -423,21 +419,13 @@ class GeneralSettingController extends Controller
                 $rct = $trxSImpl->driverScanReceive($user,$package->id);
                 if($rct->error) return $rct;
                 else{
-                    $hasSocket = config('app.cl_socket');
-                    if($hasSocket){
-                        try{
-                            $client = new Client($hasSocket);
-                            $client->send(json_encode([
-                                'topic' => 'ng_express',
-                                'type' => 'receive',
-                                'message' => $package->id
-                            ]));
-                            $client->close();
-                        }catch(Exception $e){
-                            Log::error($e->getMessage());
-                            Log::error($e->getTraceAsString());
-                        }
-                    }
+                    $client = new Client(config('app.cl_socket'));
+                    $client->send(json_encode([
+                        'topic' => 'ng_express',
+                        'type' => 'receive',
+                        'message' => $package->id
+                    ]));
+                    $client->close();
                 }
             }
             $package->update($updateArr);
