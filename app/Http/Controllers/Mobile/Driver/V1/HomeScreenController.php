@@ -782,7 +782,7 @@ class HomeScreenController extends Controller
                 'status_id' => $status_id
             ]);
             GeneralSettingService::updateTripStatus($dp->delivery_id,$user);
-            // DB::commit();
+            DB::commit();
             return ApiResponse::JsonResult(null,__('messages.submitted',[
                 'info' => 'Package has',
                 'khInfo' => 'បានបញ្ចូន'
