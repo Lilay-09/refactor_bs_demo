@@ -136,16 +136,16 @@ class AuthController extends Controller
         $inputs['longitude'] = $inputs['loc_lng'] ?? null;
         $photo = $inputs['photo'] ?? null;
         if(!empty($inputs['phone1'])){
-            $inputs['phone'] = $inputs['phone1'];
+            $inputs['phone'] = $inputs['phone_1'];
         }
         $phones = [];
 
-        if (!empty($inputs['phone2'])) {
-            $phones[] = $inputs['phone2'];
+        if (!empty($inputs['phone_2'])) {
+            $phones[] = $inputs['phone_2'];
         }
 
-        if (!empty($inputs['phone3'])) {
-            $phones[] = $inputs['phone3'];
+        if (!empty($inputs['phone_3'])) {
+            $phones[] = $inputs['phone_3'];
         }
 
         $maxSize = Helper::validTotalImageSize([$photo]);
