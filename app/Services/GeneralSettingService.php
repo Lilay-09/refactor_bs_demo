@@ -644,18 +644,18 @@ class GeneralSettingService
 
     public static function optionsCommune($user){
         return Commune::where('is_deleted',0)->where('company_id',$user->company_id)
-        ->selectRaw('name_en as name,id')->orderByDesc('id')->get();
+        ->selectRaw('name_en as name,name_en,id')->orderByDesc('id')->get();
     }
 
     public static function optionsDistrictByCity($cityId,$user){
         return District::where('is_deleted',0)->where('company_id',$user->company_id)->where('city_id',$cityId)
-        ->selectRaw('name_en as name,id')->orderByDesc('id')->get();
+        ->selectRaw('name_en as name,name_en,id')->orderByDesc('id')->get();
     }
 
     public static function optionsCommuneByDistrict($cityId,$user){
         return Commune::where('is_deleted',0)->where('company_id',$user->company_id)
         ->where('district_id',$cityId)
-        ->selectRaw('name_en as name,id')->orderByDesc('id')->get();
+        ->selectRaw('name_en as name,name_en,id')->orderByDesc('id')->get();
     }
 
     public static function optionsStatusPackageOnDelivery(){

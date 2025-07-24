@@ -89,7 +89,7 @@ class CountryController extends Controller
         if($district_id) $qDistrictIds->where('id',$district_id);
         $districtIds = $qDistrictIds->pluck('id')->toArray();
         $qC = Commune::where('is_deleted',0)->whereIn('district_id',$districtIds)
-        ->selectRaw('id,name_en as name,updated_at');
+        ->selectRaw('id,name_en as name,name_en,updated_at');
         $communes = $qC->get();
         return ApiResponse::JsonResult($communes);
     }
