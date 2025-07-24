@@ -334,9 +334,10 @@ class HomeScreenController extends Controller
         $statusId = $req->query('status_id');
         $qP = Package::query()
         ->from('packages as p')
+        ->where('p.is_deleted',false)
         ->where('p.driver_id', $driverId)
         ->whereIn('p.status_id', [6,9,10,19])
-        ->where('p.arrive_warehouse_datetime', '>=', Carbon::now()->subDays(30))
+        // ->where('p.arrive_warehouse_datetime', '>=', Carbon::now()->subDays(30))
         ->whereExists(function ($q) {
             $q->select(DB::raw(1))
                 ->from('delivery_packages as dp')
