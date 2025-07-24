@@ -337,20 +337,20 @@ class HomeScreenController extends Controller
         ->where('p.is_deleted',false)
         ->where('p.driver_id', $driverId)
         ->whereIn('p.status_id', [6,9,10,19])
-        // ->where('p.arrive_warehouse_datetime', '>=', Carbon::now()->subDays(30))
-        ->whereExists(function ($q) {
-            $q->select(DB::raw(1))
-                ->from('delivery_packages as dp')
-                ->join('deliveries as d', 'd.id', 'dp.delivery_id')
-                ->whereColumn('dp.package_id', 'p.id')
-                ->where('dp.is_deleted', 0)
-                ->where('dp.has_swap', 0)
-                ->where('dp.delay_count', 0)
-                ->where(function ($q2) {
-                    $q2->where('d.finished', 0)
-                        ->orWhereDate('d.depart_datetime', Carbon::today());
-                });
-        })
+        ->where('p.arrive_warehouse_datetime', '>=', Carbon::now()->subDays(15))
+        // ->whereExists(function ($q) {
+        //     $q->select(DB::raw(1))
+        //         ->from('delivery_packages as dp')
+        //         ->join('deliveries as d', 'd.id', 'dp.delivery_id')
+        //         ->whereColumn('dp.package_id', 'p.id')
+        //         ->where('dp.is_deleted', 0)
+        //         ->where('dp.has_swap', 0)
+        //         ->where('dp.delay_count', 0)
+        //         ->where(function ($q2) {
+        //             $q2->where('d.finished', 0)
+        //                 ->orWhereDate('d.depart_datetime', Carbon::today());
+        //         });
+        // })
         ->join('users as d', 'd.id', 'p.driver_id')
         ->join('users as m', 'm.id', 'p.merchant_id')
         // ->join('tracking_statuses as ts', 'ts.id', 'p.status_id')
