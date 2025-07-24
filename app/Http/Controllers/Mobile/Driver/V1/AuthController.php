@@ -126,7 +126,7 @@ class AuthController extends Controller
             'loc_lng' => 'nullable'
         ]);
         // \Log::error(json_encode($req->all()));
-        \Log::info($req->all());
+        // Log::info($req->all());
         if($validate->fails()) return ApiResponse::ValidateFail($validate->errors()->first());
         $user = User::where('account_type',$authUser->account_type)
         ->selectRaw('id,photo_file_name,username,phone,email,pin_address,latitude,longitude')
