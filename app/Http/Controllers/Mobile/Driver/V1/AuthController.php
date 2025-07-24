@@ -164,6 +164,10 @@ class AuthController extends Controller
                 ['updated_at' => now()] // fields to update
             );
         }
+        DB::table('user_contacts')
+        ->where('user_id', $user->id)
+        ->whereNotIn('phone', $phones)
+        ->delete();
         return ApiResponse::JsonResult([
             'image_url' => Helper::getImageUrl($user->photo_file_name,$authUser->company_id,'user_profile')
         ],__('messages.info',[
