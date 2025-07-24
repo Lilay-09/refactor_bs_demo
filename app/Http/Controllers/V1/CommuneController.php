@@ -14,9 +14,9 @@ class CommuneController extends Controller
 
     function communeValidation(Request $req){
         return validator($req->all(),[
-            'name' => 'required|string',
+            'name_en' => 'required|string',
             'district_id' => 'required|int',
-            'name_kh' => 'nullable|string'
+            'name_km' => 'nullable|string'
         ]);
     }
     public function createCommune(Request $req){
@@ -24,13 +24,13 @@ class CommuneController extends Controller
         if($validate->fails()) return ApiResponse::ValidateFail($validate->errors()->first());
         $inputs = $validate->validated();
         $user = UserService::getAuthUser();
-        $name = $inputs['name'];
+        $name = $inputs['name_en'];
         $district_id = $inputs['district_id'];
         $inputs['create_uid'] = $user->id;
         $inputs['update_uid'] = $user->id;
         $inputs['branch_id'] = $user->branch_id;
         $inputs['company_id'] = $user->company_id;
-        $existCommune = Commune::where('name',$name)->where('company_id',$user->company_id)->where('is_deleted',0)->where('district_id',$district_id)->take(1)->value('id');
+        $existCommune = Commune::where('name_en',$name)->where('company_id',$user->company_id)->where('is_deleted',0)->where('district_id',$district_id)->take(1)->value('id');
         if($existCommune) return ApiResponse::Duplicated('Commune ('.$name.') is already exists.');
         $create = Commune::create($inputs);
 
@@ -56,14 +56,14 @@ class CommuneController extends Controller
         $validate = $this->communeValidation($req);
         if($validate->fails()) return ApiResponse::ValidateFail($validate->errors()->first(),'Please input correct data.');
         $inputs = $validate->validated();
-        $name = $inputs['name'];
+        $name = $inputs['name_en'];
         $id = $req->id;
         $district_id = $inputs['district_id'];
         $user = UserService::getAuthUser();
         $commune = Commune::where('is_deleted',0)->find($id);
         if(!$commune) return ApiResponse::NotFound(__('messages.not_found'));
         // \Log::info($commune);
-        $existCity = Commune::where('name',$name)->where('is_deleted',0)->where('company_id',$user->company_id)->where('district_id',$district_id)->where('id','!=',$id)->take(1)->value('id');
+        $existCity = Commune::where('name_en',$name)->where('is_deleted',0)->where('company_id',$user->company_id)->where('district_id',$district_id)->where('id','!=',$id)->take(1)->value('id');
         if($existCity) return ApiResponse::Duplicated('Commune('.$name.') is already taken.');
         // return $user;
         $inputs['update_uid'] = $user->id;
