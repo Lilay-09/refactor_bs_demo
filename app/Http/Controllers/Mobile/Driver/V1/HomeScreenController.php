@@ -336,7 +336,7 @@ class HomeScreenController extends Controller
         ->from('packages as p')
         ->where('p.driver_id', $driverId)
         ->whereIn('p.status_id', [6,9,10,19])
-        ->where('p.created_at', '>=', Carbon::now()->subDays(15))
+        ->where('p.arrive_warehouse_datetime', '>=', Carbon::now()->subDays(15))
         ->whereExists(function ($q) {
             $q->select(DB::raw(1))
                 ->from('delivery_packages as dp')

@@ -14,7 +14,7 @@ class CompanyProfileController extends Controller
     //
     function companyValidation(Request $req){
         return validator($req->all(),[
-            'name' => 'required|string|max:50',
+            'name_en' => 'required|string|max:50',
             'name_km' => 'nullable|string|max:100',
             'address' => 'nullable|string|max:250',
             'email' => 'nullable|email|max:100',
