@@ -10,9 +10,9 @@ class City extends Model
     use HasFactory;
     protected $table = 'cities';
     protected $fillable = [
-        'name',
+        'name_en',
         'id',
-        'name_kh',
+        'name_km',
         'country_id',
         'create_uid',
         'update_uid',
