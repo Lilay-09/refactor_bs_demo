@@ -115,6 +115,9 @@ class AuthController extends Controller
             'username' => 'required|string',
             'email' => 'nullable|string',
             'address' => 'nullable|string',
+            'phone1' => 'nullable|string',
+            'phone2' => 'nullable|string',
+            'phone3' => 'nullable|string',
             'photo' => 'nullable',
             'pin_address' => 'nullable',
             'loc_lat' => 'nullable',
@@ -128,6 +131,13 @@ class AuthController extends Controller
         $inputs['latitude'] = $inputs['loc_lat'] ?? null;
         $inputs['longitude'] = $inputs['loc_lng'] ?? null;
         $photo = $inputs['photo'] ?? null;
+        if(!empty($inputs['phone1'])){
+            $inputs['phone'] = $inputs['phone1'];
+        }
+        $otherPhoneLines = [];
+        if(!empty($inputs['phone2'])) $otherPhoneLines['phone'] = $inputs['phone2'];
+        if(!empty($inputs['phone3'])) $otherPhoneLines['phone'] = $inputs['phone3'];
+
         $maxSize = Helper::validTotalImageSize([$photo]);
         if($maxSize->error) return ApiResponse::ValidateFail($maxSize->message);
         if($photo instanceof UploadedFile){

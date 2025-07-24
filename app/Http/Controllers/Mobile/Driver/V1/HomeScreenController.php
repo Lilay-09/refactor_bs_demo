@@ -38,7 +38,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Log;
 use Str;
-use WebSocket\Client;
+// use WebSocket\Client;
 
 class HomeScreenController extends Controller
 {
@@ -258,15 +258,15 @@ class HomeScreenController extends Controller
         ->with([
             'merchant:id,username,phone',
             'order:id,loc_lat,loc_lng'
-        ]);
+        ])->orderByDesc('assigned_return_at');
         $geoResolver = new GeoResolverService();
         $callback = function ($pkg) use($geoResolver){
             $pkg->status = TrackingStatus::tryFrom($pkg->status_id)->label();
             $pkg->merchant_name = $pkg->merchant->username;
             $pkg->merchant_phone = $pkg->merchant->phone;
             $pkg->remarks = $pkg->delivery_remarks;
-            $pkg->date = Helper::dateDMY($pkg->created_at,'d M, Y');
-            $pkg->time = Helper::dateDMY($pkg->created_at,'h:i A');
+            $pkg->date = Helper::dateDMY($pkg->assigned_return_at,'d M, Y');
+            $pkg->time = Helper::dateDMY($pkg->assigned_return_at,'h:i A');
 
             $locLat = (float)($pkg->order->loc_lat ?? 0);
             $locLng = (float) ($pkg->order->loc_lng ?? 0);
@@ -276,7 +276,7 @@ class HomeScreenController extends Controller
             $pkg->telegram_link = Helper::generateTelegramLink($pkg->merchant_phone);
             return HomeReturnPackageDTO::fromModel($pkg);
         };
-        $select = ['id','merchant_id','status_id','order_id','delivery_remarks','returned_datetime','created_at','qr_code'];
+        $select = ['id','merchant_id','status_id','order_id','delivery_remarks','assigned_return_at','created_at','qr_code'];
         return ApiResponse::PaginationV1($pk,$req,'',[],300,$callback,$select);
     }
 
@@ -362,9 +362,9 @@ class HomeScreenController extends Controller
         $select = [
             'p.driver_display_order','p.payer','p.receiver_address','p.extra_charge','p.id','p.delivered_datetime','p.failed_datetime',
             'p.assign_driver_datetime','p.merchant_id','p.qr_code','p.price','p.cod','p.receiver_name','p.receiver_phone','p.zone_code',
-            'p.zone_name','d.username as driver_name','d.phone as driver_phone','m.username as merchant_name',
+            'p.zone_name','d.username as driver_name','d.phone as driver_phone','m.username as merchant_name','p.arrive_warehouse_datetime',
             'm.phone as merchant_phone','p.id as package_id','p.zone_code','p.zone_name','p.delivery_fee as base_fee','p.driver_total',
-            'p.taxi_fee','p.product_type','p.status_id','p.driver_notes','p.is_contact'
+            'p.taxi_fee','p.product_type','p.status_id','p.driver_notes','p.is_contact','p.remarks'
         ];
         $xRate = GeneralSettingService::getLatestXRate()->sell_rate;
         $callback = function($q) use($xRate){
@@ -373,12 +373,32 @@ class HomeScreenController extends Controller
             $q->total = $q->driver_total;
             $q->total_khr = (float)number_format($q->driver_total * $xRate,2,'.','');
             $q->exchange_rate = $xRate;
+            $this->dateTimeByStatus($q,$q->status_id);
             return DeliveryTripsPackagesDTO::fromModel($q);
         };
         return ApiResponse::PaginationV1($qP,$req,'',[
             'total_on_delivery' => $totalOnDelivery
         ],250,$callback,$select);
     }
+
+    private function dateTimeByStatus(&$row, $statusId)
+    {
+        $datetimeMap = match (true) {
+            in_array($statusId, [5, 6]) => $row->arrive_warehouse_datetime,
+            $statusId === 9             => $row->delivered_datetime,
+            in_array($statusId, [10, 19]) => $row->failed_datetime,
+            default                     => null,
+        };
+
+        if ($datetimeMap) {
+            $row->date = Helper::formatCustomDateTime($datetimeMap, 'd m,Y');
+            $row->time = Helper::formatCustomDateTime($datetimeMap, 'h:i A');
+        }
+
+        return $row;
+    }
+
+
 
     public function editSelfNotes(Request $req){
         $id = $req->id;
@@ -940,9 +960,12 @@ class HomeScreenController extends Controller
 
     public function booking(Request $req){
         $user = UserService::getAuthUser('driver');
+        $price = $req->price ?? 0 ;
+        $priceKHR = $req->price_khr ?? 0;
         $req->merge([
             'warehouse_id' => $user->info->warehouse_id,
             'branch_id' => $user->branch_id,
+            'cod' => ($price + $priceKHR) > 0 ? 1 : 0
         ]);
         $createOrder = $this->pickupCenterService->createOrder($req,$user);
         return ApiResponse::flex($createOrder);

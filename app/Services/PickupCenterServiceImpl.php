@@ -233,6 +233,7 @@ class PickupCenterServiceImpl implements PickupCenterService
                     'title' => __('notification.assign_order.title'),//$notifTitle,
                     'body' => __('notification.assign_order.body',[
                         'merchant' => $validMerchant->username,
+                        'create_user' => $user->username,
                         'count' => $inputQty
                     ])
                 ]);

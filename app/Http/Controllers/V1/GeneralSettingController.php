@@ -434,6 +434,10 @@ class GeneralSettingController extends Controller
         return ApiResponse::JsonResult($obj);
     }
 
+    public function optionsEnumVehicleType(){
+        return ApiResponse::JsonResult($this->gs::optionsEnumVehicleType());
+    }
+
     public function getFormReceive(){
         $user = auth()->user();
         return ApiResponse::JsonResult([

@@ -391,16 +391,18 @@ class GeneralSettingController extends Controller
                 ]));
                 $requester = $user->info->phone."($user->username)";
                 $topics = GeneralSettingService::getGeneralTopics($user->company_id,'driver',$package->driver_id);
+                $ttl = 300;
                 Cache::set($topics->private,(object)[
                     'requester' => $requester,
                     'requester_id' => $user->id,
-                ],250);
+                ],$ttl);
                 $notifReq = new Request([
                     'topic' => $topics->private,
                     'title' => 'Change Driver',
                     'body' => "$requester request change package ",
                     'data' => [
                         'action' => 'change-driver',
+                        'time_to_live' => now()->addSeconds($ttl),
                         'requester' => $requester,
                         'barcode' => $item_ref,
                         "en_message" => "$requester request change package ",//$requester." request swap the package",

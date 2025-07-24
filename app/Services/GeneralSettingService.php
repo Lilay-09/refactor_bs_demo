@@ -398,6 +398,11 @@ class GeneralSettingService
         return $drivers;
     }
 
+    public static function optionsEnumVehicleType(){
+        return \App\Enums\VehicleType::options();
+    }
+
+
     public static function optionsOperator($user,int $branchId=null){
         $qD = User::where(function($q){
             $q->where('lock',0)->orWhere('is_deleted',0);
@@ -566,7 +571,7 @@ class GeneralSettingService
         $vT = VehicleType::where('company_id',$user->company_id)->where('is_deleted',0)
         ->selectRaw($select)->orderByRaw('id');
         if($user->account_type == 'driver'){
-            $vT->where('name',$user->info->vehicle_type);
+            $vT->where('name_en',$user->info->vehicle_type);
         }
         $vehicleTypes = $vT->get();
         return $vehicleTypes;
