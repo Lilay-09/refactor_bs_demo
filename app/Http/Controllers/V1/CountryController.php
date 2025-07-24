@@ -70,7 +70,7 @@ class CountryController extends Controller
         $city_id = $req->query('city_id');
         $cityIds = City::where('country_id',$countryId)->where('company_id',$user->company_id)->where('is_deleted',0)->pluck('id')->toArray();
         $qD = District::where('is_deleted',0)->whereIn('city_id',$cityIds)
-        ->selectRaw('id,name_en as name,updated_at');
+        ->selectRaw('id,name_en,updated_at');
         if($city_id) $qD->where('city_id',$city_id);
         $disctricts = $qD->get();
 

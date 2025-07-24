@@ -117,16 +117,16 @@ class AuthController extends Controller
             'username' => 'required|string',
             'email' => 'nullable|string',
             'address' => 'nullable|string',
-            'phone1' => 'nullable|string',
-            'phone2' => 'nullable|string',
-            'phone3' => 'nullable|string',
+            'phone_1' => 'nullable|string',
+            'phone_2' => 'nullable|string',
+            'phone_3' => 'nullable|string',
             'photo' => 'nullable',
             'pin_address' => 'nullable',
             'loc_lat' => 'nullable',
             'loc_lng' => 'nullable'
         ]);
         // \Log::error(json_encode($req->all()));
-        \Log::info($req->all());
+        // Log::info($req->all());
         if($validate->fails()) return ApiResponse::ValidateFail($validate->errors()->first());
         $user = User::where('account_type',$authUser->account_type)
         ->selectRaw('id,photo_file_name,username,phone,email,pin_address,latitude,longitude')
