@@ -47,6 +47,6 @@ return [
         'canceled_pick' => 'Canceled Pickup',
         'dropped_pick' => 'Dropped Pickup',
         'in_transit' => 'In Transit',
-        'returned' => 'Returned',
+        'returned' => 'បានត្រឡប់វិញ',
     ],
 ];

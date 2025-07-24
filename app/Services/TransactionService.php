@@ -52,7 +52,11 @@ class TransactionService
             ->join('tracking_statuses as ts','ts.id','p.status_id')
             ->join('users as m','m.id','p.merchant_id')
             ->whereIn('p.status_id',[9,19])
-            ->select(['p.extra_charge','p.additional_fee','p.remarks','p.cod','p.price','d.phone as driver_phone','p.taxi_fee','p.payer','p.delivery_fee','p.assign_driver_datetime','p.merchant_total','m.username as merchant_name','m.phone as merchant_phone','d.username as driver_name','p.status_id','p.id as package_id','d.id as driver_id','p.qr_code','ts.name as status_code','p.delivered_datetime','p.failed_datetime','p.zone_code','p.receiver_phone','p.delivery_type']);
+            ->select([
+                'p.extra_charge','p.additional_fee','p.remarks','p.cod','p.price','d.phone as driver_phone','p.taxi_fee','p.payer','p.delivery_fee','p.assign_driver_datetime',
+                'p.merchant_total','m.username as merchant_name','m.phone as merchant_phone','d.username as driver_name','p.status_id','p.id as package_id','d.id as driver_id',
+                'p.qr_code','ts.name as status_code','p.delivered_datetime','p.failed_datetime','p.zone_code','p.receiver_phone','p.delivery_type','p.zone_name'
+            ]);
             if($type == 'driver'){
                 $qP->whereNotExists(function ($sub) use ($type) {
                     $sub->select(DB::raw(1))
