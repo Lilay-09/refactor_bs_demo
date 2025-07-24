@@ -374,7 +374,7 @@ class HomeScreenController extends Controller
             $q->total = $q->driver_total;
             $q->total_khr = (float)number_format($q->driver_total * $xRate,2,'.','');
             $q->exchange_rate = $xRate;
-            $this->dateTimeByStatus($q,$q->status_id);
+            // $this->dateTimeByStatus($q,$q->status_id);
             return DeliveryTripsPackagesDTO::fromModel($q);
         };
         return ApiResponse::PaginationV1($qP,$req,'',[
