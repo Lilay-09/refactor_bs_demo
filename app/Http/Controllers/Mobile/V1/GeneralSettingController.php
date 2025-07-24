@@ -421,12 +421,29 @@ class GeneralSettingController extends Controller
                 $rct = $trxSImpl->driverScanReceive($user,$package->id);
                 if($rct->error) return $rct;
                 else{
-                    $client = new Client(config('app.cl_socket'));
-                    $client->send(json_encode([
+                    $client = new Client(config('app.cl_socket'), [
+                        'headers' => [
+                            'Origin' => 'https://dev.ngexpresscambodia.com',
+                        ]
+                    ]);
+                    $message = json_encode([
                         'topic' => 'ng_express',
                         'type' => 'receive',
-                        'message' => $package->id
-                    ]));
+                        'message' => $package->id,
+                    ]);
+
+                    $client->send($message);
+
+                    // try {
+                    // $response = $client->receive();
+                    //     error_log("WebSocket receive: " . $response);
+                    // } catch (\Throwable $e) {
+                    //     error_log("WebSocket receive error: " . $e->getMessage());
+                    // }
+                    // If expecting response
+                    // $response = $client->receive();
+                    // error_log("WebSocket receive: " . $response);
+
                     $client->close();
                 }
             }
