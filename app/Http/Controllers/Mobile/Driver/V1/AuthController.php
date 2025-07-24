@@ -8,10 +8,12 @@ use App\Models\User;
 use App\Services\CloudMessagingService;
 use App\Services\Mobile\AuthService;
 use App\Services\UserService;
+use DB;
 use Hash;
 use Helper;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
+use Log;
 use Tymon\JWTAuth\Exceptions\JWTException;
 use Tymon\JWTAuth\Facades\JWTAuth;
 
@@ -124,9 +126,11 @@ class AuthController extends Controller
             'loc_lng' => 'nullable'
         ]);
         // \Log::error(json_encode($req->all()));
-        // \Log::info($req->all());
+        \Log::info($req->all());
         if($validate->fails()) return ApiResponse::ValidateFail($validate->errors()->first());
-        $user = User::where('account_type',$authUser->account_type)->selectRaw('id,photo_file_name,username,phone,email,pin_address,latitude,longitude')->find($authUser->id);
+        $user = User::where('account_type',$authUser->account_type)
+        ->selectRaw('id,photo_file_name,username,phone,email,pin_address,latitude,longitude')
+        ->find($authUser->id);
         $inputs = $validate->validated();
         $inputs['latitude'] = $inputs['loc_lat'] ?? null;
         $inputs['longitude'] = $inputs['loc_lng'] ?? null;
@@ -134,9 +138,15 @@ class AuthController extends Controller
         if(!empty($inputs['phone1'])){
             $inputs['phone'] = $inputs['phone1'];
         }
-        $otherPhoneLines = [];
-        if(!empty($inputs['phone2'])) $otherPhoneLines['phone'] = $inputs['phone2'];
-        if(!empty($inputs['phone3'])) $otherPhoneLines['phone'] = $inputs['phone3'];
+        $phones = [];
+
+        if (!empty($inputs['phone2'])) {
+            $phones[] = $inputs['phone2'];
+        }
+
+        if (!empty($inputs['phone3'])) {
+            $phones[] = $inputs['phone3'];
+        }
 
         $maxSize = Helper::validTotalImageSize([$photo]);
         if($maxSize->error) return ApiResponse::ValidateFail($maxSize->message);
@@ -147,6 +157,13 @@ class AuthController extends Controller
             Helper::deleteImageFile($user->photo_file_name,$authUser->company_id,'user_profile');
         }else if(!$photo) Helper::deleteImageFile($user->photo_file_name,$authUser->company_id,'user_profile');
         $user->update($inputs);
+        // Log::info($otherPhoneLines);
+        foreach ($phones as $phone) {
+            DB::table('user_contacts')->updateOrInsert(
+                ['user_id' => $user->id, 'phone' => $phone], // unique constraint
+                ['updated_at' => now()] // fields to update
+            );
+        }
         return ApiResponse::JsonResult([
             'image_url' => Helper::getImageUrl($user->photo_file_name,$authUser->company_id,'user_profile')
         ],__('messages.info',[
