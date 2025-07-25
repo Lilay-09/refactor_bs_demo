@@ -961,12 +961,9 @@ class HomeScreenController extends Controller
 
     public function booking(Request $req){
         $user = UserService::getAuthUser('driver');
-        $price = $req->price ?? 0 ;
-        $priceKHR = $req->price_khr ?? 0;
         $req->merge([
             'warehouse_id' => $user->info->warehouse_id,
             'branch_id' => $user->branch_id,
-            'cod' => ($price + $priceKHR) > 0 ? 1 : 0
         ]);
         $createOrder = $this->pickupCenterService->createOrder($req,$user);
         return ApiResponse::flex($createOrder);

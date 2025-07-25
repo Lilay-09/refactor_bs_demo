@@ -65,7 +65,6 @@ class CommuneController extends Controller
         // \Log::info($commune);
         $existCity = Commune::where('name_en',$name)->where('is_deleted',0)->where('company_id',$user->company_id)->where('district_id',$district_id)->where('id','!=',$id)->take(1)->value('id');
         if($existCity) return ApiResponse::Duplicated('Commune('.$name.') is already taken.');
-        // return $user;
         $inputs['update_uid'] = $user->id;
         $inputs['branch_id'] = $user->branch_id;
         $inputs['company_id'] = $user->company_id;
