@@ -423,6 +423,7 @@ class TransferServiceImpl implements TransferService
                     Package::where('is_deleted',false)
                     ->whereIn('id',$receiveItemIds)
                     ->update([
+                        'driver_id' => null,
                         'status_id' => TrackingStatus::AT_WAREHOUSE->value,
                         'warehouse_id' => $toLocationId
                     ]);

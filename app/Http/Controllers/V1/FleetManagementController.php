@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\V1;
 
 use ApiResponse;
+use App\Enums\TrackingStatus;
 use App\Http\Controllers\Controller;
 use App\Models\Delivery;
 use App\Models\DeliveryPackage;
@@ -525,9 +526,9 @@ class FleetManagementController extends Controller
         }
 
         $trip->update([
-            'finished' => 1,
-            'is_completed' =>1,
-            'status_id' => 16,
+            'finished' => true,
+            'is_completed' => true,
+            'status_id' => TrackingStatus::DONE_TRIP->value,
             'finished_uid' => $user->id,
             'delivered_count' => $deliveredCount + $trip->delivered_count,
             'package_count' => $deliveredCount + $trip->delivered_count + $trip->failed_count,

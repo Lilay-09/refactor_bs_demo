@@ -583,16 +583,25 @@ class PackageTrailController extends Controller
             $oneTrip = Delivery::orderByDesc('id')->where('driver_id',$driverId)
             ->where('is_deleted',0)->first();
             if($oneTrip){
+                // Log::info($oneTrip);
                 $stillHasPackage = DeliveryPackage::where('delivery_id',$oneTrip->id)
-                ->where('delay_count',0)->where('has_swap',0)->where('is_deleted',0)
+                ->whereHas('package',function($q){
+                    $q->where('status_id',6);
+                })
+                ->where('driver_id',$driverId)
+                ->where('delay_count',0)
+                ->where('has_swap',0)
+                ->where('is_deleted',0)
                 ->where('status_id',6)->first();
                 if($stillHasPackage) {
+                    // Log::info($stillHasPackage);
                     $pendingTrip = $oneTrip ?? null;
                 }
             }
         }
 
         if(!$pendingTrip){
+            //
             $QuerylastPackage = DeliveryPackage::where('package_id',$packageId)->where(function ($q){
                 $q->where('delay_count',0)->where('is_deleted',0);
             });
