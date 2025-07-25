@@ -157,7 +157,6 @@ class PickupCenterServiceImpl implements PickupCenterService
         // $lang = $req->lang;
         $inputs['delivery_type'] = $inputs['delivery_type'] ?? 'normal';
         if(!$pickupAddress) $inputs['pickup_address'] = $latLng->address;
-        Log::info($req->all());
         try{
             DB::beginTransaction();
             $createOrder = Order::create($inputs);
@@ -178,7 +177,6 @@ class PickupCenterServiceImpl implements PickupCenterService
                     if($isMobile && $price > 0){
                         $d['cod'] = 1;
                     }
-                    Log::info(json_encode($d));
                     $dReq = new Request($d);
                     $savePkg = $this->createOrUpdatePackage($dReq,$user,null,$orderId);
                     if($savePkg->error) return $savePkg;
