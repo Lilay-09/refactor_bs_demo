@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Models\ProductType;
 use App\Services\UserService;
 use Illuminate\Http\Request;
+use Log;
 
 class ProductTypeController extends Controller
 {
@@ -76,7 +77,10 @@ class ProductTypeController extends Controller
     public function deleteProductType(Request $req){
         $user = UserService::getAuthUser();
         $id = $req->id;
-        $productType = ProductType::where('is_deleted',0)->where('company_id',$user->company_id)->find($id);
+        Log::info($req->all());
+        $productType = ProductType::where('is_deleted',0)
+        ->where('company_id',$user->company_id)
+        ->find($id);
         if(!$productType) return ApiResponse::NotFound(__('messages.not_found'));
         $productType->update([
             'deleted_uid' => $user->id,
