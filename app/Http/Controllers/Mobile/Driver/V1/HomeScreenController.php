@@ -597,6 +597,13 @@ class HomeScreenController extends Controller
             // ]));
             foreach($details as $d){
                 $d['merchant_id'] = $order->merchant_id;
+                $d['cod'] = 0;
+                $price = $d['price'] ?? 0;
+                $priceKhr = $d['price_khr'] ?? 0;
+                $hasPrice = $price + $priceKhr > 0 ? 1 : 0;
+                if($hasPrice > 0){
+                    $d['cod'] = 1;
+                }
                 $rD = new Request($d);
                 $savePkg = $this->pickupCenterService->createOrUpdatePackage($rD,$user,null,$orderId);
                 if($savePkg->error) return ApiResponse::flex($savePkg);
