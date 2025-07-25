@@ -157,8 +157,9 @@ class PickupCenterServiceImpl implements PickupCenterService
         // $lang = $req->lang;
         $inputs['delivery_type'] = $inputs['delivery_type'] ?? 'normal';
         if(!$pickupAddress) $inputs['pickup_address'] = $latLng->address;
-        DB::beginTransaction();
+        Log::info($req->all());
         try{
+            DB::beginTransaction();
             $createOrder = Order::create($inputs);
             if(!$createOrder) return DataResponse::Error('Fail to create order!');
             $orderId = $createOrder->id;
@@ -511,7 +512,6 @@ class PickupCenterServiceImpl implements PickupCenterService
             return DataResponse::JsonResult(null,false,__('messages.updated'));
         }
     }
-
 
     public function createOrUpdateTrip($driverId,$packageId,$vehicleType,$user,$notes,$statusId,$action=null,$package=null){
         $today = date('Y-m-d');
