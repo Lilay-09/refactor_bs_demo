@@ -124,7 +124,6 @@ class PriceListController extends Controller
                 $priceListIds[] = $create->id;
             }
             // $useIds = [];
-            // Log::info($req->all());
             $uniqueKeys = $identifier ?? uniqid('PZ');
             foreach($priceListIds as $plId){
                 foreach($zoneIds as $idx=>$id){
@@ -170,7 +169,6 @@ class PriceListController extends Controller
 
     public function updatePriceList(Request $req){
         $user = UserService::getAuthUser();
-        // Log::info($req->all());
         $id = $req->id ?? null;
         $validate = $this->priceListValidation($req);
         if($validate->fails()) return ApiResponse::ValidateFail($validate->errors()->first());
@@ -209,7 +207,6 @@ class PriceListController extends Controller
             if($key == 'below') $inputs['below_kg_price'] = $inputs['additional_fee'];
             else if ($key == 'above') $inputs['above_kg_price'] = $inputs['additional_fee'];
             unset($inputs['delivery_type']);
-            // Log::info($req->all());
             $priceList->update($inputs);
         }
         unset($inputs['zones']);

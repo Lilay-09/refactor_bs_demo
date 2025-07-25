@@ -301,7 +301,6 @@ class GeneralSettingService
         if($exceptId){
             $qZ->where('id','!=',$exceptId);
         }
-        // Log::info($qZ->count());
         return $qZ->selectRaw('id,zone_name,identity,zone_code,parent_id')->orderByDesc('id')->get();
     }
 
@@ -673,7 +672,6 @@ class GeneralSettingService
 
     public static function priceByZone($zone_id,$user,$merchant_id=null,$delivery_type='normal'): object|null{
         if(!$delivery_type) $delivery_type = 'normal';
-        // Log::info($zone_id);
         $priceList = PriceList::with(['zones'])
             ->where('status',1)
             // ->where('company_id',$user->company_id)
@@ -686,25 +684,20 @@ class GeneralSettingService
             ->where('base_fee','>',0)
             ->selectRaw('base_fee,taxi_fee,other_fee,below_kg,below_kg_price,id,price,above_kg_price,above_kg,delivery_type')
             ->first();
-            // Log::info('$plid' .$priceListId.'Zid'.$zone_id);
             $plZone = PriceListZone::with('priceList:taxi_fee,other_fee,base_fee,below_kg,below_kg_price,id,price,above_kg_price,above_kg,delivery_type')->where('zone_id',$zone_id)->where('price_list_id',$priceList?->id)->first();
             if($merchant_id){
-                // Log::info('merchant');
                 $plNameId = MerchantPriceList::where('merchant_id',$merchant_id)->take(1)->value('price_list_id');
                 if($plNameId){
-                    // Log::info(' sdfsdfsd');
                     $plIds = PriceList::where('price_list_name_id',$plNameId)
                     ->where('delivery_type',$delivery_type)
                     ->pluck('id')->toArray();
                     if(!empty($plIds)){
                         $plZone = PriceListZone::with('priceList:taxi_fee,other_fee,base_fee,below_kg,below_kg_price,id,price,above_kg_price,above_kg,delivery_type')->where('zone_id',$zone_id)->whereIn('price_list_id',$plIds)->first();
-                        // Log::info($row);
                     }
                 }
             }
             $row = (object)[];
             if($plZone) {
-                // Log::info($plZone);
                 $row->base_fee = $plZone->priceList->base_fee;
                 $row->price = $plZone->priceList->base_fee;
                 $row->above_kg_price = $plZone->priceList->above_kg_price;
@@ -928,11 +921,9 @@ class GeneralSettingService
         if($trip){
             $queryDeliveryPackage = DeliveryPackage::where('delivery_id',$id)
             ->whereHas('package',function($q) use($user){
-                $q->where('driver_id',$user->id)
-                ->whereIn('status_id',[6,9,10,19]);
+                $q->whereIn('status_id',[6,9,10,19]);
             })
             ->whereIn('status_id',[6,9,10,19])
-            ->where('driver_id',$user->id)
             ->with(['package:id,qr_code,is_deleted,status_id,driver_id'])
             ->where('has_swap',0)
             ->where('is_deleted',0)
@@ -946,9 +937,9 @@ class GeneralSettingService
             $failCount = 0;
             $OnDeliveryCount = 0;
             $stillOnDelivery = 0;
-            $status_id = 16;
+            $doneTrip = \App\Enums\TrackingStatus::DONE_TRIP->value;
+            $status_id = $doneTrip;
             $packages = $queryDeliveryPackage->get();
-            // Log::info('Count pkgs'.count($packages));
             foreach($packages as $pck){
                 if($pck->status_id == 9){
                     $deliveredCount += 1;
@@ -962,16 +953,16 @@ class GeneralSettingService
                 }
             }
             if($trip->package_count == $failCount){
-                $status_id = 16;
+                $status_id = $doneTrip;
                 $isCompleted = 1;
-            }else if($trip->package_count == $deliveredCount){
-                $status_id = 16;
+            }else if($trip->package_count == $deliveredCount && $OnDeliveryCount == 0){
+                $status_id = $doneTrip;
                 $isCompleted = 1;
             }else
             if($trip->package_count >= $deliveredCount){
-                $status_id = 16;
+                $status_id = $doneTrip;
                 if($stillOnDelivery) {
-                    $status_id = 14;
+                    $status_id = \App\Enums\TrackingStatus::ON_DELIVERY_TRIP->value;
                     $isCompleted = 0;
                 }
             }
@@ -985,13 +976,11 @@ class GeneralSettingService
                 'delivered_count' => $deliveredCount,
                 'package_count' => $failCount + $deliveredCount + $OnDeliveryCount,
             ];
-            // Log::info($status_id);
             if($isCompleted) {
                 $updateArr['finished_datetime'] = now();
                 $updateArr['finished_uid'] = $user->id;
-                // Log::error($isCompleted);
             }
-            // Delivery::find($id)->update($updateArr);
+            Log::info($updateArr);
             $trip->update($updateArr);
         }
     }

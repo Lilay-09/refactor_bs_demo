@@ -196,7 +196,6 @@ class FleetServiceImpl
 
             // Bulk insert delivery packages
             if (!empty($bulkInsertData)) {
-                // Log::info($bulkInsertData);
                 DeliveryPackage::insert($bulkInsertData);
             }
 

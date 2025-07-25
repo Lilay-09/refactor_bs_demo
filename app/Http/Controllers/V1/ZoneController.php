@@ -61,7 +61,6 @@ class ZoneController extends Controller
         if($existZoneName) return ApiResponse::Duplicated(__('messages.error',[
             'info' => 'Zone name ('.$inputs['zone_name'].'- '.$existZoneName->zone_code.') is already exists.'
         ]));
-        // Log::info($req->all());
         $create = Zone::create($inputs);
         // if(!$create) return ApiResponse::Error('Fail to create zone');
         if(!$inputZoneCode) $create->update([
@@ -104,7 +103,6 @@ class ZoneController extends Controller
     public function updateZone(Request $req){
         $user = UserService::getAuthUser();
         $id = $req->id;
-        // \Log::info($req->all());
         $zone = Zone::where('company_id',$user->company_id)->where('is_deleted',0)->find($id);
         if(!$zone) return ApiResponse::NotFound(__('messages.not_found'));
         $validate = $this->zoneValidation($req);
@@ -233,7 +231,6 @@ class ZoneController extends Controller
             'driver_id' => 'required|int',
             'zones' => 'required|array'
         ]);
-        // Log::info($req->all());
         if($validator->fails()) return ApiResponse::ValidateFail($validator->errors()->first());
         $inputs = $validator->validated();
         $assignZones = $inputs['zones'];

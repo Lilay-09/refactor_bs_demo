@@ -60,7 +60,6 @@ class TransferServiceImpl implements TransferService
         $inputs['transfer_datetime'] = Helper::dateYMD($inputs['transfer_date']);
         $inputs['status_id'] = $inputs['status_id'] ?? TransferStatus::PENDING->value;
         $transferItemIds = $inputs['transfer_items'];
-        // Log::info($req->all());
         $packagesByKey = Package::where('is_deleted',false)
         ->where('warehouse_id',$inputs['from_location_id'])
         ->whereIn('status_id',[5,10])
@@ -94,8 +93,6 @@ class TransferServiceImpl implements TransferService
             $inputs['transfer_qty'] +=1;
         }
         unset($inputs['transfer_items']);
-        // return DataResponse::JsonResult($inputs);
-        // Log::info($req->all());
 
         try{
             DB::beginTransaction();
@@ -172,7 +169,6 @@ class TransferServiceImpl implements TransferService
         if(!$transfer){
             return DataResponse::NotFound();
         }
-        // Log::info($req->all());
         foreach($transferItemIds as $idx => $itemId){
             if(isset($existsPackageByKey[$itemId])){
                 continue;
@@ -391,7 +387,6 @@ class TransferServiceImpl implements TransferService
         ->where('status_id',12)
         ->whereIn('id',$receiveItemIds)->get()->keyBy('id');
         $updatePkg = [];
-        // Log::info($packagesByKey);
         $allReceive = 0;
         foreach($receiveItemIds as $itemId){
             if(!isset($existsPackageByKey[$itemId])){

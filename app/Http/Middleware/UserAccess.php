@@ -51,7 +51,6 @@ class UserAccess
         }
 
         if(in_array($method,['POST', 'PUT','DELETE'])){
-            // Log::info($uri.'=>'.$code);
             if(!$this->checkPermissionCode($userId,$code)) {
                 return DataResponse::Forbidden();
             }

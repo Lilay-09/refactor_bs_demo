@@ -49,7 +49,6 @@ class GeoResolverService
             throw new RuntimeException("Unexpected redirect URL: {$location}");
         }
         if (! preg_match('#(?:@|search/)(-?\d+\.\d+),[+\s]?(-?\d+\.\d+)#', $location, $m)) {
-            // \Log::info("NO MATCH in location: {$location}");
             return [
                 'lat' => 0,
                 'lng' => 0,

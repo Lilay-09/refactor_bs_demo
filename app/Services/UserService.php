@@ -80,7 +80,6 @@ class UserService
     public static function getAuthUser($class='admin',$action='',$useSpecificClass=true){
         $user = JWTAuth::user();
         if($user){
-            // Log::info($user);
             return DataResponse::JsonRaw([
                 'error'=>false,
                 'status_code' => 200,

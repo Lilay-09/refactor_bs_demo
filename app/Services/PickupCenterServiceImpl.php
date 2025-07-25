@@ -222,8 +222,6 @@ class PickupCenterServiceImpl implements PickupCenterService
             ]);
             // SendNotificationJob::dispatch($clmsgReq, $user);
             $queueFCMName = config('queue_job_names.'.config('app.env').'.notification');
-            // Log::info(config('queue_job_names.development.notification').'---'.config('app.env'));
-            // Log::info($queueFCMName);
             SendNotificationJob::dispatch($clmsgReq, $user)->onQueue($queueFCMName);
             if($driverId){
                 $topics = GeneralSettingService::getGeneralTopics($user->company_id,'driver',$driverId);

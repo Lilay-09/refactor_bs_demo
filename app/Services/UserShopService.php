@@ -35,7 +35,6 @@ class UserShopService
         ]);
     }
     public function saveShop(Request $req,$user){
-        // \Log::info($user);
         $validator = $this->userShopValidation($req);
         if($validator->fails()) return DataResponse::ValidateFail($validator->errors()->first());
         $inputs = $validator->validated();
@@ -76,7 +75,6 @@ class UserShopService
                 $inputs['image'] = $imgFile;
             }
             if(!$image){
-                Log::info("Test");
                 Helper::deleteImageFile($userShop->image,1,ImageDirectory::SHOP->value);
             }
             $userShop->update($inputs);

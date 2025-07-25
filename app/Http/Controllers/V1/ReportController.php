@@ -1418,14 +1418,12 @@ class ReportController extends Controller
             $qFpkg->where('warehouse_id',$warehouseId);
         }
         $failedPkgs = $qFpkg->get();
-        // Log::info($lastOrder);
         foreach($failedPkgs as $p){
             if (!isset($pkgInfo[5])) {
                 $pkgInfo[5] = ['count' => 0, 'total' => 0];
             }
             $pkgInfo[5]['count'] += 1;
             $pkgInfo[5]['total'] += $p->cod ? $p->price : 0;
-            // Log::info('Failed => '.$p->qr_code);
         }
 
         $statuses = [6, 9, 10, 11, 19];
@@ -1448,8 +1446,6 @@ class ReportController extends Controller
                     }
                     $pkgInfo[5]['count'] += 1;
                     $pkgInfo[5]['total'] += $p->cod ? $p->price : 0;
-                    // Log::info('L2');
-                    // Log::info('L2 Failed => '.$p->qr_code);
                 }
             }
             if ($p->status_id == 5) {
@@ -1458,11 +1454,8 @@ class ReportController extends Controller
                 }
                 $pkgInfo[5]['count'] += 1;
                 $pkgInfo[5]['total'] += $p->cod ? $p->price : 0;
-                // Log::info('L3');
-                // Log::info('L3 At warehouse => '.$p->qr_code);
             }
         }
-        // \Log::info($pkgInfo['5.1']['total'].'---'.$pkgInfo['5.1']['count'] );
         // return $packages;
         foreach ($packages as $p) {
             $totalCount += 1;
@@ -1475,8 +1468,6 @@ class ReportController extends Controller
                 // if($statusId == 5 || $statusId == 10){
                     $pkgInfo[5]['count'] += 1;
                     $pkgInfo[5]['total'] += $p->cod ? $p->price : 0;
-                    // Log::info('L4 Both => '.$p->qr_code);
-                    // Log::info('4');
                 // }//- $p->merchant_total;
                 if(isset($pkgInfo['5.2'])){
                     $pkgInfo['5.2']['count'] = $pkgInfo['5.1']['count'] + $pkgInfo[5]['count'];

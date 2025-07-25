@@ -26,11 +26,8 @@ class DriverTransactionController extends Controller
 
     public function getDriverCommissionPackage(Request $req){
         $driverId = $req->driver_id;
-
-        // \Log::info($req->all());
         $qD = User::query()->selectRaw('code,id,username as driver_name,phone as driver_phone')->where('account_type','driver');
         if($driverId) $qD->where('id',$driverId);
-        // $driverInfo = $qD->get();
         $qP = Package::query()->from('packages as p')
         ->select('p.status_id','p.driver_id','p.delivery_type')
         ->whereIn('p.status_id',[9,19])
