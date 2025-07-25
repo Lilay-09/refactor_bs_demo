@@ -969,12 +969,13 @@ class TransactionService
         $validType = $this->validType($type);
         if($validType->error) return $validType;
         if($trxType=='receive'){
+            Log::info($id);
             $payment = Payment::where('is_deleted',0)->orderByDesc('id')->find($id);
-            if($payment->is_settled) return DataResponse::Duplicated(__('messages.info',[
-                'info' => 'Payment has already been settled'
-            ]));
             if(!$payment) return DataResponse::NotFound(__('messages.not_found',[
                 'info' => 'Payment'
+            ]));
+            if($payment->is_settled) return DataResponse::Duplicated(__('messages.info',[
+                'info' => 'Payment has already been settled'
             ]));
             //** remove payment key from packages */
             $pmtKey = $type.'_payment_id';
@@ -982,10 +983,6 @@ class TransactionService
                 'is_deleted' => 1,
                 'deleted_datetime' => now(),
                 'deleted_uid' => $user->id
-            ]);
-            Package::where($pmtKey,$id)->update([
-                // $type.'_disbursement_id' => null,
-                $pmtKey => null,
             ]);
 
             PaymentPackage::where('payment_id',$id)->update([
@@ -1009,10 +1006,6 @@ class TransactionService
                 'deleted_datetime' => now(),
                 'deleted_uid' => $user->id
             ]);
-            Package::where($pmtKey,$id)->update([
-                $pmtKey => null,
-                // $type.'_payment_id' => null,
-            ]);
 
             DisbursementPackage::where('disbursement_id',$id)->update([
                 'is_deleted' => 1,
@@ -1021,12 +1014,7 @@ class TransactionService
                 'deleted_reason' => 'rollback by '.$user->username
             ]);
         }
-
-        return DataResponse::JsonResult(null,false,__('messages.deleted',[
-            'info' => 'Payment'
-        ]));
-
-
+        return DataResponse::JsonResult(null,false,__('messages.removed'));
     }
 
 
