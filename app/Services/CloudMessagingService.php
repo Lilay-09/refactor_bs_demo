@@ -207,8 +207,7 @@ class CloudMessagingService
             $targetValues = is_array($targetValue) ? $targetValue : [$targetValue];
             // Build messages
             $messages = [];
-            $data = $data ?? $notificationReq->data;
-            Log::info(json_encode($data));
+            $data = !empty($data) ? $data : $notificationReq->data;
             foreach ($targetValues as $value) {
                 $message = CloudMessage::withTarget($target, $value)
                     ->withNotification($notificationReq->all());
@@ -218,7 +217,6 @@ class CloudMessagingService
                 }
                 $messages[] = $message;
             }
-
 
             // Send: if multiple, use sendAll
             count($messages) > 1
