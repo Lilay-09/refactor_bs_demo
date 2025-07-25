@@ -213,7 +213,6 @@ class FleetManagementController extends Controller
         $package_id = $req->package_id;
         $status_id = $req->status_id;
         $failure_notes = $req->failure_notes ?? null;
-        // Log::info($req->all());
         $delivery = Delivery::where('is_deleted',0)->select('id','driver_id')->find($trip_id);
         // $tripPackage = DeliveryPackage::where('package_id',$package_id)->where('delivery_id','>',$trip_id)->where('delay_count',0)->orderByDesc('id')->first();
         // if(!$tripPackage) return ApiResponse::NotFound(__('messages.not_found',[
@@ -727,7 +726,6 @@ class FleetManagementController extends Controller
 
             // Bulk insert delivery packages
             if (!empty($bulkInsertData)) {
-                // Log::info($bulkInsertData);
                 DeliveryPackage::insert($bulkInsertData);
             }
 
@@ -791,7 +789,6 @@ class FleetManagementController extends Controller
         $endTime = $req->endTime;
         $status = $req->status ?? null;
         $statusIds = $req->statusIds;
-        // Log::info($statusIds);
         $trip = Delivery::where('is_deleted',0)->find($tripId);
         if(!$trip) return ApiResponse::JsonResult(null,'No trip found');
         $driverInfo = User::where('account_type','driver')->selectRaw('username as driver_name,phone,email')

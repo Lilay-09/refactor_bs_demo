@@ -251,7 +251,6 @@ class MerchantManagementController extends Controller
             $insertOrUpdate['zone_id'] = $zoneId;
         }
         if($merchantPriceList){
-            // \Log::info(json_encode($insertOrUpdate));
             $merchantPriceList->update($insertOrUpdate);
         }else{
             $insertOrUpdate['merchant_id'] = $id;

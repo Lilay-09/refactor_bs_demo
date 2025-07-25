@@ -23,7 +23,6 @@ class DashboardController extends Controller
     }
     public function getDashboardSummary(Request $req){
         $branchId = $req->branch_id;
-        Log::info($branchId);
         $obj = [
             'monthly' => $this->getMonthlyEarning($branchId),
             'top_rider' => $this->topRiders(5,$branchId),
@@ -307,7 +306,6 @@ class DashboardController extends Controller
 
         $daysCount = max(count($dateSet) - 1, 1);
         // Avoid division by zero
-        // \Log::info(array_values($testDate));
         $averageDailyEarning = $totalEarning / $daysCount;
 
         return [

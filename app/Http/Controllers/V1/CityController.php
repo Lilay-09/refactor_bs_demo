@@ -71,7 +71,6 @@ class CityController extends Controller
         $id = $req->id;
         $country_id = $inputs['country_id'];
         $user = UserService::getAuthUser();
-        Log::info($req->all());
         $city = City::where('is_deleted',0)->where('company_id',$user->company_id)->find($id);
         if(!$city) return ApiResponse::NotFound(__('messages.not_found'));
         $existCity = City::where('name_en',$req->name_en)->where('is_deleted',0)->where('company_id',$user->company_id)->where('country_id',$country_id)->where('id','!=',$id)->take(1)->value('id');

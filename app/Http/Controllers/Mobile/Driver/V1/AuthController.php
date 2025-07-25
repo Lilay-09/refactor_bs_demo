@@ -32,7 +32,6 @@ class AuthController extends Controller
         $input = $validate->validated();
         $account = $input['username'];
         $password = $input['password'];
-        // \Log::info('sdf');
         date_default_timezone_set('Asia/Phnom_Penh');
         $today = date('Y-m-d H:i:s');
         $user = User::where('account_type','driver')->where('is_deleted',0)->where(function ($q) use ($account) {
@@ -125,8 +124,7 @@ class AuthController extends Controller
             'loc_lat' => 'nullable',
             'loc_lng' => 'nullable'
         ]);
-        // \Log::error(json_encode($req->all()));
-        // Log::info($req->all());
+
         if($validate->fails()) return ApiResponse::ValidateFail($validate->errors()->first());
         $user = User::where('account_type',$authUser->account_type)
         ->selectRaw('id,photo_file_name,username,phone,email,pin_address,latitude,longitude')
@@ -157,7 +155,6 @@ class AuthController extends Controller
             Helper::deleteImageFile($user->photo_file_name,$authUser->company_id,'user_profile');
         }else if(!$photo) Helper::deleteImageFile($user->photo_file_name,$authUser->company_id,'user_profile');
         $user->update($inputs);
-        // Log::info($otherPhoneLines);
         foreach ($phones as $phone) {
             DB::table('user_contacts')->updateOrInsert(
                 ['user_id' => $user->id, 'phone' => $phone], // unique constraint

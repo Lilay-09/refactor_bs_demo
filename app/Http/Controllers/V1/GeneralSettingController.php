@@ -50,7 +50,6 @@ class GeneralSettingController extends Controller
 
     public function getOptionsDailyActiveMerchant(Request $req){
         $user = UserService::getAuthUser();
-        // Log::info($req->all());
         return ApiResponse::JsonResult($this->gs::optionsDailyActiveMerchant($user,$req->startDate,$req->endDate));
     }
 

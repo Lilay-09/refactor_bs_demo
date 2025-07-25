@@ -536,12 +536,9 @@ class HomeScreenController extends Controller
         $user = $this->user;
         $orderId = $req->order_id;
         $statusId = $req->status_id;
-        // Log::info('upload_max_filesize: ' . ini_get('upload_max_filesize'));
-        // Log::info('post_max_size: ' . ini_get('post_max_size'));
 
         // if (request()->isMethod('post')) {
         //     $postSize = (int) request()->server('CONTENT_LENGTH', 0);
-        //     Log::info('Client POST size: ' . number_format($postSize / 1024 / 1024, 2) . ' MB');
         // }
 
         // return $req;
@@ -616,7 +613,6 @@ class HomeScreenController extends Controller
             //     'info' => 'Your package quantity is not matching the number of photos.',
             //     'khInfo' => 'ចំនួនកញ្ចប់និងចំនួនរូបភាពមិនត្រូវគ្នា'
             // ]));
-            // Log::info('count img => '.count($images));
             $maxSize = Helper::validTotalImageSize($images);
             if($maxSize->error) return ApiResponse::ValidateFail($maxSize->message);
             foreach($images as $idx => $image){
@@ -932,7 +928,6 @@ class HomeScreenController extends Controller
 
     public function sortPackages(Request $req){
         // $user = UserService::getAuthUser('driver');
-        Log::info($req->all());
         $sortListIds = $req->input('sort_list');
         if(empty($sortListIds)) return ApiResponse::ValidateFail(__('messages.info',[
             'info' => 'Sort list is required'
