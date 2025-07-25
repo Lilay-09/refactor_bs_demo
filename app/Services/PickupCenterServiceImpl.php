@@ -173,9 +173,11 @@ class PickupCenterServiceImpl implements PickupCenterService
                     $d['merchant_id'] = $merchantId;
                     $d['product_type'] = $productType;
                     $price = $d['price'] ?? 0;
+                    $d['cod'] = 0;
                     if($isMobile && $price > 0){
                         $d['cod'] = 1;
-                    }else $d['cod'] = 0;
+                    }
+                    Log::info(json_encode($d));
                     $dReq = new Request($d);
                     $savePkg = $this->createOrUpdatePackage($dReq,$user,null,$orderId);
                     if($savePkg->error) return $savePkg;
