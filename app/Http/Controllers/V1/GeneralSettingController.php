@@ -326,7 +326,7 @@ class GeneralSettingController extends Controller
         $user = UserService::getAuthUser();
         $lang = $req->lang;
         $obj = (object)[
-            'zones' => $this->gs::optionsZone($user),
+            'zones' => $this->gs::optionsZone($user,'child',null,$req),
             'delivery_types' => $this->gs::optionsDeliveryType(),
             'cod' => $this->gs::optionsCOD($lang,'string'),
             'payers' => $this->gs::optionsPayer($req->lang),

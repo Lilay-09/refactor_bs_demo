@@ -434,16 +434,6 @@ class GeneralSettingController extends Controller
 
                     $client->send($message);
 
-                    // try {
-                    // $response = $client->receive();
-                    //     error_log("WebSocket receive: " . $response);
-                    // } catch (\Throwable $e) {
-                    //     error_log("WebSocket receive error: " . $e->getMessage());
-                    // }
-                    // If expecting response
-                    // $response = $client->receive();
-                    // error_log("WebSocket receive: " . $response);
-
                     $client->close();
                 }
             }
