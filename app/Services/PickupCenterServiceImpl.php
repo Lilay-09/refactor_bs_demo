@@ -39,6 +39,7 @@ class PickupCenterServiceImpl implements PickupCenterService
             'image' => 'nullable',
             'product_type' => 'nullable|string',
             'price' => 'nullable|numeric|min:0',
+            'price_khr' => 'nullable|numeric|min:0',
             'dim_z' => 'nullable|numeric',
             'dim_y' => 'nullable|numeric',
             'dim_x' => 'nullable|numeric',
