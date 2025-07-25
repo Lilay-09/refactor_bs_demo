@@ -409,6 +409,7 @@ class GeneralSettingController extends Controller
                         "km_message" => $requester." ស្នើរសុំកញ្ចប់"
                     ]
                 ]);
+                // Log::info($notifReq);
                 // var_dump($requester,$topics->private);
                 $cms->sendNotificationByTopic($notifReq,$user);
                 $driverName = $driver?->username;
