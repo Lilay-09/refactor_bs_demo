@@ -208,6 +208,7 @@ class CloudMessagingService
             // Build messages
             $messages = [];
             $data = $data ?? $notificationReq->data;
+            Log::info(json_encode($data));
             foreach ($targetValues as $value) {
                 $message = CloudMessage::withTarget($target, $value)
                     ->withNotification($notificationReq->all());
