@@ -7,7 +7,7 @@
     <title>Share</title>
 </head>
 <body>
-    <p class="c4"><span class="c2 c11">How Does </span><span class="c2">JS Express</span><span
+    <p class="c4"><span class="c2 c11">How Does </span><span class="c2">NG Express</span><span
             class="c18">&nbsp;</span><span class="c3 c2">Share My Information?</span></p>
     <p class="c6"><span class="c0">We may share your booking information, account information, and location
             information with affiliate companies within our corporate family and third parties, such as the partners

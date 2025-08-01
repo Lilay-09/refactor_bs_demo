@@ -12,8 +12,6 @@ use App\Services\UserService;
 use DB;
 use Helper;
 use Illuminate\Http\Request;
-use function Laravel\Prompts\select;
-
 class MerchantManagementController extends Controller
 {
     //
@@ -53,7 +51,6 @@ class MerchantManagementController extends Controller
             });
         }
         $query->orderByDesc('id');
-
         // foreach($merhcants as $m){
 
         //     $merchantPriceList = $this->getMerchantPriceList($priceList,$m->id);

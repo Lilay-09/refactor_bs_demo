@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\DTO\PackageCommentDTO;
 use App\Enums\CommentSource;
 use App\Models\Comment;
 use App\Models\CommentDescriptions;
@@ -9,8 +10,8 @@ use App\Models\CommentUser;
 use DataResponse;
 use DB;
 use Illuminate\Http\Request;
-use PackageCommentDTO;
-use WebSocket\Client;
+use Log;
+// use WebSocket\Client;
 
 class CommentServiceImpl implements CommentService
 {
@@ -34,15 +35,13 @@ class CommentServiceImpl implements CommentService
         $comment = Comment::where('thread_id', $threadId)->first();
         $commentId = null;
         try{
+            DB::beginTransaction();
             if(!$comment){
             $createComment = Comment::create([
                 'thread_id' => $threadId,
                 'source' => CommentSource::PACKAGE->value,
-                'data' => $inputs['data'],
-                'data_type' => $inputs['data_type'],
                 'started_at' => now(),
                 'starter_id' => $authUser->id,
-                'user_id' => $authUser->id,
                 'company_id' => $authUser->company_id,
                 'branch_id' => $authUser->branch_id,
             ]);
@@ -53,12 +52,7 @@ class CommentServiceImpl implements CommentService
             CommentUser::updateOrCreate([
                 'comment_id' => $commentId,
                 'user_id' => $authUser->id,
-                'user_type' => 'starter',
-            ], [
-                'create_uid' => $authUser->id,
-                'update_uid' => $authUser->id,
-                'company_id' => $authUser->company_id,
-                'branch_id' => $authUser->branch_id,
+                'user_type' => $comment ? 'owner':'member',
             ]);
 
             $cmmDesId = CommentDescriptions::insertGetId([
@@ -78,6 +72,7 @@ class CommentServiceImpl implements CommentService
             ], false);
         }catch (\Exception $e) {
             DB::rollBack();
+            Log::error($e->getMessage());
             return DataResponse::JsonResult([], true, $e->getMessage());
         }
     }
@@ -89,9 +84,12 @@ class CommentServiceImpl implements CommentService
             ->first();
         if ($comment) {
             $comment->load(['descriptions' => function($query) {
-                $query->orderBy('created_at', 'desc');
+                $query->orderBy('created_at', 'asc');
             }]);
-            $res = $comment->descriptions->map(function($description) {
+            $res = $comment->descriptions->map(function($description) use($authUser) {
+                if($authUser->id == $description->create_uid){
+                    $description->isSelf = true;
+                }
                 return PackageCommentDTO::fromModel($description)->toArray();
             });
             return DataResponse::JsonResult($res, false);

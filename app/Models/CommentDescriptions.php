@@ -10,6 +10,7 @@ class CommentDescriptions extends Model
     // use HasFactory;
     protected $table = 'comment_descriptions';
     protected $fillable = [
+        'id',
         'parent_id',
         'tmp_id',
         'thread_id',

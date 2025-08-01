@@ -15,6 +15,8 @@ class Warehouse extends Model
         'name_en',
         'address',
         'bm_name_en',
+        'address_en',
+        'staff_count',
         'bm_name_km',
         'shortcut',
         'bm_phone',

@@ -2,14 +2,12 @@
 
 namespace App\Services;
 
-use App\Enums\Enums\TrackingStatus;
+use App\Enums\TrackingStatus;
 use App\Models\Package;
-use App\Models\PackageTransfer;
 use App\Models\PackageTransferDetail;
 use App\Models\Warehouse;
 use DataResponse;
 use Illuminate\Http\Request;
-use function Laravel\Prompts\select;
 
 class WarehouseServiceImpl implements WarehouseService
 {
@@ -50,7 +48,7 @@ class WarehouseServiceImpl implements WarehouseService
     }
     public function getOneWarehouse(int $id, object $authUser): object{
         $warehouse = Warehouse::where('is_deleted',false)
-        ->select('branch_id','shortcut','id','name_en','bm_name_en','bm_phone','staff_count','warehouse_type_id','status_id')
+        ->select('branch_id','shortcut','address_en','id','name_en','bm_name_en','bm_phone','staff_count','warehouse_type_id','status_id')
         ->find($id);
         return DataResponse::JsonResult($warehouse,false);
     }
@@ -88,7 +86,7 @@ class WarehouseServiceImpl implements WarehouseService
 
     public function getWarehousesByBranch(int $branchId, object $authUser): object{
         $warehouse = Warehouse::where('is_deleted',false)
-        ->select('branch_id','id','name_en','bm_name_en','bm_phone','staff_count','warehouse_type_id','shortcut')
+        ->select('branch_id','id','name_en','bm_name_en','bm_phone','staff_count','warehouse_type_id','shortcut','address_en')
         ->where('branch_id',$branchId)->get();
         return DataResponse::JsonResult($warehouse);
     }
