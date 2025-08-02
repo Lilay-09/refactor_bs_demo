@@ -265,7 +265,7 @@
             the relevant exceptions.</span></p>
     <p class="c6"><span class="c18">To address any privacy or security questions or concerns, or to make any of
             these requests, please contact us with details about your request at </span><span
-            class="c8">sabat.jsexpress@gmail.com</span><span class="c0">. </span></p>
+            class="c8">ngexpress219@gmail.com</span><span class="c0">. </span></p>
     <p class="c6"><span class="c0">We will respond to your above requests without undue delay. NG Express
             shall take reasonable steps to verify customer identity before taking further action on your request:</span>
     </p>
@@ -281,7 +281,7 @@
     <p class="c6"><span class="c2 c12">How Can I Lodge a Complaint?</span></p>
     <p class="c6"><span class="c18">We are committed to investigating and resolving complaints about our
             collection or use of your personal information. To make a complaint, contact us at </span><span
-            class="c8">sambat.jsexpress@gmail.com</span><span class="c0">. </span></p>
+            class="c8">ngexpress219@gmail.com</span><span class="c0">. </span></p>
     <p class="c6"><span class="c0">Clearly provide the following information to help us address the issue
             effectively:</span></p>
     <ul class="c10 lst-kix_u99r1zw02mac-0 start">
