@@ -35,6 +35,7 @@ class Package extends Model
         'product_type',
         'returned_uid',
         'price',
+        'price_khr',
         'dim_x',
         'taxi_fee',
         'dim_y',

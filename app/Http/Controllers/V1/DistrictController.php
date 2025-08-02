@@ -57,7 +57,7 @@ class DistrictController extends Controller
     public function district(Request $req){
         $id = $req->id;
         $user = UserService::getAuthUser();
-        $districts = District::where('company_id',$user->company_id)->where('is_deleted',0)->selectRaw('name,id,name_km,city_id')->find($id);
+        $districts = District::where('company_id',$user->company_id)->where('is_deleted',0)->selectRaw('name_en,id,name_km,city_id')->find($id);
         if(!$districts) return ApiResponse::NotFound(__('messages.not_found'));
         return ApiResponse::JsonResult($districts,'get one district');
     }

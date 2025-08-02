@@ -8,10 +8,12 @@ use App\Models\User;
 use App\Services\CloudMessagingService;
 use App\Services\Mobile\AuthService;
 use App\Services\UserService;
+use DB;
 use Hash;
 use Helper;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
+use Log;
 use Tymon\JWTAuth\Exceptions\JWTException;
 use Tymon\JWTAuth\Facades\JWTAuth;
 
@@ -30,7 +32,6 @@ class AuthController extends Controller
         $input = $validate->validated();
         $account = $input['username'];
         $password = $input['password'];
-        // \Log::info('sdf');
         date_default_timezone_set('Asia/Phnom_Penh');
         $today = date('Y-m-d H:i:s');
         $user = User::where('account_type','driver')->where('is_deleted',0)->where(function ($q) use ($account) {
@@ -115,19 +116,36 @@ class AuthController extends Controller
             'username' => 'required|string',
             'email' => 'nullable|string',
             'address' => 'nullable|string',
+            'phone_1' => 'nullable|string',
+            'phone_2' => 'nullable|string',
+            'phone_3' => 'nullable|string',
             'photo' => 'nullable',
             'pin_address' => 'nullable',
             'loc_lat' => 'nullable',
             'loc_lng' => 'nullable'
         ]);
-        // \Log::error(json_encode($req->all()));
-        // \Log::info($req->all());
+
         if($validate->fails()) return ApiResponse::ValidateFail($validate->errors()->first());
-        $user = User::where('account_type',$authUser->account_type)->selectRaw('id,photo_file_name,username,phone,email,pin_address,latitude,longitude')->find($authUser->id);
+        $user = User::where('account_type',$authUser->account_type)
+        ->selectRaw('id,photo_file_name,username,phone,email,pin_address,latitude,longitude')
+        ->find($authUser->id);
         $inputs = $validate->validated();
         $inputs['latitude'] = $inputs['loc_lat'] ?? null;
         $inputs['longitude'] = $inputs['loc_lng'] ?? null;
         $photo = $inputs['photo'] ?? null;
+        if(!empty($inputs['phone1'])){
+            $inputs['phone'] = $inputs['phone_1'];
+        }
+        $phones = [];
+
+        if (!empty($inputs['phone_2'])) {
+            $phones[] = $inputs['phone_2'];
+        }
+
+        if (!empty($inputs['phone_3'])) {
+            $phones[] = $inputs['phone_3'];
+        }
+
         $maxSize = Helper::validTotalImageSize([$photo]);
         if($maxSize->error) return ApiResponse::ValidateFail($maxSize->message);
         if($photo instanceof UploadedFile){
@@ -137,6 +155,16 @@ class AuthController extends Controller
             Helper::deleteImageFile($user->photo_file_name,$authUser->company_id,'user_profile');
         }else if(!$photo) Helper::deleteImageFile($user->photo_file_name,$authUser->company_id,'user_profile');
         $user->update($inputs);
+        foreach ($phones as $phone) {
+            DB::table('user_contacts')->updateOrInsert(
+                ['user_id' => $user->id, 'phone' => $phone], // unique constraint
+                ['updated_at' => now()] // fields to update
+            );
+        }
+        DB::table('user_contacts')
+        ->where('user_id', $user->id)
+        ->whereNotIn('phone', $phones)
+        ->delete();
         return ApiResponse::JsonResult([
             'image_url' => Helper::getImageUrl($user->photo_file_name,$authUser->company_id,'user_profile')
         ],__('messages.info',[

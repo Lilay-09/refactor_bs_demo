@@ -6,17 +6,13 @@ use ApiResponse;
 use App\Enums\ImageDirectory;
 use App\Enums\TrackingStatus;
 use App\Http\Controllers\Controller;
-use App\Http\Controllers\V1\FleetManagementController;
-use App\Http\Controllers\V1\PackageTrailController;
 use App\Models\Delivery;
 use App\Models\DeliveryPackage;
 use App\Models\Notification;
 use App\Models\Package;
 use App\Models\PackageAttachment;
-use App\Models\PackageTransferDetail;
 use App\Services\CloudMessagingService;
 use App\Services\GeneralSettingService;
-use App\Services\PickupCenterService;
 use App\Services\PickupCenterServiceImpl;
 use App\Services\TransferServiceImpl;
 use App\Services\UserService;
@@ -395,22 +391,25 @@ class GeneralSettingController extends Controller
                 ]));
                 $requester = $user->info->phone."($user->username)";
                 $topics = GeneralSettingService::getGeneralTopics($user->company_id,'driver',$package->driver_id);
+                $ttl = 300;
                 Cache::set($topics->private,(object)[
                     'requester' => $requester,
                     'requester_id' => $user->id,
-                ],250);
+                ],$ttl);
                 $notifReq = new Request([
                     'topic' => $topics->private,
                     'title' => 'Change Driver',
                     'body' => "$requester request change package ",
                     'data' => [
                         'action' => 'change-driver',
+                        'time_to_live' => now()->addSeconds($ttl),
                         'requester' => $requester,
                         'barcode' => $item_ref,
                         "en_message" => "$requester request change package ",//$requester." request swap the package",
                         "km_message" => $requester." ស្នើរសុំកញ្ចប់"
                     ]
                 ]);
+                // Log::info($notifReq);
                 // var_dump($requester,$topics->private);
                 $cms->sendNotificationByTopic($notifReq,$user);
                 $driverName = $driver?->username;
@@ -423,12 +422,19 @@ class GeneralSettingController extends Controller
                 $rct = $trxSImpl->driverScanReceive($user,$package->id);
                 if($rct->error) return $rct;
                 else{
-                    $client = new Client(config('app.cl_socket'));
-                    $client->send(json_encode([
+                    $client = new Client(config('app.cl_socket'), [
+                        'headers' => [
+                            'Origin' => 'https://dev.ngexpresscambodia.com',
+                        ]
+                    ]);
+                    $message = json_encode([
                         'topic' => 'ng_express',
                         'type' => 'receive',
-                        'message' => $package->id
-                    ]));
+                        'message' => $package->id,
+                    ]);
+
+                    $client->send($message);
+
                     $client->close();
                 }
             }
@@ -438,9 +444,6 @@ class GeneralSettingController extends Controller
                 'file_dir' => $isReturn ? ImageDirectory::RETURNED_IMAGE->value:ImageDirectory::SUBMIT_PACKAGE->value,
                 'file_name' => $returnImg,
             ]);
-
-
-            // Log::info(PackageTransferDetail::where('package_id',$package->id)->get());
             DB::commit();
             return ApiResponse::JsonResult(null,__('messages.updated'));
         }catch(Exception $e){

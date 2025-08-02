@@ -38,7 +38,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Log;
 use Str;
-use WebSocket\Client;
+// use WebSocket\Client;
 
 class HomeScreenController extends Controller
 {
@@ -258,15 +258,15 @@ class HomeScreenController extends Controller
         ->with([
             'merchant:id,username,phone',
             'order:id,loc_lat,loc_lng'
-        ]);
+        ])->orderByDesc('assigned_return_at');
         $geoResolver = new GeoResolverService();
         $callback = function ($pkg) use($geoResolver){
             $pkg->status = TrackingStatus::tryFrom($pkg->status_id)->label();
             $pkg->merchant_name = $pkg->merchant->username;
             $pkg->merchant_phone = $pkg->merchant->phone;
             $pkg->remarks = $pkg->delivery_remarks;
-            $pkg->date = Helper::dateDMY($pkg->created_at,'d M, Y');
-            $pkg->time = Helper::dateDMY($pkg->created_at,'h:i A');
+            $pkg->date = Helper::dateDMY($pkg->assigned_return_at,'d M, Y');
+            $pkg->time = Helper::dateDMY($pkg->assigned_return_at,'h:i A');
 
             $locLat = (float)($pkg->order->loc_lat ?? 0);
             $locLng = (float) ($pkg->order->loc_lng ?? 0);
@@ -276,7 +276,7 @@ class HomeScreenController extends Controller
             $pkg->telegram_link = Helper::generateTelegramLink($pkg->merchant_phone);
             return HomeReturnPackageDTO::fromModel($pkg);
         };
-        $select = ['id','merchant_id','status_id','order_id','delivery_remarks','returned_datetime','created_at','qr_code'];
+        $select = ['id','merchant_id','status_id','order_id','delivery_remarks','assigned_return_at','created_at','qr_code'];
         return ApiResponse::PaginationV1($pk,$req,'',[],300,$callback,$select);
     }
 
@@ -334,36 +334,38 @@ class HomeScreenController extends Controller
         $statusId = $req->query('status_id');
         $qP = Package::query()
         ->from('packages as p')
+        ->where('p.is_deleted',false)
         ->where('p.driver_id', $driverId)
         ->whereIn('p.status_id', [6,9,10,19])
-        ->where('p.created_at', '>=', Carbon::now()->subDays(15))
-        ->whereExists(function ($q) {
-            $q->select(DB::raw(1))
-                ->from('delivery_packages as dp')
-                ->join('deliveries as d', 'd.id', 'dp.delivery_id')
-                ->whereColumn('dp.package_id', 'p.id')
-                ->where('dp.is_deleted', 0)
-                ->where('dp.has_swap', 0)
-                ->where('dp.delay_count', 0)
-                ->where(function ($q2) {
-                    $q2->where('d.finished', 0)
-                        ->orWhereDate('d.depart_datetime', Carbon::today());
-                });
-        })
+        ->where('p.arrive_warehouse_datetime', '>=', Carbon::now()->subDays(15))
+        // ->whereExists(function ($q) {
+        //     $q->select(DB::raw(1))
+        //         ->from('delivery_packages as dp')
+        //         ->join('deliveries as d', 'd.id', 'dp.delivery_id')
+        //         ->whereColumn('dp.package_id', 'p.id')
+        //         ->where('dp.is_deleted', 0)
+        //         ->where('dp.has_swap', 0)
+        //         ->where('dp.delay_count', 0)
+        //         ->where(function ($q2) {
+        //             $q2->where('d.finished', 0)
+        //                 ->orWhereDate('d.depart_datetime', Carbon::today());
+        //         });
+        // })
         ->join('users as d', 'd.id', 'p.driver_id')
         ->join('users as m', 'm.id', 'p.merchant_id')
         // ->join('tracking_statuses as ts', 'ts.id', 'p.status_id')
         ->orderBy('p.driver_display_order', 'asc')
         ->orderBy('p.status_id', 'desc');
+        $totalOnDelivery = (clone $qP)->where('p.status_id', 6)->count();
         if ($statusId) {
             $qP->where('p.status_id', $statusId);
         }
         $select = [
             'p.driver_display_order','p.payer','p.receiver_address','p.extra_charge','p.id','p.delivered_datetime','p.failed_datetime',
             'p.assign_driver_datetime','p.merchant_id','p.qr_code','p.price','p.cod','p.receiver_name','p.receiver_phone','p.zone_code',
-            'p.zone_name','d.username as driver_name','d.phone as driver_phone','m.username as merchant_name',
+            'p.zone_name','d.username as driver_name','d.phone as driver_phone','m.username as merchant_name','p.arrive_warehouse_datetime',
             'm.phone as merchant_phone','p.id as package_id','p.zone_code','p.zone_name','p.delivery_fee as base_fee','p.driver_total',
-            'p.taxi_fee','p.product_type','p.status_id','p.driver_notes','p.is_contact'
+            'p.taxi_fee','p.product_type','p.status_id','p.driver_notes','p.is_contact','p.remarks'
         ];
         $xRate = GeneralSettingService::getLatestXRate()->sell_rate;
         $callback = function($q) use($xRate){
@@ -372,11 +374,32 @@ class HomeScreenController extends Controller
             $q->total = $q->driver_total;
             $q->total_khr = (float)number_format($q->driver_total * $xRate,2,'.','');
             $q->exchange_rate = $xRate;
+            $this->dateTimeByStatus($q,$q->status_id);
             return DeliveryTripsPackagesDTO::fromModel($q);
         };
-
-        return ApiResponse::PaginationV1($qP,$req,'',[],250,$callback,$select);
+        return ApiResponse::PaginationV1($qP,$req,'',[
+            'total_on_delivery' => $totalOnDelivery
+        ],250,$callback,$select);
     }
+
+    private function dateTimeByStatus(&$row, $statusId)
+    {
+        $datetimeMap = match (true) {
+            in_array($statusId, [5, 6]) => $row->arrive_warehouse_datetime,
+            $statusId === 9             => $row->delivered_datetime,
+            in_array($statusId, [10, 19]) => $row->failed_datetime,
+            default                     => null,
+        };
+
+        if ($datetimeMap) {
+            $row->date = Helper::formatCustomDateTime($datetimeMap, 'd m,Y');
+            $row->time = Helper::formatCustomDateTime($datetimeMap, 'h:i A');
+        }
+
+        return $row;
+    }
+
+
 
     public function editSelfNotes(Request $req){
         $id = $req->id;
@@ -513,12 +536,9 @@ class HomeScreenController extends Controller
         $user = $this->user;
         $orderId = $req->order_id;
         $statusId = $req->status_id;
-        // Log::info('upload_max_filesize: ' . ini_get('upload_max_filesize'));
-        // Log::info('post_max_size: ' . ini_get('post_max_size'));
 
         // if (request()->isMethod('post')) {
         //     $postSize = (int) request()->server('CONTENT_LENGTH', 0);
-        //     Log::info('Client POST size: ' . number_format($postSize / 1024 / 1024, 2) . ' MB');
         // }
 
         // return $req;
@@ -574,6 +594,13 @@ class HomeScreenController extends Controller
             // ]));
             foreach($details as $d){
                 $d['merchant_id'] = $order->merchant_id;
+                $d['cod'] = 0;
+                $price = $d['price'] ?? 0;
+                $priceKhr = $d['price_khr'] ?? 0;
+                $hasPrice = $price + $priceKhr > 0 ? 1 : 0;
+                if($hasPrice > 0){
+                    $d['cod'] = 1;
+                }
                 $rD = new Request($d);
                 $savePkg = $this->pickupCenterService->createOrUpdatePackage($rD,$user,null,$orderId);
                 if($savePkg->error) return ApiResponse::flex($savePkg);
@@ -586,7 +613,6 @@ class HomeScreenController extends Controller
             //     'info' => 'Your package quantity is not matching the number of photos.',
             //     'khInfo' => 'ចំនួនកញ្ចប់និងចំនួនរូបភាពមិនត្រូវគ្នា'
             // ]));
-            // Log::info('count img => '.count($images));
             $maxSize = Helper::validTotalImageSize($images);
             if($maxSize->error) return ApiResponse::ValidateFail($maxSize->message);
             foreach($images as $idx => $image){
@@ -721,18 +747,19 @@ class HomeScreenController extends Controller
             'hidden' => 1
         ]);
 
+        $attactmentImgs = [];
         if(isset($photos[0])) {
             foreach($photos as $p){
                 $dirName = ImageDirectory::SUBMIT_PACKAGE->value;
                 $today = date('Y-m-d');
                 $fileName = Helper::saveImageFileOrBase64($p,$user->company_id,$dirName,$today)->filename;
                 if($fileName){
-                    PackageAttachment::create([
+                    $attactmentImgs[] = [
                         'package_id' => $id,
                         'file_dir' => $dirName,
                         'submit_uid' => $user->id,
                         'file_name' => $fileName
-                    ]);
+                    ];
                 }
             }
         }
@@ -767,20 +794,29 @@ class HomeScreenController extends Controller
             $inputs['driver_total'] = $calucalteFee->driver_total;
         }
 
-        $package->update($inputs);
-        $dp = DeliveryPackage::where('package_id',$id)->where('driver_id',$user->id)
-        ->where('is_deleted',0)
-        ->where('has_swap',0)
-        ->orderByDesc('id')->where('delay_count',0)->first();
-        $dp->update([
-            'notes' => $inputs['tracking_notes'],
-            'status_id' => $status_id
-        ]);
-        GeneralSettingService::updateTripStatus($dp->delivery_id,$user);
-        return ApiResponse::JsonResult(null,__('messages.submitted',[
-            'info' => 'Package has',
-            'khInfo' => 'បានបញ្ចូន'
-        ]));
+        try{
+            DB::beginTransaction();
+            $package->update($inputs);
+            $dp = DeliveryPackage::where('package_id',$id)->where('driver_id',$user->id)
+            ->where('is_deleted',0)
+            ->where('has_swap',0)
+            ->orderByDesc('id')->where('delay_count',0)->first();
+            $dp->update([
+                'notes' => $inputs['tracking_notes'],
+                'status_id' => $status_id
+            ]);
+            GeneralSettingService::updateTripStatus($dp->delivery_id,$user);
+            DB::commit();
+            return ApiResponse::JsonResult(null,__('messages.submitted',[
+                'info' => 'Package has',
+                'khInfo' => 'បានបញ្ចូន'
+            ]));
+        }catch(Exception $e){
+            DB::rollBack();
+            Log::error($e->getMessage());
+            return ApiResponse::Error('It will get back soon!');
+        }
+
     }
 
     public function cancelOrder(Request $req){
@@ -892,7 +928,6 @@ class HomeScreenController extends Controller
 
     public function sortPackages(Request $req){
         // $user = UserService::getAuthUser('driver');
-        Log::info($req->all());
         $sortListIds = $req->input('sort_list');
         if(empty($sortListIds)) return ApiResponse::ValidateFail(__('messages.info',[
             'info' => 'Sort list is required'

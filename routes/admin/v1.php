@@ -552,6 +552,7 @@ Route::middleware(['jwt','localize','userAccess:admin','rateLimit'])->prefix('ad
 
     Route::prefix('setting')->group(function(){
         Route::prefix('option')->group(function(){
+            Route::get('vehicle/type',[GeneralSettingController::class,'optionsEnumVehicleType']);
             Route::get('package/{packageId}',[GeneralSettingController::class,'getOptionsPackageById']);
             Route::get('branch',[GeneralSettingController::class,'getOptionsBranch']);
             Route::get('branch/{branch_id}/warehouse',[GeneralSettingController::class,'getOptionsWarehouseByBranch']);

@@ -50,7 +50,6 @@ class GeneralSettingController extends Controller
 
     public function getOptionsDailyActiveMerchant(Request $req){
         $user = UserService::getAuthUser();
-        // Log::info($req->all());
         return ApiResponse::JsonResult($this->gs::optionsDailyActiveMerchant($user,$req->startDate,$req->endDate));
     }
 
@@ -327,7 +326,7 @@ class GeneralSettingController extends Controller
         $user = UserService::getAuthUser();
         $lang = $req->lang;
         $obj = (object)[
-            'zones' => $this->gs::optionsZone($user),
+            'zones' => $this->gs::optionsZone($user,'child',null,$req),
             'delivery_types' => $this->gs::optionsDeliveryType(),
             'cod' => $this->gs::optionsCOD($lang,'string'),
             'payers' => $this->gs::optionsPayer($req->lang),
@@ -432,6 +431,10 @@ class GeneralSettingController extends Controller
                 })
         ];
         return ApiResponse::JsonResult($obj);
+    }
+
+    public function optionsEnumVehicleType(){
+        return ApiResponse::JsonResult($this->gs::optionsEnumVehicleType());
     }
 
     public function getFormReceive(){

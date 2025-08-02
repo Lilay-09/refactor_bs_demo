@@ -20,8 +20,8 @@ return [
     'driver_jwt_ttl' => env('DRIVER_JWT_TTL',31536000),
     'merchant_jwt_ttl' => env('MERCHANT_JWT_TTL',78840000),
     'plasgate_sender' => env('PLASGATE_SENDER','PlasGateUAT'),
-    'cl_socket' => env('CL_SOCKET'),
-    'chat_service_socket' => env('CL_SOCKET'),
+    'cl_socket' => env('CL_SOCKET','ws://192.168.0.236:3000/api/ws'),
+    'chat_service_socket' => env('CL_SOCKET','ws://192.168.0.236:3000/api/ws'),
     'use_redis' => env('USE_REDIS','false'),
     'fcm_topic_prefix' => env('TOPIC_PREFIX'),
     /*

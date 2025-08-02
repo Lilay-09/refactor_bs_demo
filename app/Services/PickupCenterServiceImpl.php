@@ -39,6 +39,7 @@ class PickupCenterServiceImpl implements PickupCenterService
             'image' => 'nullable',
             'product_type' => 'nullable|string',
             'price' => 'nullable|numeric|min:0',
+            'price_khr' => 'nullable|numeric|min:0',
             'dim_z' => 'nullable|numeric',
             'dim_y' => 'nullable|numeric',
             'dim_x' => 'nullable|numeric',
@@ -157,8 +158,8 @@ class PickupCenterServiceImpl implements PickupCenterService
         // $lang = $req->lang;
         $inputs['delivery_type'] = $inputs['delivery_type'] ?? 'normal';
         if(!$pickupAddress) $inputs['pickup_address'] = $latLng->address;
-        DB::beginTransaction();
         try{
+            DB::beginTransaction();
             $createOrder = Order::create($inputs);
             if(!$createOrder) return DataResponse::Error('Fail to create order!');
             $orderId = $createOrder->id;
@@ -173,8 +174,9 @@ class PickupCenterServiceImpl implements PickupCenterService
                     $d['merchant_id'] = $merchantId;
                     $d['product_type'] = $productType;
                     $price = $d['price'] ?? 0;
+                    $d['cod'] = 0;
                     if($isMobile && $price > 0){
-                        $d['cod'] = true;
+                        $d['cod'] = 1;
                     }
                     $dReq = new Request($d);
                     $savePkg = $this->createOrUpdatePackage($dReq,$user,null,$orderId);
@@ -221,8 +223,6 @@ class PickupCenterServiceImpl implements PickupCenterService
             ]);
             // SendNotificationJob::dispatch($clmsgReq, $user);
             $queueFCMName = config('queue_job_names.'.config('app.env').'.notification');
-            // Log::info(config('queue_job_names.development.notification').'---'.config('app.env'));
-            // Log::info($queueFCMName);
             SendNotificationJob::dispatch($clmsgReq, $user)->onQueue($queueFCMName);
             if($driverId){
                 $topics = GeneralSettingService::getGeneralTopics($user->company_id,'driver',$driverId);
@@ -233,6 +233,7 @@ class PickupCenterServiceImpl implements PickupCenterService
                     'title' => __('notification.assign_order.title'),//$notifTitle,
                     'body' => __('notification.assign_order.body',[
                         'merchant' => $validMerchant->username,
+                        'create_user' => $user->username,
                         'count' => $inputQty
                     ])
                 ]);
@@ -508,7 +509,6 @@ class PickupCenterServiceImpl implements PickupCenterService
             return DataResponse::JsonResult(null,false,__('messages.updated'));
         }
     }
-
 
     public function createOrUpdateTrip($driverId,$packageId,$vehicleType,$user,$notes,$statusId,$action=null,$package=null){
         $today = date('Y-m-d');

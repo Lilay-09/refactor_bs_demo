@@ -15,10 +15,11 @@ class VehicleTypeController extends Controller
 
     public function vehicleTypeValiation(Request $req){
         return validator($req->all(),[
-            'name' => 'required|string|max:50',
+            'name_en' => 'required|string|max:50',
             'name_km' => 'nullable|string|max:50',
+            'type' => 'required|string',
             'description_en' => 'nullable|string|max:250',
-            'description_km' => 'nullable|string|max:250',
+            'description_km' => 'nullable|string|max:250'
         ]);
     }
 
@@ -37,17 +38,17 @@ class VehicleTypeController extends Controller
         $inputs['company_id'] = $user->company_id;
         $updateOrCreate = null;
         if($vehicleType){ //** update */
-            $existsType = VehicleType::where('name',$inputs['name'])->where('id','!=',$id)->first();
+            $existsType = VehicleType::where('name_en',$inputs['name_en'])->where('id','!=',$id)->first();
             if($existsType) return ApiResponse::Duplicated(__('messages.error',[
-                'info' => 'Product type ('.$inputs['name'].') is already exists.'
+                'info' => 'Product type ('.$inputs['name_en'].') is already exists.'
             ]));
             $updateOrCreate = $vehicleType->update($inputs);
         }else{
             //** create here */
             $inputs['create_uid'] = $user->id;
-            $existsType = VehicleType::where('name',$inputs['name'])->first();
+            $existsType = VehicleType::where('name_en',$inputs['name_en'])->first();
             if($existsType) return ApiResponse::Duplicated(__('messages.error',[
-                'info' => 'Product type ('.$inputs['name'].') is already exists.'
+                'info' => 'Product type ('.$inputs['name_en'].') is already exists.'
             ]));
             $updateOrCreate = VehicleType::create($inputs);
         }
@@ -65,22 +66,28 @@ class VehicleTypeController extends Controller
         return ApiResponse::flex($this->createOrUpdateVehicleType($req,$id));
     }
 
-
     public function getVehicleTypes(Request $req){
         $user = UserService::getAuthUser();
-        $vehicleTypes = VehicleType::where('company_id',$user->company_id)->where('is_deleted',0)->orderByDesc('id')->get();
-        return ApiResponse::Pagination($vehicleTypes,$req);
+        $vehicleTypes = VehicleType::where('company_id',$user->company_id)
+        ->where('is_deleted',0)->orderByDesc('id');
+        $select = [
+            'id','name_en','name_km','type'
+        ];
+
+        return ApiResponse::PaginationV1($vehicleTypes,$req,'',[],100,null,$select);
     }
 
     public function getOneVehicleType(Request $req){
         $user = UserService::getAuthUser();
         $id = $req->id;
-        $vehicleType = VehicleType::where('company_id',$user->company_id)->where('is_deleted',0)->find($id);
+        $vehicleType = VehicleType::where('company_id',$user->company_id)->where('is_deleted',0)
+        ->select([
+            'id','name_en','name_km','type'
+        ])
+        ->find($id);
         if(!$vehicleType) return ApiResponse::NotFound(__('messages.not_found',['info' => 'Vehicle Type']));
         return ApiResponse::JsonResult($vehicleType,__('messages.get one'));
     }
-
-
 
     public function deleteVehicleType(Request $req){
         $user = UserService::getAuthUser();

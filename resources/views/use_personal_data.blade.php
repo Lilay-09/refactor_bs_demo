@@ -7,8 +7,8 @@
     <title>Use</title>
 </head>
 <body>
-    <p class="c4"><span class="c3 c2">How Does JS Express Use My Personal Information?</span></p>
-    <p class="c6"><span class="c18">JS Express</span><span class="c0">&nbsp;will generally collect and use
+    <p class="c4"><span class="c3 c2">How Does NG Express Use My Personal Information?</span></p>
+    <p class="c6"><span class="c18">NG Express</span><span class="c0">&nbsp;will generally collect and use
             your personal information for the following business and commercial purposes:</span></p>
     <ol class="c10 lst-kix_z0fyqd4n39uo-0 start" start="1">
         <li class="c1 li-bullet-0"><span class="c0">To fulfill a contract, or take steps linked to a contract: The
@@ -20,20 +20,20 @@
         <li class="c1 li-bullet-0"><span class="c0">Fulfilling obligations: Dealing with payments that occur under
                 relevant policies, processing commissions paid to partners, claiming for loss caused by service
                 partners, recovering payments made, etc.</span></li>
-        <li class="c1 li-bullet-0"><span class="c0">Account management: You can create a JS Express account and we
+        <li class="c1 li-bullet-0"><span class="c0">Account management: You can create a NG Express account and we
                 will use the information you provide to manage your account and provide you with practical features. You
                 can use your account for various operations, such as managing bookings, adjusting personal settings,
                 adding packages to your booking, tracking your bookings, evaluating orders, and managing payments,
                 etc.</span></li>
         <li class="c1 li-bullet-0"><span class="c0">Responding to your inquiries and requests: We provide customer
                 service in multiple languages to offer help when you need it.</span></li>
-        <li class="c1 li-bullet-0"><span class="c0">Marketing activities: Where you have a JS Express account, we
+        <li class="c1 li-bullet-0"><span class="c0">Marketing activities: Where you have a NG Express account, we
                 will also use your personal information for marketing purposes, such as sending you information and
                 promotional activities on services that may interest you. You may also receive electronic direct
                 marketing content with our products and services, or other products and services provided by our
                 affiliates and partners. &nbsp;You can opt out of receiving any non-essential emails, including
                 marketing emails, by: contacting us; clicking the link contained at the bottom of such emails; or, by
-                adjusting the notification settings in your account profile on the JS Express website or app. </span>
+                adjusting the notification settings in your account profile on the NG Express website or app. </span>
         </li>
         <li class="c1 li-bullet-0"><span class="c0">Contacting you: Responding to and dealing with your questions
                 or requests, sending booking-related notifications (such as notification telling you of a successfully
@@ -62,7 +62,7 @@
         <li class="c1 li-bullet-0"><span class="c0">For purposes which are required by law:In certain cases, we
                 may need to use your information to handle and resolve legal disputes, regulatory investigations, and
                 compliance, respond to requests by government or law enforcement authorities conducting an
-                investigation, or enforce the Terms and Conditions in connection with any Services provided by JS
+                investigation, or enforce the Terms and Conditions in connection with any Services provided by NG
                 Express as reasonably expected.</span></li>
     </ol>
 </body>

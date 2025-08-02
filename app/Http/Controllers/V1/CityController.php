@@ -8,6 +8,7 @@ use App\Models\City;
 use App\Models\District;
 use App\Services\UserService;
 use Illuminate\Http\Request;
+use Log;
 
 class CityController extends Controller
 {
@@ -42,7 +43,7 @@ class CityController extends Controller
 
     public function cities(Request $req){
         $user = UserService::getAuthUser();
-        $cities = City::where('is_deleted',0)->where('company_id',$user->company_id)->selectRaw('id,name,name_kh')->orderByDesc('id')->get();
+        $cities = City::where('is_deleted',0)->where('company_id',$user->company_id)->selectRaw('id,name_en,name_km')->orderByDesc('id')->get();
         return ApiResponse::Pagination($cities,$req,'Get cities');
     }
 
@@ -51,7 +52,7 @@ class CityController extends Controller
         $id = $req->id;
         $cities = District::where('is_deleted',0)->where('company_id',$user->company_id)
         ->where('city_id',$id)
-        ->selectRaw('id,name,name_kh')->orderByDesc('id')->get();
+        ->selectRaw('id,name_en,name_km')->orderByDesc('id')->get();
         return ApiResponse::Pagination($cities,$req,'Get districts');
     }
 
@@ -66,7 +67,7 @@ class CityController extends Controller
         $validate = $this->cityValidation($req);
         if($validate->fails()) return ApiResponse::ValidateFail($validate->errors()->first(),'Please input correct data.');
         $inputs = $validate->validated();
-        $name = $inputs['name'];
+        $name = $inputs['name_en'];
         $id = $req->id;
         $country_id = $inputs['country_id'];
         $user = UserService::getAuthUser();

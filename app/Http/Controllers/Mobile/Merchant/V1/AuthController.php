@@ -174,7 +174,6 @@ class AuthController extends Controller
                 'info' => 'Your otp '.$otp,
                 'khInfo' => 'លេខសំងាត់ '.$otp
         ]);
-        Log::info($req->all());
         $smsPhoneFmt = Helper::formatPhoneNumber($phone);
         $smsInfo = AppSetting::sendSms(config('app.plasgate_sender'),$smsPhoneFmt,$message);
         if($smsInfo->error) return ApiResponse::ValidateFail('Error sending SMS, Please try again later.');
@@ -257,7 +256,6 @@ class AuthController extends Controller
         if($found->otp) {
             return ApiResponse::ValidateFail(__('messages.info',['info' => 'Failed']));
         }
-        // Log::info('Old password: ' . $found->getOriginal('password'));
         $found->password = Hash::make($pwd);
         $found->save();
         return ApiResponse::JsonResult(null,'Success');
@@ -330,7 +328,6 @@ class AuthController extends Controller
             $user->update($inputs);
             $userShopService = new UserShopService();
             $shopReq = clone $req;
-            // Log::info($shopReq->all());
             $shopReq->merge([
                 'name_en' => $req->shop_name ?? null,
                 'owner_id' => $user->id,
@@ -340,7 +337,6 @@ class AuthController extends Controller
                 'product_type_id' => $shopReq->product_type_id,
                 'district' => $shopReq->district
             ]);
-            // Log::info($shopReq->all());
             $shop = $userShopService->saveShop($shopReq,$user);
             if($shop->error){
                 $errorMsg = $shop->message;

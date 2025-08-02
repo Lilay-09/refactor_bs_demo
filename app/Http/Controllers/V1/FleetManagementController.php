@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\V1;
 
 use ApiResponse;
+use App\Enums\TrackingStatus;
 use App\Http\Controllers\Controller;
 use App\Models\Delivery;
 use App\Models\DeliveryPackage;
@@ -192,7 +193,7 @@ class FleetManagementController extends Controller
         ->selectRaw('p.assign_driver_datetime,dp.has_swap,p.qr_code,p.price,p.cod,p.receiver_name,p.receiver_phone,p.zone_code,p.zone_name,ts.name as status_code,d.username as driver_name,d.phone as driver_phone,m.username as merchant_name,m.phone as merchant_phone,p.id as package_id,dp.delivery_id,p.zone_code,p.zone_name,p.delivery_fee as base_fee,p.driver_total,p.taxi_fee,p.product_type,p.status_id,p.payer,'.$caseHistory)
         // ->orderByRaw('(dp.status_id = ?) DESC', [6]);
         ->orderByRaw('(p.status_id = ?) DESC', [6]);
-        if ($search && str_starts_with($search, 'JPK')) {
+        if ($search && str_starts_with($search, 'NG')) {
             $qP->where('p.qr_code',$search);
         }
         // $packages = $qP->get();
@@ -213,7 +214,6 @@ class FleetManagementController extends Controller
         $package_id = $req->package_id;
         $status_id = $req->status_id;
         $failure_notes = $req->failure_notes ?? null;
-        // Log::info($req->all());
         $delivery = Delivery::where('is_deleted',0)->select('id','driver_id')->find($trip_id);
         // $tripPackage = DeliveryPackage::where('package_id',$package_id)->where('delivery_id','>',$trip_id)->where('delay_count',0)->orderByDesc('id')->first();
         // if(!$tripPackage) return ApiResponse::NotFound(__('messages.not_found',[
@@ -526,9 +526,9 @@ class FleetManagementController extends Controller
         }
 
         $trip->update([
-            'finished' => 1,
-            'is_completed' =>1,
-            'status_id' => 16,
+            'finished' => true,
+            'is_completed' => true,
+            'status_id' => TrackingStatus::DONE_TRIP->value,
             'finished_uid' => $user->id,
             'delivered_count' => $deliveredCount + $trip->delivered_count,
             'package_count' => $deliveredCount + $trip->delivered_count + $trip->failed_count,
@@ -727,7 +727,6 @@ class FleetManagementController extends Controller
 
             // Bulk insert delivery packages
             if (!empty($bulkInsertData)) {
-                // Log::info($bulkInsertData);
                 DeliveryPackage::insert($bulkInsertData);
             }
 
@@ -791,7 +790,6 @@ class FleetManagementController extends Controller
         $endTime = $req->endTime;
         $status = $req->status ?? null;
         $statusIds = $req->statusIds;
-        // Log::info($statusIds);
         $trip = Delivery::where('is_deleted',0)->find($tripId);
         if(!$trip) return ApiResponse::JsonResult(null,'No trip found');
         $driverInfo = User::where('account_type','driver')->selectRaw('username as driver_name,phone,email')

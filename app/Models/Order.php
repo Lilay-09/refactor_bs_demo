@@ -26,6 +26,7 @@ class Order extends Model
         'status_id',
         'driver_id',
         'pickup_notes',
+        'order_notes',
         'pickup_method',
         'request_pickup_datatime',
         'pickup_datetime',

@@ -163,7 +163,6 @@ class ApiResponse
                 if ($store instanceof \Illuminate\Cache\RedisStore || method_exists($store, 'tags')) {
                     $cachedData = Cache::tags($cacheTags)->get($cacheKey);
                     if ($cachedData) {
-                        // Log::info('test=>'.$cacheKey);
                         return response()->json($cachedData, 200);
                     }
                 }
@@ -199,7 +198,6 @@ class ApiResponse
             $store = Cache::getStore();
                 // If Redis or a store supporting tags is available, try to fetch from cache
             if ($store instanceof \Illuminate\Cache\RedisStore || method_exists($store, 'tags')) {
-                // Log::info('test cache');
                 Cache::tags($cacheTags)->put($cacheKey, $response, $cacheTime);
             }
             // else {
@@ -234,7 +232,6 @@ class ApiResponse
 
     //     // Check if caching is enabled, data is already cached, and Redis is available
     //     if ($cache && $cache > 0 && !empty($cacheTags) && Helper::isRedisAvailable()) {
-    //         // Log::info('test');
     //         // config(['cache.default' => 'redis']);
     //         try {
     //             // Check if cache supports tags and use tags if available
@@ -351,7 +348,6 @@ class Helper{
             }
         } catch (\Throwable $e) {
             // Optionally log the error or silently fail
-            // Log::info("Redis status: Inactive!");
             return false;
         }
     }
@@ -380,7 +376,6 @@ class Helper{
         try {
             // Check if Redis connection exists and ping it
             if(config('app.use_redis') == true){
-                // Log::info('sdfs');
                 $redis = app('redis'); // Works if predis/phpredis is installed and configured
                 $connected = $redis->ping() == 'PONG';
                 return $connected;
@@ -836,8 +831,6 @@ class Helper{
             if ($image instanceof UploadedFile) {
                 $sizeKB = $image->getSize() / 1024;
                 $path = $image->getPathname();
-                // Log::info('Uploaded file class: ' . get_class($image));
-                // Log::info('Uploaded file path: ' . $image->getPathname());
 
 
                 if (!$path || !file_exists($path)) {
@@ -972,12 +965,10 @@ class Helper{
             }
         }
 
-        // Log::info("total byte $totalBytes");
         $totalSizeMB = $totalBytes / (1024 * 1024); // Convert bytes to MB
         $limitMB = round(
             self::convertPHPSizeToBytes(ini_get('upload_max_filesize')) / (1024 * 1024), 2
         );
-        // Log::info('limit => '.$limitMB);
         $isValid = $totalSizeMB <= $limitMB;
 
         return (object)[

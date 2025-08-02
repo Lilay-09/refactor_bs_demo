@@ -207,7 +207,7 @@ class CloudMessagingService
             $targetValues = is_array($targetValue) ? $targetValue : [$targetValue];
             // Build messages
             $messages = [];
-            // Log::info('Sending messages: ' . json_encode($targetValues));
+            $data = !empty($data) ? $data : $notificationReq->data;
             foreach ($targetValues as $value) {
                 $message = CloudMessage::withTarget($target, $value)
                     ->withNotification($notificationReq->all());
@@ -217,7 +217,6 @@ class CloudMessagingService
                 }
                 $messages[] = $message;
             }
-
 
             // Send: if multiple, use sendAll
             count($messages) > 1
@@ -240,7 +239,6 @@ class CloudMessagingService
     private function saveNotification($targetUid,$type,$title,$body,$user,$status='sent'): void{
         $token = UserNotificationToken::where('user_id',$targetUid)->first();
         if($token){
-            // Log::info('yes');
             $userTopic = NotificationTopic::where('token_id',$token->id)->where('type',$type)->first();
             if($userTopic){
                 \App\Models\Notification::create([
@@ -286,8 +284,6 @@ class CloudMessagingService
         $deviceModel = 'Unknown';
         $platform = 'Unknown';
         $ip = $req->getClientIp();
-        Log::info($userAgent);
-
         // Determine the device type and model
         switch (true) {
             case strpos($userAgent, 'Android') !== false:

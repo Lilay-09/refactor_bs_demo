@@ -22,7 +22,6 @@ use App\Services\UserService;
 use DB;
 use Helper;
 use Illuminate\Http\Request;
-use Log;
 
 class ReportController extends Controller
 {
@@ -35,6 +34,7 @@ class ReportController extends Controller
         $endDate = $req->endDate;
         $branchId = $req->branch_id;
         $warehouseId = $req->warehouse_id;
+        $merchantId = $req->merchant_id;
         $qO = Order::whereNotNull('driver_id')->with(['merchant','driver'])
         ->where('status_id',5)
         ->where('company_id',$user->company_id)
@@ -44,6 +44,15 @@ class ReportController extends Controller
         }
         if($warehouseId){
             $qO->where('warehouse_id',$warehouseId);
+        }
+        if($startDate && $endDate){
+            $qO->whereBetween('pickup_datetime',[
+                Helper::dateYMD($startDate).' 00:00:00',
+                Helper::dateYMD($endDate).' 23:59:59'
+            ]);
+        }
+        if($merchantId){
+            $qO->where('merchant_id',$merchantId);
         }
         $orders = $qO->orderByDesc('id')->get();
         foreach($orders as $order){
@@ -87,11 +96,17 @@ class ReportController extends Controller
         $statusId = $req->status_id;
         $branchId = $req->branch_id;
         $warehouseId = $req->warehouse_id;
+        $merchantId = $req->merchant_id;
         $qP = Package::where('is_deleted',0)
-        ->with(['status','driver','merchant'])
+        ->with(['status','driver','merchant','returnUser'])
         ->where('outstanding',0)
-        ->selectRaw('qr_code,merchant_id,driver_id,payer,product_type,receiver_address,remarks,receiver_phone,cod,price,delivery_fee,additional_fee,driver_total,merchant_total,status_id,remarks,arrive_warehouse_datetime,assign_driver_datetime,updated_at,failed_datetime,returned_datetime,delivered_datetime,extra_charge,created_at');
-
+        ->selectRaw('zone_name,qr_code,merchant_id,driver_id,returned_uid,payer,product_type,receiver_address,remarks,receiver_phone,cod,price,delivery_fee,additional_fee,driver_total,merchant_total,status_id,remarks,arrive_warehouse_datetime,assign_driver_datetime,updated_at,failed_datetime,returned_datetime,delivered_datetime,extra_charge,created_at');
+        if($statusId){
+            $qP->where('status_id',$statusId);
+        }
+        if($merchantId){
+            $qP->where('merchant_id',$merchantId);
+        }
         if($branchId){
             $qP->where('branch_id',$branchId);
         }
@@ -99,7 +114,13 @@ class ReportController extends Controller
             $qP->where('warehouse_id',$warehouseId);
         }
 
-        if($statusId) $qP->where('status_id',$statusId);
+        $grand = [
+            'cod' => 0,
+            'fees' => 0,
+            'driver_total' => 0,
+            'merchant_total' => 0
+        ];
+
         if($startDate && $endDate){
             $startDatetime = Helper::dateYMD($startDate). ' 00:00:00';
             $endDatetime = Helper::dateYMD($endDate). ' 23:59:59';
@@ -133,55 +154,50 @@ class ReportController extends Controller
             });
         }
 
-        $packages = $qP->orderByDesc('created_at')->get();
-        $groupedPackages = collect($packages)->map(function ($pkg) {
-            $actionDate = Helper::formatCustomDateTime($pkg->created_at);
-            if ($pkg->status_id == 5) $actionDate = Helper::formatCustomDateTime($pkg->arrive_warehouse_datetime,'d-M-Y');
-            if ($pkg->status_id == 6) $actionDate = Helper::formatCustomDateTime($pkg->assign_driver_datetime,'d-M-Y');
-            if ($pkg->status_id == 10) $actionDate = Helper::formatCustomDateTime($pkg->failed_datetime,'d-M-Y');
-            if ($pkg->status_id == 9) $actionDate = Helper::formatCustomDateTime($pkg->delivered_datetime,'d-M-Y');
-            if ($pkg->status_id == 19) $actionDate = Helper::formatCustomDateTime($pkg->failed_datetime,'d-M-Y');
-            if ($pkg->status_id == 11) $actionDate = Helper::formatCustomDateTime($pkg->returned_datetime,'d-M-Y');
-            // Return the modified package with the actionDate
-            // $pkg->groupDate = date('d-M-Y',strtotime($pkg->created_at));
-            $pkg->actionDate = $actionDate;
-            return $pkg;
-        })->groupBy('actionDate')
-        ->map(function ($group, $date) use ($lang) {
-            $group->each(function ($item) use ($lang) {
-                if($lang == 'km'){
-                    $item->status_code = GeneralSettingService::$statusCodeTrans[$item->status_id] ?? '';
-                }else $item->status_code = $item->status->name;
-                $item->merchant_name = $item->merchant->username;
-                $item->merchant_phone = $item->merchant->phone;
-                $item->driver_name = $item->driver?->username;
-                $item->driver_phone = $item->driver?->phone;
-                $item->cod_fee = $item->cod ? $item->price:0;
-                $item->fee = $item->delivery_fee + $item->extra_charge;//PickupCenterService::getFees($item->cod,$item->delivery_fee,$item->additional_fee,$item->extra_charge);
-                unset(
-                    $item->status,$item->cod,$item->merchant,$item->driver,$item->driver_id,
-                    $item->merchant_id,$item->arrive_warehouse_datetime,$item->assign_driver_datetime,
-                    $item->failed_datetime,$item->delivered_datetime
-                );
-            });
-            return [
-                'date' => $date,
-                'details' => $group->toArray(),
-                'total' => [
-                    'cod_fee' => Helper::getNumber($group->sum('cod_fee'),2), // Replace 'cod' with the actual property name
-                    'fee' => Helper::getNumber($group->sum('fee'),2),
-                    'driver' => Helper::getNumber($group->sum('driver_total'),2), // Add any other total calculations
-                    'merchant' => Helper::getNumber($group->sum('merchant_total'),2),
-                ],
-            ];
-        })->values();
+        $packages = $qP->orderByDesc('created_at')->get()
+        ->each(function ($q) use($lang,&$grand){
+            if($lang == 'km'){
+                    $q->status_code = GeneralSettingService::$statusCodeTrans[$q->status_id] ?? '';
+            }else $q->status_code = $q->status->name;
+            $q->merchant_name = $q->merchant->user_name;
+            $q->merchant_phone = $q->merchant->phone;
+            $q->driver_name = $q->status_id == 11 ? $q->returnUser?->user_name : $q->driver?->user_name;
+            $q->driver_phone = $q->driver?->phone;
+            $q->cod_fee = $q->price;
+            $merchantTotal = $q->cod ? $q->price:0;
+            $fees = $q->delivery_fee + $q->extra_charge - $q->taxi_fee;
+            if($q->payer == 'sender'){
+                $merchantTotal -= $fees + $q->taxi_fee;
+            }
+            $grand['cod'] += $q->driver_total;
+            $grand['driver_total'] += $q->driver_total;
+            $grand['merchant_total'] += $merchantTotal;
+            $grand['fees'] += $fees;
+            $q->merchant_total = $merchantTotal;
+            $q->fee = $q->delivery_fee + $q->extra_charge;
+            $q->arrive_warehouse_datetime = Helper::formatCustomDateTime($q->arrive_warehouse_datetime,'d-M-Y');
+            $actionDate = null;
+            if ($q->status_id == 5) $actionDate = Helper::formatCustomDateTime($q->arrive_warehouse_datetime,'d-M-Y h:i A');
+            if ($q->status_id == 6) $actionDate = Helper::formatCustomDateTime($q->assign_driver_datetime,'d-M-Y h:i A');
+            if ($q->status_id == 10) $actionDate = Helper::formatCustomDateTime($q->failed_datetime,'d-M-Y h:i A');
+            if ($q->status_id == 9) $actionDate = Helper::formatCustomDateTime($q->delivered_datetime,'d-M-Y h:i A');
+            if ($q->status_id == 19) $actionDate = Helper::formatCustomDateTime($q->failed_datetime,'d-M-Y h:i A');
+            if ($q->status_id == 11) $actionDate = Helper::formatCustomDateTime($q->returned_datetime,'d-M-Y h:i A');
+            $q->action_date = $actionDate;
+            $q->makeHidden(['status','merchant','driver','returnUser']);
+        });
+
+        foreach($grand as $key=>$value){
+            $grand[$key] = Helper::getNumber($value,2,true);
+        }
 
         $obj =(object)[
             'title' => 'Daily Packages',
             'sub_title' => 'Arrivate Date:',
             'date' => Helper::dateDMY($startDate).' to '.Helper::dateDMY($endDate),
             'company_profile' => CompanyProfileService::profileInfo($user),
-            'list' => $groupedPackages
+            'grand' => $grand,
+            'list' => $packages
         ];
 
         return ApiResponse::JsonResult($obj,'Get Pickup List');
@@ -355,20 +371,15 @@ class ReportController extends Controller
         $user = UserService::getAuthUser();
         $startDate = $req->startDate;
         $endDate = $req->endDate;
-        $branchId = $req->branch_id;
-        // $warehouseId = $req->warehouse_id;
-        $summary = $this->getOperationSummary($startDate, $endDate,$branchId);
+        $summary = $this->getOperationSummary($startDate, $endDate);
         $operationSummary = $summary->operation;
         $financialSummary = $summary->financial;
-
+        $countDriver = $summary->count_driver;
         $qPmt = Payment::from('payments as pmt')->where('pmt.is_deleted',0)->where('pmt.is_settled',1)->join('payment_details as pd','pmt.id','pd.payment_id')->selectRaw('SUM(pd.amount) as total,pd.currency_code,CASE WHEN pd.method != \'cash\' THEN \'bank\' ELSE pd.method END as method_group')->groupBy(DB::raw("CASE WHEN pd.method != 'cash' THEN 'bank' ELSE pd.method END"),'pd.currency_code');
         if($startDate && $endDate){
             $startDatetime = Helper::dateYMD($startDate). ' 00:00:00'; //
             $endDatetime = Helper::dateYMD($endDate). ' 23:59:59';
             $qPmt->whereBetween('payment_datetime',[$startDatetime,$endDatetime]);
-        }
-        if($branchId){
-            $qPmt->where('branch_id',$branchId);
         }
         $payments = $qPmt->get();
         $closedFinancialSummary = [
@@ -389,26 +400,38 @@ class ReportController extends Controller
                 'amount' => 0
             ],
         ];
+        $mapBank = [
+            'bank' => [
+                'USD' => 0, // Bank USD
+                'KHR' => 1, // Bank KHR
+            ],
+            'cash' => [
+                'USD' => 2, // Cash USD
+                'KHR' => 3, // Cash KHR
+            ],
+        ];
+
+
         foreach ($payments as $payment) {
-            if ($payment->method_group == 'bank') {
-                if ($payment->currency_code == 'USD') {
-                    $closedFinancialSummary[0]['amount'] += $payment->total;  // Bank USD
-                } elseif ($payment->currency_code == 'KHR') {
-                    $closedFinancialSummary[1]['amount'] += $payment->total;  // Bank KHR
-                }
-            } elseif ($payment->method_group == 'cash') {
-                if ($payment->currency_code == 'USD') {
-                    $closedFinancialSummary[2]['amount'] += $payment->total;  // Cash USD
-                } elseif ($payment->currency_code == 'KHR') {
-                    $closedFinancialSummary[3]['amount'] += $payment->total;  // Cash KHR
-                }
+            $method = $payment->method_group;
+            $currency = $payment->currency_code;
+            if (isset($mapBank[$method][$currency])) {
+                $index = $mapBank[$method][$currency];
+                $closedFinancialSummary[$index]['amount'] += $payment->total;
             }
         }
+
+        // Format after summing
+        foreach ($closedFinancialSummary as &$summary) {
+            $summary['amount'] = number_format($summary['amount'], 2);
+        }
+        unset($summary); // avoid reference issues
+
         $obj =(object)[
             'title' => 'Summary Report',
             'sub_title' => 'Arrivate Date:',
-            'exchange_rate' => 4100,
-            'driver_count' => 0,
+            'exchange_rate' => GeneralSettingService::getLatestXRate()->buy_rate,
+            'driver_count' => $countDriver,
             'date' => Helper::dateDMY($startDate).' to '.Helper::dateDMY($endDate),
             'company_profile' => CompanyProfileService::profileInfo($user),
             'operation_summary' => $operationSummary,
@@ -418,159 +441,242 @@ class ReportController extends Controller
         return ApiResponse::JsonResult($obj,'Get Settle Statement');
     }
 
-    private function getOperationSummary($startDate,$endDate,$branchId){
-        $startDate = $startDate ? Helper::dateYMD($startDate):null;
-        $endDate = $endDate ? Helper::dateYMD($endDate):null;
-        $qP = Package::where('is_deleted',0)
-        ->where('outstanding',0);
-        $clonePkg = clone $qP;
-        $clonePkg->whereIn('status_id',[9,19]);
+    // public function getOperationSummaryReport(Request $req){
+    //     $user = UserService::getAuthUser();
+    //     $startDate = $req->startDate;
+    //     $endDate = $req->endDate;
+    //     $branchId = $req->branch_id;
+    //     // $warehouseId = $req->warehouse_id;
+    //     $summary = $this->getOperationSummary($startDate, $endDate,$branchId);
+    //     $operationSummary = $summary->operation;
+    //     $financialSummary = $summary->financial;
 
-        $qO = Order::where('status_id',5)->where('is_deleted',0);
+    //     $qPmt = Payment::from('payments as pmt')->where('pmt.is_deleted',0)->where('pmt.is_settled',1)->join('payment_details as pd','pmt.id','pd.payment_id')->selectRaw('SUM(pd.amount) as total,pd.currency_code,CASE WHEN pd.method != \'cash\' THEN \'bank\' ELSE pd.method END as method_group')->groupBy(DB::raw("CASE WHEN pd.method != 'cash' THEN 'bank' ELSE pd.method END"),'pd.currency_code');
+    //     if($startDate && $endDate){
+    //         $startDatetime = Helper::dateYMD($startDate). ' 00:00:00'; //
+    //         $endDatetime = Helper::dateYMD($endDate). ' 23:59:59';
+    //         $qPmt->whereBetween('payment_datetime',[$startDatetime,$endDatetime]);
+    //     }
+    //     if($branchId){
+    //         $qPmt->where('branch_id',$branchId);
+    //     }
+    //     $payments = $qPmt->get();
+    //     $closedFinancialSummary = [
+    //         [
+    //             'title' => 'Total collective payment by Bank(USD)',
+    //             'amount' => 0
+    //         ],
+    //         [
+    //             'title' => 'Total collective payment by Bank(KHR)',
+    //             'amount' => 0
+    //         ],
+    //         [
+    //             'title' => 'Total collective payment by Cash(USD)',
+    //             'amount' => 0
+    //         ],
+    //         [
+    //             'title' => 'Total collective payment by Cash(KHR)',
+    //             'amount' => 0
+    //         ],
+    //     ];
+    //     foreach ($payments as $payment) {
+    //         if ($payment->method_group == 'bank') {
+    //             if ($payment->currency_code == 'USD') {
+    //                 $closedFinancialSummary[0]['amount'] += $payment->total;  // Bank USD
+    //             } elseif ($payment->currency_code == 'KHR') {
+    //                 $closedFinancialSummary[1]['amount'] += $payment->total;  // Bank KHR
+    //             }
+    //         } elseif ($payment->method_group == 'cash') {
+    //             if ($payment->currency_code == 'USD') {
+    //                 $closedFinancialSummary[2]['amount'] += $payment->total;  // Cash USD
+    //             } elseif ($payment->currency_code == 'KHR') {
+    //                 $closedFinancialSummary[3]['amount'] += $payment->total;  // Cash KHR
+    //             }
+    //         }
+    //     }
+    //     $obj =(object)[
+    //         'title' => 'Summary Report',
+    //         'sub_title' => 'Arrivate Date:',
+    //         'exchange_rate' => 4100,
+    //         'driver_count' => 0,
+    //         'date' => Helper::dateDMY($startDate).' to '.Helper::dateDMY($endDate),
+    //         'company_profile' => CompanyProfileService::profileInfo($user),
+    //         'operation_summary' => $operationSummary,
+    //         'financial_summary' => $financialSummary,
+    //         'closed_financial_summary' => $closedFinancialSummary
+    //     ];
+    //     return ApiResponse::JsonResult($obj,'Get Settle Statement');
+    // }
 
-        if($branchId){
-            $qP->where('branch_id',$branchId);
-            $qO->where('branch_id',$branchId);
-        }
-        if($startDate && $endDate){
-            $startDatetime = Helper::dateYMD($startDate) . ' 00:00:00';
-            $endDatetime = Helper::dateYMD($endDate) . ' 23:59:59';
-            $qO->whereBetween('pickup_datetime', [$startDatetime,$endDatetime]);
-            $qP->whereRaw(
-                "(status_id = 5 AND arrive_warehouse_datetime BETWEEN ? AND ?)
-                OR (status_id IN (2,3,4) AND pickup_datetime BETWEEN ? AND ?)
-                OR (status_id = 6 AND assign_driver_datetime BETWEEN ? AND ?)
-                OR (status_id = 10 AND failed_datetime BETWEEN ? AND ?)
-                OR (status_id = 19 AND failed_datetime BETWEEN ? AND ?)
-                OR (status_id = 9 AND delivered_datetime BETWEEN ? AND ?)
-                OR (status_id = 11 AND returned_datetime BETWEEN ? AND ?)",
-                [$startDatetime, $endDatetime, $startDatetime, $endDatetime, $startDatetime, $endDatetime, $startDatetime, $endDatetime, $startDatetime, $endDatetime, $startDatetime, $endDatetime, $startDatetime, $endDatetime]
-            );
-            $clonePkg->whereRaw(
-                "(status_id = 9 AND delivered_datetime BETWEEN ? AND ?)
-                OR (status_id = 19 AND failed_datetime BETWEEN ? AND ?)",
-                [$startDatetime, $endDatetime, $startDatetime, $endDatetime]
-            );
-        }
-
-
-        $packages = $qP->selectRaw('id,merchant_id,driver_id,status_id')->get();
-        $pickupCount = $qO->sum('qty');
+    private function getOperationSummary($startDate, $endDate)
+    {
+        $startDate = $startDate ? Helper::dateYMD($startDate) : null;
+        $endDate = $endDate ? Helper::dateYMD($endDate) : null;
+        $startDatetime = $startDate ? "$startDate 00:00:00" : null;
+        $endDatetime = $endDate ? "$endDate 23:59:59" : null;
+        $exchangeRate = 4050;
         $operationSum = [
-            'merchantCount' => 0,
-            'deliveredCount' => 0,
-            'atWarehouseCount' => 0,
-            'onDeliveryCount' => 0,
-            'failedCount' => 0,
-            'returnedCount' => 0,
-            'failedWithFeeCount' => 0,
+            'merchantCount'       => 0,
+            'deliveredCount'      => 0,
+            'atWarehouseCount'    => 0,
+            'onDeliveryCount'     => 0,
+            'failedCount'         => 0,
+            'returnedCount'       => 0,
+            'failedWithFeeCount'  => 0,
         ];
 
-        // $operationSum = [
-        //     'merchantCount' => 0,
-        //     'deliveredCount' => 0,
-        //     'atWarehouseCount' => 0,
-        //     'onDeliveryCount' => 0,
-        //     'failedCount' => 0,
-        //     'returnedCount' => 0,
-        //     'failedWithFeeCount' => 0,
-        // ];
+        // Base package query
+        $packageQuery = Package::query()
+            ->where('is_deleted', false)
+            ->where('outstanding', 0)
+            ->whereIn('status_id', [5, 6, 9, 10, 11, 19]);
 
-        $seenMerchants = [];
-
-        foreach ($packages as $p) {
-            if (!isset($seenMerchants[$p->merchant_id])) {
-                $seenMerchants[$p->merchant_id] = true;
-                $operationSum['merchantCount']++;
-            }
-
-            switch ($p->status_id) {
-                case 9:
-                    $operationSum['deliveredCount']+=1;
-                    break;
-                case 6:
-                    $operationSum['onDeliveryCount']++;
-                    break;
-                case 5:
-                    $operationSum['atWarehouseCount']++;
-                    break;
-                case 10:
-                    $operationSum['failedCount']++;
-                    break;
-                case 11:
-                    $operationSum['returnedCount']++;
-                    break;
-                case 19:
-                    $operationSum['failedWithFeeCount']++;
-                    break;
-            }
+        // $payment
+        if ($startDatetime && $endDatetime) {
+            $packageQuery->where(function ($q) use ($startDatetime, $endDatetime) {
+                $q->where(function ($q) use ($startDatetime, $endDatetime) {
+                    $q->where('status_id', 5)
+                    ->whereBetween('arrive_warehouse_datetime', [$startDatetime, $endDatetime]);
+                })->orWhere(function ($q) use ($startDatetime, $endDatetime) {
+                    $q->whereIn('status_id', [2, 3, 4])
+                    ->whereBetween('pickup_datetime', [$startDatetime, $endDatetime]);
+                })->orWhere(function ($q) use ($startDatetime, $endDatetime) {
+                    $q->where('status_id', 6)
+                    ->whereBetween('assign_driver_datetime', [$startDatetime, $endDatetime]);
+                })->orWhere(function ($q) use ($startDatetime, $endDatetime) {
+                    $q->whereIn('status_id', [10, 19])
+                    ->whereBetween('failed_datetime', [$startDatetime, $endDatetime]);
+                })->orWhere(function ($q) use ($startDatetime, $endDatetime) {
+                    $q->where('status_id', 9)
+                    ->whereBetween('delivered_datetime', [$startDatetime, $endDatetime]);
+                })->orWhere(function ($q) use ($startDatetime, $endDatetime) {
+                    $q->where('status_id', 11)
+                    ->whereBetween('returned_datetime', [$startDatetime, $endDatetime]);
+                });
+            });
         }
 
-        $obj = (object)[
+        $packages = $packageQuery->get([
+            'id', 'merchant_id', 'driver_id', 'status_id',
+            'cod', 'price', 'delivery_fee', 'payer',
+            'extra_charge','taxi_fee'
+        ]);
+
+
+        // Log::info(json_encode($packages->toArray()));
+
+        // Group by status and count, avoid nested loops
+        $statusCounter = [
+            5  => 'atWarehouseCount',
+            6  => 'onDeliveryCount',
+            9  => 'deliveredCount',
+            10 => 'failedCount',
+            11 => 'returnedCount',
+            19 => 'failedWithFeeCount',
+        ];
+
+        $uniqueMerchants = [];
+        $driverIds = [];
+
+        foreach ($packages as $p) {
+            $operationSum[$statusCounter[$p->status_id]]++;
+            $uniqueMerchants[$p->merchant_id] = true;
+            $driverIds[$p->driver_id] = true;
+            // Log::info("Payer : {$p->payer}, Status ID: {$p->status_id}, Merchant Disbursement ID: {$p->merchant_disbursement_id}, Merchant Payment ID: {$p->merchant_payment_id}");
+        }
+
+        // Orders
+        $orderQuery = Order::query()
+            ->where('is_deleted', 0)
+            ->where('status_id', 5);
+
+        if ($startDatetime && $endDatetime) {
+            $orderQuery->whereBetween('pickup_datetime', [$startDatetime, $endDatetime]);
+        }
+
+        $pickupCount = $orderQuery->sum('qty');
+        // Filter packages with status_id = 9 or 19
+        $financialPackages = $packages->whereIn('status_id', [9, 19]);
+
+        // COD total: only for status_id = 9 and cod = true
+        $pkgPrice = $packages
+            ->filter(fn($p) => $p->status_id === 9 && $p->cod)
+            ->sum('price');
+
+        $receiverFeesTotal = $packages
+        ->filter(fn($p) => $p->payer === 'receiver')
+        ->sum(fn($p) => $p->delivery_fee + $p->extra_charge);
+        $codTotal = $pkgPrice + $receiverFeesTotal;
+
+        // Total delivery + extra fees (status 9 and 19)
+        $feesTotal = $financialPackages
+            ->sum(fn($p) => $p->delivery_fee + $p->extra_charge);
+
+        // Fees that merchant still owes (no disbursement or payment)
+        $merchantOweFees = $financialPackages
+        ->filter(fn($p) =>
+            $p->whereNotExists(function ($sub) {
+            $sub->select(DB::raw(1))
+                ->from('payment_packages as pp')
+                ->whereColumn('pp.package_id', 'p.id')
+                ->where('pp.payer_type', 'driver')
+                ->where('pp.is_deleted', false);
+            }) &&
+            $p->whereNotExists(function ($sub) {
+            $sub->select(DB::raw(1))
+                ->from('disbursement_packages as dp')
+                ->whereColumn('dp.package_id', 'p.id')
+                ->where('dp.payee_type', 'driver')
+                ->where('dp.is_deleted', false);
+            }) &&
+            $p->payer === 'sender'
+        )
+        ->sum(fn($p) => $p->delivery_fee + $p->extra_charge + $p->taxi_fee);
+
+
+        $payback = $codTotal - $merchantOweFees;
+
+        // Final Object
+        return (object)[
+            'count_driver' => count($driverIds),
             'operation' => [
-                [
-                    'title' => 'Count merchants',
-                    'count' => $operationSum['merchantCount']
-                ],
-                [
-                    'title' => 'Total pacakge \'Pickup\'',
-                    'count' => $pickupCount
-                ],
-                [
-                    'title' => 'Total package \'At Warehouse\'',
-                    'count' => $operationSum['atWarehouseCount']
-                ],
-                [
-                    'title' => 'Total package \'On Delivery\'',
-                    'count' => $operationSum['onDeliveryCount']
-                ],
-                [
-                    'title' => 'Total Package \'Delivered\'',
-                    'count' => $operationSum['deliveredCount']
-                ],
-                [
-                    'title' => 'Total Package \'Failed\'',
-                    'count' => $operationSum['failedCount']
-                ],
-                [
-                    'title' => 'Total Package \'Fail With Fee\'',
-                    'count' => $operationSum['failedWithFeeCount']
-                ],
-                [
-                    'title' => 'Total Package \'Returned\'',
-                    'count' => $operationSum['returnedCount']
-                ]
+                ['title' => 'Count merchants',                    'count' => count($uniqueMerchants)],
+                ['title' => 'Total pacakge \'Pickup\'',           'count' => $pickupCount],
+                ['title' => 'Total package \'At Warehouse\'',     'count' => $operationSum['atWarehouseCount']],
+                ['title' => 'Total package \'On Delivery\'',      'count' => $operationSum['onDeliveryCount']],
+                ['title' => 'Total Package \'Delivered\'',        'count' => $operationSum['deliveredCount']],
+                ['title' => 'Total Package \'Failed\'',           'count' => $operationSum['failedCount']],
+                ['title' => 'Total Package \'Fail With Fee\'',    'count' => $operationSum['failedWithFeeCount']],
+                ['title' => 'Total Package \'Returned\'',         'count' => $operationSum['returnedCount']],
             ],
             'financial' => [
                 [
                     'title' => 'Total collective COD',
-                    'amount' => 0,
-                    'amount_kh' => 0
+                    'amount' => number_format($codTotal, 2),
+                    'amount_kh' => number_format($codTotal * $exchangeRate, 2)
                 ],
                 [
                     'title' => 'Total Fees',
-                    'amount' => 0,
-                    'amount_kh' => 0
+                    'amount' => number_format($feesTotal, 2),
+                    'amount_kh' => number_format($feesTotal * $exchangeRate, 2)
                 ],
                 [
-                    'title' => 'Total Fees owned by \'Merchants\'' ,
-                    'amount' => 0,
-                    'amount_kh' => 0
+                    'title' => 'Total Fees owe by \'Merchants\'',
+                    'amount' => number_format($merchantOweFees, 2),
+                    'amount_kh' => number_format($merchantOweFees * $exchangeRate, 2)
                 ],
                 [
                     'title' => 'Total money to pay back merchants',
-                    'amount' => 0,
-                    'amount_kh' => 0
+                    'amount' => number_format($payback, 2),
+                    'amount_kh' => number_format($payback * $exchangeRate, 2)
                 ],
-                [
-                    'title' => 'Total received fees',
-                    'amount' => 0,
-                    'amount_kh' => 0
-                ],
+                // [
+                //     'title' => 'Expected Receive fees',
+                //     'amount' => number_format($totalReceivedFees, 2),
+                //     'amount_kh' => number_format($totalReceivedFees * $exchangeRate, 0)
+                // ],
             ]
         ];
-
-        return $obj;
     }
 
 
@@ -708,7 +814,7 @@ class ReportController extends Controller
         }
         if($warehouseId){
             $qP->where('warehouse_id',$warehouseId);
-            $qD->where('warehouse_id',$warehouseId);
+            $qD->where('driver_warehouse_id',$warehouseId);
             $oD->where('warehouse_id',$warehouseId);
         }
         if($driverId){
@@ -821,7 +927,9 @@ class ReportController extends Controller
             $qP->where('branch_id',$branchId);
         }
         if($warehouseId){
-            $qD->where('warehouse_id',$warehouseId);
+            $qD->whereHas('driver',function($q)use($warehouseId){
+                $q->where('driver_warehouse_id',$warehouseId);
+            });
         }
 
         if($startDate && $endDate){
@@ -994,7 +1102,7 @@ class ReportController extends Controller
             $qD->where('d.branch_id',$branchId);
         }
         if($warehouseId){
-            $qD->where('d.warehouse_id',$warehouseId);
+            $qD->where('d.driver_warehouse_id',$warehouseId);
         }
 
         $drivers = $qD->get()->map(function($d){
@@ -1418,14 +1526,12 @@ class ReportController extends Controller
             $qFpkg->where('warehouse_id',$warehouseId);
         }
         $failedPkgs = $qFpkg->get();
-        // Log::info($lastOrder);
         foreach($failedPkgs as $p){
             if (!isset($pkgInfo[5])) {
                 $pkgInfo[5] = ['count' => 0, 'total' => 0];
             }
             $pkgInfo[5]['count'] += 1;
             $pkgInfo[5]['total'] += $p->cod ? $p->price : 0;
-            // Log::info('Failed => '.$p->qr_code);
         }
 
         $statuses = [6, 9, 10, 11, 19];
@@ -1448,8 +1554,6 @@ class ReportController extends Controller
                     }
                     $pkgInfo[5]['count'] += 1;
                     $pkgInfo[5]['total'] += $p->cod ? $p->price : 0;
-                    // Log::info('L2');
-                    // Log::info('L2 Failed => '.$p->qr_code);
                 }
             }
             if ($p->status_id == 5) {
@@ -1458,11 +1562,8 @@ class ReportController extends Controller
                 }
                 $pkgInfo[5]['count'] += 1;
                 $pkgInfo[5]['total'] += $p->cod ? $p->price : 0;
-                // Log::info('L3');
-                // Log::info('L3 At warehouse => '.$p->qr_code);
             }
         }
-        // \Log::info($pkgInfo['5.1']['total'].'---'.$pkgInfo['5.1']['count'] );
         // return $packages;
         foreach ($packages as $p) {
             $totalCount += 1;
@@ -1475,8 +1576,6 @@ class ReportController extends Controller
                 // if($statusId == 5 || $statusId == 10){
                     $pkgInfo[5]['count'] += 1;
                     $pkgInfo[5]['total'] += $p->cod ? $p->price : 0;
-                    // Log::info('L4 Both => '.$p->qr_code);
-                    // Log::info('4');
                 // }//- $p->merchant_total;
                 if(isset($pkgInfo['5.2'])){
                     $pkgInfo['5.2']['count'] = $pkgInfo['5.1']['count'] + $pkgInfo[5]['count'];
@@ -1503,66 +1602,88 @@ class ReportController extends Controller
 
     public function getMerchantPaymentReport(Request $req){
         $user = UserService::getAuthUser();
-        $startDate = $req->startDate ? Helper::dateDMY($req->startDate) : null;
-        $endDate = $req->endDate ? Helper::dateDMY($req->endDate) : null;
+        $startDate = $req->startDate;
+        $endDate = $req->endDate;
         $allPayments = [];
+        $transactionType = $req->transaction_type;
         $branchId = $req->branch_id;
+        $merchantIds = collect();
+        $totalPkgs = 0;
+        $totalAmt = 0;
         // $warehouseId = $req->warehouse_id;
-        $pQ = Payment::where('payments.is_deleted',0)->where('payments.is_settled',1)
-        ->with(['merchant'])
-        ->where('payer_type','merchant')
-        ->join('users as b','payments.settled_uid','b.id')
-        ->selectRaw('payments.id,payments.package_count,payments.payable_amount,payments.breakdown_notes,b.username as booked_user,payments.remarks,payments.payment_datetime,payer_id');
-        $dQ = Disbursement::where('disbursements.is_deleted',0)->where('disbursements.is_settled',1)
-        ->with(['merchant'])
-        ->where('payee_type','merchant')
-        ->join('users as b','disbursements.settled_uid','b.id')
-        ->selectRaw('disbursements.id,disbursements.package_count,disbursements.payable_amount,disbursements.breakdown_notes,b.username as booked_user,disbursements.remarks,disbursements.payment_datetime,payee_id');
+        $bankAccounts = UserBank::orderByDesc('is_primary')
+        ->get()
+        ->groupBy('user_id');
+        $startDateTime = $startDate && $endDate ? Helper::dateYMD($startDate).' 00:00:00' : null;
+        $endDateTime = $startDate && $endDate ? Helper::dateYMD($endDate).' 23:59:59' : null;
 
-        if($branchId){
-            $pQ->where('payments.branch_id',$branchId);
-            $dQ->where('disbursements.branch_id',$branchId);
-        }
-        // if($warehouseId){
-        //     $dQ->where('warehouse_id',$warehouseId);
-        // }
+        // Helper function to apply date filter
+        $applyDateFilter = function ($query) use ($startDateTime, $endDateTime,$branchId) {
+            if ($startDateTime && $endDateTime) {
+                $query->whereBetween('payment_datetime', [$startDateTime, $endDateTime]);
+            }
+            if($branchId){
+                $query->where('');
+            }
+            return $query;
+        };
 
-        if($startDate && $endDate){
-            $startDateTime = Helper::dateYMD($startDate).' 00:00:00';
-            $endDateTime = Helper::dateYMD($endDate).' 23:59:59';
-            $dQ->whereBetween('payment_datetime',[$startDateTime,$endDateTime]);
-            $pQ->whereBetween('payment_datetime',[$startDateTime,$endDateTime]);
-        }
+        if ($transactionType === 'receive' || $transactionType === null) {
+            $pQ = Payment::where('payments.is_deleted', 0)
+                ->where('payments.is_settled', 1)
+                ->where('payer_type', 'merchant')
+                ->with(['merchant'])
+                ->join('users as b', 'payments.settled_uid', 'b.id')
+                ->selectRaw('payments.id, payments.package_count, payments.payable_amount, payments.breakdown_notes, b.username as booked_user, payments.remarks, payments.payment_datetime, payer_id');
 
-        $payments = $pQ->get();
-        $bankAccounts = UserBank::get();
-        foreach($payments as $p){
-            $p->bank_account = $this->userBankAccount($bankAccounts,$p->payer_id);
-            $p->payment_date = Helper::dateDMY($p->payment_datetime);
-            $p->trx_type = 'Receive';
-            $p->merchant_name = $p->merchant?->username;
-            unset($p->merchant);
-            $allPayments[] = $p;
-        }
+            $applyDateFilter($pQ);
+            $payments = $pQ->get();
 
-        $disbursements = $dQ->get();
-        foreach($disbursements as $p){
-            $p->bank_account = $this->userBankAccount($bankAccounts,$p->payee_id);
-            $p->payment_date = Helper::dateDMY($p->payment_datetime);
-            $p->merchant_name = $p->merchant?->username;
-            $p->trx_type = 'Disbursement';
-            unset($p->merchant);
-            $allPayments[] = $p;
+            foreach ($payments as $p) {
+                $merchantIds->push($p->payer_id);
+                $p->bank_account = $this->userBankAccount($bankAccounts,$p->payer_id);
+                $p->payment_date = Helper::dateDMY($p->payment_datetime);
+                $p->trx_type = 'Receive';
+                $p->trx_type_code = 'receive';
+                $p->merchant_name = $p->merchant?->username;
+                $totalAmt += $p->payable_amount;
+                $totalPkgs += $p->package_count;
+                unset($p->merchant);
+                $allPayments[] = $p;
+            }
         }
 
-        usort($allPayments, function ($a, $b) {
-            return strtotime($b['payment_datetime']) <=> strtotime($a['payment_datetime']);
-        });
+        if ($transactionType === 'disbursement' || $transactionType === null) {
+            $dQ = Disbursement::where('disbursements.is_deleted', 0)
+                ->where('disbursements.is_settled', 1)
+                ->where('payee_type', 'merchant')
+                ->with(['merchant'])
+                ->join('users as b', 'disbursements.settled_uid', 'b.id')
+                ->selectRaw('disbursements.id, disbursements.package_count, disbursements.payable_amount, disbursements.breakdown_notes, b.username as booked_user, disbursements.remarks, disbursements.payment_datetime, payee_id');
+
+            $applyDateFilter($dQ);
+            $disbursements = $dQ->get();
+
+            foreach ($disbursements as $p) {
+                $merchantIds->push($p->payee_id);
+                $p->bank_account = $this->userBankAccount($bankAccounts,$p->payer_id);
+                $p->payment_date = Helper::dateDMY($p->payment_datetime);
+                $p->merchant_name = $p->merchant?->username;
+                $p->trx_type = 'Disbursement';
+                $p->trx_type_code = 'disbursement';
+                $totalAmt -= $p->payable_amount;
+                $totalPkgs += $p->package_count;
+                unset($p->merchant);
+                $allPayments[] = $p;
+            }
+        }
+
+        $merchantCount = $merchantIds->unique()->count();
 
         $obj =(object)[
             'title' => 'Merchant Payment',
             'status' => 'All Merchant',
-            'total_merchant' => 0,
+            'total_merchant' => $merchantCount,
             'date' => $startDate.' to '.$endDate,
             'company_profile' => CompanyProfileService::profileInfo($user),
             'grand' => [
@@ -1573,17 +1694,15 @@ class ReportController extends Controller
         return ApiResponse::JsonResult($obj);
     }
 
-    private function userBankAccount($rows,$userId){
-        foreach($rows as $row){
-            if($row->user_id == $userId){
-                if($row->is_primary){
-                    return GeneralSettingService::concatBankInfo($row->bank_name,$row->bank_number,$row->account_name);
-                }else{
-                    return GeneralSettingService::concatBankInfo($row->bank_name,$row->bank_number,$row->account_name);
-                }
-            }
+    private function userBankAccount($bankAccountsGrouped, $userId) {
+        if (!isset($bankAccountsGrouped[$userId])) {
+            return null;
         }
-        return null;
+
+        // Get first (primary or just first)
+        $bank = $bankAccountsGrouped[$userId]->first();
+
+        return GeneralSettingService::concatBankInfo($bank->bank_name, $bank->bank_number, $bank->account_name);
     }
 
 

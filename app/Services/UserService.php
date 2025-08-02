@@ -80,7 +80,6 @@ class UserService
     public static function getAuthUser($class='admin',$action='',$useSpecificClass=true){
         $user = JWTAuth::user();
         if($user){
-            // Log::info($user);
             return DataResponse::JsonRaw([
                 'error'=>false,
                 'status_code' => 200,
@@ -180,7 +179,7 @@ class UserService
         $bankInfo = $inputs['bank_info'] ?? [];
         $photo = $inputs['photo'] ?? null;
         $inputs['account_type'] = $user_class;
-        $branchId = $user->branch_id ?? 1;
+        $branchId = $inputs['branch_id'] ?? $user->branch_id;
         $companyId = $user->company_id ?? 1;
         $inputs['update_uid'] = $user->id;
         $inputs['branch_id'] =$branchId;

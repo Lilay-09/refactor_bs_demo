@@ -126,6 +126,10 @@ Route::prefix('merchant/v1/{lang}')->middleware('localize')->group(function(){
 
 
 Route::middleware(['jwtMerchant','localize'])->prefix('merchant/v1/{lang}')->group(function(){
+    Route::prefix('comment')->group(function(){
+        Route::post('package',[CommentController::class,'addComment']);
+        Route::get('package/{packageId}',[CommentController::class,'getPackageComments']);
+    });
     Route::post('notification/subscribe',[AuthMerchantController::class,'subscribeTopics']);
     Route::get('termConditions',[HomeController::class,'getTermConditions']);
     Route::post('feedback',[HomeController::class,'feedBack']);

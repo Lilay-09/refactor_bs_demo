@@ -4,7 +4,7 @@ return [
     'get one' => 'Get One :info',
     'not_found' => ':info Not Found',
     'created' => 'Created',
-    'deleted' => ':Deleted',
+    'deleted' => ':info',
     'removed' => 'Deleted',
     'arrived' => 'Arrived',
     'updated' => 'Updated',

@@ -34,7 +34,6 @@ class TransactionService
         $startDate = $req->startDate;
         $endDate = $req->endDate;
         $search = $req->search;
-        // Log::info($req->all());
         $qP = Package::query()
             ->from('packages as p')
             ->with(['payment' => function ($query) use ($type) {
@@ -52,7 +51,12 @@ class TransactionService
             ->join('tracking_statuses as ts','ts.id','p.status_id')
             ->join('users as m','m.id','p.merchant_id')
             ->whereIn('p.status_id',[9,19])
-            ->select(['p.extra_charge','p.additional_fee','p.remarks','p.cod','p.price','d.phone as driver_phone','p.taxi_fee','p.payer','p.delivery_fee','p.assign_driver_datetime','p.merchant_total','m.username as merchant_name','m.phone as merchant_phone','d.username as driver_name','p.status_id','p.id as package_id','d.id as driver_id','p.qr_code','ts.name as status_code','p.delivered_datetime','p.failed_datetime','p.zone_code','p.receiver_phone','p.delivery_type']);
+            ->select([
+                'p.extra_charge','p.additional_fee','p.remarks','p.cod','p.price','d.phone as driver_phone','p.taxi_fee','p.payer','p.delivery_fee','p.assign_driver_datetime',
+                'p.merchant_total','m.username as merchant_name','m.phone as merchant_phone','d.username as driver_name','p.status_id','p.id as package_id','d.id as driver_id',
+                'p.qr_code','ts.name as status_code','p.delivered_datetime','p.failed_datetime','p.zone_code','p.receiver_phone','p.delivery_type','p.zone_name',
+                'p.receiver_address'
+            ]);
             if($type == 'driver'){
                 $qP->whereNotExists(function ($sub) use ($type) {
                     $sub->select(DB::raw(1))
@@ -71,38 +75,38 @@ class TransactionService
             }
 
             if ($type === 'merchant') {
-    if ($pmtStatusId == 1) { // Unpaid
-        $qP->whereNotExists(function ($sub) {
-            $sub->select(DB::raw(1))
-                ->from('payment_packages as pp')
-                ->whereColumn('pp.package_id', 'p.id')
-                ->where('pp.payer_type', 'merchant')
-                ->where('pp.is_deleted', false);
-        })->whereNotExists(function ($sub) {
-            $sub->select(DB::raw(1))
-                ->from('disbursement_packages as dp')
-                ->whereColumn('dp.package_id', 'p.id')
-                ->where('dp.payee_type', 'merchant')
-                ->where('dp.type','payment')
-                ->where('dp.is_deleted', false);
-        });
-    } elseif ($pmtStatusId == 2) { // Paid
-        $qP->whereExists(function ($sub) {
-            $sub->select(DB::raw(1))
-                ->from('payment_packages as pp')
-                ->whereColumn('pp.package_id', 'p.id')
-                ->where('pp.payer_type', 'merchant')
-                ->where('pp.is_deleted', false);
-        })->orWhereExists(function ($sub) {
-            $sub->select(DB::raw(1))
-                ->from('disbursement_packages as dp')
-                ->whereColumn('dp.package_id', 'p.id')
-                ->where('dp.payee_type', 'merchant')
-                ->where('dp.type','payment')
-                ->where('dp.is_deleted', false);
-        });
-    }
-}
+                if ($pmtStatusId == 1) { // Unpaid
+                    $qP->whereNotExists(function ($sub) {
+                        $sub->select(DB::raw(1))
+                            ->from('payment_packages as pp')
+                            ->whereColumn('pp.package_id', 'p.id')
+                            ->where('pp.payer_type', 'merchant')
+                            ->where('pp.is_deleted', false);
+                    })->whereNotExists(function ($sub) {
+                        $sub->select(DB::raw(1))
+                            ->from('disbursement_packages as dp')
+                            ->whereColumn('dp.package_id', 'p.id')
+                            ->where('dp.payee_type', 'merchant')
+                            ->where('dp.type','payment')
+                            ->where('dp.is_deleted', false);
+                    });
+                } elseif ($pmtStatusId == 2) { // Paid
+                    $qP->whereExists(function ($sub) {
+                        $sub->select(DB::raw(1))
+                            ->from('payment_packages as pp')
+                            ->whereColumn('pp.package_id', 'p.id')
+                            ->where('pp.payer_type', 'merchant')
+                            ->where('pp.is_deleted', false);
+                    })->orWhereExists(function ($sub) {
+                        $sub->select(DB::raw(1))
+                            ->from('disbursement_packages as dp')
+                            ->whereColumn('dp.package_id', 'p.id')
+                            ->where('dp.payee_type', 'merchant')
+                            ->where('dp.type','payment')
+                            ->where('dp.is_deleted', false);
+                    });
+                }
+            }
 
 
         if($driverId || $merchantId){
@@ -818,7 +822,6 @@ class TransactionService
         $endDate = $req->endDate;
         $transactionType = $req->transaction_type ?? null;
         $allPayments = [];
-        // Log::info($req->all());
         if(!$transactionType || $transactionType == 'receive'){
             $qP = Payment::fromRaw('payments as p')->join('users as d','d.id','p.payer_id')
             ->where('p.is_deleted',0)
@@ -967,12 +970,13 @@ class TransactionService
         $validType = $this->validType($type);
         if($validType->error) return $validType;
         if($trxType=='receive'){
+            Log::info($id);
             $payment = Payment::where('is_deleted',0)->orderByDesc('id')->find($id);
-            if($payment->is_settled) return DataResponse::Duplicated(__('messages.info',[
-                'info' => 'Payment has already been settled'
-            ]));
             if(!$payment) return DataResponse::NotFound(__('messages.not_found',[
                 'info' => 'Payment'
+            ]));
+            if($payment->is_settled) return DataResponse::Duplicated(__('messages.info',[
+                'info' => 'Payment has already been settled'
             ]));
             //** remove payment key from packages */
             $pmtKey = $type.'_payment_id';
@@ -980,10 +984,6 @@ class TransactionService
                 'is_deleted' => 1,
                 'deleted_datetime' => now(),
                 'deleted_uid' => $user->id
-            ]);
-            Package::where($pmtKey,$id)->update([
-                // $type.'_disbursement_id' => null,
-                $pmtKey => null,
             ]);
 
             PaymentPackage::where('payment_id',$id)->update([
@@ -1007,10 +1007,6 @@ class TransactionService
                 'deleted_datetime' => now(),
                 'deleted_uid' => $user->id
             ]);
-            Package::where($pmtKey,$id)->update([
-                $pmtKey => null,
-                // $type.'_payment_id' => null,
-            ]);
 
             DisbursementPackage::where('disbursement_id',$id)->update([
                 'is_deleted' => 1,
@@ -1019,12 +1015,7 @@ class TransactionService
                 'deleted_reason' => 'rollback by '.$user->username
             ]);
         }
-
-        return DataResponse::JsonResult(null,false,__('messages.deleted',[
-            'info' => 'Payment'
-        ]));
-
-
+        return DataResponse::JsonResult(null,false,__('messages.removed'));
     }
 
 
@@ -1047,11 +1038,6 @@ class TransactionService
                 'deleted_datetime' => now(),
                 'deleted_uid' => $user->id
             ]);
-            Package::where($pmtKey,$id)->update([
-                // $type.'_disbursement_id' => null,
-                $pmtKey => null,
-            ]);
-
             PaymentPackage::where('payment_id',$id)->update([
                 'is_deleted' => 1,
                 'deleted_datetime' => now(),
@@ -1069,10 +1055,6 @@ class TransactionService
                 'is_deleted' => 1,
                 'deleted_datetime' => now(),
                 'deleted_uid' => $user->id,
-            ]);
-            Package::where($pmtKey,operator: $id)->update([
-                $pmtKey => null,
-                // $type.'_payment_id' => null,
             ]);
 
             DisbursementPackage::where('disbursement_id',$id)->update([
@@ -1415,7 +1397,6 @@ class TransactionService
         ]);
         if($validate->fails()) return DataResponse::ValidateFail($validate->errors()->first());
         $inputs = $validate->validated();
-        // Log::info($req->all());
         $package = Package::where('is_deleted',0)->find($id);
         if(!$package) return DataResponse::NotFound(__('messages.not_found',[
             'info' => 'Package'
@@ -1829,7 +1810,6 @@ class TransactionService
         // $deliveredCount = 0;
         $pickUpCount = 0;
         // $failedWithFeeCount = 0;
-        // Log::info($startDate.'--'.$endDate);
         $obj = (object)[
             'error' => false,
             'total_pickup' => 0,
@@ -1951,7 +1931,6 @@ class TransactionService
         $obj->total_pickup_count = $pickUpCount;
 
         $obj->grand_total = Helper::getNumber($obj->total_pickup + $obj->total_delivered,2);
-        // Log::info($deliveredCount);
         if(empty($obj->package_ids) && empty($obj->order_ids)){
             return DataResponse::NotFound('No package found');
         }
@@ -2085,35 +2064,6 @@ class TransactionService
         }
         return null;
     }
-
-
-    // static function getTrxDetails($rows,$pmtId,$pmtBillings=null,&$pmtMethod = ''){
-    //     foreach($rows as $row){
-    //         if($row->id == $pmtId){
-    //             $row->breakdown_notes = str_replace(
-    //                 ['|', 'USD '],
-    //                 [' & ', '$'],
-    //                 $row->breakdown_notes
-    //             );
-    //             $row->breakdown_notes = preg_replace('/KHR (\d+)/', '$1៛', $row->breakdown_notes);
-    //             $method = isset($pmtBillings[$row->id]) ? $pmtBillings[$row->id]->method : null;
-
-    //             Log::info($pmtBillings);
-    //             // Append to the reference string (if not already included)
-    //             if ($method && !str_contains($pmtMethod, $method)) {
-    //                 $pmtMethod .= ($pmtMethod ? ', ' : '') . $method;
-    //             }
-
-    //             $row->payment_method = $pmtMethod;
-    //             // Log::info($pmtBillings[$row->id]);
-    //             $row->payment_date = Helper::dateDMY($row->payment_datetime,'d M Y');
-    //             $row->payment_time = Helper::formatCustomDateTime($row->payment_datetime,'h:i A');
-    //             // Log::info($pmtMethod);
-    //             return $row;
-    //         }
-    //     }
-    //     return null;
-    // }
 
     static function transactionCodeGenerator($tbl_code_control,$type,$target_tbl,$target_col,$branch_id,$company_id,$newID,$prefix='TRX', $len = 5){
         if (!$len) $len = 5;
