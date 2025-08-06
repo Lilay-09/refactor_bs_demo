@@ -422,7 +422,7 @@ class GeneralSettingController extends Controller
                 $rct = $trxSImpl->driverScanReceive($user,$package->id);
                 if($rct->error) return $rct;
                 else{
-                    $client = new Client(config('app.chat_service_socket'));
+                    $client = new Client(config('app.cl_socket'));
                     $message = json_encode([
                         'topic' => 'ng_express',
                         'type' => 'receive',
