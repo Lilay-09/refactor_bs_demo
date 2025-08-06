@@ -1981,7 +1981,7 @@ class TransactionService
         // $dUid = $targetUser.'_disbursement_id';
 
         $qP = Package::from('packages as p')->where('p.is_deleted',0)
-        ->where('p.created_at', '>=', Carbon::now()->subMonths(3))
+        ->where('p.created_at', '>=', Carbon::now()->subMonths(6))
         ->whereIn('p.status_id',[9,19])
         // ->selectRaw('*')
         ->where($targeUId,$user->id)

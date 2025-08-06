@@ -9,9 +9,10 @@ use App\Models\CommentDescriptions;
 use App\Models\CommentUser;
 use DataResponse;
 use DB;
+use Exception;
 use Illuminate\Http\Request;
 use Log;
-// use WebSocket\Client;
+use WebSocket\Client;
 
 class CommentServiceImpl implements CommentService
 {
@@ -34,6 +35,7 @@ class CommentServiceImpl implements CommentService
         $threadId = $inputs['thread_id'];
         $comment = Comment::where('thread_id', $threadId)->first();
         $commentId = null;
+        $replyTo = $inputs['reply_to'] ?? null;
         try{
             DB::beginTransaction();
             if(!$comment){
@@ -55,8 +57,10 @@ class CommentServiceImpl implements CommentService
                 'user_type' => $comment ? 'owner':'member',
             ]);
 
+            $this->sendCommentSocket($threadId,$inputs['data'],$inputs['data_type'],$authUser->id,$replyTo,$commentId);
+
             $cmmDesId = CommentDescriptions::insertGetId([
-                'parent_id' => $inputs['reply_to'] ?? null,
+                'parent_id' => $replyTo,
                 'thread_id' => $threadId,
                 'comment_id' => $commentId,
                 'data' => $inputs['data'],
@@ -66,6 +70,7 @@ class CommentServiceImpl implements CommentService
                 'branch_id' => $authUser->branch_id,
                 'company_id' => $authUser->company_id,
             ]);
+
             // DB::commit();
             return DataResponse::JsonResult([
                 'id' => $cmmDesId
@@ -96,5 +101,32 @@ class CommentServiceImpl implements CommentService
         }
 
         return DataResponse::JsonResult([], false);
+    }
+
+    public function sendCommentSocket($pkgId,$msg,$dataType,$senderId,$replyTo,$refId){
+        $uri = config('services.socket.chat_service_socket').'?key='.config('services.socket.chat_service_key');
+        // Log::info($uri);
+        try {
+            $client = new Client($uri); // WebSocket server
+            $client->send(json_encode([
+                'action' => 'comment-group',
+                'topic' => (string)$pkgId
+            ]));
+            $client->send(json_encode([
+                'action' => 'comment',
+                'sender_id' => $senderId,
+                'topic' => (string)$pkgId, // e.g., '171'
+                'payload' => [
+                    'id' => $refId,
+                    'data' => $msg,
+                    'data_type' => $dataType
+                    // 'user_id' => $comment->user_id
+                ]
+            ]));
+            $client->close();
+        } catch (Exception $e) {
+            error_log("WS failed: " . $e->getMessage());
+        }
+        // $client->close();
     }
 }
