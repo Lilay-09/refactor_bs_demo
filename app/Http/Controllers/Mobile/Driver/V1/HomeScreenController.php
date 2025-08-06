@@ -340,19 +340,26 @@ class HomeScreenController extends Controller
         ->where('p.driver_id', $driverId)
         ->whereIn('p.status_id', [6,9,10,19])
         ->where('p.arrive_warehouse_datetime', '>=', Carbon::now()->subDays(15))
-        // ->whereExists(function ($q) {
-        //     $q->select(DB::raw(1))
-        //         ->from('delivery_packages as dp')
-        //         ->join('deliveries as d', 'd.id', 'dp.delivery_id')
-        //         ->whereColumn('dp.package_id', 'p.id')
-        //         ->where('dp.is_deleted', 0)
-        //         ->where('dp.has_swap', 0)
-        //         ->where('dp.delay_count', 0)
-        //         ->where(function ($q2) {
-        //             $q2->where('d.finished', 0)
-        //                 ->orWhereDate('d.depart_datetime', Carbon::today());
-        //         });
-        // })
+        ->whereExists(function ($q) use ($driverId) {
+            $q->select(DB::raw(1))
+                ->from('delivery_packages as dp')
+                ->join('deliveries as d', 'd.id', 'dp.delivery_id')
+                ->whereColumn('dp.package_id', 'p.id')
+                ->where('dp.is_deleted', 0)
+                ->where('dp.has_swap', 0)
+                ->where('dp.delay_count', 0)
+                ->where('d.driver_id', $driverId)
+                ->where('dp.id', function ($sub) {
+                    $sub->selectRaw('MAX(id)')
+                        ->from('delivery_packages')
+                        ->whereColumn('package_id', 'p.id');
+                })
+                ->where(function ($q2) {
+                    $q2->where('d.finished', 0)
+                        ->orWhereDate('d.depart_datetime', Carbon::today());
+                });
+        })
+
         ->join('users as d', 'd.id', 'p.driver_id')
         ->join('users as m', 'm.id', 'p.merchant_id')
         // ->join('tracking_statuses as ts', 'ts.id', 'p.status_id')
@@ -366,6 +373,9 @@ class HomeScreenController extends Controller
         ",[6,9,10,19]);
 
         $totalOnDelivery = (clone $qP)->where('p.status_id', 6)->count();
+        $totalDelivered = (clone $qP)->where('p.status_id', 9)->count();
+        $totalFailed = (clone $qP)->where('p.status_id', 10)->count();
+        $totalFailedWithFee = (clone $qP)->where('p.status_id', 19)->count();
         if ($statusId) {
             $qP->where('p.status_id', $statusId);
         }
@@ -387,7 +397,10 @@ class HomeScreenController extends Controller
             return DeliveryTripsPackagesDTO::fromModel($q);
         };
         return ApiResponse::PaginationV1($qP,$req,'',[
-            'total_on_delivery' => $totalOnDelivery
+            'total_on_delivery' => $totalOnDelivery,
+            'total_delivered' => $totalDelivered,
+            'totol_failed' => $totalFailed,
+            'total_failed_with_fee' => $totalFailedWithFee
         ],250,$callback,$select);
     }
 
