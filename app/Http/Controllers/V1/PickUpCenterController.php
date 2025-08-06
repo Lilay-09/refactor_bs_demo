@@ -4,6 +4,7 @@ namespace App\Http\Controllers\V1;
 
 use ApiResponse;
 use App\Enums\ImageDirectory;
+use App\Enums\TrackingStatus;
 use App\Http\Controllers\Controller;
 use App\Models\Order;
 use App\Models\OrderImage;
@@ -263,8 +264,14 @@ class PickUpCenterController extends Controller
         $user = UserService::getAuthUser();
         $driverId = $req->driver_id ?? null;
         $orderId = $req->order_id;
-        $order = Order::where('is_deleted',0)->with('merchant')->whereIn('status_id',[1,3])->find($orderId);
+        $order = Order::where('is_deleted',0)->with('merchant')->find($orderId);
         if(!$order) return ApiResponse::NotFound('Order not found');
+        if($order->status_id != TrackingStatus::AVAILABLE_FOR_PICK->value){
+            return ApiResponse::Duplicated(__('messages.info',[
+                'info' => 'Order already has someone picked',
+                'khInfo' => 'ការកម្មង់នេះមានអ្នកជ្រើសរួចហើយ'
+            ]));
+        }
         if($driverId){
             $driver = GeneralSettingService::getDriverById($driverId);
             if(!$driver) return ApiResponse::ValidateFail('Invalid driver identity!');
