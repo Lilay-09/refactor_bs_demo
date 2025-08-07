@@ -152,6 +152,7 @@ class CompletedPackageController extends Controller
             if($qP->status_id == 19) $qP->finished_date = Helper::formatCustomDateTime($qP->failed_datetime,null,false,$lang);
             if($qP->status_id == 23) $qP->finished_date = Helper::formatCustomDateTime($qP->returned_datetime,null,false,$lang);
             $qP->total = Helper::getNumber(abs($qP->driver_total - $qP->merchant_total),2);
+            // $qP->cod = $qP->cod ? "1":"0";
             unset($qP->returnUser);
             return $qP;
         };
@@ -234,7 +235,7 @@ class CompletedPackageController extends Controller
         ])
         ->where('p.id',$packageId)->first();
         if(!$package) return ApiResponse::NotFound();
-        $package->cod = $package->cod ? 1 : 0;
+        $package->cod = $package->cod ? "1" : "0";
         $deliveryFee = GeneralSettingService::sumDeliveryFee($package->base_fee,$package->extra_charge,$package->taxi_fee,$package->payer);
         $package->delivery_fee = Helper::getNumber($deliveryFee,2);
         return ApiResponse::JsonResult($package);

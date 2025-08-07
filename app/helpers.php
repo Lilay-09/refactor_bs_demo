@@ -875,7 +875,7 @@ class Helper{
             return (object)[
                 'error' => true,
                 'message' => $lang == 'en' ?
-                        'fallback'
+                        'Invalid image'
                         : 'ទិន្នន័យរូបភាពមិនត្រឹមត្រូវ។'
             ]; // Safe fallback
         }
