@@ -399,7 +399,7 @@ class HomeScreenController extends Controller
         return ApiResponse::PaginationV1($qP,$req,'',[
             'total_on_delivery' => $totalOnDelivery,
             'total_delivered' => $totalDelivered,
-            'totol_failed' => $totalFailed,
+            'total_failed' => $totalFailed,
             'total_failed_with_fee' => $totalFailedWithFee
         ],250,$callback,$select);
     }
