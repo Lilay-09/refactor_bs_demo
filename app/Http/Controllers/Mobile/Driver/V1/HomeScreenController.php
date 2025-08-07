@@ -417,7 +417,6 @@ class HomeScreenController extends Controller
             $row->date = Helper::formatCustomDateTime($datetimeMap, 'd m,Y');
             $row->time = Helper::formatCustomDateTime($datetimeMap, 'h:i A');
         }
-
         return $row;
     }
 
