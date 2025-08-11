@@ -201,6 +201,7 @@ Route::middleware(['jwt','localize','userAccess:admin','rateLimit'])->prefix('ad
                 Route::get('package',[MerchantTransactionController::class,'getDeliveryPackages']);
                 Route::put('package/{id}',[MerchantTransactionController::class,'updateDeliveryPackage']);
                 Route::post('payment',[MerchantTransactionController::class,'receivePackagesPayment']);
+                Route::get('packages',[MerchantTransactionController::class,'getMerchantDeliveryPackages']);
             });
 
             Route::prefix('payment')->group(function(){
@@ -259,7 +260,6 @@ Route::middleware(['jwt','localize','userAccess:admin','rateLimit'])->prefix('ad
         Route::put('{id}',[ExchangeRateController::class,'update']);
         Route::delete('{id}',[ExchangeRateController::class,'delete']);
         // Route::put('void/{id?}',[ExhangeRateController::class,'void']);
-
     });
 
     //** Begin PickUp Center */

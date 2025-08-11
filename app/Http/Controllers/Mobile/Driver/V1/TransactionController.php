@@ -274,6 +274,7 @@ class TransactionController extends Controller
                 ->from('disbursement_packages as dp')
                 ->whereColumn('dp.package_id', 'p.id')
                 ->where('dp.payee_type', 'driver')
+                ->where('dp.type','payment')
                 ->where('dp.is_deleted', false);
         })
 
