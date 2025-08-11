@@ -247,7 +247,7 @@ class HomeScreenController extends Controller
             "unpaid_amt" => ''.$balanceDues['total'],
             "accepted_order_count" => $pickedUpCount.$pcsUnitLng,
             "delivered_pkg_count" => $totalDeliveredPkg.$pcsUnitLng,
-            "salary" => "$".$normalDeliveryComm,
+            "salary" => "".$normalDeliveryComm,
             "pickup_count" => $pickupCount,
             "on_delivery_count" => $allDeliveryPkg
         ]));
