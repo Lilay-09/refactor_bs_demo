@@ -244,7 +244,7 @@ class HomeScreenController extends Controller
             // 'settlement' => (string)Helper::getNumber($balanceDues['total'],2,true),
         // ];
         return ApiResponse::JsonResult(HomePaymentDTO::fromModel((object)[
-            "unpaid_amt" => "$".$balanceDues['total'],
+            "unpaid_amt" => ''.$balanceDues['total'],
             "accepted_order_count" => $pickedUpCount.$pcsUnitLng,
             "delivered_pkg_count" => $totalDeliveredPkg.$pcsUnitLng,
             "salary" => "$".$normalDeliveryComm,

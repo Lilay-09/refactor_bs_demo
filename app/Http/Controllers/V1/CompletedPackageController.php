@@ -225,6 +225,7 @@ class CompletedPackageController extends Controller
         ->whereIn('p.status_id',[9,11,19]) //* delivered and failed with fee
         ->select([
             'p.delivered_datetime','m.username as merchant_name','m.phone as merchant_phone',
+            'p.driver_cod_usd','p.driver_cod_khr','p.price_khr',
             // 'dpmt.approved as approved_driver_pmt',
             // 'mpmt.approved as approved_merchant_pmt',
             'd.username as driver_name','p.status_id','p.id as package_id',
