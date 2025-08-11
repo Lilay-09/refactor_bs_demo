@@ -12,6 +12,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Controllers\Mobile\V1\GeneralSettingController;
 use App\Models\Delivery;
 use App\Models\DeliveryPackage;
+use App\Models\DriverCommission;
 use App\Models\EmergencyContact;
 use App\Models\FeedbackAnswer;
 use App\Models\FeedbackQuestion;
@@ -126,49 +127,49 @@ class HomeScreenController extends Controller
     public function getDriverBalance(Request $req){
         $user = UserService::getAuthUser('driver');
         $lang = $req->lang;
-        // $driverCommissions = DriverCommission::where('driver_id',$user->id)->where('is_deleted',0)
-        // ->selectRaw('id,driver_id,delivery_type,pickup_commission,delivery_commission,delivery_commission_start_date,pickup_commission_start_date,DATE(updated_at) as updated_date')
-        // ->get();
+        $driverCommissions = DriverCommission::where('driver_id',$user->id)->where('is_deleted',0)
+        ->selectRaw('id,driver_id,delivery_type,pickup_commission,delivery_commission,delivery_commission_start_date,pickup_commission_start_date,DATE(updated_at) as updated_date')
+        ->get();
 
-        // $commissionInfo = TransactionService::getDriverCommissionInfo($driverCommissions,$user->id);
-        // // return $commissionInfo;
+        $commissionInfo = TransactionService::getDriverCommissionInfo($driverCommissions,$user->id);
+        // return $commissionInfo;
 
-        // $normalStartDatetime = $commissionInfo->normal_delivery_commission_start_date
-        //     ? Helper::dateYMD($commissionInfo->normal_delivery_commission_start_date) . ' 00:00:00'
-        //     : null;
+        $normalStartDatetime = $commissionInfo->normal_delivery_commission_start_date
+            ? Helper::dateYMD($commissionInfo->normal_delivery_commission_start_date) . ' 00:00:00'
+            : null;
 
-        // $fastStartDatetime = $commissionInfo->fast_delivery_commission_start_date
-        //     ? Helper::dateYMD($commissionInfo->fast_delivery_commission_start_date) . ' 00:00:00'
-        //     : null;
+        $fastStartDatetime = $commissionInfo->fast_delivery_commission_start_date
+            ? Helper::dateYMD($commissionInfo->fast_delivery_commission_start_date) . ' 00:00:00'
+            : null;
 
         $qP = Package::where('is_deleted', 0)
             ->where('driver_id', $user->id)
             ->whereIn('status_id', [6, 9, 19]);
 
-        // if ($normalStartDatetime || $fastStartDatetime) {
-        //     $qP->where(function ($q) use ($normalStartDatetime, $fastStartDatetime) {
-        //         if ($normalStartDatetime) {
-        //             $q->orWhere(function ($q) use ($normalStartDatetime) {
-        //                 $q->where('delivery_type', 'normal')
-        //                 ->where(function ($q) use ($normalStartDatetime) {
-        //                     $q->where('delivered_datetime', '>=', $normalStartDatetime)
-        //                         ->orWhere('failed_datetime', '>=', $normalStartDatetime)
-        //                         ->orWhere('assign_driver_datetime', '>=', $normalStartDatetime);
-        //                 });
-        //             });
-        //         }
-        //         if ($fastStartDatetime) {
-        //             $q->orWhere(function ($q) use ($fastStartDatetime) {
-        //                 $q->where('delivery_type', 'fast')
-        //                 ->where(function ($q) use ($fastStartDatetime) {
-        //                     $q->where('delivered_datetime', '>=', $fastStartDatetime)
-        //                         ->orWhere('failed_datetime', '>=', $fastStartDatetime)
-        //                         ->orWhere('assign_driver_datetime', '>=', $fastStartDatetime);
-        //                 });
-        //             });
-        //         }
-        //     });
-        // }
+        if ($normalStartDatetime || $fastStartDatetime) {
+            $qP->where(function ($q) use ($normalStartDatetime, $fastStartDatetime) {
+                if ($normalStartDatetime) {
+                    $q->orWhere(function ($q) use ($normalStartDatetime) {
+                        $q->where('delivery_type', 'normal')
+                        ->where(function ($q) use ($normalStartDatetime) {
+                            $q->where('delivered_datetime', '>=', $normalStartDatetime)
+                                ->orWhere('failed_datetime', '>=', $normalStartDatetime)
+                                ->orWhere('assign_driver_datetime', '>=', $normalStartDatetime);
+                        });
+                    });
+                }
+                if ($fastStartDatetime) {
+                    $q->orWhere(function ($q) use ($fastStartDatetime) {
+                        $q->where('delivery_type', 'fast')
+                        ->where(function ($q) use ($fastStartDatetime) {
+                            $q->where('delivered_datetime', '>=', $fastStartDatetime)
+                                ->orWhere('failed_datetime', '>=', $fastStartDatetime)
+                                ->orWhere('assign_driver_datetime', '>=', $fastStartDatetime);
+                        });
+                    });
+                }
+            });
+        }
 
         $counts = $qP->selectRaw("
             COUNT(CASE WHEN status_id = 9 AND delivery_type = 'normal' THEN 1 END) AS delivered_normal_pkg,
@@ -196,8 +197,9 @@ class HomeScreenController extends Controller
         $fastFailedWithFeePkg = $counts->failed_with_fee_fast_pkg;
 
         //** Normal Commission */
-        // $normalDeliveryComm = $normalDeliveredPkg * $commissionInfo->normal_delivery_commission;
+        $normalDeliveryComm = $normalDeliveredPkg * $commissionInfo->normal_delivery_commission;
         // $normalFailedWithFeeComm = $normalFailedWithFeePkg * $commissionInfo->normal_delivery_commission;
+
 
         // //** Fast Commission */
 
@@ -225,9 +227,9 @@ class HomeScreenController extends Controller
         $pcsUnitLng = $lang == 'km' ? 'កញ្ចប់': 'PCS';
         // $totalEearning = $normalDeliveryComm + $normalFailedWithFeeComm + $fastDeliveryComm + $fastFailedWithFeeComm;
         $totalDeliveredPkg = $normalDeliveredPkg + $normalFailedWithFeePkg + $fastDeliveredPkg + $fastFailedWithFeePkg;
-        $maxSettlement = $balanceDues['total'] > 150
-            ? ((int) ceil($balanceDues['total'] / 100)) * 100
-            : 800;
+        // $maxSettlement = $balanceDues['total'] > 150
+        //     ? ((int) ceil($balanceDues['total'] / 100)) * 100
+        //     : 800;
 
         // $percentSettlement = round($balanceDues['total'] / $maxSettlement * 100, 1);
 
@@ -242,10 +244,10 @@ class HomeScreenController extends Controller
             // 'settlement' => (string)Helper::getNumber($balanceDues['total'],2,true),
         // ];
         return ApiResponse::JsonResult(HomePaymentDTO::fromModel((object)[
-            "unpaid_amt" => $maxSettlement,
+            "unpaid_amt" => ''.$balanceDues['total'],
             "accepted_order_count" => $pickedUpCount.$pcsUnitLng,
             "delivered_pkg_count" => $totalDeliveredPkg.$pcsUnitLng,
-            "salary" => 0,
+            "salary" => "".$normalDeliveryComm,
             "pickup_count" => $pickupCount,
             "on_delivery_count" => $allDeliveryPkg
         ]));
@@ -338,25 +340,42 @@ class HomeScreenController extends Controller
         ->where('p.driver_id', $driverId)
         ->whereIn('p.status_id', [6,9,10,19])
         ->where('p.arrive_warehouse_datetime', '>=', Carbon::now()->subDays(15))
-        // ->whereExists(function ($q) {
-        //     $q->select(DB::raw(1))
-        //         ->from('delivery_packages as dp')
-        //         ->join('deliveries as d', 'd.id', 'dp.delivery_id')
-        //         ->whereColumn('dp.package_id', 'p.id')
-        //         ->where('dp.is_deleted', 0)
-        //         ->where('dp.has_swap', 0)
-        //         ->where('dp.delay_count', 0)
-        //         ->where(function ($q2) {
-        //             $q2->where('d.finished', 0)
-        //                 ->orWhereDate('d.depart_datetime', Carbon::today());
-        //         });
-        // })
+        ->whereExists(function ($q) use ($driverId) {
+            $q->select(DB::raw(1))
+                ->from('delivery_packages as dp')
+                ->join('deliveries as d', 'd.id', 'dp.delivery_id')
+                ->whereColumn('dp.package_id', 'p.id')
+                ->where('dp.is_deleted', 0)
+                ->where('dp.has_swap', 0)
+                ->where('dp.delay_count', 0)
+                ->where('d.driver_id', $driverId)
+                ->where('dp.id', function ($sub) {
+                    $sub->selectRaw('MAX(id)')
+                        ->from('delivery_packages')
+                        ->whereColumn('package_id', 'p.id');
+                })
+                ->where(function ($q2) {
+                    $q2->where('d.finished', 0)
+                        ->orWhereDate('d.depart_datetime', Carbon::today());
+                });
+        })
+
         ->join('users as d', 'd.id', 'p.driver_id')
         ->join('users as m', 'm.id', 'p.merchant_id')
         // ->join('tracking_statuses as ts', 'ts.id', 'p.status_id')
         ->orderBy('p.driver_display_order', 'asc')
-        ->orderBy('p.status_id', 'desc');
+        // ->orderBy('p.status_id', 'desc');
+        ->orderByRaw("
+            CASE WHEN p.status_id = ? THEN assign_driver_datetime
+            WHEN p.status_id = ? THEN delivered_datetime
+            WHEN p.status_id IN (?,?) THEN failed_datetime
+            END DESC, d.id DESC
+        ",[6,9,10,19]);
+
         $totalOnDelivery = (clone $qP)->where('p.status_id', 6)->count();
+        $totalDelivered = (clone $qP)->where('p.status_id', 9)->count();
+        $totalFailed = (clone $qP)->where('p.status_id', 10)->count();
+        $totalFailedWithFee = (clone $qP)->where('p.status_id', 19)->count();
         if ($statusId) {
             $qP->where('p.status_id', $statusId);
         }
@@ -378,7 +397,10 @@ class HomeScreenController extends Controller
             return DeliveryTripsPackagesDTO::fromModel($q);
         };
         return ApiResponse::PaginationV1($qP,$req,'',[
-            'total_on_delivery' => $totalOnDelivery
+            'total_on_delivery' => $totalOnDelivery,
+            'total_delivered' => $totalDelivered,
+            'total_failed' => $totalFailed,
+            'total_failed_with_fee' => $totalFailedWithFee
         ],250,$callback,$select);
     }
 
@@ -395,7 +417,6 @@ class HomeScreenController extends Controller
             $row->date = Helper::formatCustomDateTime($datetimeMap, 'd m,Y');
             $row->time = Helper::formatCustomDateTime($datetimeMap, 'h:i A');
         }
-
         return $row;
     }
 

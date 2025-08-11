@@ -6,6 +6,7 @@ use ApiResponse;
 use App\Enums\ImageDirectory;
 use App\Enums\TrackingStatus;
 use App\Http\Controllers\Controller;
+use App\Jobs\SendNotificationJob;
 use App\Models\Delivery;
 use App\Models\DeliveryPackage;
 use App\Models\Notification;
@@ -391,7 +392,7 @@ class GeneralSettingController extends Controller
                 ]));
                 $requester = $user->info->phone."($user->username)";
                 $topics = GeneralSettingService::getGeneralTopics($user->company_id,'driver',$package->driver_id);
-                $ttl = 300;
+                $ttl = 70;
                 Cache::set($topics->private,(object)[
                     'requester' => $requester,
                     'requester_id' => $user->id,
@@ -402,7 +403,7 @@ class GeneralSettingController extends Controller
                     'body' => "$requester request change package ",
                     'data' => [
                         'action' => 'change-driver',
-                        'time_to_live' => now()->addSeconds($ttl),
+                        'time_to_live' => now()->addSeconds($ttl-10),
                         'requester' => $requester,
                         'barcode' => $item_ref,
                         "en_message" => "$requester request change package ",//$requester." request swap the package",
@@ -411,7 +412,9 @@ class GeneralSettingController extends Controller
                 ]);
                 // Log::info($notifReq);
                 // var_dump($requester,$topics->private);
-                $cms->sendNotificationByTopic($notifReq,$user);
+                // $cms->sendNotificationByTopic($notifReq,$user);
+                $queueFCMName = config('queue_job_names.'.config('app.env').'.notification');
+                SendNotificationJob::dispatch($notifReq, $user)->onQueue($queueFCMName);
                 $driverName = $driver?->username;
                 $updateArr['tracking_notes'] = $package->tracking_notes."|[$user->id]Driver ($user->username) ask [$package->driver_id]Driver $driverName to change driver";
             }
@@ -422,9 +425,9 @@ class GeneralSettingController extends Controller
                 $rct = $trxSImpl->driverScanReceive($user,$package->id);
                 if($rct->error) return $rct;
                 else{
-                    $client = new Client(config('app.cl_socket'), [
+                    $client = new Client(config('app.cl_socket'),[
                         'headers' => [
-                            'Origin' => 'https://dev.ngexpresscambodia.com',
+                            'Origin' => 'https://dev.ngexpresscambodia.com'
                         ]
                     ]);
                     $message = json_encode([

@@ -282,8 +282,8 @@ class GeneralSettingService
     public static function optionsZone($user,$identity='child',$parentId=null,Request $filter=null){
         $qZ = Zone::where('status',1)->where('company_id',$user->company_id)->where('is_deleted',0);
         if($identity){
-            $qZ->where('identity',$identity)
-            ->whereNotNull('parent_id');
+            $qZ->where('identity',$identity);
+            // ->whereNotNull('parent_id');
         }
         if($parentId){
             $qZ->where('parent_id',$parentId);

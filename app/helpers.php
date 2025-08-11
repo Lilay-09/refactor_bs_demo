@@ -802,7 +802,8 @@ class Helper{
         try {
             // Check if base64 image
             if (is_string($image) && Helper::isValidBase64Image($image)) {
-                $imageData = explode(',', $image)[1];
+                // $imageData = explode(',', $image)[1];
+                $imageData = str_contains($image, ',') ? explode(',', $image)[1] : $image;
                 $binaryData = base64_decode($imageData);
                 $sizeKB = strlen($binaryData) / 1024;
 
@@ -872,10 +873,11 @@ class Helper{
             ]; // Not valid
         } catch (\Exception $e) {
             Log::error($e->getMessage());
+            Log::error($e->getTraceAsString());
             return (object)[
                 'error' => true,
                 'message' => $lang == 'en' ?
-                        'fallback'
+                        'Invalid image'
                         : 'ទិន្នន័យរូបភាពមិនត្រឹមត្រូវ។'
             ]; // Safe fallback
         }

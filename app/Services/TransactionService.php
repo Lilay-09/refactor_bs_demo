@@ -23,6 +23,7 @@ use Helper;
 use Illuminate\Http\Request;
 use Log;
 use Str;
+use function Laravel\Prompts\select;
 
 class TransactionService
 {
@@ -52,10 +53,10 @@ class TransactionService
             ->join('users as m','m.id','p.merchant_id')
             ->whereIn('p.status_id',[9,19])
             ->select([
-                'p.extra_charge','p.additional_fee','p.remarks','p.cod','p.price','d.phone as driver_phone','p.taxi_fee','p.payer','p.delivery_fee','p.assign_driver_datetime',
+                'p.extra_charge','p.additional_fee','p.remarks','p.cod','p.price','p.price_khr','d.phone as driver_phone','p.taxi_fee','p.payer','p.delivery_fee','p.assign_driver_datetime',
                 'p.merchant_total','m.username as merchant_name','m.phone as merchant_phone','d.username as driver_name','p.status_id','p.id as package_id','d.id as driver_id',
                 'p.qr_code','ts.name as status_code','p.delivered_datetime','p.failed_datetime','p.zone_code','p.receiver_phone','p.delivery_type','p.zone_name',
-                'p.receiver_address'
+                'p.receiver_address','p.driver_cod_usd','p.driver_cod_khr'
             ]);
             if($type == 'driver'){
                 $qP->whereNotExists(function ($sub) use ($type) {
@@ -164,6 +165,43 @@ class TransactionService
         return DataResponse::PaginationV1($qP,$req,'',[],1000,$clbMapper);
     }
 
+
+    public function getMerchantDeliveryPackages(Request $req,object $authUser){
+        $select = [
+            'merchant_id',
+            DB::raw("COUNT(*) as package_count"),
+            DB::raw("SUM(price) as total_price"),
+            DB::raw("SUM(price_khr) as total_price_khr"),
+            DB::raw('SUM(delivery_fee) as fees'),
+            DB::raw('SUM(taxi_fee) as taxi_fee'),
+            DB::raw('SUM(driver_cod_khr) as total_driver_cod_khr'),
+            DB::raw('SUM(driver_cod_usd) as total_driver_cod_usd'),
+            DB::raw("
+                CASE
+                    WHEN status_id = 9 THEN DATE(delivered_datetime)
+                    WHEN status_id = 19 THEN DATE(failed_datetime)
+                END as finish_date
+            ")
+        ];
+        $qP = Package::query()
+        ->where('is_deleted', false)
+        ->with(['merchant:id,username'])
+        ->whereIn('status_id', [9, 19])
+        ->select($select)
+        ->groupBy(
+            'merchant_id',
+            'finish_date'
+        )
+        ->orderBy('finish_date', 'desc');
+        $callback = function ($q){
+            $q->merchant_name = $q->merchant->username;
+            $q->amount_to_be_paid = 100;
+            unset($q->merchant);
+            return $q;
+        };
+
+        return DataResponse::PaginationV1($qP,$req,'',[],1000,$callback,$select);
+    }
 
     // public function getDeliveryPackages(Request $req,$type,$user){
     //     $selectKey = $type.'_payment_id,'.$type.'_disbursement_id';
@@ -936,12 +974,19 @@ class TransactionService
     public static function getDriverCommissionInfo($driverCommissions,$driverId){
         $dc = (object)[
             'normal_pickup_commission' => 0,
+            'normal_pickup_commission_type' => 'percentage',
             'normal_pickup_commission_start_date' => null,
+
             'normal_delivery_commission' => 0,
+            'normal_delivery_commission_type' => 'percentage',
             'normal_delivery_commission_start_date' => null,
+
             'fast_pickup_commission' => 0,
+            'fast_pickup_commission_type' => 'percentage',
             'fast_pickup_commission_start_date' => null,
+
             'fast_delivery_commission' => 0,
+            'fast_delivery_commission_type' => 'percentage',
             'fast_delivery_commission_start_date' => null,
 
         ];
@@ -949,14 +994,20 @@ class TransactionService
             if($driverComm->driver_id == $driverId){
                     if($driverComm->delivery_type == 'fast'){
                     $dc->fast_pickup_commission = $driverComm->pickup_commission;
+                    $dc->fast_pickup_commission_type = $driverComm->pickup_commission_type;
                     $dc->fast_pickup_commission_start_date = $driverComm->pickup_commission_start_date ?? $driverComm->updated_date;
+
                     $dc->fast_delivery_commission = $driverComm->delivery_commission;
+                    $dc->fast_delivery_commission_type = $driverComm->delivery_commission_type;
                     $dc->fast_delivery_commission_start_date = $driverComm->delivery_commission_start_date ?? $driverComm->updated_date;
                 }
                 if($driverComm->delivery_type == 'normal'){
                     $dc->normal_pickup_commission = $driverComm->pickup_commission;
+                    $dc->normal_pickup_commission_type = $driverComm->pickup_commission_type;
                     $dc->normal_pickup_commission_start_date = $driverComm->pickup_commission_start_date ?? $driverComm->updated_date;
+
                     $dc->normal_delivery_commission = $driverComm->delivery_commission;
+                    $dc->normal_delivery_commission_type = $driverComm->delivery_commission_type;
                     $dc->normal_delivery_commission_start_date = $driverComm->delivery_commission_start_date ?? $driverComm->updated_date;
                 }
             }
@@ -1388,8 +1439,11 @@ class TransactionService
             'remarks' => 'nullable|string|max:250',
             'cod' => 'required|in:1,0',
             'price' => 'nullable|numeric',
+            'price_khr' => 'nullable|numeric',
             'payer' => 'required|in:receiver,sender',
             'receiver_address' => 'nullable|string|max:100',
+            'driver_cod_usd' => 'nullable|numeric',
+            'driver_cod_khr' => 'nullable|numeric',
             'receiver_phone' => 'nullable|string',
             'taxi_fee' => 'nullable|numeric|min:0',
             'zone_code' => 'required',
@@ -1641,11 +1695,29 @@ class TransactionService
         }
     }
 
+    public static function calculateCommission($rate, $rateType, $number)
+{
+    if (!is_numeric($rate) || !is_numeric($number)) {
+        return 0;
+    }
+
+    if ($rateType === 'percentage') {
+        return $rate * $number / 100;
+    } else if ($rateType === 'amount') {
+        return $rate * $number;
+    }
+
+    // Unknown rate type
+    return 0;
+}
+
+
     public function disbursementCommission(Request $req,$user,$type){
         $validType = $this->validType($type);
         if($validType->error) return $validType;
         $startDate = $req->startDate;
         $endDate = $req->endDate;
+        // Log::info($req->all());
         $validate = self::disbursementPaymentValidation($req,$type);
         if($validate->fails()) return DataResponse::ValidateFail($validate->errors()->first());
         $inputs = $validate->validated();
@@ -1700,7 +1772,7 @@ class TransactionService
                 'package_count' => $validPackages->total_package,
                 'delivered_package_count' => $validPackages->total_delivered_package,
                 'pickup_package_count' => $validPackages->total_pickup_package,
-                'failed_with_fee_count' => $validPackages->failed_with_fee_count,
+                'failed_with_fee_count' => $validPackages->total_failed_with_fee_package,
                 'update_uid' => $user->id,
                 'approved_datetime' => now(),
                 'settled_datetime' => now(),
@@ -1771,7 +1843,7 @@ class TransactionService
                 'info' => 'Payment'
             ]));
         }catch(Exception $e){
-            Log::error($e->getMessage());
+            // Log::error($e->getMessage());
             Log::error($e->getTraceAsString());
             DB::rollBack();
             return DataResponse::Error(__('messages.error',['info' => 'Fail to receive']));
@@ -1787,9 +1859,9 @@ class TransactionService
             'deleted_uid' => $user->id,
         ]);
         $pmtKey = $type.'_commission_id';
-        Package::where('is_deleted',0)->where($pmtKey,$id)->update([
-            $pmtKey => null
-        ]);
+        // Package::where('is_deleted',0)->where($pmtKey,$id)->update([
+        //     $pmtKey => null
+        // ]);
 
         Order::where('is_deleted',0)->where($pmtKey,$id)->update([
             $pmtKey => null
@@ -1830,15 +1902,34 @@ class TransactionService
             'fast_delivery_commission' => 0
         ];
         $payeeKey = $type.'_id';
-        $qP = Package::selectRaw('id,status_id,driver_id')
-        ->whereIn('status_id',[9,19])
-        ->where('is_deleted',0)
-        ->whereNull('driver_commission_id');
-        if($payeeId) $qP->where($payeeKey,$payeeId);
+        $qP = Package::from('packages as p')
+            ->selectRaw('p.id, p.status_id, p.driver_id')
+            // ->whereIn('p.status_id', [9, 19])
+            ->whereIn('p.status_id', [9])
+            ->where('p.is_deleted', 0)
+        ->whereNotExists(function ($sub) use($type) {
+            $sub->select(DB::raw(1))
+                ->from('disbursement_packages as dp')
+                ->whereColumn('dp.package_id', 'p.id')
+                ->where('dp.payee_type', $type)
+                ->where('dp.type','commission')
+                ->where('dp.is_deleted', false);
+        });
+        if($payeeId) {
+            $qP->where('p.'.$payeeKey,$payeeId);
+        }
 
-        $qO = Order::where('is_deleted',0)->whereNull('driver_commission_id')
-        ->where('status_id',5)
-        ->selectRaw('id,status_id,qty');
+        $qO = Order::query()
+            ->select('id', 'status_id') // select only needed columns
+            ->where('is_deleted', 0)
+            ->whereNull('driver_commission_id')
+            ->where('status_id', 5)
+            ->withCount([
+                'packages as qty' => fn($q) => $q
+                    ->where('status_id', 9)
+                    ->where('is_deleted', 0)
+            ])
+        ->having('qty', '>', 0);
         if($payeeId) $qO->where($payeeKey,$payeeId);
         // if($startDate && $endDate){
         //     $startDate = Helper::dateYMD($startDate);
@@ -1852,9 +1943,9 @@ class TransactionService
             $endDate = Helper::dateYMD($endDate). ' 23:59:59';
             $qP->whereRaw("
                 (
-                    (status_id = 19 AND failed_datetime >= ? AND failed_datetime <= ?)
+                    (p.status_id = 19 AND p.failed_datetime >= ? AND p.failed_datetime <= ?)
                     OR
-                    (status_id = 9 AND delivered_datetime >= ? AND delivered_datetime <= ?)
+                    (p.status_id = 9 AND p.delivered_datetime >= ? AND p.delivered_datetime <= ?)
                 )
             ", [$startDate, $endDate, $startDate, $endDate]);
 
@@ -1862,18 +1953,11 @@ class TransactionService
         }
         $packages = $qP->get();
         $orders = $qO->get();
-        $qDc = DriverCommission::where('driver_id',$payeeId)->where('is_deleted',0)->selectRaw('delivery_type,pickup_commission,delivery_commission,use_percentage');
+        Log::info('pkg count'.count($packages));
+        Log::info('order count'.count($orders));
+        $qDc = DriverCommission::where('driver_id',$payeeId)->where('is_deleted',0)->selectRaw('id,driver_id,delivery_type,pickup_commission,pickup_commission_type,delivery_commission_type,,delivery_commission,pickup_commission_start_date,delivery_commission_start_date');
         $driverCommissions = $qDc->get();
-        foreach($driverCommissions as $driverComm){
-            if($driverComm->delivery_type == 'fast'){
-                $dc->fast_pickup_commission = $driverComm->pickup_commission;
-                $dc->fast_delivery_commission = $driverComm->delivery_commission;
-            }
-            if($driverComm->delivery_type == 'normal'){
-                $dc->normal_pickup_commission = $driverComm->pickup_commission;
-                $dc->normal_delivery_commission = $driverComm->delivery_commission;
-            }
-        }
+        $dc = TransactionService::getDriverCommissionInfo($driverCommissions,$payeeId);
         foreach($orders as $order){
             $pickUpCount += $order->qty;
             $obj->order_ids[] = $order->id;
@@ -1888,7 +1972,7 @@ class TransactionService
         foreach($packages as $package){
             // if($package->status_id == 9) {
             //     $deliveredCount += 1;
-            //     $obj->package_ids[] = $package->id;
+                $obj->package_ids[] = $package->id;
             // }
             // if($package->status_id == 19) $failedWithFeeCount +=1;
             // if($package->cod) $obj->total_taxi_fee += $package->delivery_fee;
@@ -1923,14 +2007,18 @@ class TransactionService
         $obj->total_pickup_package = $pickUpCount;
         $obj->delivery_rate = $dc->normal_delivery_commission;
         $obj->pickup_rate = $dc->normal_pickup_commission;
+        $obj->fast_delivery_rate = $dc->fast_delivery_commission;
+        $obj->fast_pickup_rate = $dc->fast_pickup_commission;
         //** FailedWithFee pkgs */
         $obj->normal_failed_with_fee_count = $normalFailedWithFeeCount;
         $obj->fast_failed_with_fee_count = $fastFailedWithFeeCount;
+        $obj->total_failed_with_fee_package = $normalFailedWithFeeCount + $fastFailedWithFeeCount;
         //----
 
         $obj->total_pickup_count = $pickUpCount;
 
         $obj->grand_total = Helper::getNumber($obj->total_pickup + $obj->total_delivered,2);
+        // Log::info(json_encode($obj));
         if(empty($obj->package_ids) && empty($obj->order_ids)){
             return DataResponse::NotFound('No package found');
         }
@@ -1981,7 +2069,7 @@ class TransactionService
         // $dUid = $targetUser.'_disbursement_id';
 
         $qP = Package::from('packages as p')->where('p.is_deleted',0)
-        ->where('p.created_at', '>=', Carbon::now()->subMonths(3))
+        ->where('p.created_at', '>=', Carbon::now()->subMonths(6))
         ->whereIn('p.status_id',[9,19])
         // ->selectRaw('*')
         ->where($targeUId,$user->id)

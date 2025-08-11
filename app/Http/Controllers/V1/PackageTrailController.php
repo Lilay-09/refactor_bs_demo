@@ -68,7 +68,7 @@ class PackageTrailController extends Controller
                 ELSE NULL
             END DESC
         ");
-        $select = ['merchant_id','order_id','id','taxi_fee','delivery_type','qr_code','price','driver_id','product_type','dim_z','dim_x','dim_y','status_id','failed_datetime','failure_notes','payer','cod','delivery_fee','receiver_address','zone_code','zone_name','receiver_name','receiver_phone','delivered_datetime','assign_driver_datetime','arrive_warehouse_datetime','driver_total','merchant_total','billed_kg','actual_kg','created_at','warehouse_id'];
+        $select = ['merchant_id','order_id','id','taxi_fee','delivery_type','qr_code','price','price_khr','driver_id','product_type','dim_z','dim_x','dim_y','status_id','failed_datetime','failure_notes','payer','cod','delivery_fee','receiver_address','zone_code','zone_name','receiver_name','receiver_phone','delivered_datetime','assign_driver_datetime','arrive_warehouse_datetime','driver_total','merchant_total','billed_kg','actual_kg','created_at','warehouse_id'];
         if($warehouse_id){
             $query->where('warehouse_id',$warehouse_id);
             // $query->whereHas('order',function($q) use($warehouse_id){
@@ -136,7 +136,7 @@ class PackageTrailController extends Controller
         ->where('outstanding',0)
         // ->whereNotIn('status_id',[]) // at warehouse
         ->where('company_id',$user->company_id)
-        ->selectRaw('id,taxi_fee,actual_kg,billed_kg,extra_charge,delivery_type,qr_code,price,driver_id,product_type,dim_z,dim_x,dim_y,status_id,failure_notes,payer,cod,delivery_fee,receiver_address,zone_code,zone_name,receiver_name,receiver_phone,delivered_datetime,assign_driver_datetime,arrive_warehouse_datetime,driver_total,merchant_total,driver_id,remarks,billed_kg,actual_kg')
+        ->selectRaw('id,taxi_fee,actual_kg,billed_kg,extra_charge,delivery_type,qr_code,price,driver_cod_khr,driver_cod_usd,price_khr,driver_id,product_type,dim_z,dim_x,dim_y,status_id,failure_notes,payer,cod,delivery_fee,receiver_address,zone_code,zone_name,receiver_name,receiver_phone,delivered_datetime,assign_driver_datetime,arrive_warehouse_datetime,driver_total,merchant_total,driver_id,remarks,billed_kg,actual_kg')
         ->find($id);
         if(!$package) return ApiResponse::NotFound();
         $package->status_code = $package->status->name;
@@ -270,15 +270,16 @@ class PackageTrailController extends Controller
         )) return ApiResponse::ValidateFail(__('messages.info',[
             'info' => 'Only failed package or at warehouse can be returned'
         ]));
-        $statusId = TrackingStatus::RETURNING;
+        $statusId = TrackingStatus::RETURNING->value;
         if($package->status_id == TrackingStatus::FAILED_WITH_FEE->value){
             //** not change status but use returned_uid for tracking */
             $statusId = TrackingStatus::FAILED_WITH_FEE->value;
         }
         $package->update([
             'returned_uid' => $driverId,
-            'status_id' => $statusId, // returned
+            'status_id' => $statusId, // returning
             'assigned_return_at' => now(),
+            'current_status_id' => TrackingStatus::RETURNING->value,
             'update_uid' => $user->id,
         ]);
         Helper::clearCacheByTags($this->cacheTags);
@@ -367,7 +368,7 @@ class PackageTrailController extends Controller
         ->where('outstanding',0)
         // ->whereNotIn('status_id',[]) // at warehouse
         ->where('company_id',$user->company_id)
-        ->selectRaw('id as package_id,cod,extra_charge,taxi_fee,delivery_fee,zone_name,zone_code,merchant_id,driver_id,receiver_phone,receiver_address,created_at,arrive_warehouse_datetime,qr_code,remarks,price,update_uid,payer')
+        ->selectRaw('id as package_id,cod,extra_charge,taxi_fee,delivery_fee,zone_name,zone_code,merchant_id,driver_id,receiver_phone,receiver_address,created_at,arrive_warehouse_datetime,qr_code,remarks,price,price_khr,update_uid,payer')
         ->whereIn('id',$packageIds)
         ->orderByRaw("CASE $orderByCase END")
         ->get();

@@ -72,7 +72,14 @@ class CompletedPackageController extends Controller
         //     $query->where('p.status_id', '!=', 19)    // wxclude status 19
         //             ->orWhereNotNull('p.returned_uid'); // Include 19 only if returned_uid is not null
         // });
-        $select = ['p.driver_id','p.arrive_warehouse_datetime','p.returned_uid','p.receiver_address','p.delivered_datetime','m.username as merchant_name','m.phone as merchant_phone','d.username as driver_name','p.status_id','p.returned_datetime','p.id as package_id','d.id as driver_id','p.qr_code','p.price','ts.name as status_code','p.product_type','p.delivered_datetime','p.failed_datetime','p.taxi_fee','p.payer','p.cod','p.zone_code','p.zone_name','p.receiver_phone','p.delivery_type','p.delivery_fee','p.driver_total','p.merchant_total'];
+        $select = [
+            'p.driver_id','p.arrive_warehouse_datetime','p.returned_uid','p.receiver_address','p.delivered_datetime',
+            'm.username as merchant_name','m.phone as merchant_phone','d.username as driver_name','p.status_id',
+            'p.returned_datetime','p.id as package_id','d.id as driver_id','p.qr_code','p.price','ts.name as status_code',
+            'p.product_type','p.delivered_datetime','p.failed_datetime','p.taxi_fee','p.payer','p.cod','p.zone_code',
+            'p.zone_name','p.receiver_phone','p.delivery_type','p.delivery_fee','p.driver_total','p.merchant_total',
+            'p.price_khr','p.driver_cod_usd','p.driver_cod_khr'
+        ];
         // ->selectRaw('p.arrive_warehouse_datetime,p.returned_uid,p.receiver_address,p.driver_disbursement_id,p.driver_payment_id,p.delivered_datetime,m.username as merchant_name,m.phone as merchant_phone,d.username as driver_name,p.status_id,p.returned_datetime,p.id as package_id,d.id as driver_id,p.qr_code,p.price,ts.name as status_code,p.product_type,p.delivered_datetime,p.failed_datetime,p.taxi_fee,p.payer,p.cod,p.zone_code,p.zone_name,p.receiver_phone,p.delivery_type,p.delivery_fee,p.driver_total,p.merchant_total'.$driverSettled.$merchantSettled);
         // ->select('p.driver_id','p.arrive_warehouse_datetime','p.returned_uid','p.receiver_address','p.driver_disbursement_id','p.driver_payment_id','p.delivered_datetime','m.username as merchant_name','m.phone as merchant_phone','d.username as driver_name','p.status_id','p.returned_datetime','p.id as package_id','d.id as driver_id','p.qr_code','p.price','ts.name as status_code','p.product_type','p.delivered_datetime','p.failed_datetime','p.taxi_fee','p.payer','p.cod','p.zone_code','p.zone_name','p.receiver_phone','p.delivery_type','p.delivery_fee','p.driver_total','p.merchant_total');
         //** Filter */
@@ -145,6 +152,7 @@ class CompletedPackageController extends Controller
             if($qP->status_id == 19) $qP->finished_date = Helper::formatCustomDateTime($qP->failed_datetime,null,false,$lang);
             if($qP->status_id == 23) $qP->finished_date = Helper::formatCustomDateTime($qP->returned_datetime,null,false,$lang);
             $qP->total = Helper::getNumber(abs($qP->driver_total - $qP->merchant_total),2);
+            // $qP->cod = $qP->cod ? "1":"0";
             unset($qP->returnUser);
             return $qP;
         };
@@ -217,6 +225,7 @@ class CompletedPackageController extends Controller
         ->whereIn('p.status_id',[9,11,19]) //* delivered and failed with fee
         ->select([
             'p.delivered_datetime','m.username as merchant_name','m.phone as merchant_phone',
+            'p.driver_cod_usd','p.driver_cod_khr','p.price_khr',
             // 'dpmt.approved as approved_driver_pmt',
             // 'mpmt.approved as approved_merchant_pmt',
             'd.username as driver_name','p.status_id','p.id as package_id',
@@ -227,7 +236,7 @@ class CompletedPackageController extends Controller
         ])
         ->where('p.id',$packageId)->first();
         if(!$package) return ApiResponse::NotFound();
-        $package->cod = $package->cod ? 1 : 0;
+        $package->cod = $package->cod ? "1" : "0";
         $deliveryFee = GeneralSettingService::sumDeliveryFee($package->base_fee,$package->extra_charge,$package->taxi_fee,$package->payer);
         $package->delivery_fee = Helper::getNumber($deliveryFee,2);
         return ApiResponse::JsonResult($package);

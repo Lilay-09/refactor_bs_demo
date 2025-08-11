@@ -109,7 +109,7 @@ class Package extends Model
         'deleted_uid',
         'deleted_datetime',
 
-        'location_type'
+        'location_type',
 
     ];
 

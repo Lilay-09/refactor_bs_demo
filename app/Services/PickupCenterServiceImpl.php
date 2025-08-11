@@ -37,9 +37,12 @@ class PickupCenterServiceImpl implements PickupCenterService
             'merchant_id' => 'required',
             'image_id' => 'nullable',
             'image' => 'nullable',
+            'photo' => 'nullable',
             'product_type' => 'nullable|string',
             'price' => 'nullable|numeric|min:0',
             'price_khr' => 'nullable|numeric|min:0',
+            'driver_cod_usd' => 'nullable|numeric|min:0',
+            'driver_cod_khr' => 'nullable|numeric|min:0',
             'dim_z' => 'nullable|numeric',
             'dim_y' => 'nullable|numeric',
             'dim_x' => 'nullable|numeric',
@@ -393,7 +396,7 @@ class PickupCenterServiceImpl implements PickupCenterService
         $inputs['booking_channel'] = 'admin';
         $taxiFee = $inputs['taxi_fee'] ?? 0;
         $imageId = $inputs['image_id'] ?? null;
-        $image = $inputs['image'] ?? null;
+        $image = $inputs['image'] ?? $inputs['photo'] ?? null;
         // $inputs['tracking_notes'] = '['.$user->id.']Admin ('.$user->username.') add new package ('.date('d-M-Y h:i:s A').')';
         if($user->account_type == 'driver') $inputs['booking_channel'] = 'driver';
         if($user->account_type == 'merchant') {

@@ -35,6 +35,12 @@ return [
         ],
     ],
 
+    'socket' => [
+        'cl_socket' => env('CL_SOCKET','ws://192.168.0.236:3000/api/ws'),
+        'chat_service_socket' => env('CHAT_SERVICE_SOCKET','ws://localhost:3000/_ws'),
+        'chat_service_key' => env('CHAT_API_KEY')
+    ],
+
     'plasgate' => [
         'base_url' => env('PLASGATE_BASE_URL'),
         'private_key' => env('PLASGATE_PRIVATE_KEY'),
