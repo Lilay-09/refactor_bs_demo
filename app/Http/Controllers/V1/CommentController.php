@@ -28,4 +28,19 @@ class CommentController extends Controller
         $authUser = auth()->user();
         return ApiResponse::flex($this->commentService->getPackageComments($req->packageId, $authUser));
     }
+
+    public function createPackageCommentSection(Request $req){
+        $authUser = auth()->user();
+        return ApiResponse::flex($this->commentService->createPackageCommentSection($req,$authUser));
+    }
+
+    public function getPackageCommentSections(Request $req){
+        $authUser = auth()->user();
+        return ApiResponse::flex($this->commentService->getPackageCommentSections($req,$authUser));
+    }
+
+    public function getPackageCommentDetailsById(Request $req){
+        $authUser = auth()->user();
+        return ApiResponse::flex($this->commentService->getPackageCommentDetailsById($req->id,$authUser));
+    }
 }

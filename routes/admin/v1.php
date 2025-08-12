@@ -3,6 +3,7 @@
 use App\Http\Controllers\V1\BannerController;
 use App\Http\Controllers\V1\BranchController;
 use App\Http\Controllers\V1\ClientTypeController;
+use App\Http\Controllers\V1\CommentController;
 use App\Http\Controllers\V1\DashboardController;
 use App\Http\Controllers\V1\DefaultAddressController;
 use App\Http\Controllers\V1\DepartmentController;
@@ -375,6 +376,16 @@ Route::middleware(['jwt','localize','userAccess:admin','rateLimit'])->prefix('ad
     });
 
 
+
+    Route::prefix('comments')->group(function(){
+        Route::prefix('packages')->group(function(){
+            Route::get('',[CommentController::class,'getPackageCommentSections']);
+            Route::post('',[CommentController::class,'addComment']);
+        });
+        Route::prefix('{id}')->group(function (){
+            Route::get('packages',[CommentController::class,'getPackageCommentDetailsById']);
+        });
+    });
 
 
     Route::prefix('location')->group(function(){

@@ -11,6 +11,7 @@ class PackageCommentDTO {
         public readonly mixed $data,
         public readonly string $data_type,
         public readonly bool $isSelf,
+        public readonly object|array|null $replyTo
     ) {}
 
     public static function fromModel(CommentDescriptions $comment): self
@@ -21,7 +22,8 @@ class PackageCommentDTO {
             topic: $comment->topic ?? '',
             data: $comment->data ?? new stdClass(),
             data_type: $comment->data_type ?? 'text',
-            isSelf: $comment->isSelf ?? false
+            isSelf: $comment->isSelf ?? false,
+            replyTo: $comment?->replyTo ?? null
         );
     }
 

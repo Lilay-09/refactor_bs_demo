@@ -135,7 +135,7 @@ class PickupCenterServiceImpl implements PickupCenterService
                     'khInfo' => 'អ្នកដឹកជញ្ជូនត្រូវបានឈប់ដំណើរការ'
                 ]));
             }
-            if($validDriver->vehicle_type != $inputs['vehicle_type']) return DataResponse::ValidateFail(__('messages.error',['info' => 'Driver vehicle type and chosen vehicle type is different!']));
+            // if($validDriver->vehicle_type != $inputs['vehicle_type']) return DataResponse::ValidateFail(__('messages.error',['info' => 'Driver vehicle type and chosen vehicle type is different!']));
         }
         $dateTime = Helper::getDateTime();
         if($userType == 'driver') {

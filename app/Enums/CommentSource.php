@@ -6,4 +6,5 @@ enum CommentSource:int
 {
     //
     case PACKAGE = 1;
+    case ORDER = 2;
 }
