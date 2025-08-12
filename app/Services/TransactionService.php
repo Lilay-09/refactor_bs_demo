@@ -56,7 +56,7 @@ class TransactionService
                 'p.extra_charge','p.additional_fee','p.remarks','p.cod','p.price','p.price_khr','d.phone as driver_phone','p.taxi_fee','p.payer','p.delivery_fee','p.assign_driver_datetime',
                 'p.merchant_total','m.username as merchant_name','m.phone as merchant_phone','d.username as driver_name','p.status_id','p.id as package_id','d.id as driver_id',
                 'p.qr_code','ts.name as status_code','p.delivered_datetime','p.failed_datetime','p.zone_code','p.receiver_phone','p.delivery_type','p.zone_name',
-                'p.receiver_address','p.driver_cod_usd','p.driver_cod_khr'
+                'p.receiver_address','p.driver_cod_usd','p.driver_cod_khr','p.other_fee'
             ]);
             if($type == 'driver'){
                 $qP->whereNotExists(function ($sub) use ($type) {
@@ -167,6 +167,8 @@ class TransactionService
 
 
     public function getMerchantDeliveryPackages(Request $req,object $authUser){
+        $startDate = $req->startDate;
+        $endDate = $req->endDate;
         $select = [
             'merchant_id',
             DB::raw("COUNT(*) as package_count"),
@@ -185,7 +187,7 @@ class TransactionService
         ];
         $qP = Package::query()
         ->where('is_deleted', false)
-        ->with(['merchant:id,username'])
+        ->with(['merchant:id,username,code','merchant.primaryBank'])
         ->whereIn('status_id', [9, 19])
         ->select($select)
         ->groupBy(
@@ -193,9 +195,33 @@ class TransactionService
             'finish_date'
         )
         ->orderBy('finish_date', 'desc');
+
+        if ($startDate && $endDate) {
+            $qP->where(function ($q) use ($startDate, $endDate) {
+                $startDate = Helper::dateYMD($startDate);
+                $endDate = Helper::dateYMD($endDate);
+                $q->where(function ($query) use ($startDate, $endDate) {
+                    $query->where('status_id', 9)
+                        ->whereDate('delivered_datetime', '>=', $startDate)
+                        ->whereDate('delivered_datetime', '<=', $endDate);
+                })->orWhere(function ($query) use ($startDate, $endDate) {
+                    $query->where('status_id', 19)
+                        ->whereDate('failed_datetime', '>=', $startDate)
+                        ->whereDate('failed_datetime', '<=', $endDate);
+                });
+            });
+        }
         $callback = function ($q){
             $q->merchant_name = $q->merchant->username;
             $q->amount_to_be_paid = 100;
+            $q->code = $q->merchant->code;
+            $bankInfo = $q->merchant->primaryBank;
+            $q->status = 'Unpaid';
+            if($bankInfo){
+                $q->bank_name = $bankInfo->bank_name;
+                $q->bank_account_number = $bankInfo->bank_number;
+                $q->bank_account_name = $bankInfo->account_name;
+            }
             unset($q->merchant);
             return $q;
         };
@@ -313,6 +339,16 @@ class TransactionService
 
         return Helper::getNumber($total,2);
     }
+
+
+    public function requestBulkPayments(Request $req){
+        $validator = validator($req->all(),[
+            'merchant_ids' => 'array',
+            'amount'
+        ]);
+    }
+
+
     public function receivePaymentValidation(Request $req,$type='driver'){
         return validator($req->all(),[
             $type.'_id' => 'required|int',
@@ -1021,7 +1057,7 @@ class TransactionService
         $validType = $this->validType($type);
         if($validType->error) return $validType;
         if($trxType=='receive'){
-            Log::info($id);
+            // Log::info($id);
             $payment = Payment::where('is_deleted',0)->orderByDesc('id')->find($id);
             if(!$payment) return DataResponse::NotFound(__('messages.not_found',[
                 'info' => 'Payment'
@@ -1862,6 +1898,11 @@ class TransactionService
         // Package::where('is_deleted',0)->where($pmtKey,$id)->update([
         //     $pmtKey => null
         // ]);
+        DisbursementPackage::where('disbursement_id',$id)->update([
+            'is_deleted' => true,
+            'deleted_datetime' => now(),
+            'deleted_uid' => $user->id
+        ]);
 
         Order::where('is_deleted',0)->where($pmtKey,$id)->update([
             $pmtKey => null

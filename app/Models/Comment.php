@@ -11,9 +11,10 @@ class Comment extends Model
     protected $table = 'comments';
     protected $fillable = [
         'thread_id',
-        'data',
+        // 'data',
         'source',
-        'data_type',
+        // 'data_type',
+        'status',
         'started_at',
         'ended_at',
         'starter_id',
@@ -29,5 +30,9 @@ class Comment extends Model
     public function descriptions()
     {
         return $this->hasMany(CommentDescriptions::class, 'comment_id', 'id');
+    }
+
+    public function package(){
+        return $this->belongsTo(Package::class,'thread_id','id');
     }
 }

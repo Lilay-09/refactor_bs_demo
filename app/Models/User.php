@@ -83,6 +83,10 @@ class User extends Authenticatable implements JWTSubject
         return $this->hasMany(UserBank::class,'user_id','id');
     }
 
+    public function primaryBank(){
+        return $this->hasOne(UserBank::class,'user_id','id')->where('is_primary',true);
+    }
+
     public function merchantPriceList(){
         return $this->hasOne(MerchantPriceList::class,'merchant_id','id');
     }

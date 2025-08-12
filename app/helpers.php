@@ -1774,3 +1774,94 @@ class DataResponse //extends Model
 //         ];
 //     }
 // }
+
+class MyValidator{
+    /**
+     * Validate and sanitize data based on rules.
+     *
+     * @param array $data          Input data to sanitize & validate
+     * @param array $rules         Validation rules
+     * @param array $sanitizeRules Sanitization rules (key => "filter|filter|...")
+     *
+     * @return array ['valid' => bool, 'errors' => ?\Illuminate\Support\MessageBag, 'data' => array]
+     */
+    public static function validateAndSanitize(array $data, array $rules, array $sanitizeRules = [])
+    {
+        // 1️⃣ Sanitize first
+        foreach ($sanitizeRules as $field => $filters) {
+            if (!array_key_exists($field, $data) || !is_string($data[$field])) {
+                continue;
+            }
+
+            foreach (explode('|', $filters) as $filter) {
+                $filter = trim($filter);
+
+                // escape_except:<allowed_chars>
+                if (preg_match('/^escape_except:(.+)$/', $filter, $matches)) {
+                    $allowed = $matches[1];
+                    $pattern = '/[^a-zA-Z0-9\s' . preg_quote($allowed, '/') . ']/u';
+                    $data[$field] = preg_replace_callback($pattern, function ($m) {
+                        return '&#' . ord($m[0]) . ';';
+                    }, $data[$field]);
+                    continue;
+                }
+
+                switch ($filter) {
+                    case 'trim':
+                        $data[$field] = trim($data[$field]);
+                        break;
+
+                    case 'escape':
+                        // Laravel's e() escapes HTML special chars only
+                        $data[$field] = e($data[$field]);
+                        break;
+
+                    case 'strip_tags':
+                        $data[$field] = strip_tags($data[$field]);
+                        break;
+
+                    case 'lowercase':
+                        $data[$field] = mb_strtolower($data[$field]);
+                        break;
+
+                    case 'uppercase':
+                        $data[$field] = mb_strtoupper($data[$field]);
+                        break;
+
+                    case 'remove_symbols':
+                        // Remove all non-letter, non-number, non-space chars
+                        $data[$field] = preg_replace('/[^\p{L}\p{N}\s]/u', '', $data[$field]);
+                        break;
+
+                    case 'escape_all_symbols':
+                        // Convert every non-alphanumeric character to HTML entity
+                        $data[$field] = preg_replace_callback('/[^a-zA-Z0-9\s]/', function ($m) {
+                            return '&#' . ord($m[0]) . ';';
+                        }, $data[$field]);
+                        break;
+
+                    default:
+                        // Unknown filter — ignore or extend here
+                        break;
+                }
+            }
+        }
+
+        // 2️⃣ Validate sanitized data
+        $validator = Validator::make($data, $rules);
+
+        if ($validator->fails()) {
+            return [
+                'valid' => false,
+                'errors' => $validator->errors(),
+                'data' => $data,
+            ];
+        }
+
+        return [
+            'valid' => true,
+            'errors' => null,
+            'data' => $validator->validated(),
+        ];
+    }
+}

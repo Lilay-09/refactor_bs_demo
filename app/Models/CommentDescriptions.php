@@ -26,4 +26,9 @@ class CommentDescriptions extends Model
         'deleted_uid',
     ];
 
+    public function replyTo()
+    {
+        return $this->belongsTo(CommentDescriptions::class, 'parent_id', 'id');
+    }
+
 }
