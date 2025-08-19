@@ -264,5 +264,9 @@ class Package extends Model
         return $this->hasDriverPayment() || $this->hasMerchantPayment();
     }
 
+    public function comment(){
+        return $this->hasOne(Comment::class, 'thread_id', 'id');
+    }
+
 
 }

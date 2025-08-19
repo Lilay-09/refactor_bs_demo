@@ -44,7 +44,6 @@ class PackageTrailController extends Controller
         $startDate = $req->query('startDate', null);
         $endDate = $req->query('endDate', null);
 
-
         $query = Package::query()->where('is_deleted',0)
         ->with([
             'status',
@@ -201,7 +200,14 @@ class PackageTrailController extends Controller
         $inputs['billed_kg'] = $actualKg;
         $inputs['status_id'] = $package->status_id; //** add warehouse */
         $zoneCode = $inputs['zone_code'] ?? $package->zone_code;
-        $inputs['zone_name'] = Zone::where('zone_code', $zoneCode)->where('is_deleted',0)->value('zone_name');
+        // $inputs['zone_name'] = Zone::where('zone_code', $zoneCode)->where('is_deleted',0)->value('zone_name');
+        $zone = Zone::where('zone_code',$zoneCode)
+        ->orderByDesc('id')->where('is_deleted',0)->first(['zone_name','zone_code','parent_id']);
+        if(!$zone) return DataResponse::NotFound('Zone not found');
+        $zone->load('parent');
+        $inputs['zone_name'] = $zone->zone_name;
+        $inputs['main_zone_code'] = $zone->parent?->zone_code;
+        $inputs['main_zone_name'] = $zone->parent?->zone_name;
         $extra_charge = $inputs['extra_charge'] ?? 0;
         $calPrice = GeneralSettingService::calculatePackageFee($zoneCode,$price,$billedKg,$actualKg,$payer,$cod,$extra_charge,$user,$taxiFee,$package->merchant_id);
         if($calPrice->error) return $calPrice;
