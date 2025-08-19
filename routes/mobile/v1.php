@@ -29,9 +29,9 @@ Route::prefix('driver/v1/{lang}/auth')->middleware('localize')->group(function()
 });
 
 Route::middleware(['jwtDriver','localize'])->prefix('driver/v1/{lang}')->group(function(){
-    Route::prefix('comment')->group(function(){
-        Route::post('package',[CommentController::class,'addComment']);
-        Route::get('package/{packageId}',[CommentController::class,'getPackageComments']);
+    Route::prefix('comments')->group(function(){
+        Route::post('packages',[CommentController::class,'addComment']);
+        Route::get('packages/{packageId}',[CommentController::class,'getPackageCommentDetailsByPackageId']);
     });
 
     Route::post('notification/subscribe',[AuthController::class,'subscribeTopics']);
@@ -126,9 +126,9 @@ Route::prefix('merchant/v1/{lang}')->middleware('localize')->group(function(){
 
 
 Route::middleware(['jwtMerchant','localize'])->prefix('merchant/v1/{lang}')->group(function(){
-    Route::prefix('comment')->group(function(){
-        Route::post('package',[CommentController::class,'addComment']);
-        Route::get('package/{packageId}',[CommentController::class,'getPackageComments']);
+    Route::prefix('comments')->group(function(){
+        Route::post('packages',[CommentController::class,'addComment']);
+        Route::get('packages/{packageId}',[CommentController::class,'getPackageCommentDetailsByPackageId']);
     });
     Route::post('notification/subscribe',[AuthMerchantController::class,'subscribeTopics']);
     Route::get('termConditions',[HomeController::class,'getTermConditions']);

@@ -4,15 +4,18 @@ namespace App\Services;
 
 use App\DTO\PackageCommentDTO;
 use App\Enums\CommentSource;
+use App\Enums\ImageDirectory;
 use App\Jobs\SendCommentSocketJob;
 use App\Models\Comment;
 use App\Models\CommentDescriptions;
 use App\Models\CommentUser;
 use App\Models\MerchantOperator;
 use App\Models\Package;
+use App\Models\User;
 use DataResponse;
 use DB;
 use Exception;
+use Helper;
 use Illuminate\Http\Request;
 use Log;
 use WebSocket\Client;
@@ -88,16 +91,16 @@ class CommentServiceImpl implements CommentService
 
     public function addComment(Request $req, object $authUser): object
     {
-        Log::info($req->all());
-
         $validator = $this->commentValidator($req);
         if ($validator->fails()) {
             return DataResponse::ValidateFail($validator->errors()->first());
         }
 
+        Log::info($req->all());
         $inputs = $validator->validated();
         $threadId = $inputs['thread_id'];
         $replyTo = $inputs['reply_to'] ?? null;
+        $dataType = $inputs['data_type'];
 
         try {
             DB::beginTransaction();
@@ -130,11 +133,24 @@ class CommentServiceImpl implements CommentService
             );
 
             // $this->sendCommentSocket($threadId, $inputs['data'], $inputs['data_type'], $authUser->id, $replyTo, $commentId);
-            $queueFCMName = config('queue_job_names.'.config('app.env').'.chat');
-            Log::info($queueFCMName);
-            SendCommentSocketJob::dispatch($threadId, $inputs['data'], $inputs['data_type'], $authUser->id, $replyTo, $commentId)
-            ->onQueue('ng_chat_message_dev');
+
             // ->onQueue($queueFCMName);
+            if($dataType == 'photo'){
+                $photo = $inputs['data'] ?? null;
+                $isValidUpload = Helper::isValidUploadImage($photo,3);
+                if($isValidUpload->error) return DataResponse::ValidateFail($isValidUpload->message);
+                $date = date(format: 'Y-m-d');
+                $inputs['file_name'] = Helper::saveImageFileOrBase64($photo,$authUser->company_id,ImageDirectory::COMMENT->value,$date)->filename;
+                $inputs['data'] = Helper::getImageUrl($inputs['file_name'], $authUser->company_id, ImageDirectory::COMMENT->value,$date);
+            }else{
+                if(strlen($inputs['data']) > 1000){
+                    return DataResponse::ValidateFail(__('messages.info',[
+                        'info' => 'Comment text is too long. Please limit it to 1000 characters.',
+                        'khInfo' => 'មតិយោបល់មានអត្ថបទវែងពេក។ សូមកំណត់វាទៅ 1000 តួអក្សរទេ។'
+                    ]));
+                }
+            }
+
 
             $cmmDesId = CommentDescriptions::insertGetId([
                 'parent_id'  => $replyTo,
@@ -148,8 +164,11 @@ class CommentServiceImpl implements CommentService
                 'company_id' => $authUser->company_id,
             ]);
 
-            // DB::commit();
-
+            $queueFCMName = config('queue_job_names.'.config('app.env').'.chat');
+            // Log::info($queueFCMName);
+            SendCommentSocketJob::dispatch($threadId, $imgUrl ?? $inputs['data'], $inputs['data_type'], $authUser->id, $replyTo, $cmmDesId)
+            ->onQueue($queueFCMName);
+            DB::commit();
             return DataResponse::JsonResult([
                 'id' => $cmmDesId,
             ], false);
@@ -163,22 +182,47 @@ class CommentServiceImpl implements CommentService
     }
 
 
-    public function getPackageComments(int $packageId, object $authUser): object
-    {
-        $comment = Comment::where('thread_id', $packageId)
+    public function getPackageCommentDetailsByPackageId(Request $req,int $packageId,object $authUser): object{
+        $comment = Comment::where('is_deleted', false)
+            ->where('thread_id', $packageId)
             ->where('source', CommentSource::PACKAGE->value)
             ->first();
         if ($comment) {
-            $comment->load(['descriptions' => function($query) {
-                $query->orderBy('created_at', 'asc');
-            }]);
-            $res = $comment->descriptions->map(function($description) use($authUser) {
+            $userIds = CommentUser::where('comment_id',$comment->id)->pluck('user_id')->toArray();
+            $users = User::whereIn('id', $userIds)
+            ->select('id', 'photo_file_name','account_type as user_type','username')
+            ->get()
+            ->each(function ($u) {
+                $u->image_url = Helper::getImageUrl(
+                        $u->photo_file_name,
+                        1,
+                        ImageDirectory::USER_PROFILE->value
+                );
+            })
+            ->toArray();
+
+            $descriptions = CommentDescriptions::query()
+            ->where('comment_id',$comment->id)
+            ->where('is_deleted',false)
+            ->orderByDesc('id');//$comment->descriptions->query();
+            $selectDes = ['id', 'comment_id', 'parent_id', 'data', 'data_type','create_uid','create_uid as user_id','created_at'];
+
+
+            $callbackDesc = function($description) use($authUser) {
                 if($authUser->id == $description->create_uid){
                     $description->isSelf = true;
                 }
+                $description->sender_id = $description->user_id;
+                $description->topic = "Package";
+                $description->date = Helper::formatCustomDateTime($description->created_at,'d-M-Y') ?? null;
+                $description->time = Helper::formatCustomDateTime($description->created_at,'H:i A') ?? null;
                 return PackageCommentDTO::fromModel($description)->toArray();
-            });
-            return DataResponse::JsonResult($res, false);
+            };
+
+            $cacheTags = ['comment_details'.date('Y-m-d')];
+            return DataResponse::PaginationV1($descriptions,$req,'',[
+                'profiles' => $users,
+            ],100,$callbackDesc,$selectDes,true,300,$cacheTags);
         }
 
         return DataResponse::JsonResult([], false);
@@ -258,7 +302,7 @@ class CommentServiceImpl implements CommentService
                     CommentUser::insert($insertMembers);
                 }
             }
-            // DB::commit();
+            DB::commit();
             return DataResponse::JsonResult(['comment_id' => $commentId],false,'Comment section created successfully',);
         }catch(Exception $e){
             DB::rollBack();
@@ -274,53 +318,73 @@ class CommentServiceImpl implements CommentService
         ->select($select)
         ->where('source',CommentSource::PACKAGE->value)
         ->with([
-            'package:id,merchant_id,receiver_phone,receiver_address,zone_code,zone_name,status_id,remarks,cod,price,price_khr,qr_code',
-            'package.merchant:id,username,phone'
+            'package:id,order_id,merchant_id,driver_total as total,delivery_fee,extra_charge,main_zone_name,main_zone_code,delivery_type,receiver_phone,receiver_address,zone_code,zone_name,status_id,remarks,cod,price,price_khr,qr_code',
+            'package.merchant:id,username,phone',
+            'package.order:id,order_datetime'
         ]);
         $callback = function($q){
-            foreach($q->package->getAttributes() as $key=>$value){
-                $q->{$key} = $value;
-                $q->merchant_name = $q->package->merchant->username;
-                $q->merchant_phone = $q->package->merchant->phone;
+            if(!empty($q->package)){
+                foreach($q->package->getAttributes() as $key=>$value){
+                    $q->{$key} = $value;
+                    $q->image_url = null;
+                    $q->merchant_name = $q->package->merchant->username;
+                    $q->merchant_phone = $q->package->merchant->phone;
+                    $q->order_date = Helper::formatCustomDateTime($q->package->order->order_datetime,'d-M-Y H:i A') ?? null;
+                }
             }
+
             unset($q->package);
             return $q;
         };
         return DataResponse::PaginationV1($qC,$req,'',[],1000,$callback);
     }
 
-    public function getPackageCommentDetailsById(int $id,object $authUser): object{
+    public function getPackageCommentDetailsById(Request $req, $id,object $authUser): object{
         $comment = Comment::find($id)
             ->where('source', CommentSource::PACKAGE->value)
             ->first();
         if ($comment) {
-            $comment->load([
-                'descriptions' => function ($query) {
-                    $query->select('id', 'comment_id', 'parent_id', 'data', 'data_type')
-                        ->orderBy('created_at', 'asc');
-                },
-                'descriptions.replyTo' => function ($query) {
-                    $query->select('id', 'parent_id', 'comment_id', 'data', 'data_type');
-                },
-            ]);
+            $userIds = CommentUser::where('comment_id',$id)->pluck('user_id')->toArray();
+            $users = User::whereIn('id', $userIds)
+            ->select('id', 'photo_file_name','account_type as user_type','username')
+            ->get()
+            ->each(function ($u) {
+                $u->image_url = Helper::getImageUrl(
+                        $u->photo_file_name,
+                        1,
+                        ImageDirectory::USER_PROFILE->value
+                );
+            })
+            ->toArray();
+
+            $descriptions = CommentDescriptions::query()
+            ->where('comment_id',$id)
+            ->where('is_deleted',false)
+            ->orderByDesc('id');//$comment->descriptions->query();
+            $selectDes = ['id', 'comment_id', 'parent_id', 'data', 'data_type','create_uid','create_uid as user_id','created_at'];
 
 
-            $res = $comment->descriptions->map(function($description) use($authUser) {
+            $callbackDesc = function($description) use($authUser) {
                 if($authUser->id == $description->create_uid){
                     $description->isSelf = true;
                 }
+                $description->sender_id = $description->user_id;
                 $description->topic = "Package";
+                $description->date = Helper::formatCustomDateTime($description->created_at,'d-M-Y') ?? null;
+                $description->time = Helper::formatCustomDateTime($description->created_at,'H:i A') ?? null;
                 return PackageCommentDTO::fromModel($description)->toArray();
-            });
-            return DataResponse::JsonResult($res, false);
-        }
+            };
 
+            $cacheTags = ['comment_details'.date('Y-m-d')];
+            return DataResponse::PaginationV1($descriptions,$req,'',[
+                'profiles' => $users,
+            ],100,$callbackDesc,$selectDes,true,0,$cacheTags);
+        }
         return DataResponse::JsonResult([], false);
     }
 
-    public function sendCommentSocket($pkgId,$msg,$dataType,$senderId,$replyTo,$refId){
+    public function sendCommentSocket($pkgId,$msg,$dataType,$senderId,$replyTo,$refId,$isSelf = false){
         $uri = config('services.socket.chat_service_socket').'?key='.config('services.socket.chat_service_key');
-        // Log::info($uri);
         try {
             $client = new Client($uri); // WebSocket server
             $client->send(json_encode([
@@ -334,7 +398,13 @@ class CommentServiceImpl implements CommentService
                 'payload' => [
                     'id' => $refId,
                     'data' => $msg,
-                    'data_type' => $dataType
+                    'data_type' => $dataType,
+                    'reply_to' => $replyTo,
+                    'user_id' => $senderId,
+                    'sender_id' => $senderId,
+                    'date' => Helper::formatCustomDateTime(now(),'d-M-Y') ?? null,
+                    'time' => Helper::formatCustomDateTime(now(),'H:i A') ?? null,
+                    'isSelf' => $isSelf, // Assuming this is always true for the sender
                     // 'user_id' => $comment->user_id
                 ]
             ]));
@@ -345,4 +415,43 @@ class CommentServiceImpl implements CommentService
         // exit;
         // $client->close();
     }
+
+    public function deleteCommentDescriptionById(int $commentId,string|int $treadId,int $detailId, object $authUser): object{
+        $commentDescription = CommentDescriptions::where('is_deleted',false)
+        ->where('thread_id', $treadId)
+        ->where('comment_id', $commentId)
+        ->find($detailId);
+        if(!$commentDescription){
+            return DataResponse::ValidateFail('Comment description not found');
+        }
+        if($commentDescription->create_uid != $authUser->id){
+            return DataResponse::ValidateFail('You are not authorized to delete this comment');
+        }
+        $commentDescription->is_deleted = true;
+        $commentDescription->deleted_uid = $authUser->id;
+        $commentDescription->deleted_datetime = now();
+        $commentDescription->save();
+
+        return DataResponse::JsonResult([], false, __('messages.deleted'));
+    }
+
+    public function editCommentDescriptionById(int $commentId,string|int $treadId,int $detailId, object $authUser): object{
+        $commentDescription = CommentDescriptions::where('is_deleted',false)
+        ->where('thread_id', $treadId)
+        ->where('comment_id', $commentId)
+        ->find($detailId);
+        if(!$commentDescription){
+            return DataResponse::ValidateFail('Comment description not found');
+        }
+        if($commentDescription->create_uid != $authUser->id){
+            return DataResponse::ValidateFail('You are not authorized to edit this comment');
+        }
+        $commentDescription->data = request()->input('data');
+        $commentDescription->data_type = request()->input('data_type');
+        $commentDescription->update_uid = $authUser->id;
+        $commentDescription->save();
+
+        return DataResponse::JsonResult([], false, __('messages.updated'));
+    }
+
 }

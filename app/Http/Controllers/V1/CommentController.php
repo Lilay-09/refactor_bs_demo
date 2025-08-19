@@ -19,14 +19,13 @@ class CommentController extends Controller
     public function addComment(Request $req): object
     {
         $authUser = auth()->user();
-        // Log::info($req->all());
         return ApiResponse::flex($this->commentService->addComment($req, $authUser));
     }
 
-    public function getPackageComments(Request $req): object
+    public function getPackageCommentDetailsByPackageId(Request $req): object
     {
         $authUser = auth()->user();
-        return ApiResponse::flex($this->commentService->getPackageComments($req->packageId, $authUser));
+        return ApiResponse::flex($this->commentService->getPackageCommentDetailsByPackageId($req,$req->packageId, $authUser));
     }
 
     public function createPackageCommentSection(Request $req){
@@ -41,6 +40,16 @@ class CommentController extends Controller
 
     public function getPackageCommentDetailsById(Request $req){
         $authUser = auth()->user();
-        return ApiResponse::flex($this->commentService->getPackageCommentDetailsById($req->id,$authUser));
+        return ApiResponse::flex($this->commentService->getPackageCommentDetailsById($req,$req->id,$authUser));
+    }
+
+    public function deleteCommentDescriptionById(Request $req){
+        $authUser = auth()->user();
+        return ApiResponse::flex($this->commentService->deleteCommentDescriptionById($req->id,$req->threadId,$req->detailId, $authUser));
+    }
+
+    public function editCommentDescriptionById(Request $req){
+        $authUser = auth()->user();
+        return ApiResponse::flex($this->commentService->editCommentDescriptionById($req->id,$req->threadId,$req->detailId, $authUser));
     }
 }

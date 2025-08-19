@@ -157,12 +157,11 @@ class CompletedPackageController extends Controller
             return $qP;
         };
 
-        return ApiResponse::PaginationV1($qP,$req,'',[],12000,$callbackMapper,$select,null,['completed_packages']);
+        return ApiResponse::PaginationV1($qP,$req,'',[],12000,$callbackMapper,$select,false,0,['completed_packages']);
     }
 
     private function finishPackagePaymentStatus($query,$driverId,$merchantId,$paymentStatusId){
         $role = null;
-
         if ($driverId && !$merchantId) {
             $role = 'driver';
         } elseif ($merchantId && !$driverId) {

@@ -147,7 +147,7 @@ Route::middleware(['jwt','localize','userAccess:admin','rateLimit'])->prefix('ad
         Route::prefix('transaction')->group(function(){
 
             Route::prefix('delivery')->group(function(){
-                Route::get('package',[DriverTransactionController::class,'getDeliveryPackages']);
+                Route::get('package',[DriverTransactionController::class,'getDeliveryPackagesV1']);
                 Route::put('package/{id}',[DriverTransactionController::class,'updateDeliveryPackage']);
                 Route::post('payment',[DriverTransactionController::class,'receivePackagesPayment']);
             });
@@ -384,9 +384,10 @@ Route::middleware(['jwt','localize','userAccess:admin','rateLimit'])->prefix('ad
         });
         Route::prefix('{id}')->group(function (){
             Route::get('packages',[CommentController::class,'getPackageCommentDetailsById']);
+            Route::delete('packages/{threadId}/details/{detailId}',[CommentController::class,'deleteCommentDescriptionById']);
+            Route::put('packages/{threadId}/details/{detailId}',[CommentController::class,'editCommentDescriptionById']);
         });
     });
-
 
     Route::prefix('location')->group(function(){
         Route::prefix('country')->group(function(){

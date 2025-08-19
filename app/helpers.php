@@ -138,6 +138,7 @@ class ApiResponse
         $limit = 1000,
         callable $transformCallback = null,
         array $selectCols = ['*'],
+        bool $reverse = false, // Added parameter to control reverse order
         $cache = null,
         $cacheTags = []
     ) {
@@ -184,7 +185,7 @@ class ApiResponse
             'status' => "OK",
             'error' => false,
             'message' => $message,
-            'data' => $data->items(),
+            'data' => $reverse ? array_reverse($data->items()) : $data->items(),
             'per_page' => $data->perPage(),
             'total' => $data->total(),
             'total_page' => $data->lastPage(),
@@ -1619,6 +1620,7 @@ class DataResponse //extends Model
         int $limit = 1000,
         callable $transformCallback = null,
         array $select = ['*'],
+        bool $reverse = false,
         int $cache = null,
         array $cacheTags = [] // 🆕 Customizable cache tags
     ) {
@@ -1627,34 +1629,37 @@ class DataResponse //extends Model
         $currentPage = isset($filter->page_no) ? $filter->page_no : 1;
         // $query->take($limit);
         // Generate unique cache key from filter
-        $cacheKey = 'pagination_' . md5(json_encode($filter));
 
+
+        // Run query and paginate
+        $data = $query->paginate($perPage, $select, 'page', $currentPage);
+        $normalizedFilter = $filter ? (array)$filter : [];
+        ksort($normalizedFilter);
+
+        $cacheKey = 'pagination_' . md5(json_encode([
+            'filter' => $normalizedFilter,
+            'per_page' => $limit,
+            'total' => $data->total(),
+        ]));
         // Redis & taggable support check
         $store = Cache::getStore();
         $supportsTags = method_exists($store, 'tags') && $store instanceof \Illuminate\Cache\TaggableStore;
 
         // Use default tags if not provided
         $cacheTags = ($supportsTags && !empty($cacheTags)) ? $cacheTags : [];
-
-
-        // Attempt to read from cache
         if ($cache && $cache > 0) {
             try {
                 $cached = $supportsTags
                     ? Cache::tags($cacheTags)->get($cacheKey)
                     : Cache::get($cacheKey);
-
                 if ($cached) {
+                    Log::info("Pagination cache hit for key: { $cacheKey }");
                     return $cached;
                 }
             } catch (\Throwable $e) {
                 \Log::warning("Pagination cache read failed: " . $e->getMessage());
             }
         }
-
-        // Run query and paginate
-        $data = $query->paginate($perPage, $select, 'page', $currentPage);
-
         // Apply transformation if provided
         if ($transformCallback) {
             $data->getCollection()->transform($transformCallback);
@@ -1665,7 +1670,7 @@ class DataResponse //extends Model
             'status' => "OK",
             'error' => false,
             'message' => $message,
-            'data' => $data->items(),
+            'data' => $reverse ? array_reverse($data->items()) : $data->items(),
             'per_page' => (int) $data->perPage(),
             'total' => (int) $data->total(),
             'total_page' => (int) $data->lastPage(),
@@ -1683,6 +1688,7 @@ class DataResponse //extends Model
 
             try {
                 if ($supportsTags && !empty($cacheTags)) {
+                    // Log::info("Pagination cache write for key: {$cacheKey}");
                     Cache::tags($cacheTags)->put($cacheKey, $obj, $cacheTime);
                 } else {
                     Cache::put($cacheKey, $obj, $cacheTime);

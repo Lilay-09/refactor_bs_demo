@@ -28,6 +28,7 @@ class AppServiceProvider extends ServiceProvider
     public function register(): void
     {
         if(!config('app.use_redis')){
+            // Log::info("Using file cache store as USE_REDIS is set to false.");
             config(['cache.default' => 'file']);
         }
         $this->app->singleton(ExceptionHandlerContract::class, Handler::class);
@@ -50,6 +51,5 @@ class AppServiceProvider extends ServiceProvider
                 'session.driver' => 'file',
             ]);
         }
-
     }
 }
