@@ -202,6 +202,7 @@ Route::middleware(['jwt','localize','userAccess:admin','rateLimit'])->prefix('ad
                 Route::get('package',[MerchantTransactionController::class,'getDeliveryPackages']);
                 Route::put('package/{id}',[MerchantTransactionController::class,'updateDeliveryPackage']);
                 Route::post('payment',[MerchantTransactionController::class,'receivePackagesPayment']);
+                Route::post('payment-bulk',[MerchantTransactionController::class,'receivePackagesBulkPaymentV1']);
                 Route::get('packages',[MerchantTransactionController::class,'getMerchantDeliveryPackages']);
             });
 
@@ -616,9 +617,10 @@ Route::middleware(['jwt','localize','userAccess:admin','rateLimit'])->prefix('ad
             Route::get('driver',[GeneralSettingController::class,'getDriverFilterOptions']);
             Route::get('merchant',[GeneralSettingController::class,'getMerchantFilterOptions']);
             Route::get('merchant/trx',[GeneralSettingController::class,'getMerchantTrxFilter']);
-            Route::get('merchant/transaction',[GeneralSettingController::class,'getMerchantTransactionTabFilter']);
+            // Route::get('merchant/transaction',[GeneralSettingController::class,'getMerchantTransactionTabFilter']);
             Route::get('fleet',[GeneralSettingController::class,'getOptionsFilterFleet']);
             Route::get('user',[GeneralSettingController::class,'getOptionsFilterUser']);
+            Route::get('merchant/transaction',[GeneralSettingController::class,'getFormMerchantTransaction']);
         });
         Route::prefix('form')->group(function(){
             Route::get('order/{orderId}/link/image',[GeneralSettingController::class,'getFormLinkImage']);

@@ -801,13 +801,13 @@ class Helper{
     static function getImageInfo($image,$lang='en'): object
     {
         try {
+
             // Check if base64 image
             if (is_string($image) && Helper::isValidBase64Image($image)) {
                 // $imageData = explode(',', $image)[1];
                 $imageData = str_contains($image, ',') ? explode(',', $image)[1] : $image;
                 $binaryData = base64_decode($imageData);
                 $sizeKB = strlen($binaryData) / 1024;
-
                 $img = imagecreatefromstring($binaryData);
                 if (!$img) return (object)[
                     'error' => false,
@@ -833,8 +833,6 @@ class Helper{
             if ($image instanceof UploadedFile) {
                 $sizeKB = $image->getSize() / 1024;
                 $path = $image->getPathname();
-
-
                 if (!$path || !file_exists($path)) {
                     return (object)[
                         'error' => true,
@@ -869,7 +867,7 @@ class Helper{
             return (object)[
                 'error' => true,
                 'message' => $lang == 'en' ?
-                        'Invalid image size'
+                        'Invalid image'
                         : 'ទំហំរូបភាពមិនត្រឹមត្រូវ'
             ]; // Not valid
         } catch (\Exception $e) {
