@@ -256,7 +256,7 @@ class HomeScreenController extends Controller
     public function getReturningPackage(Request $req){
         $pk = Package::query()
         ->where('is_deleted',0)
-        ->where('status_id',11)
+        ->where('status_id',TrackingStatus::RETURNING->value)
         ->with([
             'merchant:id,username,phone',
             'order:id,loc_lat,loc_lng'
