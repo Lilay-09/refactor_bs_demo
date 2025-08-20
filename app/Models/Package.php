@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\ImageDirectory;
 use DB;
 use Helper;
 use Illuminate\Database\Eloquent\Casts\Attribute;
@@ -101,17 +102,39 @@ class Package extends Model
         'driver_cod_usd',
         'driver_cod_khr',
         'other_fee',
-
         'company_id',
         'branch_id',
         'create_uid',
         'is_deleted',
         'deleted_uid',
         'deleted_datetime',
-
         'location_type',
 
     ];
+
+
+    public function image()
+    {
+        return $this->hasOne(OrderImage::class, 'package_id')
+            ->orderByRaw("
+                CASE
+                    WHEN user_type = 'admin' THEN 1
+                    WHEN user_type = 'driver' THEN 2
+                    WHEN user_type = 'merchant' THEN 3
+                    ELSE 4
+                END
+            ")
+            ->latest('id');
+    }
+
+    public function getImageUrlAttribute()
+    {
+        if (!$this->image?->photo_file_name) {
+            return null; // no image found
+        }
+
+        return Helper::getImageUrl($this->image->photo_file_name,1,ImageDirectory::ORDER_IMAGE->value,Helper::dateYMD($this->image->created_at));
+    }
 
     public function getAssignDriverDatetimeAttribute($value)
     {
@@ -124,6 +147,7 @@ class Package extends Model
             fn ($value) => $value ?? $this->zone_name
         );
     }
+
 
 
     // public function getArriveWarehouseDatetimeAttribute($value)

@@ -399,6 +399,7 @@ class HomeScreenController extends Controller
             $q->status = TrackingStatus::tryFrom($q->status_id)->label();
             $q->self_notes = $q->driver_notes;
             $q->total = $q->driver_total;
+            $q->append('image_url');
             $q->total_khr = (float)number_format($q->driver_total * $xRate,2,'.','');
             $q->exchange_rate = $xRate;
             $this->dateTimeByStatus($q,$q->status_id);
