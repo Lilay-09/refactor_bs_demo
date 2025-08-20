@@ -551,6 +551,13 @@ class GeneralSettingController extends Controller
         return ApiResponse::JsonResult($obj);
     }
 
+    public function getFormMerchantTransaction(){
+        return ApiResponse::JsonResult([
+            'payment_types' => $this->gs::optionsTransactionType(),
+            'currencies' => $this->gs::optionsCurrency()
+        ]);
+    }
+
     public function getOptionsPriceList(){
         $user = UserService::getAuthUser();
         return ApiResponse::JsonResult($this->gs::optionsPriceList($user));

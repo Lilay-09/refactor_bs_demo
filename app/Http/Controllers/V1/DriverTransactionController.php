@@ -306,7 +306,7 @@ class DriverTransactionController extends Controller
     public function receivePackagesPayment(Request $req){
         $user = UserService::getAuthUser();
         $trxService = new TransactionService();
-        $receive = $trxService->receiveOrDisburesement($req,$user,'driver');
+        $receive = $trxService->receiveOrDisburesementV1($req,$user,'driver');
         return ApiResponse::flex($receive);
     }
 

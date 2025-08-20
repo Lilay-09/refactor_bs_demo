@@ -333,13 +333,21 @@ class HomeScreenController extends Controller
     public function getDeliveriesPackages(Request $req){
         $user = UserService::getAuthUser();
         $driverId = $user->id;
+        $cutoff = Carbon::now()->subDays(15);
         $statusId = $req->query('status_id');
         $qP = Package::query()
         ->from('packages as p')
         ->where('p.is_deleted',false)
         ->where('p.driver_id', $driverId)
         ->whereIn('p.status_id', [6,9,10,19])
-        ->where('p.arrive_warehouse_datetime', '>=', Carbon::now()->subDays(15))
+        ->whereRaw("
+            (
+                (p.status_id = 9 AND p.delivered_datetime >= ?)
+                OR (p.status_id IN (10,19) AND p.failed_datetime >= ?)
+                OR (p.status_id NOT IN (9,10,19))
+            )
+        ", [$cutoff, $cutoff])
+        // ->where('p.arrive_warehouse_datetime', '>=', Carbon::now()->subDays(15))
         ->whereExists(function ($q) use ($driverId) {
             $q->select(DB::raw(1))
                 ->from('delivery_packages as dp')
@@ -773,6 +781,8 @@ class HomeScreenController extends Controller
             foreach($photos as $p){
                 $dirName = ImageDirectory::SUBMIT_PACKAGE->value;
                 $today = date('Y-m-d');
+                $isValidUpload = Helper::isValidUploadImage($p,3);
+                if($isValidUpload->error) return ApiResponse::ValidateFail($isValidUpload->message);
                 $fileName = Helper::saveImageFileOrBase64($p,$user->company_id,$dirName,$today)->filename;
                 if($fileName){
                     $attactmentImgs[] = [

@@ -2,6 +2,7 @@
 
 namespace App\Services;
 use App\Enums\BranchType;
+use App\Enums\Currency;
 use App\Enums\TransferStatus;
 use App\Enums\WarehouseStatus;
 use App\Enums\WarehouseType;
@@ -856,6 +857,10 @@ class GeneralSettingService
             }
         }
         return $rows;
+    }
+
+    public static function optionsCurrency(){
+        return Currency::options();
     }
     public static function optionsPriceListName($user){
         return PriceListname::where('company_id',$user->company_id)->where('is_deleted',0)->orderByDesc('id')->selectRaw('id,name,kg_marker')->get();

@@ -129,6 +129,7 @@ Route::middleware(['jwtMerchant','localize'])->prefix('merchant/v1/{lang}')->gro
     Route::prefix('comments')->group(function(){
         Route::post('packages',[CommentController::class,'addComment']);
         Route::get('packages/{packageId}',[CommentController::class,'getPackageCommentDetailsByPackageId']);
+        Route::delete('packages/{threadId}/details/{detailId}',[CommentController::class,'deleteCommentDescriptionById']);
     });
     Route::post('notification/subscribe',[AuthMerchantController::class,'subscribeTopics']);
     Route::get('termConditions',[HomeController::class,'getTermConditions']);

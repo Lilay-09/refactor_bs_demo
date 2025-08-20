@@ -96,11 +96,27 @@ class CommentServiceImpl implements CommentService
             return DataResponse::ValidateFail($validator->errors()->first());
         }
 
-        Log::info($req->all());
+        // Log::info($req->all());
         $inputs = $validator->validated();
         $threadId = $inputs['thread_id'];
         $replyTo = $inputs['reply_to'] ?? null;
         $dataType = $inputs['data_type'];
+        if($dataType == 'photo'){
+            $photo = $inputs['data'] ?? null;
+            // Log::info('photp data'.$photo);
+            $isValidUpload = Helper::isValidUploadImage($photo,3);
+            if($isValidUpload->error) return DataResponse::ValidateFail($isValidUpload->message);
+            $date = date(format: 'Y-m-d');
+            $inputs['file_name'] = Helper::saveImageFileOrBase64($photo,$authUser->company_id,ImageDirectory::COMMENT->value,$date)->filename;
+            $inputs['data'] = Helper::getImageUrl($inputs['file_name'], $authUser->company_id, ImageDirectory::COMMENT->value,$date);
+        }else{
+            if(strlen($inputs['data']) > 1000){
+                return DataResponse::ValidateFail(__('messages.info',[
+                    'info' => 'Comment text is too long. Please limit it to 1000 characters.',
+                    'khInfo' => 'មតិយោបល់មានអត្ថបទវែងពេក។ សូមកំណត់វាទៅ 1000 តួអក្សរទេ។'
+                ]));
+            }
+        }
 
         try {
             DB::beginTransaction();
@@ -135,21 +151,7 @@ class CommentServiceImpl implements CommentService
             // $this->sendCommentSocket($threadId, $inputs['data'], $inputs['data_type'], $authUser->id, $replyTo, $commentId);
 
             // ->onQueue($queueFCMName);
-            if($dataType == 'photo'){
-                $photo = $inputs['data'] ?? null;
-                $isValidUpload = Helper::isValidUploadImage($photo,3);
-                if($isValidUpload->error) return DataResponse::ValidateFail($isValidUpload->message);
-                $date = date(format: 'Y-m-d');
-                $inputs['file_name'] = Helper::saveImageFileOrBase64($photo,$authUser->company_id,ImageDirectory::COMMENT->value,$date)->filename;
-                $inputs['data'] = Helper::getImageUrl($inputs['file_name'], $authUser->company_id, ImageDirectory::COMMENT->value,$date);
-            }else{
-                if(strlen($inputs['data']) > 1000){
-                    return DataResponse::ValidateFail(__('messages.info',[
-                        'info' => 'Comment text is too long. Please limit it to 1000 characters.',
-                        'khInfo' => 'មតិយោបល់មានអត្ថបទវែងពេក។ សូមកំណត់វាទៅ 1000 តួអក្សរទេ។'
-                    ]));
-                }
-            }
+
 
 
             $cmmDesId = CommentDescriptions::insertGetId([
@@ -167,7 +169,7 @@ class CommentServiceImpl implements CommentService
             $queueFCMName = config('queue_job_names.'.config('app.env').'.chat');
             // Log::info($queueFCMName);
             SendCommentSocketJob::dispatch($threadId, $imgUrl ?? $inputs['data'], $inputs['data_type'], $authUser->id, $replyTo, $cmmDesId)
-            ->onQueue($queueFCMName);
+            ->onQueue($queueFCMName)->afterCommit();
             DB::commit();
             return DataResponse::JsonResult([
                 'id' => $cmmDesId,
