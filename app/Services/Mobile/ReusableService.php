@@ -2,11 +2,14 @@
 
 namespace App\Services\Mobile;
 
+use App\DTO\Mobile\DriverSearchHistoryDTO;
+use App\Enums\TrackingStatus;
 use App\Models\Delivery;
 use App\Models\Package;
 use App\Models\PackageAttachment;
 use App\Services\AppSetting;
 use App\Services\GeneralSettingService;
+use Carbon\Carbon;
 use DataResponse;
 use DB;
 use Helper;
@@ -53,7 +56,7 @@ class ReusableService
 
         $qFp->join('packages as p','p.id','dp.package_id')
         ->join('users as m','m.id','p.merchant_id')
-        ->leftJoin('payments as pmt','pmt.id','p.driver_payment_id')
+        // ->leftJoin('payments as pmt','pmt.id','p.driver_payment_id')
         // ->leftJoin('payments as pmt','pmt.id','p.merchant_payment_id')
         ->join('tracking_statuses as trs','trs.id','p.status_id')
         ->selectRaw('p.driver_id,p.returned_uid,p.payer,p.extra_charge,p.cod,p.price,p.pickup_notes as notes,p.merchant_total,p.receiver_address,p.qr_code,p.status_id,trs.name as status_code,d.id as delivery_id,d.fleet_tracking_number,m.username as merchant_name,m.phone as merchant_phone,p.receiver_name,p.receiver_phone,p.delivery_fee,p.taxi_fee,p.remarks,p.id as package_id,p.product_type,p.driver_total,p.billed_kg,p.failed_datetime,p.delivered_datetime,p.arrive_warehouse_datetime,p.returned_datetime'.$driverInfo)
@@ -353,6 +356,109 @@ class ReusableService
             return $f;
         };
         return DataResponse::PaginationV1($qFp,$req,'',[],500,$callbackMapper);
+    }
+
+    public static function getHistoryPackagesV2(Request $req,object $user){
+        $driverId = $user->id;
+        $search = $req->search ?? null;
+        $cutoff = Carbon::now()->subDays(15);
+        $statusId = $req->query('status_id');
+        $qP = Package::query()
+        ->from('packages as p')
+        ->where('p.is_deleted',false)
+        // ->where('p.driver_id', $driverId)
+        ->where(function($q) use ($driverId) {
+            $q->where('p.driver_id', $driverId)
+            ->orWhere(function($sub) use ($driverId) {
+                $sub->where('p.status_id', 11)
+                    ->where('p.returned_uid', $driverId);
+            });
+        })
+        ->whereIn('p.status_id', [11,9,10,19])
+        ->whereRaw("
+            (
+                (p.status_id = 9 AND p.delivered_datetime >= ?)
+                OR (p.status_id IN (10,19) AND p.failed_datetime >= ?)
+                OR (p.status_id = 11 AND p.returned_datetime >= ?)
+            )
+        ", [$cutoff, $cutoff,$cutoff])
+        // OR (p.status_id NOT IN (9,10,19))
+        // ->where('p.arrive_warehouse_datetime', '>=', Carbon::now()->subDays(15))
+        // ->whereExists(function ($q) use ($driverId) {
+        //     $q->select(DB::raw(1))
+        //         ->from('delivery_packages as dp')
+        //         ->join('deliveries as d', 'd.id', 'dp.delivery_id')
+        //         ->whereColumn('dp.package_id', 'p.id')
+        //         ->where('dp.is_deleted', 0)
+        //         ->where('dp.has_swap', 0)
+        //         ->where('dp.delay_count', 0)
+        //         ->where('d.driver_id', $driverId)
+        //         ->where('dp.id', function ($sub) {
+        //             $sub->selectRaw('MAX(id)')
+        //                 ->from('delivery_packages')
+        //                 ->whereColumn('package_id', 'p.id');
+        //         })
+        //         ->where(function ($q2) {
+        //             $q2->where('d.finished', 0)
+        //                 ->orWhereDate('d.depart_datetime', Carbon::today());
+        //         });
+        // })
+
+        ->join('users as d', 'd.id', 'p.driver_id')
+        ->join('users as m', 'm.id', 'p.merchant_id')
+        // ->join('tracking_statuses as ts', 'ts.id', 'p.status_id')
+        ->orderBy('p.driver_display_order', 'asc')
+        // ->orderBy('p.status_id', 'desc');
+        ->orderByRaw("
+            CASE WHEN p.status_id = ? THEN assign_driver_datetime
+            WHEN p.status_id = ? THEN delivered_datetime
+            WHEN p.status_id IN (?,?) THEN failed_datetime
+            END DESC, d.id DESC
+        ",[11,9,10,19]);
+
+
+        // $totalOnDelivery = (clone $qP)->where('p.status_id', 6)->count();
+        // $totalDelivered = (clone $qP)->where('p.status_id', 9)->count();
+        // $totalFailed = (clone $qP)->where('p.status_id', 10)->count();
+        // $totalFailedWithFee = (clone $qP)->where('p.status_id', 19)->count();
+        if ($statusId) {
+            $qP->where('p.status_id', $statusId);
+        }
+        $select = [
+            'p.driver_display_order','p.payer','p.receiver_address','p.extra_charge','p.id','p.delivered_datetime','p.failed_datetime',
+            'p.assign_driver_datetime','p.merchant_id','p.qr_code','p.price','p.cod','p.receiver_name','p.receiver_phone','p.zone_code',
+            'p.zone_name','d.username as driver_name','d.phone as driver_phone','m.username as merchant_name','p.arrive_warehouse_datetime',
+            'm.phone as merchant_phone','p.id as package_id','p.zone_code','p.zone_name','p.delivery_fee as base_fee','p.driver_total',
+            'p.taxi_fee','p.product_type','p.status_id','p.driver_notes','p.is_contact','p.remarks'
+        ];
+        $xRate = GeneralSettingService::getLatestXRate()->sell_rate;
+        $callback = function($q) use($xRate){
+            $q->status = TrackingStatus::tryFrom($q->status_id)->label();
+            $q->self_notes = $q->driver_notes;
+            $q->total = $q->driver_total;
+            $q->append('image_url');
+            $q->total_khr = (float)number_format($q->driver_total * $xRate,2,'.','');
+            $q->exchange_rate = $xRate;
+            self::dateTimeByStatus($q,$q->status_id);
+            return DriverSearchHistoryDTO::fromModel($q);
+        };
+        return DataResponse::PaginationV1($qP,$req,'',[],250,$callback,$select);
+    }
+
+    private static function dateTimeByStatus(&$row, $statusId)
+    {
+        $datetimeMap = match (true) {
+            in_array($statusId, [5, 6]) => $row->arrive_warehouse_datetime,
+            $statusId === 9             => $row->delivered_datetime,
+            in_array($statusId, [10, 19]) => $row->failed_datetime,
+            default                     => null,
+        };
+
+        if ($datetimeMap) {
+            $row->date = Helper::formatCustomDateTime($datetimeMap, 'd m,Y');
+            $row->time = Helper::formatCustomDateTime($datetimeMap, 'h:i A');
+        }
+        return $row;
     }
 
     public static function getTrackingPackages(Request $req, $user, $statusId)

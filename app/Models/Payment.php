@@ -16,6 +16,7 @@ class Payment extends Model
         'payer_type',
         'amount',
         'currency_code',
+        'payment_status_id',
         'cod_amount',
         'received_amount_usd',
         'received_amount_khr',

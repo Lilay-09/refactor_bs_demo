@@ -10,4 +10,12 @@ enum PaymentStatus:int
     case DONE = 3;
     case CANCEL = 4;
     case DELETE = 5;
+
+    public function label(){
+        return match($this){
+            self::PENDING => 'Pending',
+            self::PARTIAL => 'Partial',
+            self::DONE => 'Done'
+        };
+    }
 }

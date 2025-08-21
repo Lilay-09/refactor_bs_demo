@@ -13,6 +13,7 @@ class Disbursement extends Model
         'id',
         'trx_code',
         'payee_id',
+        'payment_status_id',
         'payee_type',
         'amount',
         'currency_code',
