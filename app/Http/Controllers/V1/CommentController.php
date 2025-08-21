@@ -45,6 +45,9 @@ class CommentController extends Controller
 
     public function deleteCommentDescriptionById(Request $req){
         $authUser = auth()->user();
+        if(!$req->id){
+            return ApiResponse::flex($this->commentService->deleteMobileCommentDescriptionById($req->threadId,$req->detailId, $authUser));
+        }
         return ApiResponse::flex($this->commentService->deleteCommentDescriptionById($req->id,$req->threadId,$req->detailId, $authUser));
     }
 

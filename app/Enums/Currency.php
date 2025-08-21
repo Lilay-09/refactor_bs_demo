@@ -10,8 +10,8 @@ enum Currency:string
 
     public function label(): string{
         return match($this){
-            self::USD => 'KHR',
-            self::KHR => 'USD'
+            self::USD => 'USD',
+            self::KHR => 'KHR'
         };
     }
 

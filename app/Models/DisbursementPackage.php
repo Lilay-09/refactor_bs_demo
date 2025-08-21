@@ -20,4 +20,8 @@ class DisbursementPackage extends Model
         'deleted_datetime',
         'deleted_reason'
     ];
+
+    public function disbursement(){
+        return $this->belongsTo(Disbursement::class,'disbursement_id','id');
+    }
 }

@@ -437,6 +437,24 @@ class CommentServiceImpl implements CommentService
         return DataResponse::JsonResult([], false, __('messages.deleted'));
     }
 
+    public function deleteMobileCommentDescriptionById(string|int $treadId,int $detailId, object $authUser): object{
+        $commentDescription = CommentDescriptions::where('is_deleted',false)
+        ->where('thread_id', $treadId)
+        ->find($detailId);
+        if(!$commentDescription){
+            return DataResponse::ValidateFail('Comment description not found');
+        }
+        if($commentDescription->create_uid != $authUser->id){
+            return DataResponse::ValidateFail('You are not authorized to delete this comment');
+        }
+        $commentDescription->is_deleted = true;
+        $commentDescription->deleted_uid = $authUser->id;
+        $commentDescription->deleted_datetime = now();
+        $commentDescription->save();
+
+        return DataResponse::JsonResult([], false, __('messages.deleted'));
+    }
+
     public function editCommentDescriptionById(int $commentId,string|int $treadId,int $detailId, object $authUser): object{
         $commentDescription = CommentDescriptions::where('is_deleted',false)
         ->where('thread_id', $treadId)

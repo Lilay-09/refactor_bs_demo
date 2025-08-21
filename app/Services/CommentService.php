@@ -13,5 +13,6 @@ interface CommentService
     public function getPackageCommentSections(Request $req,object $authUser):object;
     public function getPackageCommentDetailsById(Request $req,$id,object $authUser): object;
     public function deleteCommentDescriptionById(int $commentId,string|int $treadId,int $detailId, object $authUser): object;
+    public function deleteMobileCommentDescriptionById(string|int $treadId,int $detailId, object $authUser): object;
     public function editCommentDescriptionById(int $commentId,string|int $treadId,int $detailId, object $authUser): object;
 }

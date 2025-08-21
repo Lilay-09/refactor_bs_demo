@@ -32,6 +32,7 @@ Route::middleware(['jwtDriver','localize'])->prefix('driver/v1/{lang}')->group(f
     Route::prefix('comments')->group(function(){
         Route::post('packages',[CommentController::class,'addComment']);
         Route::get('packages/{packageId}',[CommentController::class,'getPackageCommentDetailsByPackageId']);
+        Route::delete('packages/{threadId}/details/{detailId}',[CommentController::class,'deleteCommentDescriptionById']);
     });
 
     Route::post('notification/subscribe',[AuthController::class,'subscribeTopics']);
