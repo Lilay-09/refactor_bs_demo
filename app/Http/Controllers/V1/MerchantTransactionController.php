@@ -4,7 +4,9 @@ namespace App\Http\Controllers\V1;
 
 use ApiResponse;
 use App\Http\Controllers\Controller;
+use App\Models\Disbursement;
 use App\Models\User;
+use App\Services\MerchantTransactionService;
 use App\Services\TransactionService;
 use App\Services\UserService;
 use DB;
@@ -13,6 +15,10 @@ use Illuminate\Http\Request;
 
 class MerchantTransactionController extends Controller
 {
+
+    public function __construct(private MerchantTransactionService $merchantTransactionService){
+
+    }
     protected $userClass = 'merchant';
     public function getDeliveryPackages(Request $req){
         $user = UserService::getAuthUser();
@@ -62,6 +68,11 @@ class MerchantTransactionController extends Controller
         $user = UserService::getAuthUser();
         $trxService = new TransactionService();
         return ApiResponse::flex($trxService->deletePayment($req,$req->payment_type,'merchant',$user));
+    }
+
+    public function getRequestedSettlement(Request $req){
+        $user = UserService::getAuthUser();
+        return ApiResponse::flex($this->merchantTransactionService->getRequestedSettlement($req,$user));
     }
 
     public function getMerchantBalances(Request $req){

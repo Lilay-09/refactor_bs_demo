@@ -214,10 +214,16 @@ class DashboardController extends Controller
         foreach($pkgPayments as $pmt){
             $pmtDetails = $this->getPaymentDetails($pmt->payment_id,$paymentDetails);
             if($pmtDetails){
-                $amountConverted = TransactionService::amountToOneCurrency('USD',$pmtDetails['cash_usd'],$pmtDetails['cash_khr'],$pmtDetails['bank_usd'],$pmtDetails['bank_khr'],$pmt->exchange_rate);
-                $pmt->cash = $amountConverted['cash'];
-                $pmt->bank_amount = $amountConverted['bank'];
-                $pmt->total = $amountConverted['total'];
+                // $amountConverted = TransactionService::amountToOneCurrency('USD',$pmtDetails['cash_usd'],$pmtDetails['cash_khr'],$pmtDetails['bank_usd'],$pmtDetails['bank_khr'],4000);
+                // $pmt->cash = $amountConverted['cash'];
+                // $pmt->bank_amount = $amountConverted['bank'];
+                // $pmt->total = $amountConverted['total'];
+                $pmt->cash_usd = $pmtDetails['cash_usd'];
+                $pmt->cash_khr = $pmtDetails['cash_khr'];
+                $pmt->bank_usd = $pmtDetails['bank_usd'];
+                $pmt->bank_khr = $pmtDetails['bank_khr'];
+                $pmt->total_usd = $pmtDetails['bank_usd'] + $pmtDetails['cash_usd'];
+                $pmt->total_khr = $pmtDetails['bank_khr'] + $pmtDetails['cash_khr'];
             }
             $paymentList[] = $pmt;
         }

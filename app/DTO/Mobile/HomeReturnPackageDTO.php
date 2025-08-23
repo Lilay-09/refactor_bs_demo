@@ -13,7 +13,9 @@ class HomeReturnPackageDTO{
         public readonly ?string $time,
         public readonly ?string $map_address,
         public readonly object|array $telegram_link,
-        public readonly string $qr_code
+        public readonly string $qr_code,
+        public readonly ?string $loc_lng,
+        public readonly ?string $loc_lat
     ) {}
 
     public static function fromModel(Package $pkg): self
@@ -29,7 +31,9 @@ class HomeReturnPackageDTO{
             time: $pkg->time,
             map_address: $pkg->map_address,
             telegram_link: $pkg->telegram_link ?? null,
-            qr_code: $pkg->qr_code ?? ''
+            qr_code: $pkg->qr_code ?? '',
+            loc_lng: $pkg->loc_lng,
+            loc_lat: $pkg->loc_lat
         );
     }
 

@@ -12,12 +12,9 @@ use App\Models\Zone;
 use App\Services\UserService;
 use DataResponse;
 use DB;
-use Exception;
 use Helper;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
-use Log;
 
 class ZoneController extends Controller
 {

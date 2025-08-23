@@ -195,6 +195,7 @@ class PackageTrailController extends Controller
         $billedKg = $inputs['billed_kg'] ?? 0;
         $inputs['actual_kg'] = $actualKg;
         $taxiFee = $inputs['taxi_fee'] ?? 0;
+        $inputs['taxi_fee'] = $taxiFee;
         $payer = $inputs['payer'];
         $cod = $inputs['cod'] ?? $package->cod;
         $inputs['billed_kg'] = $actualKg;

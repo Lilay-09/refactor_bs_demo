@@ -2,7 +2,7 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
+// use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class DisbursementPackage extends Model
@@ -23,5 +23,9 @@ class DisbursementPackage extends Model
 
     public function disbursement(){
         return $this->belongsTo(Disbursement::class,'disbursement_id','id');
+    }
+
+    public function package(){
+        return $this->belongsTo(Package::class,'package_id');
     }
 }

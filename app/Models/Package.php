@@ -244,12 +244,18 @@ class Package extends Model
     public function hasDriverPayment(): bool
     {
         return DB::table('payment_packages')
+            ->whereHas('payments',function ($q){
+                $q->where('is_deleted',false);
+            })
             ->where('package_id', $this->id)
             ->where('payer_type', 'driver')
             ->where('is_deleted', false)
             ->exists()
             ||
             DB::table('disbursement_packages')
+            ->whereHas('disbursement',function ($q){
+                $q->where('is_deleted',false);
+            })
             ->where('package_id', $this->id)
             ->where('payee_type', 'driver')
             ->where('is_deleted', false)
@@ -261,11 +267,17 @@ class Package extends Model
     {
         return DB::table('payment_packages')
             ->where('package_id', $this->id)
+            ->whereHas('payments',function ($q){
+                $q->where('is_deleted',false);
+            })
             ->where('payer_type', 'merchant')
             ->where('is_deleted', false)
             ->exists()
             ||
             DB::table('disbursement_packages')
+            ->whereHas('disbursements',function ($q){
+                $q->where('is_deleted',false);
+            })
             ->where('package_id', $this->id)
             ->where('payee_type', 'merchant')
             ->where('is_deleted', false)
@@ -275,6 +287,9 @@ class Package extends Model
     public function hasDriverCommissionPayment(): bool
     {
         return DB::table('disbursement_packages')
+            ->whereHas('disbursements',function ($q){
+                $q->where('is_deleted',false);
+            })
             ->where('package_id', $this->id)
             ->where('payee_type', 'driver')
             ->where('type', 'commission')

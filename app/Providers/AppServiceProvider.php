@@ -7,6 +7,8 @@ use App\Services\BranchService;
 use App\Services\BranchServiceImpl;
 use App\Services\CommentService;
 use App\Services\CommentServiceImpl;
+use App\Services\MerchantTransactionService;
+use App\Services\MerchantTransactionServiceImpl;
 use App\Services\PickupCenterService;
 use App\Services\PickupCenterServiceImpl;
 use App\Services\TransferService;
@@ -38,6 +40,7 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(PickupCenterService::class,PickupCenterServiceImpl::class);
         $this->app->bind(TransferService::class,TransferServiceImpl::class);
         $this->app->bind(CommentService::class,CommentServiceImpl::class);
+        $this->app->bind(MerchantTransactionService::class,MerchantTransactionServiceImpl::class);
     }
 
     /**

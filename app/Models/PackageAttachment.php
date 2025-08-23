@@ -22,6 +22,8 @@ class PackageAttachment extends Model
         'submit_uid',
         'user_class',
         'file_type',
-        'package_id'
+        'package_id',
+        'updated_at',
+        'created_at'
     ];
 }

@@ -125,7 +125,6 @@ Route::prefix('merchant/v1/{lang}')->middleware('localize')->group(function(){
     // Route::get('test',[HomeController::class,'getHomeScreen']);
 });
 
-
 Route::middleware(['jwtMerchant','localize'])->prefix('merchant/v1/{lang}')->group(function(){
     Route::prefix('comments')->group(function(){
         Route::post('packages',[CommentController::class,'addComment']);

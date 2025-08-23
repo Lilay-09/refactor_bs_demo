@@ -446,6 +446,8 @@ class GeneralSettingController extends Controller
                 'package_id' => $package->id,
                 'file_dir' => $isReturn ? ImageDirectory::RETURNED_IMAGE->value:ImageDirectory::SUBMIT_PACKAGE->value,
                 'file_name' => $returnImg,
+                'created_at' => now(),
+                'updated_at' => now()
             ]);
             DB::commit();
             return ApiResponse::JsonResult(null,__('messages.updated'));

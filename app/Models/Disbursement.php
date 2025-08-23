@@ -41,6 +41,7 @@ class Disbursement extends Model
         'pickup_package_count',
         'receiptionist_uid',
         'exchange_rate',
+        'requested_date',
         'breakdown_notes',
         'approved_uid',
         'settled_uid',
@@ -67,5 +68,9 @@ class Disbursement extends Model
 
     public function driver(){
         return $this->belongsTo(User::class,'payee_id','id')->where('account_type','driver');
+    }
+
+    public function pmtPackages(){
+        return $this->hasMany(DisbursementPackage::class,'disbursement_id');
     }
 }
