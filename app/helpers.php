@@ -882,6 +882,7 @@ class Helper{
         }
     }
 
+
     /**
      * Validate image size and dimensions.
      *
@@ -1484,6 +1485,31 @@ class Helper{
             return null; // Return null if the currency code is not found
         }
     }
+
+    static function deductAmountBase(&$usd, &$khr, float $amountUsd, float $exchangeRate = 4000): void {
+        // Step 1: Deduct from USD first
+        if ($usd >= $amountUsd) {
+            $usd -= $amountUsd;
+            return;
+        }
+
+        // Step 2: Not enough USD, use all available USD
+        $remainingUsd = $amountUsd - $usd;
+        $usd = 0;
+
+        // Step 3: Try deduct from KHR equivalent
+        $deductKhr = $remainingUsd * $exchangeRate;
+
+        if ($khr >= $deductKhr) {
+            $khr -= $deductKhr;
+        } else {
+            // Not enough KHR, consume all KHR and push USD negative
+            $remainingKhr = $deductKhr - $khr;
+            $khr = 0;
+            $usd -= $remainingKhr / $exchangeRate; // USD goes negative
+        }
+    }
+
 
 }
 

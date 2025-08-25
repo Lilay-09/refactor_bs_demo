@@ -221,7 +221,7 @@ class CompletedPackageController extends Controller
         // ->leftJoin('payments as dpmt','dpmt.id','p.driver_payment_id') //** if driver paid or unpaid */
         // ->leftJoin('payments as mpmt','mpmt.id','p.merchant_payment_id') //** if driver paid or unpaid */
         ->orderByDesc('p.id')
-        ->whereIn('p.status_id',[9,11,19]) //* delivered and failed with fee
+        ->whereIn('p.status_id',[9,11,19,23]) //* delivered and failed with fee
         ->select([
             'p.delivered_datetime','m.username as merchant_name','m.phone as merchant_phone',
             'p.driver_cod_usd','p.driver_cod_khr','p.price_khr',

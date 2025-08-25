@@ -259,7 +259,7 @@ class HomeScreenController extends Controller
         ->where('status_id',TrackingStatus::RETURNING->value)
         ->with([
             'merchant:id,username,phone',
-            'order:id,loc_lat,loc_lng'
+            'order:id,loc_lat,loc_lng,pickup_address'
         ])->orderByDesc('assigned_return_at');
         $geoResolver = new GeoResolverService();
         $callback = function ($pkg) use($geoResolver){
@@ -272,9 +272,11 @@ class HomeScreenController extends Controller
 
             $locLat = (float)($pkg->order->loc_lat ?? 0);
             $locLng = (float) ($pkg->order->loc_lng ?? 0);
-            $geoMap = $geoResolver->fromCoords($locLat,$locLng);
-            $pkg->map_address = $geoMap['address'];
-            $pkg->map_url = $geoMap['mapUrl'];
+            // $geoMap = $geoResolver->fromCoords($locLat,$locLng);
+            $pkg->loc_lat = $locLat;
+            $pkg->loc_lng = $locLng;
+            $pkg->map_address = $pkg->order->pickup_address;
+            // $pkg->map_url = $geoMap['mapUrl'];
             $pkg->telegram_link = Helper::generateTelegramLink($pkg->merchant_phone);
             return HomeReturnPackageDTO::fromModel($pkg);
         };
@@ -790,7 +792,9 @@ class HomeScreenController extends Controller
                         'package_id' => $id,
                         'file_dir' => $dirName,
                         'submit_uid' => $user->id,
-                        'file_name' => $fileName
+                        'file_name' => $fileName,
+                        'created_at' => now(),
+                        'updated_at' => now()
                     ];
                 }
             }
@@ -838,6 +842,9 @@ class HomeScreenController extends Controller
                 'status_id' => $status_id
             ]);
             GeneralSettingService::updateTripStatus($dp->delivery_id,$user);
+            if(!empty($attactmentImgs)){
+                PackageAttachment::insert($attactmentImgs);
+            }
             DB::commit();
             return ApiResponse::JsonResult(null,__('messages.submitted',[
                 'info' => 'Package has',

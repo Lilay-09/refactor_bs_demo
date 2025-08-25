@@ -32,7 +32,7 @@ class TransactionService
     public function getDeliveryPackages(Request $req,$type,$user){
         $driverId = $req->driver_id;
         $merchantId = $req->merchant_id;
-        $pmtStatusId = $req->payment_status_id;
+        $pmtStatusId = $req->payment_status_id ?? 1;
         $startDate = $req->startDate;
         $endDate = $req->endDate;
         $search = $req->search;
@@ -310,35 +310,47 @@ class TransactionService
     public function getMerchantDeliveryPackages(Request $req,object $authUser){
         $startDate = $req->startDate;
         $endDate = $req->endDate;
-
         $select = [
             'merchant_id',
-            DB::raw("COUNT(*) as package_count"),
-            DB::raw("SUM(price) as total_price"),
-            DB::raw("SUM(price_khr) as total_price_khr"),
-            DB::raw("SUM(CASE WHEN payer = 'sender' THEN delivery_fee ELSE 0 END) as delivery_fee"),
-            DB::raw("SUM(CASE WHEN payer = 'sender' THEN other_fee ELSE 0 END) as other_fee"),
-            DB::raw("SUM(CASE WHEN payer = 'sender' THEN taxi_fee ELSE 0 END) as taxi_fee"),
-            DB::raw('SUM(driver_cod_khr) as total_driver_cod_khr'),
-            DB::raw("array_agg(id) as package_ids"),
-            DB::raw('SUM(driver_cod_usd) as total_driver_cod_usd'),
+            DB::raw("COUNT(packages.id) as package_count"), // count all packages
+            DB::raw("SUM(packages.price) as total_price"),
+            DB::raw("SUM(packages.price_khr) as total_price_khr"),
+            DB::raw("SUM(CASE WHEN packages.payer = 'sender' THEN packages.delivery_fee ELSE 0 END) as delivery_fee"),
+            DB::raw("SUM(CASE WHEN packages.payer = 'sender' THEN packages.other_fee ELSE 0 END) as other_fee"),
+            DB::raw("SUM(CASE WHEN packages.payer = 'sender' THEN packages.taxi_fee ELSE 0 END) as taxi_fee"),
+            DB::raw('SUM(packages.driver_cod_khr) as total_driver_cod_khr'),
+            DB::raw("array_agg(DISTINCT packages.id) as package_ids"), // ensure all package IDs included
+            DB::raw('SUM(packages.driver_cod_usd) as total_driver_cod_usd'),
             DB::raw("
                 CASE
-                    WHEN status_id = 9 THEN DATE(delivered_datetime)
-                    WHEN status_id = 19 THEN DATE(failed_datetime)
+                    WHEN packages.status_id = 9 THEN DATE(packages.delivered_datetime)
+                    WHEN packages.status_id = 19 THEN DATE(packages.failed_datetime)
                 END as finish_date
-            ")
+            "),
+            DB::raw("MAX(d.id) as disbursement_id"),  // ✅ add this
+            DB::raw("MAX(d.payment_status_id) as disbursement_status_id")
         ];
 
-        // Base package query
         $qP = Package::query()
-            ->where('is_deleted', false)
-            ->whereIn('status_id', [9, 19])
+            ->where('packages.is_deleted', false)
+            ->whereIn('packages.status_id', [9, 19])
+            ->leftJoin('disbursement_packages as dp', function($join) {
+                $join->on('packages.id', '=', 'dp.package_id')
+                    ->where('dp.is_deleted', false)
+                    ->where('dp.type', 'payment');
+            })
+            ->leftJoin('disbursements as d', function($join) {
+                $join->on('dp.disbursement_id', '=', 'd.id')
+                    ->where('d.is_deleted', false);
+            })
+            ->where(function($query) {
+                $query->whereNull('dp.id') // keep packages without any disbursement_package
+                    ->orWhereNotNull('d.id'); // only include dp rows if parent disbursement exists
+            })
             ->with(['merchant:id,username,code', 'merchant.primaryBank'])
             ->select($select)
-            ->groupBy('merchant_id', 'finish_date')
+            ->groupBy('merchant_id', 'finish_date') // corrected
             ->orderBy('finish_date', 'desc');
-
         // Date filter
         if ($startDate && $endDate) {
             $startDate = Helper::dateYMD($startDate);
@@ -357,254 +369,37 @@ class TransactionService
             });
         }
 
-        // Get package IDs from the filtered query
-        // $packageIds = $qP->pluck('package_ids')->flatten()->unique()->toArray();
-        $packageIds = $qP->pluck('package_ids') // collection of array strings
-            ->flatMap(function ($ids) {
-                return json_decode(str_replace(['{', '}'], ['[', ']'], $ids), true);
-            })
-            ->map(fn($id) => (int)$id)
-            ->unique()
-            ->toArray();
-        // return DataResponse::JsonResult($packageIds);
-
-        // Disbursement packages (filtered)
-        $disbursementPkg = DisbursementPackage::query()
-            ->where('is_deleted', false)
-            ->whereIn('package_id', $packageIds)
-            ->where('type', 'payment')
-            ->whereHas('disbursement', fn($q) => $q->where('is_deleted', false))
-            ->with(['disbursement' => fn($q) => $q->select('id','payment_status_id','amount_due_usd','amount_due_khr','received_amount_usd','received_amount_khr')
-                ->where('is_deleted', false)
-            ])
-            // ->pluck('package_id')
-            // ->toArray();
-            ->get()
-            ->keyBy('package_id');
-        // return DataResponse::JsonResult($disbursementPkg);
-
-        // Callback for formatting
-        $callback = function ($q) use ($disbursementPkg) {
+        $callback = function ($q) {
             $q->fees = $q->delivery_fee + $q->other_fee;
             $q->merchant_name = $q->merchant->username;
-            $toBePaid = $this->getPackageTotalV1(
-                'merchant',
-                $q->total_driver_cod_usd,
-                $q->total_driver_cod_khr,
-                $q->delivery_fee,
-                $q->taxi_fee,
-                $q->other_fee,
-                'payer'
-            );
-            $q->amount_to_be_paid_usd = $toBePaid['total_usd'];
-            $q->amount_to_be_paid_khr = $toBePaid['total_khr'];
+            $deductAmt = $q->fees + $q->taxi_fee;
+
+            $toBePaid = [
+                'total_usd' => $q->total_driver_cod_usd,
+                'total_khr' => $q->total_driver_cod_khr
+            ];
+
+            Helper::deductAmountBase($toBePaid['total_usd'], $toBePaid['total_khr'], $deductAmt, 4000);
+
+            $q->amount_to_be_paid_usd = Helper::getNumber($toBePaid['total_usd'], 2, true);
+            $q->amount_to_be_paid_khr = Helper::getNumber($toBePaid['total_khr'], 2, true);
             $q->code = $q->merchant->code;
 
-            // Bank info
             if ($bankInfo = $q->merchant->primaryBank) {
                 $q->bank_name = $bankInfo->bank_name;
                 $q->bank_account_number = $bankInfo->bank_number;
                 $q->bank_account_name = $bankInfo->account_name;
             }
 
-            $pIds = collect(json_decode(str_replace(['{', '}'], ['[', ']'], $q->package_ids), true))
-            ->map(fn($id) => (int)$id)
-            ->unique()
-            ->toArray();
-            $q->status = 'Unpaid';
-            foreach ($pIds as $id) {
-                if (isset($disbursementPkg[$id])) {
-                    $q->has_payment = true;
-                    $q->status = PaymentStatus::tryFrom($disbursementPkg[$id]->disbursement->payment_status_id)->label();
-                    break; // no need to check further
-                }
-            }
+            $q->status = isset($q->disbursement_id) ? PaymentStatus::tryFrom($q->disbursement_status_id)->label() : 'Unpaid';
 
-            // $q->status = $q->has_payment ? 'Paid / Partial' : 'Unpaid';
             unset($q->merchant);
+
             return $q;
         };
 
         return DataResponse::PaginationV1($qP, $req, '', [], 1000, $callback, $select);
-
-        // $startDate = $req->startDate;
-        // $endDate = $req->endDate;
-        // $select = [
-        //     'merchant_id',
-        //     DB::raw("COUNT(*) as package_count"),
-        //     DB::raw("SUM(price) as total_price"),
-        //     DB::raw("SUM(price_khr) as total_price_khr"),
-        //     DB::raw("SUM(CASE WHEN payer = 'sender' THEN delivery_fee ELSE 0 END) as delivery_fee"),
-        //     DB::raw("SUM(CASE WHEN payer = 'sender' THEN other_fee ELSE 0 END) as other_fee"),
-        //     DB::raw("SUM(CASE WHEN payer = 'sender' THEN taxi_fee ELSE 0 END) as taxi_fee"),
-        //     DB::raw('SUM(driver_cod_khr) as total_driver_cod_khr'),
-        //     DB::raw("array_agg(id) as package_ids"),
-        //     DB::raw('SUM(driver_cod_usd) as total_driver_cod_usd'),
-        //     DB::raw("
-        //         CASE
-        //             WHEN status_id = 9 THEN DATE(delivered_datetime)
-        //             WHEN status_id = 19 THEN DATE(failed_datetime)
-        //         END as finish_date
-        //     ")
-        // ];
-
-
-        // $qP = Package::query()
-        // ->where('is_deleted', false)
-        // ->with(['merchant:id,username,code','merchant.primaryBank'])
-        // ->whereIn('status_id', [9, 19])
-        // ->select($select)
-        // ->groupBy(
-        //     'merchant_id',
-        //     'finish_date'
-        // )
-        // ->orderBy('finish_date', 'desc');
-
-        // if ($startDate && $endDate) {
-        //     $qP->where(function ($q) use ($startDate, $endDate) {
-        //         $startDate = Helper::dateYMD($startDate);
-        //         $endDate = Helper::dateYMD($endDate);
-        //         $q->where(function ($query) use ($startDate, $endDate) {
-        //             $query->where('status_id', 9)
-        //                 ->whereDate('delivered_datetime', '>=', $startDate)
-        //                 ->whereDate('delivered_datetime', '<=', $endDate);
-        //         })->orWhere(function ($query) use ($startDate, $endDate) {
-        //             $query->where('status_id', 19)
-        //                 ->whereDate('failed_datetime', '>=', $startDate)
-        //                 ->whereDate('failed_datetime', '<=', $endDate);
-        //         });
-        //     });
-        // }
-
-        // $packageIds = Package::where('is_deleted', false)
-        // ->whereIn('status_id', [9, 19])
-        // ->pluck('id')
-        // ->toArray();
-        // $disbursementPkg = DisbursementPackage::where('is_deleted', false)
-        // ->whereIn('package_id', $packageIds)
-        // ->where('payee_type', 'payment')
-        // ->whereHas('disbursement', function ($q) {
-        //     $q->where('is_deleted', false);
-        // })
-        // ->with([
-        //     'disbursement' => function ($q) {
-        //         $q->select('id','amount_due_usd','amount_due_khr','received_amount_usd','received_amount_khr')
-        //         ->where('is_deleted', false);
-        //     }
-        // ])
-        // ->get()
-        // ->keyBy('package_id');
-
-        // $callback = function ($q){
-        //     $q->fees = $q->delivery_fee + $q->other_fee;
-        //     $q->merchant_name = $q->merchant->username;
-        //     $toBePaid = $this->getPackageTotalV1('merchant',$q->total_driver_cod_usd,$q->total_driver_cod_khr,$q->delivery_fee,$q->taxi_fee,$q->other_fee,'payer');
-        //     $q->amount_to_be_paid_usd = $toBePaid['total_usd'];
-        //     $q->amount_to_be_paid_khr = $toBePaid['total_khr'];
-        //     $q->code = $q->merchant->code;
-        //     $bankInfo = $q->merchant->primaryBank;
-        //     $q->status = 'Unpaid';
-        //     if($bankInfo){
-        //         $q->bank_name = $bankInfo->bank_name;
-        //         $q->bank_account_number = $bankInfo->bank_number;
-        //         $q->bank_account_name = $bankInfo->account_name;
-        //     }
-        //     unset($q->merchant);
-        //     return $q;
-        // };
-
-        // return DataResponse::PaginationV1($qP,$req,'',[],1000,$callback,$select);
     }
-
-    // public function getDeliveryPackages(Request $req,$type,$user){
-    //     $selectKey = $type.'_payment_id,'.$type.'_disbursement_id';
-    //     $driverId = $req->driver_id;
-    //     $merchantId = $req->merchant_id;
-    //     $pmtStatusId = $req->payment_status_id;
-    //     $startDate = $req->startDate;
-    //     $endDate = $req->endDate;
-    //     $search = $req->search;
-    //     $pmtKey = $type.'_payment_id';
-    //     $disKey = $type.'_disbursement_id';
-    //     $qP = Package::query()->fromRaw('packages as p')->where('p.company_id',$user->company_id)
-    //     ->where('p.is_deleted',0)
-    //     ->join('users as d','d.id','p.driver_id')
-    //     ->join('tracking_statuses as ts','ts.id','p.status_id')
-    //     ->join('users as m','m.id','p.merchant_id')
-    //     ->orderByRaw("p.{$pmtKey} IS NULL DESC, p.{$pmtKey}")
-    //     ->orderByRaw("p.{$disKey} IS NULL DESC, p.{$disKey}")
-    //     // ->whereNull($type.'_payment_id')
-    //     // ->whereNull($type.'_payment_id')
-    //     // ->leftJoin('payments as dpmt','dpmt.id','p.'.$fkKey) //** if driver paid or unpaid */
-    //     // ->leftJoin('payments as mpmt','mpmt.id','p.merchant_payment_id') //** if driver paid or unpaid */
-    //     ->whereIn('p.status_id',[9,19]) //* delivered and failed with fee
-    //     ->selectRaw('p.extra_charge,p.additional_fee,p.remarks,p.cod,p.price,d.phone as driver_phone,p.taxi_fee,p.payer,p.delivery_fee,p.assign_driver_datetime,p.merchant_total,m.username as merchant_name,m.phone as merchant_phone,d.username as driver_name,p.status_id,p.id as package_id,d.id as driver_id,p.qr_code,ts.name as status_code,p.delivered_datetime,p.failed_datetime,p.zone_code,p.receiver_phone,p.delivery_type,'.$selectKey);
-    //     if($type == 'driver'){
-    //         $qP->where(function ($q) use($type){
-    //             $q->whereNull($type.'_payment_id')->whereNull($type.'_disbursement_id');
-    //         });
-    //     }
-    //     if($driverId || $merchantId){
-    //         if($type == 'driver') $qP->where('p.driver_id',$driverId);
-    //         else $qP->where('p.merchant_id',$merchantId);
-    //     }
-    //     if($search){
-    //         $qP->where('p.qr_code',$search);
-    //     }
-    //     if($startDate && $endDate){
-    //         $startDate = Helper::dateYMD($startDate);
-    //         $endDate = Helper::dateYMD($endDate);
-    //         $qP->where(function ($q) use ($startDate, $endDate) {
-    //             $startDateTime = $startDate . ' 00:00:00';
-    //             $endDateTime = $endDate . ' 23:59:59';
-
-    //             // Check for status_id = 9, delivered_datetime should be within the date range
-    //             $q->where(function ($q) use ($startDateTime, $endDateTime) {
-    //                 $q->where('status_id', 9)
-    //                 ->whereRaw('delivered_datetime >= ? AND delivered_datetime <= ?', [$startDateTime, $endDateTime]);
-    //             })
-    //             // Check for status_id = 19, failed_datetime should be within the date range
-    //             ->orWhere(function ($q) use ($startDateTime, $endDateTime) {
-    //                 $q->where('status_id', 19)
-    //                 ->whereRaw('failed_datetime >= ? AND failed_datetime <= ?', [$startDateTime, $endDateTime]);
-    //             });
-    //         });
-
-    //     }
-    //     // Log::error(json_encode($req->all()));
-    //     if($type == 'merchant' && $pmtStatusId == 2){
-    //         $qP->where(function ($q) {
-    //             $q->whereNotNull('p.merchant_payment_id')->orWhereNotNull('p.merchant_disbursement_id');
-    //         });
-    //     }else if($type == 'merchant' && $pmtStatusId == 1){
-    //         $qP->where(function ($q) {
-    //             $q->whereNull('p.merchant_payment_id')->whereNull('p.merchant_disbursement_id');
-    //         });
-    //     }
-    //     // $packages = $qP->get();
-    //     $statusKey = $type.'_payment_status';
-    //     // foreach($packages as $package){
-
-    //     // }
-    //     $clbMapper = function($package) use($statusKey,$type){
-    //         $cod = $package->cod;
-    //         $package->cod = $cod ? 'Yes' : 'No';
-    //         $package->{$statusKey} = (!$package->{$type.'_payment_id'} && !$package->{$type.'_disbursement_id'}) ? 'Unpaid':'Paid';
-    //         $package->datetime = ($package->status_id == 9 && ($package->delivered_datetime || $package->delivered_datetime)) ? Helper::formatCustomDateTime($package->delivered_datetime) : Helper::formatCustomDateTime($package->failed_datetime);
-    //         $package->delivered_datetime = Helper::formatCustomDateTime($package->assign_driver_datetime);
-    //         $package->{$type.'_total'} = self::getPackageTotal($type,$cod,$package->price,$package->taxi_fee,$package->extra_charge,$package->additional_fee,$package->delivery_fee,$package->payer);
-    //         if($type == 'merchant') $package->total = -self::getPackageTotal($type,$cod,$package->price,$package->taxi_fee,$package->extra_charge,$package->additional_fee,$package->delivery_fee,$package->payer);
-    //         if($package->status_id == 19){
-    //             if($type == 'merchant'){
-    //                 $package->{$type.'_total'} = $package->payer == 'sender' ? $package->delivery_fee+ $package->extra_charge : 0;
-    //                 $package->total = $package->payer == 'sender' ? -self::getPackageTotal($type,$cod,0,0,$package->extra_charge,$package->additional_fee,$package->delivery_fee,$package->payer):0;
-    //             }else $package->{$type.'_total'} = $package->payer == 'receiver' ? $package->delivery_fee + $package->extra_charge : 0;
-    //         }
-    //         $package->fee = Helper::getNumber($package->delivery_fee + $package->extra_charge + $package->additional_fee,2);
-    //         return $package;
-    //     };
-    //     return DataResponse::PaginationV1($qP,$req,null,[],1000,$clbMapper);
-    // }
 
     public static function getPackageTotal($type,$cod,$price,$taxiFee,$extraCharge,$additionalFee,$baseFee,$payer){
         $total = 0;
@@ -642,25 +437,17 @@ class TransactionService
         $totalUsd = max(0, $driverCODUsd);
         $totalKhr = max(0, $driverCODKh);
         // helper closure to deduct in USD first, then KHR
-        $deduct = function($amountUsd) use (&$totalUsd, &$totalKhr, $exchangeRateBase) {
-            $deductUsd = min($totalUsd, $amountUsd);
-            $totalUsd -= $deductUsd;
-
-            $remainingUsd = $amountUsd - $deductUsd;
-            if ($remainingUsd > 0) {
-                $totalKhr -= $remainingUsd * $exchangeRateBase;
-            }
-        };
 
         if ($type === 'driver') {
             // 1. Always deduct taxi fee
-            if ($taxiFee > 0) {
-                $deduct($taxiFee);
-            }
-
             // 2. Deduct fees if payer is receiver
-            if ($payer === 'receiver' && $fees > 0) {
-                $deduct($fees);
+            if ($payer === 'receiver' && ($fees > 0 || $taxiFee > 0)) {
+                Helper::deductAmountBase($totalUsd,$totalKhr,$fees + $taxiFee);
+            }
+        }
+        if($type === 'merchant'){
+            if ($payer === 'sender' && ($fees > 0 || $taxiFee > 0)) {
+                Helper::deductAmountBase($totalUsd,$totalKhr,$fees + $taxiFee);
             }
         }
         return [
@@ -1139,37 +926,37 @@ class TransactionService
         }
     }
 
-    private function receiveOrDisburesementBulkV1Validator(Request $req){
+    private function receiveOrDisburesementBulkV1Validator(Request $req,$type){
         return validator($req->all(), [
             'currency' => 'required|in:KHR,USD',
-            'merchants' => ['required', 'array'],
-            'merchants.*.id' => ['required', 'integer', 'exists:users,id'],
-            'merchants.*.packages' => ['required', 'array', 'min:1'],
-            'merchants.*.packages.*' => ['integer', 'exists:packages,id']
+            $type.'s' => ['required', 'array'],
+            $type.'s.*.id' => ['required', 'integer', 'exists:users,id'],
+            $type.'s.*.packages' => ['required', 'array', 'min:1'],
+            $type.'s.*.packages.*' => ['integer', 'exists:packages,id']
         ]);
     }
 
-
     public function receiveOrDisburesementBulkV1(Request $req,$user,$type){
-        $validator = $this->receiveOrDisburesementBulkV1Validator($req);
+        $validator = $this->receiveOrDisburesementBulkV1Validator($req,$type);
         if($validator->fails()){
             return DataResponse::ValidateFail($validator->errors()->first());
         }
         $inputs = $validator->validated();
         $payingCurrency = $inputs['currency'];
-        $merchantIds = collect($inputs['merchants'])->pluck('id')->toArray();
-        $packageIds = collect($inputs['merchants'])->pluck('packages')->flatten()->toArray();
+        $userIds = collect($inputs["{$type}s"])->pluck('id')->toArray();
+        $packageIds = collect($inputs["{$type}s"])->pluck('packages')->flatten()->toArray();
         $packages = Package::where('is_deleted',false)
         ->whereIn('status_id',[19,9])
         // ->with(['merchant:id,username,code'])
-        ->whereIn('merchant_id',$merchantIds)
+        ->whereIn("{$type}_id",$userIds)
         ->whereIn('id',$packageIds)
         ->get();
         $clPkg = clone $packages;
         $packageKeyById = $clPkg->keyBy('id');
-        $merchantInfo = $inputs['merchants'];
+        $userInfo = $inputs["{$type}s"];
 
         $insertDisbursement = [];
+        $upSertPmt = [];
         $fullyPaidInfo = [];
         $currencyConflictInfo = [];
         $disbursementPkg = DisbursementPackage::where('is_deleted', false)
@@ -1183,25 +970,57 @@ class TransactionService
                     $q->select(
                         'id',
                         'amount_due_usd',
+                        'payee_type',
+                        'payee_id',
+                        'delivery_fee',
                         'amount_due_khr',
-                        'received_amount_usd',
                         'received_amount_khr',
-                        'payment_status_id'
+                        'received_amount_usd',
+                        'payment_status_id',
+                        'amount',
+                        'payable_amount',
+                        'taxi_fee',
+                        'cod_amount',
+                        'package_count',
+                        'delivered_package_count',
+                        'pickup_package_count',
+                        'approved',
+                        'is_settled',
+                        'remarks',
+                        'breakdown_notes',
+                        'settled_uid',
+                        'exchange_rate',
+                        'approved_datetime',
+                        'settled_datetime',
+                        'payment_datetime',
+                        'pickup_rate',
+                        'requested_date',
+                        'delivery_rate',
+                        'type',
+                        'receiptionist_uid',
+                        'failed_with_fee_count',
+                        'trx_code',
+                        'paid_amount',
+                        'fast_delivery_rate',
+                        'fast_pickup_rate',
+                        'create_uid',
+                        'branch_id',
+                        'company_id'
                     )->where('is_deleted', false);
                 }
             ])
             ->get()
             ->keyBy('package_id');
 
-        foreach ($merchantInfo as $m) {
+        foreach ($userInfo as $m) {
             $mId = $m['id'];
             $packages = $m['packages'];
-
             // Validate packages
             $validPkg = $this->validBulkPackagesV1($packageKeyById, $packages, $mId, $type);
             if ($validPkg->error) {
                 return $validPkg;
             }
+            // Log::info(json_encode($validPkg));
 
             $totalDueUSD = $validPkg->data['total_due_amount_usd'] ?? 0;
             $totalDueKHR = $validPkg->data['total_due_amount_khr'] ?? 0;
@@ -1240,14 +1059,67 @@ class TransactionService
                     if ($usdDue == 0 && $khrDue == 0) {
                         $fullyPaidInfo[] = [
                             'package_id'   => $pkgId,
-                            'merchant_id'  => $mId,
-                            'merchant_name'=> $validPkg->data['merchant_name'] ?? $mId,
+                            "{$type}_id"  => $mId,
+                            "{$type}_name"=> $validPkg->data["{$type}_name"] ?? $mId,
                         ];
+                        if ($payingCurrency === 'USD') {
+                            $allUSDReceived = false;
+                        }
+                        if ($payingCurrency === 'KHR') {
+                            $allKHRReceived = false;
+                        }
                         continue;
-                    }else{
-                        if ($usdDue - $validPkg->data['total_due_amount_usd'] == 0) $allUSDReceived = true;
-                        if ($khrDue - $validPkg->data['total_due_amount_khr'] == 0) $allKHRReceived = true;
                     }
+
+                    if ($payingCurrency === 'USD') {
+                        if ($usdDue == $validPkg->data['total_due_amount_usd']) {
+                            // ok, still pending → can accept
+                            $allUSDReceived = $allUSDReceived && true;
+                            if($usdDue == $validPkg->data['total_due_amount_khr']){
+                                $allKHRReceived = true;
+                            }
+                        } else {
+                            // mismatch or already settled
+                            $allUSDReceived = false;
+                            $currencyConflictInfo[] = [
+                                'package_id'     => $pkgId,
+                                "{$type}_name"  => $validPkg->data["{$type}_name"] ?? $mId,
+                                'currency'       => 'USD',
+                                'message'        => $usdDue == 0
+                                    ? 'This package is already fully settled in USD.'
+                                    : 'This package has partial USD payment already, cannot pay again in USD.',
+                            ];
+
+                        }
+                    }
+
+                    if ($payingCurrency === 'KHR') {
+                        if ($khrDue == $validPkg->data['total_due_amount_khr']) {
+                            $allKHRReceived = $allKHRReceived && true;
+                            if($usdDue == $validPkg->data['total_due_amount_usd']){
+                                $allUSDReceived = true;
+                            }
+                        } else {
+                            $allKHRReceived = false;
+                            $currencyConflictInfo[] = [
+                                'package_id'     => $pkgId,
+                                "{$type}_name"  => $validPkg->data["{$type}_name"] ?? $mId,
+                                'currency'       => 'KHR',
+                                'message'        => $khrDue == 0
+                                    ? 'This package is already fully settled in KHR.'
+                                    : 'This package has partial KHR payment already, cannot pay again in KHR.',
+                            ];
+                            continue;
+                        }
+                    }
+
+                    // else{
+                    //     if ($usdDue - $validPkg->data['total_due_amount_usd'] == 0 && $payingCurrency == 'USD') $allUSDReceived = true;
+                    //     if ($khrDue - $validPkg->data['total_due_amount_khr'] == 0 && $payingCurrency == 'KHR') {
+                    //         $allKHRReceived = true;
+                    //     }
+                    // }
+
                 }else {
                     // No disbursement yet → not fully received
                     if ($payingCurrency === 'USD') {
@@ -1260,18 +1132,23 @@ class TransactionService
 
                 $paidPackageIds[] = $pkgId;
             }
+            Log::info("{$allUSDReceived} --- {$allKHRReceived}");
             $paymentStatusId = ($allUSDReceived && $allKHRReceived)
-                ? PaymentStatus::DONE->value
+                ? PaymentStatus::REQUESTED->value
                 : PaymentStatus::PARTIAL->value;
 
             if ($hasDisbursement && $targetDisbursement) {
-                // ✅ Update existing disbursement instead of inserting
+                // Update existing disbursement instead of inserting
                 $updatePmt = [
                     'id' => $disbursementId,
                     'payment_status_id' => $paymentStatusId,
-                    'update_uid'        => $user->id,
-                    'payment_datetime'  => now(),
                     'remarks'           => $inputs['remarks'] ?? $targetDisbursement->remarks,
+                    'create_uid'        => $targetDisbursement->create_uid,
+                    'payee_id'          => $targetDisbursement->payee_id,
+                    'payee_type'          => $targetDisbursement->payee_type,
+                    'branch_id'        => $targetDisbursement->branch_id,
+                    'company_id'        => $targetDisbursement->company_id,
+                    'update_uid'        => $user->id
                 ];
 
                 if ($payingCurrency === 'USD') {
@@ -1279,19 +1156,31 @@ class TransactionService
                 } elseif ($payingCurrency === 'KHR') {
                     $updatePmt['received_amount_khr'] = $validPkg->data['total_due_amount_khr'] ?? 0;
                 }
-                // $upSertPmt[] = $updatePmt;
-                $targetDisbursement->update($updatePmt);
+                $allowedColumns = [
+                    'amount_due_usd', 'delivery_fee', 'amount_due_khr', 'received_amount_khr', 'received_amount_usd',
+                    'amount', 'payable_amount', 'taxi_fee', 'cod_amount', 'package_count', 'delivered_package_count',
+                    'pickup_package_count', 'approved', 'is_settled', 'breakdown_notes', 'settled_uid', 'exchange_rate',
+                    'approved_datetime', 'settled_datetime', 'payment_datetime', 'pickup_rate', 'delivery_rate', 'type',
+                    'receiptionist_uid', 'failed_with_fee_count', 'trx_code', 'paid_amount', 'fast_delivery_rate',
+                    'fast_pickup_rate'
+                ];
+
+                // Merge existing values from targetDisbursement for allowed columns
+                foreach ($allowedColumns as $col) {
+                    if (!array_key_exists($col, $updatePmt)) {
+                        $updatePmt[$col] = $targetDisbursement->$col ?? null;
+                    }
+                }
+                $upSertPmt[] = $updatePmt;
+                // Log::info(json_encode($updatePmt));
+                // $targetDisbursement->update($updatePmt);
 
             }else{
-                $paymentStatusId = (
-                    $receivedKHR == $validPkg->data['total_due_amount_khr']
-                    && $receivedUSD == $validPkg->data['total_due_amount_usd']
-                ) ? PaymentStatus::DONE->value : PaymentStatus::PARTIAL->value;
                 $insertDisbursement[] = [
                     'payee_id'               => $mId,
                     'payee_type'             => $type,
-                    'taxi_fee'               => $validPkg->total_taxi_fee ?? 0,
-                    'delivery_fee'           => $validPkg->total_delivery_fee ?? 0,
+                    'taxi_fee'               => $validPkg->data['total_taxi_fee'] ?? 0,
+                    'delivery_fee'           => $validPkg->data['total_fees'] ?? 0,
                     'amount_due_khr'         => $validPkg->data['total_due_amount_khr'] ?? 0,
                     'amount_due_usd'         => $validPkg->data['total_due_amount_usd'] ?? 0,
                     'received_amount_usd'    => $receivedUSD,
@@ -1299,13 +1188,14 @@ class TransactionService
                     'create_uid'             => $user->id,
                     'receiver_uid'           => $user->id,
                     'receiptionist_uid'      => $user->id,
-                    'failed_with_fee_count'  => $validPkg->failed_with_fee_count ?? 0,
-                    'cod_amount'             => $validPkg->total_cod ?? 0,
+                    'failed_with_fee_count'  => $validPkg->data['failed_with_fee_count'] ?? 0,
+                    'cod_amount'             => $validPkg->data['total_cod'] ?? 0,
                     'remarks'                => $inputs['remarks'] ?? null,
-                    'package_count'          => $validPkg->total_package ?? count($paidPackageIds),
-                    'delivered_package_count'=> $validPkg->delivered_package_count ?? count($paidPackageIds),
+                    'package_count'          => $validPkg->data['total_package'] ?? count($paidPackageIds),
+                    'delivered_package_count'=> $validPkg->data['delivered_package_count'] ?? count($paidPackageIds),
                     'update_uid'             => $user->id,
-                    'payment_datetime'       => now(),
+                    'requested_date'         => now(),
+                    // 'payment_datetime'       => now(),
                     'breakdown_notes'        => $breakDownNotes ?? null,
                     'company_id'             => $user->company_id,
                     'branch_id'              => $user->branch_id,
@@ -1319,22 +1209,41 @@ class TransactionService
         if (!empty($fullyPaidInfo)) {
             $count = count($fullyPaidInfo);
             // $packages = implode(', ', array_column($fullyPaidInfo, 'package_id'));
-            $merchants = implode(', ', array_unique(array_column($fullyPaidInfo, 'merchant_name')));
-            return DataResponse::Duplicated("{$count} fully paid package(s) detected for merchant(s): {$merchants}.");
+            $users = implode(', ', array_unique(array_column($fullyPaidInfo, "{$type}_name")));
+            return DataResponse::Duplicated("{$count} fully paid package(s) detected for {$type}(s): {$type}s.");
         }
 
         // Report currency conflicts
         if (!empty($currencyConflictInfo)) {
             $count = count($currencyConflictInfo);
             $packages = implode(', ', array_column($currencyConflictInfo, 'package_id'));
-            $merchants = implode(', ', array_unique(array_column($currencyConflictInfo, 'merchant_name')));
+            $users = implode(', ', array_unique(array_column($currencyConflictInfo, "{$type}_name")));
             $currency = $currencyConflictInfo[0]['currency'] ?? '';
-            return DataResponse::Duplicated("{$count} package(s) already partially paid with {$currency} for merchant(s): {$merchants}. Package IDs: {$packages}");
+            return DataResponse::Duplicated("{$count} package(s) already partially paid with {$currency} for {$type}(s): {$type}s.");
         }
 
         try {
             DB::beginTransaction();
-
+            if(!empty($upSertPmt)){
+                DB::table('disbursements')->upsert(
+                    $upSertPmt,
+                    ['id'], // unique key to match on
+                    [
+                        'payment_status_id',
+                        'payment_datetime',
+                        'payee_id',
+                        'payee_type',
+                        'remarks',
+                        'received_amount_usd',
+                        'received_amount_khr',
+                        'updated_at',
+                        'create_uid',
+                        'update_uid',
+                        'company_id',
+                        'branch_id'
+                    ]
+                );
+            }
             if (!empty($insertDisbursement)) {
                 foreach ($insertDisbursement as $disbData) {
                     // Insert into disbursements table (main payment record)
@@ -1356,14 +1265,13 @@ class TransactionService
                         'package_count' => $disbData['package_count'],
                         'delivered_package_count' => $disbData['delivered_package_count'],
                         'update_uid' => $disbData['update_uid'],
-                        'payment_datetime' => $disbData['payment_datetime'],
                         'breakdown_notes' => $disbData['breakdown_notes'],
                         'company_id' => $disbData['company_id'],
                         'branch_id' => $disbData['branch_id'],
                         'payment_status_id' => $disbData['payment_status_id'],
                         'type' => $disbData['type'],
                     ]);
-
+                    self::transactionCodeGenerator('transaction_sequences','payment','disbursements','trx_code',$user->branch_id,$user->company_id,$disbursement->id);
                     // Attach each package to this disbursement
                     $packageIds = json_decode($disbData['package_ids'], true);
                     foreach ($packageIds as $pkgId) {
@@ -1391,7 +1299,7 @@ class TransactionService
             }
 
             DB::commit();
-            return DataResponse::JsonResult($insertDisbursement,false,__('messages.saved'));
+            return DataResponse::JsonResult(null,false,__('messages.saved'));
         } catch (Exception $e) {
             DB::rollBack();
             Log::error($e->getMessage());
@@ -1433,7 +1341,7 @@ class TransactionService
         return DataResponse::JsonResult($driver);
     }
 
-    public static function amountToOneCurrency($currencyCode,$cashUSD,$cashKHR,$bankUSD,$bankKHR,$exchangeRate){
+    public static function amountToOneCurrency($currencyCode,$cashUSD,$cashKHR,$bankUSD,$bankKHR,$exchangeRate = 4000){
         if($currencyCode == 'USD'){
             $cashKHRToUSD = $cashKHR / $exchangeRate;
             $bankKHRToUSD = $bankKHR / $exchangeRate;
@@ -1757,6 +1665,7 @@ class TransactionService
             if($package->cod) $obj->total_cod += $package->price;
             $obj->total_amount += $package->price + $package->delivery_fee;
             $obj->total_package_price += $package->price;
+            $obj->total_fees += $rowTotal['fees'];
         }
         // if($paymentType == 'disbursement') $obj->total_due_amount = abs($obj->total_due_amount);
         // Log::error(json_encode($obj));
@@ -1788,6 +1697,7 @@ class TransactionService
             'delivered_package_count' => 0,
             'failed_with_fee_count' => 0,
             'total_taxi_fee' => 0,
+            'total_fees' => 0,
             'driver_total' => 0,
             'merchant_total' => 0,
             'total_due_amount_khr' => 0,
@@ -1854,6 +1764,7 @@ class TransactionService
             // Log::info(json_encode($rowTotal));
             $obj->total_due_amount_khr += $rowTotal['total_khr'];
             $obj->total_due_amount_usd += $rowTotal['total_usd'];
+            $obj->total_fees += $rowTotal['fees'];
             if($package->cod) $obj->total_cod += $package->price;
             $obj->total_amount += $package->price + $package->delivery_fee;
             $obj->total_package_price += $package->price;
@@ -1877,7 +1788,8 @@ class TransactionService
             'total_amount' => $obj->total_amount,
             'delivered_package_count' => $obj->delivered_package_count,
             'merchant_name' => $obj->merchant_name,
-            'merchant_code' => $obj->merchant_code
+            'merchant_code' => $obj->merchant_code,
+            'total_fees' => $obj->total_fees
         ]);
     }
 
@@ -2574,6 +2486,7 @@ class TransactionService
             'info' => 'Package'
         ]));
         $hasPayment = $package->hasAnyPayment();
+        // Log::info($hasPayment);
         if($hasPayment){
             $updateArr = [
                 'remarks' => $inputs['remarks'] ?? '',
