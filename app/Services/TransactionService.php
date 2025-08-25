@@ -310,7 +310,6 @@ class TransactionService
     public function getMerchantDeliveryPackages(Request $req,object $authUser){
         $startDate = $req->startDate;
         $endDate = $req->endDate;
-
         $select = [
             'merchant_id',
             DB::raw("COUNT(packages.id) as package_count"), // count all packages
@@ -331,7 +330,6 @@ class TransactionService
             DB::raw("MAX(d.id) as disbursement_id"),  // ✅ add this
             DB::raw("MAX(d.payment_status_id) as disbursement_status_id")
         ];
-
 
         $qP = Package::query()
             ->where('packages.is_deleted', false)
