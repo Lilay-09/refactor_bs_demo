@@ -15,6 +15,7 @@ class UserBank extends Model
         'user_id',
         'bank_name',
         'bank_id',
+        'currency',
         'bank_number',
         'account_name',
         'qr_image',

@@ -212,6 +212,8 @@ Route::middleware(['jwt','localize','userAccess:admin','rateLimit'])->prefix('ad
                 Route::get('',[MerchantTransactionController::class,'getPayments']);
                 Route::put('',[MerchantTransactionController::class,'approvePayments']);
                 Route::delete('{id}',[MerchantTransactionController::class,'deleteSettlePayment']);
+                Route::post('approve-batch',[MerchantTransactionController::class,'approveBulkRequestedSettlement']);
+                Route::post('approve',[MerchantTransactionController::class,'approveRequestedSettlement']);
             });
             Route::prefix('settle')->group(function(){
                 Route::get('payment',[MerchantTransactionController::class,'getApprovedPayments']);

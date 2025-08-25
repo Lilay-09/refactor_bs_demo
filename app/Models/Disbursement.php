@@ -40,6 +40,7 @@ class Disbursement extends Model
         'failed_with_fee_count',
         'pickup_package_count',
         'receiptionist_uid',
+        'requested_uid',
         'exchange_rate',
         'requested_date',
         'breakdown_notes',
@@ -59,6 +60,10 @@ class Disbursement extends Model
         return $this->belongsTo(User::class,'payee_id','id')->where('account_type','merchant');
     }
 
+    public function requestedUser(){
+        return $this->belongsTo(User::class,'requested_uid','id');
+    }
+
     public function cashier(){
         return $this->belongsTo(User::class,'approved_uid','id');
     }
@@ -72,5 +77,9 @@ class Disbursement extends Model
 
     public function pmtPackages(){
         return $this->hasMany(DisbursementPackage::class,'disbursement_id');
+    }
+
+    public function disbursement(){
+        return $this->belongsTo(Disbursement::class,'disbursement_id');
     }
 }

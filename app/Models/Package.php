@@ -243,20 +243,18 @@ class Package extends Model
 
     public function hasDriverPayment(): bool
     {
-        return DB::table('payment_packages')
-            ->whereHas('payments',function ($q){
-                $q->where('is_deleted',false);
+        return $this->paymentPackages()
+            ->whereHas('payment', function ($q) {
+                $q->where('is_deleted', false);
             })
-            ->where('package_id', $this->id)
             ->where('payer_type', 'driver')
             ->where('is_deleted', false)
             ->exists()
             ||
-            DB::table('disbursement_packages')
-            ->whereHas('disbursement',function ($q){
-                $q->where('is_deleted',false);
+            $this->disbursementPackages()
+            ->whereHas('disbursement', function ($q) {
+                $q->where('is_deleted', false);
             })
-            ->where('package_id', $this->id)
             ->where('payee_type', 'driver')
             ->where('is_deleted', false)
             ->exists();
@@ -265,17 +263,17 @@ class Package extends Model
     // Check if merchant payment or disbursement exists for this package
     public function hasMerchantPayment(): bool
     {
-        return DB::table('payment_packages')
+        return $this->paymentPackages()
             ->where('package_id', $this->id)
-            ->whereHas('payments',function ($q){
+            ->whereHas('payment',function ($q){
                 $q->where('is_deleted',false);
             })
             ->where('payer_type', 'merchant')
             ->where('is_deleted', false)
             ->exists()
             ||
-            DB::table('disbursement_packages')
-            ->whereHas('disbursements',function ($q){
+            $this->disbursementPackages()
+            ->whereHas('disbursement',function ($q){
                 $q->where('is_deleted',false);
             })
             ->where('package_id', $this->id)
@@ -305,6 +303,17 @@ class Package extends Model
 
     public function comment(){
         return $this->hasOne(Comment::class, 'thread_id', 'id');
+    }
+
+
+    public function paymentPackages()
+    {
+        return $this->hasMany(PaymentPackage::class, 'package_id');
+    }
+
+    public function disbursementPackages()
+    {
+        return $this->hasMany(DisbursementPackage::class, 'package_id');
     }
 
 
