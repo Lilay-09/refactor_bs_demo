@@ -498,12 +498,33 @@ class UserService
                 if($id){
                     $userBank = UserBank::where('user_id',$userId)->where('id',$id)->first();
                     if(!$userBank) return DataResponse::ValidateFail(__('messages.error',['info' => 'Wrong bank identity']));
+                    $duplicate = UserBank::where('user_id', $userId)
+                        ->where('bank_name', $bank['bank_name'])
+                        ->where('currency', $bank['currency'])
+                        ->where('id', '!=', $id)
+                        ->exists();
+
+                    if ($duplicate) {
+                        return DataResponse::ValidateFail(__('messages.info', [
+                            'info' => 'This bank with the same currency already exists'
+                        ]));
+                    }
                     $userBank->update($bank);
                 }else{
                     $accountCount = UserBank::where('user_id',$userId)->count();
                     if($accountCount == 2) return DataResponse::ValidateFail(__('messages.info',[
                         'info' => 'Only two accounts are allowed'
                     ]));
+                    $duplicate = UserBank::where('user_id', $userId)
+                        ->where('bank_name', $bank['bank_name'])
+                        ->where('currency', $bank['currency'])
+                        ->exists();
+
+                    if ($duplicate) {
+                        return DataResponse::ValidateFail(__('messages.info', [
+                            'info' => 'This bank with the same currency already exists'
+                        ]));
+                    }
                     $bank['create_uid'] = $user->id;
                     UserBank::create($bank);
                 }

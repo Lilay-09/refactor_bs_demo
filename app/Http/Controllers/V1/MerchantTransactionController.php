@@ -38,6 +38,10 @@ class MerchantTransactionController extends Controller
         return ApiResponse::flex($trxService->updateDeliveryPackage($req,$this->userClass,$user));
     }
 
+    public function declinePayment(){
+
+    }
+
     public function receivePackagesPayment(Request $req){
         $user = UserService::getAuthUser();
         $trxService = new TransactionService();
@@ -52,14 +56,24 @@ class MerchantTransactionController extends Controller
         return ApiResponse::flex($receive);
     }
 
-    public function approveBulkRequestedSettlement(Request $req){
+    public function approveAdnSettleBulkRequestedSettlement(Request $req){
         $user = UserService::getAuthUser();
-        return ApiResponse::flex($this->merchantTransactionService->approveBulkRequestedSettlement($req,$user));
+        return ApiResponse::flex($this->merchantTransactionService->approveAndSettleBulkRequestedSettlement($req,$user));
     }
 
-    public function approveRequestedSettlement(Request $req){
+    public function approveAndSettleRequestedSettlement(Request $req){
         $user = UserService::getAuthUser();
-        return ApiResponse::flex($this->merchantTransactionService->approveRequestedSettlement($req,$user));
+        return ApiResponse::flex($this->merchantTransactionService->approveAndSettleRequestedSettlement($req->paymentId,$user));
+    }
+
+    public function getSettledPayments(Request $req){
+        $user = UserService::getAuthUser();
+        return ApiResponse::flex($this->merchantTransactionService->getSettledPaymentTransactions($req,$user));
+    }
+
+    public function getSettledPaymentById(Request $req){
+        $user = UserService::getAuthUser();
+        return ApiResponse::flex($this->merchantTransactionService->getSettledPaymentTransactionById($req->tranId,$user));
     }
 
     public function getPayments(Request $req){

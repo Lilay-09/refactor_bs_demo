@@ -1581,6 +1581,17 @@ class DataResponse //extends Model
         ];
     }
 
+    static function BadRequest($message='Bad Request'): object
+    {
+        return (object)[
+            'status_code' => 400,
+            'error' => true,
+            'status' => 'Bad Request',
+            'message' => $message,
+            'errors' => []
+        ];
+    }
+
     static function Error($message,$errors=[]): object
     {
         return (object)[

@@ -74,7 +74,7 @@ class DriverManagementController extends Controller
         $id = $req->id;
         $driver = User::where('is_deleted',0)->where('company_id',$user->company_id)
         ->where('account_type','driver')
-        ->with(['bank_accounts:id,user_id,bank_name,bank_number,account_name,is_primary'])
+        ->with(['bank_accounts:id,user_id,currency,bank_name,bank_number,account_name,is_primary'])
         ->selectRaw('*,driver_warehouse_id as warehouse_id')
         ->find($id);
         if(!$driver) return ApiResponse::NotFound(__('messages.not_found',['info' => 'Driver']));
