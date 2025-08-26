@@ -3021,8 +3021,8 @@ class TransactionService
             $notif->sendNotificationByTopic($notifReq,$user);
             // return $packageIds;
             // return Package::whereIn('id',$packageIds)->get();
-            // DB::commit();
-            Log::info(json_encode($createPayment));
+            DB::commit();
+            // Log::info(json_encode($createPayment));
 
             // return Package::whereIn('id',$packageIds)->get();
             return DataResponse::JsonResult(null,false,__('messages.created',[
