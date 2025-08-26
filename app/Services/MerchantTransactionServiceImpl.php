@@ -3,13 +3,20 @@
 namespace App\Services;
 
 use App\DTO\MerchantRequestedSettlementDTO;
+use App\DTO\MerchantSettledTransactionByIdDTO;
+use App\DTO\MerchantSettledTransactionDTO;
 use App\Enums\PaymentStatus;
+use App\Enums\TransactionType;
 use App\Models\Disbursement;
 use App\Models\Package;
+use App\Models\PaymentTransaction;
 use App\Models\UserBank;
 use DataResponse;
+use DB;
+use Exception;
 use Helper;
 use Illuminate\Http\Request;
+use Log;
 
 class MerchantTransactionServiceImpl implements MerchantTransactionService
 {
@@ -20,7 +27,7 @@ class MerchantTransactionServiceImpl implements MerchantTransactionService
         ->with([
             'requestedUser:id,username,phone,code',
             'merchant:id,username,phone,code',
-            'merchant.bank_accounts:id,user_id,bank_name,bank_number,account_name',
+            'merchant.bank_accounts:id,user_id,bank_name,bank_number,account_name,currency',
             'pmtPackages:id,disbursement_id,package_id',
             'pmtPackages.package:id,driver_cod_usd,driver_cod_khr,price,price_khr'
         ])
@@ -68,68 +75,96 @@ class MerchantTransactionServiceImpl implements MerchantTransactionService
         return DataResponse::PaginationV1($qPmt,$req,'',[],500,$callback,$select);
     }
 
-    public function approveAndSettleRequestedSettlement(Request $req,object $authUser):object{
-        $validator = validator($req->all(),[
-            'payment_ids' => 'required|array',
-        ]);
-
-        if($validator->fails()){
-            return DataResponse::ValidateFail($validator->errors()->first());
-        }
-        $inputs = $validator->validated();
-        $paymentIds = $inputs['payment_ids'];
-        $disbursements = Disbursement::where('is_deleted', false)
-            ->whereIn('id', $paymentIds)
+    public function approveAndSettleRequestedSettlement(int $paymentId,object $authUser):object{
+        $disbursement = Disbursement::where('is_deleted', false)
             ->with(['merchant:id,username'])
-            ->get();
+            ->find($paymentId);
 
-        $merchantIds = $disbursements->pluck('merchant.id')->filter()->unique()->values();
+        if(!$disbursement){
+            return DataResponse::NotFound();
+        }
 
-        $disbursementById = $disbursements->keyBy('id');
+        if ($disbursement->payment_status_id === PaymentStatus::APPROVE_AND_SETTLE->value) {
+            return DataResponse::BadRequest(__('messages.info', [
+                'info'   => 'This payment has already been approved and settled',
+                'khInfo' => 'ការទូទាត់នេះត្រូវបានអនុម័ត និងទូរទាត់រួចរាល់ហើយ'
+            ]));
+        }
 
-        $accountList = UserBank::where('is_deleted',false);
-        foreach($paymentIds as $idx => $pId){
-            if(empty($disbursementById[$pId])){
-                return DataResponse::ValidateFail(__('messages.info',[
-                    'info' => "Payment not found on row => {($idx + 1)}"
+        if($disbursement->payment_status_id !== PaymentStatus::REQUESTED->value){
+            return DataResponse::BadRequest(__('messages.info',[
+                'info' => 'Please ensure payment is requested, before settle',
+                'khInfo' => 'សូមប្រាកដថាបានស្នើការទូទាត់ជាមុនសិន មុនពេលធ្វើការបង់ប្រាក់'
+            ]));
+        }
+        $receivedAmtUsd = $disbursement->amount_due_usd;
+        $receivedAmtKhr = $disbursement->amount_due_khr;
+        $dueAmounts = [];
+        if($receivedAmtUsd > 0 ){
+            $dueAmounts[] = [
+                'currency' => 'USD',
+                'amount' => $receivedAmtUsd
+            ];
+        }
+        if($receivedAmtKhr > 0 ){
+            $dueAmounts[] = [
+                'currency' => 'KHR',
+                'amount' => $receivedAmtKhr
+            ];
+        }
+        $accountList = UserBank::where('is_deleted',false)
+        ->select(['id','bank_name','account_name','bank_number as account_number','currency','user_id'])
+        ->where('user_id',$disbursement->payee_id)->get();
+        $toBeSettleList = [];
+        foreach ($dueAmounts as $dueAmt) {
+            $dueAccount = $this->dueBankAccounts($accountList, $disbursement->payee_id, $dueAmt['currency']);
+            if (empty($dueAccount)) {
+                return DataResponse::NotFound(__('messages.info', [
+                    'info'   => "Merchant {$disbursement->merchant->username} has no bank account for {KHR or USD}",
+                    'khInfo' => "អ្នកលក់ {$disbursement->merchant->username} មិនមានគណនីសម្រាប់រូបិយប័ណ្ណ {KHR ឬ USD}"
                 ]));
             }
-            $disbursement = $disbursementById[$pId];
-            $receivedAmtUsd = $disbursement->amount_due_usd;
-            $receivedAmtKhr = $disbursement->amount_due_khr;
-            $dueAmounts = [];
-            if($receivedAmtUsd > 0 ){
-                $dueAmounts[] = [
-                    'currency' => 'USD',
-                    'amount' => $receivedAmtUsd
-                ];
-            }
-            if($receivedAmtKhr > 0 ){
-                $dueAmounts[] = [
-                    'currency' => 'KHR',
-                    'amount' => $receivedAmtKhr
-                ];
-            }
 
-            foreach ($dueAmounts as $dueAmt) {
-                $dueAccount = $this->dueBankAccounts($accountList, $disbursement->payee_id, $dueAmt['currency']);
+            $toBeSettleList[] = [
+                'currency' => $dueAmt['currency'],
+                'amount' => $dueAmt['amount'],
+                'payment_date' => now(),
+                'payment_id' => $paymentId,
+                'tran_via' => 'internal',
+                'transaction_type' => TransactionType::TRNASFER_OUT->value,
+                'from_account' => 'Ng Company',
+                'to_account' => $dueAccount['concat'],
+                'approved_uid' => $authUser->id,
+                'create_uid' => $authUser->id,
+                'update_uid' => $authUser->id,
+                'branch_id' => $authUser->branch_id,
+                'company_id' => $authUser->company_id
+            ];
+        }
 
-                if (is_null($dueAccount)) {
-                    return DataResponse::NotFound(__('messages.info', [
-                        'info'   => "Merchant {$disbursement->merchant->username} has no bank account for {$dueAmt['currency']}",
-                        'khInfo' => "អ្នកជួញដូរ {$disbursement->merchant->username} មិនមានគណនីសម្រាប់រូបិយប័ណ្ណ {$dueAmt['currency']}"
-                    ]));
-                }
-            }
-
-
+        try{
+            DB::beginTransaction();
+            PaymentTransaction::insert($toBeSettleList);
+            $disbursement->update([
+                'payment_status_id' => PaymentStatus::APPROVE_AND_SETTLE->value,
+                'settled_datetime' => now(),
+                'is_settled' => true,
+                'settled_uid' => $authUser->id
+            ]);
+            DB::commit();
+            return DataResponse::JsonResult(null,false,__('messages.saved'));
+        }catch(Exception $e){
+            Log::info($e->getMessage());
+            DB::rollBack();
+            return DataResponse::Error('Failed to approve');
         }
     }
 
     private function dueBankAccounts($accountList, $userId, $currency): array
     {
         // Filter accounts by user
-        $userAccounts = collect($accountList)->where('user_id', $userId);
+        $userAccounts = $accountList->where('user_id', $userId);
+        // Log::info($userAccounts);
 
         if ($userAccounts->isEmpty()) {
             return [];
@@ -142,14 +177,16 @@ class MerchantTransactionServiceImpl implements MerchantTransactionService
             return [
                 'account_number' => $matched->account_number,
                 'account_name'   => $matched->account_name,
+                'concat' => "{$matched->currency}|{$matched->account_name}|{$matched->account_number}"
             ];
         }
 
-        // Fallback: return first available account
+        // matched: return first available account
         $fallback = $userAccounts->first();
         return [
             'account_number' => $fallback->account_number,
             'account_name'   => $fallback->account_name,
+            'concat' => "{$fallback->currency}|{$fallback->account_name}|{$fallback->account_number}"
         ];
     }
 
@@ -174,10 +211,13 @@ class MerchantTransactionServiceImpl implements MerchantTransactionService
             ->get();
 
         $merchantIds = $disbursements->pluck('merchant.id')->filter()->unique()->values();
-
         $disbursementById = $disbursements->keyBy('id');
-
-        $accountList = UserBank::where('is_deleted',false);
+        $toBeSettleList = [];
+        $toUpdatePmts = [];
+        $accountList = UserBank::where('is_deleted',false)
+        ->select(['id','bank_name','account_name','bank_number as account_number','currency','user_id'])
+        ->whereIn('user_id',$merchantIds)->get();
+        // return DataResponse::JsonResult($accountList);
         foreach($paymentIds as $idx => $pId){
             if(empty($disbursementById[$pId])){
                 return DataResponse::ValidateFail(__('messages.info',[
@@ -185,6 +225,20 @@ class MerchantTransactionServiceImpl implements MerchantTransactionService
                 ]));
             }
             $disbursement = $disbursementById[$pId];
+            if ($disbursement->payment_status_id === PaymentStatus::APPROVE_AND_SETTLE->value) {
+            return DataResponse::BadRequest(__('messages.info', [
+                    'info'   => 'This payment has already been approved and settled',
+                    'khInfo' => 'ការទូទាត់នេះត្រូវបានអនុម័ត និងទូរទាត់រួចរាល់ហើយ'
+                ]));
+            }
+
+            if($disbursement->payment_status_id !== PaymentStatus::REQUESTED->value){
+                return DataResponse::BadRequest(__('messages.info',[
+                    'info' => 'Please ensure payment is requested, before settle',
+                    'khInfo' => 'សូមប្រាកដថាបានស្នើការទូទាត់ជាមុនសិន មុនពេលធ្វើការបង់ប្រាក់'
+                ]));
+            }
+            $toUpdatePmts[] = $pId;
             $receivedAmtUsd = $disbursement->amount_due_usd;
             $receivedAmtKhr = $disbursement->amount_due_khr;
             $dueAmounts = [];
@@ -204,14 +258,95 @@ class MerchantTransactionServiceImpl implements MerchantTransactionService
             foreach ($dueAmounts as $dueAmt) {
                 $dueAccount = $this->dueBankAccounts($accountList, $disbursement->payee_id, $dueAmt['currency']);
 
-                if (is_null($dueAccount)) {
+                if (empty($dueAccount)) {
                     return DataResponse::NotFound(__('messages.info', [
                         'info'   => "Merchant {$disbursement->merchant->username} has no bank account for {$dueAmt['currency']}",
-                        'khInfo' => "អ្នកជួញដូរ {$disbursement->merchant->username} មិនមានគណនីសម្រាប់រូបិយប័ណ្ណ {$dueAmt['currency']}"
+                        'khInfo' => "អ្នកលក់ {$disbursement->merchant->username} មិនមានគណនីសម្រាប់រូបិយប័ណ្ណ {$dueAmt['currency']}"
                     ]));
                 }
+                $toBeSettleList[] = [
+                    'currency' => $dueAmt['currency'],
+                    'amount' => $dueAmt['amount'],
+                    'payment_date' => now(),
+                    'tran_via' => 'internal',
+                    'payment_id' => $pId,
+                    'transaction_type' => TransactionType::TRNASFER_OUT->value,
+                    'from_account' => 'Ng Company',
+                    'to_account' => $dueAccount['concat'],
+                    'approved_uid' => $authUser->id,
+                    'create_uid' => $authUser->id,
+                    'update_uid' => $authUser->id,
+                    'branch_id' => $authUser->branch_id,
+                    'company_id' => $authUser->company_id
+                ];
             }
-
         }
+
+        try{
+            DB::beginTransaction();
+            PaymentTransaction::insert($toBeSettleList);
+            Disbursement::whereIn('id',$toUpdatePmts)->update([
+                'payment_status_id' => PaymentStatus::APPROVE_AND_SETTLE->value,
+                'settled_datetime' => now(),
+                'is_settled' => true,
+                'settled_uid' => $authUser->id
+            ]);
+            DB::commit();
+            return DataResponse::JsonResult(null,false,__('messages.saved'));
+        }catch(Exception $e){
+            Log::info($e->getMessage());
+            DB::rollBack();
+            return DataResponse::Error('Failed to approve');
+        }
+    }
+
+    public function getSettledPaymentTransactions(Request $req,$authUser):object{
+        $qTrx = PaymentTransaction::query()
+        ->with([
+            'disbursement:id,payee_id',
+            'disbursement.merchant:id,username,phone,code',
+            'performer:id,username'
+        ])
+        ->where('is_deleted',false);
+        $select = ['id','tran_via','approved_uid','payment_id','payment_date','to_account','from_account','payment_ref','amount','currency'];
+        $callback = function($q){
+            $q->merchant_name = $q->disbursement->merchant->username;
+            $q->merchant_code = $q->disbursement->merchant->code;
+            $pmtDate = $q->payment_date;
+            $q->payment_date = Helper::formatCustomDateTime($pmtDate,'d-M-Y');
+            $q->payment_time = Helper::formatCustomDateTime($pmtDate,'h:i A');
+            // return $q;
+            $q->performed_by = $q->performer->username;
+            return MerchantSettledTransactionDTO::fromModel($q);
+        };
+        return DataResponse::PaginationV1($qTrx,$req,'',[],500,$callback,$select);
+    }
+
+    public function getSettledPaymentTransactionById(int $tranId,object $authUser):object{
+        $qTrx = PaymentTransaction::where('is_deleted',false)
+        ->with([
+            'disbursement:id,payee_id',
+            'disbursement.merchant:id,username,phone,code',
+            'performer:id,username'
+        ])
+        ->select(['id','tran_via','approved_uid','payment_id','payment_date','to_account','from_account','payment_ref','amount','currency'])
+        ->find($tranId);
+        if(!$qTrx){
+            return DataResponse::NotFound();
+        }
+        $qTrx->load([
+            'disbursement:id,payee_id,amount_due_khr,amount_due_usd,package_count,received_amount_usd,received_amount_khr'
+        ]);
+
+        $qTrx->merchant_name = $qTrx->disbursement->merchant->username;
+        $qTrx->merchant_code = $qTrx->disbursement->merchant->code;
+        $pmtDate = $qTrx->payment_date;
+        $qTrx->payment_date = Helper::formatCustomDateTime($pmtDate,'d-M-Y');
+        $qTrx->payment_time = Helper::formatCustomDateTime($pmtDate,'h:i A');
+        // return $qTrx;
+        $qTrx->performed_by = $qTrx->performer->username;
+        unset($qTrx->disbursement->merchant);
+
+        return DataResponse::JsonResult(MerchantSettledTransactionByIdDTO::fromModel($qTrx));
     }
 }

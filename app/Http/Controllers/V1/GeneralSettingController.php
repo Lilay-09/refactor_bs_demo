@@ -543,10 +543,11 @@ class GeneralSettingController extends Controller
             'genders' => $this->gs::optionsGender(),
             'price_list' => $this->gs::optionsPriceList($user),
             'referrers' => $this->gs::optionsMerchant($user),
-            'banks' => $this->gs::optionsBank($user),
+            'banks' => $this->gs::optionsPaymentBank(),
             'cities' => $this->gs::optionsCity($user),
             'product_types' => $this->gs::optionsProductType($user),
-            'branches' => $this->gs::optionsBranch()
+            'branches' => $this->gs::optionsBranch(),
+            'currencies' => $this->gs::optionsCurrency()
         ];
         return ApiResponse::JsonResult($obj);
     }
@@ -571,9 +572,10 @@ class GeneralSettingController extends Controller
             'genders' => $this->gs::optionsGender(),
             'vehicle_types' => $this->gs::optionsVehicleType($user),
             'warehouses' => $this->gs::optionsWarehouse($user),
-            'banks' => $this->gs::optionsBank($user),
+            'banks' => $this->gs::optionsPaymentBank(),
             'apply_commissions' => $this->gs::optionsApplyCommission(),
-            'branches' => $this->gs::optionsBranch()
+            'branches' => $this->gs::optionsBranch(),
+            'currencies' => $this->gs::optionsCurrency()
         ];
         return ApiResponse::JsonResult($obj);
     }

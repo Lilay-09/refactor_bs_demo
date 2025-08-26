@@ -3,6 +3,7 @@
 namespace App\Services;
 use App\Enums\BranchType;
 use App\Enums\Currency;
+use App\Enums\PaymentMethod;
 use App\Enums\TransferStatus;
 use App\Enums\WarehouseStatus;
 use App\Enums\WarehouseType;
@@ -461,6 +462,10 @@ class GeneralSettingService
             $b->image = Helper::getImageUrl($b->photo_file_name,1,'payment_method');
             return $b;
         });
+    }
+
+    public static function optionsPaymentBank(){
+        return PaymentMethod::optionsBank();
     }
 
     public static function optionsApplyCommission(){
