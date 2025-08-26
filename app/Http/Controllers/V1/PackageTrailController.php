@@ -57,16 +57,26 @@ class PackageTrailController extends Controller
         ->where(function($q){
             $q->whereNotIn('status_id',[9,11,12])->whereNull('returned_uid');
         })
-        // ->selectRaw('merchant_id,order_id,id,taxi_fee,delivery_type,qr_code,price,driver_id,product_type,dim_z,dim_x,dim_y,status_id,failed_datetime,failure_notes,payer,cod,delivery_fee,receiver_address,zone_code,zone_name,receiver_name,receiver_phone,delivered_datetime,assign_driver_datetime,arrive_warehouse_datetime,driver_total,merchant_total,billed_kg,actual_kg,created_at')
-        ->orderBy('arrive_warehouse_datetime','desc')
-        ->orderByRaw('(status_id = ?) DESC', [5])
+        ->orderByDesc('arrive_warehouse_datetime') // primary
+        ->orderByRaw('(status_id = ?) DESC', [5]) // secondary
         ->orderByRaw("
             CASE
                 WHEN status_id = 9 THEN delivered_datetime
                 WHEN status_id IN (10, 19) THEN failed_datetime
                 ELSE NULL
             END DESC
-        ");
+        "); // tertiary
+
+        // ->selectRaw('merchant_id,order_id,id,taxi_fee,delivery_type,qr_code,price,driver_id,product_type,dim_z,dim_x,dim_y,status_id,failed_datetime,failure_notes,payer,cod,delivery_fee,receiver_address,zone_code,zone_name,receiver_name,receiver_phone,delivered_datetime,assign_driver_datetime,arrive_warehouse_datetime,driver_total,merchant_total,billed_kg,actual_kg,created_at')
+        // ->orderBy('arrive_warehouse_datetime','desc')
+        // ->orderByRaw('(status_id = ?) DESC', [5])
+        // ->orderByRaw("
+        //     CASE
+        //         WHEN status_id = 9 THEN delivered_datetime
+        //         WHEN status_id IN (10, 19) THEN failed_datetime
+        //         ELSE NULL
+        //     END DESC
+        // ");
         $select = ['merchant_id','order_id','id','taxi_fee','delivery_type','qr_code','price','price_khr','driver_id','product_type','dim_z','dim_x','dim_y','status_id','failed_datetime','failure_notes','payer','cod','delivery_fee','receiver_address','zone_code','zone_name','receiver_name','receiver_phone','delivered_datetime','assign_driver_datetime','arrive_warehouse_datetime','driver_total','merchant_total','billed_kg','actual_kg','created_at','warehouse_id'];
         if($warehouse_id){
             $query->where('warehouse_id',$warehouse_id);
