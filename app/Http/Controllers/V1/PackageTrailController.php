@@ -57,7 +57,7 @@ class PackageTrailController extends Controller
         ->where(function($q){
             $q->whereNotIn('status_id',[9,11,12])->whereNull('returned_uid');
         })
-        ->orderByDesc('arrive_warehouse_datetime') // primary
+        ->orderBy('arrive_warehouse_datetime') // primary
         ->orderByRaw('(status_id = ?) DESC', [5]) // secondary
         ->orderByRaw("
             CASE
@@ -133,7 +133,7 @@ class PackageTrailController extends Controller
             unset($pkg->status,$pkg->merchant,$pkg->driver);
             return $pkg;
         };
-        return ApiResponse::PaginationV1($query,$req,__('messages.get_list',['info'=>'Package']),[],1000,$callbackMapper,$select,1800,$this->cacheTags);
+        return ApiResponse::PaginationV1($query,$req,__('messages.get_list',['info'=>'Package']),[],1000,$callbackMapper,$select,1800,false,$this->cacheTags);
     }
 
     public function getOnePackage(Request $req){
