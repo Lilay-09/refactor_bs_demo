@@ -23,6 +23,7 @@ class Payment extends Model
         'received_amount_khr',
         'amount_due_usd',
         'amount_due_khr',
+        'requested_uid',
         'approved',
         'payable_amount',
         'delivery_fee',

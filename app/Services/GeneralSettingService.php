@@ -4,6 +4,7 @@ namespace App\Services;
 use App\Enums\BranchType;
 use App\Enums\Currency;
 use App\Enums\PaymentMethod;
+use App\Enums\TransactionType;
 use App\Enums\TransferStatus;
 use App\Enums\WarehouseStatus;
 use App\Enums\WarehouseType;
@@ -482,16 +483,7 @@ class GeneralSettingService
     }
 
     public static function optionsTransactionType(){
-        return [
-            [
-                'name' => 'Transfer Out',
-                'value' => 'disbursement',
-            ],
-            [
-                'name' => 'Transfer In',
-                'value' => 'receive'
-            ]
-        ];
+        return TransactionType::options();
     }
 
     public static function optionsMerchant($user){

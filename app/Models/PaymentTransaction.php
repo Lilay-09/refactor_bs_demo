@@ -37,6 +37,9 @@ class PaymentTransaction extends Model
     public function disbursement(){
         return $this->belongsTo(Disbursement::class,'payment_id');
     }
+    public function payment(){
+        return $this->belongsTo(Payment::class,'payment_id');
+    }
 
     public function performer(){
         return $this->belongsTo(User::class,'approved_uid');

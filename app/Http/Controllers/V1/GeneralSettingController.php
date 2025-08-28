@@ -559,6 +559,13 @@ class GeneralSettingController extends Controller
         ]);
     }
 
+    public function getRequestedPaymentMerchantFilter(){
+        return ApiResponse::JsonResult([
+            'payment_types' => $this->gs::optionsTransactionType(),
+            'currencies' => $this->gs::optionsCurrency()
+        ]);
+    }
+
     public function getOptionsPriceList(){
         $user = UserService::getAuthUser();
         return ApiResponse::JsonResult($this->gs::optionsPriceList($user));

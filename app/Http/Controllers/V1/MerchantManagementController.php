@@ -153,7 +153,7 @@ class MerchantManagementController extends Controller
         $startDate = $req->startDate ? Helper::dateDMY($req->startDate) : null;
         $endDate = $req->endDate ? Helper::dateDMY($req->endDate) : null;
         if(!$startDate || !$endDate) return ApiResponse::ValidateFail('Please select a date range to view this report');
-        $query = User::join('packages', 'users.id', '=', 'packages.merchant_id')
+        $query = User::from('users')->join('packages', 'users.id', '=', 'packages.merchant_id')
         ->where('packages.is_deleted',0)
         ->where('packages.outstanding',0)
         ->where('users.company_id', $user->company_id)
@@ -200,7 +200,7 @@ class MerchantManagementController extends Controller
             });
         }
 
-        $select = ['id', 'user_name as username', 'name_km', 'phone'];
+        $select = ['users.id', 'users.username', 'users.name_km', 'users.phone',"users.*"];
         $callback = function ($q){
             return $q;
         };

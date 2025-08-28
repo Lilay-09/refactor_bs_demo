@@ -35,14 +35,14 @@ class TransactionController extends Controller
         $qPmt = Payment::where('payments.is_deleted', 0)
             ->where('payments.payer_id', $user->id)
             ->join('users as c', 'c.id', 'payments.receiver_uid')
-            ->selectRaw('payments.remarks,payments.package_count,payments.id, payments.payable_amount, payments.breakdown_notes, c.username as cashier_name, payments.payment_datetime')
+            ->selectRaw('payments.remarks,payments.package_count,payments.id, payments.payable_amount,payments.received_amount_khr as amount_khr,payments.received_amount_usd as amount_usd, payments.breakdown_notes, c.username as cashier_name, payments.payment_datetime')
             ->orderByDesc('payment_datetime');
 
         $qDis = Disbursement::where('type', 'payment')
             ->where('disbursements.is_deleted', 0)
             ->where('disbursements.payee_id', $user->id)
             ->join('users as c', 'c.id', 'disbursements.receiptionist_uid')
-            ->selectRaw('disbursements.remarks,disbursements.package_count, disbursements.id, disbursements.payable_amount, disbursements.breakdown_notes, c.username as cashier_name, disbursements.payment_datetime')
+            ->selectRaw('disbursements.remarks,disbursements.package_count,disbursements.received_amount_khr as amount_khr,disbursements.received_amount_usd as amount_usd,disbursements.id, disbursements.payable_amount, disbursements.breakdown_notes, c.username as cashier_name, disbursements.payment_datetime')
             ->orderByDesc('payment_datetime');
 
         if ($startDate && $endDate) {
@@ -103,6 +103,8 @@ class TransactionController extends Controller
                         $dis = TransactionService::getTrxDetails($disbursements, $disbursementId, $disbursementDetails);
                         if ($dis) {
                             // $dis->remarks = 'Receive';
+                            $dis->amount_khr = "KHR|{$dis->amount_khr}";
+                            $dis->amount_usd = "USD|{$dis->amount_usd}";
                             $paidTrx[] = $dis;
                             $sameDisId[$disbursementId] = true;
                         }
@@ -117,6 +119,8 @@ class TransactionController extends Controller
                         $pmt = TransactionService::getTrxDetails($payments, $paymentId, $paymentDetails);
                         if ($pmt) {
                             // $pmt->remarks = 'Disbursement'; // This might be better named "Payment"
+                            $pmt->amount_khr = "KHR|{$pmt->amount_khr}";
+                            $pmt->amount_usd = "USD|{$pmt->amount_usd}";
                             $paidTrx[] = $pmt;
                             $samePmtId[$paymentId] = true;
                         }
