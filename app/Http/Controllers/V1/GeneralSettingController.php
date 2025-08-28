@@ -4,6 +4,7 @@ namespace App\Http\Controllers\V1;
 
 use ApiResponse;
 use App\Enums\ImageDirectory;
+use App\Enums\PaymentStatus;
 use App\Http\Controllers\Controller;
 use App\Models\DeliveryPackage;
 use App\Models\Order;
@@ -562,7 +563,8 @@ class GeneralSettingController extends Controller
     public function getRequestedPaymentMerchantFilter(){
         return ApiResponse::JsonResult([
             'payment_types' => $this->gs::optionsTransactionType(),
-            'currencies' => $this->gs::optionsCurrency()
+            'currencies' => $this->gs::optionsCurrency(),
+            'statuses' => PaymentStatus::optionsRequestedSettle()
         ]);
     }
 
