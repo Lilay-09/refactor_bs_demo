@@ -24,7 +24,10 @@ class MerchantTransactionServiceImpl implements MerchantTransactionService
     // Your service methods go here
     public function getRequestedSettlement(Request $req,object $authUSer):object{
         $qPmt = Disbursement::query()
-        ->where('payment_status_id',PaymentStatus::REQUESTED->value)
+        ->whereIn('payment_status_id',[
+            PaymentStatus::REQUESTED->value,
+            PaymentStatus::APPROVE_AND_SETTLE->value
+        ])
         ->with([
             'requestedUser:id,username,phone,code',
             'merchant:id,username,phone,code',
@@ -210,25 +213,31 @@ class MerchantTransactionServiceImpl implements MerchantTransactionService
             'payment_ids.*.id' => 'int',
             'payment_ids.*.transaction_type' => 'string'
         ]);
+        // Log::info(json_encode($req->all()));
 
         if($validator->fails()){
             return DataResponse::ValidateFail($validator->errors()->first());
         }
         $inputs = $validator->validated();
-        $paymentIds = $inputs['payment_ids'];
+        $inputsPayment = $inputs['payment_ids'];
+        $paymentIds = array_column($inputsPayment,'id');
+        // Log::info($paymentIds);
         $disbursements = Disbursement::where('is_deleted', false)
             ->whereIn('id', $paymentIds)
             ->with(['merchant:id,username'])
             ->get();
 
-        $merchantIds[] = $disbursements->pluck('merchant.id')->filter()->unique()->values();
+        $merchantIds = $disbursements->pluck('merchant.id')->filter()->unique()->values()->toArray();
         $disbursementById = $disbursements->keyBy('id');
         $payments = Payment::where('is_deleted', false)
             ->whereIn('id', $paymentIds)
             ->with(['merchant:id,username'])
             ->get();
 
-        $merchantIds[] = $payments->pluck('merchant.id')->filter()->unique()->values();
+        $merchantIds = array_unique(array_merge(
+            $merchantIds,
+            $payments->pluck('merchant.id')->filter()->values()->toArray()
+        ));
         $paymentById = $payments->keyBy('id');
         $toBeSettleList = [];
         $toUpdatePayout = [];
@@ -237,7 +246,7 @@ class MerchantTransactionServiceImpl implements MerchantTransactionService
         ->select(['id','bank_name','account_name','bank_number as account_number','currency','user_id'])
         ->whereIn('user_id',$merchantIds)->get();
         // return DataResponse::JsonResult($accountList);
-        foreach($paymentIds as $idx => $p){
+        foreach($inputsPayment as $idx => $p){
             $pId = $p['id'];
             $tranType = $p['transaction_type'];
             if($tranType === TransactionType::TRNASFER_OUT->value){

@@ -288,15 +288,15 @@ class PackageTrailController extends Controller
             'info' => 'Only failed package or at warehouse can be returned'
         ]));
         $statusId = TrackingStatus::RETURNING->value;
-        if($package->status_id == TrackingStatus::FAILED_WITH_FEE->value){
-            //** not change status but use returned_uid for tracking */
-            $statusId = TrackingStatus::FAILED_WITH_FEE->value;
-        }
+        // if($package->status_id == TrackingStatus::FAILED_WITH_FEE->value){
+        //     //** not change status but use returned_uid for tracking */
+        //     $statusId = TrackingStatus::FAILED_WITH_FEE->value;
+        // }
         $package->update([
             'returned_uid' => $driverId,
             'status_id' => $statusId, // returning
             'assigned_return_at' => now(),
-            'current_status_id' => TrackingStatus::RETURNING->value,
+            'prev_status_id' => $package->status_id,
             'update_uid' => $user->id,
         ]);
         Helper::clearCacheByTags($this->cacheTags);

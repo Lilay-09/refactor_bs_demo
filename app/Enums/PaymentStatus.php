@@ -29,4 +29,17 @@ enum PaymentStatus:int
 
         };
     }
+
+    public static function optionsRequestedSettle():array{
+        return array_map(
+            fn($case) => [
+                'value' => $case->value,
+                'label' => $case->label(),
+            ],
+            [
+                self::REQUESTED,
+                self::APPROVE_AND_SETTLE
+            ]
+        );
+    }
 }
