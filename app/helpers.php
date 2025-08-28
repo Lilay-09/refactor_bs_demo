@@ -1688,7 +1688,7 @@ class DataResponse //extends Model
                     ? Cache::tags($cacheTags)->get($cacheKey)
                     : Cache::get($cacheKey);
                 if ($cached) {
-                    Log::info("Pagination cache hit for key: { $cacheKey }");
+                    // Log::info("Pagination cache hit for key: { $cacheKey }");
                     return $cached;
                 }
             } catch (\Throwable $e) {

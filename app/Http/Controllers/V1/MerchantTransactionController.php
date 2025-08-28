@@ -38,8 +38,9 @@ class MerchantTransactionController extends Controller
         return ApiResponse::flex($trxService->updateDeliveryPackage($req,$this->userClass,$user));
     }
 
-    public function declinePayment(){
-
+    public function declineRequestedPayment(Request $req){
+        $user = UserService::getAuthUser();
+        return ApiResponse::flex($this->merchantTransactionService->declineRequetedSettlement($req->paymentId,$req,$user));
     }
 
     public function receivePackagesPayment(Request $req){
@@ -63,7 +64,7 @@ class MerchantTransactionController extends Controller
 
     public function approveAndSettleRequestedSettlement(Request $req){
         $user = UserService::getAuthUser();
-        return ApiResponse::flex($this->merchantTransactionService->approveAndSettleRequestedSettlement($req->paymentId,$user));
+        return ApiResponse::flex($this->merchantTransactionService->approveAndSettleRequestedSettlement($req->paymentId,$req->input('transaction_type'),$user));
     }
 
     public function getSettledPayments(Request $req){

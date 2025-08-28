@@ -382,6 +382,7 @@ class ReusableService
                 OR (p.status_id = 11 AND p.returned_datetime >= ?)
             )
         ", [$cutoff, $cutoff,$cutoff])
+
         // OR (p.status_id NOT IN (9,10,19))
         // ->where('p.arrive_warehouse_datetime', '>=', Carbon::now()->subDays(15))
         // ->whereExists(function ($q) use ($driverId) {
@@ -423,6 +424,9 @@ class ReusableService
         // $totalFailedWithFee = (clone $qP)->where('p.status_id', 19)->count();
         if ($statusId) {
             $qP->where('p.status_id', $statusId);
+        }
+        if($search){
+            $qP->where('p.receiver_phone','ILIKE', "%{$search}%");
         }
         $select = [
             'p.driver_display_order','p.payer','p.receiver_address','p.extra_charge','p.id','p.delivered_datetime','p.failed_datetime',

@@ -631,6 +631,7 @@ Route::middleware(['jwt','localize','userAccess:admin','rateLimit'])->prefix('ad
             Route::get('fleet',[GeneralSettingController::class,'getOptionsFilterFleet']);
             Route::get('user',[GeneralSettingController::class,'getOptionsFilterUser']);
             Route::get('merchant/transaction',[GeneralSettingController::class,'getFormMerchantTransaction']);
+            Route::get('merchant/requested-payment',[GeneralSettingController::class,'getRequestedPaymentMerchantFilter']);
         });
         Route::prefix('form')->group(function(){
             Route::get('order/{orderId}/link/image',[GeneralSettingController::class,'getFormLinkImage']);
