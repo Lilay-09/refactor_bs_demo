@@ -149,19 +149,41 @@ class MerchantManagementController extends Controller
     }
 
     public function getMerchantListByDate(Request $req){
-        $user = UserService::getAuthUser();
         $startDate = $req->startDate ? Helper::dateDMY($req->startDate) : null;
         $endDate = $req->endDate ? Helper::dateDMY($req->endDate) : null;
         if(!$startDate || !$endDate) return ApiResponse::ValidateFail('Please select a date range to view this report');
-        $query = User::from('users')->join('packages', 'users.id', '=', 'packages.merchant_id')
-        ->where('packages.is_deleted',0)
-        ->where('packages.outstanding',0)
+        $user = UserService::getAuthUser();
+        $select = [
+            'users.id',
+            'users.id as merchant_id',
+            'users.username',
+            'users.name_km',
+            'users.phone',
+            'users.code',
+            DB::raw('COUNT(packages.id) as package_count'),
+            DB::raw("SUM(CASE WHEN packages.payer = 'sender' THEN packages.delivery_fee + packages.other_fee ELSE 0 END) as fees"),
+            DB::raw('SUM(packages.taxi_fee) as taxi_fee'),
+            DB::raw('SUM(packages.price) as price_usd'),
+            DB::raw('SUM(packages.price_khr) as price_khr'),
+            DB::raw('SUM(packages.driver_cod_usd) as collected_usd'),
+            DB::raw('SUM(packages.driver_cod_khr) as collected_khr'),
+        ];
+
+        $query = User::query()
+        ->join('packages', 'users.id', '=', 'packages.merchant_id')
+        ->where('packages.is_deleted', 0)
+        ->where('packages.outstanding', 0)
         ->where('users.company_id', $user->company_id)
         ->where('users.account_type', 'merchant')
-        ->where('users.is_deleted',0)
-        // ->selectRaw('DISTINCT users.id, users.username, users.name_km, users.phone')
-        ->distinct()
+        ->where('users.is_deleted', 0)
+        ->select($select)
+        ->with(['bank_accounts' => function ($q) {
+            $q->select('id', 'user_id', 'bank_number as account_number', 'bank_name','account_name','currency');
+        }])
+        ->groupBy('users.id', 'users.username', 'users.name_km', 'users.phone','users.code')
         ->orderByDesc('users.id');
+
+
         if($startDate && $endDate){
             $startDatetime = Helper::dateYMD($startDate).' 00:00:00';
             $endDatetime = Helper::dateYMD($endDate).' 23:59:59';
@@ -200,13 +222,72 @@ class MerchantManagementController extends Controller
             });
         }
 
-        $select = ['users.id', 'users.username', 'users.name_km', 'users.phone',"users.*"];
         $callback = function ($q){
             return $q;
         };
 
         return ApiResponse::PaginationV1($query,$req, 'Get Merchant List By Date',[],1000,$callback,$select);
     }
+
+    //
+    //     $user = UserService::getAuthUser();
+        // $startDate = $req->startDate ? Helper::dateDMY($req->startDate) : null;
+        // $endDate = $req->endDate ? Helper::dateDMY($req->endDate) : null;
+        // if(!$startDate || !$endDate) return ApiResponse::ValidateFail('Please select a date range to view this report');
+    //     $query = User::from('users')->join('packages', 'users.id', '=', 'packages.merchant_id')
+    //     ->where('packages.is_deleted',0)
+    //     ->where('packages.outstanding',0)
+    //     ->where('users.company_id', $user->company_id)
+    //     ->where('users.account_type', 'merchant')
+    //     ->where('users.is_deleted',0)
+    //     // ->selectRaw('DISTINCT users.id, users.username, users.name_km, users.phone')
+    //     ->distinct()
+    //     ->orderByDesc('users.id');
+    //     if($startDate && $endDate){
+    //         $startDatetime = Helper::dateYMD($startDate).' 00:00:00';
+    //         $endDatetime = Helper::dateYMD($endDate).' 23:59:59';
+    //         $query->where(function ($q) use ($startDatetime, $endDatetime) {
+    //             $q->where(function ($q) use ($startDatetime, $endDatetime) {
+    //                 $q->where(function ($q) use ($startDatetime, $endDatetime) {
+    //                     $q->where('status_id', 5)
+    //                       ->whereBetween('arrive_warehouse_datetime', [$startDatetime, $endDatetime]);
+    //                 })->orWhere(function ($q) use ($startDatetime, $endDatetime) {
+    //                     $q->where('status_id', 6)
+    //                       ->whereBetween('assign_driver_datetime', [$startDatetime, $endDatetime]);
+    //                 })->orWhere(function ($q) use ($startDatetime, $endDatetime) {
+    //                     $q->where('status_id', 10)
+    //                       ->whereBetween('failed_datetime', [$startDatetime, $endDatetime]);
+    //                 })->orWhere(function ($q) use ($startDatetime, $endDatetime) {
+    //                     $q->where('status_id', 19)
+    //                       ->whereBetween('failed_datetime', [$startDatetime, $endDatetime]);
+    //                 })->orWhere(function ($q) use ($startDatetime, $endDatetime) {
+    //                     $q->where('status_id', 9)
+    //                       ->whereBetween('delivered_datetime', [$startDatetime, $endDatetime]);
+    //                 })->orWhere(function ($q) use ($startDatetime, $endDatetime) {
+    //                     $q->where('status_id', 11)
+    //                       ->whereBetween('returned_datetime', [$startDatetime, $endDatetime]);
+    //                 });
+    //             });
+
+    //             // $q->whereRaw(
+    //             //     '(packages.status_id = 5 AND packages.arrive_warehouse_datetime BETWEEN ? AND ?)
+    //             //     OR (packages.status_id = 6 AND packages.assign_driver_datetime BETWEEN ? AND ?)
+    //             //     OR (packages.status_id = 10 AND packages.failed_datetime BETWEEN ? AND ?)
+    //             //     OR (packages.status_id = 19 AND packages.failed_datetime BETWEEN ? AND ?)
+    //             //     OR (packages.status_id = 9 AND packages.delivered_datetime BETWEEN ? AND ?)
+    //             //     OR (packages.status_id = 11 AND packages.returned_datetime BETWEEN ? AND ?)',
+    //             //     [$startDatetime, $endDatetime, $startDatetime, $endDatetime, $startDatetime, $endDatetime, $startDatetime, $endDatetime, $startDatetime, $endDatetime, $startDatetime, $endDatetime]
+    //             // );
+    //         });
+    //     }
+
+    //     $select = ['users.id', 'users.username', 'users.name_km', 'users.phone',"users.*"];
+    //     $callback = function ($q){
+    //         return $q;
+    //     };
+
+    //     return ApiResponse::PaginationV1($query,$req, 'Get Merchant List By Date',[],1000,$callback,$select);
+    // }
 
     public function updateMerchant(Request $req){
         $user = UserService::getAuthUser();

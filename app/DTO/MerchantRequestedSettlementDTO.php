@@ -19,6 +19,7 @@ class MerchantRequestedSettlementDTO {
         public readonly string $cod_to_be_paid_usd,
         public readonly string $cod_to_be_paid_khr,
         public readonly string $status,
+        public readonly string $transaction_type,
         public readonly ?string $requested_username = null,
         public readonly ?array $bank_accounts = [],
     ) {}
@@ -31,7 +32,7 @@ class MerchantRequestedSettlementDTO {
             requested_time: $dis->requested_time ?? '',
             merchant_name: $dis->merchant_name ?? '',
             merchant_code: $dis->merchant_code ?? '',
-            package_count: (string) ($dis->package_count),
+            package_count: (string) $dis->package_count,
             driver_cod_usd: (string) $dis->driver_cod_usd,
             driver_cod_khr: (string) $dis->driver_cod_khr,
             cod_usd: (string) $dis->cod_usd,
@@ -42,6 +43,7 @@ class MerchantRequestedSettlementDTO {
             cod_to_be_paid_khr: $dis->cod_to_be_paid_khr,
             requested_username: $dis->requested_username,
             status: $dis->status,
+            transaction_type: $dis->transaction_type,
             bank_accounts: is_array($dis->bank_accounts)
                 ? $dis->bank_accounts
                 : (!empty($dis->bank_accounts) ? json_decode($dis->bank_accounts, true) : []),

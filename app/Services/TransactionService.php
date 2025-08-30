@@ -3032,7 +3032,7 @@ class TransactionService
         if(!$package) return DataResponse::NotFound(__('messages.not_found',[
             'info' => 'Package'
         ]));
-        $hasPayment = $package->hasAnyPayment();
+        $hasPayment = $package->hasMerchantPayment();
         // Log::info($hasPayment);
         if($hasPayment){
             $updateArr = [

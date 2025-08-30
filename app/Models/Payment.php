@@ -66,4 +66,8 @@ class Payment extends Model
         return $this->belongsTo(User::class,$fkId,'id');
     }
 
+    public function pmtPackages(){
+        return $this->hasMany(PaymentPackage::class,'payment_id');
+    }
+
 }

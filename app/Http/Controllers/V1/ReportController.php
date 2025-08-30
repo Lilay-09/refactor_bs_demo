@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\V1;
 
 use ApiResponse;
+use App\Enums\TrackingStatus;
+use App\Enums\TransactionType;
 use App\Http\Controllers\Controller;
 use App\Models\Disbursement;
 use App\Models\DisbursementDetails;
@@ -1373,7 +1375,7 @@ class ReportController extends Controller
 
         // }
         // return $packages;
-        $headerSummary = $this->getMerchantSummaryHeader($clonePkg,$merchantId,$startDate,$endDate);
+        $headerSummary = $this->getMerchantSummaryHeader($clonePkg,$merchantId,$startDate,$endDate,$branchId,$warehouseId);
         $summary = $headerSummary->package_info;
         $groupedPackages = collect($packages)->map(function ($item) use (&$grand)  {
             $item->arrive_warehouse_datetime = Helper::formatCustomDateTime($item->arrive_warehouse_datetime);
@@ -1458,6 +1460,159 @@ class ReportController extends Controller
             'list' => $groupedPackages
         ];
         return ApiResponse::JsonResult($obj);
+    }
+
+    public function getMerchantSummaryReportV2(Request $req){
+        $user = UserService::getAuthUser();
+        // $lang = $req->lang;
+        $startDate = $req->startDate ? Helper::dateDMY($req->startDate) : null;
+        $endDate = $req->endDate ? Helper::dateDMY($req->endDate) : null;
+        $merchantId = $req->merchant_id;
+        $statusIds = $req->statusIds;
+        $branchId = $req->branch_id;
+        $warehouseId = $req->warehouse_id;
+        $merchantInfo = User::where('account_type','merchant')
+        ->select(['id','phone','username','code','address'])
+        ->where('is_deleted',false)
+        ->find($merchantId);
+        if(!$merchantInfo){
+            return ApiResponse::NotFound(__('messages.not_found',[
+                'info' => 'Merchant',
+                'khInfo' => 'Merchant'
+            ]));
+        }
+        $qP = Package::where('merchant_id',$merchantId);
+        if($startDate && $endDate){
+            $startDatetime = Helper::dateYMD($startDate).' 00:00:00';
+            $endDatetime = Helper::dateYMD($endDate).' 23:59:59';
+            $qP->where(function ($q) use ($startDatetime,$endDatetime){
+                $q->whereRaw(
+                    "(status_id = 5 AND arrive_warehouse_datetime BETWEEN ? AND ?)
+                    OR (status_id = 6 AND assign_driver_datetime BETWEEN ? AND ?)
+                    OR (status_id = 10 AND failed_datetime BETWEEN ? AND ?)
+                    OR (status_id = 19 AND failed_datetime BETWEEN ? AND ?)
+                    OR (status_id = 9 AND delivered_datetime BETWEEN ? AND ?)
+                    OR (status_id = 11 AND returned_datetime BETWEEN ? AND ?)",
+                    [$startDatetime, $endDatetime, $startDatetime, $endDatetime, $startDatetime, $endDatetime, $startDatetime, $endDatetime, $startDatetime, $endDatetime, $startDatetime, $endDatetime]
+                );
+            });
+        }
+
+        [$orderByCase,$bindings] = $this->getMerchantSummaryReportV2packageOrder();
+        $packages = $qP->select([
+            'id',
+            'qr_code',
+            'price as price_usd',
+            'price_khr',
+            'zone_name',
+            'zone_code',
+            'remarks',
+            'arrive_warehouse_datetime as arrived_at',
+            'driver_cod_usd',
+            'driver_cod_khr',
+            'delivery_fee',
+            'other_fee',
+            'taxi_fee',
+            'status_id',
+            'payer',
+            'receiver_address',
+            'receiver_phone',
+            'delivery_remarks',
+            DB::raw("
+                CASE
+                    WHEN status_id = 9  THEN delivered_datetime
+                    WHEN status_id = 5  THEN arrive_warehouse_datetime
+                    WHEN status_id = 6  THEN assign_driver_datetime
+                    WHEN status_id = 11 THEN assigned_return_at
+                    WHEN status_id = 23 THEN returned_datetime
+                    WHEN status_id IN (10,19) THEN failed_datetime
+                END as action_date
+            ")
+        ])
+        ->orderByRaw($orderByCase, $bindings)
+        ->get()->each(function($q){
+            $q->status = TrackingStatus::tryFrom($q->status_id)->label();
+        });
+        $totalCount = 0;
+        // $totalCod = [
+        //     'usd' => 0,
+        //     'khr' => 0
+        // ];
+        // $service_fees = [
+        //     'delivery_fee' => 0,
+        //     'taxi_fee' => 0,
+        //     'other_fee' => 0
+        // ];
+        $groupedPackages = $packages->groupBy('status')->map(function ($items, $group) use (&$totalCount) {
+            $totalCount += $items->count();
+            $driverCodUsd = $items->sum('driver_cod_usd');
+            $driverCodKhr = $items->sum('driver_cod_khr');
+            $toSettleUsd = $driverCodUsd;
+            $toSettleKhr = $driverCodKhr;
+            $taxiFee = $items->where('payer','sender')->sum('taxi_fee');
+            $deliveryFee = $items->where('payer','sender')->sum('delivery_fee');
+            $otherFee = $items->where('payer','sender')->sum('other_fee');
+            $deductFees = $taxiFee + $deliveryFee + $otherFee;
+            Helper::deductAmountBase($toSettleUsd,$toSettleKhr,$deductFees);
+            return [
+                'group' => $group,
+                'status_id' => $items->first()->status_id,
+                'count' => $items->count(),
+                'service_fees' => [
+                    'taxi_fee' => $taxiFee,
+                    'delivery_fee' => $deliveryFee,
+                    'other_fee' => $otherFee
+                ],
+                'totalCharge' => $deductFees,
+                'totalCod' => [
+                    'usd' => Helper::getNumber($items->sum('price_usd'),2,true),
+                    'khr' => Helper::getNumber($items->sum('price_khr'),2,true)
+                ],
+                'totalReceived' => [
+                    'usd' => Helper::getNumber($driverCodUsd,2,true),
+                    'khr' => Helper::getNumber($driverCodKhr,2,true)
+                ],
+                'to_return' => [
+                    'usd' => Helper::getNumber($toSettleUsd,2,true),
+                    'khr' => Helper::getNumber($toSettleKhr,2,true)
+                ],
+                'items' => $items->values(),      // reset keys
+            ];
+        })->values();
+
+
+
+
+        $obj =(object)[
+            'title' => 'Merchant Summary',
+            // 'status' => 'All Driver',
+            'date' => $startDate.' to '.$endDate,
+            'merchant' => $merchantInfo,
+            'company_profile' => CompanyProfileService::profileInfo($user),
+            'total_packages' => $totalCount,
+            // 'grand' => [
+            //     'total_cod' => $totalCod,
+            //     'total_received' => $total,
+            //     'service_fees' => $service_fees
+            // ],
+            'list' => $groupedPackages
+        ];
+        return ApiResponse::JsonResult($obj);
+    }
+
+    private function getMerchantSummaryReportV2packageOrder():array{
+        $statusOrder = [9, 10, 5, 6, 11, 23, 19]; // your custom priority
+        $orderByCase = "CASE ";
+        $bindings = [];
+
+        foreach ($statusOrder as $index => $statusId) {
+            $orderByCase .= "WHEN status_id = ? THEN ? ";
+            $bindings[] = $statusId; // status_id
+            $bindings[] = $index;    // sort index
+        }
+        $orderByCase .= "ELSE ? END"; // fallback
+        $bindings[] = 999; // fallback index
+        return [$orderByCase,$bindings];
     }
 
     private function getMerchantSummaryHeader($clonePkg,$merchantId,$startDate,$endDate,$branchId,$warehouseId){
@@ -1628,7 +1783,7 @@ class ReportController extends Controller
             return $query;
         };
 
-        if ($transactionType === 'receive' || $transactionType === null) {
+        if ($transactionType === TransactionType::TRANSFER_IN->value || $transactionType === null) {
             $pQ = Payment::where('payments.is_deleted', 0)
                 ->where('payments.is_settled', 1)
                 ->where('payer_type', 'merchant')
@@ -1653,7 +1808,7 @@ class ReportController extends Controller
             }
         }
 
-        if ($transactionType === 'disbursement' || $transactionType === null) {
+        if ($transactionType === TransactionType::TRANSFER_IN->value || $transactionType === null) {
             $dQ = Disbursement::where('disbursements.is_deleted', 0)
                 ->where('disbursements.is_settled', 1)
                 ->where('payee_type', 'merchant')
