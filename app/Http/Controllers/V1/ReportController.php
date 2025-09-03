@@ -1507,6 +1507,7 @@ class ReportController extends Controller
             'zone_name',
             'zone_code',
             'remarks',
+            'delivery_remarks',
             'arrive_warehouse_datetime as arrived_at',
             'driver_cod_usd',
             'driver_cod_khr',
@@ -1532,6 +1533,9 @@ class ReportController extends Controller
         ->orderByRaw($orderByCase, $bindings)
         ->get()->each(function($q){
             $q->status = TrackingStatus::tryFrom($q->status_id)->label();
+            if(in_array($q->status_id,[9,19])){
+                $q->remarks = $q->delivery_remarks;
+            }
         });
         $totalCount = 0;
         // $totalCod = [

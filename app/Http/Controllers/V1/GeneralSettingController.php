@@ -568,6 +568,15 @@ class GeneralSettingController extends Controller
         ]);
     }
 
+    public function getMerchantPaymentTransactionFilter(){
+        $user = UserService::getAuthUser();
+        return ApiResponse::JsonResult([
+            'branches' => $this->gs::optionsBranch(),
+            'merchants' => $this->gs::optionsMerchant($user),
+            'transaction_types' => $this->gs::optionsTransactionType()
+        ]);
+    }
+
     public function getOptionsPriceList(){
         $user = UserService::getAuthUser();
         return ApiResponse::JsonResult($this->gs::optionsPriceList($user));
