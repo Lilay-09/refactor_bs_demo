@@ -1533,7 +1533,7 @@ class ReportController extends Controller
         ->orderByRaw($orderByCase, $bindings)
         ->get()->each(function($q){
             $q->status = TrackingStatus::tryFrom($q->status_id)->label();
-            if(in_array($q->status_id,[9,19])){
+            if(in_array($q->status_id,[10,19])){
                 $q->remarks = $q->delivery_remarks;
             }
         });
