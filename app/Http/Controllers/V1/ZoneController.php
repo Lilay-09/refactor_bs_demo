@@ -474,7 +474,7 @@ class ZoneController extends Controller
 
         $zone->update([
             'parent_id' => null,
-            'identity' => 'child'
+            'identity' => 'parent'
         ]);
 
         return ApiResponse::JsonResult(null,'Take out');

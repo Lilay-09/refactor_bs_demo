@@ -36,6 +36,7 @@ use App\Models\Role;
 use App\Models\TermCondition;
 use App\Models\TrackingStatus;
 use App\Models\User;
+use App\Models\UserZone;
 use App\Models\VehicleType;
 use App\Models\Warehouse;
 use App\Models\Zone;
@@ -54,6 +55,8 @@ class GeneralSettingService
     //     ['value' => 'fast', 'label' => 'Fast', 'description' => __('messages.fast_desc')],
     //     ['value' => 'normal', 'label' => 'Normal', 'description' => __('messages.normal_desc')],
     // ];
+
+    public static $feeXrate = 4000;
 
 
     public static $payerTrans = [
@@ -152,6 +155,10 @@ class GeneralSettingService
         return Branch::where('is_deleted',false)
         ->select(['name_'.$lang.' as name','id'])
         ->get();
+    }
+
+    public static function optionsPaymentMethod(){
+        return PaymentMethod::optionsMethod();
     }
 
 
@@ -284,10 +291,22 @@ class GeneralSettingService
     }
 
     public static function optionsZone($user,$identity='child',$parentId=null,Request $filter=null){
-        $qZ = Zone::where('status',1)->where('company_id',$user->company_id)->where('is_deleted',0);
+        $merchantId = $filter->merchant_id ?? null;
+        $plNameId = MerchantPriceList::where('merchant_id',$merchantId)->take(1)->value('price_list_id');
+        if($plNameId){
+            $plIds = PriceList::where('price_list_name_id',$plNameId)
+            ->pluck('id')->toArray();
+            if(!empty($plIds)){
+                $merchantZoneIds = PriceListZone::whereIn('price_list_id',$plIds)->pluck('zone_id')->toArray();
+            }
+        }
+        $qZ = Zone::where('status',1)->where('company_id',$user->company_id)->where('is_deleted',false);
         if($identity){
             $qZ->where('identity',$identity);
             // ->whereNotNull('parent_id');
+        }
+        if($merchantId){
+            $qZ->whereIn('id',$merchantZoneIds);
         }
         if($parentId){
             $qZ->where('parent_id',$parentId);
@@ -306,7 +325,10 @@ class GeneralSettingService
         if($exceptId){
             $qZ->where('id','!=',$exceptId);
         }
-        $zone = $qZ->selectRaw('id,zone_name,identity,zone_code,parent_id')->orderByDesc('id')->get();
+        $zone = $qZ->selectRaw('id,zone_name,identity,zone_code,parent_id')->orderByDesc('id')
+        ->get()->each(function ($q){
+            // Log::info($q);
+        });
         return $zone;
     }
 

@@ -178,10 +178,12 @@ Route::middleware(['jwtMerchant','localize'])->prefix('merchant/v1/{lang}')->gro
             Route::get('district',[GeneralSettingController::class,'getOptionsDistrict']);
             Route::get('bank',[GeneralSettingController::class,'getOptionBanks']);
             Route::get('search/status',[GeneralSettingController::class,'getOptionsSearchStatus']);
+            Route::get('payment-method',[GeneralSettingController::class,'getOptionsPaymentMethod']);
         });
         Route::prefix('form')->group(function (){
             Route::get('profile',[GeneralSettingController::class,'getProfileFormOptions']);
             Route::get('booking',[GeneralSettingController::class,'getMerchantFormBooking']);
+            Route::get('transaction/payment-method',[GeneralSettingController::class,'getFormOptionsTransactionPaymentMethod']);
         });
     });
 });

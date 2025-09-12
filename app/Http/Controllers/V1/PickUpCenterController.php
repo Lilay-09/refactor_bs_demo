@@ -572,7 +572,7 @@ class PickUpCenterController extends Controller
         $user = UserService::getAuthUser();
         $orderId = $req->order_id;
         $qP = Package::query()->where('order_id',$orderId)->whereIn('status_id',[1,3,7])->with(['status'])->where('company_id',$user->company_id)
-                ->selectRaw('other_fee,merchant_id,order_id,id,id as package_id,taxi_fee,delivery_type,qr_code,price,driver_id,product_type,dim_z,dim_x,dim_y,status_id,failure_notes,payer,cod,delivery_fee,receiver_address,zone_code,zone_name,receiver_name,receiver_phone,delivered_datetime,assign_driver_datetime,arrive_warehouse_datetime,driver_total,merchant_total,extra_charge,additional_fee,remarks,billed_kg,actual_kg,pickup_notes')
+                ->selectRaw('price_khr,other_fee,merchant_id,order_id,id,id as package_id,taxi_fee,delivery_type,qr_code,price,driver_id,product_type,dim_z,dim_x,dim_y,status_id,failure_notes,payer,cod,delivery_fee,receiver_address,zone_code,zone_name,receiver_name,receiver_phone,delivered_datetime,assign_driver_datetime,arrive_warehouse_datetime,driver_total,merchant_total,extra_charge,additional_fee,remarks,billed_kg,actual_kg,pickup_notes')
                 ->orderByDesc('id')
         ->where('is_deleted',0);
         $count = $qP->count();
@@ -605,12 +605,12 @@ class PickUpCenterController extends Controller
         ->with(['driver:id,username,phone','merchant:id,phone,username','updateUser:id,username'])
         // ->whereNotIn('status_id',[]) // at warehouse
         // ->where('company_id',$user->company_id)
-        ->selectRaw('id as package_id,cod,extra_charge,taxi_fee,delivery_fee,zone_name,zone_code,merchant_id,driver_id,receiver_phone,receiver_address,created_at,arrive_warehouse_datetime,qr_code,remarks,price,update_uid,payer')
+        ->selectRaw('price_khr,id as package_id,cod,extra_charge,taxi_fee,delivery_fee,zone_name,zone_code,merchant_id,driver_id,receiver_phone,receiver_address,created_at,arrive_warehouse_datetime,qr_code,remarks,price,update_uid,payer')
         ->where('order_id',$id)
         // ->orderByRaw("CASE $orderByCase END")
         ->get();
         // if(!$package) return ApiResponse::NotFound(trans('messages.not_found',['info' => 'Package','khInfo' => 'កញ្ចប់​']));
-        $exchange = GeneralSettingService::getLatestXRate();
+        // $exchange = GeneralSettingService::getLatestXRate();
         foreach($packages as $package){
             $driver = $package->driver;
             if($driver){
@@ -625,10 +625,19 @@ class PickUpCenterController extends Controller
             $package->created_date = Helper::formatCustomDateTime($package->created_at,'d-M-Y');
             $package->warehouse_at = Helper::dateDMY($package->arrive_warehouse_datetime);
             $total = 0;
-            if($package->cod) $total += $package->price;
-            if($package->payer == 'receiver') $total += $package->delivery_fee;
+            $totalKhr = 0;
+            if($package->cod) {
+                $total += $package->price;
+                $totalKhr += $package->price_khr;
+            }
+            if($package->payer == 'receiver') {
+                $fees = $package->delivery_fee;
+                $total += $fees;
+                $totalKhr += $fees * 4000;
+            }
+
             $package->total = $total;
-            $package->total_khr = Helper::getNumber($total * $exchange->buy_rate);
+            $package->total_khr = $totalKhr;//Helper::getNumber($total * $exchange->buy_rate);
             unset($package->status,$package->driver,$package->merchant,$package->arrive_warehouse_datetime,$package->updateUser,$package->create_uid,$package->created_at);
         }
         $companyInfo = CompanyProfileService::profileInfo($user,true);
