@@ -165,11 +165,10 @@ class Package extends Model
     }
 
     public function activeDeliveryPackage()
-{
-    return $this->hasOne(DeliveryPackage::class,'package_id','id')
-        ->latest('created_at');
-}
-
+    {
+        return $this->hasOne(DeliveryPackage::class,'package_id','id')
+            ->latest('created_at');
+    }
 
     public function setDriverTotalAttribute($value)
     {
@@ -293,6 +292,25 @@ class Package extends Model
             ->where('type', 'commission')
             ->where('is_deleted', false)
             ->exists();
+    }
+
+    public function scopeWithoutDriverPayment($query)
+    {
+        return $query
+            ->whereNotExists(function ($q) {
+                $q->select(DB::raw(1))
+                    ->from('payment_packages')
+                    ->whereColumn('payment_packages.package_id', 'packages.id')
+                    ->where('payer_type', 'driver')
+                    ->where('is_deleted', false);
+            })
+            ->whereNotExists(function ($q) {
+                $q->select(DB::raw(1))
+                    ->from('disbursement_packages')
+                    ->whereColumn('disbursement_packages.package_id', 'packages.id')
+                    ->where('payee_type', 'driver')
+                    ->where('is_deleted', false);
+            });
     }
 
     // Optional: Combined check

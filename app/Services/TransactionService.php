@@ -957,7 +957,7 @@ class TransactionService
             'isValidKHR' => $isValidKHR,
             'bankId' => $bankId
         ];
-        Log::info(json_encode($data));
+        // Log::info(json_encode($data));
         return $data;
     }
 

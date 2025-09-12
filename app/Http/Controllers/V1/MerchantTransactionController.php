@@ -68,6 +68,7 @@ class MerchantTransactionController extends Controller
         return ApiResponse::flex($this->merchantTransactionService->approveAndSettleRequestedSettlement($req->paymentId,$req->input('transaction_type'),$user));
     }
 
+
     public function getSettledPayments(Request $req){
         $user = UserService::getAuthUser();
         return ApiResponse::flex($this->merchantTransactionService->getSettledPaymentTransactions($req,$user));

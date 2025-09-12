@@ -312,6 +312,44 @@ class ApiResponse
 
 
 class Helper{
+
+
+        /**
+     * Get currency symbol by ISO currency code.
+     *
+     * @param string $currency
+     * @return string
+     */
+    static function currency_symbol(string $currency): string
+    {
+        return match (strtoupper($currency)) {
+            'USD' => '$',
+            'KHR', 'RIEL' => '៛',
+            'EUR' => '€',
+            'GBP' => '£',
+            'JPY' => '¥',
+            'THB' => '฿',
+            default => $currency, // fallback to currency code
+        };
+    }
+
+    static function currencyAmount($amount, string $currency): string
+    {
+        $symbol = self::currency_symbol($currency);
+
+        // Format number
+        $formatted = match (strtoupper($currency)) {
+            'USD', 'EUR', 'GBP', 'JPY', 'THB' => $amount,//number_format((float)$amount, 2, '.', ','),
+            'KHR', 'RIEL' => $amount,//number_format((float)$amount, 0, '.', ','),
+            default => (string)$amount,
+        };
+
+        // Place symbol: right for KHR, left for others
+        return match (strtoupper($currency)) {
+            'KHR', 'RIEL' => $formatted . '' . $symbol,
+            default => $symbol . $formatted,
+        };
+    }
     protected static $khmerMonths = [
                 'Jan' => 'មករា',
                 'Feb' => 'កុម្ភៈ',

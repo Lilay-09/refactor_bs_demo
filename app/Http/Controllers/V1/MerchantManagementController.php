@@ -335,6 +335,7 @@ class MerchantManagementController extends Controller
             $insertOrUpdate['create_uid'] = $user->id;
             MerchantPriceList::create($insertOrUpdate);
         }
+
         return ApiResponse::JsonResult(null,__('messages.updated'));
     }
 

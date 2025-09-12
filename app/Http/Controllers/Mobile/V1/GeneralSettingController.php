@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Mobile\V1;
 
 use ApiResponse;
 use App\Enums\ImageDirectory;
+use App\Enums\PaymentMethod;
 use App\Enums\TrackingStatus;
 use App\Http\Controllers\Controller;
 use App\Jobs\SendNotificationJob;
@@ -121,7 +122,8 @@ class GeneralSettingController extends Controller
                 'id', 'qr_code', 'status_id', 'driver_id', 'merchant_id', 'is_contact',
                 'assign_driver_datetime', 'receiver_address', 'receiver_phone', 'receiver_name',
                 'product_type', 'cod', 'zone_name', 'zone_code', 'price', 'delivery_fee','delivery_remarks',
-                'driver_total as total', 'taxi_fee', 'additional_fee', 'extra_charge', 'payer','assigned_return_at'
+                'driver_total as total', 'taxi_fee', 'additional_fee', 'extra_charge', 'payer','assigned_return_at',
+                'price_khr','other_fee'
             ]);
 
         if (!$package) {
@@ -154,8 +156,12 @@ class GeneralSettingController extends Controller
         $info = null;
 
         if ((!$diffDriver && $isOnDelivery) || $isReturning) {
+            $xRate = GeneralSettingService::$feeXrate;
             $package->load(['status:id,name', 'merchant:id,username,phone']);
             $telegram = Helper::generateTelegramLink($package->merchant->phone);
+            $priceKhr = $package->price_khr;
+            $fees = $package->base_fee + $package->other_fee;
+            $totalKhr = (string)number_format($priceKhr + $fees * $xRate,2,'.','');
             $info = [
                 'id' => $package->id,
                 'qr_code' => $package->qr_code,
@@ -172,6 +178,7 @@ class GeneralSettingController extends Controller
                 'price' => $package->price,
                 'delivery_fee' => $package->delivery_fee,
                 'total' => $package->total,
+                'total_khr' => $totalKhr,
                 'taxi_fee' => $package->taxi_fee,
                 'additional_fee' => $package->additional_fee,
                 'extra_charge' => $package->extra_charge,
@@ -197,7 +204,6 @@ class GeneralSettingController extends Controller
             'info' => $info,
         ]);
     }
-
 
     // public function scanPackage(Request $req){
     //     $user = UserService::getAuthUser('driver');
@@ -610,5 +616,19 @@ class GeneralSettingController extends Controller
     public function getOptionsSearchStatus(){
         $user = UserService::getAuthUser();
         return ApiResponse::JsonResult(GeneralSettingService::optionsTrackingStatus($user,[],[6,9,10,11,19]));
+    }
+
+    public function getOptionsPaymentMethod(){
+        return ApiResponse::JsonResult([
+            'methods' => GeneralSettingService::optionsPaymentMethod(),
+            'currencies' => GeneralSettingService::optionsCurrency()
+        ]);
+    }
+
+    public function getFormOptionsTransactionPaymentMethod(){
+        return ApiResponse::JsonResult([
+            'methods' => PaymentMethod::optionsTransactionMethod(),
+            'currencies' => GeneralSettingService::optionsCurrency()
+        ]);
     }
 }

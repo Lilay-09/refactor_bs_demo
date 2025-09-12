@@ -338,7 +338,7 @@ class PackageTrailController extends Controller
         ->where('outstanding',0)
         // ->whereNotIn('status_id',[]) // at warehouse
         ->where('company_id',$user->company_id)
-        ->selectRaw('id as package_id,cod,extra_charge,taxi_fee,delivery_fee,zone_name,zone_code,merchant_id,driver_id,receiver_phone,receiver_address,created_at,arrive_warehouse_datetime,qr_code,remarks,price,update_uid,payer')
+        ->selectRaw('price_khr,id as package_id,cod,extra_charge,taxi_fee,delivery_fee,zone_name,zone_code,merchant_id,driver_id,receiver_phone,receiver_address,created_at,arrive_warehouse_datetime,qr_code,remarks,price,update_uid,payer')
         ->find($id);
         if(!$package) return ApiResponse::NotFound(trans('messages.not_found',['info' => 'Package','khInfo' => 'កញ្ចប់​']));
         $driver = $package->driver;
@@ -353,13 +353,27 @@ class PackageTrailController extends Controller
         $package->created_by = $package->updateUser->username;
         $package->created_date = Helper::formatCustomDateTime($package->created_at,'d-M-Y');
         $package->warehouse_at = Helper::dateDMY($package->arrive_warehouse_datetime);
+        // $total = 0;
+        // if($package->cod) $total += $package->price;
+        // if($package->payer == 'receiver') $total += $package->delivery_fee;
+        // $package->total = $total;
+        // $exchange = GeneralSettingService::getLatestXRate();
+        // $package->total = $total;
+        // $package->total_khr = Helper::getNumber($total * $exchange->buy_rate);
         $total = 0;
-        if($package->cod) $total += $package->price;
-        if($package->payer == 'receiver') $total += $package->delivery_fee;
+        $totalKhr = 0;
+        if($package->cod) {
+            $total += $package->price;
+            $totalKhr += $package->price_khr;
+        }
+        if($package->payer == 'receiver') {
+            $fees = $package->delivery_fee;
+            $total += $fees;
+            $totalKhr += $fees * 4000;
+        }
+
         $package->total = $total;
-        $exchange = GeneralSettingService::getLatestXRate();
-        $package->total = $total;
-        $package->total_khr = Helper::getNumber($total * $exchange->buy_rate);
+        $package->total_khr = $totalKhr;
         unset($package->status,$package->driver,$package->merchant,$package->arrive_warehouse_datetime,$package->updateUser,$package->create_uid,$package->created_at);
 
         $companyInfo = CompanyProfileService::profileInfo($user,true);
@@ -385,12 +399,12 @@ class PackageTrailController extends Controller
         ->where('outstanding',0)
         // ->whereNotIn('status_id',[]) // at warehouse
         ->where('company_id',$user->company_id)
-        ->selectRaw('id as package_id,cod,extra_charge,taxi_fee,delivery_fee,zone_name,zone_code,merchant_id,driver_id,receiver_phone,receiver_address,created_at,arrive_warehouse_datetime,qr_code,remarks,price,price_khr,update_uid,payer')
+        ->selectRaw('price_khr,id as package_id,cod,extra_charge,taxi_fee,delivery_fee,zone_name,zone_code,merchant_id,driver_id,receiver_phone,receiver_address,created_at,arrive_warehouse_datetime,qr_code,remarks,price,price_khr,update_uid,payer')
         ->whereIn('id',$packageIds)
         ->orderByRaw("CASE $orderByCase END")
         ->get();
         // if(!$package) return ApiResponse::NotFound(trans('messages.not_found',['info' => 'Package','khInfo' => 'កញ្ចប់​']));
-        $exchange = GeneralSettingService::getLatestXRate();
+        // $exchange = GeneralSettingService::getLatestXRate();
         foreach($packages as $package){
             $driver = $package->driver;
             if($driver){
@@ -404,11 +418,24 @@ class PackageTrailController extends Controller
             $package->created_by = $package->updateUser->username;
             $package->created_date = Helper::formatCustomDateTime($package->created_at,'d-M-Y');
             $package->warehouse_at = Helper::dateDMY($package->arrive_warehouse_datetime);
+            // $total = 0;
+            // if($package->cod) $total += $package->price;
+            // if($package->payer == 'receiver') $total += $package->delivery_fee;
+            // $package->total = $total;
+            // $package->total_khr = Helper::getNumber($total * $exchange->buy_rate);
             $total = 0;
-            if($package->cod) $total += $package->price;
-            if($package->payer == 'receiver') $total += $package->delivery_fee;
+            $totalKhr = 0;
+            if($package->cod) {
+                $total += $package->price;
+                $totalKhr += $package->price_khr;
+            }
+            if($package->payer == 'receiver') {
+                $fees = $package->delivery_fee;
+                $total += $fees;
+                $totalKhr += $fees * 4000;
+            }
             $package->total = $total;
-            $package->total_khr = Helper::getNumber($total * $exchange->buy_rate);
+            $package->total_khr = $totalKhr;
             unset($package->status,$package->driver,$package->merchant,$package->arrive_warehouse_datetime,$package->updateUser,$package->create_uid,$package->created_at);
         }
         $companyInfo = CompanyProfileService::profileInfo($user,true);
