@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Enums\PaymentMethod;
 use App\Enums\PaymentStatus;
 use App\Enums\TransactionType;
 use App\Models\Bank;
@@ -14,6 +15,7 @@ use App\Models\Package;
 use App\Models\Payment;
 use App\Models\PaymentDetail;
 use App\Models\PaymentPackage;
+use App\Models\PaymentTransaction;
 use App\Models\User;
 use App\Models\Zone;
 use Carbon\Carbon;
@@ -398,7 +400,7 @@ class TransactionService
             })
             ->with(['merchant:id,username,code', 'merchant.primaryBank'])
             ->select($select)
-            ->groupBy('merchant_id', 'finish_date', DB::raw('COALESCE(d.id,0)'), DB::raw('COALESCE(p.id,0)'))
+            ->groupBy('merchant_id', 'finish_date')
             ->when($paymentType === TransactionType::TRANSFER_IN->value, fn($q) =>
                 $q->havingRaw("($amountUsdExpr) < 0 OR ($amountKhrExpr) < 0")
             )
@@ -449,6 +451,53 @@ class TransactionService
         };
 
         return DataResponse::PaginationV1($qP, $req, '', [], 1000, $callback, $select);
+    }
+
+
+    static function getTrxDetailsV1($rows, $pmtId, $pmtBillings = null)
+    {
+        foreach ($rows as $row) {
+            if ($row->id == $pmtId) {
+                $row->breakdown_notes = str_replace(['|', 'USD '], [' & ', '$'], $row->breakdown_notes);
+                $row->breakdown_notes = preg_replace('/KHR (\d+)/', '$1៛', $row->breakdown_notes);
+                // 🛠 Fix: Collect unique methods
+                $methods = [];
+                if (isset($pmtBillings[$row->id])) {
+                    // Log::info($pmtBillings[$row->id]);
+                    foreach ($pmtBillings[$row->id] as $billing) {
+
+                        if (!in_array($billing->method, $methods)) {
+                            if($billing->method == 'cash') $billing->method = 'Cash';
+                            $methods[] = $billing->method;
+                        }
+                    }
+                }
+
+                // 🛠 Concat methods into a string
+                $pmtMethod = implode(', ', $methods);
+                $row->payment_method = PaymentMethod::tryFrom($pmtMethod)?->label() ?? $pmtMethod;
+                $row->payment_date = Helper::dateDMY($row->payment_datetime, 'd M Y');
+                $row->payment_time = Helper::formatCustomDateTime($row->payment_datetime, 'h:i A');
+                $row->payment_datetime = Helper::formatCustomDateTime($row->payment_datetime,'d M Y h:i A');
+                // $row->payable_amount = Helper::currencyAmount($row->received_amount_usd,'USD').'|'.Helper::currencyAmount($row->received_amount_khr,'KHR');
+                $parts = [];
+                $received_amount_usd = Helper::currencyAmount($row->received_amount_usd, 'USD');
+                $received_amount_khr = Helper::currencyAmount($row->received_amount_khr, 'KHR');
+
+                $row->received_amount_khr = $received_amount_khr;
+                $row->received_amount_usd = $received_amount_usd;
+                if (!empty($row->received_amount_usd)) {
+                    $parts[] = $received_amount_usd;
+                }
+                if (!empty($row->received_amount_khr)) {
+                    $parts[] = $received_amount_khr;
+                }
+                $row->paid_amount = implode(' | ', $parts);
+
+                return $row;
+            }
+        }
+        return null;
     }
 
 
@@ -757,8 +806,8 @@ class TransactionService
                 // 'paid_amount' => $dueAmount,
                 'amount_due_khr' => $dueAmountKhr,
                 'amount_due_usd' => $dueAmountUsd,
-                'received_amount_khr' => $dueAmountKhr,
-                'received_amount_usd' => $dueAmountUsd,
+                'received_amount_usd' => $bankAmountUSD + $cashUSD,
+                'received_amount_khr' => $cashKHR + $cashUSD,
                 'create_uid' => $user->id,
                 'receiver_uid' => $user->id,
                 'amount' => $validPackages->total_amount,
@@ -787,7 +836,7 @@ class TransactionService
             self::transactionCodeGenerator('transaction_sequences',$paymentType,'payments','trx_code',$user->branch_id,$user->company_id,$paymentId);
 
             // USD cash payment
-            if ($cashUSD > 0 && $dueAmountUsd > 0) {
+            if ($cashUSD > 0) {
                 PaymentDetail::create([
                     'payment_id' => $paymentId,
                     'method' => 'cash',
@@ -798,7 +847,7 @@ class TransactionService
             }
 
             // KHR cash payment
-            if ($cashKHR > 0 && $dueAmountKhr > 0) {
+            if ($cashKHR > 0) {
                 PaymentDetail::create([
                     'payment_id' => $paymentId,
                     'method' => 'cash',
@@ -811,7 +860,7 @@ class TransactionService
             // Bank payments
             if ($bankId) {
                 // USD bank payment
-                if ($bankAmountUSD > 0 && $dueAmountUsd > 0) {
+                if ($bankAmountUSD > 0) {
                     PaymentDetail::create([
                         'payment_id' => $paymentId,
                         'method' => $bankName,
@@ -822,7 +871,7 @@ class TransactionService
                 }
 
                 // KHR bank payment
-                if ($bankAmountKHR > 0 && $dueAmountKhr > 0) {
+                if ($bankAmountKHR > 0) {
                     PaymentDetail::create([
                         'payment_id' => $paymentId,
                         'method' => $bankName,
@@ -900,6 +949,7 @@ class TransactionService
             DB::commit();
             // Log::info(json_encode($createPayment));
             // return Package::whereIn('id',$packageIds)->get();
+            // Log::info(json_encode(PaymentDetail::where('payment_id',$paymentId)->get()));
             return DataResponse::JsonResult(null,false,__('messages.created',[
                 'info' => 'Payment',
                 'khInfo' => 'ទទួលការបង់ប្រាក់'
@@ -4189,7 +4239,7 @@ class TransactionService
         }
         $next_num++;
         //example ref number => 20240212-B001-00003-random
-        $new_code = date('Ymd') .'-B'. Helper::formatNumber($branch_id,3).'-'. Helper::formatNumber($next_num, $len).'-'.substr(Str::uuid()->toString(), 0, 5);
+        $new_code = date('Ymdhis') .'-B'. Helper::formatNumber($branch_id,3).'-'. Helper::formatNumber($next_num, $len);
         if($prefix) $new_code = $prefix.'-'.$new_code;
         $x = DB::table($target_tbl)->where('id', $newID)->update([$target_col => $new_code]);
         if ($x || $x === 1) {

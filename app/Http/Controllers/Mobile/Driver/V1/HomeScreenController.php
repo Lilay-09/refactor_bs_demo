@@ -95,7 +95,7 @@ class HomeScreenController extends Controller
         ->where('driver_id',$user->id)
         // ->orderByRaw('status_id = ? desc',[3])
         ->orderByDesc('id')
-        ->selectRaw('id,warehouse_id,driver_id,order_datetime,merchant_id,status_id,qty,code,pickup_address,pickup_address_google_map,vehicle_type,delivery_type,loc_lat,loc_lng,product_type');
+        ->selectRaw('id,warehouse_id,driver_id,order_datetime,merchant_id,status_id,qty,code,pickup_address,pickup_address_google_map,vehicle_type,delivery_type,loc_lat,loc_lng,product_type,pickup_notes as remarks');
         $callback = function($order){
             $order->warehouse_address = $order->warehouse->address;
             $order->status_code = $order->tracking_status->name;
@@ -105,6 +105,8 @@ class HomeScreenController extends Controller
             $order->order_date = Helper::formatCustomDateTime($orderDatetime,$this->dateFmt);
             $order->order_time = Helper::formatCustomDateTime($orderDatetime,'h:i A');
             $order->telegram_url = Helper::generateTelegramLink($order->merchant_phone)['url'];
+            // $order->pickup_notes = 'Hello World';
+            $order->remarks = "Neak order write 2 jur, yg ka pea kom oy overflow.fsdfkdsdfksdfgsdfkgkfsdlfgjsldfk";
             // $latLng = Helper::getLatLongFromGoogleMapsUrl($order->pickup_address_google_map);
             $order->latitude = $order->loc_lat ;//? $order->loc_lat : 11.552692;//;
             $order->longitude = $order->loc_lng ;// ? $order->loc_lng : 104.901413;//$order->loc_lng;
@@ -948,6 +950,7 @@ class HomeScreenController extends Controller
             $inputs['delivered_datetime'] = now();
             $inputs['delivery_remarks'] = $deliveryRemarks;
         }
+
         if($status_id == 10) {
             if(!$deliveryRemarks) return ApiResponse::ValidateFail(__('messages.info',[
                 'Please input remarks'
@@ -955,16 +958,20 @@ class HomeScreenController extends Controller
             $inputs['failed_datetime'] = now();
             $inputs['failure_notes'] = $deliveryRemarks;
         }
+
         if($status_id == 19) {
             $inputs['failed_datetime'] = now();
             $inputs['failure_notes'] = $deliveryRemarks;
             // $package->price = 0;
         }
 
-        if($payer){
-            $calucalteFee = GeneralSettingService::calculatePackageFee($package->zone_code,$package->price,$package->billed_kg,$package->actual_kg,$payer,$package->cod,$package->extra_charge,$user,$package->taxi_fee,$package->merchant_id,$status_id);
+        if($payer && $status_id == 19){
+            $calucalteFee = GeneralSettingService::calculatePackageFee($package->zone_code,$package->price,$package->billed_kg,$package->actual_kg,$payer,$package->cod,$package->other_fee,$user,$package->taxi_fee,$package->merchant_id,$status_id);
             $inputs['merchant_total'] = $calucalteFee->merchant_total;
             $inputs['driver_total'] = $calucalteFee->driver_total;
+            if($payer == 'receiver'){
+                $inputs['driver_cod_usd'] = $package->delivery_fee + $package->other_fee;
+            }
         }
 
         try{
