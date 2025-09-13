@@ -530,7 +530,7 @@ class TransactionService
         $taxiFee,
         $otherFee,
         $payer,
-        $statusId,
+        $statusId=null,
         $exchangeRateBase = 4000
     ) {
         $fees = $baseFee + $otherFee;
@@ -2380,7 +2380,7 @@ class TransactionService
             $obj->merchant_total += $package->merchant_total;
             $totalDriverCodUsd += $package->driver_cod_usd;
             $totalDriverCodKhr += $package->driver_cod_khr;
-            $rowTotal = self::getPackageTotalV1($type,$package->driver_cod_usd,$package->driver_cod_khr,$package->delivery_fee,$package->taxi_fee,$package->other_fee,$package->payer);
+            $rowTotal = self::getPackageTotalV1($type,$package->driver_cod_usd,$package->driver_cod_khr,$package->delivery_fee,$package->taxi_fee,$package->other_fee,$package->payer,$package->status_id);
             // Log::info('Row Total'.json_encode($rowTotal));
             if($package->status_id == 19){
                 if($type == 'merchant'){
@@ -2487,11 +2487,11 @@ class TransactionService
             $obj->total_taxi_fee += $package->taxi_fee;
             $obj->driver_total += $package->driver_total;
             $obj->merchant_total += $package->merchant_total;
-            $rowTotal = self::getPackageTotalV1($type,$package->driver_cod_usd,$package->driver_cod_khr,$package->delivery_fee,$package->taxi_fee,$package->other_fee,$package->payer);
+            $rowTotal = self::getPackageTotalV1($type,$package->driver_cod_usd,$package->driver_cod_khr,$package->delivery_fee,$package->taxi_fee,$package->other_fee,$package->payer,$package->status_id);
             // Log::info('Row Total => '.$rowTotal['total_usd']);
             if($package->status_id == 19){
                 if($type == 'merchant'){
-                    $rowTotal = self::getPackageTotalV1($type,$package->driver_cod_usd,$package->driver_cod_khr,$package->delivery_fee,$package->taxi_fee,$package->other_fee,$package->payer);
+                    $rowTotal = self::getPackageTotalV1($type,$package->driver_cod_usd,$package->driver_cod_khr,$package->delivery_fee,$package->taxi_fee,$package->other_fee,$package->payer,$package->status_id);
                     // $rowTotal = $package->payer == 'sender' ? $package->delivery_fee + $package->extra_charge : 0;
                 }
                 // else $rowTotal = $package->payer == 'receiver' ? $package->delivery_fee+ $package->extra_charge : 0;
@@ -3148,7 +3148,7 @@ class TransactionService
             $otherFee = $group->where('payer',$payer)->sum('other_fee');
 
             $fee =  + $group->where('payer',$payer)->sum('other_fee') + $group->sum('additional_fee');
-            $userTotal = self::getPackageTotalV1($type,$driverCodUsd,$driverCodKhr,$deliveryFee,$taxiFee,$otherFee,$payer);
+            $userTotal = self::getPackageTotalV1($type,$driverCodUsd,$driverCodKhr,$deliveryFee,$taxiFee,$otherFee,$payer,);
             $amountUsd = $userTotal['total_usd'];
             $amountKhr = $userTotal['total_khr'];
             $totalPackages += $packageTotal;
