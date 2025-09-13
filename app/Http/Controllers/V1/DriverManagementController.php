@@ -123,10 +123,22 @@ class DriverManagementController extends Controller
         $fast_pickup_commission_type = $inputs['fast_pickup_commission_type'];
         $fast_delivery_commission_type = $inputs['fast_delivery_commission_type'];
 
-        $normal_pickup_commissionStartDate = $inputs['normal_pickup_commission_start_date'] ?? null;
-        $normal_delivery_commissionStartDate = $inputs['normal_delivery_commission_start_date'] ?? null;
-        $fast_pickup_commissionStartDate = $inputs['fast_pickup_commission_start_date'] ?? null;
-        $fast_delivery_commissionStartDate = $inputs['fast_delivery_commission_start_date'] ?? null;
+        $normal_pickup_commissionStartDate = isset($inputs['normal_pickup_commission_start_date'])
+            ? Helper::dateYMD($inputs['normal_pickup_commission_start_date'])
+            : null;
+
+        $normal_delivery_commissionStartDate = isset($inputs['normal_delivery_commission_start_date'])
+            ? Helper::dateYMD($inputs['normal_delivery_commission_start_date'])
+            : null;
+
+        $fast_pickup_commissionStartDate = isset($inputs['fast_pickup_commission_start_date'])
+            ? Helper::dateYMD($inputs['fast_pickup_commission_start_date'])
+            : null;
+
+        $fast_delivery_commissionStartDate = isset($inputs['fast_delivery_commission_start_date'])
+            ? Helper::dateYMD($inputs['fast_delivery_commission_start_date'])
+            : null;
+
         $commissionArr = [
             [
                 'driver_id' => $driver_id,

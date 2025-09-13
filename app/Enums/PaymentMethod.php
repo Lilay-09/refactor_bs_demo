@@ -44,7 +44,7 @@ enum PaymentMethod:string
             ],
             [
                 self::COD,
-                self::ABA_KHQR,
+                // self::ABA_KHQR,
             ]
         );
     }

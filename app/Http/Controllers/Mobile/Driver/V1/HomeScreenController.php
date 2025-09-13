@@ -106,7 +106,7 @@ class HomeScreenController extends Controller
             $order->order_time = Helper::formatCustomDateTime($orderDatetime,'h:i A');
             $order->telegram_url = Helper::generateTelegramLink($order->merchant_phone)['url'];
             // $order->pickup_notes = 'Hello World';
-            $order->remarks = "Neak order write 2 jur, yg ka pea kom oy overflow.fsdfkdsdfksdfgsdfkgkfsdlfgjsldfk";
+            // $order->remarks = "Neak order write 2 jur, yg ka pea kom oy overflow.fsdfkdsdfksdfgsdfkgkfsdlfgjsldfk";
             // $latLng = Helper::getLatLongFromGoogleMapsUrl($order->pickup_address_google_map);
             $order->latitude = $order->loc_lat ;//? $order->loc_lat : 11.552692;//;
             $order->longitude = $order->loc_lng ;// ? $order->loc_lng : 104.901413;//$order->loc_lng;
@@ -190,26 +190,26 @@ class HomeScreenController extends Controller
             COUNT(CASE WHEN status_id = 9 AND delivery_type = 'fast' THEN 1 END) AS delivered_fast_pkg,
 
             COUNT(CASE WHEN status_id = 19 AND delivery_type = 'normal' THEN 1 END) AS failed_with_fee_normal_pkg,
-            COUNT(CASE WHEN status_id = 19 AND delivery_type = 'fast' THEN 1 END) AS failed_with_fee_fast_pkg,
+            COUNT(CASE WHEN status_id = 19 AND delivery_type = 'fast' THEN 1 END) AS failed_with_fee_fast_pkg
 
-            COUNT(CASE WHEN status_id = 6 AND delivery_type = 'normal' THEN 1 END) AS delivery_normal_pkg,
-            COUNT(CASE WHEN status_id = 6 AND delivery_type = 'fast' THEN 1 END) AS delivery_fast_pkg
         ")->first() ?? (object)[
             'delivered_normal_pkg' => 0, 'delivered_fast_pkg' => 0,
             'failed_with_fee_normal_pkg' => 0, 'failed_with_fee_fast_pkg' => 0,
-            'delivery_normal_pkg' => 0, 'delivery_fast_pkg' => 0,
+            // 'delivery_normal_pkg' => 0, 'delivery_fast_pkg' => 0,
         ];
         $collectedCod = $clQp->withoutDriverPayment()
         ->selectRaw("
             SUM(CASE WHEN status_id IN (9, 19) THEN driver_cod_usd ELSE 0 END) AS driverCodUsd,
-            SUM(CASE WHEN status_id IN (9, 19) THEN driver_cod_khr ELSE 0 END) AS driverCodKhr
+            SUM(CASE WHEN status_id IN (9, 19) THEN driver_cod_khr ELSE 0 END) AS driverCodKhr,
+            COUNT(CASE WHEN status_id = 6 AND delivery_type = 'normal' THEN 1 END) AS delivery_normal_pkg,
+            COUNT(CASE WHEN status_id = 6 AND delivery_type = 'fast' THEN 1 END) AS delivery_fast_pkg
         ")
         ->first();
 
         //** Type: Normal */
         $normalDeliveredPkg = $counts->delivered_normal_pkg;
         // Log::info($normalDeliveredPkg);
-        $allDeliveryPkg = $counts->delivery_normal_pkg + $counts->delivery_fast_pkg;
+        $allDeliveryPkg = $collectedCod->delivery_normal_pkg + $collectedCod->delivery_fast_pkg;
         $normalFailedWithFeePkg = $counts->failed_with_fee_normal_pkg;
 
         //** Type: Fast */
@@ -253,6 +253,7 @@ class HomeScreenController extends Controller
             // 'pickupCount' => (string)$pickupCount,
             // 'deliveryCount' => (string)$counts->delivery_normal_pkg
             // "unpaid_amt" => '$'.$balanceDues['total'],
+            // 'comPkg'=> $normalDeliveredPkg,
             "accepted_order_count" => $pickedUpCount.$pcsUnitLng,
             "delivered_pkg_count" => $totalDeliveredPkg.$pcsUnitLng,
             "salary" => '$'.$normalDeliveryComm,
@@ -541,8 +542,10 @@ class HomeScreenController extends Controller
             $q->append('image_url');
             $priceKhr = $q->price_khr;
             $fees = $q->base_fee + $q->other_fee;
-            $q->total_khr = number_format($priceKhr + $fees * $xRate,2,'.','');
-            $q->exchange_rate = $xRate;
+            $q->total_khr = $priceKhr > 0 ? number_format($priceKhr + $fees * $xRate,2,'.',''):"0";
+            $q->fees_usd = $fees;
+            $q->fees_khr = $fees * $xRate;
+            // $q->exchange_rate = $xRate;
             $this->dateTimeByStatus($q,$q->status_id);
             return DeliveryTripsPackagesDTO::fromModel($q);
         };
@@ -855,7 +858,8 @@ class HomeScreenController extends Controller
             'images' => 'nullable',
             'driver_cod_usd' => 'nullable',
             'driver_cod_khr' => 'nullable',
-            // 'amount' => 'nullable|numeric',
+            'amount' => 'nullable|numeric',
+            'currency' => 'nullable',
             'payer' => 'nullable|in:sender,receiver'
         ]);
         if($validate->fails()) return ApiResponse::ValidateFail($validate->errors()->first());
@@ -966,9 +970,9 @@ class HomeScreenController extends Controller
         }
 
         if($payer && $status_id == 19){
-            $calucalteFee = GeneralSettingService::calculatePackageFee($package->zone_code,$package->price,$package->billed_kg,$package->actual_kg,$payer,$package->cod,$package->other_fee,$user,$package->taxi_fee,$package->merchant_id,$status_id);
-            $inputs['merchant_total'] = $calucalteFee->merchant_total;
-            $inputs['driver_total'] = $calucalteFee->driver_total;
+            // $calucalteFee = GeneralSettingService::calculatePackageFee($package->zone_code,$package->price,$package->billed_kg,$package->actual_kg,$payer,$package->cod,$package->other_fee,$user,$package->taxi_fee,$package->merchant_id,$status_id);
+            // $inputs['merchant_total'] = $calucalteFee->merchant_total;
+            // $inputs['driver_total'] = $calucalteFee->driver_total;
             if($payer == 'receiver'){
                 $inputs['driver_cod_usd'] = $package->delivery_fee + $package->other_fee;
             }
