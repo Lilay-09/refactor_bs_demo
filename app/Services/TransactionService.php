@@ -290,7 +290,7 @@ class TransactionService
             if($type == 'merchant') $package->{$statusKey} = ($package->payment || $package->disbursement) ? 'Paid':'Unpaid';
             $package->datetime = ($package->status_id == 9 && ($package->delivered_datetime || $package->delivered_datetime)) ? Helper::formatCustomDateTime($package->delivered_datetime) : Helper::formatCustomDateTime($package->failed_datetime);
             $package->delivered_datetime = Helper::formatCustomDateTime($package->assign_driver_datetime);
-            $total = self::getPackageTotalV1($type,$package->driver_cod_usd,$package->driver_cod_khr,$package->delivery_fee,$package->taxi_fee,$package->other_fee,$package->payer);
+            $total = self::getPackageTotalV1($type,$package->driver_cod_usd,$package->driver_cod_khr,$package->delivery_fee,$package->taxi_fee,$package->other_fee,$package->payer,$package->status_id);
             $package->{$type.'_total_usd'} = $total['total_usd'];
             $package->{$type.'_total_khr'} = $total['total_khr'];
             // if($type == 'merchant') $package->total = -$total;
@@ -530,6 +530,7 @@ class TransactionService
         $taxiFee,
         $otherFee,
         $payer,
+        $statusId,
         $exchangeRateBase = 4000
     ) {
         $fees = $baseFee + $otherFee;
@@ -542,7 +543,9 @@ class TransactionService
             // 1. Always deduct taxi fee
             // 2. Deduct fees if payer is receiver
             if ($payer === 'receiver' && ($fees > 0 || $taxiFee > 0)) {
-                Helper::deductAmountBase($totalUsd,$totalKhr,$fees + $taxiFee,$exchangeRateBase);
+                if($statusId !== 19){
+                    Helper::deductAmountBase($totalUsd,$totalKhr,$fees + $taxiFee,$exchangeRateBase);
+                }
             }
         }
         if($type === 'merchant'){
