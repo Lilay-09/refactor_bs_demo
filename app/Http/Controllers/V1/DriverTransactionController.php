@@ -49,7 +49,7 @@ class DriverTransactionController extends Controller
                 ->where('dp.is_deleted', false);
         });
         $qO = Order::query()
-        ->select('id') // select only needed columns
+        ->select('id','driver_id') // select only needed columns
         ->where('is_deleted', 0)
         ->whereNull('driver_commission_id')
         ->where('status_id', 5)
@@ -75,9 +75,9 @@ class DriverTransactionController extends Controller
         // $pickUpStartDate = $req->query('startDate',$driverCommissionInfo->normal_pickup_commission_start_date);
         $startDateFromQuery = $req->query('startDate');
         $endDate = $req->query('endDate');
-        $defaultNormalDeliveryDate = $driverCommissionInfo->normal_delivery_commission_start_date;
-        $defaultFastDeliveryDate = $driverCommissionInfo->fast_delivery_commission_start_date;
-        $defaultNormalPickUpDate = $driverCommissionInfo->normal_pickup_commission_start_date;
+        $defaultNormalDeliveryDate = null;//$driverCommissionInfo->normal_delivery_commission_start_date;
+        $defaultFastDeliveryDate = null;//$driverCommissionInfo->fast_delivery_commission_start_date;
+        $defaultNormalPickUpDate = null;//$driverCommissionInfo->normal_pickup_commission_start_date;
 
         $normalDeliveryStartDate = $startDateFromQuery
             ? max(Helper::dateYMD($startDateFromQuery).' 00:00:00', $defaultNormalDeliveryDate)
@@ -137,9 +137,9 @@ class DriverTransactionController extends Controller
         $orders = $qO->get();
         //** Callback func */
         // Log::info(json_encode($driverCommissionInfo));
-        $clbMapper = function ($driver) use ($driverCommissionInfo, $orders, $packages) {
+        $clbMapper = function ($driver) use ($driverCommissions,$orders, $packages) {
             // $commissionInfo = TransactionService::getDriverCommissionInfo($driverCommissionInfo, $driver->id);
-
+            $driverCommissionInfo = TransactionService::getDriverCommissionInfo($driverCommissions,$driver->id);
             $driver->pickup_rate = $driverCommissionInfo->normal_pickup_commission;
             $driver->delivery_rate = $driverCommissionInfo->normal_delivery_commission;
             $driver->delivery_fast_rate = $driverCommissionInfo->fast_delivery_commission;
@@ -168,7 +168,7 @@ class DriverTransactionController extends Controller
                 $totalPickupRate + $totalDeliveryNormal,
                 2
             );
-            // Log::info($totalNormalPkg);7
+            Log::info($driverCommissionInfo->normal_pickup_commission);
 
             // Bank account info
             $driver->bank_account = null;
@@ -213,6 +213,7 @@ class DriverTransactionController extends Controller
     public function getPickUpDetails($orders,$driverId){
         $totalPkg = 0;
         foreach($orders as $order){
+            // Log::info("{$order->driver} - {$driverId}");
             if($order->driver_id == $driverId){
                 $totalPkg += $order->qty;
             }

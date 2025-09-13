@@ -2076,7 +2076,7 @@ class TransactionService
                 if ($cashKh) $originalCashKh += $suggestionAmtCashKh;
 
                 if ($bankAmountKh && $cashKh) {
-                    Log::info($dueAmount);
+                    // Log::info($dueAmount);
                     $minSuggestionAmt = abs($bankAmountKh - $suggestionAmt);
                     $minSuggestionAmtDown = floor($minSuggestionAmt / 100) * 100;
                     $maxSuggestionAmt = ceil($minSuggestionAmt / 100) * 100;
@@ -3772,6 +3772,7 @@ class TransactionService
         $bankAmount = $inputs['bank_amount'] ?? 0;
         $bankAmountKh = $inputs['bank_amount_kh'] ?? 0;
         $dueAmount = $validPackages->grand_total;
+        // Log::info($dueAmount);
         $validPayment = $this->validPayment($cash,$cashKh,$bankAmount,$bankAmountKh,$bankId,$dueAmount,$exchangeRate);
         if($validPayment->error) return $validPayment;
         $breakDownNotes = null;
@@ -3944,7 +3945,7 @@ class TransactionService
         // ];
         $payeeKey = $type.'_id';
         $qP = Package::from('packages as p')
-            ->selectRaw('p.id, p.status_id, p.driver_id')
+            ->selectRaw('p.id, p.status_id, p.driver_id,p.delivery_type')
             // ->whereIn('p.status_id', [9, 19])
             ->whereIn('p.status_id', [9])
             ->where('p.is_deleted', 0)
@@ -3959,19 +3960,21 @@ class TransactionService
         if($payeeId) {
             $qP->where('p.'.$payeeKey,$payeeId);
         }
+        // Log::info($qP->count())
 
         $qO = Order::query()
-            ->select('id') // select only needed columns
-            ->where('is_deleted', 0)
-            ->whereNull('driver_commission_id')
-            ->where('status_id', 5)
-            ->withCount([
-                'packages as qty' => fn($q) => $q
-                    ->where('status_id', 9)
-                    ->where('is_deleted', 0)
-            ])
-            ->groupBy('id')
-            ->having('qty', '>', 0);
+        ->select('id','driver_id') // select only needed columns
+        ->where('is_deleted', 0)
+        ->whereNull('driver_commission_id')
+        ->where('status_id', 5)
+        ->withCount([
+            'packages as qty' => fn($q) => $q
+                ->where('status_id', 9)
+                ->where('is_deleted', 0)
+        ])
+        ->groupBy('id')
+        ->having('qty', '>', 0);
+
         if($payeeId) $qO->where($payeeKey,$payeeId);
         // if($startDate && $endDate){
         //     $startDate = Helper::dateYMD($startDate);
@@ -3991,7 +3994,7 @@ class TransactionService
         $startDateFromQuery = $startDate ?? null;
         $defaultNormalDeliveryDate = $dc->normal_delivery_commission_start_date;
         // $defaultFastDeliveryDate = $dc->fast_delivery_commission_start_date;
-        // $defaultNormalPickUpDate = $dc->normal_pickup_commission_start_date;
+        $defaultNormalPickUpDate = $dc->normal_pickup_commission_start_date;
 
         $normalDeliveryStartDate = $startDateFromQuery
             ? max(Helper::dateYMD($startDateFromQuery).' 00:00:00', $defaultNormalDeliveryDate)
@@ -3999,15 +4002,16 @@ class TransactionService
         // $fastDeliveryStartDate = $startDateFromQuery
         //     ? max(Helper::dateYMD($startDateFromQuery).' 00:00:00', $defaultFastDeliveryDate)
         //     : null;
-        // $normalPickUpStartDate = $startDateFromQuery
-        //     ? max(Helper::dateYMD($startDateFromQuery).' 00:00:00', $defaultNormalPickUpDate)
-        //     : null;
+        $normalPickUpStartDate = $startDateFromQuery
+            ? max(Helper::dateYMD($startDateFromQuery).' 00:00:00', $defaultNormalPickUpDate)
+            : null;
 
 
         $endDate = $endDate ? Helper::dateYMD($endDate). ' 23:59:59' : null;
 
         if($normalDeliveryStartDate && $endDate){
-            $endDate = Helper::dateYMD($endDate). ' 23:59:59';
+            // $endDate = Helper::dateYMD($endDate);
+            // Log::info($normalDeliveryStartDate.' '.$endDate);
             $qP->whereRaw("
                 p.status_id = 9 AND p.delivered_datetime >= ? AND p.delivered_datetime <= ?
             ", [$normalDeliveryStartDate, $endDate]);
@@ -4019,20 +4023,23 @@ class TransactionService
             //     )
             // ", [$startDate, $endDate, $startDate, $endDate]);
 
-            $qO->whereRaw('order_datetime >= ? AND order_datetime <= ?', [$normalDeliveryStartDate, $endDate]);
+            // $qO->whereRaw('pickup_datetime >= ? AND pickup_datetime <= ?', [$normalDeliveryStartDate, $endDate]);
+            // $qO->whereBetween('pickup_datetime',[$normalPickUpStartDate,$endDate]);
         }
         $packages = $qP->get();
         $orders = $qO->get();
         // Log::info('pkg count'.count($packages));
         // Log::info('order count'.count($orders));
-        $qDc = DriverCommission::where('driver_id',$payeeId)->where('is_deleted',0)->selectRaw('id,driver_id,delivery_type,pickup_commission,pickup_commission_type,delivery_commission_type,delivery_commission,pickup_commission_start_date,delivery_commission_start_date');
-        $driverCommissions = $qDc->get();
-        $dc = TransactionService::getDriverCommissionInfo($driverCommissions,$payeeId);
-        foreach($orders as $order){
-            $pickUpCount += $order->qty;
-            $obj->order_ids[] = $order->id;
-        }
-
+        // $qDc = DriverCommission::where('driver_id',$payeeId)->where('is_deleted',0)->selectRaw('id,driver_id,delivery_type,pickup_commission,pickup_commission_type,delivery_commission_type,delivery_commission,pickup_commission_start_date,delivery_commission_start_date');
+        // $driverCommissions = $qDc->get();
+        // $dc = TransactionService::getDriverCommissionInfo($driverCommissions,$payeeId);
+        // foreach($orders as $order){
+        //     $pickUpCount += $order->qty;
+        //     $obj->order_ids[] = $order->id;
+        // }
+        $pickUpInfo = $this->getPickUpDetails($orders, $payeeId);
+        // Log::info(' o => '.$pickUpCount);
+        $pickUpCount = $pickUpInfo->total_package;
         $totalCommissionPkg = 0;
         $normalDeliveredCount = 0;
         $fastDeliveredCount = 0;
@@ -4065,7 +4072,7 @@ class TransactionService
                 $totalCommissionPkg +=1;
             }
         }
-
+        // Log::info($pickUpCount);
         $obj->total_pickup = $pickUpCount * $dc->normal_pickup_commission;
         $obj->total_delivered = $normalDeliveredCount * $dc->normal_delivery_commission + $fastDeliveredCount * $dc->fast_delivery_commission;
         $obj->total_package = $pickUpCount + $normalDeliveredCount + $fastDeliveredCount + $normalFailedWithFeeCount + $fastFailedWithFeeCount;
@@ -4089,11 +4096,13 @@ class TransactionService
 
         $obj->grand_total = Helper::getNumber($obj->total_pickup + $obj->total_delivered,2);
         // Log::info(json_encode($obj));
+        // Log::info($obj->total_pickup);
         if(empty($obj->package_ids) && empty($obj->order_ids)){
             return DataResponse::NotFound('No package found');
         }
         return $obj;
     }
+
 
     public static function getPickUpDetails($orders,$driverId){
         $totalPkg = 0;

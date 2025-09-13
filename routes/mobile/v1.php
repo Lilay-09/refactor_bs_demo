@@ -89,11 +89,13 @@ Route::middleware(['jwtDriver','localize'])->prefix('driver/v1/{lang}')->group(f
             Route::get('failRemark',[GeneralSettingController::class,'getOptionsDriverFailRemarks']);
             Route::get('zone/{zone_id}/price',[GeneralSettingController::class,'getZonePrice']);
             Route::get('zone',[GeneralSettingController::class,'getOptionsZone']);
+            Route::get('payment-method',[GeneralSettingController::class,'getOptionsPaymentMethod']);
         });
 
         Route::prefix('form')->group(function (){
             Route::get('history',[GeneralSettingController::class,'getFormOptionsHistory']);
             Route::get('booking',[GeneralSettingController::class,'getFormBooking']);
+            Route::get('transaction/payment-method',[GeneralSettingController::class,'getFormOptionsTransactionPaymentMethod']);
         });
     });
 });
