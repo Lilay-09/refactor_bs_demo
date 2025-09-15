@@ -23,7 +23,7 @@ return [
     'cl_socket' => env('CL_SOCKET','ws://192.168.0.236:3000/api/ws'),
     'chat_service_socket' => env('CHAT_SERVICE_SOCKET','ws://localhost:3000/_ws'),
     'use_redis' => env('USE_REDIS','false'),
-    'fcm_topic_prefix' => env('TOPIC_PREFIX'),
+    'fcm_topic_prefix' => env('TOPIC_PREFIX','ngexpress_loc'),
     /*
     |--------------------------------------------------------------------------
     | Application Environment
