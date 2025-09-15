@@ -206,6 +206,19 @@ class HomeScreenController extends Controller
         ")
         ->first();
 
+        $pickedUpCount = DB::table('orders')
+            ->join('packages', function($join) {
+                $join->on('packages.order_id', '=', 'orders.id')
+                    ->where('packages.status_id', 9)  // Delivered packages
+                    ->where('packages.is_deleted', 0);
+            })
+            ->where('orders.is_deleted', 0)
+            ->whereNull('orders.driver_commission_id')
+            ->where('orders.status_id', 5)
+            ->where('orders.driver_id', $user->id)
+            // ->whereBetween('orders.order_datetime', ['2025-07-01 00:00:00', '2025-09-13 23:59:59'])
+            ->count('packages.id');
+
         //** Type: Normal */
         $normalDeliveredPkg = $counts->delivered_normal_pkg;
         // Log::info($normalDeliveredPkg);
@@ -217,7 +230,8 @@ class HomeScreenController extends Controller
         $fastFailedWithFeePkg = $counts->failed_with_fee_fast_pkg;
 
         //** Normal Commission */
-        $normalDeliveryComm = $normalDeliveredPkg * $commissionInfo->normal_delivery_commission;
+        $normalDeliveryComm = $normalDeliveredPkg * $commissionInfo->normal_delivery_commission + $pickedUpCount * $commissionInfo->normal_pickup_commission;
+        $normalPickupComm = $collectedCod->delivery_normal_pkg * $commissionInfo->normal_pickup_commission;
         // $normalFailedWithFeeComm = $normalFailedWithFeePkg * $commissionInfo->normal_delivery_commission;
 
         // //** Fast Commission */
@@ -238,18 +252,7 @@ class HomeScreenController extends Controller
         // // $totalOrders = $counts->total_orders;
         $pickupCount = $orderCounts->pickup_count;
         // $pickedUpCount = $orderCounts->picked_up_count;
-        $pickedUpCount = DB::table('orders')
-            ->join('packages', function($join) {
-                $join->on('packages.order_id', '=', 'orders.id')
-                    ->where('packages.status_id', 9)  // Delivered packages
-                    ->where('packages.is_deleted', 0);
-            })
-            ->where('orders.is_deleted', 0)
-            ->whereNull('orders.driver_commission_id')
-            ->where('orders.status_id', 5)
-            ->where('orders.driver_id', $user->id)
-            // ->whereBetween('orders.order_datetime', ['2025-07-01 00:00:00', '2025-09-13 23:59:59'])
-            ->count('packages.id');
+
 
         // $balanceDues = TransactionService::getMobileUserBalance($req,$user,'driver');
         // $totalSettledDisburment = Disbursement::where('payee_id',$user->id)->where('type','payment')->where('is_deleted',0)->where('is_settled',1)->sum('payable_amount');
@@ -267,7 +270,7 @@ class HomeScreenController extends Controller
             // 'comPkg'=> $normalDeliveredPkg,
             "accepted_order_count" => $pickedUpCount.$pcsUnitLng,
             "delivered_pkg_count" => $totalDeliveredPkg.$pcsUnitLng,
-            "salary" => '$'.$normalDeliveryComm,
+            "salary" => '$'.Helper::currencyAmount(Helper::getNumber($normalDeliveryComm,2,true),'USD'),
             "pickupCount" => $pickupCount,
             "deliveryCount" => $allDeliveryPkg
         ]));
