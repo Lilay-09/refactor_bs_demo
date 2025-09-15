@@ -310,7 +310,7 @@ class TransactionService
         $startDate = $req->startDate;
         $endDate = $req->endDate;
         $paymentType = $req->query('paymentType');
-
+        $search = $req->query('search');
         // Expressions for amount to be paid
         $amountUsdExpr = "
             CASE
@@ -410,19 +410,28 @@ class TransactionService
             ->orderBy('finish_date', 'desc');
 
         // Date filter
-        if ($startDate && $endDate) {
-            $startDate = Helper::dateYMD($startDate);
-            $endDate = Helper::dateYMD($endDate);
-            $qP->where(function ($q) use ($startDate, $endDate) {
-                $q->where(function ($sub) use ($startDate, $endDate) {
-                    $sub->where('status_id', 9)
-                        ->whereDate('delivered_datetime', '>=', $startDate)
-                        ->whereDate('delivered_datetime', '<=', $endDate);
-                })->orWhere(function ($sub) use ($startDate, $endDate) {
-                    $sub->where('status_id', 19)
-                        ->whereDate('failed_datetime', '>=', $startDate)
-                        ->whereDate('failed_datetime', '<=', $endDate);
+        if(!$search){
+            if ($startDate && $endDate) {
+                $startDate = Helper::dateYMD($startDate);
+                $endDate = Helper::dateYMD($endDate);
+                $qP->where(function ($q) use ($startDate, $endDate) {
+                    $q->where(function ($sub) use ($startDate, $endDate) {
+                        $sub->where('status_id', 9)
+                            ->whereDate('delivered_datetime', '>=', $startDate)
+                            ->whereDate('delivered_datetime', '<=', $endDate);
+                    })->orWhere(function ($sub) use ($startDate, $endDate) {
+                        $sub->where('status_id', 19)
+                            ->whereDate('failed_datetime', '>=', $startDate)
+                            ->whereDate('failed_datetime', '<=', $endDate);
+                    });
                 });
+            }
+        }
+        else{
+            $qP->whereHas('merchant', function($q) use($search){
+                $q->where('username', 'ilike', "%$search%")
+                ->orWhere('code', 'ilike', "%$search%")
+                ->orWhere('phone', 'ilike', "%$search%");
             });
         }
 
@@ -430,6 +439,8 @@ class TransactionService
             $q->amount_to_be_paid_usd = Helper::getNumber($q->amount_to_be_paid_usd, 2, true);
             $q->amount_to_be_paid_khr = Helper::getNumber($q->amount_to_be_paid_khr, 2, true);
             $q->code = $q->merchant->code;
+            $q->merchant_name = $q->merchant->username;
+            $q->merchant_phone = $q->merchant->phone;
 
             $q->transaction_type = TransactionType::TRNASFER_OUT->value;
             if ($q->amount_to_be_paid_khr < 0 || $q->amount_to_be_paid_usd < 0) {
