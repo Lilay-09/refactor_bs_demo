@@ -286,7 +286,7 @@ class GeneralSettingController extends Controller
         $confirmDelivery = $req->confirm_delivery ?? 0;
         $isReturn = $req->returned == 1 ? true : false;
         $returnImg = $req->image ?? null;
-        $cms = new CloudMessagingService();
+        // $cms = new CloudMessagingService();
         $package = Package::where('is_deleted', false)
         ->with('driver')
         ->when(is_int($item_ref), function ($query) use ($item_ref) {
@@ -404,14 +404,16 @@ class GeneralSettingController extends Controller
                 Cache::put($topics->private,(object)[
                     'requester' => $requester,
                     'requester_id' => $user->id,
+                    'created_at' => now(),
                 ],now()->addSeconds($ttl));
+                Log::info("Cache key: ".$topics->private);
                 $notifReq = new Request([
                     'topic' => $topics->private,
                     'title' => 'Change Driver',
                     'body' => "$requester request change package ",
                     'data' => [
                         'action' => 'change-driver',
-                        'time_to_live' => now()->addSeconds($ttl-240),
+                        'time_to_live' => now()->addSeconds(60),
                         'requester' => $requester,
                         'barcode' => $item_ref,
                         "en_message" => "$requester request change package ",//$requester." request swap the package",
@@ -486,7 +488,9 @@ class GeneralSettingController extends Controller
         $requester = $cache?->requester;
         // return $cache;
         $requester_id = $cache?->requester_id;
-
+        Log::info("Cache data: ".json_encode($cache));
+        Log::info("Cache key: ".$selfTopic);
+        Cache::forget($selfTopic);
 
         if($requester_id == $package->driver_id) return ApiResponse::Duplicated(__('messages.info',[
             'info' => 'It seems like you try to confirm self request'
@@ -582,7 +586,7 @@ class GeneralSettingController extends Controller
                 'sender' => $user->username,
             ]
         ]);
-        Cache::forget($selfTopic);
+
         SendNotificationJob::dispatch($notifReq, $user)->onQueue(config('queue_job_names.'.config('app.env').'.notification'));
         // $cms->sendNotificationByTopic($notifReq,$user);
         return ApiResponse::JsonResult(null,$confirm ? 'Success':'Declined change driver');
