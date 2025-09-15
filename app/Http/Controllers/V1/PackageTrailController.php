@@ -77,7 +77,12 @@ class PackageTrailController extends Controller
         //         ELSE NULL
         //     END DESC
         // ");
-        $select = ['merchant_id','order_id','id','taxi_fee','delivery_type','qr_code','price','price_khr','driver_id','product_type','dim_z','dim_x','dim_y','status_id','failed_datetime','failure_notes','payer','cod','delivery_fee','receiver_address','zone_code','zone_name','receiver_name','receiver_phone','delivered_datetime','assign_driver_datetime','arrive_warehouse_datetime','driver_total','merchant_total','billed_kg','actual_kg','created_at','warehouse_id'];
+        $select = [
+            'merchant_id','order_id','id','taxi_fee','delivery_type','qr_code','price','price_khr','driver_id','product_type','dim_z',
+            'dim_x','dim_y','status_id','failed_datetime','failure_notes','payer','cod','delivery_fee','receiver_address','zone_code',
+            'zone_name','receiver_name','receiver_phone','delivered_datetime','assign_driver_datetime','arrive_warehouse_datetime',
+            'driver_total','merchant_total','billed_kg','actual_kg','created_at','warehouse_id','other_fee'
+        ];
         if($warehouse_id){
             $query->where('warehouse_id',$warehouse_id);
             // $query->whereHas('order',function($q) use($warehouse_id){
@@ -145,7 +150,7 @@ class PackageTrailController extends Controller
         ->where('outstanding',0)
         // ->whereNotIn('status_id',[]) // at warehouse
         ->where('company_id',$user->company_id)
-        ->selectRaw('id,taxi_fee,actual_kg,billed_kg,extra_charge,delivery_type,qr_code,price,driver_cod_khr,driver_cod_usd,price_khr,driver_id,product_type,dim_z,dim_x,dim_y,status_id,failure_notes,payer,cod,delivery_fee,receiver_address,zone_code,zone_name,receiver_name,receiver_phone,delivered_datetime,assign_driver_datetime,arrive_warehouse_datetime,driver_total,merchant_total,driver_id,remarks,billed_kg,actual_kg')
+        ->selectRaw('other_fee,id,taxi_fee,actual_kg,billed_kg,extra_charge,delivery_type,qr_code,price,driver_cod_khr,driver_cod_usd,price_khr,driver_id,product_type,dim_z,dim_x,dim_y,status_id,failure_notes,payer,cod,delivery_fee,receiver_address,zone_code,zone_name,receiver_name,receiver_phone,delivered_datetime,assign_driver_datetime,arrive_warehouse_datetime,driver_total,merchant_total,driver_id,remarks,billed_kg,actual_kg')
         ->find($id);
         if(!$package) return ApiResponse::NotFound();
         $package->status_code = $package->status->name;
@@ -193,6 +198,7 @@ class PackageTrailController extends Controller
             'info' => 'It seems like you try to update package which is on payment pending or paid with merchant'
         ]));
         $req->merge(['merchant_id' => $package->merchant_id]);
+        // Log::info('Update Package Request: '.json_encode($req->all()));
         $validate = $this->pickupCenterService->packageValidation($req);
         if($validate->fails()) return ApiResponse::ValidateFail($validate->errors()->first());
         $inputs = $validate->validated();
@@ -220,16 +226,17 @@ class PackageTrailController extends Controller
         $inputs['main_zone_code'] = $zone->parent?->zone_code;
         $inputs['main_zone_name'] = $zone->parent?->zone_name;
         $extra_charge = $inputs['extra_charge'] ?? 0;
-        $calPrice = GeneralSettingService::calculatePackageFee($zoneCode,$price,$billedKg,$actualKg,$payer,$cod,$extra_charge,$user,$taxiFee,$package->merchant_id);
+        $otherFee = $inputs['other_fee'] ?? 0;
+        $calPrice = GeneralSettingService::calculatePackageFee($zoneCode,$price,$billedKg,$actualKg,$payer,$cod,$extra_charge,$user,$taxiFee,$package->merchant_id,null,$otherFee);
         if($calPrice->error) return $calPrice;
         $deliveryFee = $calPrice->delivery_fee;
         $inputs['delivery_fee'] = $calPrice->delivery_fee;
         // $inputs['driver_total'] = ($package->status_id == 19 && $package->cod) ? abs($package->price - $calPrice->driver_total):$calPrice->driver_total;
-        $driverTotal = $this->pickupCenterService::getDriverTotal($cod,$payer,$price,$deliveryFee,$package->additional_fee,$extra_charge,$taxiFee);
+        $driverTotal = $this->pickupCenterService::getDriverTotal($cod,$payer,$price,$deliveryFee,$package->additional_fee,$extra_charge,$taxiFee,$otherFee);
         $inputs['driver_total'] = $driverTotal;
         $inputs['merchant_total'] = $this->pickupCenterService::getTotal('merchant',$cod,$payer,$price,$deliveryFee,$package->additional_fee,$extra_charge,$taxiFee);
         if($package->status_id == TrackingStatus::FAILED_WITH_FEE->value){
-            $driverTotal = $this->pickupCenterService::getDriverTotal($cod,$payer,0,$deliveryFee,$package->additional_fee,$extra_charge,0);
+            $driverTotal = $this->pickupCenterService::getDriverTotal($cod,$payer,0,$deliveryFee,$package->additional_fee,$extra_charge,0,$otherFee);
             if($payer == 'receiver') {
                 $inputs['driver_total'] = $driverTotal;
                 $inputs['merchant_total'] = 0;

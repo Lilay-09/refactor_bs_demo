@@ -295,12 +295,13 @@ class PickupCenterServiceImpl implements PickupCenterService
         ]);
     }
 
-    public static function getDriverTotal($cod,$payer,$price,$deliveryFee,$additional_fee,$extra_charge,$taxi=0){
+    public static function getDriverTotal($cod,$payer,$price,$deliveryFee,$additional_fee,$extra_charge,$taxi=0,$otherFee=0){
         $total = $additional_fee;
         if($cod) $total += $price;
         if($payer == 'receiver') {
             $total += $extra_charge;
             $total += $deliveryFee;
+            $total += $otherFee;
         }
         return $total - $taxi;
     }
@@ -357,6 +358,7 @@ class PickupCenterServiceImpl implements PickupCenterService
             ]);
             if(!$order) return DataResponse::NotFound('Order not found');
         }
+        // Log::info('Package Request: '.json_encode($req->all()));
         $validate = $this->packageValidation($req);
         if($validate->fails()) return DataResponse::ValidateFail($validate->errors()->first());
         $inputs = $validate->validated();
