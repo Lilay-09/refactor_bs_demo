@@ -479,7 +479,7 @@ class GeneralSettingController extends Controller
         $obj = (object)[
             'delivery_type' => $this->gs::optionsDeliveryType(),
             'merchants' => $this->gs::optionsMerchant($user),
-            'statuses' => $this->gs::optionsTrackingStatus($user,[],[5,6,10,19],null,null,$req->lang),
+            'statuses' => $this->gs::optionsTrackingStatus($user,[],[5,6,10,19,11],null,null,$req->lang),
             'warehouses' => $this->gs::optionsWarehouse($user),
             'drivers' => $this->gs::optionsDriver($user),
             'zones' => $this->gs::optionsZone($user),
@@ -644,7 +644,7 @@ class GeneralSettingController extends Controller
             'delivery_types' => $this->gs::optionsDeliveryType(),
             'payment_statuses' => $this->gs::paymentStatus(),
             'branches' => $this->gs::optionsBranch(),
-            'statuses' => $this->gs::optionsTrackingStatus($user,[],[9,11,19,23],'delivery',null,$req->lang)
+            'statuses' => $this->gs::optionsTrackingStatus($user,[],[9,19,23],'delivery',null,$req->lang)
         ];
         return ApiResponse::JsonResult($obj);
     }

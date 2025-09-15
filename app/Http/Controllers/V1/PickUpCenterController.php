@@ -605,7 +605,7 @@ class PickUpCenterController extends Controller
         ->with(['driver:id,username,phone','merchant:id,phone,username','updateUser:id,username'])
         // ->whereNotIn('status_id',[]) // at warehouse
         // ->where('company_id',$user->company_id)
-        ->selectRaw('price_khr,id as package_id,cod,extra_charge,taxi_fee,delivery_fee,zone_name,zone_code,merchant_id,driver_id,receiver_phone,receiver_address,created_at,arrive_warehouse_datetime,qr_code,remarks,price,update_uid,payer')
+        ->selectRaw('other_fee,price_khr,id as package_id,cod,extra_charge,taxi_fee,delivery_fee,zone_name,zone_code,merchant_id,driver_id,receiver_phone,receiver_address,created_at,arrive_warehouse_datetime,qr_code,remarks,price,update_uid,payer')
         ->where('order_id',$id)
         // ->orderByRaw("CASE $orderByCase END")
         ->get();
@@ -619,7 +619,7 @@ class PickUpCenterController extends Controller
             $package->merchant_name = $package->merchant->username;
             $package->merchant_phone = $package->merchant->phone;
             $package->receiver_address = $package->receiver_address ?? $package->zone_name;
-            $package->delivery_fee = $package->delivery_fee + $package->taxi_fee + $package->extra_charge;//($package->cod ? $package->price : 0);
+            $package->delivery_fee = $package->delivery_fee + $package->taxi_fee + $package->extra_charge + $package->other_fee;//($package->cod ? $package->price : 0);
             $package->base_fee = $package->payer == 'receiver' ? $package->delivery_fee:0;
             $package->created_by = $package->updateUser->username;
             $package->created_date = Helper::formatCustomDateTime($package->created_at,'d-M-Y');

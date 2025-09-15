@@ -55,7 +55,7 @@ class PackageTrailController extends Controller
         // ->whereNotIn('status_id',[]) // at warehouse
         ->where('company_id',$user->company_id)
         ->where(function($q){
-            $q->whereNotIn('status_id',[9,11,12])->whereNull('returned_uid');
+            $q->whereNotIn('status_id',[9,23,12]);//->whereNull('returned_uid');
         })
         ->orderBy('arrive_warehouse_datetime') // primary
         ->orderByRaw('(status_id = ?) DESC', [5]) // secondary
@@ -345,7 +345,7 @@ class PackageTrailController extends Controller
         ->where('outstanding',0)
         // ->whereNotIn('status_id',[]) // at warehouse
         ->where('company_id',$user->company_id)
-        ->selectRaw('price_khr,id as package_id,cod,extra_charge,taxi_fee,delivery_fee,zone_name,zone_code,merchant_id,driver_id,receiver_phone,receiver_address,created_at,arrive_warehouse_datetime,qr_code,remarks,price,update_uid,payer')
+        ->selectRaw('other_fee,price_khr,id as package_id,cod,extra_charge,taxi_fee,delivery_fee,zone_name,zone_code,merchant_id,driver_id,receiver_phone,receiver_address,created_at,arrive_warehouse_datetime,qr_code,remarks,price,update_uid,payer')
         ->find($id);
         if(!$package) return ApiResponse::NotFound(trans('messages.not_found',['info' => 'Package','khInfo' => 'កញ្ចប់​']));
         $driver = $package->driver;
@@ -355,7 +355,7 @@ class PackageTrailController extends Controller
         $package->receiver_address = $package->receiver_address ?? $package->zone_name;
         $package->merchant_name = $package->merchant->username;
         $package->merchant_phone = $package->merchant->phone;
-        $package->delivery_fee = $package->delivery_fee + $package->taxi_fee + $package->extra_charge;//($package->cod ? $package->price : 0);
+        $package->delivery_fee = $package->delivery_fee + $package->taxi_fee + $package->extra_charge + $package->other_fee;//($package->cod ? $package->price : 0);
         $package->base_fee = $package->delivery_fee;
         $package->created_by = $package->updateUser->username;
         $package->created_date = Helper::formatCustomDateTime($package->created_at,'d-M-Y');
@@ -406,7 +406,7 @@ class PackageTrailController extends Controller
         ->where('outstanding',0)
         // ->whereNotIn('status_id',[]) // at warehouse
         ->where('company_id',$user->company_id)
-        ->selectRaw('price_khr,id as package_id,cod,extra_charge,taxi_fee,delivery_fee,zone_name,zone_code,merchant_id,driver_id,receiver_phone,receiver_address,created_at,arrive_warehouse_datetime,qr_code,remarks,price,price_khr,update_uid,payer')
+        ->selectRaw('other_fee,price_khr,id as package_id,cod,extra_charge,taxi_fee,delivery_fee,zone_name,zone_code,merchant_id,driver_id,receiver_phone,receiver_address,created_at,arrive_warehouse_datetime,qr_code,remarks,price,price_khr,update_uid,payer')
         ->whereIn('id',$packageIds)
         ->orderByRaw("CASE $orderByCase END")
         ->get();
@@ -420,7 +420,7 @@ class PackageTrailController extends Controller
             $package->receiver_address = $package->receiver_address ?? $package->zone_name;
             $package->merchant_name = $package->merchant->username;
             $package->merchant_phone = $package->merchant->phone;
-            $package->delivery_fee = $package->delivery_fee + $package->taxi_fee + $package->extra_charge;//($package->cod ? $package->price : 0);
+            $package->delivery_fee = $package->delivery_fee + $package->taxi_fee + $package->extra_charge + $package->other_fee;//($package->cod ? $package->price : 0);
             $package->base_fee = $package->payer == 'receiver' ? $package->delivery_fee:0;
             $package->created_by = $package->updateUser->username;
             $package->created_date = Helper::formatCustomDateTime($package->created_at,'d-M-Y');
