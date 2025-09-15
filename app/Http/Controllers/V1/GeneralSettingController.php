@@ -452,7 +452,8 @@ class GeneralSettingController extends Controller
         ->select([
             'id','qr_code','driver_id','receiver_address','receiver_phone','cod','merchant_id',
             'price','remarks','driver_total as total','zone_name','zone_code','delivery_type',
-            'other_fee','delivery_fee','payer','additional_fee','taxi_fee','driver_total as total'
+            'price_khr','other_fee','delivery_fee','payer','additional_fee','taxi_fee',
+            'driver_total as total'
         ])
         ->find($req->packageId);
         $pkg->merchant_name = $pkg->merchant->username;
