@@ -231,20 +231,31 @@ class HomeScreenController extends Controller
         ->where('driver_id',$user->id)
         // COUNT(*) as total_orders,
         ->selectRaw("
-            COUNT(CASE WHEN status_id = 3 THEN 1 END) as pickup_count,
-            COUNT(CASE WHEN status_id = 5 THEN 1 END) as picked_up_count
+            COUNT(CASE WHEN status_id = 3 THEN 1 END) as pickup_count
         ")
         ->first();
         // // return $commissionInfo;
         // // $totalOrders = $counts->total_orders;
         $pickupCount = $orderCounts->pickup_count;
-        $pickedUpCount = $orderCounts->picked_up_count;
+        // $pickedUpCount = $orderCounts->picked_up_count;
+        $pickedUpCount = DB::table('orders')
+            ->join('packages', function($join) {
+                $join->on('packages.order_id', '=', 'orders.id')
+                    ->where('packages.status_id', 9)  // Delivered packages
+                    ->where('packages.is_deleted', 0);
+            })
+            ->where('orders.is_deleted', 0)
+            ->whereNull('orders.driver_commission_id')
+            ->where('orders.status_id', 5)
+            ->where('orders.driver_id', $user->id)
+            // ->whereBetween('orders.order_datetime', ['2025-07-01 00:00:00', '2025-09-13 23:59:59'])
+            ->count('packages.id');
 
         // $balanceDues = TransactionService::getMobileUserBalance($req,$user,'driver');
         // $totalSettledDisburment = Disbursement::where('payee_id',$user->id)->where('type','payment')->where('is_deleted',0)->where('is_settled',1)->sum('payable_amount');
         $pcsUnitLng = $lang == 'km' ? 'កញ្ចប់': 'PCS';
         // $totalEearning = $normalDeliveryComm + $normalFailedWithFeeComm + $fastDeliveryComm + $fastFailedWithFeeComm;
-        $totalDeliveredPkg = $normalDeliveredPkg + $normalFailedWithFeePkg + $fastDeliveredPkg + $fastFailedWithFeePkg;
+        $totalDeliveredPkg = $normalDeliveredPkg;//+ $normalFailedWithFeePkg + $fastDeliveredPkg + $fastFailedWithFeePkg;
 
         return ApiResponse::JsonResult(data: HomeBalanceCardDTO::fromModel([
             'settleAmountUsd' => Helper::currencyAmount(Helper::getNumber($collectedCod->drivercodusd ?? 0,2,true),'USD'),//'USD ' . Helper::getNumber($collectedCod->drivercodusd ?? 0,2,true),

@@ -512,6 +512,7 @@ class TransactionController extends Controller
                 ->where('dp.type','payment')
                 ->where('dp.is_deleted', false);
         })
+        ->orderByDesc('p.updated_at')
 
         ->selectRaw(
             'p.driver_id,p.returned_uid,p.payer,p.extra_charge,p.cod,p.price as price_usd,p.price_khr,
