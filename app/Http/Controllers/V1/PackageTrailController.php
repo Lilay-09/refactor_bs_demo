@@ -61,7 +61,7 @@ class PackageTrailController extends Controller
             CASE
                 WHEN status_id = 5 THEN 0       -- top priority
                 ELSE 1
-            END DESC
+            END ASC
         ")
         ->orderByRaw("
             CASE
