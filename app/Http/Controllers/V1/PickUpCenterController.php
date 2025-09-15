@@ -542,6 +542,9 @@ class PickUpCenterController extends Controller
         $user = UserService::getAuthUser();
         $orderImages = OrderImage::where('order_id',$orderId)
         ->with(['package:id,qr_code,receiver_phone,zone_name'])
+        ->whereHas('package',function($q){
+            $q->where('is_deleted',false);
+        })
         ->selectRaw('photo_file_name,created_at,package_id,id')
         ->orderByDesc('id')
         ->get();

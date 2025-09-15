@@ -402,8 +402,10 @@ class HomeScreenController extends Controller
     // }
 
     public function getReturningPackage(Request $req){
+        $user = UserService::getAuthUser('driver');
         $pk = Package::query()
         ->where('is_deleted',0)
+        ->where('driver_id',$user->id)
         ->where('status_id',TrackingStatus::RETURNING->value)
         ->with([
             'merchant:id,username,phone',
