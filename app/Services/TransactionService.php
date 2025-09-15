@@ -4034,11 +4034,12 @@ class TransactionService
         // $driverCommissions = $qDc->get();
         // $dc = TransactionService::getDriverCommissionInfo($driverCommissions,$payeeId);
         // foreach($orders as $order){
-        //     $pickUpCount += $order->qty;
-        //     $obj->order_ids[] = $order->id;
+            // $pickUpCount += $order->qty;
+            // $obj->order_ids[] = $order->id;
         // }
         $pickUpInfo = $this->getPickUpDetails($orders, $payeeId);
         // Log::info(' o => '.$pickUpCount);
+        $obj->order_ids = $pickUpInfo->order_ids;
         $pickUpCount = $pickUpInfo->total_package;
         $totalCommissionPkg = 0;
         $normalDeliveredCount = 0;
@@ -4104,15 +4105,18 @@ class TransactionService
     }
 
 
-    public static function getPickUpDetails($orders,$driverId){
+    public static function getPickUpDetails($orders,$driverId): object{
         $totalPkg = 0;
+        $orderIds = [];
         foreach($orders as $order){
             if($order->driver_id == $driverId){
                 $totalPkg += $order->qty;
+                $orderIds[] = $order->id;
             }
         }
         return (object)[
             'total_package' => $totalPkg,
+            'order_ids' => $orderIds
         ];
     }
 
