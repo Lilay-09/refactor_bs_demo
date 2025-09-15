@@ -57,7 +57,7 @@ class PackageTrailController extends Controller
         ->where(function($q){
             $q->whereNotIn('status_id',[9,23,12]);//->whereNull('returned_uid');
         })
-        ->orderByRaw('(status_id = ?) DESC', [5])
+        ->orderByRaw('(status_id = ?) ASC', [5])
         ->orderBy('arrive_warehouse_datetime')
         ->orderByRaw("
             CASE
