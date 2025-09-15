@@ -482,16 +482,17 @@ class GeneralSettingController extends Controller
 
         $selfTopic = GeneralSettingService::getGeneralTopics($user->company_id,'driver',$user->id)->private;
         $cache = Cache::get($selfTopic);
+        if(!$cache) return ApiResponse::NotFound("Request not found or has expired");
         $requester = $cache?->requester;
         // return $cache;
         $requester_id = $cache?->requester_id;
 
-        if(!$cache) return ApiResponse::NotFound();
+
         if($requester_id == $package->driver_id) return ApiResponse::Duplicated(__('messages.info',[
             'info' => 'It seems like you try to confirm self request'
         ]));
         $requesterTopic = GeneralSettingService::getGeneralTopics($user->company_id,'driver',$requester_id);
-        $cms = new CloudMessagingService();
+        // $cms = new CloudMessagingService();
         $notifTitle = 'Confirm';
         $notifBody = $user->username.' has confirmed your request';
         if(!$confirm){
