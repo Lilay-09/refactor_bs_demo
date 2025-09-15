@@ -411,7 +411,7 @@ class GeneralSettingController extends Controller
                     'body' => "$requester request change package ",
                     'data' => [
                         'action' => 'change-driver',
-                        'time_to_live' => now()->addSeconds($ttl-10),
+                        'time_to_live' => now()->addSeconds($ttl-40),
                         'requester' => $requester,
                         'barcode' => $item_ref,
                         "en_message" => "$requester request change package ",//$requester." request swap the package",
