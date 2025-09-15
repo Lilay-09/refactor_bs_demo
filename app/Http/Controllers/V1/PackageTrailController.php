@@ -52,15 +52,12 @@ class PackageTrailController extends Controller
             'warehouse:id,name_en'
         ])
         ->where('outstanding',0)
-        // ->whereNotIn('status_id',[]) // at warehouse
         ->where('company_id',$user->company_id)
-        ->where(function($q){
-            $q->whereNotIn('status_id',[9,23,12]);//->whereNull('returned_uid');
-        })
+        ->whereIn('status_id',[5,6,19,13])
         ->orderByRaw("
             CASE
-                WHEN status_id = 5 THEN 0       -- top priority
-                ELSE 1
+                WHEN status_id = 5 THEN 1
+                ELSE 2
             END ASC
         ")
         ->orderByRaw("
@@ -75,7 +72,6 @@ class PackageTrailController extends Controller
                 ELSE NULL
             END DESC
         ");
-
 
 
         // ->selectRaw('merchant_id,order_id,id,taxi_fee,delivery_type,qr_code,price,driver_id,product_type,dim_z,dim_x,dim_y,status_id,failed_datetime,failure_notes,payer,cod,delivery_fee,receiver_address,zone_code,zone_name,receiver_name,receiver_phone,delivered_datetime,assign_driver_datetime,arrive_warehouse_datetime,driver_total,merchant_total,billed_kg,actual_kg,created_at')
@@ -149,7 +145,7 @@ class PackageTrailController extends Controller
             unset($pkg->status,$pkg->merchant,$pkg->driver);
             return $pkg;
         };
-        return ApiResponse::PaginationV1($query,$req,__('messages.get_list',['info'=>'Package']),[],1000,$callbackMapper,$select,1800,false,$this->cacheTags);
+        return ApiResponse::PaginationV1($query,$req,__('messages.get_list',['info'=>'Package']),[],1000,$callbackMapper,$select,false);
     }
 
     public function getOnePackage(Request $req){
