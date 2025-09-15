@@ -260,19 +260,15 @@ class HomeScreenController extends Controller
         // $totalEearning = $normalDeliveryComm + $normalFailedWithFeeComm + $fastDeliveryComm + $fastFailedWithFeeComm;
         $totalDeliveredPkg = $normalDeliveredPkg;//+ $normalFailedWithFeePkg + $fastDeliveredPkg + $fastFailedWithFeePkg;
 
+        $isSalaryDay = $user->info->isSalaryDay;
         return ApiResponse::JsonResult(data: HomeBalanceCardDTO::fromModel([
             'settleAmountUsd' => Helper::currencyAmount(Helper::getNumber($collectedCod->drivercodusd ?? 0,2,true),'USD'),//'USD ' . Helper::getNumber($collectedCod->drivercodusd ?? 0,2,true),
             'settleAmountKhr' => Helper::currencyAmount(Helper::getNumber($collectedCod->drivercodkhr ?? 0,2,true),'KHR'),//'KHR '. Helper::getNumber($collectedCod->drivercodkhr ?? 0,2,true),
-            'earning' => 'USD '. Helper::getNumber($normalDeliveryComm,2,true),
-            // 'pickupCount' => (string)$pickupCount,
-            // 'deliveryCount' => (string)$counts->delivery_normal_pkg
-            // "unpaid_amt" => '$'.$balanceDues['total'],
-            // 'comPkg'=> $normalDeliveredPkg,
             "accepted_order_count" => $pickedUpCount.$pcsUnitLng,
             "delivered_pkg_count" => $totalDeliveredPkg.$pcsUnitLng,
-            "salary" => '$'.Helper::currencyAmount(Helper::getNumber($normalDeliveryComm,2,true),'USD'),
+            "earning" =>  !$isSalaryDay ? "":Helper::currencyAmount(Helper::getNumber($normalDeliveryComm,2,true),'USD'),
             "pickupCount" => $pickupCount,
-            "deliveryCount" => $allDeliveryPkg
+            "deliveryCount" => $allDeliveryPkg,
         ]));
     }
 

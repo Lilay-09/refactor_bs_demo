@@ -62,6 +62,7 @@ class User extends Authenticatable implements JWTSubject
         'relative_relationship',
         'relative_address',
         'salary',
+        'salary_date',
         'referrer_uid',
         'register_channel',
         'register_status',
@@ -148,6 +149,7 @@ class User extends Authenticatable implements JWTSubject
      */
     protected $casts = [
         'email_verified_at' => 'datetime',
+        'salary_date' => 'datetime',
     ];
 
     public function getJWTIdentifier()
