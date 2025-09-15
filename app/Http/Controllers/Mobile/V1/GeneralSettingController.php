@@ -400,8 +400,8 @@ class GeneralSettingController extends Controller
                 ]));
                 $requester = $user->info->phone."($user->username)";
                 $topics = GeneralSettingService::getGeneralTopics($user->company_id,'driver',$package->driver_id);
-                $ttl = 70;
-                Cache::set($topics->private,(object)[
+                $ttl = 100;
+                Cache::put($topics->private,(object)[
                     'requester' => $requester,
                     'requester_id' => $user->id,
                 ],$ttl);
