@@ -364,7 +364,7 @@ class GeneralSettingController extends Controller
             'info' => 'You cannot mark contact on package which is not on delivery',
             'khInfo' => 'អ្នកមិនអាចបញ្ជាក់ថាមានទំនាក់ទំនងនៅលើកញ្ចប់ដែលមិនបានដឹកទេ'
         ])); else {
-            $updateArr['is_contact'] = true;
+            $updateArr['is_contact'] = $markContact;
             // $topics = GeneralSettingService::getGeneralTopics($user->company_id,'merchant',$package->merchant_id);
             // $notifReq = new Request([
             //     'topic' => $topics->private,
