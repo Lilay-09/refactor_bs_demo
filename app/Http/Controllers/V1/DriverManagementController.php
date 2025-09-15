@@ -74,7 +74,7 @@ class DriverManagementController extends Controller
         $id = $req->id;
         $driver = User::where('is_deleted',0)->where('company_id',$user->company_id)
         ->where('account_type','driver')
-        ->with(['bank_accounts:id,user_id,bank_name,bank_number,account_name,is_primary'])
+        ->with(['bank_accounts:id,user_id,currency,bank_name,bank_number,account_name,is_primary'])
         ->selectRaw('*,driver_warehouse_id as warehouse_id')
         ->find($id);
         if(!$driver) return ApiResponse::NotFound(__('messages.not_found',['info' => 'Driver']));
@@ -123,10 +123,22 @@ class DriverManagementController extends Controller
         $fast_pickup_commission_type = $inputs['fast_pickup_commission_type'];
         $fast_delivery_commission_type = $inputs['fast_delivery_commission_type'];
 
-        $normal_pickup_commissionStartDate = $inputs['normal_pickup_commission_start_date'] ?? null;
-        $normal_delivery_commissionStartDate = $inputs['normal_delivery_commission_start_date'] ?? null;
-        $fast_pickup_commissionStartDate = $inputs['fast_pickup_commission_start_date'] ?? null;
-        $fast_delivery_commissionStartDate = $inputs['fast_delivery_commission_start_date'] ?? null;
+        $normal_pickup_commissionStartDate = isset($inputs['normal_pickup_commission_start_date'])
+            ? Helper::dateYMD($inputs['normal_pickup_commission_start_date'])
+            : null;
+
+        $normal_delivery_commissionStartDate = isset($inputs['normal_delivery_commission_start_date'])
+            ? Helper::dateYMD($inputs['normal_delivery_commission_start_date'])
+            : null;
+
+        $fast_pickup_commissionStartDate = isset($inputs['fast_pickup_commission_start_date'])
+            ? Helper::dateYMD($inputs['fast_pickup_commission_start_date'])
+            : null;
+
+        $fast_delivery_commissionStartDate = isset($inputs['fast_delivery_commission_start_date'])
+            ? Helper::dateYMD($inputs['fast_delivery_commission_start_date'])
+            : null;
+
         $commissionArr = [
             [
                 'driver_id' => $driver_id,

@@ -22,7 +22,10 @@ class DeliveryTripsPackagesDTO{
         public readonly ?string $receiver_address,
         public readonly ?string $self_notes,
         public readonly ?bool $is_contact,
-        public readonly ?float $exchange_rate
+        public readonly ?float $exchange_rate,
+        public readonly ?string $image_url,
+        public readonly ?string $fees_usd,
+        public readonly ?string $fees_khr,
     ) {}
     public static function fromModel(Package $data): self
     {
@@ -44,7 +47,10 @@ class DeliveryTripsPackagesDTO{
             self_notes: $data->self_notes ?? null,
             is_contact: $data->is_contact ?? null,
             exchange_rate: $data->exchange_rate,
-            total_khr: $data->total_khr ?? 0
+            total_khr: $data->total_khr ?? 0,
+            image_url: $data->image_url,
+            fees_usd:$data->fees_usd,
+            fees_khr:$data->fees_khr
         );
     }
 

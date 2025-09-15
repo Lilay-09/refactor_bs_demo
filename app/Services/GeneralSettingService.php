@@ -2,6 +2,9 @@
 
 namespace App\Services;
 use App\Enums\BranchType;
+use App\Enums\Currency;
+use App\Enums\PaymentMethod;
+use App\Enums\TransactionType;
 use App\Enums\TransferStatus;
 use App\Enums\WarehouseStatus;
 use App\Enums\WarehouseType;
@@ -33,10 +36,12 @@ use App\Models\Role;
 use App\Models\TermCondition;
 use App\Models\TrackingStatus;
 use App\Models\User;
+use App\Models\UserZone;
 use App\Models\VehicleType;
 use App\Models\Warehouse;
 use App\Models\Zone;
 use DataResponse;
+use DB;
 use Helper;
 use Illuminate\Http\Request;
 use Log;
@@ -50,6 +55,8 @@ class GeneralSettingService
     //     ['value' => 'fast', 'label' => 'Fast', 'description' => __('messages.fast_desc')],
     //     ['value' => 'normal', 'label' => 'Normal', 'description' => __('messages.normal_desc')],
     // ];
+
+    public static $feeXrate = 4000;
 
 
     public static $payerTrans = [
@@ -150,10 +157,14 @@ class GeneralSettingService
         ->get();
     }
 
+    public static function optionsPaymentMethod(){
+        return PaymentMethod::optionsMethod();
+    }
+
 
     public static function optionsCommissionType($lang='en'){
         return Helper::translateOptions([
-            'percentage' => ['en' => '%','km'=>'%'],
+            // 'percentage' => ['en' => '%','km'=>'%'],
             'amount' => ['en' => '$','km'=>'$'],
         ],$lang);
     }
@@ -280,10 +291,22 @@ class GeneralSettingService
     }
 
     public static function optionsZone($user,$identity='child',$parentId=null,Request $filter=null){
-        $qZ = Zone::where('status',1)->where('company_id',$user->company_id)->where('is_deleted',0);
+        $merchantId = $filter->merchant_id ?? null;
+        $plNameId = MerchantPriceList::where('merchant_id',$merchantId)->take(1)->value('price_list_id');
+        if($plNameId){
+            $plIds = PriceList::where('price_list_name_id',$plNameId)
+            ->pluck('id')->toArray();
+            if(!empty($plIds)){
+                $merchantZoneIds = PriceListZone::whereIn('price_list_id',$plIds)->pluck('zone_id')->toArray();
+            }
+        }
+        $qZ = Zone::where('status',1)->where('company_id',$user->company_id)->where('is_deleted',false);
         if($identity){
             $qZ->where('identity',$identity);
             // ->whereNotNull('parent_id');
+        }
+        if($merchantId){
+            $qZ->whereIn('id',$merchantZoneIds);
         }
         if($parentId){
             $qZ->where('parent_id',$parentId);
@@ -302,7 +325,10 @@ class GeneralSettingService
         if($exceptId){
             $qZ->where('id','!=',$exceptId);
         }
-        $zone = $qZ->selectRaw('id,zone_name,identity,zone_code,parent_id')->orderByDesc('id')->get();
+        $zone = $qZ->selectRaw('id,zone_name,identity,zone_code,parent_id')->orderByDesc('id')
+        ->get()->each(function ($q){
+            // Log::info($q);
+        });
         return $zone;
     }
 
@@ -461,6 +487,10 @@ class GeneralSettingService
         });
     }
 
+    public static function optionsPaymentBank(){
+        return PaymentMethod::optionsBank();
+    }
+
     public static function optionsApplyCommission(){
         return Helper::translateOptions([
             true => [
@@ -475,16 +505,7 @@ class GeneralSettingService
     }
 
     public static function optionsTransactionType(){
-        return [
-            [
-                'name' => 'Transfer Out',
-                'value' => 'disbursement',
-            ],
-            [
-                'name' => 'Transfer In',
-                'value' => 'receive'
-            ]
-        ];
+        return TransactionType::options();
     }
 
     public static function optionsMerchant($user){
@@ -500,7 +521,7 @@ class GeneralSettingService
         return $merchants;
     }
 
-    public static function optionsDailyActiveMerchant($user,$startDate=null,$endDate=null,int $branchId = null){
+    public static function optionsDailyActiveMerchant($user,$startDate=null,$endDate=null,$stage = null,int $branchId = null){
         // Log::error($startDate.'---'.$endDate);
         $query = User::join('packages', 'users.id', '=', 'packages.merchant_id')
         ->where('packages.is_deleted',0)
@@ -508,7 +529,7 @@ class GeneralSettingService
         // ->where('users.company_id', $user->company_id)
         ->where('users.account_type', 'merchant')
         ->where('users.is_deleted',0)
-        ->selectRaw('DISTINCT users.id, users.username, users.name_km, users.phone')
+        ->selectRaw('DISTINCT users.id, users.username, users.name_km, users.phone,users.photo_file_name')
         ->orderByDesc('users.id');
         if($branchId){
             $query->where('users.branch_id',$branchId);
@@ -528,6 +549,40 @@ class GeneralSettingService
                 );
             });
         }
+
+        $pkgInfo = null;
+        if($stage == 'transaction'){
+            $clM = clone $query;
+            $select = [
+                'merchant_id',
+                DB::raw("COUNT(*) as package_count")
+            ];
+            $qP = Package::query()
+            ->where('is_deleted', false)
+            // ->with(['merchant:id,username'])
+            ->whereIn('status_id', [9, 19])
+            ->whereIn('merchant_id',$clM->pluck('id'))
+            ->select($select)
+            ->groupBy(
+                'merchant_id',
+            );
+            // if ($startDate && $endDate) {
+            //     $qP->where(function ($q) use ($startDate, $endDate) {
+            //         $startDate = Helper::dateYMD($startDate).' 00:00:00';
+            //         $endDate = Helper::dateYMD($endDate).' 23:59:59';
+            //         $q->where(function ($query) use ($startDate, $endDate) {
+            //             $query->where('status_id', 9)
+            //                 ->whereBetween('delivered_datetime',[$startDate,$endDate]);
+            //         })->orWhere(function ($query) use ($startDate, $endDate) {
+            //             $query->where('status_id', 19)
+            //             ->whereBetween('failed_datetime',[$startDate,$endDate]);
+            //         });
+            //     });
+            // }
+            $pkgInfo = $qP->get()->keyBy('merchant_id');
+            // return $pkgInfo;
+        }
+
         $merchants = $query->get();
 
         // $query = User::where(function($q){
@@ -554,7 +609,11 @@ class GeneralSettingService
 
         // $merchants = $query->get();
         foreach($merchants as $m){
+            $m->image_url = Helper::getImageUrl($m->photo_file_name,1,'user_profile');
             $m->username = $m->username.($m->name_km ? (' - '.$m->name_km):'')." ($m->phone)";
+            if(!empty($pkgInfo)){
+                $m->package_count += $pkgInfo[$m->id]?->package_count ?? 0;
+            }
         }
         return $merchants;
     }
@@ -817,6 +876,10 @@ class GeneralSettingService
             }
         }
         return $rows;
+    }
+
+    public static function optionsCurrency(){
+        return Currency::options();
     }
     public static function optionsPriceListName($user){
         return PriceListname::where('company_id',$user->company_id)->where('is_deleted',0)->orderByDesc('id')->selectRaw('id,name,kg_marker')->get();

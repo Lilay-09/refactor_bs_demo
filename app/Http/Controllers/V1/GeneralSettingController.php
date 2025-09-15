@@ -4,6 +4,7 @@ namespace App\Http\Controllers\V1;
 
 use ApiResponse;
 use App\Enums\ImageDirectory;
+use App\Enums\PaymentStatus;
 use App\Http\Controllers\Controller;
 use App\Models\DeliveryPackage;
 use App\Models\Order;
@@ -50,7 +51,7 @@ class GeneralSettingController extends Controller
 
     public function getOptionsDailyActiveMerchant(Request $req){
         $user = UserService::getAuthUser();
-        return ApiResponse::JsonResult($this->gs::optionsDailyActiveMerchant($user,$req->startDate,$req->endDate));
+        return ApiResponse::JsonResult($this->gs::optionsDailyActiveMerchant($user,$req->startDate,$req->endDate,$req->stage));
     }
 
     public function getOptionsDistrict(Request $req){
@@ -543,12 +544,37 @@ class GeneralSettingController extends Controller
             'genders' => $this->gs::optionsGender(),
             'price_list' => $this->gs::optionsPriceList($user),
             'referrers' => $this->gs::optionsMerchant($user),
-            'banks' => $this->gs::optionsBank($user),
+            'banks' => $this->gs::optionsPaymentBank(),
             'cities' => $this->gs::optionsCity($user),
             'product_types' => $this->gs::optionsProductType($user),
-            'branches' => $this->gs::optionsBranch()
+            'branches' => $this->gs::optionsBranch(),
+            'currencies' => $this->gs::optionsCurrency()
         ];
         return ApiResponse::JsonResult($obj);
+    }
+
+    public function getFormMerchantTransaction(){
+        return ApiResponse::JsonResult([
+            'payment_types' => $this->gs::optionsTransactionType(),
+            'currencies' => $this->gs::optionsCurrency()
+        ]);
+    }
+
+    public function getRequestedPaymentMerchantFilter(){
+        return ApiResponse::JsonResult([
+            'payment_types' => $this->gs::optionsTransactionType(),
+            'currencies' => $this->gs::optionsCurrency(),
+            'statuses' => PaymentStatus::optionsRequestedSettle()
+        ]);
+    }
+
+    public function getMerchantPaymentTransactionFilter(){
+        $user = UserService::getAuthUser();
+        return ApiResponse::JsonResult([
+            'branches' => $this->gs::optionsBranch(),
+            'merchants' => $this->gs::optionsMerchant($user),
+            'transaction_types' => $this->gs::optionsTransactionType()
+        ]);
     }
 
     public function getOptionsPriceList(){
@@ -564,9 +590,10 @@ class GeneralSettingController extends Controller
             'genders' => $this->gs::optionsGender(),
             'vehicle_types' => $this->gs::optionsVehicleType($user),
             'warehouses' => $this->gs::optionsWarehouse($user),
-            'banks' => $this->gs::optionsBank($user),
+            'banks' => $this->gs::optionsPaymentBank(),
             'apply_commissions' => $this->gs::optionsApplyCommission(),
-            'branches' => $this->gs::optionsBranch()
+            'branches' => $this->gs::optionsBranch(),
+            'currencies' => $this->gs::optionsCurrency()
         ];
         return ApiResponse::JsonResult($obj);
     }

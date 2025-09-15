@@ -44,7 +44,6 @@ class PackageTrailController extends Controller
         $startDate = $req->query('startDate', null);
         $endDate = $req->query('endDate', null);
 
-
         $query = Package::query()->where('is_deleted',0)
         ->with([
             'status',
@@ -58,16 +57,26 @@ class PackageTrailController extends Controller
         ->where(function($q){
             $q->whereNotIn('status_id',[9,11,12])->whereNull('returned_uid');
         })
-        // ->selectRaw('merchant_id,order_id,id,taxi_fee,delivery_type,qr_code,price,driver_id,product_type,dim_z,dim_x,dim_y,status_id,failed_datetime,failure_notes,payer,cod,delivery_fee,receiver_address,zone_code,zone_name,receiver_name,receiver_phone,delivered_datetime,assign_driver_datetime,arrive_warehouse_datetime,driver_total,merchant_total,billed_kg,actual_kg,created_at')
-        ->orderByRaw('(status_id = ?) DESC', [5])
-        ->orderBy('arrive_warehouse_datetime','desc')
+        ->orderBy('arrive_warehouse_datetime') // primary
+        ->orderByRaw('(status_id = ?) DESC', [5]) // secondary
         ->orderByRaw("
             CASE
                 WHEN status_id = 9 THEN delivered_datetime
                 WHEN status_id IN (10, 19) THEN failed_datetime
                 ELSE NULL
             END DESC
-        ");
+        "); // tertiary
+
+        // ->selectRaw('merchant_id,order_id,id,taxi_fee,delivery_type,qr_code,price,driver_id,product_type,dim_z,dim_x,dim_y,status_id,failed_datetime,failure_notes,payer,cod,delivery_fee,receiver_address,zone_code,zone_name,receiver_name,receiver_phone,delivered_datetime,assign_driver_datetime,arrive_warehouse_datetime,driver_total,merchant_total,billed_kg,actual_kg,created_at')
+        // ->orderBy('arrive_warehouse_datetime','desc')
+        // ->orderByRaw('(status_id = ?) DESC', [5])
+        // ->orderByRaw("
+        //     CASE
+        //         WHEN status_id = 9 THEN delivered_datetime
+        //         WHEN status_id IN (10, 19) THEN failed_datetime
+        //         ELSE NULL
+        //     END DESC
+        // ");
         $select = ['merchant_id','order_id','id','taxi_fee','delivery_type','qr_code','price','price_khr','driver_id','product_type','dim_z','dim_x','dim_y','status_id','failed_datetime','failure_notes','payer','cod','delivery_fee','receiver_address','zone_code','zone_name','receiver_name','receiver_phone','delivered_datetime','assign_driver_datetime','arrive_warehouse_datetime','driver_total','merchant_total','billed_kg','actual_kg','created_at','warehouse_id'];
         if($warehouse_id){
             $query->where('warehouse_id',$warehouse_id);
@@ -124,7 +133,7 @@ class PackageTrailController extends Controller
             unset($pkg->status,$pkg->merchant,$pkg->driver);
             return $pkg;
         };
-        return ApiResponse::PaginationV1($query,$req,__('messages.get_list',['info'=>'Package']),[],1000,$callbackMapper,$select,1800,$this->cacheTags);
+        return ApiResponse::PaginationV1($query,$req,__('messages.get_list',['info'=>'Package']),[],1000,$callbackMapper,$select,1800,false,$this->cacheTags);
     }
 
     public function getOnePackage(Request $req){
@@ -196,12 +205,20 @@ class PackageTrailController extends Controller
         $billedKg = $inputs['billed_kg'] ?? 0;
         $inputs['actual_kg'] = $actualKg;
         $taxiFee = $inputs['taxi_fee'] ?? 0;
+        $inputs['taxi_fee'] = $taxiFee;
         $payer = $inputs['payer'];
         $cod = $inputs['cod'] ?? $package->cod;
         $inputs['billed_kg'] = $actualKg;
         $inputs['status_id'] = $package->status_id; //** add warehouse */
         $zoneCode = $inputs['zone_code'] ?? $package->zone_code;
-        $inputs['zone_name'] = Zone::where('zone_code', $zoneCode)->where('is_deleted',0)->value('zone_name');
+        // $inputs['zone_name'] = Zone::where('zone_code', $zoneCode)->where('is_deleted',0)->value('zone_name');
+        $zone = Zone::where('zone_code',$zoneCode)
+        ->orderByDesc('id')->where('is_deleted',0)->first(['zone_name','zone_code','parent_id']);
+        if(!$zone) return DataResponse::NotFound('Zone not found');
+        $zone->load('parent');
+        $inputs['zone_name'] = $zone->zone_name;
+        $inputs['main_zone_code'] = $zone->parent?->zone_code;
+        $inputs['main_zone_name'] = $zone->parent?->zone_name;
         $extra_charge = $inputs['extra_charge'] ?? 0;
         $calPrice = GeneralSettingService::calculatePackageFee($zoneCode,$price,$billedKg,$actualKg,$payer,$cod,$extra_charge,$user,$taxiFee,$package->merchant_id);
         if($calPrice->error) return $calPrice;
@@ -271,15 +288,15 @@ class PackageTrailController extends Controller
             'info' => 'Only failed package or at warehouse can be returned'
         ]));
         $statusId = TrackingStatus::RETURNING->value;
-        if($package->status_id == TrackingStatus::FAILED_WITH_FEE->value){
-            //** not change status but use returned_uid for tracking */
-            $statusId = TrackingStatus::FAILED_WITH_FEE->value;
-        }
+        // if($package->status_id == TrackingStatus::FAILED_WITH_FEE->value){
+        //     //** not change status but use returned_uid for tracking */
+        //     $statusId = TrackingStatus::FAILED_WITH_FEE->value;
+        // }
         $package->update([
             'returned_uid' => $driverId,
             'status_id' => $statusId, // returning
             'assigned_return_at' => now(),
-            'current_status_id' => TrackingStatus::RETURNING->value,
+            'prev_status_id' => $package->status_id,
             'update_uid' => $user->id,
         ]);
         Helper::clearCacheByTags($this->cacheTags);
@@ -321,7 +338,7 @@ class PackageTrailController extends Controller
         ->where('outstanding',0)
         // ->whereNotIn('status_id',[]) // at warehouse
         ->where('company_id',$user->company_id)
-        ->selectRaw('id as package_id,cod,extra_charge,taxi_fee,delivery_fee,zone_name,zone_code,merchant_id,driver_id,receiver_phone,receiver_address,created_at,arrive_warehouse_datetime,qr_code,remarks,price,update_uid,payer')
+        ->selectRaw('price_khr,id as package_id,cod,extra_charge,taxi_fee,delivery_fee,zone_name,zone_code,merchant_id,driver_id,receiver_phone,receiver_address,created_at,arrive_warehouse_datetime,qr_code,remarks,price,update_uid,payer')
         ->find($id);
         if(!$package) return ApiResponse::NotFound(trans('messages.not_found',['info' => 'Package','khInfo' => 'កញ្ចប់​']));
         $driver = $package->driver;
@@ -336,13 +353,27 @@ class PackageTrailController extends Controller
         $package->created_by = $package->updateUser->username;
         $package->created_date = Helper::formatCustomDateTime($package->created_at,'d-M-Y');
         $package->warehouse_at = Helper::dateDMY($package->arrive_warehouse_datetime);
+        // $total = 0;
+        // if($package->cod) $total += $package->price;
+        // if($package->payer == 'receiver') $total += $package->delivery_fee;
+        // $package->total = $total;
+        // $exchange = GeneralSettingService::getLatestXRate();
+        // $package->total = $total;
+        // $package->total_khr = Helper::getNumber($total * $exchange->buy_rate);
         $total = 0;
-        if($package->cod) $total += $package->price;
-        if($package->payer == 'receiver') $total += $package->delivery_fee;
+        $totalKhr = 0;
+        if($package->cod) {
+            $total += $package->price;
+            $totalKhr += $package->price_khr;
+        }
+        if($package->payer == 'receiver') {
+            $fees = $package->delivery_fee;
+            $total += $fees;
+            $totalKhr += $fees * 4000;
+        }
+
         $package->total = $total;
-        $exchange = GeneralSettingService::getLatestXRate();
-        $package->total = $total;
-        $package->total_khr = Helper::getNumber($total * $exchange->buy_rate);
+        $package->total_khr = $totalKhr;
         unset($package->status,$package->driver,$package->merchant,$package->arrive_warehouse_datetime,$package->updateUser,$package->create_uid,$package->created_at);
 
         $companyInfo = CompanyProfileService::profileInfo($user,true);
@@ -368,12 +399,12 @@ class PackageTrailController extends Controller
         ->where('outstanding',0)
         // ->whereNotIn('status_id',[]) // at warehouse
         ->where('company_id',$user->company_id)
-        ->selectRaw('id as package_id,cod,extra_charge,taxi_fee,delivery_fee,zone_name,zone_code,merchant_id,driver_id,receiver_phone,receiver_address,created_at,arrive_warehouse_datetime,qr_code,remarks,price,price_khr,update_uid,payer')
+        ->selectRaw('price_khr,id as package_id,cod,extra_charge,taxi_fee,delivery_fee,zone_name,zone_code,merchant_id,driver_id,receiver_phone,receiver_address,created_at,arrive_warehouse_datetime,qr_code,remarks,price,price_khr,update_uid,payer')
         ->whereIn('id',$packageIds)
         ->orderByRaw("CASE $orderByCase END")
         ->get();
         // if(!$package) return ApiResponse::NotFound(trans('messages.not_found',['info' => 'Package','khInfo' => 'កញ្ចប់​']));
-        $exchange = GeneralSettingService::getLatestXRate();
+        // $exchange = GeneralSettingService::getLatestXRate();
         foreach($packages as $package){
             $driver = $package->driver;
             if($driver){
@@ -387,11 +418,24 @@ class PackageTrailController extends Controller
             $package->created_by = $package->updateUser->username;
             $package->created_date = Helper::formatCustomDateTime($package->created_at,'d-M-Y');
             $package->warehouse_at = Helper::dateDMY($package->arrive_warehouse_datetime);
+            // $total = 0;
+            // if($package->cod) $total += $package->price;
+            // if($package->payer == 'receiver') $total += $package->delivery_fee;
+            // $package->total = $total;
+            // $package->total_khr = Helper::getNumber($total * $exchange->buy_rate);
             $total = 0;
-            if($package->cod) $total += $package->price;
-            if($package->payer == 'receiver') $total += $package->delivery_fee;
+            $totalKhr = 0;
+            if($package->cod) {
+                $total += $package->price;
+                $totalKhr += $package->price_khr;
+            }
+            if($package->payer == 'receiver') {
+                $fees = $package->delivery_fee;
+                $total += $fees;
+                $totalKhr += $fees * 4000;
+            }
             $package->total = $total;
-            $package->total_khr = Helper::getNumber($total * $exchange->buy_rate);
+            $package->total_khr = $totalKhr;
             unset($package->status,$package->driver,$package->merchant,$package->arrive_warehouse_datetime,$package->updateUser,$package->create_uid,$package->created_at);
         }
         $companyInfo = CompanyProfileService::profileInfo($user,true);

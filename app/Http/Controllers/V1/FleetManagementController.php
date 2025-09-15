@@ -806,7 +806,7 @@ class FleetManagementController extends Controller
         ->where('dp.delivery_id',$tripId)
         ->where('dp.delay_count',0)
         ->where('dp.is_deleted',0)
-        ->selectRaw('p.qr_code,m.username as merchant_name,m.phone as merchant_phone,p.product_type,p.receiver_address,p.receiver_phone,p.zone_code,p.zone_name,p.id as package_id,dp.delivery_id,dp.delay_count,dp.status_id,p.driver_total,ts.name as status_code');
+        ->selectRaw('p.price_khr,p.qr_code,m.username as merchant_name,m.phone as merchant_phone,p.product_type,p.receiver_address,p.receiver_phone,p.zone_code,p.zone_name,p.id as package_id,dp.delivery_id,dp.delay_count,dp.status_id,p.driver_total,ts.name as status_code');
         // if($startDate && $endDate){
         //     $startDate = date('Y-m-d H:i:s',strtotime($startDate));
         //     $endDate = date('Y-m-d H:i:s',strtotime($endDate));
@@ -833,12 +833,12 @@ class FleetManagementController extends Controller
         else if((!$status || $status !== 'All') && !($startTime && $endTime)){
             $qP->whereIn('p.status_id',[9,19]);
         }
-
         $packages = $qP->get();
-        $xRate = GeneralSettingService::getLatestXRate();
+        // $xRate = GeneralSettingService::getLatestXRate();
         foreach($packages as $p){
+            $fees = $p->payer == 'receiver' ? $p->delivery_fee + $p->other_fee + $p->taxi_fee: 0;
             $driverInfo->total += $p->driver_total;
-            $p->total_kh = (float)Helper::getNumber($p->driver_total * $xRate->buy_rate);
+            $p->total_kh = (float)Helper::getNumber($p->price_khr + $fees * 4000);
         }
         $obj = [
             'company_info' => $companyInfo,

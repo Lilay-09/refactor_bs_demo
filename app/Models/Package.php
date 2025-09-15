@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\ImageDirectory;
 use DB;
 use Helper;
 use Illuminate\Database\Eloquent\Casts\Attribute;
@@ -101,17 +102,39 @@ class Package extends Model
         'driver_cod_usd',
         'driver_cod_khr',
         'other_fee',
-
         'company_id',
         'branch_id',
         'create_uid',
         'is_deleted',
         'deleted_uid',
         'deleted_datetime',
-
         'location_type',
 
     ];
+
+
+    public function image()
+    {
+        return $this->hasOne(OrderImage::class, 'package_id')
+            ->orderByRaw("
+                CASE
+                    WHEN user_type = 'admin' THEN 1
+                    WHEN user_type = 'driver' THEN 2
+                    WHEN user_type = 'merchant' THEN 3
+                    ELSE 4
+                END
+            ")
+            ->latest('id');
+    }
+
+    public function getImageUrlAttribute()
+    {
+        if (!$this->image?->photo_file_name) {
+            return null; // no image found
+        }
+
+        return Helper::getImageUrl($this->image->photo_file_name,1,ImageDirectory::ORDER_IMAGE->value,Helper::dateYMD($this->image->created_at));
+    }
 
     public function getAssignDriverDatetimeAttribute($value)
     {
@@ -124,6 +147,7 @@ class Package extends Model
             fn ($value) => $value ?? $this->zone_name
         );
     }
+
 
 
     // public function getArriveWarehouseDatetimeAttribute($value)
@@ -141,11 +165,10 @@ class Package extends Model
     }
 
     public function activeDeliveryPackage()
-{
-    return $this->hasOne(DeliveryPackage::class,'package_id','id')
-        ->latest('created_at');
-}
-
+    {
+        return $this->hasOne(DeliveryPackage::class,'package_id','id')
+            ->latest('created_at');
+    }
 
     public function setDriverTotalAttribute($value)
     {
@@ -219,14 +242,18 @@ class Package extends Model
 
     public function hasDriverPayment(): bool
     {
-        return DB::table('payment_packages')
-            ->where('package_id', $this->id)
+        return $this->paymentPackages()
+            ->whereHas('payment', function ($q) {
+                $q->where('is_deleted', false);
+            })
             ->where('payer_type', 'driver')
             ->where('is_deleted', false)
             ->exists()
             ||
-            DB::table('disbursement_packages')
-            ->where('package_id', $this->id)
+            $this->disbursementPackages()
+            ->whereHas('disbursement', function ($q) {
+                $q->where('is_deleted', false);
+            })
             ->where('payee_type', 'driver')
             ->where('is_deleted', false)
             ->exists();
@@ -235,13 +262,19 @@ class Package extends Model
     // Check if merchant payment or disbursement exists for this package
     public function hasMerchantPayment(): bool
     {
-        return DB::table('payment_packages')
+        return $this->paymentPackages()
             ->where('package_id', $this->id)
+            ->whereHas('payment',function ($q){
+                $q->where('is_deleted',false);
+            })
             ->where('payer_type', 'merchant')
             ->where('is_deleted', false)
             ->exists()
             ||
-            DB::table('disbursement_packages')
+            $this->disbursementPackages()
+            ->whereHas('disbursement',function ($q){
+                $q->where('is_deleted',false);
+            })
             ->where('package_id', $this->id)
             ->where('payee_type', 'merchant')
             ->where('is_deleted', false)
@@ -251,6 +284,9 @@ class Package extends Model
     public function hasDriverCommissionPayment(): bool
     {
         return DB::table('disbursement_packages')
+            ->whereHas('disbursements',function ($q){
+                $q->where('is_deleted',false);
+            })
             ->where('package_id', $this->id)
             ->where('payee_type', 'driver')
             ->where('type', 'commission')
@@ -258,10 +294,44 @@ class Package extends Model
             ->exists();
     }
 
+    public function scopeWithoutDriverPayment($query)
+    {
+        return $query
+            ->whereNotExists(function ($q) {
+                $q->select(DB::raw(1))
+                    ->from('payment_packages')
+                    ->whereColumn('payment_packages.package_id', 'packages.id')
+                    ->where('payer_type', 'driver')
+                    ->where('is_deleted', false);
+            })
+            ->whereNotExists(function ($q) {
+                $q->select(DB::raw(1))
+                    ->from('disbursement_packages')
+                    ->whereColumn('disbursement_packages.package_id', 'packages.id')
+                    ->where('payee_type', 'driver')
+                    ->where('is_deleted', false);
+            });
+    }
+
     // Optional: Combined check
     public function hasAnyPayment(): bool
     {
         return $this->hasDriverPayment() || $this->hasMerchantPayment();
+    }
+
+    public function comment(){
+        return $this->hasOne(Comment::class, 'thread_id', 'id');
+    }
+
+
+    public function paymentPackages()
+    {
+        return $this->hasMany(PaymentPackage::class, 'package_id');
+    }
+
+    public function disbursementPackages()
+    {
+        return $this->hasMany(DisbursementPackage::class, 'package_id');
     }
 
 

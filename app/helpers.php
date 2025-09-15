@@ -138,6 +138,7 @@ class ApiResponse
         $limit = 1000,
         callable $transformCallback = null,
         array $selectCols = ['*'],
+        bool $reverse = false, // Added parameter to control reverse order
         $cache = null,
         $cacheTags = []
     ) {
@@ -184,7 +185,7 @@ class ApiResponse
             'status' => "OK",
             'error' => false,
             'message' => $message,
-            'data' => $data->items(),
+            'data' => $reverse ? array_reverse($data->items()) : $data->items(),
             'per_page' => $data->perPage(),
             'total' => $data->total(),
             'total_page' => $data->lastPage(),
@@ -311,6 +312,44 @@ class ApiResponse
 
 
 class Helper{
+
+
+        /**
+     * Get currency symbol by ISO currency code.
+     *
+     * @param string $currency
+     * @return string
+     */
+    static function currency_symbol(string $currency): string
+    {
+        return match (strtoupper($currency)) {
+            'USD' => '$',
+            'KHR', 'RIEL' => '៛',
+            'EUR' => '€',
+            'GBP' => '£',
+            'JPY' => '¥',
+            'THB' => '฿',
+            default => $currency, // fallback to currency code
+        };
+    }
+
+    static function currencyAmount($amount, string $currency): string
+    {
+        $symbol = self::currency_symbol($currency);
+
+        // Format number
+        $formatted = match (strtoupper($currency)) {
+            'USD', 'EUR', 'GBP', 'JPY', 'THB' => $amount,//number_format((float)$amount, 2, '.', ','),
+            'KHR', 'RIEL' => $amount,//number_format((float)$amount, 0, '.', ','),
+            default => (string)$amount,
+        };
+
+        // Place symbol: right for KHR, left for others
+        return match (strtoupper($currency)) {
+            'KHR', 'RIEL' => $formatted . '' . $symbol,
+            default => $symbol . $formatted,
+        };
+    }
     protected static $khmerMonths = [
                 'Jan' => 'មករា',
                 'Feb' => 'កុម្ភៈ',
@@ -800,13 +839,13 @@ class Helper{
     static function getImageInfo($image,$lang='en'): object
     {
         try {
+
             // Check if base64 image
             if (is_string($image) && Helper::isValidBase64Image($image)) {
                 // $imageData = explode(',', $image)[1];
                 $imageData = str_contains($image, ',') ? explode(',', $image)[1] : $image;
                 $binaryData = base64_decode($imageData);
                 $sizeKB = strlen($binaryData) / 1024;
-
                 $img = imagecreatefromstring($binaryData);
                 if (!$img) return (object)[
                     'error' => false,
@@ -832,8 +871,6 @@ class Helper{
             if ($image instanceof UploadedFile) {
                 $sizeKB = $image->getSize() / 1024;
                 $path = $image->getPathname();
-
-
                 if (!$path || !file_exists($path)) {
                     return (object)[
                         'error' => true,
@@ -868,7 +905,7 @@ class Helper{
             return (object)[
                 'error' => true,
                 'message' => $lang == 'en' ?
-                        'Invalid image size'
+                        'Invalid image'
                         : 'ទំហំរូបភាពមិនត្រឹមត្រូវ'
             ]; // Not valid
         } catch (\Exception $e) {
@@ -882,6 +919,7 @@ class Helper{
             ]; // Safe fallback
         }
     }
+
 
     /**
      * Validate image size and dimensions.
@@ -1486,6 +1524,31 @@ class Helper{
         }
     }
 
+    static function deductAmountBase(&$usd, &$khr, float $amountUsd, float $exchangeRate = 4000): void {
+        // Step 1: Deduct from USD first
+        if ($usd >= $amountUsd) {
+            $usd -= $amountUsd;
+            return;
+        }
+
+        // Step 2: Not enough USD, use all available USD
+        $remainingUsd = $amountUsd - $usd;
+        $usd = 0;
+
+        // Step 3: Try deduct from KHR equivalent
+        $deductKhr = $remainingUsd * $exchangeRate;
+
+        if ($khr >= $deductKhr) {
+            $khr -= $deductKhr;
+        } else {
+            // Not enough KHR, consume all KHR and push USD negative
+            $remainingKhr = $deductKhr - $khr;
+            $khr = 0;
+            $usd -= $remainingKhr / $exchangeRate; // USD goes negative
+        }
+    }
+
+
 }
 
 
@@ -1556,6 +1619,17 @@ class DataResponse //extends Model
         ];
     }
 
+    static function BadRequest($message='Bad Request'): object
+    {
+        return (object)[
+            'status_code' => 400,
+            'error' => true,
+            'status' => 'Bad Request',
+            'message' => $message,
+            'errors' => []
+        ];
+    }
+
     static function Error($message,$errors=[]): object
     {
         return (object)[
@@ -1619,6 +1693,7 @@ class DataResponse //extends Model
         int $limit = 1000,
         callable $transformCallback = null,
         array $select = ['*'],
+        bool $reverse = false,
         int $cache = null,
         array $cacheTags = [] // 🆕 Customizable cache tags
     ) {
@@ -1627,34 +1702,37 @@ class DataResponse //extends Model
         $currentPage = isset($filter->page_no) ? $filter->page_no : 1;
         // $query->take($limit);
         // Generate unique cache key from filter
-        $cacheKey = 'pagination_' . md5(json_encode($filter));
 
+
+        // Run query and paginate
+        $data = $query->paginate($perPage, $select, 'page', $currentPage);
+        $normalizedFilter = $filter ? (array)$filter : [];
+        ksort($normalizedFilter);
+
+        $cacheKey = 'pagination_' . md5(json_encode([
+            'filter' => $normalizedFilter,
+            'per_page' => $limit,
+            'total' => $data->total(),
+        ]));
         // Redis & taggable support check
         $store = Cache::getStore();
         $supportsTags = method_exists($store, 'tags') && $store instanceof \Illuminate\Cache\TaggableStore;
 
         // Use default tags if not provided
         $cacheTags = ($supportsTags && !empty($cacheTags)) ? $cacheTags : [];
-
-
-        // Attempt to read from cache
         if ($cache && $cache > 0) {
             try {
                 $cached = $supportsTags
                     ? Cache::tags($cacheTags)->get($cacheKey)
                     : Cache::get($cacheKey);
-
                 if ($cached) {
+                    // Log::info("Pagination cache hit for key: { $cacheKey }");
                     return $cached;
                 }
             } catch (\Throwable $e) {
                 \Log::warning("Pagination cache read failed: " . $e->getMessage());
             }
         }
-
-        // Run query and paginate
-        $data = $query->paginate($perPage, $select, 'page', $currentPage);
-
         // Apply transformation if provided
         if ($transformCallback) {
             $data->getCollection()->transform($transformCallback);
@@ -1665,7 +1743,7 @@ class DataResponse //extends Model
             'status' => "OK",
             'error' => false,
             'message' => $message,
-            'data' => $data->items(),
+            'data' => $reverse ? array_reverse($data->items()) : $data->items(),
             'per_page' => (int) $data->perPage(),
             'total' => (int) $data->total(),
             'total_page' => (int) $data->lastPage(),
@@ -1683,6 +1761,7 @@ class DataResponse //extends Model
 
             try {
                 if ($supportsTags && !empty($cacheTags)) {
+                    // Log::info("Pagination cache write for key: {$cacheKey}");
                     Cache::tags($cacheTags)->put($cacheKey, $obj, $cacheTime);
                 } else {
                     Cache::put($cacheKey, $obj, $cacheTime);
@@ -1774,3 +1853,94 @@ class DataResponse //extends Model
 //         ];
 //     }
 // }
+
+class MyValidator{
+    /**
+     * Validate and sanitize data based on rules.
+     *
+     * @param array $data          Input data to sanitize & validate
+     * @param array $rules         Validation rules
+     * @param array $sanitizeRules Sanitization rules (key => "filter|filter|...")
+     *
+     * @return array ['valid' => bool, 'errors' => ?\Illuminate\Support\MessageBag, 'data' => array]
+     */
+    public static function validateAndSanitize(array $data, array $rules, array $sanitizeRules = [])
+    {
+        // 1️⃣ Sanitize first
+        foreach ($sanitizeRules as $field => $filters) {
+            if (!array_key_exists($field, $data) || !is_string($data[$field])) {
+                continue;
+            }
+
+            foreach (explode('|', $filters) as $filter) {
+                $filter = trim($filter);
+
+                // escape_except:<allowed_chars>
+                if (preg_match('/^escape_except:(.+)$/', $filter, $matches)) {
+                    $allowed = $matches[1];
+                    $pattern = '/[^a-zA-Z0-9\s' . preg_quote($allowed, '/') . ']/u';
+                    $data[$field] = preg_replace_callback($pattern, function ($m) {
+                        return '&#' . ord($m[0]) . ';';
+                    }, $data[$field]);
+                    continue;
+                }
+
+                switch ($filter) {
+                    case 'trim':
+                        $data[$field] = trim($data[$field]);
+                        break;
+
+                    case 'escape':
+                        // Laravel's e() escapes HTML special chars only
+                        $data[$field] = e($data[$field]);
+                        break;
+
+                    case 'strip_tags':
+                        $data[$field] = strip_tags($data[$field]);
+                        break;
+
+                    case 'lowercase':
+                        $data[$field] = mb_strtolower($data[$field]);
+                        break;
+
+                    case 'uppercase':
+                        $data[$field] = mb_strtoupper($data[$field]);
+                        break;
+
+                    case 'remove_symbols':
+                        // Remove all non-letter, non-number, non-space chars
+                        $data[$field] = preg_replace('/[^\p{L}\p{N}\s]/u', '', $data[$field]);
+                        break;
+
+                    case 'escape_all_symbols':
+                        // Convert every non-alphanumeric character to HTML entity
+                        $data[$field] = preg_replace_callback('/[^a-zA-Z0-9\s]/', function ($m) {
+                            return '&#' . ord($m[0]) . ';';
+                        }, $data[$field]);
+                        break;
+
+                    default:
+                        // Unknown filter — ignore or extend here
+                        break;
+                }
+            }
+        }
+
+        // 2️⃣ Validate sanitized data
+        $validator = Validator::make($data, $rules);
+
+        if ($validator->fails()) {
+            return [
+                'valid' => false,
+                'errors' => $validator->errors(),
+                'data' => $data,
+            ];
+        }
+
+        return [
+            'valid' => true,
+            'errors' => null,
+            'data' => $validator->validated(),
+        ];
+    }
+}

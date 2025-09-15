@@ -20,4 +20,12 @@ class PaymentPackage extends Model
         'deleted_datetime',
         'deleted_reason'
     ];
+
+    public function payment(){
+        return $this->belongsTo(Payment::class,'payment_id');
+    }
+
+    public function package(){
+        return $this->belongsTo(Package::class,'package_id');
+    }
 }

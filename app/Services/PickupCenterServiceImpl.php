@@ -135,7 +135,7 @@ class PickupCenterServiceImpl implements PickupCenterService
                     'khInfo' => 'អ្នកដឹកជញ្ជូនត្រូវបានឈប់ដំណើរការ'
                 ]));
             }
-            if($validDriver->vehicle_type != $inputs['vehicle_type']) return DataResponse::ValidateFail(__('messages.error',['info' => 'Driver vehicle type and chosen vehicle type is different!']));
+            // if($validDriver->vehicle_type != $inputs['vehicle_type']) return DataResponse::ValidateFail(__('messages.error',['info' => 'Driver vehicle type and chosen vehicle type is different!']));
         }
         $dateTime = Helper::getDateTime();
         if($userType == 'driver') {
@@ -403,8 +403,13 @@ class PickupCenterServiceImpl implements PickupCenterService
             $inputs['cod'] = $price > 0 ? true : false;
             $inputs['booking_channel'] = 'merchant';
         }
-        $zoneName = Zone::where('zone_code',$zoneCode)->take(1)->where('is_deleted',0)->value('zone_name');
-        $inputs['zone_name'] = $zoneName;
+        $zone = Zone::where('zone_code',$zoneCode)
+        ->orderByDesc('id')->where('is_deleted',0)->first(['zone_name','zone_code','parent_id']);
+        if(!$zone) return DataResponse::NotFound('Zone not found');
+        $zone->load('parent');
+        $inputs['zone_name'] = $zone->zone_name;
+        $inputs['main_zone_code'] = $zone->parent?->zone_code;
+        $inputs['main_zone_name'] = $zone->parent?->zone_name;
         $extraCharge = $inputs['extra_charge'] ?? 0;
         $otherFee = $inputs['other_fee'] ?? 0;
         $calPrice = GeneralSettingService::calculatePackageFee($zoneCode,$price,$billedKg,$actualKg,$payer,$cod,$extraCharge,$user,$taxiFee,$inputs['merchant_id'],null,$otherFee);

@@ -13,10 +13,15 @@ class Disbursement extends Model
         'id',
         'trx_code',
         'payee_id',
+        'payment_status_id',
         'payee_type',
         'amount',
         'currency_code',
         'cod_amount',
+        'received_amount_usd',
+        'received_amount_khr',
+        'amount_due_usd',
+        'amount_due_khr',
         'approved',
         'payable_amount',
         'delivery_fee',
@@ -35,7 +40,9 @@ class Disbursement extends Model
         'failed_with_fee_count',
         'pickup_package_count',
         'receiptionist_uid',
+        'requested_uid',
         'exchange_rate',
+        'requested_date',
         'breakdown_notes',
         'approved_uid',
         'settled_uid',
@@ -53,6 +60,10 @@ class Disbursement extends Model
         return $this->belongsTo(User::class,'payee_id','id')->where('account_type','merchant');
     }
 
+    public function requestedUser(){
+        return $this->belongsTo(User::class,'requested_uid','id');
+    }
+
     public function cashier(){
         return $this->belongsTo(User::class,'approved_uid','id');
     }
@@ -62,5 +73,13 @@ class Disbursement extends Model
 
     public function driver(){
         return $this->belongsTo(User::class,'payee_id','id')->where('account_type','driver');
+    }
+
+    public function pmtPackages(){
+        return $this->hasMany(DisbursementPackage::class,'disbursement_id');
+    }
+
+    public function disbursement(){
+        return $this->belongsTo(Disbursement::class,'disbursement_id');
     }
 }

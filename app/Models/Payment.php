@@ -16,7 +16,14 @@ class Payment extends Model
         'payer_type',
         'amount',
         'currency_code',
+        'payment_status_id',
+        'requested_date',
         'cod_amount',
+        'received_amount_usd',
+        'received_amount_khr',
+        'amount_due_usd',
+        'amount_due_khr',
+        'requested_uid',
         'approved',
         'payable_amount',
         'delivery_fee',
@@ -57,6 +64,10 @@ class Payment extends Model
 
     public function approvedUser($fkId='settled_uid'){
         return $this->belongsTo(User::class,$fkId,'id');
+    }
+
+    public function pmtPackages(){
+        return $this->hasMany(PaymentPackage::class,'payment_id');
     }
 
 }

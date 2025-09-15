@@ -29,9 +29,10 @@ Route::prefix('driver/v1/{lang}/auth')->middleware('localize')->group(function()
 });
 
 Route::middleware(['jwtDriver','localize'])->prefix('driver/v1/{lang}')->group(function(){
-    Route::prefix('comment')->group(function(){
-        Route::post('package',[CommentController::class,'addComment']);
-        Route::get('package/{packageId}',[CommentController::class,'getPackageComments']);
+    Route::prefix('comments')->group(function(){
+        Route::post('packages',[CommentController::class,'addComment']);
+        Route::get('packages/{packageId}',[CommentController::class,'getPackageCommentDetailsByPackageId']);
+        Route::delete('packages/{threadId}/details/{detailId}',[CommentController::class,'deleteCommentDescriptionById']);
     });
 
     Route::post('notification/subscribe',[AuthController::class,'subscribeTopics']);
@@ -88,11 +89,13 @@ Route::middleware(['jwtDriver','localize'])->prefix('driver/v1/{lang}')->group(f
             Route::get('failRemark',[GeneralSettingController::class,'getOptionsDriverFailRemarks']);
             Route::get('zone/{zone_id}/price',[GeneralSettingController::class,'getZonePrice']);
             Route::get('zone',[GeneralSettingController::class,'getOptionsZone']);
+            Route::get('payment-method',[GeneralSettingController::class,'getOptionsPaymentMethod']);
         });
 
         Route::prefix('form')->group(function (){
             Route::get('history',[GeneralSettingController::class,'getFormOptionsHistory']);
             Route::get('booking',[GeneralSettingController::class,'getFormBooking']);
+            Route::get('transaction/payment-method',[GeneralSettingController::class,'getFormOptionsTransactionPaymentMethod']);
         });
     });
 });
@@ -124,11 +127,11 @@ Route::prefix('merchant/v1/{lang}')->middleware('localize')->group(function(){
     // Route::get('test',[HomeController::class,'getHomeScreen']);
 });
 
-
 Route::middleware(['jwtMerchant','localize'])->prefix('merchant/v1/{lang}')->group(function(){
-    Route::prefix('comment')->group(function(){
-        Route::post('package',[CommentController::class,'addComment']);
-        Route::get('package/{packageId}',[CommentController::class,'getPackageComments']);
+    Route::prefix('comments')->group(function(){
+        Route::post('packages',[CommentController::class,'addComment']);
+        Route::get('packages/{packageId}',[CommentController::class,'getPackageCommentDetailsByPackageId']);
+        Route::delete('packages/{threadId}/details/{detailId}',[CommentController::class,'deleteCommentDescriptionById']);
     });
     Route::post('notification/subscribe',[AuthMerchantController::class,'subscribeTopics']);
     Route::get('termConditions',[HomeController::class,'getTermConditions']);
@@ -177,10 +180,12 @@ Route::middleware(['jwtMerchant','localize'])->prefix('merchant/v1/{lang}')->gro
             Route::get('district',[GeneralSettingController::class,'getOptionsDistrict']);
             Route::get('bank',[GeneralSettingController::class,'getOptionBanks']);
             Route::get('search/status',[GeneralSettingController::class,'getOptionsSearchStatus']);
+            Route::get('payment-method',[GeneralSettingController::class,'getOptionsPaymentMethod']);
         });
         Route::prefix('form')->group(function (){
             Route::get('profile',[GeneralSettingController::class,'getProfileFormOptions']);
             Route::get('booking',[GeneralSettingController::class,'getMerchantFormBooking']);
+            Route::get('transaction/payment-method',[GeneralSettingController::class,'getFormOptionsTransactionPaymentMethod']);
         });
     });
 });

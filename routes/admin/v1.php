@@ -3,6 +3,7 @@
 use App\Http\Controllers\V1\BannerController;
 use App\Http\Controllers\V1\BranchController;
 use App\Http\Controllers\V1\ClientTypeController;
+use App\Http\Controllers\V1\CommentController;
 use App\Http\Controllers\V1\DashboardController;
 use App\Http\Controllers\V1\DefaultAddressController;
 use App\Http\Controllers\V1\DepartmentController;
@@ -146,7 +147,7 @@ Route::middleware(['jwt','localize','userAccess:admin','rateLimit'])->prefix('ad
         Route::prefix('transaction')->group(function(){
 
             Route::prefix('delivery')->group(function(){
-                Route::get('package',[DriverTransactionController::class,'getDeliveryPackages']);
+                Route::get('package',[DriverTransactionController::class,'getDeliveryPackagesV1']);
                 Route::put('package/{id}',[DriverTransactionController::class,'updateDeliveryPackage']);
                 Route::post('payment',[DriverTransactionController::class,'receivePackagesPayment']);
             });
@@ -201,18 +202,29 @@ Route::middleware(['jwt','localize','userAccess:admin','rateLimit'])->prefix('ad
                 Route::get('package',[MerchantTransactionController::class,'getDeliveryPackages']);
                 Route::put('package/{id}',[MerchantTransactionController::class,'updateDeliveryPackage']);
                 Route::post('payment',[MerchantTransactionController::class,'receivePackagesPayment']);
+                Route::post('payment-bulk',[MerchantTransactionController::class,'receivePackagesBulkPaymentV1']);
                 Route::get('packages',[MerchantTransactionController::class,'getMerchantDeliveryPackages']);
+
             });
 
             Route::prefix('payment')->group(function(){
+                Route::get('requested-settlement',[MerchantTransactionController::class,'getRequestedSettlement']);
                 Route::get('',[MerchantTransactionController::class,'getPayments']);
                 Route::put('',[MerchantTransactionController::class,'approvePayments']);
                 Route::delete('{id}',[MerchantTransactionController::class,'deleteSettlePayment']);
+                Route::post('decline/{id}',[MerchantTransactionController::class,'declinePayment']);
+                Route::post('approve-settle-batch',[MerchantTransactionController::class,'approveAdnSettleBulkRequestedSettlement']);
+                Route::post('approve-settle/{paymentId}',[MerchantTransactionController::class,'approveAndSettleRequestedSettlement']);
             });
-            Route::prefix('settle')->group(function(){
-                Route::get('payment',[MerchantTransactionController::class,'getApprovedPayments']);
-                Route::put('payment',[MerchantTransactionController::class,'settleApprovedPayments']);
+
+            Route::prefix('settled')->group(function(){
+                Route::get('',[MerchantTransactionController::class,'getSettledPayments']);
+                Route::get('{tranId}',[MerchantTransactionController::class,'getSettledPaymentById']);
             });
+            // Route::prefix('settle')->group(function(){
+            //     Route::get('payment',[MerchantTransactionController::class,'getApprovedPayments']);
+            //     Route::put('payment',[MerchantTransactionController::class,'settleApprovedPayments']);
+            // });
 
             Route::get('balance',[MerchantTransactionController::class,'getMerchantBalances']);
         });
@@ -376,6 +388,17 @@ Route::middleware(['jwt','localize','userAccess:admin','rateLimit'])->prefix('ad
 
 
 
+    Route::prefix('comments')->group(function(){
+        Route::prefix('packages')->group(function(){
+            Route::get('',[CommentController::class,'getPackageCommentSections']);
+            Route::post('',[CommentController::class,'addComment']);
+        });
+        Route::prefix('{id}')->group(function (){
+            Route::get('packages',[CommentController::class,'getPackageCommentDetailsById']);
+            Route::delete('packages/{threadId}/details/{detailId}',[CommentController::class,'deleteCommentDescriptionById']);
+            Route::put('packages/{threadId}/details/{detailId}',[CommentController::class,'editCommentDescriptionById']);
+        });
+    });
 
     Route::prefix('location')->group(function(){
         Route::prefix('country')->group(function(){
@@ -604,9 +627,13 @@ Route::middleware(['jwt','localize','userAccess:admin','rateLimit'])->prefix('ad
             Route::get('driver',[GeneralSettingController::class,'getDriverFilterOptions']);
             Route::get('merchant',[GeneralSettingController::class,'getMerchantFilterOptions']);
             Route::get('merchant/trx',[GeneralSettingController::class,'getMerchantTrxFilter']);
-            Route::get('merchant/transaction',[GeneralSettingController::class,'getMerchantTransactionTabFilter']);
+            // Route::get('merchant/transaction',[GeneralSettingController::class,'getMerchantTransactionTabFilter']);
             Route::get('fleet',[GeneralSettingController::class,'getOptionsFilterFleet']);
             Route::get('user',[GeneralSettingController::class,'getOptionsFilterUser']);
+            Route::get('merchant/transaction',[GeneralSettingController::class,'getFormMerchantTransaction']);
+            Route::get('merchant/requested-payment',[GeneralSettingController::class,'getRequestedPaymentMerchantFilter']);
+            Route::get('merchant/payment-transaction',[GeneralSettingController::class,'getMerchantPaymentTransactionFilter']);
+            Route::get('merchant/settled-transaction',[GeneralSettingController::class,'getMerchantPaymentTransactionFilter']);
         });
         Route::prefix('form')->group(function(){
             Route::get('order/{orderId}/link/image',[GeneralSettingController::class,'getFormLinkImage']);
