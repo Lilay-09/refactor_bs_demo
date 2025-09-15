@@ -400,7 +400,7 @@ class GeneralSettingController extends Controller
                 ]));
                 $requester = $user->info->phone."($user->username)";
                 $topics = GeneralSettingService::getGeneralTopics($user->company_id,'driver',$package->driver_id);
-                $ttl = 100;
+                $ttl = 300;
                 Cache::put($topics->private,(object)[
                     'requester' => $requester,
                     'requester_id' => $user->id,
@@ -485,7 +485,7 @@ class GeneralSettingController extends Controller
         $requester = $cache?->requester;
         // return $cache;
         $requester_id = $cache?->requester_id;
-        Cache::forget($selfTopic);
+
         if(!$cache) return ApiResponse::NotFound();
         if($requester_id == $package->driver_id) return ApiResponse::Duplicated(__('messages.info',[
             'info' => 'It seems like you try to confirm self request'
@@ -581,7 +581,9 @@ class GeneralSettingController extends Controller
                 'sender' => $user->username,
             ]
         ]);
-        $cms->sendNotificationByTopic($notifReq,$user);
+        Cache::forget($selfTopic);
+        SendNotificationJob::dispatch($notifReq, $user)->onQueue(config('queue_job_names.'.config('app.env').'.notification'));
+        // $cms->sendNotificationByTopic($notifReq,$user);
         return ApiResponse::JsonResult(null,$confirm ? 'Success':'Declined change driver');
     }
 
