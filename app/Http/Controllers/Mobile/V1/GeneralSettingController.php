@@ -404,7 +404,7 @@ class GeneralSettingController extends Controller
                 Cache::put($topics->private,(object)[
                     'requester' => $requester,
                     'requester_id' => $user->id,
-                ],$ttl);
+                ],now()->addSeconds($ttl));
                 $notifReq = new Request([
                     'topic' => $topics->private,
                     'title' => 'Change Driver',
