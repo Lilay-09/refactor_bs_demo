@@ -401,11 +401,12 @@ class GeneralSettingController extends Controller
                 $requester = $user->info->phone."($user->username)";
                 $topics = GeneralSettingService::getGeneralTopics($user->company_id,'driver',$package->driver_id);
                 $ttl = 300;
-                Cache::put($topics->private,(object)[
+                Cache::put($topics->private, (object)[
                     'requester' => $requester,
                     'requester_id' => $user->id,
-                    'created_at' => now()->addSeconds($ttl),
-                ],now()->addSeconds($ttl));
+                    'created_at' => now(), // actual creation time
+                ], $ttl);
+
                 Log::info("Cache key: ".$topics->private);
                 $notifReq = new Request([
                     'topic' => $topics->private,
