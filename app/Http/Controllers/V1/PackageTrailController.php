@@ -53,7 +53,7 @@ class PackageTrailController extends Controller
         ])
         ->where('outstanding',0)
         ->where('company_id',$user->company_id)
-        ->whereIn('status_id',[5,6,19,13])
+        ->whereIn('status_id',[5,6,19,11,10])
         ->orderByRaw("
             CASE
                 WHEN status_id = 5 THEN 1

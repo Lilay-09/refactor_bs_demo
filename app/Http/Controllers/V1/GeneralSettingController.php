@@ -447,6 +447,7 @@ class GeneralSettingController extends Controller
     }
 
     public function getOptionsPackageById(Request $req){
+        // Log::info('Package ID: '.$req->packageId);
         $pkg = Package::where('is_deleted',false)
         ->with(['merchant:id,username'])
         ->select([
@@ -456,7 +457,8 @@ class GeneralSettingController extends Controller
             'driver_total as total'
         ])
         ->find($req->packageId);
-        $pkg->merchant_name = $pkg->merchant->username;
+        if(!$pkg) return ApiResponse::NotFound('Package not found');
+        $pkg->merchant_name = $pkg->merchant?->username;
         $pkg->fees = $pkg->other_fee + $pkg->delivery_fee + $pkg->additional_fee;
         $pkg->makeHidden('merchant');
         return ApiResponse::JsonResult($pkg);
