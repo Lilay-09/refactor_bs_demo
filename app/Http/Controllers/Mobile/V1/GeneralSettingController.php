@@ -404,7 +404,7 @@ class GeneralSettingController extends Controller
                 Cache::put($topics->private,(object)[
                     'requester' => $requester,
                     'requester_id' => $user->id,
-                    'created_at' => now(),
+                    'created_at' => now()->addSeconds($ttl),
                 ],now()->addSeconds($ttl));
                 Log::info("Cache key: ".$topics->private);
                 $notifReq = new Request([
