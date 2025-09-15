@@ -55,7 +55,7 @@ class PackageTrailController extends Controller
         // ->whereNotIn('status_id',[]) // at warehouse
         ->where('company_id',$user->company_id)
         ->where(function($q){
-            $q->whereNotIn('status_id',[9,11,12])->whereNull('returned_uid');
+            $q->whereNotIn('status_id',[9,23,12]);//->whereNull('returned_uid');
         })
         ->orderBy('arrive_warehouse_datetime') // primary
         ->orderByRaw('(status_id = ?) DESC', [5]) // secondary
