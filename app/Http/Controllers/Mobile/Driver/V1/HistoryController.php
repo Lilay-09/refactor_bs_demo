@@ -5,6 +5,9 @@ namespace App\Http\Controllers\Mobile\Driver\V1;
 use ApiResponse;
 use App\Http\Controllers\Controller;
 use App\Models\Delivery;
+use App\Models\Order;
+use App\Models\Package;
+use App\Services\CompanyProfileService;
 use App\Services\GeneralSettingService;
 use App\Services\Mobile\ReusableService;
 use App\Services\UserService;
@@ -25,149 +28,206 @@ class HistoryController extends Controller
     public function getHistoryPdf(Request $req)
     {
         $user = UserService::getAuthUser('driver');
+        $startDate = $req->startDate;
+        $endDate = $req->endDate;
         $userId = $user->id;
-
+        $paymentStatus = $req->payment_status_id ?? null;
+        $statusId = $req->status_id ?? null;
+        $search = $req->search ?? null;
         $statuses = [9, 10, 19];
-        $statusId = $req->status_id;
-        if ($statusId) $statuses = [$statusId];
-
-        $startDate = $req->startDate ? Helper::dateYMD($req->startDate) : null;
-        $endDate = $req->endDate ? Helper::dateYMD($req->endDate) : null;
-
-        $latestPackages = DB::table('delivery_packages as dp1')
-            ->selectRaw('DISTINCT ON (dp1.package_id) dp1.*')
-            ->orderBy('dp1.package_id')
-            ->orderByDesc('dp1.id');
-
-        $qFp = Delivery::fromRaw('deliveries as d')
-            ->joinSub($latestPackages, 'dp', 'd.id', 'dp.delivery_id')
-            ->join('packages as p', 'p.id', 'dp.package_id')
-            ->join('users as m', 'm.id', 'p.merchant_id')
-            ->leftJoin('payments as pmt', 'pmt.id', 'p.driver_payment_id')
-            ->join('tracking_statuses as trs', 'trs.id', 'p.status_id')
+        if($statusId) $statuses = [$statusId];
+        $driverInfo = GeneralSettingService::getDriverById($userId);
+        $qFp = Package::from('packages as p')
+            ->join('users as m', 'm.id', '=', 'p.merchant_id')
+            ->join('tracking_statuses as trs', 'trs.id', '=', 'p.status_id')
             ->selectRaw('
-                p.returned_uid, p.driver_id, p.qr_code, p.status_id, trs.name as status_code,
-                d.fleet_tracking_number, m.username as merchant_name, m.phone as merchant_phone,
-                p.returned_datetime, p.failed_datetime, p.receiver_name, p.delivered_datetime,
-                p.receiver_address, p.receiver_phone, p.driver_total as total,p.zone_name
+                p.returned_uid,
+                p.driver_id,
+                p.qr_code,
+                p.delivery_fee,
+                p.taxi_fee,
+                p.payer,
+                p.other_fee,
+                p.driver_cod_usd,
+                p.driver_cod_khr,
+                p.status_id,
+                trs.name as status_code,
+                m.username as merchant_name,
+                m.phone as merchant_phone,
+                p.returned_datetime,
+                p.failed_datetime,
+                p.receiver_name,
+                p.delivered_datetime,
+                p.receiver_address,
+                p.receiver_phone,
+                p.driver_total as total
             ')
-            ->where([
-                ['dp.delay_count', 0],
-                ['dp.is_deleted', 0],
-                ['dp.has_swap', 0],
-                ['p.driver_id', $userId],
-                ['d.driver_id', $userId],
-                ['dp.driver_id', $userId],
-            ])
-            ->where(function ($q) use ($userId, $statuses) {
-                $q->whereIn('p.status_id', $statuses)
-                ->orWhere(function ($subQuery) use ($userId) {
-                    $subQuery->where('p.status_id', 11)
+            ->where('p.is_deleted', false)
+            ->where(function ($query) use ($userId, $statuses) {
+                $query->whereIn('p.status_id', [9, 10, 19])
+                    ->orWhere(function ($sub) use ($userId) {
+                        $sub->where('p.status_id', 11)
                             ->where('p.returned_uid', $userId);
-                });
+                    });
             })
-            ->orderByRaw("CASE WHEN p.status_id = 11 THEN d.id END DESC, d.id DESC");
+            ->where('p.driver_id', $userId);
 
-        // Filters
-        if ($req->payment_status_id == 2) {
-            $qFp->where('pmt.approved', 1);
-        }
-
+        $qO = Order::where('driver_id',$userId)->where('is_deleted',false);
+        // Apply date filters
         if ($startDate && $endDate) {
-            $startDateTime = $startDate . ' 00:00:00';
-            $endDateTime = $endDate . ' 23:59:59';
-
-            $qFp->where(function ($q) use ($startDateTime, $endDateTime, $userId) {
-                $q->whereBetween('d.depart_datetime', [$startDateTime, $endDateTime])
-                ->orWhere(function ($q) use ($startDateTime, $endDateTime, $userId) {
-                    $q->whereBetween('p.failed_datetime', [$startDateTime, $endDateTime])
-                        ->where('p.driver_id', $userId)
-                        ->whereIn('p.status_id', [10, 19]);
-                })
-                ->orWhere(function ($q) use ($startDateTime, $endDateTime, $userId) {
-                    $q->whereBetween('p.delivered_datetime', [$startDateTime, $endDateTime])
-                        ->where('p.driver_id', $userId)
-                        ->where('p.status_id', 9);
-                })
-                ->orWhere(function ($q) use ($startDateTime, $endDateTime, $userId) {
-                    $q->whereBetween('p.returned_datetime', [$startDateTime, $endDateTime])
-                        ->where('p.returned_uid', $userId)
-                        ->where('p.status_id', 11);
+            $start = Helper::dateYMD($startDate) . ' 00:00:00';
+            $end = Helper::dateYMD($endDate) . ' 23:59:59';
+            $qO->whereBetween('pickup_datetime',[$start,$end]);
+            $qFp->where(function ($q) use ($start, $end, $userId) {
+                $q->where(function ($q) use ($start, $end, $userId) {
+                    $q->whereBetween('p.failed_datetime', [$start, $end])
+                    ->where('p.status_id', [10, 19])
+                    ->where('p.driver_id', $userId);
+                })->orWhere(function ($q) use ($start, $end, $userId) {
+                    $q->whereBetween('p.delivered_datetime', [$start, $end])
+                    ->where('p.status_id', 9)
+                    ->where('p.driver_id', $userId);
+                })->orWhere(function ($q) use ($start, $end, $userId) {
+                    $q->whereBetween('p.returned_datetime', [$start, $end])
+                    ->where('p.status_id', 11)
+                    ->where('p.returned_uid', $userId);
                 });
             });
         }
+        $pickedUpCount = $qO->sum('qty');
 
+        // Optional filters
         if ($statusId) {
             $qFp->where('p.status_id', $statusId);
         }
 
-        if ($search = $req->search) {
+        if ($search) {
             $qFp->where(function ($q) use ($search) {
-                $q->where('p.receiver_phone', 'ilike', "%$search%")
-                ->orWhere('m.phone', 'ilike', "%$search%")
-                ->orWhere('d.fleet_tracking_number', 'ilike', "%$search%");
+                $q->where('p.receiver_phone', 'ilike', '%' . $search . '%')
+                ->orWhere('m.phone', 'ilike', '%' . $search . '%');
             });
         }
 
         $fleetPackages = $qFp->get();
 
-        if ($fleetPackages->isEmpty()) {
-            return ApiResponse::NotFound('No data available!');
-        }
-
-        // Grouping and calculating
         $totalDeliveredCount = 0;
         $failedWithFeeCount = 0;
+        $failedCount = 0;
         $grandTotal = 0;
 
-        $groupedPackages = $fleetPackages->map(function ($pkg) use (&$totalDeliveredCount, &$failedWithFeeCount) {
-            $pkg->groupKey = $pkg->fleet_tracking_number;
-            if ($pkg->status_id == 9) $totalDeliveredCount++;
-            if ($pkg->status_id == 19) $failedWithFeeCount++;
-            return $pkg;
-        })->groupBy('groupKey')->map(function ($group, $fleetNumber) use (&$grandTotal) {
-            $group->each(function ($item) {
-                $item->receiver_address = $item->receiver_address ? preg_replace('/\x{17D2}$/u', '', $item->receiver_address):$item->zone_name;
-                unset($item->delivery_id, $item->fleet_tracking_number, $item->groupKey);
-            });
+        // Grouping by formatted date
+        $groupedPackages = collect($fleetPackages)
+            ->map(function ($pkg) use (&$totalDeliveredCount, &$failedWithFeeCount,&$failedCount) {
+                switch ($pkg->status_id) {
+                    case 9:
+                        $pkg->groupDate = Helper::formatCustomDateTime($pkg->delivered_datetime, 'd/m/Y');
+                        $totalDeliveredCount++;
+                        break;
+                    case 10:
+                    case 19:
+                        $pkg->groupDate = Helper::formatCustomDateTime($pkg->failed_datetime, 'd/m/Y');
+                        if ($pkg->status_id == 19) $failedWithFeeCount++;
+                        if ($pkg->status_id == 10) $failedCount ++;
+                        break;
+                    case 11:
+                        $pkg->groupDate = Helper::formatCustomDateTime($pkg->returned_datetime, 'd/m/Y');
+                        break;
+                }
 
-            $rowGrand = $group->whereIn('status_id', [9, 19])->sum('total');
-            $grandTotal += $rowGrand;
+                $pkg->receiver_address = preg_replace('/\x{17D2}$/u', '', $pkg->receiver_address);
+                return $pkg;
+            })
+            ->groupBy('groupDate')
+            ->map(function ($group, $date) use (&$grandTotal) {
+                $groupTotal = $group->whereIn('status_id', [9, 19])->sum('total');
+                $grandTotal += $groupTotal;
 
-            return [
-                'fleet_number' => $fleetNumber,
-                'details' => $group,
-                'total' => [
-                    'grand' => $rowGrand,
-                ],
-            ];
-        })->values();
+                $group->each(function ($item) {
+                    if($item->status_id == 9 || $item->status_id == 19){
+                        $item->driver_collected = Helper::currencyAmount($item->driver_cod_usd,'USD') . ' | ' . Helper::currencyAmount($item->driver_cod_khr,'KHR');
+                    } else {
+                        $item->driver_collected = '';
+                    }
+                    unset($item->delivery_id, $item->fleet_tracking_number, $item->groupDate);
+                });
+                $toBeSettledUSD = 0;
+                $toBeSettledKHR = 0;
 
-        // PDF Preparation
-        $driverInfo = GeneralSettingService::getDriverById($userId);
+                foreach ($group as $item) {
+                    if (in_array($item->status_id, [9, 19]) && !$item->hasDriverPayment()) {
+                        $toBeSettledUSD += $item->driver_cod_usd ?? 0;
+                        $toBeSettledKHR += $item->driver_cod_khr ?? 0;
+                    }
+                }
+
+                $toBeSettled = Helper::currencyAmount($toBeSettledUSD, 'USD')
+                            . ' | ' . Helper::currencyAmount($toBeSettledKHR, 'KHR');
+
+
+                return [
+                    'date' => $date,
+                    'details' => $group,
+                    'total' => [
+                        'collected' => Helper::currencyAmount($group->whereIn('status_id', [9, 19])->sum('driver_cod_usd'),'USD') .' | '.Helper::currencyAmount($group->whereIn('status_id', [9, 19])->sum('driver_cod_khr'),'KHR'),
+                        'fees' => Helper::currencyAmount($group->whereIn('status_id', [9, 19])->where('payer','receiver')->sum('delivery_fee') + $group->whereIn('status_id', [9, 19])->where('payer','receiver')->sum('other_fee'),'USD'),
+                        'taxi_fee' => Helper::currencyAmount($group->where('status_id', 9)->sum('taxi_fee'),'USD'),
+                        'grand' => Helper::currencyAmount($groupTotal,'USD'),
+                        'toBeSettled' => $toBeSettled
+                    ],
+                ];
+            })
+            ->values();
+        // Example data for the PDF
+        if(!isset($groupedPackages[0])) return ApiResponse::NotFound('No data available!');
+        $logoFileName = CompanyProfileService::profileInfo($user)?->photo_file_name ?? '';
+        $logo = $logoFileName? public_path('uploads/images/1/company/'.$logoFileName):null;
         $data = [
             'title' => 'History Packages',
             'driver' => $driverInfo,
+            'logo' => $logo,
             'deliveredCount' => $totalDeliveredCount,
             'failedWithFeeCount' => $failedWithFeeCount,
+            'failedCount' => $failedCount,
+            'pickedUpCount' => $pickedUpCount,
             'grandTotal' => Helper::getNumber($grandTotal),
-            'date' => $startDate && $endDate ? date('d-M-Y', strtotime($startDate)) . ' to ' . date('d-M-Y', strtotime($endDate)) : '',
-            'data' => $groupedPackages,
+            'date' => date('d/m/Y',strtotime($startDate)) .' - '. date('d/m/Y',strtotime($endDate)),
+            'data' => $groupedPackages
         ];
-
+        // return ApiResponse::JsonResult($groupedPackages);
         $pdf = new Mpdf([
-            'default_font' => 'khmeros',
-            'mode' => 'utf-8',
-            'format' => 'A4',
+            'default_font' => 'khmeros', // Ensure the font is correctly installed and loaded
+            'mode' => 'utf-8',           // Required for Unicode support
+            'format' => 'A4',            // Paper size
         ]);
 
-        $pdf->WriteHTML(view('pdf.package_historyV1', $data));
+        // Render the Blade template with data
+        $html = view('pdf.driverReportV1', $data);
+
+        // Write the content to the PDF
+        $pdf->WriteHTML($html);
+
+        // Define the file name and path
         $fileName = 'history-packages-' . time() . '.pdf';
+        //** stream */
+        // $pdf->Output($fileName, 'i');
+
         $filePath = 'pdfs/' . $fileName;
 
+        // Save the PDF content to a file on the public disk
         Storage::disk('public')->put($filePath, $pdf->Output($fileName, \Mpdf\Output\Destination::STRING_RETURN));
+        // Generate the URL to the PDF
+        $fileUrl = asset('storage/'.$filePath);
+        // $pdf->WriteHTML($html);
 
-        return ApiResponse::JsonResult(asset('storage/' . $filePath));
+        // // Define the file name and path
+        $fileName = 'history-packages-' . time() . '.pdf';
+        // //** stream */
+        // $pdf->Output($fileName, 'i');
+        // exit;
+        // Return the URL in JSON format
+        return ApiResponse::JsonResult($fileUrl,'',false,[
+            'driver_name' => $driverInfo->uername
+        ]);
     }
 
 

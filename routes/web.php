@@ -21,7 +21,7 @@ Route::middleware(['web'])->group(function () {
     // });
 
     Route::get('/pdf', function(){
-        return view('pdf.package_history');
+        return view('pdf.driverReportV1');
     });
 
 
