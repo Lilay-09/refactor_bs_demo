@@ -64,7 +64,7 @@ class HistoryController extends Controller
             ')
             ->where('p.is_deleted', false)
             ->where(function ($query) use ($userId, $statuses) {
-                $query->whereIn('p.status_id', [9, 10, 19])
+                $query->whereIn('p.status_id', [6, 9, 10, 19])
                     ->orWhere(function ($sub) use ($userId) {
                         $sub->where('p.status_id', 11)
                             ->where('p.returned_uid', $userId);
@@ -87,7 +87,13 @@ class HistoryController extends Controller
                     $q->whereBetween('p.delivered_datetime', [$start, $end])
                     ->where('p.status_id', 9)
                     ->where('p.driver_id', $userId);
-                })->orWhere(function ($q) use ($start, $end, $userId) {
+                })
+                ->orWhere(function ($q) use ($start, $end, $userId) {
+                    $q->whereBetween('p.assign_driver_datetime', [$start, $end])
+                    ->where('p.status_id', 6)
+                    ->where('p.driver_id', $userId);
+                })
+                ->orWhere(function ($q) use ($start, $end, $userId) {
                     $q->whereBetween('p.returned_datetime', [$start, $end])
                     ->where('p.status_id', 11)
                     ->where('p.returned_uid', $userId);
@@ -225,9 +231,7 @@ class HistoryController extends Controller
         // $pdf->Output($fileName, 'i');
         // exit;
         // Return the URL in JSON format
-        return ApiResponse::JsonResult($fileUrl,'',false,[
-            'driver_name' => $driverInfo->uername
-        ]);
+        return ApiResponse::JsonResult($fileUrl,'',false);
     }
 
 
