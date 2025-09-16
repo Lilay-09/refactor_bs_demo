@@ -922,7 +922,8 @@ class HomeScreenController extends Controller
 
 
         else if($package->driver_id !== $user->id) return ApiResponse::Duplicated(__('messages.info',[
-            'info' => 'Please submit package that belongs to you'
+            'info' => 'Please submit package that belongs to you',
+            'khInfo' => 'សូមបញ្ជូនកញ្ចប់ដែលជាកម្មសិទ្ធិរបស់អ្នក'
         ]));
 
         else if($package->status_id == 19) return ApiResponse::Duplicated(__('messages.info',[
