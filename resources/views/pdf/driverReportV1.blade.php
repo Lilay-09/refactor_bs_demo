@@ -139,7 +139,7 @@
                                     តាក់ស៊ី
                                 </div>
                             </th>
-                            <th>សរុប</th>
+                            {{-- <th>សរុប</th> --}}
                             {{-- <th colspan="2" style="text-align:center;">ប្រាក់បានទទួល</th> <!-- spans 2 cols --> --}}
                             <th>ស្ថានភាព</th>
                             </tr>
@@ -157,7 +157,7 @@
                                     <td>{{ $item->receiver_phone ?? '' }}</td>
                                     <td>{{ $item->driver_collected}}</td>
                                     <td>{{ $item->taxi_fee ?? '' }}</td>
-                                    <td>${{ number_format($item->total ?? 0, 2) }}</td>
+                                    {{-- <td>${{ number_format($item->total ?? 0, 2) }}</td> --}}
                                     {{-- <td>$3</td>        <!-- 1st column under colspan -->
                                     <td>4000 KHR</td>  <!-- 2nd column under colspan --> --}}
                                     <td style="color: {{ $item->status_id == 9 ? 'green' : ($item->status_id == 10 ? 'red' : 'grey') }}">
@@ -174,7 +174,7 @@
                                 <td colspan="4" style="border: none"></td>
                                 <td style="border: none;text-decoration: underline">{{ $tracking['total']['collected'] ?? 0 }}</td>
                                 <td style="border: none;text-decoration: underline">{{ $tracking['total']['taxi_fee'] ?? 0 }}</td>
-                                <td style="border: none;text-decoration: underline">{{ $tracking['total']['grand'] ?? 0 }}</td>
+                                {{-- <td style="border: none;text-decoration: underline">{{ $tracking['total']['grand'] ?? 0 }}</td> --}}
                                 {{-- <td></td> <!-- empty cell to match number of columns --> --}}
                             </tr>
                         </tfoot>
