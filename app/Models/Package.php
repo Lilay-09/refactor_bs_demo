@@ -218,9 +218,9 @@ class Package extends Model
         return $this->belongsTo(Order::class,'order_id','id');
     }
 
-    public function driver_payment(){
-        return $this->belongsTo(Payment::class,'driver_payment_id','id');
-    }
+    // public function driver_payment(){
+    //     return $this->belongsTo(Payment::class,'driver_payment_id','id');
+    // }
 
     // public function driverPayment(){
     //     return $this->belongsTo(PaymentPackage::class,'package_id')->where('payer_type','driver')->where('is_deleted',0);
