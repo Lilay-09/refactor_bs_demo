@@ -206,6 +206,19 @@ class HomeScreenController extends Controller
         ")
         ->first();
 
+        $pickedUpCount = DB::table('orders')
+            ->join('packages', function($join) {
+                $join->on('packages.order_id', '=', 'orders.id')
+                    ->where('packages.status_id', 9)  // Delivered packages
+                    ->where('packages.is_deleted', 0);
+            })
+            ->where('orders.is_deleted', 0)
+            ->whereNull('orders.driver_commission_id')
+            ->where('orders.status_id', 5)
+            ->where('orders.driver_id', $user->id)
+            // ->whereBetween('orders.order_datetime', ['2025-07-01 00:00:00', '2025-09-13 23:59:59'])
+            ->count('packages.id');
+
         //** Type: Normal */
         $normalDeliveredPkg = $counts->delivered_normal_pkg;
         // Log::info($normalDeliveredPkg);
@@ -217,7 +230,8 @@ class HomeScreenController extends Controller
         $fastFailedWithFeePkg = $counts->failed_with_fee_fast_pkg;
 
         //** Normal Commission */
-        $normalDeliveryComm = $normalDeliveredPkg * $commissionInfo->normal_delivery_commission;
+        $normalDeliveryComm = $normalDeliveredPkg * $commissionInfo->normal_delivery_commission + $pickedUpCount * $commissionInfo->normal_pickup_commission;
+        $normalPickupComm = $collectedCod->delivery_normal_pkg * $commissionInfo->normal_pickup_commission;
         // $normalFailedWithFeeComm = $normalFailedWithFeePkg * $commissionInfo->normal_delivery_commission;
 
         // //** Fast Commission */
@@ -231,34 +245,30 @@ class HomeScreenController extends Controller
         ->where('driver_id',$user->id)
         // COUNT(*) as total_orders,
         ->selectRaw("
-            COUNT(CASE WHEN status_id = 3 THEN 1 END) as pickup_count,
-            COUNT(CASE WHEN status_id = 5 THEN 1 END) as picked_up_count
+            COUNT(CASE WHEN status_id = 3 THEN 1 END) as pickup_count
         ")
         ->first();
         // // return $commissionInfo;
         // // $totalOrders = $counts->total_orders;
         $pickupCount = $orderCounts->pickup_count;
-        $pickedUpCount = $orderCounts->picked_up_count;
+        // $pickedUpCount = $orderCounts->picked_up_count;
+
 
         // $balanceDues = TransactionService::getMobileUserBalance($req,$user,'driver');
         // $totalSettledDisburment = Disbursement::where('payee_id',$user->id)->where('type','payment')->where('is_deleted',0)->where('is_settled',1)->sum('payable_amount');
         $pcsUnitLng = $lang == 'km' ? 'កញ្ចប់': 'PCS';
         // $totalEearning = $normalDeliveryComm + $normalFailedWithFeeComm + $fastDeliveryComm + $fastFailedWithFeeComm;
-        $totalDeliveredPkg = $normalDeliveredPkg + $normalFailedWithFeePkg + $fastDeliveredPkg + $fastFailedWithFeePkg;
+        $totalDeliveredPkg = $normalDeliveredPkg;//+ $normalFailedWithFeePkg + $fastDeliveredPkg + $fastFailedWithFeePkg;
 
+        $isSalaryDay = $user->info->isSalaryDay;
         return ApiResponse::JsonResult(data: HomeBalanceCardDTO::fromModel([
             'settleAmountUsd' => Helper::currencyAmount(Helper::getNumber($collectedCod->drivercodusd ?? 0,2,true),'USD'),//'USD ' . Helper::getNumber($collectedCod->drivercodusd ?? 0,2,true),
             'settleAmountKhr' => Helper::currencyAmount(Helper::getNumber($collectedCod->drivercodkhr ?? 0,2,true),'KHR'),//'KHR '. Helper::getNumber($collectedCod->drivercodkhr ?? 0,2,true),
-            'earning' => 'USD '. Helper::getNumber($normalDeliveryComm,2,true),
-            // 'pickupCount' => (string)$pickupCount,
-            // 'deliveryCount' => (string)$counts->delivery_normal_pkg
-            // "unpaid_amt" => '$'.$balanceDues['total'],
-            // 'comPkg'=> $normalDeliveredPkg,
             "accepted_order_count" => $pickedUpCount.$pcsUnitLng,
             "delivered_pkg_count" => $totalDeliveredPkg.$pcsUnitLng,
-            "salary" => '$'.$normalDeliveryComm,
+            "earning" =>  !$isSalaryDay ? "":Helper::currencyAmount(Helper::getNumber($normalDeliveryComm,2,true),'USD'),
             "pickupCount" => $pickupCount,
-            "deliveryCount" => $allDeliveryPkg
+            "deliveryCount" => $allDeliveryPkg,
         ]));
     }
 
@@ -392,8 +402,10 @@ class HomeScreenController extends Controller
     // }
 
     public function getReturningPackage(Request $req){
+        $user = UserService::getAuthUser('driver');
         $pk = Package::query()
         ->where('is_deleted',0)
+        ->where('returned_uid',$user->id)
         ->where('status_id',TrackingStatus::RETURNING->value)
         ->with([
             'merchant:id,username,phone',

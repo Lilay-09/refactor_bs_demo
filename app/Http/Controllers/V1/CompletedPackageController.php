@@ -67,7 +67,7 @@ class CompletedPackageController extends Controller
         ")
         ->orderByDesc('p.id')
 
-        ->whereIn('p.status_id',[9,11,19,23]); //* delivered and failed with fee
+        ->whereIn('p.status_id',[9,19,23]); //* delivered and failed with fee
         // ->where(function ($query) {
         //     $query->where('p.status_id', '!=', 19)    // wxclude status 19
         //             ->orWhereNotNull('p.returned_uid'); // Include 19 only if returned_uid is not null
@@ -94,10 +94,10 @@ class CompletedPackageController extends Controller
         if ($driverId) {
             $qP->where(function ($query) use ($driverId) {
                 $query->where(function ($subQuery) use ($driverId) {
-                    $subQuery->where('p.status_id', '!=', 11)
+                    $subQuery->where('p.status_id', '!=', 23)
                             ->where('p.driver_id', $driverId);
                 })->orWhere(function ($subQuery) use ($driverId) {
-                    $subQuery->where('p.status_id', 11)
+                    $subQuery->where('p.status_id', 23)
                             ->where('p.returned_uid', $driverId);
                 });
             });

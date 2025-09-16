@@ -32,6 +32,7 @@ class DriverTransactionController extends Controller
 
     public function getDriverCommissionPackage(Request $req){
         $driverId = $req->driver_id;
+        // Log::info($req->all());
         $qD = User::query()->selectRaw('code,id,username as driver_name,phone as driver_phone')->where('account_type','driver');
         if($driverId) $qD->where('id',$driverId);
         $qP = Package::query()->from('packages as p')
@@ -70,26 +71,27 @@ class DriverTransactionController extends Controller
 
         // if($driverId)
         $driverCommissions = $qDc->get();
-        $driverCommissionInfo = TransactionService::getDriverCommissionInfo($driverCommissions,$driverId);
+        // $driverCommissionInfo = TransactionService::getDriverCommissionInfo($driverCommissions,$driverId);
         // return $driverCommissionInfo;
         // $pickUpStartDate = $req->query('startDate',$driverCommissionInfo->normal_pickup_commission_start_date);
         $startDateFromQuery = $req->query('startDate');
         $endDate = $req->query('endDate');
-        $defaultNormalDeliveryDate = null;//$driverCommissionInfo->normal_delivery_commission_start_date;
-        $defaultFastDeliveryDate = null;//$driverCommissionInfo->fast_delivery_commission_start_date;
-        $defaultNormalPickUpDate = null;//$driverCommissionInfo->normal_pickup_commission_start_date;
+        // $defaultNormalDeliveryDate = $driverCommissionInfo->normal_delivery_commission_start_date;
+        // $defaultFastDeliveryDate = $driverCommissionInfo->fast_delivery_commission_start_date;
+        // $defaultNormalPickUpDate = $driverCommissionInfo->normal_pickup_commission_start_date;
 
-        $normalDeliveryStartDate = $startDateFromQuery
-            ? max(Helper::dateYMD($startDateFromQuery).' 00:00:00', $defaultNormalDeliveryDate)
-            : null;
-        $fastDeliveryStartDate = $startDateFromQuery
-            ? max(Helper::dateYMD($startDateFromQuery).' 00:00:00', $defaultFastDeliveryDate)
-            : null;
-        $normalPickUpStartDate = $startDateFromQuery
-            ? max(Helper::dateYMD($startDateFromQuery).' 00:00:00', $defaultNormalPickUpDate)
-            : null;
-
-
+        // $normalDeliveryStartDate = $startDateFromQuery
+        //     ? max(Helper::dateYMD($startDateFromQuery).' 00:00:00', $defaultNormalDeliveryDate)
+        //     : null;
+        // $fastDeliveryStartDate = $startDateFromQuery
+        //     ? max(Helper::dateYMD($startDateFromQuery).' 00:00:00', $defaultFastDeliveryDate)
+        //     : null;
+        // $normalPickUpStartDate = $startDateFromQuery
+        //     ? max(Helper::dateYMD($startDateFromQuery).' 00:00:00', $defaultNormalPickUpDate)
+        //     : null;
+        $normalDeliveryStartDate = Helper::dateYMD($startDateFromQuery);
+        $fastDeliveryStartDate = null;
+        $normalPickUpStartDate = $normalDeliveryStartDate;
         $endDate = $endDate ? Helper::dateYMD($endDate). ' 23:59:59' : null;
         // return $endDate;
 
@@ -168,7 +170,6 @@ class DriverTransactionController extends Controller
                 $totalPickupRate + $totalDeliveryNormal,
                 2
             );
-            Log::info($driverCommissionInfo->normal_pickup_commission);
 
             // Bank account info
             $driver->bank_account = null;

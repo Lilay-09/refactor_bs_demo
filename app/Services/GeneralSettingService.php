@@ -931,9 +931,9 @@ class GeneralSettingService
             $merchant_total = 0;
             $driverTotal += $zPrice;
             $driverTotal += $otherFee;
+            // Log::info('other fee: '.$otherFee);
         }
         $driverTotal -= $taxi_fee;
-
         return (object)[
             "error" => false,
             'message' => 'Success',

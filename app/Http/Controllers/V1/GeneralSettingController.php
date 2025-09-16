@@ -447,15 +447,18 @@ class GeneralSettingController extends Controller
     }
 
     public function getOptionsPackageById(Request $req){
+        // Log::info('Package ID: '.$req->packageId);
         $pkg = Package::where('is_deleted',false)
         ->with(['merchant:id,username'])
         ->select([
             'id','qr_code','driver_id','receiver_address','receiver_phone','cod','merchant_id',
             'price','remarks','driver_total as total','zone_name','zone_code','delivery_type',
-            'other_fee','delivery_fee','payer','additional_fee','taxi_fee','driver_total as total'
+            'price_khr','other_fee','delivery_fee','payer','additional_fee','taxi_fee',
+            'driver_total as total'
         ])
         ->find($req->packageId);
-        $pkg->merchant_name = $pkg->merchant->username;
+        if(!$pkg) return ApiResponse::NotFound('Package not found');
+        $pkg->merchant_name = $pkg->merchant?->username;
         $pkg->fees = $pkg->other_fee + $pkg->delivery_fee + $pkg->additional_fee;
         $pkg->makeHidden('merchant');
         return ApiResponse::JsonResult($pkg);
@@ -478,7 +481,7 @@ class GeneralSettingController extends Controller
         $obj = (object)[
             'delivery_type' => $this->gs::optionsDeliveryType(),
             'merchants' => $this->gs::optionsMerchant($user),
-            'statuses' => $this->gs::optionsTrackingStatus($user,[],[5,6,10,19],null,null,$req->lang),
+            'statuses' => $this->gs::optionsTrackingStatus($user,[],[5,6,10,19,11],null,null,$req->lang),
             'warehouses' => $this->gs::optionsWarehouse($user),
             'drivers' => $this->gs::optionsDriver($user),
             'zones' => $this->gs::optionsZone($user),
@@ -643,7 +646,7 @@ class GeneralSettingController extends Controller
             'delivery_types' => $this->gs::optionsDeliveryType(),
             'payment_statuses' => $this->gs::paymentStatus(),
             'branches' => $this->gs::optionsBranch(),
-            'statuses' => $this->gs::optionsTrackingStatus($user,[],[9,11,19,23],'delivery',null,$req->lang)
+            'statuses' => $this->gs::optionsTrackingStatus($user,[],[9,19,23],'delivery',null,$req->lang)
         ];
         return ApiResponse::JsonResult($obj);
     }

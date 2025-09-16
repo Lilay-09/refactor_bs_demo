@@ -77,9 +77,23 @@ class UserService
         }
         return DataResponse::Unauthorized();
     }
-    public static function getAuthUser($class='admin',$action='',$useSpecificClass=true){
+    public static function getAuthUser($class='admin',$action='',$useSpecificClass=true): object{
         $user = JWTAuth::user();
         if($user){
+            $info = (object)[
+                    'phone' => $user->phone,
+                    'address' => $user->address,
+                    'warehouse_id' => $user->driver_warehouse_id ?? null,
+                    'pin_address' => $user?->pin_address,
+                    'vehicle_type' => $user?->vehicle_type,
+                    'latitude' => $user?->latitude,
+                    'longitude' => $user?->longitude
+            ];
+            if($class == 'driver'){
+                $info->isSalaryDay = $user->salary_date
+                ? (now()->day === \Carbon\Carbon::parse($user->salary_date)->day)
+                : false;
+            }
             return DataResponse::JsonRaw([
                 'error'=>false,
                 'status_code' => 200,
@@ -91,15 +105,7 @@ class UserService
                 'company_id' => $user->company_id,
                 'branch_id' => $user->branch_id,
                 'system_admin' => $user->system_admin,
-                'info'=> (object)[
-                    'phone' => $user->phone,
-                    'address' => $user->address,
-                    'warehouse_id' => $user->driver_warehouse_id ?? null,
-                    'pin_address' => $user?->pin_address,
-                    'vehicle_type' => $user?->vehicle_type,
-                    'latitude' => $user?->latitude,
-                    'longitude' => $user?->longitude
-                ],
+                'info'=> $info
             ]);
         }
         return DataResponse::Unauthorized();
@@ -152,6 +158,7 @@ class UserService
             $baseFields['salary'] = 'nullable|numeric';
             $baseFields['bank_info'] = 'nullable|array';
             $baseFields['username'] = 'required|max:100';
+            $baseFields['salary_date'] = 'nullable';
             if(!$req->id){
                 $baseFields['has_commission'] = 'required|boolean';
             }

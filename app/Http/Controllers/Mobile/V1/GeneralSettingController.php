@@ -286,7 +286,7 @@ class GeneralSettingController extends Controller
         $confirmDelivery = $req->confirm_delivery ?? 0;
         $isReturn = $req->returned == 1 ? true : false;
         $returnImg = $req->image ?? null;
-        $cms = new CloudMessagingService();
+        // $cms = new CloudMessagingService();
         $package = Package::where('is_deleted', false)
         ->with('driver')
         ->when(is_int($item_ref), function ($query) use ($item_ref) {
@@ -364,7 +364,7 @@ class GeneralSettingController extends Controller
             'info' => 'You cannot mark contact on package which is not on delivery',
             'khInfo' => 'អ្នកមិនអាចបញ្ជាក់ថាមានទំនាក់ទំនងនៅលើកញ្ចប់ដែលមិនបានដឹកទេ'
         ])); else {
-            $updateArr['is_contact'] = true;
+            $updateArr['is_contact'] = $markContact;
             // $topics = GeneralSettingService::getGeneralTopics($user->company_id,'merchant',$package->merchant_id);
             // $notifReq = new Request([
             //     'topic' => $topics->private,
@@ -400,18 +400,21 @@ class GeneralSettingController extends Controller
                 ]));
                 $requester = $user->info->phone."($user->username)";
                 $topics = GeneralSettingService::getGeneralTopics($user->company_id,'driver',$package->driver_id);
-                $ttl = 70;
-                Cache::set($topics->private,(object)[
+                $ttl = 300;
+                Cache::put($topics->private, (object)[
                     'requester' => $requester,
                     'requester_id' => $user->id,
-                ],$ttl);
+                    'created_at' => now(), // actual creation time
+                ], $ttl);
+
+                Log::info("Cache key: ".$topics->private);
                 $notifReq = new Request([
                     'topic' => $topics->private,
                     'title' => 'Change Driver',
                     'body' => "$requester request change package ",
                     'data' => [
                         'action' => 'change-driver',
-                        'time_to_live' => now()->addSeconds($ttl-10),
+                        'time_to_live' => now()->addSeconds(60),
                         'requester' => $requester,
                         'barcode' => $item_ref,
                         "en_message" => "$requester request change package ",//$requester." request swap the package",
@@ -481,17 +484,22 @@ class GeneralSettingController extends Controller
         ]));
 
         $selfTopic = GeneralSettingService::getGeneralTopics($user->company_id,'driver',$user->id)->private;
+        Log::info("Cache key: ".$selfTopic);
         $cache = Cache::get($selfTopic);
+        Log::info("Cache data: ".json_encode($cache));
+        if(!$cache) return ApiResponse::NotFound("Request not found or has expired");
         $requester = $cache?->requester;
         // return $cache;
         $requester_id = $cache?->requester_id;
+
+
         Cache::forget($selfTopic);
-        if(!$cache) return ApiResponse::NotFound();
+
         if($requester_id == $package->driver_id) return ApiResponse::Duplicated(__('messages.info',[
             'info' => 'It seems like you try to confirm self request'
         ]));
         $requesterTopic = GeneralSettingService::getGeneralTopics($user->company_id,'driver',$requester_id);
-        $cms = new CloudMessagingService();
+        // $cms = new CloudMessagingService();
         $notifTitle = 'Confirm';
         $notifBody = $user->username.' has confirmed your request';
         if(!$confirm){
@@ -581,7 +589,9 @@ class GeneralSettingController extends Controller
                 'sender' => $user->username,
             ]
         ]);
-        $cms->sendNotificationByTopic($notifReq,$user);
+
+        SendNotificationJob::dispatch($notifReq, $user)->onQueue(config('queue_job_names.'.config('app.env').'.notification'));
+        // $cms->sendNotificationByTopic($notifReq,$user);
         return ApiResponse::JsonResult(null,$confirm ? 'Success':'Declined change driver');
     }
 
