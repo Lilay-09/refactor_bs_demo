@@ -182,6 +182,9 @@ class HistoryController extends Controller
                     ],
                 ];
             })
+            ->sortByDesc(function ($item) {
+                return \Carbon\Carbon::createFromFormat('d/m/Y', $item['date']);
+            })
             ->values();
         // Example data for the PDF
         if(!isset($groupedPackages[0])) return ApiResponse::NotFound('No data available!');
