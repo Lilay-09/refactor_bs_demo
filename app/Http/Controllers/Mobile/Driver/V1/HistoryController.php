@@ -147,7 +147,6 @@ class HistoryController extends Controller
             ->map(function ($group, $date) use (&$grandTotal) {
                 $groupTotal = $group->whereIn('status_id', [9, 19])->sum('total');
                 $grandTotal += $groupTotal;
-
                 $group->each(function ($item) {
                     if($item->status_id == 9 || $item->status_id == 19){
                         $item->driver_collected = Helper::currencyAmount($item->driver_cod_usd,'USD') . ' | ' . Helper::currencyAmount($item->driver_cod_khr,'KHR');
