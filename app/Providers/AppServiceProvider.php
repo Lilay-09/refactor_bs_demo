@@ -9,6 +9,8 @@ use App\Services\CommentService;
 use App\Services\CommentServiceImpl;
 use App\Services\MerchantTransactionService;
 use App\Services\MerchantTransactionServiceImpl;
+use App\Services\PaywayService;
+use App\Services\PaywayServiceImpl;
 use App\Services\PickupCenterService;
 use App\Services\PickupCenterServiceImpl;
 use App\Services\TransferService;
@@ -17,10 +19,8 @@ use App\Services\UserNotificationService;
 use App\Services\UserNotificationServiceImpl;
 use App\Services\WarehouseService;
 use App\Services\WarehouseServiceImpl;
-use Helper;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Contracts\Debug\ExceptionHandler as ExceptionHandlerContract;
-use Log;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -41,6 +41,7 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(TransferService::class,TransferServiceImpl::class);
         $this->app->bind(CommentService::class,CommentServiceImpl::class);
         $this->app->bind(MerchantTransactionService::class,MerchantTransactionServiceImpl::class);
+        $this->app->bind(PaywayService::class,PaywayServiceImpl::class);
     }
 
     /**

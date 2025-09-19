@@ -2,9 +2,11 @@
 
 namespace App\Services;
 
+use App\Enums\Currency;
 use App\Enums\PaymentMethod;
 use App\Enums\PaymentStatus;
 use App\Enums\TransactionType;
+use App\Jobs\SendNotificationJob;
 use App\Models\Bank;
 use App\Models\Disbursement;
 use App\Models\DisbursementDetails;
@@ -17,15 +19,15 @@ use App\Models\PaymentDetail;
 use App\Models\PaymentPackage;
 use App\Models\PaymentTransaction;
 use App\Models\User;
+use App\Models\UserBank;
 use App\Models\Zone;
 use Carbon\Carbon;
 use DataResponse;
-use DB;
+use Illuminate\Support\Facades\DB;
 use Exception;
 use Helper;
 use Illuminate\Http\Request;
-use Log;
-use Str;
+use Illuminate\Support\Facades\Log;
 
 class TransactionService
 {
@@ -511,6 +513,191 @@ class TransactionService
             }
         }
         return null;
+    }
+
+    //* type must be one of driver or merchant
+    public function receiveDriverSettleAmount(Request $req,$user,$type){
+        $validType = $this->validType($type);
+        if($validType->error) return $validType;
+        $validate = self::receivePaymentValidation($req,$type);
+        if($validate->fails()) return DataResponse::ValidateFail($validate->errors()->first());
+        $inputs = $validate->validated();
+        $payerId = $inputs['driver_id'] ?? $inputs['merchant_id'];
+        $packageIds = $inputs['packages'];
+        $packages = $this->getBulkPaymentPackages($packageIds,$type,[$payerId]);
+        $clPkg = clone $packages;
+        $currency = $inputs['currency'] ?? 'USD';
+        $packageKeyById = $clPkg->keyBy('id');
+        $validPackages = $this->validBulkPackagesV1($packageKeyById,$packageIds,$payerId,$type,true);
+        if($validPackages->error) return $validPackages;
+        $exchangeRate = $inputs['exchange_rate'] ?? GeneralSettingService::getLatestXRate()->buy_rate;
+        $cashKh = $inputs['cash_kh'] ?? 0;
+        $cash = $inputs['cash'] ?? 0;
+        $bankId = $inputs['bank_id'] ?? null;
+        $bankAmount = $inputs['bank_amount'] ?? 0;
+        $bankAmountKh = $inputs['bank_amount_kh'] ?? 0;
+        $dueAmtUSD = 0;
+        $dueAmtKHR = 0;
+        if($currency === Currency::KHR->value){
+            $dueAmtKHR = $validPackages->data['total_due_amount_khr'];
+        } else {
+            $dueAmtUSD = $validPackages->data['total_due_amount_usd'];
+        }
+        $markSettle = (!empty($inputs['mark_settle']) && $inputs['mark_settle'] == '1') ? true : false;
+        if(($dueAmtKHR + $dueAmtUSD) < 0) return DataResponse::ValidateFail(__('messages.info',[
+            'info' => 'This case should be receive not disbursement'
+        ]));
+        $method = $inputs['method'] ?? null;
+        $methodName = PaymentMethod::tryFrom($method)->label();
+        $validPayment = $this->validPaymentV2($dueAmtUSD,$dueAmtKHR,$bankAmount,$bankAmountKh,$bankAmount,$bankAmountKh);
+        if($validPayment->error) return $validPayment;
+        $breakDownNotes = null;
+        if(($dueAmtKHR + $dueAmtUSD)  > 0){
+            if($cash > 0) $breakDownNotes .= 'Cash: USD '.$cash.'|';
+            if($cashKh > 0) $breakDownNotes .= 'Cash: KHR '.$cashKh.'|';
+            if($bankAmount > 0) $breakDownNotes .= $methodName.': USD '.$bankAmount.'|';
+            if($bankAmountKh > 0) $breakDownNotes .= $methodName.': KHR '.$bankAmountKh.'|';
+        }
+        $breakDownNotes = trim($breakDownNotes, '| ');
+        DB::beginTransaction();
+        try{
+            $pmtArr = [
+                'payer_id' => $payerId,
+                'payer_type' => $type,
+                'taxi_fee' => $validPackages->data['total_taxi_fee'],
+                'delivery_fee' => $validPackages->data['total_delivery_fee'],
+                'payable_amount' => $currency === Currency::USD->value ? $bankAmount : $bankAmountKh,
+                'amount_due_usd' => $dueAmtUSD,
+                'amount_due_khr' => $dueAmtKHR,
+                'currency_code' => $currency,
+                'received_amount_usd' => $bankAmount,
+                'received_amount_khr' => $bankAmountKh,
+                'create_uid' => $user->id,
+                'receiver_uid' => $user->id,
+                'amount' => $validPackages->data['total_amount'],
+                'exchange_rate' => $exchangeRate,
+                'remarks' => $inputs['remarks'] ?? null,
+                'package_count' => $validPackages->data['total_package'],
+                'delivered_package_count' => $validPackages->data['delivered_package_count'],
+                'update_uid' => $user->id,
+                'cod_amount' => $validPackages->data['total_cod'],
+                'payment_datetime' => now(),
+                'breakdown_notes' => $breakDownNotes,
+                'company_id' => $user->company_id,
+                'received_datetime' => now(),
+                'branch_id' => $user->branch_id
+            ];
+            if($type == 'merchant'){
+                $pmtArr['is_approved'] = 1;
+                $pmtArr['is_settled'] = 1;
+                $pmtArr['settled_uid'] = $user->id;
+                $pmtArr['approved_uid'] = $user->id;
+                $pmtArr['approved_datetime'] = now();
+                $pmtArr['settled_datetime'] = now();
+            }
+            if($markSettle){
+                $pmtArr['is_approved'] = 1;
+                $pmtArr['is_settled'] = 1;
+                $pmtArr['settled_uid'] = $user->id;
+                $pmtArr['approved_uid'] = $user->id;
+                $pmtArr['approved_datetime'] = now();
+                $pmtArr['settled_datetime'] = now();
+            }
+            $createPayment = Payment::create($pmtArr);
+            $paymentId = $createPayment->id;
+            $trx = self::transactionCodeGenerator('transaction_sequences','payment','payments','trx_code',$user->branch_id,$user->company_id,$paymentId);
+            if($bankAmount > 0){
+                PaymentDetail::create([
+                    'payment_id' => $paymentId,
+                    'method' => $method,
+                    'amount' => $bankAmount,
+                    'method_type' => $inputs['method_type'] ?? 'bank',
+                    'original_amount' => $bankAmount,
+                    'currency_code' => 'USD'
+                ]);
+            }
+
+            if($bankAmountKh > 0){
+                PaymentDetail::create([
+                    'payment_id' => $paymentId,
+                    'method' => $method,
+                    'amount' => $bankAmountKh,
+                    'original_amount' => $bankAmount,
+                    'method_type' => $inputs['method_type'] ?? 'bank',
+                    'currency_code' => 'KHR'
+                ]);
+            }
+
+            $fkField = [
+                    $type.'_payment_id' => $paymentId
+                ];
+            Package::whereIn('id',$packageIds)->update($fkField);
+            $paymentPackageArr = collect($packageIds)->map(fn($id) => [
+                'package_id' => $id,
+                'payment_id' => $paymentId,
+                'type' => 'payment',
+                'payer_type' => $type,
+            ])->toArray();
+            PaymentPackage::insert($paymentPackageArr);
+
+            // $notif = new CloudMessagingService();
+            $topics = GeneralSettingService::getGeneralTopics($user->company_id,'driver',$payerId);
+            // return $topics;
+            $notifReq = new Request([
+                'topic' => $topics->private,
+                'type' => 'private',
+                'target_uid' => $payerId,
+                'title' => __('messages.info',[
+                    'info' => 'Transaction',
+                    'khInfo' => ''
+                ]),
+                'body' => 'A total of '.$validPackages->data['total_package'].' packages have been processed for this payment.'
+            ]);
+            // $notif->sendNotificationByTopic($notifReq,$user);
+            $queueFCMName = config('queue_job_names.'.config('app.env').'.notification');
+            SendNotificationJob::dispatch($notifReq, $user)->onQueue($queueFCMName);
+            $accountList = UserBank::where('is_deleted',false)
+            ->select(['id','bank_name','account_name','bank_number as account_number','currency','user_id'])
+            ->where('user_id',$payerId)->get();
+            $dueAccount = MerchantTransactionServiceImpl::dueBankAccounts($accountList, $payerId, 'USD');
+            if (empty($dueAccount)) {
+                Log::error(__('messages.info', [
+                    'info'   => "You have no bank account for {KHR or USD}",
+                    'khInfo' => "អ្នកមិនមានគណនីសម្រាប់រូបិយប័ណ្ណ {KHR ឬ USD}"
+                ]));
+            }
+            PaymentTransaction::insert([
+                'currency' => $currency,
+                'amount' => $currency == 'USD' ? $bankAmount : $bankAmountKh,
+                'payment_date' => now(),
+                'tran_via' => $method,
+                'remarks' => $inputs['remarks'] ?? null,
+                'payment_id' => $paymentId,
+                'payment_ref' => $trx->code,
+                'transaction_type' => TransactionType::TRANSFER_IN->value,
+                'from_account' => !empty($dueAccount) ? $dueAccount['account_number'] : '',
+                'payment_method' => $method,
+                'to_account' => 'JS company',
+                'approved_uid' => $user->id,
+                'create_uid' => $user->id,
+                'update_uid' => $user->id,
+                'branch_id' => $user->branch_id,
+                'company_id' => $user->company_id
+            ]);
+            DB::commit();
+            // return Package::whereIn('id',$packageIds)->get();
+            return DataResponse::JsonResult([
+                'payment_id' => $paymentId
+            ],false,__('messages.created',[
+                'info' => 'Payment',
+                'khInfo' => 'ទទួលការបង់ប្រាក់'
+            ]));
+        }catch(Exception $e){
+            Log::error($e->getMessage());
+            Log::error($e->getTraceAsString());
+            DB::rollBack();
+            return DataResponse::Error(__('messages.error',['info' => 'Fail to receive']));
+        }
     }
 
 
@@ -4294,5 +4481,38 @@ class TransactionService
             // if ($onSuccess) $onSuccess();
             return (object)['status_code' => 200, 'status' => 'OK', 'code' => $new_code];
         }
+    }
+
+    public function validPaymentV2(
+        float $dueAmountUsd,
+        float $dueAmountKhr,
+        float $cashUSD = 0,
+        float $cashKHR = 0,
+        float $bankAmountUSD = 0,
+        float $bankAmountKHR = 0,
+        bool $requireFullPayment = true // the flag
+    ) {
+        // Total paid amounts
+        $totalPaidUSD = $cashUSD + $bankAmountUSD;
+        $totalPaidKHR = $cashKHR + $bankAmountKHR;
+
+        // Remaining amounts
+        $remainingUSD = max($dueAmountUsd - $totalPaidUSD, 0);
+        $remainingKHR = max($dueAmountKhr - $totalPaidKHR, 0);
+
+        $epsilon = 0.0001; // tolerance for float comparison
+        $isValidUSD = $requireFullPayment ? (abs($remainingUSD) < $epsilon) : $totalPaidUSD > 0;
+        $isValidKHR = $requireFullPayment ? (abs($remainingKHR) < $epsilon) : $totalPaidKHR > 0;
+
+        return (object)[
+            'error' => false,
+            'totalPaidUSD' => $totalPaidUSD,
+            'totalPaidKHR' => $totalPaidKHR,
+            'remainingUSD' => $remainingUSD,
+            'remainingKHR' => $remainingKHR,
+            'isValidUSD' => $isValidUSD,
+            'isValidKHR' => $isValidKHR,
+            // 'bankId' => $bankId
+        ];
     }
 }

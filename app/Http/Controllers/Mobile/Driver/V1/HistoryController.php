@@ -41,6 +41,7 @@ class HistoryController extends Controller
             ->join('users as m', 'm.id', '=', 'p.merchant_id')
             ->join('tracking_statuses as trs', 'trs.id', '=', 'p.status_id')
             ->selectRaw('
+                p.id,
                 p.returned_uid,
                 p.driver_id,
                 p.qr_code,
@@ -147,23 +148,21 @@ class HistoryController extends Controller
             ->map(function ($group, $date) use (&$grandTotal) {
                 $groupTotal = $group->whereIn('status_id', [9, 19])->sum('total');
                 $grandTotal += $groupTotal;
-                $group->each(function ($item) {
+                $toBeSettledUSD = 0;
+                $toBeSettledKHR = 0;
+                $group->each(function ($item) use(&$toBeSettledUSD,&$toBeSettledKHR) {
                     if($item->status_id == 9 || $item->status_id == 19){
                         $item->driver_collected = Helper::currencyAmount($item->driver_cod_usd,'USD') . ' | ' . Helper::currencyAmount($item->driver_cod_khr,'KHR');
                     } else {
                         $item->driver_collected = '';
                     }
-                    unset($item->delivery_id, $item->fleet_tracking_number, $item->groupDate);
-                });
-                $toBeSettledUSD = 0;
-                $toBeSettledKHR = 0;
-
-                foreach ($group as $item) {
                     if (in_array($item->status_id, [9, 19]) && !$item->hasDriverPayment()) {
                         $toBeSettledUSD += $item->driver_cod_usd ?? 0;
                         $toBeSettledKHR += $item->driver_cod_khr ?? 0;
                     }
-                }
+                    unset($item->delivery_id, $item->fleet_tracking_number, $item->groupDate);
+                });
+                
 
                 $toBeSettled = Helper::currencyAmount($toBeSettledUSD, 'USD')
                             . ' | ' . Helper::currencyAmount($toBeSettledKHR, 'KHR');
