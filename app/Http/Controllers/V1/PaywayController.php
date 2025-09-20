@@ -13,7 +13,7 @@ class PaywayController extends Controller
 {
     //
     public function __construct(private PaywayService $paywayService){
-
+        
     }
 
     public function getABAKHQRPayload(Request $req){
