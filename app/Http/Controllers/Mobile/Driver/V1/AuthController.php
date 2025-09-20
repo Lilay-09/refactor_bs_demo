@@ -8,12 +8,12 @@ use App\Models\User;
 use App\Services\CloudMessagingService;
 use App\Services\Mobile\AuthService;
 use App\Services\UserService;
-use DB;
-use Hash;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 use Helper;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
-use Log;
+// use Log;
 use Tymon\JWTAuth\Exceptions\JWTException;
 use Tymon\JWTAuth\Facades\JWTAuth;
 
@@ -167,9 +167,7 @@ class AuthController extends Controller
         ->delete();
         return ApiResponse::JsonResult([
             'image_url' => Helper::getImageUrl($user->photo_file_name,$authUser->company_id,'user_profile')
-        ],__('messages.info',[
-            'info' => 'Updated'
-        ]));
+        ],__('messages.saved'));
     }
 
     public function subscribeTopics(Request $req){

@@ -120,7 +120,8 @@
                         <thead>
                             <tr>
                             <th>ល.រ</th>
-                            <th>អតិថិជន</th>
+                            <th>កូដ</th>
+                            <!-- <th>អតិថិជន</th> -->
                             <th>ទីតាំងដឹក</th>
                             <th>លេខទទួល</th>
                             <th>ប្រមូលបាន</th>
@@ -139,8 +140,6 @@
                                     តាក់ស៊ី
                                 </div>
                             </th>
-                            {{-- <th>សរុប</th> --}}
-                            {{-- <th colspan="2" style="text-align:center;">ប្រាក់បានទទួល</th> <!-- spans 2 cols --> --}}
                             <th>ស្ថានភាព</th>
                             </tr>
                         </thead>
@@ -149,17 +148,15 @@
                                 @foreach($tracking['details'] as $idx => $item)
                                     <tr>
                                     <td>{{ $idx + 1 }}</td>
-                                    <td>
+                                    <td>{{ $item->qr_code ?? '' }}</td>
+                                    <!-- <td>
                                         <span>{{ $item->merchant_phone ?? '' }}</span>
                                         <small>({{ $item->merchant_name ?? '' }})</small>
-                                    </td>
+                                    </td> -->
                                     <td>{{ $item->receiver_address ?? '' }}</td>
                                     <td>{{ $item->receiver_phone ?? '' }}</td>
                                     <td>{{ $item->driver_collected}}</td>
                                     <td>{{ $item->taxi_fee ?? '' }}</td>
-                                    {{-- <td>${{ number_format($item->total ?? 0, 2) }}</td> --}}
-                                    {{-- <td>$3</td>        <!-- 1st column under colspan -->
-                                    <td>4000 KHR</td>  <!-- 2nd column under colspan --> --}}
                                     <td style="color: {{ $item->status_id == 9 ? 'green' : ($item->status_id == 10 ? 'red' : 'grey') }}">
                                         {{ $item->status_code ?? '' }}
                                     </td>
