@@ -830,7 +830,7 @@ class TransactionService
         $method = $inputs['method'] ?? null;
         // return $validPackages;
         if($method){
-            $validPayment = $this->validPaymentV1($cash,$cashKh,$bankAmount,$bankAmountKh,$method,$dueAmount,$exchangeRate);
+            $validPayment = $this->validPaymentWithMethodV1($cash,$cashKh,$bankAmount,$bankAmountKh,$method,$dueAmount,$exchangeRate);
         } else {
             $validPayment =  $this->validPayment($cash,$cashKh,$bankAmount,$bankAmountKh,$bankId,$dueAmount,$exchangeRate);
         }
@@ -1225,6 +1225,51 @@ class TransactionService
         ];
         // Log::info(json_encode($data));
         return $data;
+    }
+
+    private function validPaymentWithMethodV1($cash,$cashKh,$bankAmount,$bankAmountKh,$method,$dueAmount,$exhangeRate,$currency=null): object{
+        $bankName = null;
+        if($bankAmount > 0 && !$method) return DataResponse::ValidateFail(__('messages.error',[
+            'info' => 'Please enter bank',
+            'khInfo' => 'សូមរើសធនាគារ'
+        ]));
+        if($bankAmountKh > 0 && !$method) return DataResponse::ValidateFail(__('messages.error',[
+            'info' => 'Please enter bank',
+            'khInfo' => 'សូមរើសធនាគារ'
+        ]));
+        if($method && (!$bankAmount && !$bankAmountKh)) return DataResponse::ValidateFail(__('messages.error',[
+            'info' => 'Please enter bank amount in USD or KHR',
+            'khInfo' => 'សូមបញ្ចូលប្រាក់បង់តាមធនាគារ'
+        ]));
+        if($method) {
+            $existsBank = PaymentMethod::tryFrom($method);
+            if(!$existsBank?->value) return DataResponse::NotFound(__('messages.not_found',[
+                'info' =>'Bank'
+            ]));
+            $bankName = $existsBank->label();
+        }
+        $cashKhToUS = $cashKh / $exhangeRate;
+        $bankAmountKhToUS = $bankAmountKh / $exhangeRate;
+        $totalInputAmount = $cash + $cashKhToUS + $bankAmountKhToUS + $bankAmount;
+        $totalInputAmount = floor($totalInputAmount * 100) / 100;
+        // if($cash && $cashKh) return
+        $originalCashKh = 0;
+        $originalBankAmtKh = 0;
+        if($dueAmount > 0){
+            if($totalInputAmount <=0) return DataResponse::ValidateFail('Invalid payment amount');
+            // Log::info('currency---'.$currency);
+            $paymentSuggestion = !empty($currency) ? $this->paymentSuggestionByCurrency($cash,$cashKh,$bankAmount,$bankAmountKh,$dueAmount,$currency,$exhangeRate):$this->paymentSuggestion($cash,$cashKh,$bankAmount,$bankAmountKh,$dueAmount,$exhangeRate);
+            if($paymentSuggestion->error) return $paymentSuggestion;
+            $originalCashKh = $paymentSuggestion->original_cash_amount_kh;
+            $originalBankAmtKh = $paymentSuggestion->original_bank_amount_kh;
+        }
+        return DataResponse::JsonRaw([
+            'error' => false,
+            'total_input_amount' => $totalInputAmount,
+            'original_cash_amount_kh' => $originalCashKh,
+            'original_bank_amount_kh' => $originalBankAmtKh,
+            'bank_name' => $bankName
+        ]);
     }
 
 
