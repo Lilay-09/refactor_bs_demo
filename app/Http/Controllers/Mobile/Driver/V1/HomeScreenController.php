@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Mobile\Driver\V1;
 use ApiResponse;
 use App\DTO\Mobile\DeliveryTripsPackagesDTO;
 use App\DTO\Mobile\HomeBalanceCardDTO;
-use App\DTO\Mobile\HomePaymentDTO;
 use App\DTO\Mobile\HomeReturnPackageDTO;
 use App\Enums\ImageDirectory;
 use App\Enums\TrackingStatus;
@@ -33,13 +32,13 @@ use App\Services\PickupCenterService;
 use App\Services\TransactionService;
 use App\Services\UserService;
 use App\Services\UserShopService;
-use DB;
+use Illuminate\Support\Facades\DB;
 use Exception;
 use Helper;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
-use Log;
-use Str;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 // use WebSocket\Client;
 
 class HomeScreenController extends Controller
@@ -827,14 +826,14 @@ class HomeScreenController extends Controller
     }
 
     public function editMerchantShopLocation(Request $req){
-        $authUser = auth()->user();
+        $authUser = UserService::getAuthUser();
         $userShopService = new UserShopService();
         $editable = $userShopService->editMerchantShopLocation($authUser,$req->merchantId,$req);
         return ApiResponse::flex($editable);
     }
 
     public function getMerchantShopLocation(Request $req){
-        $authUser = auth()->user();
+        // $authUser = auth()->user();
         $userShopService = new UserShopService();
         $editable = $userShopService->getPickUpLocation($req->merchantId);
         return ApiResponse::flex($editable);
@@ -1102,9 +1101,7 @@ class HomeScreenController extends Controller
         ]);
         $notif->sendNotificationByTopic($notifReq,$user);
         // SendNotificationJob::dispatch($notifReq, $user);
-        return ApiResponse::JsonResult(null,__('messages.info',[
-            'info' => 'Marked as contact',
-        ]));
+        return ApiResponse::JsonResult(null,__('messages.saved'));
 
     }
 

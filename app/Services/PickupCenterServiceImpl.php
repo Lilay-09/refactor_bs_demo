@@ -13,11 +13,11 @@ use App\Models\VehicleType;
 use App\Models\Warehouse;
 use App\Models\Zone;
 use DataResponse;
-use DB;
+use Illuminate\Support\Facades\DB;
 use Exception;
 use Helper;
 use Illuminate\Http\Request;
-use Log;
+use Illuminate\Support\Facades\Log;
 
 class PickupCenterServiceImpl implements PickupCenterService
 {
@@ -341,7 +341,7 @@ class PickupCenterServiceImpl implements PickupCenterService
      * @param mixed $packageId => it depends on action **IF UPDATE packageId must be provided
      * @param mixed $orderId => optional *-- might use only in pickup center module --*
      * @param mixed $statusIds => status can be differenct by module | By Default $statusIds=[1,7] = available for pick up or package is pending,
-     * @param mixed $whereClause => for additional queries condition
+     * @param callback $whereClause => for additional queries condition
      * @return object
      *
      *  => ------ for reusable on action update package --------
