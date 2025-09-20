@@ -238,6 +238,7 @@ class PaywayServiceImpl implements PaywayService
 
         $key = 'services.payway.'.$payerType.'-callback';
         $fullUrl = config($key) . '?' . $query;
+        Log::info($fullUrl);
         $encoded = base64_encode($fullUrl);
         return $encoded;
     }
