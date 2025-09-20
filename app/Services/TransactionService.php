@@ -782,6 +782,7 @@ class TransactionService
             'bank_id' => 'nullable|int',
             'method' => 'nullable|string',
             'remarks' => 'nullable|string|max:500',
+            'currency' => 'nullable|string',
             'packages' => 'required|array',
             'exchange_rate' => 'nullable|numeric'
         ]);
@@ -795,6 +796,7 @@ class TransactionService
             'bank_amount_usd' => 'nullable|numeric',
             'bank_amount_khr' => 'nullable|numeric',
             'bank_id' => 'nullable|int',
+            'method' => 'nullable|string',
             'remarks' => 'nullable|string|max:500',
             'packages' => 'required|array',
             'exchange_rate' => 'nullable|numeric'
@@ -818,11 +820,20 @@ class TransactionService
         $bankId = $inputs['bank_id'] ?? null;
         $bankAmount = $inputs['bank_amount'] ?? 0;
         $bankAmountKh = $inputs['bank_amount_kh'] ?? 0;
+        $currency = $inputs['currency'] ?? 'USD';
         $dueAmount = $validPackages->total_due_amount;
         if($dueAmount < 0) return DataResponse::ValidateFail(__('messages.info',[
             'info' => 'This case should be receive not disbursement'
         ]));
-        $validPayment = $this->validPayment($cash,$cashKh,$bankAmount,$bankAmountKh,$bankId,$dueAmount,$exchangeRate);
+        // $validPayment = $this->validPayment($cash,$cashKh,$bankAmount,$bankAmountKh,$bankId,$dueAmount,$exchangeRate);
+        // if($validPayment->error) return $validPayment;
+        $method = $inputs['method'] ?? null;
+        // return $validPackages;
+        if($method){
+            $validPayment = $this->validPaymentV1($cash,$cashKh,$bankAmount,$bankAmountKh,$method,$dueAmount,$exchangeRate);
+        } else {
+            $validPayment =  $this->validPayment($cash,$cashKh,$bankAmount,$bankAmountKh,$bankId,$dueAmount,$exchangeRate);
+        }
         if($validPayment->error) return $validPayment;
         // return $validPayment;
         // if($validPayment->total_input_amount !== $dueAmount) return DataResponse::ValidateFail(__('messages.info',[
@@ -948,6 +959,7 @@ class TransactionService
             return DataResponse::Error(__('messages.error',['info' => 'Fail to receive']));
         }
     }
+    
 
     public function receivePaymentServiceV1(Request $req,$user,$type){
         $validType = $this->validType($type);
