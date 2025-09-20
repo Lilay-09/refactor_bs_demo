@@ -830,7 +830,7 @@ class TransactionService
         $method = $inputs['method'] ?? null;
         // return $validPackages;
         if($method){
-            $validPayment = $this->validPaymentWithMethodV1($cash,$cashKh,$bankAmount,$bankAmountKh,$method,$dueAmount,$exchangeRate);
+            $validPayment = $this->validPaymentWithMethodV1($cash,$cashKh,$bankAmount,$bankAmountKh,$method,$dueAmount,$exchangeRate,$currency);
         } else {
             $validPayment =  $this->validPayment($cash,$cashKh,$bankAmount,$bankAmountKh,$bankId,$dueAmount,$exchangeRate);
         }
@@ -1257,7 +1257,7 @@ class TransactionService
         $originalBankAmtKh = 0;
         if($dueAmount > 0){
             if($totalInputAmount <=0) return DataResponse::ValidateFail('Invalid payment amount');
-            // Log::info('currency---'.$currency);
+            Log::info('currency---'.$currency);
             $paymentSuggestion = !empty($currency) ? $this->paymentSuggestionByCurrency($cash,$cashKh,$bankAmount,$bankAmountKh,$dueAmount,$currency,$exhangeRate,true):$this->paymentSuggestion($cash,$cashKh,$bankAmount,$bankAmountKh,$dueAmount,$exhangeRate);
             if($paymentSuggestion->error) return $paymentSuggestion;
             $originalCashKh = $paymentSuggestion->original_cash_amount_kh;
