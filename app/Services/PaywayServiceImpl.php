@@ -428,6 +428,7 @@ class PaywayServiceImpl implements PaywayService
         ]);
 
         $pmt = $this->prepareDriverSettlePayment($user,$packageIds,$currency,$amount,$method ?? PaymentMethod::ABA->value ?? 'bank',$tran_id);
+        Log::info(json_encode($pmt));
         if($pmt->error){
             Log::error(json_encode($pmt));
         }

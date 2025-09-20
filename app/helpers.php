@@ -2,7 +2,14 @@
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Validation\Rule;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Str;
+
 class ApiResponse
 {
 
@@ -758,7 +765,7 @@ class Helper{
      * @param mixed $base64String
      * @param mixed $companyId
      * @param mixed $dirName
-     * @return string
+     * @return object
      * Note* folder structure => public/uploads/images/companyId/dirname
      */
     static function base64ToImageFile($base64String, $companyId, $dirName,$subDir=null,$ext=null): object
@@ -1685,6 +1692,20 @@ class DataResponse //extends Model
         ];
     }
 
+    /**
+     * Paginate a query with optional caching and transformation.
+     * @param Builder $query The Eloquent query builder instance.
+     * @param Request|null $filter The request containing pagination parameters.
+     * @param string $message A message to include in the response.
+     * @param array $additionalKey Additional key-value pairs to include in the response.
+     * @param int $limit Maximum number of items per page.
+     * @param callable|null $transformCallback A callback to transform each item in the result set.
+     * @param array $select Columns to select from the database.
+     * @param bool $reverse Whether to reverse the order of items in the result set.
+     * @param int|null $cache Cache duration in seconds. If null, caching is disabled.
+     * @param array $cacheTags Tags to associate with the cache entry for tag-based invalidation.
+     * @return object The paginated response object.
+     */
     public static function PaginationV1(
         Builder $query,
         Request $filter = null,
@@ -1730,7 +1751,7 @@ class DataResponse //extends Model
                     return $cached;
                 }
             } catch (\Throwable $e) {
-                \Log::warning("Pagination cache read failed: " . $e->getMessage());
+                Log::warning("Pagination cache read failed: " . $e->getMessage());
             }
         }
         // Apply transformation if provided
@@ -1767,7 +1788,7 @@ class DataResponse //extends Model
                     Cache::put($cacheKey, $obj, $cacheTime);
                 }
             } catch (\Throwable $e) {
-                \Log::warning("Pagination cache write failed: " . $e->getMessage());
+                Log::warning("Pagination cache write failed: " . $e->getMessage());
             }
         }
 
