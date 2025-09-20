@@ -935,7 +935,7 @@ class Helper{
      * @param  float  $maxSizeMB
      * @param  int|null  $maxWidth
      * @param  int|null  $maxHeight
-     * @return bool
+     * @return object
      */
     static function isValidUploadImage($image, float $maxSizeMB = 2.0, int $maxWidth = null, int $maxHeight = null,$lang='en'): object
     {
