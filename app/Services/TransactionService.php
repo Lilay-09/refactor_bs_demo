@@ -628,10 +628,10 @@ class TransactionService
                 ]);
             }
 
-            $fkField = [
-                    $type.'_payment_id' => $paymentId
-                ];
-            Package::whereIn('id',$packageIds)->update($fkField);
+            // $fkField = [
+            //         $type.'_payment_id' => $paymentId
+            // ];
+            // Package::whereIn('id',$packageIds)->update($fkField);
             $paymentPackageArr = collect($packageIds)->map(fn($id) => [
                 'package_id' => $id,
                 'payment_id' => $paymentId,
