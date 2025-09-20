@@ -780,6 +780,7 @@ class TransactionService
             'bank_amount' => 'nullable|numeric',
             'bank_amount_kh' => 'nullable|numeric',
             'bank_id' => 'nullable|int',
+            'method' => 'nullable|string',
             'remarks' => 'nullable|string|max:500',
             'packages' => 'required|array',
             'exchange_rate' => 'nullable|numeric'
