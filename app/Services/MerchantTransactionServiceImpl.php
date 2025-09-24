@@ -6,6 +6,8 @@ use App\DTO\MerchantRequestedSettlementDTO;
 use App\DTO\MerchantSettledTransactionByIdDTO;
 use App\DTO\MerchantSettledTransactionDTO;
 use App\Enums\PaymentStatus;
+use App\Enums\PaywayProvider;
+use App\Enums\PaywayType;
 use App\Enums\TrackingStatus;
 use App\Enums\TransactionType;
 use App\Models\Disbursement;
@@ -333,24 +335,198 @@ class MerchantTransactionServiceImpl implements MerchantTransactionService
         }
         return DataResponse::JsonResult(null);
     }
+    // public function approveAndSettleBulkRequestedSettlement(Request $req,object $authUser):object{
+    //     $validator = validator($req->all(),[
+    //         'payment_ids' => 'required|array',
+    //         'payment_ids.*.id' => 'int',
+    //         'payment_ids.*.transaction_type' => 'string',
+    //         'is_manual' => 'required|in:0,1'
+    //     ]);
+    //     // Log::info(json_encode($req->all()));
+
+    //     if($validator->fails()){
+    //         return DataResponse::ValidateFail($validator->errors()->first());
+    //     }
+    //     $inputs = $validator->validated();
+    //     $inputsPayment = $inputs['payment_ids'];
+    //     $paymentIds = array_column($inputsPayment,'id');
+    //     $isManual = $inputs['is_manual'] == '0' ? true:false;
+    //     // Log::info($paymentIds);
+    //     $disbursements = Disbursement::where('is_deleted', false)
+    //         ->whereIn('id', $paymentIds)
+    //         ->with(['merchant:id,username'])
+    //         ->get();
+
+    //     $merchantIds = $disbursements->pluck('merchant.id')->filter()->unique()->values()->toArray();
+    //     $disbursementById = $disbursements->keyBy('id');
+    //     $payments = Payment::where('is_deleted', false)
+    //         ->whereIn('id', $paymentIds)
+    //         ->with(['merchant:id,username'])
+    //         ->get();
+
+    //     $merchantIds = array_unique(array_merge(
+    //         $merchantIds,
+    //         $payments->pluck('merchant.id')->filter()->values()->toArray()
+    //     ));
+    //     $paymentById = $payments->keyBy('id');
+    //     $toBeSettleList = [];
+    //     $toUpdatePayout = [];
+    //     $toUpdatePayin = [];
+    //     $accountList = UserBank::where('is_deleted',false)
+    //     ->select(['id','bank_name','account_name','bank_number as account_number','currency','user_id'])
+    //     ->whereIn('user_id',$merchantIds)->get();
+    //     // return DataResponse::JsonResult($accountList);
+    //     foreach($inputsPayment as $idx => $p){
+    //         $pId = $p['id'];
+    //         $tranType = $p['transaction_type'];
+    //         if($tranType === TransactionType::TRNASFER_OUT->value){
+    //             if(empty($disbursementById[$pId])){
+    //                 return DataResponse::ValidateFail(__('messages.info',[
+    //                     'info' => "Payment not found on row => {($idx + 1)}"
+    //                 ]));
+    //             }
+    //             $disbursement = $disbursementById[$pId];
+    //             if ($disbursement->payment_status_id === PaymentStatus::APPROVE_AND_SETTLE->value) {
+    //             return DataResponse::BadRequest(__('messages.info', [
+    //                     'info'   => 'This payment has already been approved and settled',
+    //                     'khInfo' => 'ការទូទាត់នេះត្រូវបានអនុម័ត និងទូរទាត់រួចរាល់ហើយ'
+    //                 ]));
+    //             }
+
+    //             if($disbursement->payment_status_id !== PaymentStatus::REQUESTED->value){
+    //                 return DataResponse::BadRequest(__('messages.info',[
+    //                     'info' => 'Please ensure payment is requested, before settle',
+    //                     'khInfo' => 'សូមប្រាកដថាបានស្នើការទូទាត់ជាមុនសិន មុនពេលធ្វើការបង់ប្រាក់'
+    //                 ]));
+    //             }
+    //             $toUpdatePayout[] = $pId;
+    //             $receivedAmtUsd = $disbursement->amount_due_usd;
+    //             $receivedAmtKhr = $disbursement->amount_due_khr;
+    //         }else if($tranType === TransactionType::TRANSFER_IN->value){
+    //             if(empty($paymentById[$pId])){
+    //                 return DataResponse::ValidateFail(__('messages.info',[
+    //                     'info' => "Payment not found on row => {($idx + 1)}"
+    //                 ]));
+    //             }
+    //             $payment = $paymentById[$pId];
+    //             if ($payment->payment_status_id === PaymentStatus::APPROVE_AND_SETTLE->value) {
+    //             return DataResponse::BadRequest(__('messages.info', [
+    //                     'info'   => 'This payment has already been approved and settled',
+    //                     'khInfo' => 'ការទូទាត់នេះត្រូវបានអនុម័ត និងទូរទាត់រួចរាល់ហើយ'
+    //                 ]));
+    //             }
+
+    //             if($payment->payment_status_id !== PaymentStatus::REQUESTED->value){
+    //                 return DataResponse::BadRequest(__('messages.info',[
+    //                     'info' => 'Please ensure payment is requested, before settle',
+    //                     'khInfo' => 'សូមប្រាកដថាបានស្នើការទូទាត់ជាមុនសិន មុនពេលធ្វើការបង់ប្រាក់'
+    //                 ]));
+    //             }
+    //             $toUpdatePayin[] = $pId;
+    //             $receivedAmtUsd = $payment->amount_due_usd;
+    //             $receivedAmtKhr = $payment->amount_due_khr;
+    //         }
+
+
+    //         $dueAmounts = [];
+    //         if($receivedAmtUsd > 0 ){
+    //             $dueAmounts[] = [
+    //                 'currency' => 'USD',
+    //                 'amount' => $receivedAmtUsd
+    //             ];
+    //         }
+    //         if($receivedAmtKhr > 0 ){
+    //             $dueAmounts[] = [
+    //                 'currency' => 'KHR',
+    //                 'amount' => $receivedAmtKhr
+    //             ];
+    //         }
+    //         $targetUid = $tranType === TransactionType::TRANSFER_IN->value ?
+    //             $payment->payer_id : $disbursement->payee_id;
+
+    //         $targetUsername = $tranType === TransactionType::TRANSFER_IN->value ?
+    //             $payment->merchant->username : $disbursement->merchant->username;
+
+    //         foreach ($dueAmounts as $dueAmt) {
+    //             $dueAccount = self::dueBankAccounts($accountList, $targetUid, $dueAmt['currency']);
+
+    //             if (empty($dueAccount)) {
+    //                 return DataResponse::NotFound(__('messages.info', [
+    //                     'info'   => "Merchant {$targetUsername} has no bank account for {$dueAmt['currency']}",
+    //                     'khInfo' => "អ្នកលក់ {$targetUsername} មិនមានគណនីសម្រាប់រូបិយប័ណ្ណ {$dueAmt['currency']}"
+    //                 ]));
+    //             }
+    //             $toBeSettleList[] = [
+    //                 'currency' => $dueAmt['currency'],
+    //                 'amount' => $dueAmt['amount'],
+    //                 'payment_date' => now(),
+    //                 'tran_via' => 'internal',
+    //                 'payment_id' => $pId,
+    //                 'transaction_type' => TransactionType::TRNASFER_OUT->value,
+    //                 'from_account' => 'Ng Company',
+    //                 'to_account' => $dueAccount['concat'],
+    //                 'approved_uid' => $authUser->id,
+    //                 'create_uid' => $authUser->id,
+    //                 'update_uid' => $authUser->id,
+    //                 'branch_id' => $authUser->branch_id,
+    //                 'company_id' => $authUser->company_id
+    //             ];
+    //         }
+    //     }
+
+    //     try{
+    //         DB::beginTransaction();
+    //         PaymentTransaction::insert($toBeSettleList);
+    //         if(!empty($toUpdatePayout)){
+    //             Disbursement::whereIn('id',$toUpdatePayout)->update([
+    //                 'payment_status_id' => PaymentStatus::APPROVE_AND_SETTLE->value,
+    //                 'settled_datetime' => now(),
+    //                 'is_settled' => true,
+    //                 'settled_uid' => $authUser->id
+    //             ]);
+    //         }
+    //         if(!empty($toUpdatePayin)){
+    //             Payment::whereIn('id',$toUpdatePayin)->update([
+    //                 'payment_status_id' => PaymentStatus::APPROVE_AND_SETTLE->value,
+    //                 'settled_datetime' => now(),
+    //                 'is_settled' => true,
+    //                 'settled_uid' => $authUser->id
+    //             ]);
+    //         }
+    //         DB::commit();
+    //         return DataResponse::JsonResult(null,false,__('messages.saved'));
+    //     }catch(Exception $e){
+    //         Log::error($e->getMessage());
+    //         DB::rollBack();
+    //         return DataResponse::Error('Failed to approve');
+    //     }
+    // }
+
     public function approveAndSettleBulkRequestedSettlement(Request $req,object $authUser):object{
         $validator = validator($req->all(),[
+            'currency' => 'required|in:KHR,USD',
             'payment_ids' => 'required|array',
             'payment_ids.*.id' => 'int',
-            'payment_ids.*.transaction_type' => 'string'
+            'payment_ids.*.transaction_type' => 'string',
+            'is_manual' => 'required|in:0,1'
         ]);
-        // Log::info(json_encode($req->all()));
 
         if($validator->fails()){
             return DataResponse::ValidateFail($validator->errors()->first());
         }
         $inputs = $validator->validated();
+        $isManual = $inputs['is_manual'] == '0' ? true:false;
+        // Log::info($isManual);
+        // Log::info($inputs['is_manual']);
         $inputsPayment = $inputs['payment_ids'];
         $paymentIds = array_column($inputsPayment,'id');
         // Log::info($paymentIds);
         $disbursements = Disbursement::where('is_deleted', false)
             ->whereIn('id', $paymentIds)
-            ->with(['merchant:id,username'])
+            ->with([
+                'merchant:id,user_name as username',
+                'pmtPackages:id,disbursement_id,package_id'
+                ])
             ->get();
 
         $merchantIds = $disbursements->pluck('merchant.id')->filter()->unique()->values()->toArray();
@@ -365,16 +541,22 @@ class MerchantTransactionServiceImpl implements MerchantTransactionService
             $payments->pluck('merchant.id')->filter()->values()->toArray()
         ));
         $paymentById = $payments->keyBy('id');
-        $toBeSettleList = [];
-        $toUpdatePayout = [];
+        $toInsertTrans = [];
+        $toUpdatePayoutIds = [];
+        $toPayout = [];
         $toUpdatePayin = [];
+        $totalPkg = 0;
+        $payoutPackageIds = [];
         $accountList = UserBank::where('is_deleted',false)
         ->select(['id','bank_name','account_name','bank_number as account_number','currency','user_id'])
         ->whereIn('user_id',$merchantIds)->get();
+        $currency = $inputs['currency'];
+        $approvedAmounts = [];
         // return DataResponse::JsonResult($accountList);
         foreach($inputsPayment as $idx => $p){
             $pId = $p['id'];
             $tranType = $p['transaction_type'];
+            $paymentRef = null;
             if($tranType === TransactionType::TRNASFER_OUT->value){
                 if(empty($disbursementById[$pId])){
                     return DataResponse::ValidateFail(__('messages.info',[
@@ -388,16 +570,47 @@ class MerchantTransactionServiceImpl implements MerchantTransactionService
                         'khInfo' => 'ការទូទាត់នេះត្រូវបានអនុម័ត និងទូរទាត់រួចរាល់ហើយ'
                     ]));
                 }
+                // $payoutPackageIds[] = $disbursement->pmtPackages()->pluck('package_id')->toArray();
+                $payoutPackageIds = array_merge(
+                    $payoutPackageIds,
+                    $disbursement->pmtPackages()->pluck('package_id')->toArray()
+                );
+                $approvedAmounts[$pId] = $currency === 'USD'
+                    ? $disbursement->amount_due_usd
+                    : $disbursement->amount_due_khr;
 
-                if($disbursement->payment_status_id !== PaymentStatus::REQUESTED->value){
+                $paymentRef = $disbursement->trx_code;
+
+                // Partially settled USD, KHR remaining
+                if ($currency === 'USD' && $disbursement->payment_status_id === PaymentStatus::SETTLED_USD_REMAINING_KHR->value) {
+                    return DataResponse::Duplicated(__('messages.info', [
+                        'info'   => 'This payment has already been settled in USD, remaining KHR',
+                        'khInfo' => 'ការទូទាត់នេះបានទូរទាត់ជាសុទ្ធ USD ហើយ មាន KHR ប្រាក់នៅសល់'
+                    ]));
+                }
+
+                // Partially settled KHR, USD remaining
+                if ($currency === 'KHR' && $disbursement->payment_status_id === PaymentStatus::SETTLED_KHR_REMAINING_USD->value) {
+                    return DataResponse::Duplicated(__('messages.info', [
+                        'info'   => 'This payment has already been settled in KHR, remaining USD',
+                        'khInfo' => 'ការទូទាត់នេះបានទូរទាត់ជាសុទ្ធ KHR ហើយ មាន USD ប្រាក់នៅសល់'
+                    ]));
+                }
+
+                if(!in_array($disbursement->payment_status_id,[
+                    PaymentStatus::REQUESTED->value,
+                    PaymentStatus::SETTLED_KHR_REMAINING_USD->value,
+                    PaymentStatus::SETTLED_USD_REMAINING_KHR->value
+                ])){
                     return DataResponse::BadRequest(__('messages.info',[
                         'info' => 'Please ensure payment is requested, before settle',
                         'khInfo' => 'សូមប្រាកដថាបានស្នើការទូទាត់ជាមុនសិន មុនពេលធ្វើការបង់ប្រាក់'
                     ]));
                 }
-                $toUpdatePayout[] = $pId;
+                $toUpdatePayoutIds[] = $pId;
                 $receivedAmtUsd = $disbursement->amount_due_usd;
                 $receivedAmtKhr = $disbursement->amount_due_khr;
+                $totalPkg += $disbursement->package_count;
             }else if($tranType === TransactionType::TRANSFER_IN->value){
                 if(empty($paymentById[$pId])){
                     return DataResponse::ValidateFail(__('messages.info',[
@@ -418,25 +631,43 @@ class MerchantTransactionServiceImpl implements MerchantTransactionService
                         'khInfo' => 'សូមប្រាកដថាបានស្នើការទូទាត់ជាមុនសិន មុនពេលធ្វើការបង់ប្រាក់'
                     ]));
                 }
+                $paymentRef = $payment->trx_code;
                 $toUpdatePayin[] = $pId;
                 $receivedAmtUsd = $payment->amount_due_usd;
                 $receivedAmtKhr = $payment->amount_due_khr;
             }
 
-
             $dueAmounts = [];
-            if($receivedAmtUsd > 0 ){
-                $dueAmounts[] = [
-                    'currency' => 'USD',
-                    'amount' => $receivedAmtUsd
-                ];
+            if ($isManual) {
+                // Always include both currencies when manual
+                if ($receivedAmtUsd > 0) {
+                    $dueAmounts[] = [
+                        'currency' => 'USD',
+                        'amount' => $receivedAmtUsd
+                    ];
+                }
+                if ($receivedAmtKhr > 0) {
+                    $dueAmounts[] = [
+                        'currency' => 'KHR',
+                        'amount' => $receivedAmtKhr
+                    ];
+                }
+            } else {
+                // Keep the existing single-currency behavior
+                if ($currency === 'USD' && $receivedAmtUsd > 0) {
+                    $dueAmounts[] = [
+                        'currency' => 'USD',
+                        'amount' => $receivedAmtUsd
+                    ];
+                }
+                if ($currency === 'KHR' && $receivedAmtKhr > 0) {
+                    $dueAmounts[] = [
+                        'currency' => 'KHR',
+                        'amount' => $receivedAmtKhr
+                    ];
+                }
             }
-            if($receivedAmtKhr > 0 ){
-                $dueAmounts[] = [
-                    'currency' => 'KHR',
-                    'amount' => $receivedAmtKhr
-                ];
-            }
+
             $targetUid = $tranType === TransactionType::TRANSFER_IN->value ?
                 $payment->payer_id : $disbursement->payee_id;
 
@@ -444,22 +675,22 @@ class MerchantTransactionServiceImpl implements MerchantTransactionService
                 $payment->merchant->username : $disbursement->merchant->username;
 
             foreach ($dueAmounts as $dueAmt) {
-                $dueAccount = self::dueBankAccounts($accountList, $targetUid, $dueAmt['currency']);
-
+                $dueAccount = $this->dueBankAccounts($accountList, $targetUid, $dueAmt['currency']);
                 if (empty($dueAccount)) {
                     return DataResponse::NotFound(__('messages.info', [
                         'info'   => "Merchant {$targetUsername} has no bank account for {$dueAmt['currency']}",
                         'khInfo' => "អ្នកលក់ {$targetUsername} មិនមានគណនីសម្រាប់រូបិយប័ណ្ណ {$dueAmt['currency']}"
                     ]));
                 }
-                $toBeSettleList[] = [
+                $toInsertTrans[] = [
                     'currency' => $dueAmt['currency'],
                     'amount' => $dueAmt['amount'],
                     'payment_date' => now(),
-                    'tran_via' => 'internal',
+                    'payment_ref' => $paymentRef,
+                    'tran_via' => TransactionType::INTERNAL->value,
                     'payment_id' => $pId,
                     'transaction_type' => TransactionType::TRNASFER_OUT->value,
-                    'from_account' => 'Ng Company',
+                    'from_account' => 'JS Company',
                     'to_account' => $dueAccount['concat'],
                     'approved_uid' => $authUser->id,
                     'create_uid' => $authUser->id,
@@ -467,29 +698,135 @@ class MerchantTransactionServiceImpl implements MerchantTransactionService
                     'branch_id' => $authUser->branch_id,
                     'company_id' => $authUser->company_id
                 ];
+                $toPayout[] = [
+                    'account' => $dueAccount['account_number'],
+                    'currency' => $dueAmt['currency'],
+                    'amount' => $dueAmt['amount'],
+                ];
             }
         }
 
         try{
             DB::beginTransaction();
-            PaymentTransaction::insert($toBeSettleList);
-            if(!empty($toUpdatePayout)){
-                Disbursement::whereIn('id',$toUpdatePayout)->update([
-                    'payment_status_id' => PaymentStatus::APPROVE_AND_SETTLE->value,
-                    'settled_datetime' => now(),
-                    'is_settled' => true,
-                    'settled_uid' => $authUser->id
-                ]);
+            if(!empty($toUpdatePayoutIds)){
+                if(!$isManual){
+                    $pw = new PaywayServiceImpl();
+                    $totalAmt = array_sum(array_column($toPayout, 'amount'));
+                    $payoutResult = $pw->payout($currency, $totalAmt, $toPayout,$totalPkg);
+
+                    if ($payoutResult->error) {
+                        DB::rollBack();
+                        // Log::info('Payout Error: ' . json_encode($payoutResult));
+                        return $payoutResult;
+                    }
+
+                    $payoutData = is_string($payoutResult->data)
+                    ? json_decode($payoutResult->data, true)
+                    : $payoutResult->data;
+                    $transactionId = $payoutData['transaction_id'] ?? null;
+                    // Log::info(json_encode($transactionId));
+                    // Include payment_ref in each transaction before inserting
+                    foreach ($toInsertTrans as &$trans) {
+                        $trans['payment_ref'] = $transactionId;
+                        $trans['tran_via'] = PaywayType::ABA_PAYOUT->value;
+                    }
+                    unset($trans);
+                    $pw->paywaylog($payoutResult->data['transaction_id'],$authUser,PaywayType::ABA_PAYOUT->value,PaywayProvider::ABA->value,json_encode([
+                        'items' => $payoutPackageIds,
+                        'response' => $payoutResult->data
+                    ]),$payoutResult->data['apv'],json_encode($inputs));
+                }
+
+                foreach ($toUpdatePayoutIds as $pId) {
+                    $approvedAmt = $approvedAmounts[$pId];
+                    if ($isManual) {
+                        // In manual mode, settle everything at once
+                        Disbursement::where('id', $pId)->update([
+                            'paid_amount_usd'  => DB::raw("amount_due_usd"),
+                            'paid_amount_khr'  => DB::raw("amount_due_khr"),
+                            'payment_status_id'=> PaymentStatus::APPROVE_AND_SETTLE->value,
+                            'settled_datetime' => now(),
+                            'is_settled'       => true,
+                            'settled_uid'      => $authUser->id,
+                        ]);
+                    } else {
+                        // Keep existing partial logic
+                        $usdIncrement = $currency === 'USD' ? $approvedAmt : 0;
+                        $khrIncrement = $currency === 'KHR' ? $approvedAmt : 0;
+
+                        Disbursement::where('id', $pId)->update([
+                            'paid_amount_usd' => DB::raw("paid_amount_usd + $usdIncrement"),
+                            'paid_amount_khr' => DB::raw("paid_amount_khr + $khrIncrement"),
+                            'payment_status_id' => DB::raw("
+                                CASE
+                                    WHEN amount_due_usd = paid_amount_usd + $usdIncrement
+                                    AND amount_due_khr = paid_amount_khr + $khrIncrement
+                                        THEN " . PaymentStatus::APPROVE_AND_SETTLE->value . "
+                                    WHEN '{$currency}' = 'USD' AND amount_due_usd = paid_amount_usd + $usdIncrement
+                                        THEN " . PaymentStatus::SETTLED_USD_REMAINING_KHR->value . "
+                                    WHEN '{$currency}' = 'KHR' AND amount_due_khr = paid_amount_khr + $khrIncrement
+                                        THEN " . PaymentStatus::SETTLED_KHR_REMAINING_USD->value . "
+                                    ELSE payment_status_id
+                                END
+                            "),
+                            'settled_datetime' => now(),
+                            'is_settled'       => true,
+                            'settled_uid'      => $authUser->id,
+                        ]);
+                    }
+
+                    // $usdIncrement = $currency === 'USD' ? $approvedAmt : 0;
+                    // $khrIncrement = $currency === 'KHR' ? $approvedAmt : 0;
+
+
+                    // Disbursement::where('id', $pId)
+                    // ->update([
+                    //     'paid_amount_usd' => DB::raw("paid_amount_usd + $usdIncrement"),
+                    //     'paid_amount_khr' => DB::raw("paid_amount_khr + $khrIncrement"),
+                    //     'payment_status_id' => DB::raw("
+                    //         CASE
+                    //             WHEN amount_due_usd = paid_amount_usd + $usdIncrement
+                    //             AND amount_due_khr = paid_amount_khr + $khrIncrement
+                    //                 THEN " . PaymentStatus::APPROVE_AND_SETTLE->value . "
+                    //             WHEN '{$currency}' = 'USD' AND amount_due_usd = paid_amount_usd + $usdIncrement
+                    //                 THEN " . PaymentStatus::SETTLED_USD_REMAINING_KHR->value . "
+                    //             WHEN '{$currency}' = 'KHR' AND amount_due_khr = paid_amount_khr + $khrIncrement
+                    //                 THEN " . PaymentStatus::SETTLED_KHR_REMAINING_USD->value . "
+                    //             ELSE payment_status_id
+                    //         END
+                    //     "),
+                    //     'settled_datetime' => now(),
+                    //     'is_settled' => true,//DB::raw("(amount_due_usd = paid_amount_usd + $usdIncrement AND amount_due_khr = paid_amount_khr + $khrIncrement)"),
+                    //     'settled_uid' => $authUser->id,
+                    // ]);
+
+                }
+
+                $totalAmt = array_sum(array_column($toPayout, 'amount'));
             }
-            if(!empty($toUpdatePayin)){
-                Payment::whereIn('id',$toUpdatePayin)->update([
+
+            if (!empty($toUpdatePayin)) {
+                $updateData = [
                     'payment_status_id' => PaymentStatus::APPROVE_AND_SETTLE->value,
-                    'settled_datetime' => now(),
-                    'is_settled' => true,
-                    'settled_uid' => $authUser->id
-                ]);
+                    'settled_datetime'  => now(),
+                    'is_settled'        => true,
+                    'settled_uid'       => $authUser->id
+                ];
+                Payment::whereIn('id', $toUpdatePayin)->update($updateData);
             }
+
+            // if(!empty($toUpdatePayin)){
+            //     Payment::whereIn('id',$toUpdatePayin)->update([
+            //         'payment_status_id' => PaymentStatus::APPROVE_AND_SETTLE->value,
+            //         'settled_datetime' => now(),
+            //         'is_settled' => true,
+            //         'settled_uid' => $authUser->id
+            //     ]);
+            // }
+            // Log::info(count($toInsertTrans));
+            PaymentTransaction::insert($toInsertTrans);
             DB::commit();
+            // Log::info(json_encode($toInsertTrans));
             return DataResponse::JsonResult(null,false,__('messages.saved'));
         }catch(Exception $e){
             Log::error($e->getMessage());

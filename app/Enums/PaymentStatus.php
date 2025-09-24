@@ -14,6 +14,8 @@ enum PaymentStatus:int
     case APPROVED = 7;
     case APPROVE_AND_SETTLE = 8;
     case DECLINED = 9;
+    case SETTLED_USD_REMAINING_KHR = 10;
+    case SETTLED_KHR_REMAINING_USD = 11;
 
     public function label(){
         return match($this){
@@ -25,7 +27,9 @@ enum PaymentStatus:int
             self::DECLINED => 'Declined',
             self::CANCELED => 'Canceled',
             self::DELETED => 'Deleted',
-            self::APPROVE_AND_SETTLE => 'Approved And Settled'
+            self::APPROVE_AND_SETTLE => 'Approved And Settled',
+            self::SETTLED_USD_REMAINING_KHR => 'Settled USD, Remaining KHR',
+            self::SETTLED_KHR_REMAINING_USD => 'Settled KHR, Remaining USD'
 
         };
     }
@@ -38,8 +42,14 @@ enum PaymentStatus:int
             ],
             [
                 self::REQUESTED,
-                self::APPROVE_AND_SETTLE
+                self::APPROVE_AND_SETTLE,
+                self::SETTLED_USD_REMAINING_KHR,
+                self::SETTLED_KHR_REMAINING_USD
             ]
         );
+    }
+
+    public static function optionsCurrency(){
+        return Currency::options();
     }
 }

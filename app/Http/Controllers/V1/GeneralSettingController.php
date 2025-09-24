@@ -7,11 +7,8 @@ use App\Enums\ImageDirectory;
 use App\Enums\PaymentStatus;
 use App\Http\Controllers\Controller;
 use App\Models\DeliveryPackage;
-use App\Models\Order;
 use App\Models\OrderImage;
 use App\Models\Package;
-use App\Models\StockLocation;
-use App\Models\Tax;
 use App\Models\User;
 use App\Models\UserShop;
 use App\Models\Zone;
@@ -19,7 +16,8 @@ use App\Services\GeneralSettingService;
 use App\Services\UserService;
 use Helper;
 use Illuminate\Http\Request;
-use Log;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log as FacadesLog;
 
 class GeneralSettingController extends Controller
 {
@@ -339,6 +337,7 @@ class GeneralSettingController extends Controller
         $user = UserService::getAuthUser();
         $merchantId = $req->merchant_id ?? null;
         if(!$merchantId) return ApiResponse::ValidateFail('Merchant ID is required');
+        // FacadesLog::info($req->all());
         $price = $this->gs::priceByZone($req->zone_id,$user,$merchantId,$req->delivery_type);
         if(!$price) return ApiResponse::NotFound('Price not found');
         return ApiResponse::JsonResult($price,__('get zone price'));
@@ -377,7 +376,7 @@ class GeneralSettingController extends Controller
     }
 
     public function getOptionsWarehouseByBranch(Request $req){
-        $user = auth()->user();
+        $user = Auth::user();
         return ApiResponse::JsonResult($this->gs::optionsWarehouse($user,$req->branch_id));
     }
 
@@ -403,7 +402,7 @@ class GeneralSettingController extends Controller
     }
 
     public function getFormTransfer(){
-        $user = auth()->user();
+        $user = Auth::user();
         return ApiResponse::JsonResult([
             'warehouses' => $this->gs::optionsWarehouse($user),
             'statuses' => $this->gs::optionsTransferStatus(),
@@ -428,7 +427,7 @@ class GeneralSettingController extends Controller
                 ->orderByDesc('id')
                 ->get()->each(function($q){
                     $q->is_link = $q->package_id ? true : false;
-                    $q->image = Helper::getImageUrl($q->photo_file_name,auth()->user()->company_id,ImageDirectory::ORDER_IMAGE->value,Helper::dateYMD($q->created_at));
+                    $q->image = Helper::getImageUrl($q->photo_file_name,Auth::user()->company_id,ImageDirectory::ORDER_IMAGE->value,Helper::dateYMD($q->created_at));
                 })
         ];
         return ApiResponse::JsonResult($obj);
@@ -439,7 +438,7 @@ class GeneralSettingController extends Controller
     }
 
     public function getFormReceive(){
-        $user = auth()->user();
+        $user = Auth::user();
         return ApiResponse::JsonResult([
             'warehouses' => $this->gs::optionsWarehouse($user),
             'statuses' => $this->gs::optionsTransferStatus()
