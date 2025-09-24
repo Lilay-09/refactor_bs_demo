@@ -13,6 +13,8 @@ use App\Services\PaywayService;
 use App\Services\PaywayServiceImpl;
 use App\Services\PickupCenterService;
 use App\Services\PickupCenterServiceImpl;
+use App\Services\TelegramBotService;
+use App\Services\TelegramBotServiceImpl;
 use App\Services\TransferService;
 use App\Services\TransferServiceImpl;
 use App\Services\UserNotificationService;
@@ -42,6 +44,7 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(CommentService::class,CommentServiceImpl::class);
         $this->app->bind(MerchantTransactionService::class,MerchantTransactionServiceImpl::class);
         $this->app->bind(PaywayService::class,PaywayServiceImpl::class);
+        $this->app->bind(TelegramBotService::class,TelegramBotServiceImpl::class);
     }
 
     /**

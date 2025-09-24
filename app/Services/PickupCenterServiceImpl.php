@@ -306,18 +306,18 @@ class PickupCenterServiceImpl implements PickupCenterService
         return $total - $taxi;
     }
 
-    public static function getTotal($type,$cod,$payer,$price,$deliveryFee,$additional_fee,$extra_charge,$taxi=0){
+    public static function getTotal($type,$cod,$payer,$price,$deliveryFee,$additional_fee,$extra_charge,$otherFee=0,$taxi=0){
         $total = $additional_fee;
         if($type == 'driver'){
             if($cod) $total += $price;
             if($payer == 'receiver') {
                 $total += $extra_charge;
-                $total += $deliveryFee;
+                $total += $deliveryFee + $otherFee;
             }
         }else if($type == 'merchant'){
             if($payer == 'sender') {
                 $total += $extra_charge;
-                $total += $deliveryFee;
+                $total += $deliveryFee + $otherFee;
             }
         }
         return $total;
@@ -643,6 +643,20 @@ class PickupCenterServiceImpl implements PickupCenterService
 
         GeneralSettingService::updateTripStatus($deliveryId,$user);
         return DataResponse::JsonResult(null);
+    }
+
+
+    public function deleteOrderImage(int $orderId,int $imageId):object{
+        $foundImage = OrderImage::where('order_id',$orderId)->find($imageId);
+        if(!$foundImage) {
+            return DataResponse::NotFound(__('messages.not_found',[
+                'info' => 'Image',
+                'khInfo' => 'រូបភាព'
+            ]));
+        }
+        Helper::deleteImageFile($foundImage->photo_file_name,1,ImageDirectory::ORDER_IMAGE->value,$foundImage->updated_at->format('Y-m-d'));
+        $foundImage->delete();
+        return DataResponse::JsonResult(null,false);
     }
 
     public function replaceOrderImage(object $user,Request $req): object{

@@ -11,10 +11,10 @@ use App\Models\User;
 use App\Services\GeneralSettingService;
 use App\Services\TransactionService;
 use App\Services\UserService;
-use DB;
+use Illuminate\Support\Facades\DB;
 use Helper;
 use Illuminate\Http\Request;
-use Log;
+// use Log;
 
 class DriverTransactionController extends Controller
 {

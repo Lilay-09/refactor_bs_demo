@@ -331,7 +331,7 @@ class DashboardController extends Controller
     //     }
     // }
 
-    private function topRiders(int $top=5,int $branchId){
+    private function topRiders(int $top=5,?int $branchId){
         $currentMonth = Carbon::now()->month;
         $currentYear = Carbon::now()->year;
         $topRiders = DB::table('packages as p')
