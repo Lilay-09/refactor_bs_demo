@@ -3,14 +3,12 @@
 namespace App\Http\Controllers\V1;
 
 use ApiResponse;
-use App\Enums\TransactionType;
 use App\Http\Controllers\Controller;
-use App\Models\Disbursement;
 use App\Models\User;
 use App\Services\MerchantTransactionService;
 use App\Services\TransactionService;
 use App\Services\UserService;
-use DB;
+use Illuminate\Support\Facades\DB;
 use Helper;
 use Illuminate\Http\Request;
 

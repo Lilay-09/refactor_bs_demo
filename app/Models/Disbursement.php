@@ -12,23 +12,18 @@ class Disbursement extends Model
     protected $fillable = [
         'id',
         'trx_code',
-        'payee_id',
+        'payment_ref',
         'payment_status_id',
+        'payee_id',
         'payee_type',
         'amount',
         'currency_code',
         'cod_amount',
-        'received_amount_usd',
-        'received_amount_khr',
-        'amount_due_usd',
-        'amount_due_khr',
         'approved',
         'payable_amount',
         'delivery_fee',
         'pickup_rate',
         'delivery_rate',
-        'fast_delivery_rate',
-        'fast_pickup_rate',
         'type',
         'taxi_fee',
         'is_settled',
@@ -40,9 +35,7 @@ class Disbursement extends Model
         'failed_with_fee_count',
         'pickup_package_count',
         'receiptionist_uid',
-        'requested_uid',
         'exchange_rate',
-        'requested_date',
         'breakdown_notes',
         'approved_uid',
         'settled_uid',
@@ -53,7 +46,15 @@ class Disbursement extends Model
         'create_uid',
         'update_uid',
         'branch_id',
-        'company_id'
+        'company_id',
+
+
+        'received_amount_usd',
+        'received_amount_khr',
+        'amount_due_usd',
+        'amount_due_khr',
+        'requested_uid',
+        'requested_date'
     ];
 
     public function merchant(){

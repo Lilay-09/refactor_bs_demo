@@ -6,10 +6,12 @@ use ApiResponse;
 use App\Http\Controllers\Controller;
 use App\Models\MerchantPriceList;
 use App\Models\User;
+use App\Models\UserBank;
 use App\Models\Zone;
+use App\Services\BankServiceImpl;
 use App\Services\GeneralSettingService;
 use App\Services\UserService;
-use DB;
+use Illuminate\Support\Facades\DB;
 use Helper;
 use Illuminate\Http\Request;
 class MerchantManagementController extends Controller
@@ -352,5 +354,37 @@ class MerchantManagementController extends Controller
     public function deleteMerchant(Request $req){
         $user = UserService::getAuthUser();
         return ApiResponse::flex(UserService::deleteUser($req->id,'merchant',$user));
+    }
+
+    public function getBankAccountsById(Request $req){
+        $id = $req->id;
+        $userBanks = UserBank::where('user_id',$id)
+        ->select(['id','bank_number as account_number','account_name','currency','is_whitelist'])
+        ->get();
+        return ApiResponse::JsonResult($userBanks);
+    }
+
+    public function whitelistAccount(Request $req){
+        $user = UserService::getAuthUser();
+        $bankService = new BankServiceImpl();
+        $merchantId = $req->merchantId;
+        $accountId = $req->accountId;
+        $userBank = UserBank::where('user_id',$merchantId)->orderByDesc('id')->find($accountId);
+        if(!$userBank){
+            return ApiResponse::NotFound('Bank not found');
+        }
+        $accountNumber = $userBank->bank_number;
+        $wlAcc = $bankService->whitelistAccountToBank($accountNumber);
+        if($wlAcc->error){
+            // Log::info(json_encode($wlAcc));
+            return ApiResponse::flex($wlAcc);
+        }
+
+        $userBank->update([
+            'currency' => $wlAcc->data['data']['currency'] ?? $userBank->currency,
+            'is_whitelist' => true,
+            'whitelist_by' => $user->id
+        ]);
+        return ApiResponse::JsonResult(null,__('messages.saved'));
     }
 }

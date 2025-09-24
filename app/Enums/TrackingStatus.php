@@ -52,7 +52,8 @@ enum TrackingStatus:int
             self::FAILED->value,
             self::FAILED_WITH_FEE->value,
             self::AT_WAREHOUSE->value,
-            self::RETURNED->value
+            self::RETURNED->value,
+            self::RETURNING->value
         ];
     }
 

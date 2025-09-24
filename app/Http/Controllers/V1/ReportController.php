@@ -18,10 +18,9 @@ use App\Models\User;
 use App\Models\UserBank;
 use App\Services\CompanyProfileService;
 use App\Services\GeneralSettingService;
-use App\Services\PickupCenterService;
 use App\Services\TransactionService;
 use App\Services\UserService;
-use DB;
+use Illuminate\Support\Facades\DB;
 use Helper;
 use Illuminate\Http\Request;
 
@@ -232,17 +231,39 @@ class ReportController extends Controller
                     OR (status_id = 10 AND failed_datetime BETWEEN ? AND ?)
                     OR (status_id = 19 AND failed_datetime BETWEEN ? AND ?)
                     OR (status_id = 9 AND delivered_datetime BETWEEN ? AND ?)
-                    OR (status_id = 11 AND returned_datetime BETWEEN ? AND ?)",
+                    OR (status_id = 23 AND returned_datetime BETWEEN ? AND ?)",
                     [$startDatetime, $endDatetime, $startDatetime, $endDatetime, $startDatetime, $endDatetime, $startDatetime, $endDatetime, $startDatetime, $endDatetime, $startDatetime, $endDatetime]
                 );
             });
         }
-        $packages = $qP->selectRaw('DATE(created_at) as created_date,merchant_id,status_id,delivery_fee,cod')
-        ->whereIn('status_id',[5,6,9,10,11,19])
+        $packages = $qP->selectRaw('
+            DATE(created_at) as created_date,failed_datetime,delivered_datetime,arrive_warehouse_datetime,
+            merchant_id,status_id,delivery_fee,cod,assign_driver_datetime,returned_datetime
+        ')
+        ->whereIn('status_id',[5,6,9,10,23,19])
         ->orderByDesc('created_date')
         ->get();
         $groupedPackages = collect($packages)->map(function ($pkg) {
-            $pkg->groupKey = date('d-M-Y',strtotime($pkg->created_date));
+            $groupDate = $pkg->created_date;
+            if($pkg->status_id === TrackingStatus::ON_DELIVERY->value){
+                $groupDate = $pkg->assign_driver_datetime;
+            }
+            else if(in_array('status_id',[TrackingStatus::FAILED->value,TrackingStatus::FAILED_WITH_FEE->value])){
+                $groupDate = $pkg->failed_datetime;
+            }
+            else if($pkg->status_id === TrackingStatus::ON_DELIVERY->value){
+                $groupDate = $pkg->assign_driver_datetime;
+            }
+            else if($pkg->status_id === TrackingStatus::DELIVERED->value){
+                $groupDate = $pkg->delivered_datetime;
+            }
+            else if($pkg->status_id === TrackingStatus::RETURNED->value){
+                $groupDate = $pkg->returned_datetime;
+            }
+            else if($pkg->status_id === TrackingStatus::AT_WAREHOUSE->value){
+                $groupDate = $pkg->arrive_warehouse_datetime;
+            }
+            $pkg->groupKey = date('d-m-Y',strtotime($groupDate));
             return $pkg;
         })
         ->groupBy('groupKey')

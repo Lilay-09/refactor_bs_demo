@@ -524,9 +524,9 @@ class MerchantTransactionServiceImpl implements MerchantTransactionService
         $disbursements = Disbursement::where('is_deleted', false)
             ->whereIn('id', $paymentIds)
             ->with([
-                'merchant:id,user_name as username',
+                'merchant:id,username',
                 'pmtPackages:id,disbursement_id,package_id'
-                ])
+            ])
             ->get();
 
         $merchantIds = $disbursements->pluck('merchant.id')->filter()->unique()->values()->toArray();

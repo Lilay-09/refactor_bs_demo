@@ -33,6 +33,7 @@ use App\Models\PriceListname;
 use App\Models\PriceListZone;
 use App\Models\ProductType;
 use App\Models\Role;
+use App\Models\TelegramBot;
 use App\Models\TermCondition;
 use App\Models\TrackingStatus;
 use App\Models\User;
@@ -784,7 +785,6 @@ class GeneralSettingService
                                     ->orWhere('zone_id', $zone_id);
                             })
                             ->first();
-
                     }
                 }
             }
@@ -914,6 +914,12 @@ class GeneralSettingService
     }
     public static function optionsPriceListName($user){
         return PriceListname::where('company_id',$user->company_id)->where('is_deleted',0)->orderByDesc('id')->selectRaw('id,name,kg_marker')->get();
+    }
+
+    public static function optionsTelegramBot(){
+        return TelegramBot::where('is_deleted',false)->select([
+            'id','name','token'
+        ])->get();
     }
 
     // public static function getZonePriceByCode($zone_code,$user){
