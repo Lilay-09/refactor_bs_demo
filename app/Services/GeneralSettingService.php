@@ -36,16 +36,14 @@ use App\Models\Role;
 use App\Models\TermCondition;
 use App\Models\TrackingStatus;
 use App\Models\User;
-use App\Models\UserZone;
 use App\Models\VehicleType;
 use App\Models\Warehouse;
 use App\Models\Zone;
 use DataResponse;
-use DB;
+use Illuminate\Support\Facades\DB;
 use Helper;
 use Illuminate\Http\Request;
-use Log;
-// use Log;
+use Illuminate\Support\Facades\Log;
 
 
 class GeneralSettingService
@@ -290,23 +288,53 @@ class GeneralSettingService
         return $remarks;
     }
 
-    public static function optionsZone($user,$identity='child',$parentId=null,Request $filter=null){
-        $merchantId = $filter->merchant_id ?? null;
-        $plNameId = MerchantPriceList::where('merchant_id',$merchantId)->take(1)->value('price_list_id');
-        if($plNameId){
-            $plIds = PriceList::where('price_list_name_id',$plNameId)
-            ->pluck('id')->toArray();
-            if(!empty($plIds)){
-                $merchantZoneIds = PriceListZone::whereIn('price_list_id',$plIds)->pluck('zone_id')->toArray();
-            }
-        }
-        $qZ = Zone::where('status',1)->where('company_id',$user->company_id)->where('is_deleted',false);
+    // public static function optionsZone($user,$identity='child',$parentId=null,?Request $filter=null){
+    //     $merchantId = $filter->merchant_id ?? null;
+    //     $plNameId = MerchantPriceList::where('merchant_id',$merchantId)->take(1)->value('price_list_id');
+    //     if($plNameId){
+    //         $plIds = PriceList::where('price_list_name_id',$plNameId)
+    //         ->pluck('id')->toArray();
+    //         if(!empty($plIds)){
+    //             $merchantZoneIds = PriceListZone::whereIn('price_list_id',$plIds)->pluck('zone_id')->toArray();
+    //         }
+    //         Log::info($plNameId);
+    //     }
+    //     $qZ = Zone::where('status',1)->where('company_id',$user->company_id)->where('is_deleted',false);
+    //     if($identity){
+    //         $qZ->where('identity',$identity);
+    //         // ->whereNotNull('parent_id');
+    //     }
+    //     if($merchantId){
+    //         $qZ->whereIn('id',$merchantZoneIds);
+    //     }
+    //     if($parentId){
+    //         $qZ->where('parent_id',$parentId);
+    //     }
+
+    //     $hasChild = $filter->hasChild ?? null;
+    //     $exceptId = $filter->exceptId ?? null;
+    //     if($hasChild == 'false'){
+    //         $qZ->whereNull('parent_id') // Only top-level zones
+    //         ->whereNotIn('id', function ($query) {
+    //             $query->select('parent_id')
+    //                 ->from('zones')
+    //                 ->whereNotNull('parent_id'); // Exclude zones that are parents
+    //         });
+    //     }
+    //     if($exceptId){
+    //         $qZ->where('id','!=',$exceptId);
+    //     }
+    //     $zone = $qZ->selectRaw('id,zone_name,identity,zone_code,parent_id')->orderByDesc('id')
+    //     ->get()->each(function ($q){
+    //         // Log::info($q);
+    //     });
+    //     return $zone;
+    // }
+
+    public static function optionsZone($user,$identity=null,$parentId=null,?Request $filter=null){
+        $qZ = Zone::where('status',1)->where('company_id',$user->company_id)->where('is_deleted',0);
         if($identity){
             $qZ->where('identity',$identity);
-            // ->whereNotNull('parent_id');
-        }
-        if($merchantId){
-            $qZ->whereIn('id',$merchantZoneIds);
         }
         if($parentId){
             $qZ->where('parent_id',$parentId);
@@ -325,11 +353,8 @@ class GeneralSettingService
         if($exceptId){
             $qZ->where('id','!=',$exceptId);
         }
-        $zone = $qZ->selectRaw('id,zone_name,identity,zone_code,parent_id')->orderByDesc('id')
-        ->get()->each(function ($q){
-            // Log::info($q);
-        });
-        return $zone;
+        // Log::info($qZ->count());
+        return $qZ->selectRaw('id,zone_name,identity,zone_code,parent_id')->orderByDesc('id')->get();
     }
 
     public static function optionsZoneByPriceListNameId($user,$id=null){
@@ -753,7 +778,13 @@ class GeneralSettingService
                     ->where('delivery_type',$delivery_type)
                     ->pluck('id')->toArray();
                     if(!empty($plIds)){
-                        $plZone = PriceListZone::with('priceList:taxi_fee,other_fee,base_fee,below_kg,below_kg_price,id,price,above_kg_price,above_kg,delivery_type')->where('zone_id',$zone_id)->whereIn('price_list_id',$plIds)->first();
+                        $plZone = PriceListZone::with('priceList:taxi_fee,other_fee,base_fee,below_kg,below_kg_price,id,price,above_kg_price,above_kg,delivery_type')
+                            ->where(function ($query) use ($zone_id, $plIds) {
+                                $query->whereIn('price_list_id', $plIds)
+                                    ->orWhere('zone_id', $zone_id);
+                            })
+                            ->first();
+
                     }
                 }
             }

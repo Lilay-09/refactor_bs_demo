@@ -19,7 +19,7 @@ use App\Services\GeneralSettingService;
 use App\Services\TransactionService;
 use App\Services\UserService;
 use Carbon\Carbon;
-use DB;
+use Illuminate\Support\Facades\DB;
 use Helper;
 use Illuminate\Http\Request;
 
@@ -124,10 +124,10 @@ class TransactionController extends Controller
                     if (!isset($sameDisId[$disbursementId])) {
                         $dis = TransactionService::getTrxDetailsV1($disbursements, $disbursementId, $disbursementDetails);
                         if ($dis) {
-                            $pmt->from = 'NG Express';
-                            $pmt->to = $pmt->driver->username;
-                            $pmt->type = 'Received';
-                            unset($pmt->driver);
+                            $dis->from = 'NG Express';
+                            $dis->to = $dis->driver->username;
+                            $dis->type = 'Received';
+                            unset($dis->driver);
                             // $dis->remarks = 'Receive';
                             $paidTrx[] = $dis;
                             $sameDisId[$disbursementId] = true;

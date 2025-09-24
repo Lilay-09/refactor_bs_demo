@@ -15,7 +15,7 @@ interface PickupCenterService
 
     public function updateOrderQty($orderId,$count=null);
 
-    public function createOrUpdatePackage(Request $req,$user,?int $packageId,int $orderId,array $statusIds=[1,7],?callable $whereClause):object;
+    public function createOrUpdatePackage(Request $req,$user,?int $packageId,int $orderId,?array $statusIds=[1,7],?callable $whereClause=null):object;
 
     public static function getDriverTotal($cod,$payer,$price,$deliveryFee,$additional_fee,$extra_charge,$taxi=0,$otherFee=0);
 

@@ -7,17 +7,16 @@ use App\Http\Controllers\Controller;
 use App\Models\Package;
 use App\Models\PaymentDetail;
 use App\Models\User;
-use App\Services\TransactionService;
 use Carbon\Carbon;
-use DB;
+use Illuminate\Support\Facades\DB;
 use Helper;
 use Illuminate\Http\Request;
-use Log;
+// use Illuminate\Support\Facades\Log;
 
 class DashboardController extends Controller
 {
     //
-    protected $days;
+    protected readonly int $days;
     public function __construct(){
         $this->days = 90;
     }
