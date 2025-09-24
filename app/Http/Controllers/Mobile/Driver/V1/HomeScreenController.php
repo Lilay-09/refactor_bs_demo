@@ -561,6 +561,7 @@ class HomeScreenController extends Controller
             return DeliveryTripsPackagesDTO::fromModel($q);
         };
         return ApiResponse::PaginationV1($qP,$req,'',[
+            'total_count' => $totalOnDelivery + $totalDelivered + $totalFailed + $totalFailedWithFee,
             'total_on_delivery' => $totalOnDelivery,
             'total_delivered' => $totalDelivered,
             'total_failed' => $totalFailed,

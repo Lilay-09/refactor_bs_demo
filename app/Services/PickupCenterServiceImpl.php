@@ -338,15 +338,15 @@ class PickupCenterServiceImpl implements PickupCenterService
      * Summary of createOrUpdatePackage
      * @param \Illuminate\Http\Request $req
      * @param mixed $user ** This one is auth user *SESSION*
-     * @param mixed $packageId => it depends on action **IF UPDATE packageId must be provided
-     * @param mixed $orderId => optional *-- might use only in pickup center module --*
-     * @param mixed $statusIds => status can be differenct by module | By Default $statusIds=[1,7] = available for pick up or package is pending,
-     * @param callback $whereClause => for additional queries condition
+     * @param int $packageId => it depends on action **IF UPDATE packageId must be provided
+     * @param int $orderId => optional *-- might use only in pickup center module --*
+     * @param ?array $statusIds => status can be differenct by module | By Default $statusIds=[1,7] = available for pick up or package is pending,
+     * @param ?callback $whereClause => for additional queries condition
      * @return object
      *
      *  => ------ for reusable on action update package --------
      */
-    public function createOrUpdatePackage(Request $req,$user,?int $packageId,?int $orderId,array $statusIds=[1,7],callable $whereClause=null): object{
+    public function createOrUpdatePackage(Request $req,$user,?int $packageId,?int $orderId,?array $statusIds=[1,7],?callable $whereClause=null): object{
         if($orderId){
             $order = Order::where('is_deleted',0)->select(['merchant_id','delivery_type','warehouse_id','branch_id'])->find($orderId);
             $req->merge([
