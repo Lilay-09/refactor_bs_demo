@@ -2,11 +2,9 @@
 
 namespace App\Services;
 use ApiResponse;
-use App\Http\Controllers\V1\DriverTransactionController;
 use App\Models\Disbursement;
 use App\Models\DriverCommission;
 use App\Models\MerchantPriceList;
-use App\Models\Order;
 use App\Models\Package;
 use App\Models\Payment;
 use App\Models\User;
@@ -15,11 +13,11 @@ use App\Models\UserNotificationToken;
 use App\Models\UserRoles;
 use App\Models\Zone;
 use DataResponse;
-use DB;
+use Illuminate\Support\Facades\DB;
 use Exception;
-use Hash;
+use Illuminate\Support\Facades\Hash;
 use Helper;
-use Log;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Http\Request;
 use Tymon\JWTAuth\Facades\JWTAuth;
 
@@ -77,6 +75,13 @@ class UserService
         }
         return DataResponse::Unauthorized();
     }
+    /**
+     * Get the authenticated user
+     * @param string $class
+     * @param string $action
+     * @param bool $useSpecificClass
+     * @return object
+     */
     public static function getAuthUser($class='admin',$action='',$useSpecificClass=true): object{
         $user = JWTAuth::user();
         if($user){

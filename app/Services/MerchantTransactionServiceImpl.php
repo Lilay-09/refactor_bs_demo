@@ -13,11 +13,12 @@ use App\Models\Payment;
 use App\Models\PaymentTransaction;
 use App\Models\UserBank;
 use DataResponse;
-use DB;
+use Dflydev\DotAccessData\Data;
+use Illuminate\Support\Facades\DB;
 use Exception;
 use Helper;
 use Illuminate\Http\Request;
-use Log;
+use Illuminate\Support\Facades\Log;
 
 class MerchantTransactionServiceImpl implements MerchantTransactionService
 {
@@ -242,7 +243,7 @@ class MerchantTransactionServiceImpl implements MerchantTransactionService
         ->where('user_id',$disbursement->payee_id)->get();
         $toBeSettleList = [];
         foreach ($dueAmounts as $dueAmt) {
-            $dueAccount = $this->dueBankAccounts($accountList, $disbursement->payee_id, $dueAmt['currency']);
+            $dueAccount = self::dueBankAccounts($accountList, $disbursement->payee_id, $dueAmt['currency']);
             if (empty($dueAccount)) {
                 return DataResponse::NotFound(__('messages.info', [
                     'info'   => "Merchant {$disbursement->merchant->username} has no bank account for {KHR or USD}",
@@ -285,7 +286,7 @@ class MerchantTransactionServiceImpl implements MerchantTransactionService
         }
     }
 
-    private function dueBankAccounts($accountList, $userId, $currency): array
+    public static function dueBankAccounts($accountList, $userId, $currency): array
     {
         // Filter accounts by user
         $userAccounts = $accountList->where('user_id', $userId);
@@ -314,6 +315,12 @@ class MerchantTransactionServiceImpl implements MerchantTransactionService
             'concat' => "{$fallback->currency}|{$fallback->account_name}|{$fallback->account_number}"
         ];
     }
+    /**
+     * @param int $paymentId
+     * @param Request $req
+     * @param object $authUser
+     * @return object
+     */
 
     public function declineRequetedSettlement(int $paymentId,Request $req,object $authUser):object{
 
@@ -324,6 +331,7 @@ class MerchantTransactionServiceImpl implements MerchantTransactionService
             ->where('payment_status_id',PaymentStatus::REQUESTED->value)
             ->find($paymentId);
         }
+        return DataResponse::JsonResult(null);
     }
     public function approveAndSettleBulkRequestedSettlement(Request $req,object $authUser):object{
         $validator = validator($req->all(),[
@@ -436,7 +444,7 @@ class MerchantTransactionServiceImpl implements MerchantTransactionService
                 $payment->merchant->username : $disbursement->merchant->username;
 
             foreach ($dueAmounts as $dueAmt) {
-                $dueAccount = $this->dueBankAccounts($accountList, $targetUid, $dueAmt['currency']);
+                $dueAccount = self::dueBankAccounts($accountList, $targetUid, $dueAmt['currency']);
 
                 if (empty($dueAccount)) {
                     return DataResponse::NotFound(__('messages.info', [

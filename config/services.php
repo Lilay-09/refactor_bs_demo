@@ -47,4 +47,20 @@ return [
         'secret' => env('PLASGATE_SECRET'),
     ],
 
+    'aba' => [
+        'apikey' => env('ABAPAYWAYKEY',''),
+        'merchantid' => env('ABAMID',''),
+        'baseURL' => env('ABA_BASE_URL'),
+        'checkTransactionEndpoint' => env('ABA_CHECK_TRAN_ENDPOINT','/api/payment-gateway/v1/payments/check-transaction-2'),
+        'checkTransactionDetailsEndpoint' => env('ABA_CHECK_TRAN_DETAILS_ENDPOINT','/api/payment-gateway/v1/payments/transaction-detail'),
+    ],
+    'payway' => [
+        'key' => env('PAYWAY_KEY'),
+        'callback' => env('APP_URL').'/api/driver/v1/'.app()->getLocale().env('PW_CALLBACK_ENDPOINT'),
+        'receiver-callback' => env('APP_URL').'/api/driver/v1/'.app()->getLocale().env('PW_RECEIVER_CALLBACK_ENDPOINT'),
+        'driver-callback' => env('APP_URL').'/api/driver/v1/'.app()->getLocale().env('PW_DRIVER_CALLBACK_ENDPOINT'),
+        'max_stream_duration' => env('PAYWAY_MAX_STREAM_DURATION', 60), // Default to 60 seconds if not set
+        'sleep_duration' => env('PAYWAY_SLEEP_DURATION', 1.5), // Default to 2 seconds if not set
+    ],
+
 ];

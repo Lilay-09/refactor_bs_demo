@@ -2,9 +2,11 @@
 
 namespace App\Services;
 
+use App\Enums\Currency;
 use App\Enums\PaymentMethod;
 use App\Enums\PaymentStatus;
 use App\Enums\TransactionType;
+use App\Jobs\SendNotificationJob;
 use App\Models\Bank;
 use App\Models\Disbursement;
 use App\Models\DisbursementDetails;
@@ -17,15 +19,15 @@ use App\Models\PaymentDetail;
 use App\Models\PaymentPackage;
 use App\Models\PaymentTransaction;
 use App\Models\User;
+use App\Models\UserBank;
 use App\Models\Zone;
 use Carbon\Carbon;
 use DataResponse;
-use DB;
+use Illuminate\Support\Facades\DB;
 use Exception;
 use Helper;
 use Illuminate\Http\Request;
-use Log;
-use Str;
+use Illuminate\Support\Facades\Log;
 
 class TransactionService
 {
@@ -513,6 +515,191 @@ class TransactionService
         return null;
     }
 
+    //* type must be one of driver or merchant
+    public function receiveDriverSettleAmount(Request $req,$user,$type){
+        $validType = $this->validType($type);
+        if($validType->error) return $validType;
+        $validate = self::receivePaymentValidation($req,$type);
+        if($validate->fails()) return DataResponse::ValidateFail($validate->errors()->first());
+        $inputs = $validate->validated();
+        $payerId = $inputs['driver_id'] ?? $inputs['merchant_id'];
+        $packageIds = $inputs['packages'];
+        $packages = $this->getBulkPaymentPackages($packageIds,$type,[$payerId]);
+        $clPkg = clone $packages;
+        $currency = $inputs['currency'] ?? 'USD';
+        $packageKeyById = $clPkg->keyBy('id');
+        $validPackages = $this->validBulkPackagesV1($packageKeyById,$packageIds,$payerId,$type,true);
+        if($validPackages->error) return $validPackages;
+        $exchangeRate = $inputs['exchange_rate'] ?? GeneralSettingService::getLatestXRate()->buy_rate;
+        $cashKh = $inputs['cash_kh'] ?? 0;
+        $cash = $inputs['cash'] ?? 0;
+        $bankId = $inputs['bank_id'] ?? null;
+        $bankAmount = $inputs['bank_amount'] ?? 0;
+        $bankAmountKh = $inputs['bank_amount_kh'] ?? 0;
+        $dueAmtUSD = 0;
+        $dueAmtKHR = 0;
+        if($currency === Currency::KHR->value){
+            $dueAmtKHR = $validPackages->data['total_due_amount_khr'];
+        } else {
+            $dueAmtUSD = $validPackages->data['total_due_amount_usd'];
+        }
+        $markSettle = (!empty($inputs['mark_settle']) && $inputs['mark_settle'] == '1') ? true : false;
+        if(($dueAmtKHR + $dueAmtUSD) < 0) return DataResponse::ValidateFail(__('messages.info',[
+            'info' => 'This case should be receive not disbursement'
+        ]));
+        $method = $inputs['method'] ?? null;
+        $methodName = PaymentMethod::tryFrom($method)->label();
+        $validPayment = $this->validPaymentV2($dueAmtUSD,$dueAmtKHR,$bankAmount,$bankAmountKh,$bankAmount,$bankAmountKh);
+        if($validPayment->error) return $validPayment;
+        $breakDownNotes = null;
+        if(($dueAmtKHR + $dueAmtUSD)  > 0){
+            if($cash > 0) $breakDownNotes .= 'Cash: USD '.$cash.'|';
+            if($cashKh > 0) $breakDownNotes .= 'Cash: KHR '.$cashKh.'|';
+            if($bankAmount > 0) $breakDownNotes .= $methodName.': USD '.$bankAmount.'|';
+            if($bankAmountKh > 0) $breakDownNotes .= $methodName.': KHR '.$bankAmountKh.'|';
+        }
+        $breakDownNotes = trim($breakDownNotes, '| ');
+        DB::beginTransaction();
+        try{
+            $pmtArr = [
+                'payer_id' => $payerId,
+                'payer_type' => $type,
+                'taxi_fee' => $validPackages->data['total_taxi_fee'],
+                'delivery_fee' => $validPackages->data['total_delivery_fee'],
+                'payable_amount' => $currency === Currency::USD->value ? $bankAmount : $bankAmountKh,
+                'amount_due_usd' => $dueAmtUSD,
+                'amount_due_khr' => $dueAmtKHR,
+                'currency_code' => $currency,
+                'received_amount_usd' => $bankAmount,
+                'received_amount_khr' => $bankAmountKh,
+                'create_uid' => $user->id,
+                'receiver_uid' => $user->id,
+                'amount' => $validPackages->data['total_amount'],
+                'exchange_rate' => $exchangeRate,
+                'remarks' => $inputs['remarks'] ?? null,
+                'package_count' => $validPackages->data['total_package'],
+                'delivered_package_count' => $validPackages->data['delivered_package_count'],
+                'update_uid' => $user->id,
+                'cod_amount' => $validPackages->data['total_cod'],
+                'payment_datetime' => now(),
+                'breakdown_notes' => $breakDownNotes,
+                'company_id' => $user->company_id,
+                'received_datetime' => now(),
+                'branch_id' => $user->branch_id
+            ];
+            if($type == 'merchant'){
+                $pmtArr['is_approved'] = 1;
+                $pmtArr['is_settled'] = 1;
+                $pmtArr['settled_uid'] = $user->id;
+                $pmtArr['approved_uid'] = $user->id;
+                $pmtArr['approved_datetime'] = now();
+                $pmtArr['settled_datetime'] = now();
+            }
+            if($markSettle){
+                $pmtArr['is_approved'] = 1;
+                $pmtArr['is_settled'] = 1;
+                $pmtArr['settled_uid'] = $user->id;
+                $pmtArr['approved_uid'] = $user->id;
+                $pmtArr['approved_datetime'] = now();
+                $pmtArr['settled_datetime'] = now();
+            }
+            $createPayment = Payment::create($pmtArr);
+            $paymentId = $createPayment->id;
+            $trx = self::transactionCodeGenerator('transaction_sequences','payment','payments','trx_code',$user->branch_id,$user->company_id,$paymentId);
+            if($bankAmount > 0){
+                PaymentDetail::create([
+                    'payment_id' => $paymentId,
+                    'method' => $method,
+                    'amount' => $bankAmount,
+                    'method_type' => $inputs['method_type'] ?? 'bank',
+                    'original_amount' => $bankAmount,
+                    'currency_code' => 'USD'
+                ]);
+            }
+
+            if($bankAmountKh > 0){
+                PaymentDetail::create([
+                    'payment_id' => $paymentId,
+                    'method' => $method,
+                    'amount' => $bankAmountKh,
+                    'original_amount' => $bankAmount,
+                    'method_type' => $inputs['method_type'] ?? 'bank',
+                    'currency_code' => 'KHR'
+                ]);
+            }
+
+            // $fkField = [
+            //         $type.'_payment_id' => $paymentId
+            // ];
+            // Package::whereIn('id',$packageIds)->update($fkField);
+            $paymentPackageArr = collect($packageIds)->map(fn($id) => [
+                'package_id' => $id,
+                'payment_id' => $paymentId,
+                'type' => 'payment',
+                'payer_type' => $type,
+            ])->toArray();
+            PaymentPackage::insert($paymentPackageArr);
+
+            // $notif = new CloudMessagingService();
+            $topics = GeneralSettingService::getGeneralTopics($user->company_id,'driver',$payerId);
+            // return $topics;
+            $notifReq = new Request([
+                'topic' => $topics->private,
+                'type' => 'private',
+                'target_uid' => $payerId,
+                'title' => __('messages.info',[
+                    'info' => 'Transaction',
+                    'khInfo' => ''
+                ]),
+                'body' => 'A total of '.$validPackages->data['total_package'].' packages have been processed for this payment.'
+            ]);
+            // $notif->sendNotificationByTopic($notifReq,$user);
+            $queueFCMName = config('queue_job_names.'.config('app.env').'.notification');
+            SendNotificationJob::dispatch($notifReq, $user)->onQueue($queueFCMName);
+            $accountList = UserBank::where('is_deleted',false)
+            ->select(['id','bank_name','account_name','bank_number as account_number','currency','user_id'])
+            ->where('user_id',$payerId)->get();
+            $dueAccount = MerchantTransactionServiceImpl::dueBankAccounts($accountList, $payerId, 'USD');
+            if (empty($dueAccount)) {
+                Log::error(__('messages.info', [
+                    'info'   => "You have no bank account for {KHR or USD}",
+                    'khInfo' => "អ្នកមិនមានគណនីសម្រាប់រូបិយប័ណ្ណ {KHR ឬ USD}"
+                ]));
+            }
+            PaymentTransaction::insert([
+                'currency' => $currency,
+                'amount' => $currency == 'USD' ? $bankAmount : $bankAmountKh,
+                'payment_date' => now(),
+                'tran_via' => $method,
+                'remarks' => $inputs['remarks'] ?? null,
+                'payment_id' => $paymentId,
+                'payment_ref' => $trx->code,
+                'transaction_type' => TransactionType::TRANSFER_IN->value,
+                'from_account' => !empty($dueAccount) ? $dueAccount['account_number'] : '',
+                'payment_method' => $method,
+                'to_account' => 'JS company',
+                'approved_uid' => $user->id,
+                'create_uid' => $user->id,
+                'update_uid' => $user->id,
+                'branch_id' => $user->branch_id,
+                'company_id' => $user->company_id
+            ]);
+            DB::commit();
+            // return Package::whereIn('id',$packageIds)->get();
+            return DataResponse::JsonResult([
+                'payment_id' => $paymentId
+            ],false,__('messages.created',[
+                'info' => 'Payment',
+                'khInfo' => 'ទទួលការបង់ប្រាក់'
+            ]));
+        }catch(Exception $e){
+            Log::error($e->getMessage());
+            Log::error($e->getTraceAsString());
+            DB::rollBack();
+            return DataResponse::Error(__('messages.error',['info' => 'Fail to receive']));
+        }
+    }
+
 
     public static function getPackageTotal($type,$cod,$price,$taxiFee,$extraCharge,$additionalFee,$baseFee,$payer){
         $total = 0;
@@ -593,7 +780,9 @@ class TransactionService
             'bank_amount' => 'nullable|numeric',
             'bank_amount_kh' => 'nullable|numeric',
             'bank_id' => 'nullable|int',
+            'method' => 'nullable|string',
             'remarks' => 'nullable|string|max:500',
+            'currency' => 'nullable|string',
             'packages' => 'required|array',
             'exchange_rate' => 'nullable|numeric'
         ]);
@@ -607,6 +796,7 @@ class TransactionService
             'bank_amount_usd' => 'nullable|numeric',
             'bank_amount_khr' => 'nullable|numeric',
             'bank_id' => 'nullable|int',
+            'method' => 'nullable|string',
             'remarks' => 'nullable|string|max:500',
             'packages' => 'required|array',
             'exchange_rate' => 'nullable|numeric'
@@ -630,11 +820,20 @@ class TransactionService
         $bankId = $inputs['bank_id'] ?? null;
         $bankAmount = $inputs['bank_amount'] ?? 0;
         $bankAmountKh = $inputs['bank_amount_kh'] ?? 0;
+        $currency = $inputs['currency'] ?? 'USD';
         $dueAmount = $validPackages->total_due_amount;
         if($dueAmount < 0) return DataResponse::ValidateFail(__('messages.info',[
             'info' => 'This case should be receive not disbursement'
         ]));
-        $validPayment = $this->validPayment($cash,$cashKh,$bankAmount,$bankAmountKh,$bankId,$dueAmount,$exchangeRate);
+        // $validPayment = $this->validPayment($cash,$cashKh,$bankAmount,$bankAmountKh,$bankId,$dueAmount,$exchangeRate);
+        // if($validPayment->error) return $validPayment;
+        $method = $inputs['method'] ?? null;
+        // return $validPackages;
+        if($method){
+            $validPayment = $this->validPaymentWithMethodV1($cash,$cashKh,$bankAmount,$bankAmountKh,$method,$dueAmount,$exchangeRate,$currency);
+        } else {
+            $validPayment =  $this->validPayment($cash,$cashKh,$bankAmount,$bankAmountKh,$bankId,$dueAmount,$exchangeRate);
+        }
         if($validPayment->error) return $validPayment;
         // return $validPayment;
         // if($validPayment->total_input_amount !== $dueAmount) return DataResponse::ValidateFail(__('messages.info',[
@@ -657,6 +856,9 @@ class TransactionService
                 'taxi_fee' => $validPackages->total_taxi_fee,
                 'delivery_fee' => $validPackages->total_delivery_fee,
                 'payable_amount' => $dueAmount,
+                'currency_code' => $currency,
+                'received_amount_usd' => $bankAmount + $cashKh,
+                'received_amount_khr' => $cashKh + $bankAmountKh,
                 'paid_amount' => $dueAmount,
                 'create_uid' => $user->id,
                 'receiver_uid' => $user->id,
@@ -674,7 +876,7 @@ class TransactionService
                 'branch_id' => $user->branch_id
             ];
             if($type == 'merchant'){
-                $pmtArr['is_approved'] = 1;
+                $pmtArr['approved'] = 1;
                 $pmtArr['is_settled'] = 1;
                 $pmtArr['settled_uid'] = $user->id;
                 $pmtArr['approved_uid'] = $user->id;
@@ -760,6 +962,7 @@ class TransactionService
             return DataResponse::Error(__('messages.error',['info' => 'Fail to receive']));
         }
     }
+    
 
     public function receivePaymentServiceV1(Request $req,$user,$type){
         $validType = $this->validType($type);
@@ -1025,6 +1228,51 @@ class TransactionService
         ];
         // Log::info(json_encode($data));
         return $data;
+    }
+
+    private function validPaymentWithMethodV1($cash,$cashKh,$bankAmount,$bankAmountKh,$method,$dueAmount,$exhangeRate,$currency=null): object{
+        $bankName = null;
+        if($bankAmount > 0 && !$method) return DataResponse::ValidateFail(__('messages.error',[
+            'info' => 'Please enter bank',
+            'khInfo' => 'សូមរើសធនាគារ'
+        ]));
+        if($bankAmountKh > 0 && !$method) return DataResponse::ValidateFail(__('messages.error',[
+            'info' => 'Please enter bank',
+            'khInfo' => 'សូមរើសធនាគារ'
+        ]));
+        if($method && (!$bankAmount && !$bankAmountKh)) return DataResponse::ValidateFail(__('messages.error',[
+            'info' => 'Please enter bank amount in USD or KHR',
+            'khInfo' => 'សូមបញ្ចូលប្រាក់បង់តាមធនាគារ'
+        ]));
+        if($method) {
+            $existsBank = PaymentMethod::tryFrom($method);
+            if(!$existsBank?->value) return DataResponse::NotFound(__('messages.not_found',[
+                'info' =>'Bank'
+            ]));
+            $bankName = $existsBank->label();
+        }
+        $cashKhToUS = $cashKh / $exhangeRate;
+        $bankAmountKhToUS = $bankAmountKh / $exhangeRate;
+        $totalInputAmount = $cash + $cashKhToUS + $bankAmountKhToUS + $bankAmount;
+        $totalInputAmount = floor($totalInputAmount * 100) / 100;
+        // if($cash && $cashKh) return
+        $originalCashKh = 0;
+        $originalBankAmtKh = 0;
+        if($dueAmount > 0){
+            if($totalInputAmount <=0) return DataResponse::ValidateFail('Invalid payment amount');
+            Log::info('currency---'.$currency);
+            $paymentSuggestion = !empty($currency) ? $this->paymentSuggestionByCurrency($cash,$cashKh,$bankAmount,$bankAmountKh,$dueAmount,$currency,$exhangeRate,true):$this->paymentSuggestion($cash,$cashKh,$bankAmount,$bankAmountKh,$dueAmount,$exhangeRate);
+            if($paymentSuggestion->error) return $paymentSuggestion;
+            $originalCashKh = $paymentSuggestion->original_cash_amount_kh;
+            $originalBankAmtKh = $paymentSuggestion->original_bank_amount_kh;
+        }
+        return DataResponse::JsonRaw([
+            'error' => false,
+            'total_input_amount' => $totalInputAmount,
+            'original_cash_amount_kh' => $originalCashKh,
+            'original_bank_amount_kh' => $originalBankAmtKh,
+            'bank_name' => $bankName
+        ]);
     }
 
 
@@ -1980,7 +2228,17 @@ class TransactionService
         ]);
     }
 
-    public function paymentSuggestionByCurrency($cash, $cashKh, $bankAmount, $bankAmountKh, $dueAmount, $currency, $exchangeRate) {
+
+    public function paymentSuggestionByCurrency(
+        $cash,
+        $cashKh,
+        $bankAmount,
+        $bankAmountKh,
+        $dueAmount,
+        $currency,
+        $exchangeRate,
+        $allowPartial = false // new param
+    ) {
         $dueAmount = (float)Helper::getNumber($dueAmount, 2);
         $totalAmountUSD = (float)Helper::getNumber($cash + $bankAmount, 2);
         $totalAmountKHR = (float)Helper::getNumber($cashKh + $bankAmountKh, 2);
@@ -2015,12 +2273,13 @@ class TransactionService
                 $totalAmountKHR_to_USD = $totalAmountKHR / $exchangeRate;
                 $totalAllAmt = Helper::getNumber($totalAmountUSD + $totalAmountKHR_to_USD, 2);
 
-                if ($totalAllAmt > $dueAmount) {
-                    return DataResponse::ValidateFail('Your amount is exceeding the expected, amount is only $' . $dueAmount . ' in total');
+                if (!$allowPartial) {
+                    if ($totalAllAmt > $dueAmount) {
+                        return DataResponse::ValidateFail('Your amount is exceeding the expected, amount is only $' . $dueAmount . ' in total');
+                    }
                 }
 
                 $remainingAmt = abs($totalAmountUSD - $dueAmount);
-                // Convert remaining USD to KHR
                 $totalSuggestionAmt_KH = $remainingAmt * $exchangeRate;
 
                 $suggestionAmtBankKh = abs($totalSuggestionAmt_KH - $bankAmountKh);
@@ -2032,22 +2291,24 @@ class TransactionService
                 $roundSuggestionAmtUp = ceil($totalSuggestionAmt_KH / 100) * 100;
                 $roundSuggestionAmtDown = floor($totalSuggestionAmt_KH / 100) * 100;
 
-                if (!($totalAmountKHR >= $roundSuggestionAmtDown && $totalAmountKHR <= $roundSuggestionAmtUp)) {
-                    return DataResponse::ValidateFail(__('messages.info', [
-                        'info' => 'Amount KHR must be around (KHR ' . $roundSuggestionAmtUp . ' & KHR ' . $roundSuggestionAmtDown . '), base ' . $totalSuggestionAmt_KH
-                    ]));
-                }
+                if (!$allowPartial) {
+                    if (!($totalAmountKHR >= $roundSuggestionAmtDown && $totalAmountKHR <= $roundSuggestionAmtUp)) {
+                        return DataResponse::ValidateFail(__('messages.info', [
+                            'info' => 'Amount KHR must be around (KHR ' . $roundSuggestionAmtUp . ' & KHR ' . $roundSuggestionAmtDown . '), base ' . $totalSuggestionAmt_KH
+                        ]));
+                    }
 
-                if ($totalAllAmt != $dueAmount) {
-                    return DataResponse::ValidateFail(__('messages.info', [
-                        'info' => 'If USD amount($' . $totalAmountUSD . ') additional in KHR must be (' . $roundSuggestionAmtUp . ' or ' . $totalSuggestionAmt_KH . ')',
-                        'khInfo' => 'If USD amount($' . $totalAmountUSD . ') additional in KHR must be (' . $roundSuggestionAmtUp . ' or ' . $totalSuggestionAmt_KH . ')'
-                    ]));
+                    if ($totalAllAmt != $dueAmount) {
+                        return DataResponse::ValidateFail(__('messages.info', [
+                            'info' => 'If USD amount($' . $totalAmountUSD . ') additional in KHR must be (' . $roundSuggestionAmtUp . ' or ' . $totalSuggestionAmt_KH . ')',
+                            'khInfo' => 'If USD amount($' . $totalAmountUSD . ') additional in KHR must be (' . $roundSuggestionAmtUp . ' or ' . $totalSuggestionAmt_KH . ')'
+                        ]));
+                    }
                 }
             }
 
             if ($totalAmountUSD && !$totalAmountKHR) {
-                if ($cash && $bankAmount) {
+                if ($cash && $bankAmount && !$allowPartial) {
                     $additionalSuggestion = Helper::getNumber(abs($dueAmount - $cash), 2);
                     $misMatch = $additionalSuggestion !== $bankAmount;
 
@@ -2059,14 +2320,16 @@ class TransactionService
                     }
                 }
 
-                if ($totalAmountUSD < $dueAmount) {
-                    return DataResponse::ValidateFail(__('messages.info', [
-                        'info' => 'Payment amount must be $' . $dueAmount . ' remaining amount ($' . ($dueAmount - $totalAmountUSD) . ')'
-                    ]));
-                }
+                if (!$allowPartial) {
+                    if ($totalAmountUSD < $dueAmount) {
+                        return DataResponse::ValidateFail(__('messages.info', [
+                            'info' => 'Payment amount must be $' . $dueAmount . ' remaining amount ($' . ($dueAmount - $totalAmountUSD) . ')'
+                        ]));
+                    }
 
-                if (abs($totalAmountUSD - $dueAmount) > 0) {
-                    return DataResponse::ValidateFail('Your amount is exceeding the expected, amount is only $' . $dueAmount . ' in total');
+                    if (abs($totalAmountUSD - $dueAmount) > 0) {
+                        return DataResponse::ValidateFail('Your amount is exceeding the expected, amount is only $' . $dueAmount . ' in total');
+                    }
                 }
             }
 
@@ -2076,7 +2339,6 @@ class TransactionService
                 $totalAmountKHR_to_USD = floor($totalAmountKHR_to_USD * 100) / 100;
 
                 $remainingAmt = abs($totalAmountKHR_to_USD - $dueAmount);
-                // Use dueAmount directly (in KHR)
                 $suggestionAmt = $dueAmount;
 
                 $suggestionAmtBankKh = abs($suggestionAmt - $bankAmountKh);
@@ -2088,8 +2350,7 @@ class TransactionService
                 if ($bankAmountKh) $originalBankAmtKh += $suggestionAmtBankKh;
                 if ($cashKh) $originalCashKh += $suggestionAmtCashKh;
 
-                if ($bankAmountKh && $cashKh) {
-                    // Log::info($dueAmount);
+                if ($bankAmountKh && $cashKh && !$allowPartial) {
                     $minSuggestionAmt = abs($bankAmountKh - $suggestionAmt);
                     $minSuggestionAmtDown = floor($minSuggestionAmt / 100) * 100;
                     $maxSuggestionAmt = ceil($minSuggestionAmt / 100) * 100;
@@ -2099,18 +2360,12 @@ class TransactionService
                             'info' => 'Based on Bank Amount KHR ' . Helper::getNumber($bankAmountKh, 2) . ', the cash amount should be around KHR ' . Helper::getNumber($minSuggestionAmtDown, 2) . ' to KHR ' . Helper::getNumber($maxSuggestionAmt, 2)
                         ]));
                     }
-                }
-
-
-                else {
-                    if ($suggestionAmt > 0) {
-                        if (!($totalAmountKHR >= $roundSuggestionAmtDown && $totalAmountKHR <= $roundSuggestionAmtUp)) {
-                            return DataResponse::ValidateFail(__('messages.info', [
-                                'info' => 'Amount KHR must be around (KHR ' . $roundSuggestionAmtUp . ' & KHR ' . $roundSuggestionAmtDown . ') based on exchange_rate (' . $exchangeRate . ')'
-                            ]));
-                        }
+                } elseif (!$allowPartial && $suggestionAmt > 0) {
+                    if (!($totalAmountKHR >= $roundSuggestionAmtDown && $totalAmountKHR <= $roundSuggestionAmtUp)) {
+                        return DataResponse::ValidateFail(__('messages.info', [
+                            'info' => 'Amount KHR must be around (KHR ' . $roundSuggestionAmtUp . ' & KHR ' . $roundSuggestionAmtDown . ') based on exchange_rate (' . $exchangeRate . ')'
+                        ]));
                     }
-
                 }
             }
         } else {
@@ -2123,6 +2378,152 @@ class TransactionService
             'original_bank_amount_kh' => $originalBankAmtKh
         ]);
     }
+
+
+
+    // public function paymentSuggestionByCurrency($cash, $cashKh, $bankAmount, $bankAmountKh, $dueAmount, $currency, $exchangeRate) {
+    //     $dueAmount = (float)Helper::getNumber($dueAmount, 2);
+    //     $totalAmountUSD = (float)Helper::getNumber($cash + $bankAmount, 2);
+    //     $totalAmountKHR = (float)Helper::getNumber($cashKh + $bankAmountKh, 2);
+
+    //     $hasMoreThanTwoDecimals = function ($amount) {
+    //         $amountStr = (string)$amount;
+    //         if (strpos($amountStr, '.') !== false) {
+    //             $decimalPart = explode('.', $amountStr)[1];
+    //             return strlen($decimalPart) > 2;
+    //         }
+    //         return false;
+    //     };
+
+    //     if (
+    //         $hasMoreThanTwoDecimals($cash) ||
+    //         $hasMoreThanTwoDecimals($cashKh) ||
+    //         $hasMoreThanTwoDecimals($bankAmount) ||
+    //         $hasMoreThanTwoDecimals($bankAmountKh) ||
+    //         $hasMoreThanTwoDecimals($dueAmount)
+    //     ) {
+    //         return DataResponse::ValidateFail(__('messages.info', [
+    //             'info' => 'Your input amount includes more than two decimal digits',
+    //             'khInfo' => 'សូមបញ្ចូលទឹកប្រាក់ដែល​មានទសភាគមិនលើសពីពីរខ្ទង់'
+    //         ]));
+    //     }
+
+    //     $originalCashKh = 0;
+    //     $originalBankAmtKh = 0;
+
+    //     if ($currency === 'USD') {
+    //         if ($totalAmountUSD && $totalAmountKHR) {
+    //             $totalAmountKHR_to_USD = $totalAmountKHR / $exchangeRate;
+    //             $totalAllAmt = Helper::getNumber($totalAmountUSD + $totalAmountKHR_to_USD, 2);
+
+    //             if ($totalAllAmt > $dueAmount) {
+    //                 return DataResponse::ValidateFail('Your amount is exceeding the expected, amount is only $' . $dueAmount . ' in total');
+    //             }
+
+    //             $remainingAmt = abs($totalAmountUSD - $dueAmount);
+    //             // Convert remaining USD to KHR
+    //             $totalSuggestionAmt_KH = $remainingAmt * $exchangeRate;
+
+    //             $suggestionAmtBankKh = abs($totalSuggestionAmt_KH - $bankAmountKh);
+    //             $suggestionAmtCashKh = abs($totalSuggestionAmt_KH - $cashKh);
+
+    //             if ($bankAmountKh) $originalBankAmtKh += $suggestionAmtBankKh;
+    //             if ($cashKh) $originalCashKh += $suggestionAmtCashKh;
+
+    //             $roundSuggestionAmtUp = ceil($totalSuggestionAmt_KH / 100) * 100;
+    //             $roundSuggestionAmtDown = floor($totalSuggestionAmt_KH / 100) * 100;
+
+    //             if (!($totalAmountKHR >= $roundSuggestionAmtDown && $totalAmountKHR <= $roundSuggestionAmtUp)) {
+    //                 return DataResponse::ValidateFail(__('messages.info', [
+    //                     'info' => 'Amount KHR must be around (KHR ' . $roundSuggestionAmtUp . ' & KHR ' . $roundSuggestionAmtDown . '), base ' . $totalSuggestionAmt_KH
+    //                 ]));
+    //             }
+
+    //             if ($totalAllAmt != $dueAmount) {
+    //                 return DataResponse::ValidateFail(__('messages.info', [
+    //                     'info' => 'If USD amount($' . $totalAmountUSD . ') additional in KHR must be (' . $roundSuggestionAmtUp . ' or ' . $totalSuggestionAmt_KH . ')',
+    //                     'khInfo' => 'If USD amount($' . $totalAmountUSD . ') additional in KHR must be (' . $roundSuggestionAmtUp . ' or ' . $totalSuggestionAmt_KH . ')'
+    //                 ]));
+    //             }
+    //         }
+
+    //         if ($totalAmountUSD && !$totalAmountKHR) {
+    //             if ($cash && $bankAmount) {
+    //                 $additionalSuggestion = Helper::getNumber(abs($dueAmount - $cash), 2);
+    //                 $misMatch = $additionalSuggestion !== $bankAmount;
+
+    //                 if ($misMatch) {
+    //                     return DataResponse::ValidateFail(__('messages.info', [
+    //                         'info' => 'If Cash Amount USD ' . Helper::getNumber($cash, 2) . ', so bank amount must be USD ' . Helper::getNumber($additionalSuggestion, 2),
+    //                         'khInfo' => 'លុយដុល្លា ' . Helper::getNumber($cash, 2) . ', ដូច្នេះលុយទូរទាត់តាមធនាគារត្រូវតែ ' . Helper::getNumber($additionalSuggestion, 2),
+    //                     ]));
+    //                 }
+    //             }
+
+    //             if ($totalAmountUSD < $dueAmount) {
+    //                 return DataResponse::ValidateFail(__('messages.info', [
+    //                     'info' => 'Payment amount must be $' . $dueAmount . ' remaining amount ($' . ($dueAmount - $totalAmountUSD) . ')'
+    //                 ]));
+    //             }
+
+    //             if (abs($totalAmountUSD - $dueAmount) > 0) {
+    //                 return DataResponse::ValidateFail('Your amount is exceeding the expected, amount is only $' . $dueAmount . ' in total');
+    //             }
+    //         }
+
+    //     } elseif ($currency === 'KHR') {
+    //         if ($totalAmountKHR && empty($totalAmountUSD)) {
+    //             $totalAmountKHR_to_USD = $totalAmountKHR / $exchangeRate;
+    //             $totalAmountKHR_to_USD = floor($totalAmountKHR_to_USD * 100) / 100;
+
+    //             $remainingAmt = abs($totalAmountKHR_to_USD - $dueAmount);
+    //             // Use dueAmount directly (in KHR)
+    //             $suggestionAmt = $dueAmount;
+
+    //             $suggestionAmtBankKh = abs($suggestionAmt - $bankAmountKh);
+    //             $suggestionAmtCashKh = abs($suggestionAmt - $cashKh);
+
+    //             $roundSuggestionAmtUp = ceil($suggestionAmt / 100) * 100;
+    //             $roundSuggestionAmtDown = floor($suggestionAmt / 100) * 100;
+
+    //             if ($bankAmountKh) $originalBankAmtKh += $suggestionAmtBankKh;
+    //             if ($cashKh) $originalCashKh += $suggestionAmtCashKh;
+
+    //             if ($bankAmountKh && $cashKh) {
+    //                 // Log::info($dueAmount);
+    //                 $minSuggestionAmt = abs($bankAmountKh - $suggestionAmt);
+    //                 $minSuggestionAmtDown = floor($minSuggestionAmt / 100) * 100;
+    //                 $maxSuggestionAmt = ceil($minSuggestionAmt / 100) * 100;
+
+    //                 if (!($cashKh >= $minSuggestionAmtDown && $cashKh <= $maxSuggestionAmt)) {
+    //                     return DataResponse::ValidateFail(__('messages.info', [
+    //                         'info' => 'Based on Bank Amount KHR ' . Helper::getNumber($bankAmountKh, 2) . ', the cash amount should be around KHR ' . Helper::getNumber($minSuggestionAmtDown, 2) . ' to KHR ' . Helper::getNumber($maxSuggestionAmt, 2)
+    //                     ]));
+    //                 }
+    //             }
+
+
+    //             else {
+    //                 if ($suggestionAmt > 0) {
+    //                     if (!($totalAmountKHR >= $roundSuggestionAmtDown && $totalAmountKHR <= $roundSuggestionAmtUp)) {
+    //                         return DataResponse::ValidateFail(__('messages.info', [
+    //                             'info' => 'Amount KHR must be around (KHR ' . $roundSuggestionAmtUp . ' & KHR ' . $roundSuggestionAmtDown . ') based on exchange_rate (' . $exchangeRate . ')'
+    //                         ]));
+    //                     }
+    //                 }
+
+    //             }
+    //         }
+    //     } else {
+    //         return DataResponse::ValidateFail('Unsupported currency type');
+    //     }
+
+    //     return DataResponse::JsonRaw([
+    //         'error' => false,
+    //         'original_cash_amount_kh' => $originalCashKh,
+    //         'original_bank_amount_kh' => $originalBankAmtKh
+    //     ]);
+    // }
 
 
     public function paymentSuggestion($cash,$cashKh,$bankAmount,$bankAmountKh,$dueAmount,$exchangeRate){
@@ -4294,5 +4695,38 @@ class TransactionService
             // if ($onSuccess) $onSuccess();
             return (object)['status_code' => 200, 'status' => 'OK', 'code' => $new_code];
         }
+    }
+
+    public function validPaymentV2(
+        float $dueAmountUsd,
+        float $dueAmountKhr,
+        float $cashUSD = 0,
+        float $cashKHR = 0,
+        float $bankAmountUSD = 0,
+        float $bankAmountKHR = 0,
+        bool $requireFullPayment = true // the flag
+    ) {
+        // Total paid amounts
+        $totalPaidUSD = $cashUSD + $bankAmountUSD;
+        $totalPaidKHR = $cashKHR + $bankAmountKHR;
+
+        // Remaining amounts
+        $remainingUSD = max($dueAmountUsd - $totalPaidUSD, 0);
+        $remainingKHR = max($dueAmountKhr - $totalPaidKHR, 0);
+
+        $epsilon = 0.0001; // tolerance for float comparison
+        $isValidUSD = $requireFullPayment ? (abs($remainingUSD) < $epsilon) : $totalPaidUSD > 0;
+        $isValidKHR = $requireFullPayment ? (abs($remainingKHR) < $epsilon) : $totalPaidKHR > 0;
+
+        return (object)[
+            'error' => false,
+            'totalPaidUSD' => $totalPaidUSD,
+            'totalPaidKHR' => $totalPaidKHR,
+            'remainingUSD' => $remainingUSD,
+            'remainingKHR' => $remainingKHR,
+            'isValidUSD' => $isValidUSD,
+            'isValidKHR' => $isValidKHR,
+            // 'bankId' => $bankId
+        ];
     }
 }
