@@ -153,7 +153,7 @@ class BankServiceImpl
             // ]);
 
             $contentDecoded = json_decode($content, true);
-            Log::info($contentDecoded['content']['currency']);
+            // Log::info($contentDecoded['content']['currency']);
 
             return DataResponse::JsonResult($contentDecoded,false,'update');
 

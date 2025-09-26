@@ -79,7 +79,7 @@ class PriceListController extends Controller
 
     public function assignZoneToPriceList(Request $req){
         $user = UserService::getAuthUser();
-        Log::info($req->all());
+        // Log::info($req->all());
         $validate = validator($req->all(),[
             'price_list_name_id' => 'required|exists:price_list_names,id',
             'price_list_id' => 'nullable',

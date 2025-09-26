@@ -283,7 +283,7 @@ class MerchantTransactionServiceImpl implements MerchantTransactionService
             DB::commit();
             return DataResponse::JsonResult(null,false,__('messages.saved'));
         }catch(Exception $e){
-            Log::info($e->getMessage());
+            Log::error($e->getMessage());
             DB::rollBack();
             return DataResponse::Error('Failed to approve');
         }
