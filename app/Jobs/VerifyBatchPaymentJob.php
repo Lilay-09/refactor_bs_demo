@@ -67,6 +67,8 @@ class VerifyBatchPaymentJob implements ShouldQueue
                 'payee'            => $response->data['payee'],
             ];
 
+            Log::info(json_encode($newData));
+
             // $transaction->update([
             // 'status'  => PaywayStatus::DONE->value,
             //     'details' => DB::raw("COALESCE(details, '{}'::jsonb) || ?::jsonb"),
