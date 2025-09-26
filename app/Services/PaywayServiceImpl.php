@@ -720,7 +720,7 @@ class PaywayServiceImpl implements PaywayService
                 'status' => $contentDecoded['data']['transaction_date'],
                 'payment_method' => PaymentMethod::ABA_KHQR->label(),
                 'payer' => $contentDecoded['data']['payer_account'],
-                'payee' => 'JS Account',
+                'payee' => 'NG Account',
             ]);
         } catch (\GuzzleHttp\Exception\RequestException $e) {
             $statusCode = $e->hasResponse()
@@ -877,7 +877,7 @@ class PaywayServiceImpl implements PaywayService
                 'payment_method' => PaymentMethod::ABA_KHQR->label(),
                 'payer' => $contentDecoded['data']['payer_account'],
                 'transaction_date' => $contentDecoded['data']['transaction_date'],
-                'payee' => 'JS Account',
+                'payee' => 'NG Account',
             ];
             return DataResponse::JsonResult($payload);
         } catch (\GuzzleHttp\Exception\RequestException $e) {
