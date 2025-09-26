@@ -158,7 +158,8 @@ class TransactionService
             $package->delivered_datetime = Helper::formatCustomDateTime($package->assign_driver_datetime);
             $package->{$type.'_total'} = self::getPackageTotal($type,$cod,$package->price,$package->taxi_fee,$package->extra_charge,$package->additional_fee,$package->delivery_fee,$package->payer);
             if($type == 'merchant') $package->total = -self::getPackageTotal($type,$cod,$package->price,$package->taxi_fee,$package->extra_charge,$package->additional_fee,$package->delivery_fee,$package->payer);
-            $total = self::getPackageTotalV1($type,$package->driver_cod_usd,$package->driver_cod_khr,$package->delivery_fee,$package->taxi_fee,$package->other_fee,$package->payer,$package->status_id);
+            $taxiFee = self::getTaxiFee($package->taxi_fee,$package->status_id,$package->payer,'merchant');
+            $total = self::getPackageTotalV1($type,$package->driver_cod_usd,$package->driver_cod_khr,$package->delivery_fee,$taxiFee,$package->other_fee,$package->payer,$package->status_id);
             // if($package->status_id == 19){
             //     if($type == 'merchant'){
             //         $package->{$type.'_total'} = $package->payer == 'sender' ? $package->delivery_fee+ $package->extra_charge : 0;
@@ -172,6 +173,15 @@ class TransactionService
             return $package;
         };
         return DataResponse::PaginationV1($qP,$req,'',[],1000,$clbMapper);
+    }
+
+    public static function getTaxiFee($taxiFee,$statusId,$payer,$targetUser){
+        if($targetUser == 'driver'){
+            return $statusId == 9 && $payer == 'sender' ? $taxiFee : 0;
+        }else if($targetUser == 'merchant'){
+            return $statusId == 9 && $payer == 'sender' ? $taxiFee : 0;
+        }
+        return 0;
     }
 
     public function getDeliveryPackagesV1(Request $req,$type,$user){
@@ -300,7 +310,8 @@ class TransactionService
             $package->datetime = ($package->status_id == 9 && ($package->delivered_datetime || $package->delivered_datetime)) ? Helper::formatCustomDateTime($package->delivered_datetime) : Helper::formatCustomDateTime($package->failed_datetime);
             $package->delivered_datetime = Helper::formatCustomDateTime($package->assign_driver_datetime);
             // $taxiFee = !($package->status_id === TrackingStatus::FAILED_WITH_FEE->value) ? $package->taxi_fee : 0;
-            $total = self::getPackageTotalV1($type,$package->driver_cod_usd,$package->driver_cod_khr,$package->delivery_fee,$package->taxi_fee,$package->other_fee,$package->payer,$package->status_id);
+            $taxiFee = self::getTaxiFee($package->taxi_fee,$package->status_id,$package->payer,'merchant');
+            $total = self::getPackageTotalV1($type,$package->driver_cod_usd,$package->driver_cod_khr,$package->delivery_fee,$taxiFee,$package->other_fee,$package->payer,$package->status_id);
             $package->{$type.'_total_usd'} = $total['total_usd'];
             $package->{$type.'_total_khr'} = $total['total_khr'];
             // if($type == 'merchant') $package->total = -$total;
@@ -322,27 +333,61 @@ class TransactionService
         $paymentType = $req->query('paymentType');
         $search = $req->query('search');
         // Expressions for amount to be paid
+        $totalFeeExpr = "
+            SUM(
+                CASE 
+                    WHEN packages.payer = 'sender' 
+                        THEN packages.delivery_fee + packages.other_fee 
+                            + CASE WHEN packages.status_id = 19 THEN 0 ELSE packages.taxi_fee END
+                    ELSE 0
+                END
+            )
+        ";
+
         $amountUsdExpr = "
             CASE
-                WHEN SUM(packages.driver_cod_usd) >= SUM(packages.delivery_fee + packages.other_fee + packages.taxi_fee)
-                    THEN SUM(packages.driver_cod_usd) - SUM(packages.delivery_fee + packages.other_fee + packages.taxi_fee)
-                WHEN SUM(packages.driver_cod_usd) < SUM(packages.delivery_fee + packages.other_fee + packages.taxi_fee)
-                    AND SUM(packages.driver_cod_khr) >= (SUM(packages.delivery_fee + packages.other_fee + packages.taxi_fee) - SUM(packages.driver_cod_usd)) * 4000
+                WHEN SUM(packages.driver_cod_usd) >= {$totalFeeExpr}
+                    THEN SUM(packages.driver_cod_usd) - {$totalFeeExpr}
+                WHEN SUM(packages.driver_cod_usd) < {$totalFeeExpr}
+                    AND SUM(packages.driver_cod_khr) >= ({$totalFeeExpr} - SUM(packages.driver_cod_usd)) * 4000
                     THEN 0
-                ELSE SUM(packages.driver_cod_usd) - ((SUM(packages.delivery_fee + packages.other_fee + packages.taxi_fee) - SUM(packages.driver_cod_usd)) * 4000 - SUM(packages.driver_cod_khr))/4000
+                ELSE SUM(packages.driver_cod_usd) - (({$totalFeeExpr} - SUM(packages.driver_cod_usd)) * 4000 - SUM(packages.driver_cod_khr))/4000
             END
         ";
 
         $amountKhrExpr = "
             CASE
-                WHEN SUM(packages.driver_cod_usd) >= SUM(packages.delivery_fee + packages.other_fee + packages.taxi_fee)
+                WHEN SUM(packages.driver_cod_usd) >= {$totalFeeExpr}
                     THEN SUM(packages.driver_cod_khr)
-                WHEN SUM(packages.driver_cod_usd) < SUM(packages.delivery_fee + packages.other_fee + packages.taxi_fee)
-                    AND SUM(packages.driver_cod_khr) >= (SUM(packages.delivery_fee + packages.other_fee + packages.taxi_fee) - SUM(packages.driver_cod_usd)) * 4000
-                    THEN SUM(packages.driver_cod_khr) - (SUM(packages.delivery_fee + packages.other_fee + packages.taxi_fee) - SUM(packages.driver_cod_usd)) * 4000
+                WHEN SUM(packages.driver_cod_usd) < {$totalFeeExpr}
+                    AND SUM(packages.driver_cod_khr) >= ({$totalFeeExpr} - SUM(packages.driver_cod_usd)) * 4000
+                    THEN SUM(packages.driver_cod_khr) - ({$totalFeeExpr} - SUM(packages.driver_cod_usd)) * 4000
                 ELSE 0
             END
         ";
+
+
+        // $amountUsdExpr = "
+        //     CASE
+        //         WHEN SUM(packages.driver_cod_usd) >= SUM(packages.delivery_fee + packages.other_fee + packages.taxi_fee)
+        //             THEN SUM(packages.driver_cod_usd) - SUM(packages.delivery_fee + packages.other_fee + packages.taxi_fee)
+        //         WHEN SUM(packages.driver_cod_usd) < SUM(packages.delivery_fee + packages.other_fee + packages.taxi_fee)
+        //             AND SUM(packages.driver_cod_khr) >= (SUM(packages.delivery_fee + packages.other_fee + packages.taxi_fee) - SUM(packages.driver_cod_usd)) * 4000
+        //             THEN 0
+        //         ELSE SUM(packages.driver_cod_usd) - ((SUM(packages.delivery_fee + packages.other_fee + packages.taxi_fee) - SUM(packages.driver_cod_usd)) * 4000 - SUM(packages.driver_cod_khr))/4000
+        //     END
+        // ";
+
+        // $amountKhrExpr = "
+        //     CASE
+        //         WHEN SUM(packages.driver_cod_usd) >= SUM(packages.delivery_fee + packages.other_fee + packages.taxi_fee)
+        //             THEN SUM(packages.driver_cod_khr)
+        //         WHEN SUM(packages.driver_cod_usd) < SUM(packages.delivery_fee + packages.other_fee + packages.taxi_fee)
+        //             AND SUM(packages.driver_cod_khr) >= (SUM(packages.delivery_fee + packages.other_fee + packages.taxi_fee) - SUM(packages.driver_cod_usd)) * 4000
+        //             THEN SUM(packages.driver_cod_khr) - (SUM(packages.delivery_fee + packages.other_fee + packages.taxi_fee) - SUM(packages.driver_cod_usd)) * 4000
+        //         ELSE 0
+        //     END
+        // ";
 
         $select = [
             'merchant_id',
@@ -747,11 +792,14 @@ class TransactionService
         if ($type === 'driver') {
             // 1. Always deduct taxi fee
             // 2. Deduct fees if payer is receiver
-            if ($payer && $payer === 'receiver' && ($fees > 0 || $taxiFee > 0)) {
+            if ($fees > 0 || $taxiFee > 0) {
+                if($payer == 'sender'){
+                    $fees = 0;
+                }
                 if($statusId === TrackingStatus::FAILED_WITH_FEE->value){
                     $taxiFee = 0;
                 }
-                Helper::deductAmountBase($totalUsd,$totalKhr,-($fees + $taxiFee),$exchangeRateBase);
+                Helper::deductAmountBase($totalUsd,$totalKhr,($fees + $taxiFee),$exchangeRateBase);
             }
         }
         if($type === 'merchant'){
