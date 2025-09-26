@@ -3061,7 +3061,7 @@ class TransactionService
             if($isApproved){
                 $pmt->status_code = $pmt->is_settled ? 'Settled' : 'Pending';
             }
-            $pmt->payment_date = Helper::formatCustomDateTime($pmt->payment_datetime,'d-M-Y');
+            $pmt->payment_date = Helper::dateDMY($pmt->payment_datetime,'d-M-Y');
             $pmt->payment_time = Helper::formatCustomDateTime($pmt->payment_datetime,'h:i:s A');
             $pmt->total_usd = Helper::displayMoney($totalUSD,'USD');
             $pmt->total_khr = Helper::displayMoney($totalKHR,'KHR');
