@@ -727,7 +727,7 @@ class TransactionService
                 'transaction_type' => TransactionType::TRANSFER_IN->value,
                 'from_account' => !empty($dueAccount) ? $dueAccount['account_number'] : '',
                 'payment_method' => $method,
-                'to_account' => 'JS company',
+                'to_account' => 'NG Account',
                 'approved_uid' => $user->id,
                 'create_uid' => $user->id,
                 'update_uid' => $user->id,
@@ -1331,7 +1331,7 @@ class TransactionService
         $originalBankAmtKh = 0;
         if($dueAmount > 0){
             if($totalInputAmount <=0) return DataResponse::ValidateFail('Invalid payment amount');
-            Log::info('currency---'.$currency);
+            // Log::info('currency---'.$currency);
             $paymentSuggestion = !empty($currency) ? $this->paymentSuggestionByCurrency($cash,$cashKh,$bankAmount,$bankAmountKh,$dueAmount,$currency,$exhangeRate,true):$this->paymentSuggestion($cash,$cashKh,$bankAmount,$bankAmountKh,$dueAmount,$exhangeRate);
             if($paymentSuggestion->error) return $paymentSuggestion;
             $originalCashKh = $paymentSuggestion->original_cash_amount_kh;

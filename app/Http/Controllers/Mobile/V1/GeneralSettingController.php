@@ -482,9 +482,9 @@ class GeneralSettingController extends Controller
         ]));
 
         $selfTopic = GeneralSettingService::getGeneralTopics($user->company_id,'driver',$user->id)->private;
-        Log::info("Cache key: ".$selfTopic);
+        // Log::info("Cache key: ".$selfTopic);
         $cache = Cache::get($selfTopic);
-        Log::info("Cache data: ".json_encode($cache));
+        // Log::info("Cache data: ".json_encode($cache));
         if(!$cache) return ApiResponse::NotFound("Request not found or has expired");
         $requester = $cache?->requester;
         // return $cache;

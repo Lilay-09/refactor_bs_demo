@@ -9,10 +9,10 @@ use App\Models\PriceListname;
 use App\Models\PriceListZone;
 use App\Models\Zone;
 use App\Services\UserService;
-use DB;
+use Illuminate\Support\Facades\DB;
 use Exception;
 use Illuminate\Http\Request;
-use Log;
+use Illuminate\Support\Facades\Log;
 
 class PriceListController extends Controller
 {
