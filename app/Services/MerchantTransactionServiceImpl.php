@@ -691,7 +691,7 @@ class MerchantTransactionServiceImpl implements MerchantTransactionService
                     'tran_via' => TransactionType::INTERNAL->value,
                     'payment_id' => $pId,
                     'transaction_type' => TransactionType::TRNASFER_OUT->value,
-                    'from_account' => 'JS Company',
+                    'from_account' => 'NG Company',
                     'to_account' => $dueAccount['concat'],
                     'approved_uid' => $authUser->id,
                     'create_uid' => $authUser->id,
