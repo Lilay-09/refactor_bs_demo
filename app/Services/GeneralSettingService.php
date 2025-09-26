@@ -33,6 +33,7 @@ use App\Models\PriceListname;
 use App\Models\PriceListZone;
 use App\Models\ProductType;
 use App\Models\Role;
+use App\Models\TelegramBot;
 use App\Models\TermCondition;
 use App\Models\TrackingStatus;
 use App\Models\User;
@@ -546,102 +547,142 @@ class GeneralSettingService
         return $merchants;
     }
 
-    public static function optionsDailyActiveMerchant($user,$startDate=null,$endDate=null,$stage = null,int $branchId = null){
-        // Log::error($startDate.'---'.$endDate);
-        $query = User::join('packages', 'users.id', '=', 'packages.merchant_id')
-        ->where('packages.is_deleted',0)
-        ->where('packages.outstanding',0)
-        // ->where('users.company_id', $user->company_id)
-        ->where('users.account_type', 'merchant')
-        ->where('users.is_deleted',0)
-        ->selectRaw('DISTINCT users.id, users.username, users.name_km, users.phone,users.photo_file_name')
-        ->orderByDesc('users.id');
-        if($branchId){
-            $query->where('users.branch_id',$branchId);
+    // public static function optionsDailyActiveMerchant($user,$startDate=null,$endDate=null,$stage = null,int $branchId = null){
+    //     // Log::error($startDate.'---'.$endDate);
+    //     $query = User::join('packages', 'users.id', '=', 'packages.merchant_id')
+    //     ->where('packages.is_deleted',0)
+    //     ->where('packages.outstanding',0)
+    //     // ->where('users.company_id', $user->company_id)
+    //     ->where('users.account_type', 'merchant')
+    //     ->where('users.is_deleted',0)
+    //     ->selectRaw('DISTINCT users.id, users.username, users.name_km, users.phone,users.photo_file_name')
+    //     ->orderByDesc('users.id');
+    //     if($branchId){
+    //         $query->where('users.branch_id',$branchId);
+    //     }
+    //     if($startDate && $endDate){
+    //         $startDatetime = Helper::dateYMD($startDate).' 00:00:00';
+    //         $endDatetime = Helper::dateYMD($endDate).' 23:59:59';
+    //         $query->where(function ($q) use ($startDatetime, $endDatetime) {
+    //             $q->whereRaw(
+    //                 '(packages.status_id = 5 AND packages.arrive_warehouse_datetime BETWEEN ? AND ?)
+    //                 OR (packages.status_id = 6 AND packages.assign_driver_datetime BETWEEN ? AND ?)
+    //                 OR (packages.status_id = 10 AND packages.failed_datetime BETWEEN ? AND ?)
+    //                 OR (packages.status_id = 19 AND packages.failed_datetime BETWEEN ? AND ?)
+    //                 OR (packages.status_id = 9 AND packages.delivered_datetime BETWEEN ? AND ?)
+    //                 OR (packages.status_id = 11 AND packages.returned_datetime BETWEEN ? AND ?)',
+    //                 [$startDatetime, $endDatetime, $startDatetime, $endDatetime, $startDatetime, $endDatetime, $startDatetime, $endDatetime, $startDatetime, $endDatetime, $startDatetime, $endDatetime]
+    //             );
+    //         });
+    //     }
+
+    //     $pkgInfo = null;
+    //     if($stage == 'transaction'){
+    //         $clM = clone $query;
+    //         $select = [
+    //             'merchant_id',
+    //             DB::raw("COUNT(*) as package_count")
+    //         ];
+    //         $qP = Package::query()
+    //         ->where('is_deleted', false)
+    //         // ->with(['merchant:id,username'])
+    //         ->whereIn('status_id', [9, 19])
+    //         ->whereIn('merchant_id',$clM->pluck('id'))
+    //         ->select($select)
+    //         ->groupBy(
+    //             'merchant_id',
+    //         );
+    //         if ($startDate && $endDate) {
+    //             $qP->where(function ($q) use ($startDate, $endDate) {
+    //                 $startDate = Helper::dateYMD($startDate).' 00:00:00';
+    //                 $endDate = Helper::dateYMD($endDate).' 23:59:59';
+    //                 $q->where(function ($query) use ($startDate, $endDate) {
+    //                     $query->where('status_id', 9)
+    //                         ->whereBetween('delivered_datetime',[$startDate,$endDate]);
+    //                 })->orWhere(function ($query) use ($startDate, $endDate) {
+    //                     $query->where('status_id', 19)
+    //                     ->whereBetween('failed_datetime',[$startDate,$endDate]);
+    //                 });
+    //             });
+    //         }
+    //         $pkgInfo = $qP->get()->keyBy('merchant_id');
+    //         // return $pkgInfo;
+    //     }
+
+    //     $merchants = $query->get();
+
+    //     foreach($merchants as $m){
+    //         $m->image_url = Helper::getImageUrl($m->photo_file_name,1,'user_profile');
+    //         $m->username = $m->username.($m->name_km ? (' - '.$m->name_km):'')." ($m->phone)";
+    //         if(!empty($pkgInfo)){
+    //             $m->package_count += $pkgInfo[$m->id]?->package_count ?? 0;
+    //         }
+    //     }
+    //     return $merchants;
+    // }
+
+    public static function optionsDailyActiveMerchant(
+        $user,
+        $startDate = null,
+        $endDate = null,
+        $stage = null,
+        ?int $branchId = null
+    ) {
+        $query = User::query()
+            ->join('packages', 'users.id', '=', 'packages.merchant_id')
+            ->where('packages.is_deleted', 0)
+            ->where('packages.outstanding', 0)
+            ->where('users.account_type', 'merchant')
+            ->where('users.is_deleted', 0);
+
+        if ($branchId) {
+            $query->where('users.branch_id', $branchId);
         }
-        if($startDate && $endDate){
+
+        if ($startDate && $endDate) {
             $startDatetime = Helper::dateYMD($startDate).' 00:00:00';
-            $endDatetime = Helper::dateYMD($endDate).' 23:59:59';
+            $endDatetime   = Helper::dateYMD($endDate).' 23:59:59';
+
             $query->where(function ($q) use ($startDatetime, $endDatetime) {
                 $q->whereRaw(
-                    '(packages.status_id = 5 AND packages.arrive_warehouse_datetime BETWEEN ? AND ?)
+                    "(packages.status_id = 5 AND packages.arrive_warehouse_datetime BETWEEN ? AND ?)
                     OR (packages.status_id = 6 AND packages.assign_driver_datetime BETWEEN ? AND ?)
                     OR (packages.status_id = 10 AND packages.failed_datetime BETWEEN ? AND ?)
                     OR (packages.status_id = 19 AND packages.failed_datetime BETWEEN ? AND ?)
                     OR (packages.status_id = 9 AND packages.delivered_datetime BETWEEN ? AND ?)
-                    OR (packages.status_id = 11 AND packages.returned_datetime BETWEEN ? AND ?)',
-                    [$startDatetime, $endDatetime, $startDatetime, $endDatetime, $startDatetime, $endDatetime, $startDatetime, $endDatetime, $startDatetime, $endDatetime, $startDatetime, $endDatetime]
+                    OR (packages.status_id = 11 AND packages.returned_datetime BETWEEN ? AND ?)",
+                    [$startDatetime, $endDatetime,
+                    $startDatetime, $endDatetime,
+                    $startDatetime, $endDatetime,
+                    $startDatetime, $endDatetime,
+                    $startDatetime, $endDatetime,
+                    $startDatetime, $endDatetime]
                 );
             });
         }
 
-        $pkgInfo = null;
-        if($stage == 'transaction'){
-            $clM = clone $query;
-            $select = [
-                'merchant_id',
-                DB::raw("COUNT(*) as package_count")
-            ];
-            $qP = Package::query()
-            ->where('is_deleted', false)
-            // ->with(['merchant:id,username'])
-            ->whereIn('status_id', [9, 19])
-            ->whereIn('merchant_id',$clM->pluck('id'))
-            ->select($select)
-            ->groupBy(
-                'merchant_id',
-            );
-            // if ($startDate && $endDate) {
-            //     $qP->where(function ($q) use ($startDate, $endDate) {
-            //         $startDate = Helper::dateYMD($startDate).' 00:00:00';
-            //         $endDate = Helper::dateYMD($endDate).' 23:59:59';
-            //         $q->where(function ($query) use ($startDate, $endDate) {
-            //             $query->where('status_id', 9)
-            //                 ->whereBetween('delivered_datetime',[$startDate,$endDate]);
-            //         })->orWhere(function ($query) use ($startDate, $endDate) {
-            //             $query->where('status_id', 19)
-            //             ->whereBetween('failed_datetime',[$startDate,$endDate]);
-            //         });
-            //     });
-            // }
-            $pkgInfo = $qP->get()->keyBy('merchant_id');
-            // return $pkgInfo;
-        }
+        $query->selectRaw("
+            users.id,
+            users.username,
+            users.name_km,
+            users.phone,
+            users.photo_file_name,
+            COUNT(DISTINCT packages.id) as package_count
+        ");
+
+        $query->groupBy('users.id', 'users.username', 'users.name_km', 'users.phone', 'users.photo_file_name');
+        $query->orderByDesc('users.id');
 
         $merchants = $query->get();
 
-        // $query = User::where(function($q){
-        //     $q->where('lock',0)->orWhere('is_deleted',0);
-        // })->where('company_id',$user->company_id)
-        // ->where('account_type','merchant')
-        // ->selectRaw('id,username,name_km,phone')->orderByDesc('id');
-
-        // if($startDate && $endDate){
-        //     $startDatetime = Helper::dateYMD($startDate).' 00:00:00';
-        //     $endDatetime = Helper::dateYMD($endDate).' 23:59:59';
-        //     $query->whereHas('merchantPackages', function ($q) use($startDatetime, $endDatetime) {
-        //         $q->whereRaw(
-        //             '(status_id = 5 AND arrive_warehouse_datetime BETWEEN ? AND ?)
-        //             OR (status_id = 6 AND assign_driver_datetime BETWEEN ? AND ?)
-        //             OR (status_id = 10 AND failed_datetime BETWEEN ? AND ?)
-        //             OR (status_id = 19 AND failed_datetime BETWEEN ? AND ?)
-        //             OR (status_id = 9 AND delivered_datetime BETWEEN ? AND ?)
-        //             OR (status_id = 11 AND returned_datetime BETWEEN ? AND ?)',
-        //             [$startDatetime, $endDatetime, $startDatetime, $endDatetime, $startDatetime, $endDatetime, $startDatetime, $endDatetime, $startDatetime, $endDatetime, $startDatetime, $endDatetime]
-        //         );
-        //     });
-        // }
-
-        // $merchants = $query->get();
-        foreach($merchants as $m){
-            $m->image_url = Helper::getImageUrl($m->photo_file_name,1,'user_profile');
-            $m->username = $m->username.($m->name_km ? (' - '.$m->name_km):'')." ($m->phone)";
-            if(!empty($pkgInfo)){
-                $m->package_count += $pkgInfo[$m->id]?->package_count ?? 0;
-            }
+        foreach ($merchants as $m) {
+            $m->image_url = Helper::getImageUrl($m->photo_file_name, 1, 'user_profile');
+            $m->username  = $m->username.($m->name_km ? (' - '.$m->name_km) : '')." ($m->phone)";
         }
+
         return $merchants;
     }
+
 
     public static function optionsVehicleType($user,$lang='en'){
 
@@ -784,7 +825,6 @@ class GeneralSettingService
                                     ->orWhere('zone_id', $zone_id);
                             })
                             ->first();
-
                     }
                 }
             }
@@ -914,6 +954,20 @@ class GeneralSettingService
     }
     public static function optionsPriceListName($user){
         return PriceListname::where('company_id',$user->company_id)->where('is_deleted',0)->orderByDesc('id')->selectRaw('id,name,kg_marker')->get();
+    }
+
+    public static function optionsTelegramBot(){
+        return TelegramBot::where('is_deleted',false)->select([
+            'id','name','token'
+        ])->get();
+    }
+
+    public static function optionsTelegramBotGroupByBotId(int $botId){
+        return DB::table('telegram_bot_groups')->where('is_deleted',false)->select([
+            'id','group_name','group_id','bot_id'
+        ])
+        ->where('bot_id',$botId)
+        ->get();
     }
 
     // public static function getZonePriceByCode($zone_code,$user){

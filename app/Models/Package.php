@@ -3,7 +3,7 @@
 namespace App\Models;
 
 use App\Enums\ImageDirectory;
-use DB;
+use Illuminate\Support\Facades\DB;
 use Helper;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;

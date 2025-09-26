@@ -553,7 +553,7 @@ class HomeScreenController extends Controller
             $q->append('image_url');
             $priceKhr = $q->price_khr;
             $fees = $q->base_fee + $q->other_fee;
-            $q->total_khr = $priceKhr > 0 ? number_format($priceKhr + $fees * $xRate,2,'.',''):"0";
+            $q->total_khr = $priceKhr > 0 ? number_format($priceKhr + ($q->payer == 'receiver' ? $fees:0) * $xRate,2,'.',''):"0";
             $q->fees_usd = $fees;
             $q->fees_khr = $fees * $xRate;
             // $q->exchange_rate = $xRate;
@@ -584,8 +584,6 @@ class HomeScreenController extends Controller
         }
         return $row;
     }
-
-
 
     public function editSelfNotes(Request $req){
         $id = $req->id;

@@ -14,11 +14,11 @@ use App\Services\GeneralSettingService;
 use App\Services\PickupCenterService;
 use App\Services\UserService;
 use DataResponse;
-use DB;
+use Illuminate\Support\Facades\DB;
 use Exception;
 use Helper;
 use Illuminate\Http\Request;
-use Log;
+use Illuminate\Support\Facades\Log;
 
 class FleetManagementController extends Controller
 {
@@ -324,7 +324,7 @@ class FleetManagementController extends Controller
                 }
                 else {
                     $updateArr['driver_total'] = 0;
-                    $updateArr['merchant_total'] = $this->pickupCenterService::getTotal('merchant',$package->cod,$payer,$package->price,$package->delivery_fee,$package->additional_fee,$package->extra_charge,$package->taxi_fee);
+                    $updateArr['merchant_total'] = $this->pickupCenterService::getTotal('merchant',$package->cod,$payer,$package->price,$package->delivery_fee,$package->additional_fee,$package->extra_charge,$package->other_fee,$package->taxi_fee);
                 }
 
                 $updateArr['payer'] = $payer;

@@ -40,6 +40,7 @@ use App\Http\Controllers\V1\ProductTypeController;
 use App\Http\Controllers\V1\PromotionController;
 use App\Http\Controllers\V1\ScoringRewardController;
 use App\Http\Controllers\V1\SocialMediaController;
+use App\Http\Controllers\V1\TelegramBotController;
 use App\Http\Controllers\V1\TransferController;
 use App\Http\Controllers\V1\UserManagementController;
 use App\Http\Controllers\V1\UserNotificationController;
@@ -115,6 +116,14 @@ Route::middleware(['jwt','localize','userAccess:admin','rateLimit'])->prefix('ad
         Route::prefix('warehouse')->group(function (){
             // Route::put('/{id}',[WarehouseController::class,'updateWarehouse']);
         });
+
+        Route::prefix('telegram-bots')->group(function(){
+            Route::post('',[TelegramBotController::class,'create']);
+            Route::get('',[TelegramBotController::class,'getBots']);
+            Route::get('{id}',[TelegramBotController::class,'getBotById']);
+            Route::put('{id}',[TelegramBotController::class,'updateById']);
+            Route::delete('{id}',[TelegramBotController::class,'deleteBotById']);
+        }); 
     });
 
     Route::get('dashboard',[DashboardController::class,'getDashboardSummary']);
@@ -187,6 +196,9 @@ Route::middleware(['jwt','localize','userAccess:admin','rateLimit'])->prefix('ad
         Route::put('/{id}/priceList',[MerchantManagementController::class,'setMerchantPriceList']);
         Route::get('/{id}/default',[MerchantManagementController::class,'getDefaultOptions']);
         Route::post('/{id}/setPassword',[MerchantManagementController::class,'setPassword']);
+        Route::get('{id}/bank-accounts',[MerchantManagementController::class,'getBankAccountsById']);
+        Route::post('{merchantId}/whitelist-account/{accountId}',[MerchantManagementController::class,'whitelistAccount']);
+        Route::post('{id}/telegram-bots/{botId}',[MerchantManagementController::class,'setMerchantTelegramBot']);
 
 
         Route::prefix('/{id}/employee')->group(function(){
@@ -296,6 +308,7 @@ Route::middleware(['jwt','localize','userAccess:admin','rateLimit'])->prefix('ad
         Route::get('{order_id}/image/',[PickUpCenterController::class,'getOrderImages']);
         Route::post('{order_id}/link/image',[PickUpCenterController::class,'linkImageToPackage']);
         Route::post('{order_id}/replace/image',[PickUpCenterController::class,'replaceOrderImage']);
+        Route::delete('{order_id}/image/{imageId}',[PickUpCenterController::class,'deleteOrderImage']);
     });
 
     Route::prefix('package')->group(function(){
@@ -575,6 +588,8 @@ Route::middleware(['jwt','localize','userAccess:admin','rateLimit'])->prefix('ad
 
     Route::prefix('setting')->group(function(){
         Route::prefix('option')->group(function(){
+            Route::get('telegram-bot/{botId}/group',[GeneralSettingController::class,'getOptionsTelegramBotGroupByBotId']);
+            Route::get('telegram-bot',[GeneralSettingController::class,'getOptionsTelegramBot']);
             Route::get('vehicle/type',[GeneralSettingController::class,'optionsEnumVehicleType']);
             Route::get('package/{packageId}',[GeneralSettingController::class,'getOptionsPackageById']);
             Route::get('branch',[GeneralSettingController::class,'getOptionsBranch']);

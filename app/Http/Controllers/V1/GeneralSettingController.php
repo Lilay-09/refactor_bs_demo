@@ -634,6 +634,13 @@ class GeneralSettingController extends Controller
     }
 
 
+    public function getOptionsTelegramBot(){
+        return ApiResponse::JsonResult($this->gs::optionsTelegramBot());
+    }
+
+    public function getOptionsTelegramBotGroupByBotId(Request $req){
+        return ApiResponse::JsonResult($this->gs::optionsTelegramBotGroupByBotId($req->botId));
+    }
 
 
     public function getFormFinished(Request $req){
@@ -645,7 +652,7 @@ class GeneralSettingController extends Controller
             'delivery_types' => $this->gs::optionsDeliveryType(),
             'payment_statuses' => $this->gs::paymentStatus(),
             'branches' => $this->gs::optionsBranch(),
-            'statuses' => $this->gs::optionsTrackingStatus($user,[],[9,19,23],'delivery',null,$req->lang)
+            'statuses' => $this->gs::optionsTrackingStatus($user,[],[9,23],'delivery',null,$req->lang)
         ];
         return ApiResponse::JsonResult($obj);
     }

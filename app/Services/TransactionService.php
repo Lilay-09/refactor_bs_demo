@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Enums\Currency;
 use App\Enums\PaymentMethod;
 use App\Enums\PaymentStatus;
+use App\Enums\TrackingStatus;
 use App\Enums\TransactionType;
 use App\Jobs\SendNotificationJob;
 use App\Models\Bank;
@@ -157,16 +158,30 @@ class TransactionService
             $package->delivered_datetime = Helper::formatCustomDateTime($package->assign_driver_datetime);
             $package->{$type.'_total'} = self::getPackageTotal($type,$cod,$package->price,$package->taxi_fee,$package->extra_charge,$package->additional_fee,$package->delivery_fee,$package->payer);
             if($type == 'merchant') $package->total = -self::getPackageTotal($type,$cod,$package->price,$package->taxi_fee,$package->extra_charge,$package->additional_fee,$package->delivery_fee,$package->payer);
-            if($package->status_id == 19){
-                if($type == 'merchant'){
-                    $package->{$type.'_total'} = $package->payer == 'sender' ? $package->delivery_fee+ $package->extra_charge : 0;
-                    $package->total = $package->payer == 'sender' ? -self::getPackageTotal($type,$cod,0,0,$package->extra_charge,$package->additional_fee,$package->delivery_fee,$package->payer):0;
-                }else $package->{$type.'_total'} = $package->payer == 'receiver' ? $package->delivery_fee + $package->extra_charge : 0;
-            }
+            $taxiFee = self::getTaxiFee($package->taxi_fee,$package->status_id,$package->payer,'merchant');
+            $total = self::getPackageTotalV1($type,$package->driver_cod_usd,$package->driver_cod_khr,$package->delivery_fee,$taxiFee,$package->other_fee,$package->payer,$package->status_id);
+            // if($package->status_id == 19){
+            //     if($type == 'merchant'){
+            //         $package->{$type.'_total'} = $package->payer == 'sender' ? $package->delivery_fee+ $package->extra_charge : 0;
+            //         $package->total = $package->payer == 'sender' ? -self::getPackageTotal($type,$cod,0,0,$package->extra_charge,$package->additional_fee,$package->delivery_fee,$package->payer):0;
+            //     }else $package->{$type.'_total'} = $package->payer == 'receiver' ? $package->delivery_fee + $package->extra_charge : 0;
+            // }
+            $package->total = $total['total_usd'];
+            $package->total_khr = $total['total_khr'];
+            
             $package->fee = Helper::getNumber($package->delivery_fee + $package->extra_charge + $package->additional_fee,2);
             return $package;
         };
         return DataResponse::PaginationV1($qP,$req,'',[],1000,$clbMapper);
+    }
+
+    public static function getTaxiFee($taxiFee,$statusId,$payer,$targetUser){
+        if($targetUser == 'driver'){
+            return $statusId == 9 && $payer == 'sender' ? $taxiFee : 0;
+        }else if($targetUser == 'merchant'){
+            return $statusId == 9 && $payer == 'sender' ? $taxiFee : 0;
+        }
+        return 0;
     }
 
     public function getDeliveryPackagesV1(Request $req,$type,$user){
@@ -285,7 +300,7 @@ class TransactionService
         }
 
         $statusKey = $type.'_payment_status';
-
+        $qP->orderByDesc('arrive_warehouse_datetime');
         // $clbMapper = null;
         $clbMapper = function($package) use($statusKey,$type){
             $cod = $package->cod;
@@ -294,7 +309,9 @@ class TransactionService
             if($type == 'merchant') $package->{$statusKey} = ($package->payment || $package->disbursement) ? 'Paid':'Unpaid';
             $package->datetime = ($package->status_id == 9 && ($package->delivered_datetime || $package->delivered_datetime)) ? Helper::formatCustomDateTime($package->delivered_datetime) : Helper::formatCustomDateTime($package->failed_datetime);
             $package->delivered_datetime = Helper::formatCustomDateTime($package->assign_driver_datetime);
-            $total = self::getPackageTotalV1($type,$package->driver_cod_usd,$package->driver_cod_khr,$package->delivery_fee,$package->taxi_fee,$package->other_fee,$package->payer,$package->status_id);
+            // $taxiFee = !($package->status_id === TrackingStatus::FAILED_WITH_FEE->value) ? $package->taxi_fee : 0;
+            $taxiFee = self::getTaxiFee($package->taxi_fee,$package->status_id,$package->payer,'merchant');
+            $total = self::getPackageTotalV1($type,$package->driver_cod_usd,$package->driver_cod_khr,$package->delivery_fee,$taxiFee,$package->other_fee,$package->payer,$package->status_id);
             $package->{$type.'_total_usd'} = $total['total_usd'];
             $package->{$type.'_total_khr'} = $total['total_khr'];
             // if($type == 'merchant') $package->total = -$total;
@@ -316,27 +333,61 @@ class TransactionService
         $paymentType = $req->query('paymentType');
         $search = $req->query('search');
         // Expressions for amount to be paid
+        $totalFeeExpr = "
+            SUM(
+                CASE 
+                    WHEN packages.payer = 'sender' 
+                        THEN packages.delivery_fee + packages.other_fee 
+                            + CASE WHEN packages.status_id = 19 THEN 0 ELSE packages.taxi_fee END
+                    ELSE 0
+                END
+            )
+        ";
+
         $amountUsdExpr = "
             CASE
-                WHEN SUM(packages.driver_cod_usd) >= SUM(packages.delivery_fee + packages.other_fee + packages.taxi_fee)
-                    THEN SUM(packages.driver_cod_usd) - SUM(packages.delivery_fee + packages.other_fee + packages.taxi_fee)
-                WHEN SUM(packages.driver_cod_usd) < SUM(packages.delivery_fee + packages.other_fee + packages.taxi_fee)
-                    AND SUM(packages.driver_cod_khr) >= (SUM(packages.delivery_fee + packages.other_fee + packages.taxi_fee) - SUM(packages.driver_cod_usd)) * 4000
+                WHEN SUM(packages.driver_cod_usd) >= {$totalFeeExpr}
+                    THEN SUM(packages.driver_cod_usd) - {$totalFeeExpr}
+                WHEN SUM(packages.driver_cod_usd) < {$totalFeeExpr}
+                    AND SUM(packages.driver_cod_khr) >= ({$totalFeeExpr} - SUM(packages.driver_cod_usd)) * 4000
                     THEN 0
-                ELSE SUM(packages.driver_cod_usd) - ((SUM(packages.delivery_fee + packages.other_fee + packages.taxi_fee) - SUM(packages.driver_cod_usd)) * 4000 - SUM(packages.driver_cod_khr))/4000
+                ELSE SUM(packages.driver_cod_usd) - (({$totalFeeExpr} - SUM(packages.driver_cod_usd)) * 4000 - SUM(packages.driver_cod_khr))/4000
             END
         ";
 
         $amountKhrExpr = "
             CASE
-                WHEN SUM(packages.driver_cod_usd) >= SUM(packages.delivery_fee + packages.other_fee + packages.taxi_fee)
+                WHEN SUM(packages.driver_cod_usd) >= {$totalFeeExpr}
                     THEN SUM(packages.driver_cod_khr)
-                WHEN SUM(packages.driver_cod_usd) < SUM(packages.delivery_fee + packages.other_fee + packages.taxi_fee)
-                    AND SUM(packages.driver_cod_khr) >= (SUM(packages.delivery_fee + packages.other_fee + packages.taxi_fee) - SUM(packages.driver_cod_usd)) * 4000
-                    THEN SUM(packages.driver_cod_khr) - (SUM(packages.delivery_fee + packages.other_fee + packages.taxi_fee) - SUM(packages.driver_cod_usd)) * 4000
+                WHEN SUM(packages.driver_cod_usd) < {$totalFeeExpr}
+                    AND SUM(packages.driver_cod_khr) >= ({$totalFeeExpr} - SUM(packages.driver_cod_usd)) * 4000
+                    THEN SUM(packages.driver_cod_khr) - ({$totalFeeExpr} - SUM(packages.driver_cod_usd)) * 4000
                 ELSE 0
             END
         ";
+
+
+        // $amountUsdExpr = "
+        //     CASE
+        //         WHEN SUM(packages.driver_cod_usd) >= SUM(packages.delivery_fee + packages.other_fee + packages.taxi_fee)
+        //             THEN SUM(packages.driver_cod_usd) - SUM(packages.delivery_fee + packages.other_fee + packages.taxi_fee)
+        //         WHEN SUM(packages.driver_cod_usd) < SUM(packages.delivery_fee + packages.other_fee + packages.taxi_fee)
+        //             AND SUM(packages.driver_cod_khr) >= (SUM(packages.delivery_fee + packages.other_fee + packages.taxi_fee) - SUM(packages.driver_cod_usd)) * 4000
+        //             THEN 0
+        //         ELSE SUM(packages.driver_cod_usd) - ((SUM(packages.delivery_fee + packages.other_fee + packages.taxi_fee) - SUM(packages.driver_cod_usd)) * 4000 - SUM(packages.driver_cod_khr))/4000
+        //     END
+        // ";
+
+        // $amountKhrExpr = "
+        //     CASE
+        //         WHEN SUM(packages.driver_cod_usd) >= SUM(packages.delivery_fee + packages.other_fee + packages.taxi_fee)
+        //             THEN SUM(packages.driver_cod_khr)
+        //         WHEN SUM(packages.driver_cod_usd) < SUM(packages.delivery_fee + packages.other_fee + packages.taxi_fee)
+        //             AND SUM(packages.driver_cod_khr) >= (SUM(packages.delivery_fee + packages.other_fee + packages.taxi_fee) - SUM(packages.driver_cod_usd)) * 4000
+        //             THEN SUM(packages.driver_cod_khr) - (SUM(packages.delivery_fee + packages.other_fee + packages.taxi_fee) - SUM(packages.driver_cod_usd)) * 4000
+        //         ELSE 0
+        //     END
+        // ";
 
         $select = [
             'merchant_id',
@@ -445,8 +496,8 @@ class TransactionService
             $q->code = $q->merchant->code;
             $q->merchant_name = $q->merchant->username;
             $q->merchant_phone = $q->merchant->phone;
-
-            $q->transaction_type = TransactionType::TRNASFER_OUT->value;
+            $q->finish_date = Helper::dateDMY($q->finish_date,'d-m-Y');
+             $q->transaction_type = TransactionType::TRNASFER_OUT->value;
             if ($q->amount_to_be_paid_khr < 0 || $q->amount_to_be_paid_usd < 0) {
                 $q->transaction_type = TransactionType::TRANSFER_IN->value;
             }
@@ -460,7 +511,6 @@ class TransactionService
             $q->status = isset($q->disbursement_id)
                 ? PaymentStatus::tryFrom($q->disbursement_status_id)->label()
                 : (isset($q->payment_id) ? PaymentStatus::tryFrom($q->payment_status_id)->label() : 'Unpaid');
-
             unset($q->merchant);
             return $q;
         };
@@ -729,7 +779,7 @@ class TransactionService
         $baseFee,
         $taxiFee,
         $otherFee,
-        $payer,
+        $payer=null,
         $statusId=null,
         $exchangeRateBase = 4000
     ) {
@@ -742,10 +792,14 @@ class TransactionService
         if ($type === 'driver') {
             // 1. Always deduct taxi fee
             // 2. Deduct fees if payer is receiver
-            if ($payer === 'receiver' && ($fees > 0 || $taxiFee > 0)) {
-                if($statusId !== 19){
-                    Helper::deductAmountBase($totalUsd,$totalKhr,$fees + $taxiFee,$exchangeRateBase);
+            if ($fees > 0 || $taxiFee > 0) {
+                if($payer == 'sender'){
+                    $fees = 0;
                 }
+                if($statusId === TrackingStatus::FAILED_WITH_FEE->value){
+                    $taxiFee = 0;
+                }
+                Helper::deductAmountBase($totalUsd,$totalKhr,($fees + $taxiFee),$exchangeRateBase);
             }
         }
         if($type === 'merchant'){
@@ -1007,13 +1061,30 @@ class TransactionService
         // ]));
         $paymentType = 'payment';
         $breakDownNotes = null;
-        if(($dueAmountUsd || $dueAmountKhr) > 0){
-            if($cashUSD > 0) $breakDownNotes .= 'Cash: USD '.$cashUSD.'|';
-            if($cashKHR > 0) $breakDownNotes .= 'Cash: KHR '.$cashKHR.'|';
-            if($bankAmountUSD > 0) $breakDownNotes .= $bankName.': USD '.$bankAmountUSD.'|';
-            if($bankAmountKHR > 0) $breakDownNotes .= $bankName.': KHR '.$bankAmountKHR.'|';
+        if (($dueAmountUsd || $dueAmountKhr) > 0) {
+            $notes = [];
+
+            if ($cashUSD > 0) {
+                $notes[] = 'Cash: USD ' . $cashUSD;
+            }
+            if ($cashKHR > 0) {
+                $notes[] = 'Cash: KHR ' . $cashKHR;
+            }
+            if ($bankAmountUSD > 0) {
+                $notes[] = $bankName . ': USD ' . $bankAmountUSD;
+            }
+            if ($bankAmountKHR > 0) {
+                $notes[] = $bankName . ': KHR ' . $bankAmountKHR;
+            }
+            $breakDownNotes = implode(' | ', $notes);
         }
-        $breakDownNotes = trim($breakDownNotes, '| ');
+        // if(($dueAmountUsd || $dueAmountKhr) > 0){
+        //     if($cashUSD > 0) $breakDownNotes .= 'Cash: USD '.$cashUSD.' | ';
+        //     if($cashKHR > 0) $breakDownNotes .= 'Cash: KHR '.$cashKHR.' | ';
+        //     if($bankAmountUSD > 0) $breakDownNotes .= $bankName.': USD '.$bankAmountUSD.' | ';
+        //     if($bankAmountKHR > 0) $breakDownNotes .= $bankName.': KHR '.$bankAmountKHR.' | ';
+        // }
+        // $breakDownNotes = trim($breakDownNotes, '| ');
         DB::beginTransaction();
         try{
             $pmtArr = [
@@ -1026,7 +1097,7 @@ class TransactionService
                 'amount_due_khr' => $dueAmountKhr,
                 'amount_due_usd' => $dueAmountUsd,
                 'received_amount_usd' => $bankAmountUSD + $cashUSD,
-                'received_amount_khr' => $cashKHR + $cashUSD,
+                'received_amount_khr' => $cashKHR + $bankAmountKHR,
                 'create_uid' => $user->id,
                 'receiver_uid' => $user->id,
                 'amount' => $validPackages->total_amount,
@@ -1160,7 +1231,7 @@ class TransactionService
                 'target_uid' => $payerId,
                 'title' => __('messages.info',[
                     'info' => 'Transaction',
-                    'khInfo' => ''
+                    'khInfo' => 'Transaction'
                 ]),
                 'body' => 'A total of '.$validPackages->total_package.' packages have been processed for this payment.'
             ]);
@@ -3002,7 +3073,7 @@ class TransactionService
             $totalKHR_to_USD = floor($totalKHR_to_USD * 100) / 100;
             // $pmt->total = (float)Helper::getNumber($totalUSD + $totalKHR_to_USD);
             $pmt->payment_type = 'receive';
-            $pmt->payable_amount = Helper::currencyAmount($pmt->received_amount_usd,'USD').'|'.Helper::currencyAmount($pmt->received_amount_khr,'KHR');
+            $pmt->payable_amount = Helper::currencyAmount($pmt->received_amount_usd,'USD').' | '.Helper::currencyAmount($pmt->received_amount_khr,'KHR');
             $allPayments[] = $pmt;
         }
 
@@ -3032,7 +3103,7 @@ class TransactionService
             $d->total = $totalUSD + $totalKHR_to_USD;
             $d->payment_type = 'disbursement';
             $d->payment_date = Helper::dateDMY($d->payment_datetime);
-            $d->payable_amount = Helper::currencyAmount($d->received_amount_usd,'USD').'|'.Helper::currencyAmount($d->received_amount_khr,'KHR');
+            $d->payable_amount = Helper::currencyAmount($d->received_amount_usd,'USD').' | '.Helper::currencyAmount($d->received_amount_khr,'KHR');
             // $d->payable_amount = Helper::currencyAmount($d->received_amount_usd,'USD').'|'.Helper::currencyAmount($d->received_amount_khr,'KHR');
             $allPayments[] = $d;
         }
@@ -3463,8 +3534,8 @@ class TransactionService
         $userId = $driverId ?? $merchantId;
         $startDate = $req->startDate ? Helper::dateYMD($req->startDate) : null;
         $endDate = $req->endDate ? Helper::dateYMD($req->endDate) : null;
-        $pmtKey = $type.'_payment_id';
-        $disKey = $type.'_disbursement_id';
+        // $pmtKey = $type.'_payment_id';
+        // $disKey = $type.'_disbursement_id';
         $qP = User::from('users as d')
             ->where('d.account_type',$type)
             ->where('d.is_deleted', 0)
@@ -3494,7 +3565,12 @@ class TransactionService
             ->orderByRaw('COALESCE(p.failed_datetime, p.delivered_datetime) DESC NULLS LAST')
             // ->join('payments as pmt','p.driver_payment_id','pmt.id')
             // ->where('pmt.is_settled',0)
-            ->select(['p.additional_fee','p.extra_charge','p.payer','p.cod','p.delivery_fee','p.price','p.taxi_fee','p.extra_charge','p.delivered_datetime','p.failed_datetime','d.id as driver_id','d.id','d.username as driver_name','d.code','p.status_id','p.updated_at']);
+            ->select([
+                'p.additional_fee','p.extra_charge','p.payer','p.cod','p.delivery_fee','p.price','p.taxi_fee',
+                'p.other_fee','p.delivered_datetime','p.failed_datetime','d.id as driver_id','d.id',
+                'd.username as driver_name','d.code','p.status_id','p.updated_at','p.driver_cod_khr',
+                'p.driver_cod_usd'
+            ]);
             // ->groupBy(['d.id','pmt.payable_amount',DB::raw('DATE(p.delivered_datetime)'),DB::raw('DATE(p.failed_datetime)')]);
         if($userId){
             $qP->where('d.id',$userId);
@@ -3567,7 +3643,7 @@ class TransactionService
             $otherFee = $group->where('payer',$payer)->sum('other_fee');
 
             $fee =  + $group->where('payer',$payer)->sum('other_fee') + $group->sum('additional_fee');
-            $userTotal = self::getPackageTotalV1($type,$driverCodUsd,$driverCodKhr,$deliveryFee,$taxiFee,$otherFee,$payer,);
+            $userTotal = self::getPackageTotalV1($type,$driverCodUsd,$driverCodKhr,$deliveryFee,$taxiFee,$otherFee);
             $amountUsd = $userTotal['total_usd'];
             $amountKhr = $userTotal['total_khr'];
             $totalPackages += $packageTotal;
@@ -3654,10 +3730,10 @@ class TransactionService
             'price_khr' => 'nullable|numeric',
             'payer' => 'required|in:receiver,sender',
             'receiver_address' => 'nullable|string|max:100',
-            'driver_cod_usd' => 'nullable|numeric',
-            'driver_cod_khr' => 'nullable|numeric',
+            'driver_cod_usd' => 'numeric|min:0',
+            'driver_cod_khr' => 'numeric|min:0',
             'receiver_phone' => 'nullable|string',
-            'taxi_fee' => 'nullable|numeric|min:0',
+            'taxi_fee' => 'numeric|min:0',
             'zone_code' => 'required',
             'extra_charge' => 'nullable|numeric|min:0'
         ]);

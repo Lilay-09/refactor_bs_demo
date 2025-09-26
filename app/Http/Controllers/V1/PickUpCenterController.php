@@ -376,6 +376,8 @@ class PickUpCenterController extends Controller
         }
     }
 
+    // public function update
+
     public function linkImageToPackage(Request $req)
     {
         $user = UserService::getAuthUser();
@@ -472,6 +474,14 @@ class PickUpCenterController extends Controller
         ]));
     }
 
+    public function deleteOrderImage(Request $req){
+        $updateImg = $this->pickupCenterService->deleteOrderImage($req->order_id,$req->imageId);
+        if($updateImg->error) return ApiResponse::flex($updateImg);
+        return ApiResponse::JsonResult(null,__('messages.updated',[
+            'info' => 'Image has replaced',
+            'khInfo' => 'រូបភាពត្រូវបានជំនួស'
+        ]));
+    }
 
     // public function linkImageToPackage(Request $req){
     //     $user = UserService::getAuthUser();

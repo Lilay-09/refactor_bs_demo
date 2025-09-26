@@ -513,7 +513,7 @@ class Helper{
         return date($format);
     }
 
-    public static function dateDMY($date, $format = 'd-M-Y', $lang = 'en')
+    public static function dateDMY($date, $format = 'd-m-Y', $lang = 'en')
     {
         if (!$date) return null;
 
