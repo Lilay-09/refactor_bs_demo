@@ -552,7 +552,7 @@ class HomeScreenController extends Controller
             $q->total = $q->driver_total;
             $q->append('image_url');
             $priceKhr = $q->price_khr;
-            $fees = $q->base_fee + $q->other_fee;
+            $fees = $q->payer == 'receiver' ? $q->base_fee + $q->other_fee : 0;
             $q->total_khr = $priceKhr > 0 ? number_format($priceKhr + $fees * $xRate,2,'.',''):"0";
             $q->fees_usd = $fees;
             $q->fees_khr = $fees * $xRate;
