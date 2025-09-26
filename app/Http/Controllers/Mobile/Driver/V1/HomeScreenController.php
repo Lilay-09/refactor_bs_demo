@@ -585,8 +585,6 @@ class HomeScreenController extends Controller
         return $row;
     }
 
-
-
     public function editSelfNotes(Request $req){
         $id = $req->id;
         $driverId = $this->user->id;

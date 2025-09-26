@@ -24,7 +24,7 @@ class TelegramBotServiceImpl implements TelegramBotService
         $inputs['branch_id'] = Auth::user()->branch_id;
         $existsBot = $this->existsBot($inputs['token']);
         if($existsBot){
-            return DataResponse::Duplicated('Bot is already exists name: '.$existsBot->name);
+            return DataResponse::Duplicated('Bot is already exists (name: '.$existsBot->name.')');
         }
         TelegramBot::create($inputs);
         return DataResponse::JsonResult(null,false,__('messages.saved'));
@@ -48,7 +48,7 @@ class TelegramBotServiceImpl implements TelegramBotService
         }
         $existsBot = $this->existsBot($inputs['token'],$id);
         if($existsBot){
-            return DataResponse::Duplicated('Bot is already exists name: '.$existsBot->name);
+            return DataResponse::Duplicated('Bot is already exists (name: '.$existsBot->name.')');
         }
         $telegramBot->update($inputs);
         return DataResponse::JsonResult(null,false,__('messages.saved'));
