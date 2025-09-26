@@ -406,7 +406,7 @@ class GeneralSettingController extends Controller
                     'created_at' => now(), // actual creation time
                 ], $ttl);
 
-                Log::info("Cache key: ".$topics->private);
+                // Log::info("Cache key: ".$topics->private);
                 $notifReq = new Request([
                     'topic' => $topics->private,
                     'title' => 'Change Driver',
