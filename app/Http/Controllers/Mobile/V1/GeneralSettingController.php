@@ -13,19 +13,18 @@ use App\Models\DeliveryPackage;
 use App\Models\Notification;
 use App\Models\Package;
 use App\Models\PackageAttachment;
-use App\Services\CloudMessagingService;
 use App\Services\GeneralSettingService;
 use App\Services\PickupCenterServiceImpl;
 use App\Services\TransferServiceImpl;
 use App\Services\UserService;
 use App\Services\V1\FleetServiceImpl;
-use Cache;
+use Illuminate\Support\Facades\Cache;
 use DataResponse;
-use DB;
+use Illuminate\Support\Facades\DB;
 use Exception;
 use Helper;
 use Illuminate\Http\Request;
-use Log;
+use Illuminate\Support\Facades\Log;
 use WebSocket\Client;
 
 

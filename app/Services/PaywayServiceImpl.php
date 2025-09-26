@@ -514,7 +514,7 @@ class PaywayServiceImpl implements PaywayService
         return DataResponse::JsonResult(null);
     }
 
-    public function paywaylog(string $tranId,object $user,string $type,string $privider,string $details,$apv=null,string $payload,string $notes=''):int{
+    public function paywaylog(string $tranId,object $user,string $type,string $privider,string $details,?string $apv=null,string $payload,?string $status=null,string $notes=''):int{
         return PaywayLog::insertGetId([
             'tran_id' => $tranId,
             'user_id' => $user->id,
@@ -522,7 +522,7 @@ class PaywayServiceImpl implements PaywayService
             'provider' => $privider,
             'details' => $details,
             'apv' => $apv,
-            'status' => PaywayStatus::PENDING->value,
+            'status' => $status ?? PaywayStatus::PENDING->value,
             'type' => $type,
             'payload' => $payload
         ]);
@@ -594,7 +594,7 @@ class PaywayServiceImpl implements PaywayService
         }
         $callback = function ($q){
             $q->date = Helper::formatCustomDateTime($q->generated_at);
-            $q->hello = "world";
+            // $q->hello = "world";
             return $q;
         };
         return DataResponse::PaginationV1($qPw,$req,'',[],100,$callback);
@@ -980,7 +980,7 @@ class PaywayServiceImpl implements PaywayService
             $request = new \GuzzleHttp\Psr7\Request('POST', $endpoint, $headers, $body);
             $res = $client->sendAsync($request)->wait();
 
-            $statusCode = $res->getStatusCode();
+            // $statusCode = $res->getStatusCode();
             $content    = $res->getBody()->getContents();
 
             $contentDecoded = json_decode($content, true);

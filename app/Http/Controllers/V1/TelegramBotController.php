@@ -29,4 +29,8 @@ class TelegramBotController extends Controller
     public function getBotById(Request $req){
         return ApiResponse::flex($this->telegramService->getBotById($req->id));
     }
+
+    public function deleteBotById(Request $req){
+        return ApiResponse::flex($this->telegramService->deleteBotById($req->id));
+    }
 }

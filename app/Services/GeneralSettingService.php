@@ -922,6 +922,14 @@ class GeneralSettingService
         ])->get();
     }
 
+    public static function optionsTelegramBotGroupByBotId(int $botId){
+        return DB::table('telegram_bot_groups')->where('is_deleted',false)->select([
+            'id','group_name','group_id','bot_id'
+        ])
+        ->where('bot_id',$botId)
+        ->get();
+    }
+
     // public static function getZonePriceByCode($zone_code,$user){
     //     // $user = UserService::getAuthUser();
     //     return PriceList::with('zones')->where('is_deleted',0)
