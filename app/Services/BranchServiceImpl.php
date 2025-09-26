@@ -52,6 +52,9 @@ class BranchServiceImpl implements BranchService
         $inputs['branch_id'] = $authUser->branch_id;
         $inputs['company_id'] = $authUser->company_id;
 
+        if (Branch::where('is_deleted',false)->count() >= 3){
+            return DataResponse::Forbidden("We only allowed up to 3 branches");
+        }
         Branch::create($inputs);
         return DataResponse::JsonResult(null,false,__('messages.created'));
     }
