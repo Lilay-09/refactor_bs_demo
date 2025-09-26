@@ -8,7 +8,8 @@ use DataResponse;
 use Helper;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Http\Request;
-use Redirect;
+use Illuminate\Support\Facades\Redirect;
+use Illuminate\Support\Facades\Log;
 class AppSetting
 {
     // Your service methods go here
@@ -167,7 +168,7 @@ class AppSetting
         if ($response->successful()) {
             if ($response->status() === 402) {
                 // Handle 402 Payment Required
-                \Log::info('Payment Required');
+                Log::info('Payment Required');
                 return DataResponse::JsonResult(null,false,'Try again later', [],402);
             }
             if ($response->status() === 403) {
