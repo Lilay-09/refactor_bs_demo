@@ -159,8 +159,8 @@ class GeneralSettingController extends Controller
             $package->load(['status:id,name', 'merchant:id,username,phone']);
             $telegram = Helper::generateTelegramLink($package->merchant->phone);
             $priceKhr = $package->price_khr;
-            $fees = $package->payer == 'receiver' ? $package->delivery_fee + $package->other_fee : 0;
-            $totalKhr = $priceKhr > 0 ? (string)number_format($priceKhr + $fees * $xRate,2,'.',''):"0";
+            $fees = $package->delivery_fee + $package->other_fee;
+            $totalKhr = $priceKhr > 0 ? (string)number_format($priceKhr + ($package->payer == 'receiver' ? $fees : 0) * $xRate,2,'.',''):"0";
             $info = [
                 'id' => $package->id,
                 'qr_code' => $package->qr_code,
