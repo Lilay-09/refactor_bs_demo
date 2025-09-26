@@ -3078,7 +3078,7 @@ class TransactionService
         }
 
         $disbursementDetails = DisbursementDetails::get();
-        $disbursements = Disbursement::from('disbursements as dis')
+        $qD = Disbursement::from('disbursements as dis')
         ->where('dis.is_deleted',0)
         ->where('dis.type','payment')
         ->where('dis.approved',$isApproved)
@@ -3087,8 +3087,17 @@ class TransactionService
         ->where('payee_type',$type)
         ->leftJoin('users as py','py.id','dis.approved_uid')
         ->selectRaw('dis.received_amount_usd,dis.received_amount_khr,dis.is_settled,dis.payment_datetime,dis.package_count,ap.username as booked_user,dis.payable_amount,dis.id as payment_id,d.username as driver_name,py.username as payer_name,dis.exchange_rate,dis.taxi_fee,dis.approved,dis.breakdown_notes')
-        ->orderByDesc('dis.payment_datetime')
-        ->get();
+        ->orderByDesc('dis.payment_datetime');
+        if($startDate && $endDate){
+            $startDate = Helper::dateYMD($startDate);
+            $endDate = Helper::dateYMD($endDate);
+            $qD->where(function($q) use($startDate,$endDate){
+                // $q->whereRaw('payment_datetime::DATE >= ? AND payment_datetime::DATE <= ?', [$startDate, $endDate]);
+                $q->whereRaw('payment_datetime >= ? AND payment_datetime <= ?', [$startDate . ' 00:00:00', $endDate . ' 23:59:59']);
+
+            });
+        }
+        $disbursements = $qD->get();
         foreach($disbursements as $d){
             $pmt_details = $this->preparePaymentPackageAmount($disbursementDetails,$d->payment_id,'disbursement');
             $totalUSD = $pmt_details->total_usd;
