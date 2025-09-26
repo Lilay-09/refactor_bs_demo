@@ -7,6 +7,7 @@ use App\DTO\MerchantSettledTransactionByIdDTO;
 use App\DTO\MerchantSettledTransactionDTO;
 use App\Enums\PaymentStatus;
 use App\Enums\PaywayProvider;
+use App\Enums\PaywayStatus;
 use App\Enums\PaywayType;
 use App\Enums\TrackingStatus;
 use App\Enums\TransactionType;
@@ -734,7 +735,7 @@ class MerchantTransactionServiceImpl implements MerchantTransactionService
                     $pw->paywaylog($payoutResult->data['transaction_id'],$authUser,PaywayType::ABA_PAYOUT->value,PaywayProvider::ABA->value,json_encode([
                         'items' => $payoutPackageIds,
                         'response' => $payoutResult->data
-                    ]),$payoutResult->data['apv'],json_encode($inputs));
+                    ]),$payoutResult->data['apv'],json_encode($inputs),PaywayStatus::DONE->value);
                 }
 
                 foreach ($toUpdatePayoutIds as $pId) {

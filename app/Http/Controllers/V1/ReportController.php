@@ -1489,9 +1489,10 @@ class ReportController extends Controller
         $startDate = $req->startDate ? Helper::dateDMY($req->startDate) : null;
         $endDate = $req->endDate ? Helper::dateDMY($req->endDate) : null;
         $merchantId = $req->merchant_id;
-        $statusIds = $req->statusIds;
-        $branchId = $req->branch_id;
-        $warehouseId = $req->warehouse_id;
+        // $statusIds = $req->statusIds;
+        // $branchId = $req->branch_id;
+        // $warehouseId = $req->warehouse_id;
+        $search = $req->search;
         $merchantInfo = User::where('account_type','merchant')
         ->select(['id','phone','username','code','address'])
         ->where('is_deleted',false)
@@ -1503,20 +1504,24 @@ class ReportController extends Controller
             ]));
         }
         $qP = Package::where('merchant_id',$merchantId);
-        if($startDate && $endDate){
-            $startDatetime = Helper::dateYMD($startDate).' 00:00:00';
-            $endDatetime = Helper::dateYMD($endDate).' 23:59:59';
-            $qP->where(function ($q) use ($startDatetime,$endDatetime){
-                $q->whereRaw(
-                    "(status_id = 5 AND arrive_warehouse_datetime BETWEEN ? AND ?)
-                    OR (status_id = 6 AND assign_driver_datetime BETWEEN ? AND ?)
-                    OR (status_id = 10 AND failed_datetime BETWEEN ? AND ?)
-                    OR (status_id = 19 AND failed_datetime BETWEEN ? AND ?)
-                    OR (status_id = 9 AND delivered_datetime BETWEEN ? AND ?)
-                    OR (status_id = 11 AND returned_datetime BETWEEN ? AND ?)",
-                    [$startDatetime, $endDatetime, $startDatetime, $endDatetime, $startDatetime, $endDatetime, $startDatetime, $endDatetime, $startDatetime, $endDatetime, $startDatetime, $endDatetime]
-                );
-            });
+        if($search){    
+            
+        }else {
+            if($startDate && $endDate){
+                $startDatetime = Helper::dateYMD($startDate).' 00:00:00';
+                $endDatetime = Helper::dateYMD($endDate).' 23:59:59';
+                $qP->where(function ($q) use ($startDatetime,$endDatetime){
+                    $q->whereRaw(
+                        "(status_id = 5 AND arrive_warehouse_datetime BETWEEN ? AND ?)
+                        OR (status_id = 6 AND assign_driver_datetime BETWEEN ? AND ?)
+                        OR (status_id = 10 AND failed_datetime BETWEEN ? AND ?)
+                        OR (status_id = 19 AND failed_datetime BETWEEN ? AND ?)
+                        OR (status_id = 9 AND delivered_datetime BETWEEN ? AND ?)
+                        OR (status_id = 11 AND returned_datetime BETWEEN ? AND ?)",
+                        [$startDatetime, $endDatetime, $startDatetime, $endDatetime, $startDatetime, $endDatetime, $startDatetime, $endDatetime, $startDatetime, $endDatetime, $startDatetime, $endDatetime]
+                    );
+                });
+            }
         }
 
         [$orderByCase,$bindings] = $this->getMerchantSummaryReportV2packageOrder();

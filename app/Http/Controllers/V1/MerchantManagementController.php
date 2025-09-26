@@ -34,7 +34,13 @@ class MerchantManagementController extends Controller
         ->get();
         $query = User::where('is_deleted',0)->where('company_id',$user->company_id)
         ->where('account_type',$this->userClass)
-        ->with(['merchantType:id,name_en as names','bank_accounts:id,currency,bank_name,bank_number,account_name,user_id,is_primary','shop:id,owner_id,name_en as shop_name_en,name_km as shop_name_km,product_type_id,city,district,est_pcs','shop.product_type:id,name']);
+        ->with([
+            'merchantType:id,name_en as names',
+            'bank_accounts:id,currency,bank_name,bank_number,account_name,user_id,is_primary',
+            'shop:id,owner_id,name_en as shop_name_en,name_km as shop_name_km,product_type_id,city,district,est_pcs',
+            'shop.product_type:id,name',
+            'telegramBot:id,user_id,group_name,group_id,bot_id,default_caption'
+        ]);
         // ->selectRaw('id,cod_fee,code,name_km,username,email,gender,business_type,phone,client_type_id,address,cod,pin_address,photo_file_name,lock,has_account,photo_file_name');
         // ->select(['id','cod_fee','code','name_km','username','email','name_en',''])
         if($statusId !== null && $statusId>=0) {
@@ -153,6 +159,7 @@ class MerchantManagementController extends Controller
     public function getMerchantListByDate(Request $req){
         $startDate = $req->startDate ? Helper::dateDMY($req->startDate) : null;
         $endDate = $req->endDate ? Helper::dateDMY($req->endDate) : null;
+        $search = $req->search;
         if(!$startDate || !$endDate) return ApiResponse::ValidateFail('Please select a date range to view this report');
         $user = UserService::getAuthUser();
         $select = [
@@ -179,49 +186,57 @@ class MerchantManagementController extends Controller
         ->where('users.account_type', 'merchant')
         ->where('users.is_deleted', 0)
         ->select($select)
-        ->with(['bank_accounts' => function ($q) {
-            $q->select('id', 'user_id', 'bank_number as account_number', 'bank_name','account_name','currency');
-        }])
+        ->with([
+            'bank_accounts' => function ($q) {
+                $q->select('id', 'user_id', 'bank_number as account_number', 'bank_name','account_name','currency');
+            },
+            'telegramBot:id,user_id,group_name,group_id,bot_id,default_caption,bot_token'
+        ])
         ->groupBy('users.id', 'users.username', 'users.name_km', 'users.phone','users.code')
         ->orderByDesc('users.id');
 
 
-        if($startDate && $endDate){
-            $startDatetime = Helper::dateYMD($startDate).' 00:00:00';
-            $endDatetime = Helper::dateYMD($endDate).' 23:59:59';
-            $query->where(function ($q) use ($startDatetime, $endDatetime) {
-                $q->where(function ($q) use ($startDatetime, $endDatetime) {
+        if($search){
+            $query->where('users.username','ILIKE',"%{$search}%")
+            ->orWhere('users.phone','ILIKE',"%{$search}%");
+        }else{
+            if($startDate && $endDate){
+                $startDatetime = Helper::dateYMD($startDate).' 00:00:00';
+                $endDatetime = Helper::dateYMD($endDate).' 23:59:59';
+                $query->where(function ($q) use ($startDatetime, $endDatetime) {
                     $q->where(function ($q) use ($startDatetime, $endDatetime) {
-                        $q->where('status_id', 5)
-                          ->whereBetween('arrive_warehouse_datetime', [$startDatetime, $endDatetime]);
-                    })->orWhere(function ($q) use ($startDatetime, $endDatetime) {
-                        $q->where('status_id', 6)
-                          ->whereBetween('assign_driver_datetime', [$startDatetime, $endDatetime]);
-                    })->orWhere(function ($q) use ($startDatetime, $endDatetime) {
-                        $q->where('status_id', 10)
-                          ->whereBetween('failed_datetime', [$startDatetime, $endDatetime]);
-                    })->orWhere(function ($q) use ($startDatetime, $endDatetime) {
-                        $q->where('status_id', 19)
-                          ->whereBetween('failed_datetime', [$startDatetime, $endDatetime]);
-                    })->orWhere(function ($q) use ($startDatetime, $endDatetime) {
-                        $q->where('status_id', 9)
-                          ->whereBetween('delivered_datetime', [$startDatetime, $endDatetime]);
-                    })->orWhere(function ($q) use ($startDatetime, $endDatetime) {
-                        $q->where('status_id', 11)
-                          ->whereBetween('returned_datetime', [$startDatetime, $endDatetime]);
+                        $q->where(function ($q) use ($startDatetime, $endDatetime) {
+                            $q->where('status_id', 5)
+                            ->whereBetween('arrive_warehouse_datetime', [$startDatetime, $endDatetime]);
+                        })->orWhere(function ($q) use ($startDatetime, $endDatetime) {
+                            $q->where('status_id', 6)
+                            ->whereBetween('assign_driver_datetime', [$startDatetime, $endDatetime]);
+                        })->orWhere(function ($q) use ($startDatetime, $endDatetime) {
+                            $q->where('status_id', 10)
+                            ->whereBetween('failed_datetime', [$startDatetime, $endDatetime]);
+                        })->orWhere(function ($q) use ($startDatetime, $endDatetime) {
+                            $q->where('status_id', 19)
+                            ->whereBetween('failed_datetime', [$startDatetime, $endDatetime]);
+                        })->orWhere(function ($q) use ($startDatetime, $endDatetime) {
+                            $q->where('status_id', 9)
+                            ->whereBetween('delivered_datetime', [$startDatetime, $endDatetime]);
+                        })->orWhere(function ($q) use ($startDatetime, $endDatetime) {
+                            $q->where('status_id', 11)
+                            ->whereBetween('returned_datetime', [$startDatetime, $endDatetime]);
+                        });
                     });
-                });
 
-                // $q->whereRaw(
-                //     '(packages.status_id = 5 AND packages.arrive_warehouse_datetime BETWEEN ? AND ?)
-                //     OR (packages.status_id = 6 AND packages.assign_driver_datetime BETWEEN ? AND ?)
-                //     OR (packages.status_id = 10 AND packages.failed_datetime BETWEEN ? AND ?)
-                //     OR (packages.status_id = 19 AND packages.failed_datetime BETWEEN ? AND ?)
-                //     OR (packages.status_id = 9 AND packages.delivered_datetime BETWEEN ? AND ?)
-                //     OR (packages.status_id = 11 AND packages.returned_datetime BETWEEN ? AND ?)',
-                //     [$startDatetime, $endDatetime, $startDatetime, $endDatetime, $startDatetime, $endDatetime, $startDatetime, $endDatetime, $startDatetime, $endDatetime, $startDatetime, $endDatetime]
-                // );
-            });
+                    // $q->whereRaw(
+                    //     '(packages.status_id = 5 AND packages.arrive_warehouse_datetime BETWEEN ? AND ?)
+                    //     OR (packages.status_id = 6 AND packages.assign_driver_datetime BETWEEN ? AND ?)
+                    //     OR (packages.status_id = 10 AND packages.failed_datetime BETWEEN ? AND ?)
+                    //     OR (packages.status_id = 19 AND packages.failed_datetime BETWEEN ? AND ?)
+                    //     OR (packages.status_id = 9 AND packages.delivered_datetime BETWEEN ? AND ?)
+                    //     OR (packages.status_id = 11 AND packages.returned_datetime BETWEEN ? AND ?)',
+                    //     [$startDatetime, $endDatetime, $startDatetime, $endDatetime, $startDatetime, $endDatetime, $startDatetime, $endDatetime, $startDatetime, $endDatetime, $startDatetime, $endDatetime]
+                    // );
+                });
+            }
         }
 
         $callback = function ($q){
@@ -386,5 +401,13 @@ class MerchantManagementController extends Controller
             'whitelist_by' => $user->id
         ]);
         return ApiResponse::JsonResult(null,__('messages.saved'));
+    }
+
+    public function getTelegramBotByUserId(Request $req){
+        return ApiResponse::flex(UserService::getUserTelegramBot($req->id,'merchant'));
+    }
+
+    public function setMerchantTelegramBot(Request $req){
+        return ApiResponse::flex(UserService::setUserTelegramBot($req->botId,$req->id,$req->all(),'merchant'));
     }
 }

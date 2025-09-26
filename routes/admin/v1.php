@@ -122,7 +122,7 @@ Route::middleware(['jwt','localize','userAccess:admin','rateLimit'])->prefix('ad
             Route::get('',[TelegramBotController::class,'getBots']);
             Route::get('{id}',[TelegramBotController::class,'getBotById']);
             Route::put('{id}',[TelegramBotController::class,'updateById']);
-            
+            Route::delete('{id}',[TelegramBotController::class,'deleteBotById']);
         }); 
     });
 
@@ -198,6 +198,7 @@ Route::middleware(['jwt','localize','userAccess:admin','rateLimit'])->prefix('ad
         Route::post('/{id}/setPassword',[MerchantManagementController::class,'setPassword']);
         Route::get('{id}/bank-accounts',[MerchantManagementController::class,'getBankAccountsById']);
         Route::post('{merchantId}/whitelist-account/{accountId}',[MerchantManagementController::class,'whitelistAccount']);
+        Route::post('{id}/telegram-bots/{botId}',[MerchantManagementController::class,'setMerchantTelegramBot']);
 
 
         Route::prefix('/{id}/employee')->group(function(){
@@ -587,6 +588,7 @@ Route::middleware(['jwt','localize','userAccess:admin','rateLimit'])->prefix('ad
 
     Route::prefix('setting')->group(function(){
         Route::prefix('option')->group(function(){
+            Route::get('telegram-bot/{botId}/group',[GeneralSettingController::class,'getOptionsTelegramBotGroupByBotId']);
             Route::get('telegram-bot',[GeneralSettingController::class,'getOptionsTelegramBot']);
             Route::get('vehicle/type',[GeneralSettingController::class,'optionsEnumVehicleType']);
             Route::get('package/{packageId}',[GeneralSettingController::class,'getOptionsPackageById']);

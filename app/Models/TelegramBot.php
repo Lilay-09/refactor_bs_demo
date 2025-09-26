@@ -9,7 +9,8 @@ class TelegramBot extends Model
 {
     // use HasFactory;
     protected $table = 'telegram_bots';
-    protected $fillable =[
+    protected $fillable = [
+        'id',
         'name',
         'token',
         'is_deleted',

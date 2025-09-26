@@ -7,6 +7,8 @@ use App\Models\DriverCommission;
 use App\Models\MerchantPriceList;
 use App\Models\Package;
 use App\Models\Payment;
+use App\Models\TelegramBot;
+use App\Models\TelegramBotUser;
 use App\Models\User;
 use App\Models\UserBank;
 use App\Models\UserNotificationToken;
@@ -19,6 +21,8 @@ use Illuminate\Support\Facades\Hash;
 use Helper;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use PDO;
 use Tymon\JWTAuth\Facades\JWTAuth;
 
 class UserService
@@ -862,4 +866,69 @@ class UserService
         $phone = $inputs['phone'];
     }
 
+    public static function setUserTelegramBot(int $botId,int $userId, array $data,$userType='merchant'){
+        $validator = validator($data,[
+            'group_name' => 'required',
+            'group_id' => 'required',
+            'default_caption' => 'nullable|max:300'
+        ]);
+        if($validator->fails()){
+            return DataResponse::ValidateFail($validator->errors()->first());
+        }
+        $inputs = $validator->validated();
+        $tlBot = TelegramBot::where('is_deleted',false)->find($botId);
+        if(!$tlBot){
+            return DataResponse::NotFound(__('messages.not_found'));
+        }
+        $inputs['user_id'] = $userId;
+        $inputs['update_uid'] = Auth::user()->id;
+        $inputs['company_id'] = Auth::user()->company_id;
+        $inputs['branch_id'] = Auth::user()->branch_id;
+        $inputs['bot_id'] = $botId;
+        $inputs['bot_token'] = $tlBot->token;
+        $inputs['bot_name'] = $tlBot->name;
+        $inputs['type'] = $userType;
+        $ursTelegramBot = TelegramBotUser::where('is_deleted',false)->where('bot_id',$botId)->first();
+        if(!$ursTelegramBot){
+            $inputs['create_uid'] = Auth::user()->id;
+            TelegramBotUser::create($inputs);
+        }else{
+            $ursTelegramBot->update($inputs);
+        }
+        $savedTelegramBotGroup = DB::table('telegram_bot_groups')
+        ->where('bot_id',$botId)
+        ->where('group_id',$inputs['group_id'])
+        ->first();
+        if(!$savedTelegramBotGroup){
+            DB::table('telegram_bot_groups')->insert([
+                'bot_id' => $botId,
+                'group_name' => $inputs['group_name'],
+                'group_id' => $inputs['group_id'],
+                'create_uid' => Auth::user()->id,
+                'update_uid' => $inputs['update_uid'],
+                'company_id' => $inputs['company_id'],
+                'branch_id' => $inputs['branch_id']
+            ]);
+        }else{
+            $savedTelegramBotGroup = DB::table('telegram_bot_groups')
+            ->where('bot_id',$botId)
+            ->where('group_id',$inputs['group_id'])
+            ->update([
+                'group_name' => $inputs['group_name'],
+            ]);
+        }
+        
+
+        return DataResponse::JsonResult(null,false,__('messages.saved'));
+    }
+
+    public static function getUserTelegramBot(int $userId,$userType='merchant'){
+        $user = User::where('account_type',$userType)->find($userId);
+        if($user){
+            $user->load(['telegramBot']);
+            return DataResponse::JsonResult($user->telegramBot);
+        }
+
+        return DataResponse::NotFound();
+    }
 }

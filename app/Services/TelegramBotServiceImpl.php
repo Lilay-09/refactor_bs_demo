@@ -76,6 +76,20 @@ class TelegramBotServiceImpl implements TelegramBotService
 
     public function getBots(array $filter)
     {
-        return DataResponse::JsonResult(TelegramBot::select(['id','name','token'])->get());
+        return DataResponse::JsonResult(TelegramBot::where('is_deleted',false)->select(['id','name','token'])->get());
+    }
+
+    public function deleteBotById(int $id){
+        $telegramBot = TelegramBot::where('is_deleted',false)
+        ->find($id);
+        if(!$telegramBot) {
+            return DataResponse::NotFound(__('messages.not_found'));
+        }
+        $telegramBot->update([
+            'is_deleted' => true,
+            'deleted_uid' => Auth::user()->id,
+            'deleted_datetime' => now()
+        ]);
+        return DataResponse::JsonResult($telegramBot);
     }
 }

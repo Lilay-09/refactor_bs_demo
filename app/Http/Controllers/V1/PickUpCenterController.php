@@ -483,7 +483,6 @@ class PickUpCenterController extends Controller
         ]));
     }
 
-
     // public function linkImageToPackage(Request $req){
     //     $user = UserService::getAuthUser();
     //     $orderId = $req->order_id;

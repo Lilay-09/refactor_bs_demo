@@ -638,6 +638,10 @@ class GeneralSettingController extends Controller
         return ApiResponse::JsonResult($this->gs::optionsTelegramBot());
     }
 
+    public function getOptionsTelegramBotGroupByBotId(Request $req){
+        return ApiResponse::JsonResult($this->gs::optionsTelegramBotGroupByBotId($req->botId));
+    }
+
 
     public function getFormFinished(Request $req){
         $user = UserService::getAuthUser();
