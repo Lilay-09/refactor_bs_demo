@@ -1,7 +1,7 @@
 <?php
 namespace App\DTO;
+use Illuminate\Database\Eloquent\Model;
 
-use App\Models\Disbursement;
 class MerchantRequestedSettlementDTO {
     public function __construct(
         public readonly int $id,
@@ -24,7 +24,7 @@ class MerchantRequestedSettlementDTO {
         public readonly ?array $bank_accounts = [],
     ) {}
 
-    public static function fromModel(Disbursement $dis): self
+    public static function fromModel(Model $dis): self
     {
         return new static(
             id: $dis->id,
