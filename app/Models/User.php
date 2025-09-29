@@ -6,6 +6,7 @@ use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\DB;
 use Laravel\Sanctum\HasApiTokens;
 use Tymon\JWTAuth\Contracts\JWTSubject;
 
@@ -177,4 +178,45 @@ class User extends Authenticatable implements JWTSubject
         })
         ->orderByDesc('id');
     }
+
+    public function scopeWithoutUserPayment($query, string $alias = 'packages', string $userType = 'driver')
+    {
+        return $query->whereNotExists(function ($q) use ($alias, $userType) {
+            $q->select(DB::raw(1))
+                ->from('payment_packages')
+                ->whereColumn('payment_packages.package_id', "{$alias}.id")
+                ->where('payer_type', $userType)
+                ->where('is_deleted', false);
+        })->whereNotExists(function ($q) use ($alias, $userType) {
+            $q->select(DB::raw(1))
+                ->from('disbursement_packages')
+                ->whereColumn('disbursement_packages.package_id', "{$alias}.id")
+                ->where('payee_type', $userType)
+                ->where('is_deleted', false);
+        });
+    }
+
+    public function scopeWithUserPayment($query, string $alias = 'packages', string $userType = 'driver')
+    {
+        return $query->whereExists(function ($q) use ($alias, $userType) {
+            $q->select(DB::raw(1))
+                ->from('payment_packages')
+                ->whereColumn('payment_packages.package_id', "{$alias}.id")
+                ->where('payer_type', $userType)
+                ->where('is_deleted', false);
+        })->orWhereExists(function ($q) use ($alias, $userType) {
+            $q->select(DB::raw(1))
+                ->from('disbursement_packages')
+                ->whereColumn('disbursement_packages.package_id', "{$alias}.id")
+                ->where('payee_type', $userType)
+                ->where('is_deleted', false);
+        });
+    }
+
+    public function driverPackages()
+    {
+        return $this->hasMany(Package::class, 'driver_id');
+    }
+
+
 }

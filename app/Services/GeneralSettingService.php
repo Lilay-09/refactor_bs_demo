@@ -428,11 +428,14 @@ class GeneralSettingService
         })->where('stage','pick')->selectRaw('id,name')->orderByDesc('id')->get();
     }
 
-    public static function optionsDriver($user,$vehicleType=null,$warehousId=null){
+    public static function optionsDriver($user,$vehicleType=null,$warehouseId=null){
         $qD = User::where('is_deleted',0)->where('company_id',$user->company_id)->where('account_type','driver')->selectRaw('id,username,phone,name_km');
         if($vehicleType) $qD->where('vehicle_type','ilike',$vehicleType);
-        if($warehousId) {
-            $qD->where('driver_warehouse_id',$warehousId);
+        if($warehouseId) {
+            if($warehouseId != 'all'){
+                $qD->where('driver_warehouse_id',$warehouseId);
+            }
+            
         }
         $drivers = $qD->orderByDesc('id')->get();
         foreach($drivers as $d){
@@ -626,19 +629,33 @@ class GeneralSettingService
         $startDate = null,
         $endDate = null,
         $stage = null,
-        ?int $branchId = null
+        ?int $branchId = null,
+        ?int $paymentStatusId=null
     ) {
+        $statusIds = [5,6,9,101,19,11];
+        if($stage == 'transaction'){
+            $statusIds= [9,19];
+        }
         $query = User::query()
             ->join('packages', 'users.id', '=', 'packages.merchant_id')
             ->where('packages.is_deleted', 0)
             ->where('packages.outstanding', 0)
             ->where('users.account_type', 'merchant')
-            ->where('users.is_deleted', 0);
-
+            ->where('users.is_deleted', 0)
+            ->whereIn('status_id',$statusIds);
         if ($branchId) {
             $query->where('users.branch_id', $branchId);
         }
 
+        
+        if($paymentStatusId == 1){
+            $query->withoutUserPayment('packages', 'merchant');
+        }else if($paymentStatusId == 2){
+            $query->withUserPayment('packages', 'merchant');
+        }
+
+        // Log::info($startDate);
+        // Log::info($endDate);
         if ($startDate && $endDate) {
             $startDatetime = Helper::dateYMD($startDate).' 00:00:00';
             $endDatetime   = Helper::dateYMD($endDate).' 23:59:59';
@@ -651,12 +668,14 @@ class GeneralSettingService
                     OR (packages.status_id = 19 AND packages.failed_datetime BETWEEN ? AND ?)
                     OR (packages.status_id = 9 AND packages.delivered_datetime BETWEEN ? AND ?)
                     OR (packages.status_id = 11 AND packages.returned_datetime BETWEEN ? AND ?)",
-                    [$startDatetime, $endDatetime,
-                    $startDatetime, $endDatetime,
-                    $startDatetime, $endDatetime,
-                    $startDatetime, $endDatetime,
-                    $startDatetime, $endDatetime,
-                    $startDatetime, $endDatetime]
+                    [
+                        $startDatetime, $endDatetime,
+                        $startDatetime, $endDatetime,
+                        $startDatetime, $endDatetime,
+                        $startDatetime, $endDatetime,
+                        $startDatetime, $endDatetime,
+                        $startDatetime, $endDatetime
+                    ]
                 );
             });
         }
@@ -672,7 +691,6 @@ class GeneralSettingService
 
         $query->groupBy('users.id', 'users.username', 'users.name_km', 'users.phone', 'users.photo_file_name');
         $query->orderByDesc('users.id');
-
         $merchants = $query->get();
 
         foreach ($merchants as $m) {
@@ -1010,6 +1028,7 @@ class GeneralSettingService
         if($cod) $driverTotal += $price;
         if($status_id == 19) $driverTotal = 0;
         $merchant_total += $additionalPrice;
+        $merchant_total += $otherFee;
         $total = $price + $additionalPrice;
         if($payer == 'receiver'){
             $total += $zPrice;

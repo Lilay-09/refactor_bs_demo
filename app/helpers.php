@@ -1554,8 +1554,6 @@ class Helper{
             $usd -= $remainingKhr / $exchangeRate; // USD goes negative
         }
     }
-
-
 }
 
 

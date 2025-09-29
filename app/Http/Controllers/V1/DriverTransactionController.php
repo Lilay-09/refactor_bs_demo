@@ -354,7 +354,7 @@ class DriverTransactionController extends Controller
     public function updateDeliveryPackage(Request $req){
         $user = UserService::getAuthUser();
         $trxService = new TransactionService();
-        return ApiResponse::flex($trxService->updateDeliveryPackage($req,'driver',$user));
+        return ApiResponse::flex($trxService->updatePackageFromTransaction($req->id,$req->all(),$user));
     }
 
     public function disbursementDriverCommission(Request $req){

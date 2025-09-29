@@ -1356,6 +1356,7 @@ class TransactionService
                 'info' => 'Payment type must be on of disbursement or receive'
             ]));
         }
+        Log::info($paymentType);
 
         if($paymentType == 'disbursement'){
             return $this->disbursementPaymentV1($req,$user,$type);
@@ -2068,20 +2069,20 @@ class TransactionService
             );
         }
         if (!empty($insertPayin)) {
-            foreach ($insertPayin as $disbData) {
+            foreach ($insertPayin as $payIn) {
                 // Insert into disbursements table (main payment record)
-                // Log::info(json_encode($disbData));
-                $payment = Payment::create($this->filterBulkPaymentColumns($disbData,$user,$disbData['transaction_type']));
+                // Log::info(json_encode($payIn));
+                $payment = Payment::create($this->filterBulkPaymentColumns($payIn,$user,$payIn['transaction_type']));
                 self::transactionCodeGenerator('transaction_sequences','payment','payments','trx_code',$user->branch_id,$user->company_id,$payment->id);
                 // Attach each package to this payment
-                $packageIds = json_decode($disbData['package_ids'], true);
+                $packageIds = json_decode($payIn['package_ids'], true);
                 $insertPayInPkgs = [];
                 foreach ($packageIds as $pkgId) {
                     $insertPayInPkgs[] = [
                         'payment_id' => $payment->id,
                         'package_id' => $pkgId,
                         'type' => 'payment',
-                        'payer_type' => $disbData['payer_type'],
+                        'payer_type' => $payIn['payer_type'],
                         'is_deleted' => false,
                     ];
                 }
@@ -2090,8 +2091,8 @@ class TransactionService
                 }
 
                 $insertPayinDetails = [];
-                if (!empty($disbData['payments'])) {
-                    foreach ($disbData['payments'] as $payment) {
+                if (!empty($payIn['payments'])) {
+                    foreach ($payIn['payments'] as $payment) {
                         $insertPayinDetails[] = [
                             'disbursement_id' => $payment->id,
                             'method' => $payment['method'] ?? 'cash',
@@ -2210,6 +2211,7 @@ class TransactionService
         }
 
         $out = [
+            'payment_datetime' => now(),
             'create_uid' => $user->id,
             'update_uid' => $user->id,
             'company_id' => $user->company_id,
@@ -3061,7 +3063,7 @@ class TransactionService
             if($isApproved){
                 $pmt->status_code = $pmt->is_settled ? 'Settled' : 'Pending';
             }
-            $pmt->payment_date = Helper::dateDMY($pmt->payment_datetime,'d-M-Y');
+            $pmt->payment_date = Helper::dateDMY($pmt->payment_datetime);
             $pmt->payment_time = Helper::formatCustomDateTime($pmt->payment_datetime,'h:i:s A');
             $pmt->total_usd = Helper::displayMoney($totalUSD,'USD');
             $pmt->total_khr = Helper::displayMoney($totalKHR,'KHR');
@@ -3728,6 +3730,23 @@ class TransactionService
             'total_fast_delivery' => Helper::getNumber($totalFastDeliveryCommission,2),
             'total_normal_delivery' => Helper::getNumber($totalNormalDeliveryCommission,2)
         ];
+    }
+
+    public function updatePackageFromTransaction(int $id,$data,$user){
+        $validate = validator($data,[
+            'driver_cod_usd' => 'numeric|min:0',
+            'driver_cod_khr' => 'numeric|min:0',
+        ]);
+        if($validate->fails()) return DataResponse::ValidateFail($validate->errors()->first());
+        $inputs = $validate->validated();
+        $package = Package::where('is_deleted',0)->find($id);
+        if(!$package) return DataResponse::NotFound(__('messages.not_found',[
+            'info' => 'Package',
+            'khInfo' => 'កញ្ចប់'
+        ]));
+        $inputs['update_uid'] = $user->id;
+        $package->update($inputs);
+        return DataResponse::JsonResult(null,false,__('messages.saved'));
     }
 
     public function updateDeliveryPackage(Request $req,$type,$user){

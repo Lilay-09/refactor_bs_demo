@@ -34,7 +34,7 @@ class MerchantTransactionController extends Controller
     public function updateDeliveryPackage(Request $req){
         $user = UserService::getAuthUser();
         $trxService = new TransactionService();
-        return ApiResponse::flex($trxService->updateDeliveryPackage($req,$this->userClass,$user));
+        return ApiResponse::flex($trxService->updatePackageFromTransaction($req->id,$req->all(),$user));
     }
 
     public function declineRequestedPayment(Request $req){

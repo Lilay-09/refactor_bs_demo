@@ -588,6 +588,7 @@ Route::middleware(['jwt','localize','userAccess:admin','rateLimit'])->prefix('ad
 
     Route::prefix('setting')->group(function(){
         Route::prefix('option')->group(function(){
+            Route::get('payment-status',[GeneralSettingController::class,'getOptionsPaymentStatus']);
             Route::get('telegram-bot/{botId}/group',[GeneralSettingController::class,'getOptionsTelegramBotGroupByBotId']);
             Route::get('telegram-bot',[GeneralSettingController::class,'getOptionsTelegramBot']);
             Route::get('vehicle/type',[GeneralSettingController::class,'optionsEnumVehicleType']);

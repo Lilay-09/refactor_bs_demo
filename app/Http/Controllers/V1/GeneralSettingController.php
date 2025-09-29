@@ -49,7 +49,7 @@ class GeneralSettingController extends Controller
 
     public function getOptionsDailyActiveMerchant(Request $req){
         $user = UserService::getAuthUser();
-        return ApiResponse::JsonResult($this->gs::optionsDailyActiveMerchant($user,$req->startDate,$req->endDate,$req->stage));
+        return ApiResponse::JsonResult($this->gs::optionsDailyActiveMerchant($user,$req->startDate,$req->endDate,$req->stage,$req->branch_id,$req->payment_status_id));
     }
 
     public function getOptionsDistrict(Request $req){
@@ -498,6 +498,10 @@ class GeneralSettingController extends Controller
         return ApiResponse::JsonResult($obj);
     }
 
+    public function getOptionsPaymentStatus(Request $req){
+        return ApiResponse::JsonResult($this->gs::paymentStatus($req->lang));
+    }
+
     public function getMerchantTransactionTabFilter(Request $req){
         $user = UserService::getAuthUser();
         $obj = (object)[
@@ -626,7 +630,7 @@ class GeneralSettingController extends Controller
     }
     public function getOptionsDriverByWarehouse(Request $req){
         $user = UserService::getAuthUser();
-        return ApiResponse::JsonResult($this->gs::optionsDriver($user,$req->vehicle_type,$req->warehouseId));
+        return ApiResponse::JsonResult($this->gs::optionsDriver($user,$req->vehicle_type,$req->warehouseId ?? 'all'));
     }
 
     public function getOptionsCurrencyPair(){
