@@ -632,7 +632,7 @@ class GeneralSettingService
         ?int $branchId = null,
         ?int $paymentStatusId=null
     ) {
-        $statusIds = [5,6,9,101,19,11];
+        $statusIds = [5,6,9,10,19,11];
         if($stage == 'transaction'){
             $statusIds= [9,19];
         }

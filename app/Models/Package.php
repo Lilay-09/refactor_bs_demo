@@ -101,6 +101,8 @@ class Package extends Model
         'cod_fee',
         'driver_cod_usd',
         'driver_cod_khr',
+        'original_driver_cod_khr',
+        'original_driver_cod_usd',
         'other_fee',
         'company_id',
         'branch_id',
