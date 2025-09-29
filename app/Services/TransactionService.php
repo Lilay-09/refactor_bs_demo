@@ -681,7 +681,10 @@ class TransactionService
             // $fkField = [
             //         $type.'_payment_id' => $paymentId
             // ];
-            // Package::whereIn('id',$packageIds)->update($fkField);
+            Package::whereIn('id',$packageIds)->update([
+                'original_driver_cod_usd' => DB::raw('driver_cod_usd'),
+                'original_driver_cod_khr' => DB::raw('driver_cod_khr')
+            ]);
             $paymentPackageArr = collect($packageIds)->map(fn($id) => [
                 'package_id' => $id,
                 'payment_id' => $paymentId,

@@ -878,6 +878,8 @@ class HomeScreenController extends Controller
         $inputs['last_submit_uid'] = $user->id;
         $inputs['driver_cod_usd'] = $inputs['driver_cod_usd'] ?? 0;
         $inputs['driver_cod_khr'] = $inputs['driver_cod_khr'] ?? 0;
+        $inputs['original_driver_cod_usd'] = $inputs['driver_cod_usd'];
+        $inputs['original_driver_cod_khr'] = $inputs['driver_cod_khr'];
         // $amount = $inputs['amount'] ?? 0;
         // $inputs['price'] = $amount;
         // $inputs['cod'] = $amount > 0 ? true:false;
