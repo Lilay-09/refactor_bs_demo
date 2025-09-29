@@ -647,7 +647,6 @@ class GeneralSettingService
             $query->where('users.branch_id', $branchId);
         }
 
-        
         if($paymentStatusId == 1){
             $query->withoutUserPayment('packages', 'merchant');
         }else if($paymentStatusId == 2){
