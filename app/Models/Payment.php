@@ -55,6 +55,10 @@ class Payment extends Model
         return $this->belongsTo(User::class,'approved_uid','id');
     }
 
+    public function requestedUser(){
+        return $this->belongsTo(User::class,'requested_uid','id');
+    }
+    
     public function driver(){
         return $this->belongsTo(User::class,'payer_id','id')->where('account_type','driver');
     }
