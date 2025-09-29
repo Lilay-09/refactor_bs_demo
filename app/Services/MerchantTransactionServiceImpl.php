@@ -159,6 +159,12 @@ class MerchantTransactionServiceImpl implements MerchantTransactionService
                 'pmtPackages.package:id,driver_cod_usd,driver_cod_khr,price,price_khr'
             ]);
 
+        $status = $req->query('status');
+        if($status){
+            $payQuery->where('payment_status_id',$status);
+            $disQuery->where('payment_status_id',$status);
+        }
+
         // Fetch slices only for the current page
         $disData = $disQuery->orderBy('requested_date', 'desc')
             ->skip(($page - 1) * $perPage)

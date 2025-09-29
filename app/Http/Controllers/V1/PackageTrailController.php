@@ -55,20 +55,11 @@ class PackageTrailController extends Controller
         ->where('outstanding',0)
         ->where('company_id',$user->company_id)
         ->whereIn('status_id',[5,6,19,11,10])
+        ->orderByRaw('(status_id = ?) DESC', [5])
+        ->orderBy('arrive_warehouse_datetime','desc')
         ->orderByRaw("
             CASE
-                WHEN status_id = 5 THEN 1
-                ELSE 2
-            END ASC
-        ")
-        ->orderByRaw("
-            CASE
-                WHEN status_id = 5 THEN arrive_warehouse_datetime
-                ELSE NULL
-            END ASC
-        ")
-        ->orderByRaw("
-            CASE
+                WHEN status_id = 9 THEN delivered_datetime
                 WHEN status_id IN (10, 19) THEN failed_datetime
                 ELSE NULL
             END DESC
