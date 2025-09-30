@@ -6,6 +6,7 @@
 /storage/logs
 /public/uploads
 /storage/*.key
+/storage/key
 /vendor
 /database/schemas/
 database/schema.sql

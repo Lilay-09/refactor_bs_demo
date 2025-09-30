@@ -101,6 +101,8 @@ class Package extends Model
         'cod_fee',
         'driver_cod_usd',
         'driver_cod_khr',
+        'original_driver_cod_khr',
+        'original_driver_cod_usd',
         'other_fee',
         'company_id',
         'branch_id',
@@ -294,24 +296,81 @@ class Package extends Model
             ->exists();
     }
 
-    public function scopeWithoutDriverPayment($query)
+    // public function scopeWithoutDriverPayment($query)
+    // {
+    //     return $query
+    //         ->whereNotExists(function ($q) {
+    //             $q->select(DB::raw(1))
+    //                 ->from('payment_packages')
+    //                 ->whereColumn('payment_packages.package_id', 'packages.id')
+    //                 ->where('payer_type', 'driver')
+    //                 ->where('is_deleted', false);
+    //         })
+    //         ->whereNotExists(function ($q) {
+    //             $q->select(DB::raw(1))
+    //                 ->from('disbursement_packages')
+    //                 ->whereColumn('disbursement_packages.package_id', 'packages.id')
+    //                 ->where('payee_type', 'driver')
+    //                 ->where('is_deleted', false);
+    //         });
+    // }
+
+    public function scopeWithoutUserPayment($query, string $alias = 'packages',$userType='driver')
     {
         return $query
-            ->whereNotExists(function ($q) {
+            ->whereNotExists(function ($q) use ($alias,$userType) {
                 $q->select(DB::raw(1))
                     ->from('payment_packages')
-                    ->whereColumn('payment_packages.package_id', 'packages.id')
+                    ->whereColumn('payment_packages.package_id', "{$alias}.id")
+                    ->where('payer_type', $userType)
+                    ->where('is_deleted', false);
+            })
+            ->whereNotExists(function ($q) use ($alias,$userType) {
+                $q->select(DB::raw(1))
+                    ->from('disbursement_packages')
+                    ->whereColumn('disbursement_packages.package_id', "{$alias}.id")
+                    ->where('payee_type', $userType)
+                    ->where('is_deleted', false);
+            });
+    }
+
+    public function scopeWithUserPayment($query, string $alias = 'packages', string $userType = 'driver')
+    {
+        return $query->whereExists(function ($q) use ($alias, $userType) {
+            $q->select(DB::raw(1))
+                ->from('payment_packages')
+                ->whereColumn('payment_packages.package_id', "{$alias}.id")
+                ->where('payer_type', $userType)
+                ->where('is_deleted', false);
+        })->whereExists(function ($q) use ($alias, $userType) {
+            $q->select(DB::raw(1))
+                ->from('disbursement_packages')
+                ->whereColumn('disbursement_packages.package_id', "{$alias}.id")
+                ->where('payee_type', $userType)
+                ->where('is_deleted', false);
+        
+        });
+    }
+
+    public function scopeWithoutDriverPayment($query, string $alias = 'packages')
+    {
+        return $query
+            ->whereNotExists(function ($q) use ($alias) {
+                $q->select(DB::raw(1))
+                    ->from('payment_packages')
+                    ->whereColumn('payment_packages.package_id', "{$alias}.id")
                     ->where('payer_type', 'driver')
                     ->where('is_deleted', false);
             })
-            ->whereNotExists(function ($q) {
+            ->whereNotExists(function ($q) use ($alias) {
                 $q->select(DB::raw(1))
                     ->from('disbursement_packages')
-                    ->whereColumn('disbursement_packages.package_id', 'packages.id')
+                    ->whereColumn('disbursement_packages.package_id', "{$alias}.id")
                     ->where('payee_type', 'driver')
                     ->where('is_deleted', false);
             });
     }
+
 
     // Optional: Combined check
     public function hasAnyPayment(): bool

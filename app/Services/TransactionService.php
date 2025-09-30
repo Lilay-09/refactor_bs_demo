@@ -681,7 +681,10 @@ class TransactionService
             // $fkField = [
             //         $type.'_payment_id' => $paymentId
             // ];
-            // Package::whereIn('id',$packageIds)->update($fkField);
+            Package::whereIn('id',$packageIds)->update([
+                'original_driver_cod_usd' => DB::raw('driver_cod_usd'),
+                'original_driver_cod_khr' => DB::raw('driver_cod_khr')
+            ]);
             $paymentPackageArr = collect($packageIds)->map(fn($id) => [
                 'package_id' => $id,
                 'payment_id' => $paymentId,
@@ -727,7 +730,7 @@ class TransactionService
                 'transaction_type' => TransactionType::TRANSFER_IN->value,
                 'from_account' => !empty($dueAccount) ? $dueAccount['account_number'] : '',
                 'payment_method' => $method,
-                'to_account' => 'JS company',
+                'to_account' => 'NG Account',
                 'approved_uid' => $user->id,
                 'create_uid' => $user->id,
                 'update_uid' => $user->id,
@@ -1331,7 +1334,7 @@ class TransactionService
         $originalBankAmtKh = 0;
         if($dueAmount > 0){
             if($totalInputAmount <=0) return DataResponse::ValidateFail('Invalid payment amount');
-            Log::info('currency---'.$currency);
+            // Log::info('currency---'.$currency);
             $paymentSuggestion = !empty($currency) ? $this->paymentSuggestionByCurrency($cash,$cashKh,$bankAmount,$bankAmountKh,$dueAmount,$currency,$exhangeRate,true):$this->paymentSuggestion($cash,$cashKh,$bankAmount,$bankAmountKh,$dueAmount,$exhangeRate);
             if($paymentSuggestion->error) return $paymentSuggestion;
             $originalCashKh = $paymentSuggestion->original_cash_amount_kh;
@@ -1356,6 +1359,7 @@ class TransactionService
                 'info' => 'Payment type must be on of disbursement or receive'
             ]));
         }
+        Log::info($paymentType);
 
         if($paymentType == 'disbursement'){
             return $this->disbursementPaymentV1($req,$user,$type);
@@ -2068,20 +2072,20 @@ class TransactionService
             );
         }
         if (!empty($insertPayin)) {
-            foreach ($insertPayin as $disbData) {
+            foreach ($insertPayin as $payIn) {
                 // Insert into disbursements table (main payment record)
-                // Log::info(json_encode($disbData));
-                $payment = Payment::create($this->filterBulkPaymentColumns($disbData,$user,$disbData['transaction_type']));
+                // Log::info(json_encode($payIn));
+                $payment = Payment::create($this->filterBulkPaymentColumns($payIn,$user,$payIn['transaction_type']));
                 self::transactionCodeGenerator('transaction_sequences','payment','payments','trx_code',$user->branch_id,$user->company_id,$payment->id);
                 // Attach each package to this payment
-                $packageIds = json_decode($disbData['package_ids'], true);
+                $packageIds = json_decode($payIn['package_ids'], true);
                 $insertPayInPkgs = [];
                 foreach ($packageIds as $pkgId) {
                     $insertPayInPkgs[] = [
                         'payment_id' => $payment->id,
                         'package_id' => $pkgId,
                         'type' => 'payment',
-                        'payer_type' => $disbData['payer_type'],
+                        'payer_type' => $payIn['payer_type'],
                         'is_deleted' => false,
                     ];
                 }
@@ -2090,8 +2094,8 @@ class TransactionService
                 }
 
                 $insertPayinDetails = [];
-                if (!empty($disbData['payments'])) {
-                    foreach ($disbData['payments'] as $payment) {
+                if (!empty($payIn['payments'])) {
+                    foreach ($payIn['payments'] as $payment) {
                         $insertPayinDetails[] = [
                             'disbursement_id' => $payment->id,
                             'method' => $payment['method'] ?? 'cash',
@@ -2210,6 +2214,7 @@ class TransactionService
         }
 
         $out = [
+            'payment_datetime' => now(),
             'create_uid' => $user->id,
             'update_uid' => $user->id,
             'company_id' => $user->company_id,
@@ -3061,7 +3066,7 @@ class TransactionService
             if($isApproved){
                 $pmt->status_code = $pmt->is_settled ? 'Settled' : 'Pending';
             }
-            $pmt->payment_date = Helper::formatCustomDateTime($pmt->payment_datetime,'d-M-Y');
+            $pmt->payment_date = Helper::dateDMY($pmt->payment_datetime);
             $pmt->payment_time = Helper::formatCustomDateTime($pmt->payment_datetime,'h:i:s A');
             $pmt->total_usd = Helper::displayMoney($totalUSD,'USD');
             $pmt->total_khr = Helper::displayMoney($totalKHR,'KHR');
@@ -3078,7 +3083,7 @@ class TransactionService
         }
 
         $disbursementDetails = DisbursementDetails::get();
-        $disbursements = Disbursement::from('disbursements as dis')
+        $qD = Disbursement::from('disbursements as dis')
         ->where('dis.is_deleted',0)
         ->where('dis.type','payment')
         ->where('dis.approved',$isApproved)
@@ -3087,8 +3092,17 @@ class TransactionService
         ->where('payee_type',$type)
         ->leftJoin('users as py','py.id','dis.approved_uid')
         ->selectRaw('dis.received_amount_usd,dis.received_amount_khr,dis.is_settled,dis.payment_datetime,dis.package_count,ap.username as booked_user,dis.payable_amount,dis.id as payment_id,d.username as driver_name,py.username as payer_name,dis.exchange_rate,dis.taxi_fee,dis.approved,dis.breakdown_notes')
-        ->orderByDesc('dis.payment_datetime')
-        ->get();
+        ->orderByDesc('dis.payment_datetime');
+        if($startDate && $endDate){
+            $startDate = Helper::dateYMD($startDate);
+            $endDate = Helper::dateYMD($endDate);
+            $qD->where(function($q) use($startDate,$endDate){
+                // $q->whereRaw('payment_datetime::DATE >= ? AND payment_datetime::DATE <= ?', [$startDate, $endDate]);
+                $q->whereRaw('payment_datetime >= ? AND payment_datetime <= ?', [$startDate . ' 00:00:00', $endDate . ' 23:59:59']);
+
+            });
+        }
+        $disbursements = $qD->get();
         foreach($disbursements as $d){
             $pmt_details = $this->preparePaymentPackageAmount($disbursementDetails,$d->payment_id,'disbursement');
             $totalUSD = $pmt_details->total_usd;
@@ -3719,6 +3733,23 @@ class TransactionService
             'total_fast_delivery' => Helper::getNumber($totalFastDeliveryCommission,2),
             'total_normal_delivery' => Helper::getNumber($totalNormalDeliveryCommission,2)
         ];
+    }
+
+    public function updatePackageFromTransaction(int $id,$data,$user){
+        $validate = validator($data,[
+            'driver_cod_usd' => 'numeric|min:0',
+            'driver_cod_khr' => 'numeric|min:0',
+        ]);
+        if($validate->fails()) return DataResponse::ValidateFail($validate->errors()->first());
+        $inputs = $validate->validated();
+        $package = Package::where('is_deleted',0)->find($id);
+        if(!$package) return DataResponse::NotFound(__('messages.not_found',[
+            'info' => 'Package',
+            'khInfo' => 'កញ្ចប់'
+        ]));
+        $inputs['update_uid'] = $user->id;
+        $package->update($inputs);
+        return DataResponse::JsonResult(null,false,__('messages.saved'));
     }
 
     public function updateDeliveryPackage(Request $req,$type,$user){

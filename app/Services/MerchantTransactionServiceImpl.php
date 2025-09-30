@@ -159,6 +159,12 @@ class MerchantTransactionServiceImpl implements MerchantTransactionService
                 'pmtPackages.package:id,driver_cod_usd,driver_cod_khr,price,price_khr'
             ]);
 
+        $status = $req->query('status');
+        if($status){
+            $payQuery->where('payment_status_id',$status);
+            $disQuery->where('payment_status_id',$status);
+        }
+
         // Fetch slices only for the current page
         $disData = $disQuery->orderBy('requested_date', 'desc')
             ->skip(($page - 1) * $perPage)
@@ -283,7 +289,7 @@ class MerchantTransactionServiceImpl implements MerchantTransactionService
             DB::commit();
             return DataResponse::JsonResult(null,false,__('messages.saved'));
         }catch(Exception $e){
-            Log::info($e->getMessage());
+            Log::error($e->getMessage());
             DB::rollBack();
             return DataResponse::Error('Failed to approve');
         }
@@ -691,7 +697,7 @@ class MerchantTransactionServiceImpl implements MerchantTransactionService
                     'tran_via' => TransactionType::INTERNAL->value,
                     'payment_id' => $pId,
                     'transaction_type' => TransactionType::TRNASFER_OUT->value,
-                    'from_account' => 'JS Company',
+                    'from_account' => 'NG Company',
                     'to_account' => $dueAccount['concat'],
                     'approved_uid' => $authUser->id,
                     'create_uid' => $authUser->id,

@@ -238,7 +238,6 @@ class PaywayServiceImpl implements PaywayService
 
         $key = 'services.payway.'.$payerType.'-callback';
         $fullUrl = config($key) . '?' . $query;
-        Log::info($fullUrl);
         $encoded = base64_encode($fullUrl);
         return $encoded;
     }
@@ -429,7 +428,7 @@ class PaywayServiceImpl implements PaywayService
         ]);
 
         $pmt = $this->prepareDriverSettlePayment($user,$packageIds,$currency,$amount,$method ?? PaymentMethod::ABA->value ?? 'bank',$tran_id);
-        Log::info(json_encode($pmt));
+        // Log::info(json_encode($pmt));
         if($pmt->error){
             Log::error(json_encode($pmt));
         }

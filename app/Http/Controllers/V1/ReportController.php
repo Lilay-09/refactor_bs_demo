@@ -1807,9 +1807,9 @@ class ReportController extends Controller
             if ($startDateTime && $endDateTime) {
                 $query->whereBetween('payment_datetime', [$startDateTime, $endDateTime]);
             }
-            if($branchId){
-                $query->where('');
-            }
+            // if($branchId){
+            //     $query->where('');
+            // }
             return $query;
         };
 

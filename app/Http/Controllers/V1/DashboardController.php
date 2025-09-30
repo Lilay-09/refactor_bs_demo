@@ -331,7 +331,7 @@ class DashboardController extends Controller
     //     }
     // }
 
-    private function topRiders(int $top=5,?int $branchId){
+    private function topRiders(int $top=5,?int $branchId=null){
         $currentMonth = Carbon::now()->month;
         $currentYear = Carbon::now()->year;
         $topRiders = DB::table('packages as p')
@@ -367,50 +367,76 @@ class DashboardController extends Controller
        return $topRiders;
     }
 
-    private function unpaidRiders(int $branchId){
-        $SUM = ',SUM(
-                CASE
-                    WHEN (p.cod = TRUE AND p.status_id != 19) THEN p.price
-                    ELSE 0
-                END
-            ) + SUM(
-                CASE
-                    WHEN p.payer = \'receiver\' THEN (p.delivery_fee + p.extra_charge)
-                    ELSE 0
-                END
-            ) - SUM(p.taxi_fee) AS amount';
+    private function unpaidRiders()
+    {
+        $cutoffDate = Carbon::now()->subDays($this->days);
+
         $balanceDues = Package::from('packages as p')
-        ->join('users as d','d.id','p.driver_id')
-        ->where('p.is_deleted', 0)
-        ->where('p.updated_at', '>=', Carbon::now()->subDays($this->days))
-        ->whereIn('p.status_id', [9, 19])
-        // ->whereNull('p.driver_disbursement_id')
-        // ->leftJoin('payments', 'p.driver_payment_id', '=', 'payments.id')
-        ->selectRaw('count(p.id) as qty,d.id,d.username as driver_name,d.code'.$SUM)
-        // ->where(function ($query) {
-        //     $query->whereNull('payments.id') // Include rows without matching payments
-        //         ->orWhere('payments.approved', 0); // Include rows where payments.approved = 0
-        // })
-        ->where('p.branch_id',$branchId)
-        ->whereNotExists(function ($sub) {
-            $sub->select(DB::raw(1))
-                ->from('payment_packages as pp')
-                ->whereColumn('pp.package_id', 'p.id')
-                ->where('pp.payer_type', 'driver')
-                ->where('pp.is_deleted', false);
-        })->whereNotExists(function ($sub) {
-            $sub->select(DB::raw(1))
-                ->from('disbursement_packages as dp')
-                ->whereColumn('dp.package_id', 'p.id')
-                ->where('dp.payee_type', 'driver')
-                ->where('dp.type','payment')
-                ->where('dp.is_deleted', false);
-        })
-        ->groupBy('d.id')
-        ->orderByDesc('amount')
-        ->get();
+            ->join('users as d', 'd.id', '=', 'p.driver_id')
+            ->where('p.is_deleted', 0)
+            ->where('p.updated_at', '>=', $cutoffDate)
+            ->whereIn('p.status_id', [9, 19])
+            ->withoutDriverPayment('p')
+            ->selectRaw("
+                COUNT(p.id) AS qty,
+                d.id,
+                d.username AS driver_name,
+                d.code,
+                SUM(CASE WHEN p.status_id IN (9, 19) THEN p.driver_cod_usd ELSE 0 END)::numeric(15,2) AS amount,
+                SUM(CASE WHEN p.status_id IN (9, 19) THEN p.driver_cod_khr ELSE 0 END)::numeric(15,2) AS amount_khr
+            ")
+            ->groupBy('d.id', 'd.username', 'd.code')
+            ->orderByDesc('amount')
+            ->get();
+
         return $balanceDues;
     }
+
+
+    // private function unpaidRiders(int $branchId){
+    //     $SUM = ',SUM(
+    //             CASE
+    //                 WHEN (p.cod = TRUE AND p.status_id != 19) THEN p.price
+    //                 ELSE 0
+    //             END
+    //         ) + SUM(
+    //             CASE
+    //                 WHEN p.payer = \'receiver\' THEN (p.delivery_fee + p.extra_charge)
+    //                 ELSE 0
+    //             END
+    //         ) - SUM(p.taxi_fee) AS amount';
+    //     $balanceDues = Package::from('packages as p')
+    //     ->join('users as d','d.id','p.driver_id')
+    //     ->where('p.is_deleted', 0)
+    //     ->where('p.updated_at', '>=', Carbon::now()->subDays($this->days))
+    //     ->whereIn('p.status_id', [9, 19])
+    //     // ->whereNull('p.driver_disbursement_id')
+    //     // ->leftJoin('payments', 'p.driver_payment_id', '=', 'payments.id')
+    //     ->selectRaw('count(p.id) as qty,d.id,d.username as driver_name,d.code'.$SUM)
+    //     // ->where(function ($query) {
+    //     //     $query->whereNull('payments.id') // Include rows without matching payments
+    //     //         ->orWhere('payments.approved', 0); // Include rows where payments.approved = 0
+    //     // })
+    //     ->where('p.branch_id',$branchId)
+    //     ->whereNotExists(function ($sub) {
+    //         $sub->select(DB::raw(1))
+    //             ->from('payment_packages as pp')
+    //             ->whereColumn('pp.package_id', 'p.id')
+    //             ->where('pp.payer_type', 'driver')
+    //             ->where('pp.is_deleted', false);
+    //     })->whereNotExists(function ($sub) {
+    //         $sub->select(DB::raw(1))
+    //             ->from('disbursement_packages as dp')
+    //             ->whereColumn('dp.package_id', 'p.id')
+    //             ->where('dp.payee_type', 'driver')
+    //             ->where('dp.type','payment')
+    //             ->where('dp.is_deleted', false);
+    //     })
+    //     ->groupBy('d.id')
+    //     ->orderByDesc('amount')
+    //     ->get();
+    //     return $balanceDues;
+    // }
 
     private function merchantPayable(int $branchId){
         $totalAmount = 0;

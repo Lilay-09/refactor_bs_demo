@@ -159,8 +159,8 @@ class GeneralSettingController extends Controller
             $package->load(['status:id,name', 'merchant:id,username,phone']);
             $telegram = Helper::generateTelegramLink($package->merchant->phone);
             $priceKhr = $package->price_khr;
-            $fees = $package->payer == 'receiver' ? $package->delivery_fee + $package->other_fee : 0;
-            $totalKhr = $priceKhr > 0 ? (string)number_format($priceKhr + $fees * $xRate,2,'.',''):"0";
+            $fees = $package->delivery_fee + $package->other_fee;
+            $totalKhr = $priceKhr > 0 ? (string)number_format($priceKhr + ($package->payer == 'receiver' ? $fees : 0) * $xRate,2,'.',''):"0";
             $info = [
                 'id' => $package->id,
                 'qr_code' => $package->qr_code,
@@ -406,7 +406,7 @@ class GeneralSettingController extends Controller
                     'created_at' => now(), // actual creation time
                 ], $ttl);
 
-                Log::info("Cache key: ".$topics->private);
+                // Log::info("Cache key: ".$topics->private);
                 $notifReq = new Request([
                     'topic' => $topics->private,
                     'title' => 'Change Driver',
@@ -482,9 +482,9 @@ class GeneralSettingController extends Controller
         ]));
 
         $selfTopic = GeneralSettingService::getGeneralTopics($user->company_id,'driver',$user->id)->private;
-        Log::info("Cache key: ".$selfTopic);
+        // Log::info("Cache key: ".$selfTopic);
         $cache = Cache::get($selfTopic);
-        Log::info("Cache data: ".json_encode($cache));
+        // Log::info("Cache data: ".json_encode($cache));
         if(!$cache) return ApiResponse::NotFound("Request not found or has expired");
         $requester = $cache?->requester;
         // return $cache;

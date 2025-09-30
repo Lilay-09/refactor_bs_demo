@@ -77,7 +77,7 @@ class ProductTypeController extends Controller
     public function deleteProductType(Request $req){
         $user = UserService::getAuthUser();
         $id = $req->id;
-        Log::info($req->all());
+        // Log::info($req->all());
         $productType = ProductType::where('is_deleted',0)
         ->where('company_id',$user->company_id)
         ->find($id);
