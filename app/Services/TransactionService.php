@@ -3357,14 +3357,14 @@ class TransactionService
                 'info' => 'Payment'
             ]));
             //** remove payment key from packages */
-            $pmtKey = $type.'_payment_id';
+            // $pmtKey = $type.'_payment_id';
             $payment->update([
                 'is_deleted' => 1,
                 'deleted_datetime' => now(),
                 'deleted_uid' => $user->id
             ]);
             PaymentPackage::where('payment_id',$id)->update([
-                'is_deleted' => 1,
+                'is_deleted' => true,
                 'deleted_datetime' => now(),
                 'deleted_uid' => $user->id,
                 'deleted_reason' => 'rollback by '.$user->username
@@ -3375,7 +3375,7 @@ class TransactionService
                 'info' => 'Payment'
             ]));
             //** remove payment key from packages */
-            $pmtKey = $type.'_disbursement_id';
+            // $pmtKey = $type.'_disbursement_id';
             $payment->update([
                 'is_deleted' => 1,
                 'deleted_datetime' => now(),
@@ -3383,7 +3383,7 @@ class TransactionService
             ]);
 
             DisbursementPackage::where('disbursement_id',$id)->update([
-                'is_deleted' => 1,
+                'is_deleted' => true,
                 'deleted_datetime' => now(),
                 'deleted_uid' => $user->id,
                 'deleted_reason' => 'rollback by '.$user->username
@@ -4072,7 +4072,7 @@ class TransactionService
         if($validPayment->error){
             return $validPayment;
         }
-        if(!($validPayment['isValidUSD'] && $validPayment['isValidKHR'])){
+        if(!($validPayment->isValidUSD && $validPayment->isValidKHR)){
             return DataResponse::ValidateFail(__('messages.info',[
                 'info' => 'Amount in USD must be '.$dueAmountUsd.' & KHR '.$dueAmountKhr
             ]));
@@ -4430,6 +4430,7 @@ class TransactionService
             'deleted_datetime' => now(),
             'deleted_uid' => $user->id
         ]);
+        
 
         Order::where('is_deleted',0)->where($pmtKey,$id)->update([
             $pmtKey => null
