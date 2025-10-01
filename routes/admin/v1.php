@@ -643,6 +643,7 @@ Route::middleware(['jwt','localize','userAccess:admin','rateLimit'])->prefix('ad
             Route::get('driver',[GeneralSettingController::class,'getDriverFilterOptions']);
             Route::get('merchant',[GeneralSettingController::class,'getMerchantFilterOptions']);
             Route::get('merchant/trx',[GeneralSettingController::class,'getMerchantTrxFilter']);
+            Route::get('driver/trx/delivery',[GeneralSettingController::class,'getDriverTrxFilter']);
             // Route::get('merchant/transaction',[GeneralSettingController::class,'getMerchantTransactionTabFilter']);
             Route::get('fleet',[GeneralSettingController::class,'getOptionsFilterFleet']);
             Route::get('user',[GeneralSettingController::class,'getOptionsFilterUser']);

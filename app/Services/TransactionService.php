@@ -214,56 +214,56 @@ class TransactionService
                 'p.qr_code','ts.name as status_code','p.delivered_datetime','p.failed_datetime','p.zone_code','p.receiver_phone','p.delivery_type','p.zone_name',
                 'p.receiver_address','p.driver_cod_usd','p.driver_cod_khr','p.other_fee'
             ]);
-            if($type == 'driver'){
-                $qP->whereNotExists(function ($sub) use ($type) {
-                    $sub->select(DB::raw(1))
-                        ->from('payment_packages as pp')
-                        ->whereColumn('pp.package_id', 'p.id')
-                        ->where('pp.payer_type', 'driver')
-                        ->where('pp.is_deleted', false);
-                })
-                ->whereNotExists(function ($sub) use ($type) {
-                    $sub->select(DB::raw(1))
-                        ->from('disbursement_packages as dp')
-                        ->whereColumn('dp.package_id', 'p.id')
-                        ->where('dp.payee_type', 'driver')
-                        ->where('dp.is_deleted', false);
-                });
-            }
+            // if($type == 'driver'){
+            //     $qP->whereNotExists(function ($sub) use ($type) {
+            //         $sub->select(DB::raw(1))
+            //             ->from('payment_packages as pp')
+            //             ->whereColumn('pp.package_id', 'p.id')
+            //             ->where('pp.payer_type', 'driver')
+            //             ->where('pp.is_deleted', false);
+            //     })
+            //     ->whereNotExists(function ($sub) use ($type) {
+            //         $sub->select(DB::raw(1))
+            //             ->from('disbursement_packages as dp')
+            //             ->whereColumn('dp.package_id', 'p.id')
+            //             ->where('dp.payee_type', 'driver')
+            //             ->where('dp.is_deleted', false);
+            //     });
+            // }
 
-            if ($type === 'merchant') {
+            // if ($type === 'merchant') {
                 if ($pmtStatusId == 1) { // Unpaid
-                    $qP->whereNotExists(function ($sub) {
+                    $qP->whereNotExists(function ($sub) use($type) {
                         $sub->select(DB::raw(1))
                             ->from('payment_packages as pp')
                             ->whereColumn('pp.package_id', 'p.id')
-                            ->where('pp.payer_type', 'merchant')
+                            ->where('pp.payer_type', $type)
                             ->where('pp.is_deleted', false);
-                    })->whereNotExists(function ($sub) {
+                    })->whereNotExists(function ($sub) use($type) {
                         $sub->select(DB::raw(1))
                             ->from('disbursement_packages as dp')
                             ->whereColumn('dp.package_id', 'p.id')
-                            ->where('dp.payee_type', 'merchant')
+                            ->where('dp.payee_type', $type)
                             ->where('dp.type','payment')
                             ->where('dp.is_deleted', false);
                     });
                 } elseif ($pmtStatusId == 2) { // Paid
-                    $qP->whereExists(function ($sub) {
+                    $qP->whereExists(function ($sub) use($type) {
                         $sub->select(DB::raw(1))
                             ->from('payment_packages as pp')
                             ->whereColumn('pp.package_id', 'p.id')
-                            ->where('pp.payer_type', 'merchant')
+                            ->where('pp.payer_type', $type)
                             ->where('pp.is_deleted', false);
-                    })->orWhereExists(function ($sub) {
+                    })->orWhereExists(function ($sub) use($type) {
                         $sub->select(DB::raw(1))
                             ->from('disbursement_packages as dp')
                             ->whereColumn('dp.package_id', 'p.id')
-                            ->where('dp.payee_type', 'merchant')
+                            ->where('dp.payee_type', $type)
                             ->where('dp.type','payment')
                             ->where('dp.is_deleted', false);
                     });
                 }
-            }
+            // }
 
         if(!$search){
             if($startDate && $endDate){
@@ -285,6 +285,7 @@ class TransactionService
                     });
                 });
             }
+
             if($driverId || $merchantId){
                 if($type == 'driver') {
                     $qP->where('p.driver_id',$driverId);
@@ -305,6 +306,10 @@ class TransactionService
         $clbMapper = function($package) use($statusKey,$type){
             $cod = $package->cod;
             $package->cod = $cod ? 'Yes' : 'No';
+            $package->has_paid = $package->payment ? true : false;
+            if($type == 'driver'){
+                $package->payment_status = $package->payment ? 'Paid' : ' Unpaid';
+            }
             // $package->{$statusKey} = (!$package->{$type.'_payment_id'} && !$package->{$type.'_disbursement_id'}) ? 'Unpaid':'Paid';
             if($type == 'merchant') $package->{$statusKey} = ($package->payment || $package->disbursement) ? 'Paid':'Unpaid';
             $package->datetime = ($package->status_id == 9 && ($package->delivered_datetime || $package->delivered_datetime)) ? Helper::formatCustomDateTime($package->delivered_datetime) : Helper::formatCustomDateTime($package->failed_datetime);

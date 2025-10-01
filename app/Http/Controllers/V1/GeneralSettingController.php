@@ -498,6 +498,14 @@ class GeneralSettingController extends Controller
         return ApiResponse::JsonResult($obj);
     }
 
+    public function getDriverTrxFilter(){
+        $obj = (object)[
+            'statuses' => $this->gs::paymentStatus(),
+            'branches' => $this->gs::optionsBranch()
+        ];
+        return ApiResponse::JsonResult($obj);
+    }
+
     public function getOptionsPaymentStatus(Request $req){
         return ApiResponse::JsonResult($this->gs::paymentStatus($req->lang));
     }
