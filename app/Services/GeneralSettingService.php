@@ -856,8 +856,10 @@ class GeneralSettingService
                 $row->delivery_type = $plZone->priceList->delivery_type;
                 $row->taxi_fee = $plZone->priceList->taxi_fee;
                 $row->other_fee = $plZone->priceList->other_fee;
+                // Log::info($plZone->priceList);
                 unset($plZone->zones,$plZone->price,$plZone->priceList);
             }else if($priceList){
+                
                 $row->base_fee = $priceList->base_fee;
                 $row->price = $priceList->price;
                 $row->above_kg_price = $priceList->above_kg_price;
@@ -881,11 +883,6 @@ class GeneralSettingService
 
     public static function optionsMerchantType($user){
         return ClientType::where('is_deleted',0)->selectRaw('id,name')->get();
-    }
-
-
-    public function getAvailableTransfer(){
-        return PackageTransfer::where('')->get();
     }
 
 

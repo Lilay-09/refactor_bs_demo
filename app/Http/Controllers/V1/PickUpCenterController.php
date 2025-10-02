@@ -6,6 +6,7 @@ use ApiResponse;
 use App\Enums\ImageDirectory;
 use App\Enums\TrackingStatus;
 use App\Http\Controllers\Controller;
+use App\Jobs\SendNotificationJob;
 use App\Models\Order;
 use App\Models\OrderImage;
 use App\Models\Package;
@@ -306,7 +307,6 @@ class PickUpCenterController extends Controller
             'driver_id' => $driverId,
             'status_id' => ($driverId != 0 && $driverId) ? 3 : 1
         ]);
-        $notif = new CloudMessagingService();
             $topics = GeneralSettingService::getGeneralTopics($user->company_id,'driver',$driverId);
             $notifReq = new Request([
                 'topic' => $topics->private,
@@ -315,7 +315,8 @@ class PickUpCenterController extends Controller
                 'title' => 'Assigned Order',
                 'body' => 'You have been assigned to pickup the order('.$order->code.'). Merchant:'.$order->merchant->username
             ]);
-            $notif->sendNotificationByTopic($notifReq,$user);
+            $queueFCMName = config('queue_job_names.'.config('app.env').'.notification');
+            SendNotificationJob::dispatch($notifReq, $user)->onQueue($queueFCMName);
         if(!$driverId) return ApiResponse::JsonResult(null,__('Order '.$order->code.' is available now'));
         return ApiResponse::JsonResult(null,__('Order '.$order->code.' has assigned to '.$driver->username));
     }

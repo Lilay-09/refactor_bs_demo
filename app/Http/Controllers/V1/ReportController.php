@@ -943,8 +943,14 @@ class ReportController extends Controller
         $branchId = $req->branch_id;
         $warehouseId = $req->warehouse_id;
         $xRate = GeneralSettingService::getLatestXRate()->buy_rate;
-        $qP = Payment::with(['driver:id,username,code','cashier:id,username'])->where('is_deleted',0)->where('payer_type','driver')->selectRaw('id,payer_id,payment_datetime,breakdown_notes,exchange_rate,payable_amount as amount,approved_uid');
-        $qD = Disbursement::with(['driver:id,username,code','cashier:id,username'])->where('is_deleted',0)->where('payee_type','driver')->where('type','payment')->selectRaw('id,payee_id,payment_datetime,breakdown_notes,exchange_rate,payable_amount as amount,approved_uid');
+        $qP = Payment::with(['driver:id,username,code','cashier:id,username'])
+        ->where('is_deleted',0)
+        ->where('payer_type','driver')
+        ->selectRaw('id,payer_id,payment_datetime,breakdown_notes,exchange_rate,payable_amount as amount,approved_uid');
+        $qD = Disbursement::with(['driver:id,username,code','cashier:id,username'])
+        ->where('is_deleted',0)->where('payee_type','driver')
+        ->where('type','payment')
+        ->selectRaw('id,payee_id,payment_datetime,breakdown_notes,exchange_rate,payable_amount as amount,approved_uid');
 
         if($branchId){
             $qP->where('branch_id',$branchId);
@@ -970,8 +976,8 @@ class ReportController extends Controller
             $qD->where('payee_id',$driverId);
             $qP->where('payer_id',$driverId);
         }
-        $payments = $qP->where('approved',1)->get();
-        $disbursements = $qD->where('approved',1)->get();
+        $payments = $qP->get();
+        $disbursements = $qD->get();
         $paymentDetails = DisbursementDetails::selectRaw('disbursement_id,method,amount,original_amount,currency_code')->get();
         $paymentDetails = PaymentDetail::selectRaw('payment_id,method,amount,original_amount,currency_code')->get();
         foreach($payments as $p){
