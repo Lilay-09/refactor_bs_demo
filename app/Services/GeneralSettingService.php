@@ -45,7 +45,7 @@ use Illuminate\Support\Facades\DB;
 use Helper;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
-
+use SebastianBergmann\CodeCoverage\Report\Xml\Totals;
 
 class GeneralSettingService
 {
@@ -1041,6 +1041,27 @@ class GeneralSettingService
             'driver_total' => Helper::getNumber($driverTotal,2),
             'merchant_total' => Helper::getNumber($merchant_total,2),
             'total' => Helper::getNumber($total,2)
+        ];
+    }
+
+    public static function calculatePackageFeeV2($price,$priceKhr,$userType,$deliveryFee,$payer,$otherFee,$taxiFee){
+        // $priceList = GeneralSettingService::getZonePriceByCode($zone_code,$user);
+        $fees = $deliveryFee + $otherFee;
+        if($userType == 'driver'){
+            if($payer != 'receiver'){
+                $fees = 0;
+            }
+            Helper::deductAmountBase($price,$priceKhr,$fees);
+        }
+        else if($userType == 'merchant'){
+            if($payer != 'sender'){
+                $fees = 0;
+            }
+            Helper::deductAmountBase($price,$priceKhr,$fees);
+        }
+        return [
+            'total_khr' => $priceKhr,
+            'total_usd' => $price
         ];
     }
 

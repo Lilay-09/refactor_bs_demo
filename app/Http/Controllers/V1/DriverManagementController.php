@@ -254,7 +254,11 @@ class DriverManagementController extends Controller
 
 
     public function getDriverZones(Request $req){
-        $driverZones = UserZone::where('user_id',$req->id)->select(['id','zone_id'])->with('sub_zones:user_zone_id,zone_id')->get();
+        $driverZones = UserZone::where('user_id',$req->id)
+        ->whereHas('zone',function($q){
+            $q->where('identity','parent');
+        })
+        ->select(['id','zone_id'])->with('sub_zones:user_zone_id,zone_id')->get();
         return ApiResponse::JsonResult($driverZones);
     }
 

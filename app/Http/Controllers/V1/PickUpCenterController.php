@@ -11,7 +11,7 @@ use App\Models\Order;
 use App\Models\OrderImage;
 use App\Models\Package;
 use App\Models\User;
-use App\Services\CloudMessagingService;
+// use App\Services\CloudMessagingService;
 use App\Services\CompanyProfileService;
 use App\Services\GeneralSettingService;
 use App\Services\PickupCenterService;
@@ -267,12 +267,12 @@ class PickUpCenterController extends Controller
         $orderId = $req->order_id;
         $order = Order::where('is_deleted',0)->with('merchant')->find($orderId);
         if(!$order) return ApiResponse::NotFound('Order not found');
-        if($order->status_id != TrackingStatus::AVAILABLE_FOR_PICK->value){
-            return ApiResponse::Duplicated(__('messages.info',[
-                'info' => 'Order already has someone picked',
-                'khInfo' => 'ការកម្មង់នេះមានអ្នកជ្រើសរួចហើយ'
-            ]));
-        }
+        // if($order->status_id != TrackingStatus::AVAILABLE_FOR_PICK->value){
+        //     return ApiResponse::Duplicated(__('messages.info',[
+        //         'info' => 'Order already has someone picked',
+        //         'khInfo' => 'ការកម្មង់នេះមានអ្នកជ្រើសរួចហើយ'
+        //     ]));
+        // }
         if($driverId){
             $driver = GeneralSettingService::getDriverById($driverId);
             if(!$driver) return ApiResponse::ValidateFail('Invalid driver identity!');
@@ -283,21 +283,21 @@ class PickUpCenterController extends Controller
                 ]));
             }
             //* if order status = picked
-            if($order->status_id == 2 && $order->driver_id) return ApiResponse::Duplicated(__('messages.info',[
-                'info' => 'Order has already been picked'
-            ]));
+            // if($order->status_id == 2 && $order->driver_id) return ApiResponse::Duplicated(__('messages.info',[
+            //     'info' => 'Order has already been picked'
+            // ]));
             //* if order status = Accepted For Pickup
             // if($order->status_id == 3 && $order->driver_id) return ApiResponse::Duplicated(__('messages.Order has already been accepted for picked'));
             //* if order status = Picked And Booked
-            if($order->status_id == 4 && $order->driver_id) return ApiResponse::Duplicated(__('messages.info',[
-                'info' => 'Order has already been Picked And Booked'
-            ]));
+            // if($order->status_id == 4 && $order->driver_id) return ApiResponse::Duplicated(__('messages.info',[
+            //     'info' => 'Order has already been Picked And Booked'
+            // ]));
             //* if order status = Picked And Booked
-            if($order->status_id == 11) return ApiResponse::Duplicated(__('messages.info',[
-                'info' => 'Order has been cancled'
-            ]));
+            // if($order->status_id == 11) return ApiResponse::Duplicated(__('messages.info',[
+            //     'info' => 'Order has been cancled'
+            // ]));
 
-            if($driver->vehicle_type != $order->vehicle_type) return ApiResponse::ValidateFail(__('messages.error',['info' => 'Your Order vehicle type is ('.$order->vehicle_type.') and driver vehicle is '.$driver->vehicle_type]));
+            // if($driver->vehicle_type != $order->vehicle_type) return ApiResponse::ValidateFail(__('messages.error',['info' => 'Your Order vehicle type is ('.$order->vehicle_type.') and driver vehicle is '.$driver->vehicle_type]));
         }
         $trackingNotes = $order->tracking_notes.'|Admin assign ('.$order->code.') '.date('d-M-Y h:i:s A');
         $order->update([
