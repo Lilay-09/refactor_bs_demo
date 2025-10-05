@@ -154,7 +154,6 @@ Route::middleware(['jwt','localize','userAccess:admin','rateLimit'])->prefix('ad
 
         //** Driver Transaction Module */
         Route::prefix('transaction')->group(function(){
-
             Route::prefix('delivery')->group(function(){
                 Route::get('package',[DriverTransactionController::class,'getDeliveryPackagesV1']);
                 Route::put('package/{id}',[DriverTransactionController::class,'updateDeliveryPackage']);

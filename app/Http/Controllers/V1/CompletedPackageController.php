@@ -151,7 +151,13 @@ class CompletedPackageController extends Controller
             if($qP->status_id == 11) $qP->finished_date = Helper::formatCustomDateTime($qP->assigned_return_at,null,false,$lang);
             if($qP->status_id == 19) $qP->finished_date = Helper::formatCustomDateTime($qP->failed_datetime,null,false,$lang);
             if($qP->status_id == 23) $qP->finished_date = Helper::formatCustomDateTime($qP->returned_datetime,null,false,$lang);
-            $qP->total = Helper::getNumber(abs($qP->driver_total - $qP->merchant_total),2);
+            // $qP->total = Helper::getNumber(abs($qP->driver_total - $qP->merchant_total),2);
+            $driverCodUsd = $qP->driver_cod_usd ?? 0;
+            $driverCodKhr = $qP->driver_cod_khr ?? 0;
+            $fees = $qP->delivery_fee + $qP->extra_charge;
+            Helper::deductAmountBase($driverCodUsd,$driverCodKhr,$fees,$qP->exchange_rate);
+            $qP->total = Helper::getNumber($driverCodUsd,2,true);
+            $qP->total_khr = Helper::getNumber($driverCodKhr,2,true);
             // $qP->cod = $qP->cod ? "1":"0";
             unset($qP->returnUser);
             return $qP;

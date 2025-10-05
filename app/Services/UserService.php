@@ -86,7 +86,7 @@ class UserService
      * @param bool $useSpecificClass
      * @return object
      */
-    public static function getAuthUser($class='admin',$action='',$useSpecificClass=true): object{
+    public static function getAuthUser(?string $class='admin',?string $action='',?BOOL $useSpecificClass=true): object{
         $user = JWTAuth::user();
         if($user){
             $info = (object)[

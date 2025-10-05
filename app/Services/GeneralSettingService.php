@@ -45,7 +45,7 @@ use Illuminate\Support\Facades\DB;
 use Helper;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
-
+use SebastianBergmann\CodeCoverage\Report\Xml\Totals;
 
 class GeneralSettingService
 {
@@ -856,8 +856,10 @@ class GeneralSettingService
                 $row->delivery_type = $plZone->priceList->delivery_type;
                 $row->taxi_fee = $plZone->priceList->taxi_fee;
                 $row->other_fee = $plZone->priceList->other_fee;
+                // Log::info($plZone->priceList);
                 unset($plZone->zones,$plZone->price,$plZone->priceList);
             }else if($priceList){
+                
                 $row->base_fee = $priceList->base_fee;
                 $row->price = $priceList->price;
                 $row->above_kg_price = $priceList->above_kg_price;
@@ -881,11 +883,6 @@ class GeneralSettingService
 
     public static function optionsMerchantType($user){
         return ClientType::where('is_deleted',0)->selectRaw('id,name')->get();
-    }
-
-
-    public function getAvailableTransfer(){
-        return PackageTransfer::where('')->get();
     }
 
 
@@ -1044,6 +1041,27 @@ class GeneralSettingService
             'driver_total' => Helper::getNumber($driverTotal,2),
             'merchant_total' => Helper::getNumber($merchant_total,2),
             'total' => Helper::getNumber($total,2)
+        ];
+    }
+
+    public static function calculatePackageFeeV2($price,$priceKhr,$userType,$deliveryFee,$payer,$otherFee,$taxiFee){
+        // $priceList = GeneralSettingService::getZonePriceByCode($zone_code,$user);
+        $fees = $deliveryFee + $otherFee;
+        if($userType == 'driver'){
+            if($payer != 'receiver'){
+                $fees = 0;
+            }
+            Helper::deductAmountBase($price,$priceKhr,$fees);
+        }
+        else if($userType == 'merchant'){
+            if($payer != 'sender'){
+                $fees = 0;
+            }
+            Helper::deductAmountBase($price,$priceKhr,$fees);
+        }
+        return [
+            'total_khr' => $priceKhr,
+            'total_usd' => $price
         ];
     }
 

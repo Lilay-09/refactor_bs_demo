@@ -135,7 +135,19 @@ class PackageTrailController extends Controller
                 $pkg->status_code = $pkg->status->name;
             }
             $pkg->has_image = PackageAttachment::where('hidden',0)->where('package_id',$pkg->id)->exists() ? 1 : 0;
-            $pkg->total = Helper::getNumber(abs($pkg->driver_total - $pkg->merchant_total),2);//PickupCenterService::getDriverTotal($cod,$pkg->payer,$pkg->price,$pkg->delivery_fee,$pkg->additional_fee,$pkg->excharge_fee);
+            // $pkg->driver_total = $driver_total
+            $priceUsd = $pkg->price;
+            $priceKhr = $pkg->price_khr;
+            
+            $driverCalPrice = GeneralSettingService::calculatePackageFeeV2($priceUsd,$priceKhr,'driver',$pkg->delivery_fee,$pkg->payer,$pkg->other_fee,$pkg->taxi_fee);
+            $pkg->driver_total = $driverCalPrice['total_usd'];
+            $pkg->driver_total_khr = $driverCalPrice['total_khr'];
+            $merchantCalPrice = GeneralSettingService::calculatePackageFeeV2($priceUsd,$priceKhr,'merchant',$pkg->delivery_fee,$pkg->payer,$pkg->other_fee,$pkg->taxi_fee);
+            $pkg->merchant_total = $merchantCalPrice['total_usd'];
+            $pkg->merchant_total_khr = $merchantCalPrice['total_khr'];
+            $pkg->total_khr = $driverCalPrice['total_khr'] - $merchantCalPrice['total_khr'];
+            $pkg->total = $driverCalPrice['total_usd'] - $merchantCalPrice['total_usd'];
+            // $pkg->total = Helper::getNumber(abs($pkg->driver_total - $pkg->merchant_total),2);//PickupCenterService::getDriverTotal($cod,$pkg->payer,$pkg->price,$pkg->delivery_fee,$pkg->additional_fee,$pkg->excharge_fee);
             $pkg->warehouse_timeago = Helper::timeAgo($pkg->arrive_warehouse_datetime,false);
             $pkg->arrive_warehouse_datetime = Helper::formatCustomDateTime($pkg->arrive_warehouse_datetime,null,false,$lang);
             if($pkg->status_id == 10 || $pkg->status_id == 19) $pkg->finished_date = Helper::formatCustomDateTime($pkg->failed_datetime);

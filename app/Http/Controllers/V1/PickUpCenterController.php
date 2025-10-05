@@ -6,11 +6,12 @@ use ApiResponse;
 use App\Enums\ImageDirectory;
 use App\Enums\TrackingStatus;
 use App\Http\Controllers\Controller;
+use App\Jobs\SendNotificationJob;
 use App\Models\Order;
 use App\Models\OrderImage;
 use App\Models\Package;
 use App\Models\User;
-use App\Services\CloudMessagingService;
+// use App\Services\CloudMessagingService;
 use App\Services\CompanyProfileService;
 use App\Services\GeneralSettingService;
 use App\Services\PickupCenterService;
@@ -266,12 +267,12 @@ class PickUpCenterController extends Controller
         $orderId = $req->order_id;
         $order = Order::where('is_deleted',0)->with('merchant')->find($orderId);
         if(!$order) return ApiResponse::NotFound('Order not found');
-        if($order->status_id != TrackingStatus::AVAILABLE_FOR_PICK->value){
-            return ApiResponse::Duplicated(__('messages.info',[
-                'info' => 'Order already has someone picked',
-                'khInfo' => 'ការកម្មង់នេះមានអ្នកជ្រើសរួចហើយ'
-            ]));
-        }
+        // if($order->status_id != TrackingStatus::AVAILABLE_FOR_PICK->value){
+        //     return ApiResponse::Duplicated(__('messages.info',[
+        //         'info' => 'Order already has someone picked',
+        //         'khInfo' => 'ការកម្មង់នេះមានអ្នកជ្រើសរួចហើយ'
+        //     ]));
+        // }
         if($driverId){
             $driver = GeneralSettingService::getDriverById($driverId);
             if(!$driver) return ApiResponse::ValidateFail('Invalid driver identity!');
@@ -282,21 +283,21 @@ class PickUpCenterController extends Controller
                 ]));
             }
             //* if order status = picked
-            if($order->status_id == 2 && $order->driver_id) return ApiResponse::Duplicated(__('messages.info',[
-                'info' => 'Order has already been picked'
-            ]));
+            // if($order->status_id == 2 && $order->driver_id) return ApiResponse::Duplicated(__('messages.info',[
+            //     'info' => 'Order has already been picked'
+            // ]));
             //* if order status = Accepted For Pickup
             // if($order->status_id == 3 && $order->driver_id) return ApiResponse::Duplicated(__('messages.Order has already been accepted for picked'));
             //* if order status = Picked And Booked
-            if($order->status_id == 4 && $order->driver_id) return ApiResponse::Duplicated(__('messages.info',[
-                'info' => 'Order has already been Picked And Booked'
-            ]));
+            // if($order->status_id == 4 && $order->driver_id) return ApiResponse::Duplicated(__('messages.info',[
+            //     'info' => 'Order has already been Picked And Booked'
+            // ]));
             //* if order status = Picked And Booked
-            if($order->status_id == 11) return ApiResponse::Duplicated(__('messages.info',[
-                'info' => 'Order has been cancled'
-            ]));
+            // if($order->status_id == 11) return ApiResponse::Duplicated(__('messages.info',[
+            //     'info' => 'Order has been cancled'
+            // ]));
 
-            if($driver->vehicle_type != $order->vehicle_type) return ApiResponse::ValidateFail(__('messages.error',['info' => 'Your Order vehicle type is ('.$order->vehicle_type.') and driver vehicle is '.$driver->vehicle_type]));
+            // if($driver->vehicle_type != $order->vehicle_type) return ApiResponse::ValidateFail(__('messages.error',['info' => 'Your Order vehicle type is ('.$order->vehicle_type.') and driver vehicle is '.$driver->vehicle_type]));
         }
         $trackingNotes = $order->tracking_notes.'|Admin assign ('.$order->code.') '.date('d-M-Y h:i:s A');
         $order->update([
@@ -306,7 +307,6 @@ class PickUpCenterController extends Controller
             'driver_id' => $driverId,
             'status_id' => ($driverId != 0 && $driverId) ? 3 : 1
         ]);
-        $notif = new CloudMessagingService();
             $topics = GeneralSettingService::getGeneralTopics($user->company_id,'driver',$driverId);
             $notifReq = new Request([
                 'topic' => $topics->private,
@@ -315,7 +315,8 @@ class PickUpCenterController extends Controller
                 'title' => 'Assigned Order',
                 'body' => 'You have been assigned to pickup the order('.$order->code.'). Merchant:'.$order->merchant->username
             ]);
-            $notif->sendNotificationByTopic($notifReq,$user);
+            $queueFCMName = config('queue_job_names.'.config('app.env').'.notification');
+            SendNotificationJob::dispatch($notifReq, $user)->onQueue($queueFCMName);
         if(!$driverId) return ApiResponse::JsonResult(null,__('Order '.$order->code.' is available now'));
         return ApiResponse::JsonResult(null,__('Order '.$order->code.' has assigned to '.$driver->username));
     }

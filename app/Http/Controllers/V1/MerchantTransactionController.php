@@ -161,10 +161,10 @@ class MerchantTransactionController extends Controller
             });
         }
         $merchants = $qP->get();
-        $grandTotal = 0;
+        $grandTotalUsd = 0;
         $totalPackageCount = 0;
-        $totalCodUsd = 0;
-        $totalCodKhr = 0;
+        $totalDriverCodUsd = 0;
+        $totalDriverCodKhr = 0;
         $totalFee = 0;
         $groupData = collect($merchants)->map(function ($item) {
             // Set groupDate based on status
@@ -181,7 +181,7 @@ class MerchantTransactionController extends Controller
         })->groupBy(function ($item) {
             // Group by both groupDate and driver_id
             return $item->groupDate . '|' . $item->driver_id;
-        })->map(function ($group, $key) use(&$grandTotal,&$totalPackageCount,&$totalCodUsd,&$totalCodKhr,&$totalFee,$transactionType) {
+        })->map(function ($group, $key) use(&$grandTotalUsd,&$grandTotalKhr,&$totalPackageCount,&$totalDriverCodUsd,&$totalDriverCodKhr,&$totalFee,$transactionType) {
             // Extract date and driver_id from the key
             [$date, $driver_id] = explode('|', $key);
 
@@ -196,12 +196,14 @@ class MerchantTransactionController extends Controller
             $otherFee = $group->where('payer','sender')->sum('other_fee');
             $deliveryFee = $group->where('payer','sender')->sum('delivery_fee');
             $representative = $group->first();
-            $driverCodKhr = $group->where('status_id','=',9)->sum('driver_cod_usd');
-            $driverCodUsd = $group->where('status_id','=',9)->sum('driver_cod_khr');
+            $driverCodUsd = $group->where('status_id','=',9)->sum('driver_cod_usd');
+            $merchantCodUsd = $driverCodUsd;
+            $driverCodKhr = $group->where('status_id','=',9)->sum('driver_cod_khr');
+            $merchantCodKhr = $driverCodKhr;
             // $totalAmount = $rowTotalUsd - $deliveryFee - $taxiFee;
             $deductFee = $deliveryFee + $otherFee + $taxiFee;
             $totalFee += $group->sum('delivery_fee') + $otherFee;
-            Helper::deductAmountBase($driverCodUsd,$driverCodKhr,$deductFee);
+            Helper::deductAmountBase($merchantCodUsd,$merchantCodKhr,$deductFee);
             // $representative->package_count = $packageTotal; // Add the summed total_package
             $bankInfo = $representative->bank_accounts->where('is_primary',1)->first();
             if(!$bankInfo) $bankInfo = $representative->bank_accounts->first();
@@ -211,9 +213,10 @@ class MerchantTransactionController extends Controller
             // }else if ($transactionType == TransactionType::TRNASFER_OUT->value && $totalAmount < 0) {
             //     return null; // Exclude this group
             // }
-            // $grandTotal += $totalAmount;
-            $totalCodUsd += $rowTotalUsd;
-            $totalCodKhr += $rowTotalKhr;
+            $grandTotalUsd += $merchantCodUsd;
+            $grandTotalKhr += $merchantCodKhr;
+            $totalDriverCodUsd += $driverCodUsd;
+            $totalDriverCodKhr += $driverCodKhr;
             $totalPackageCount += $packageTotal;
             return [
                 'finished_date' => $date,
@@ -221,8 +224,10 @@ class MerchantTransactionController extends Controller
                 'merchant_name' => $representative->merchant_name,
                 'code' => $representative->code,
                 'package_count' => $packageTotal,
-                'total_cod_usd' => Helper::getNumber($rowTotalUsd,2),
-                'total_cod_khr' => Helper::getNumber($rowTotalKhr,2),
+                'driver_cod_usd' => Helper::getNumber($driverCodUsd,2),
+                'driver_cod_khr' => Helper::getNumber($driverCodKhr,2),
+                'merchant_cod_usd' => (float)Helper::getNumber($merchantCodUsd,2),
+                'merchant_cod_khr' => (float)Helper::getNumber($merchantCodKhr,2),
                 'fee' => Helper::getNumber($deliveryFee + $otherFee,2),
                 'taxi_fee' => $taxiFee,
                 'status_id' => $representative->status_id,
@@ -232,10 +237,10 @@ class MerchantTransactionController extends Controller
         })->filter()->values();
         return ApiResponse::Pagination($groupData,$req,null,[
             'total_package' => $totalPackageCount,
-            'total_cod_usd' => (float)Helper::getNumber($totalCodUsd,2),
-            'total_cod_khr' => (float)Helper::getNumber($totalCodKhr,2),
-            'total_amount_usd' => (float)Helper::getNumber($grandTotal,2),
-            'total_amount_khr' => (float)Helper::getNumber($grandTotal,2),
+            'total_cod_usd' => (float)Helper::getNumber($totalDriverCodUsd,2),
+            'total_cod_khr' => (float)Helper::getNumber($totalDriverCodKhr,2),
+            'total_amount_usd' => (float)Helper::getNumber($grandTotalUsd,2),
+            'total_amount_khr' => (float)Helper::getNumber($grandTotalKhr,2),
             'total_fee' => (float)Helper::getNumber($totalFee,2),
         ]);
     }
