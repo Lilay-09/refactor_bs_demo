@@ -532,7 +532,7 @@ class PackageTrailController extends Controller
                     if(!in_array($package->status_id,[6,5,10,19]) ) return ApiResponse::Duplicated(__('messages.has already assigned',['info' => 'Package','khInfo' => 'កញ្ចប់']));
                 }
                 $selfTrip = Delivery::where('driver_id',$package->driver_id)->where('status_id',14)->where(function($query) {
-                    $query->where('finished', 0)
+                    $query->where('finished',0)
                     ->where('is_deleted', 0);
                 })->orderByDesc('id')->first();
                 //** remove self pacakge */
@@ -783,5 +783,4 @@ class PackageTrailController extends Controller
         GeneralSettingService::updateTripStatus($deliveryId,$user);
         return DataResponse::JsonResult(null);
     }
-
 }
