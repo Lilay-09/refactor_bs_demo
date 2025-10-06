@@ -145,8 +145,8 @@ class PackageTrailController extends Controller
             $merchantCalPrice = GeneralSettingService::calculatePackageFeeV2($priceUsd,$priceKhr,'merchant',$pkg->delivery_fee,$pkg->payer,$pkg->other_fee,$pkg->taxi_fee);
             $pkg->merchant_total = $merchantCalPrice['total_usd'];
             $pkg->merchant_total_khr = $merchantCalPrice['total_khr'];
-            $pkg->total_khr = $driverCalPrice['total_khr'] - $merchantCalPrice['total_khr'];
-            $pkg->total = $driverCalPrice['total_usd'] - $merchantCalPrice['total_usd'];
+            $pkg->total_khr = number_format($driverCalPrice['total_khr'] - $merchantCalPrice['total_khr'],2);
+            $pkg->total = number_format($driverCalPrice['total_usd'] - $merchantCalPrice['total_usd'],2);
             // $pkg->total = Helper::getNumber(abs($pkg->driver_total - $pkg->merchant_total),2);//PickupCenterService::getDriverTotal($cod,$pkg->payer,$pkg->price,$pkg->delivery_fee,$pkg->additional_fee,$pkg->excharge_fee);
             $pkg->warehouse_timeago = Helper::timeAgo($pkg->arrive_warehouse_datetime,false);
             $pkg->arrive_warehouse_datetime = Helper::formatCustomDateTime($pkg->arrive_warehouse_datetime,null,false,$lang);
