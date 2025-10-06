@@ -216,8 +216,8 @@ class MerchantTransactionController extends Controller
             // }else if ($transactionType == TransactionType::TRNASFER_OUT->value && $totalAmount < 0) {
             //     return null; // Exclude this group
             // }
-            $grandTotalUsd += $merchantCodUsd;
-            $grandTotalKhr += $merchantCodKhr;
+            $grandTotalUsd += $group->where('cod',1)->where('status_id','=',9)->sum('price');
+            $grandTotalKhr += $group->where('cod',1)->where('status_id','=',9)->sum('price_khr');
             $totalDriverCodUsd += $driverCodUsd;
             $totalDriverCodKhr += $driverCodKhr;
             $totalPackageCount += $packageTotal;
