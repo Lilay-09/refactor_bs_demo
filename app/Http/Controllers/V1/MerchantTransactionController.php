@@ -118,7 +118,10 @@ class MerchantTransactionController extends Controller
             ->orderByRaw('COALESCE(p.failed_datetime, p.delivered_datetime) DESC NULLS LAST')
             // ->join('payments as pmt','p.driver_payment_id','pmt.id')
             // ->where('pmt.is_settled',0)
-            ->selectRaw('p.taxi_fee,p.extra_charge,p.additional_fee,p.payer,p.delivery_fee,p.cod,p.price,p.delivered_datetime,p.failed_datetime,d.id as driver_id,d.id,d.username as merchant_name,d.code,p.status_id,p.updated_at');
+            ->selectRaw('
+                p.taxi_fee,p.extra_charge,p.additional_fee,p.payer,p.delivery_fee,p.cod,p.price,p.delivered_datetime,p.failed_datetime,d.id as driver_id,
+                d.id,d.username as merchant_name,d.code,p.status_id,p.updated_at,p.driver_cod_usd,p.driver_cod_khr
+            ');
             // $qP->where(function ($q) {
                 $qP->whereNotExists(function ($sub) {
                     $sub->select(DB::raw(1))
@@ -187,8 +190,8 @@ class MerchantTransactionController extends Controller
 
             // Sum the package counts for this group
             $packageTotal = $group->count(); // Count items in the group (equivalent to summing 1 per item)
-            $rowTotalUsd = $group->where('cod',1)->where('status_id','=',9)->sum('price');
-            $rowTotalKhr = $group->where('cod',1)->where('status_id',9)->sum('price_khr');
+            // $rowTotalUsd = $group->where('cod',1)->where('status_id','=',9)->sum('price');
+            // $rowTotalKhr = $group->where('cod',1)->where('status_id',9)->sum('price_khr');
             // if($transactionType == 'disbursement'){
             //     if($rowTotalUsd < 0)  return;
             // }
@@ -196,9 +199,9 @@ class MerchantTransactionController extends Controller
             $otherFee = $group->where('payer','sender')->sum('other_fee');
             $deliveryFee = $group->where('payer','sender')->sum('delivery_fee');
             $representative = $group->first();
-            $driverCodUsd = $group->where('status_id','=',9)->sum('driver_cod_usd');
+            $driverCodUsd = $group->whereIn('status_id',[9,19])->sum('driver_cod_usd');
             $merchantCodUsd = $driverCodUsd;
-            $driverCodKhr = $group->where('status_id','=',9)->sum('driver_cod_khr');
+            $driverCodKhr = $group->whereIn('status_id',[9,19])->sum('driver_cod_khr');
             $merchantCodKhr = $driverCodKhr;
             // $totalAmount = $rowTotalUsd - $deliveryFee - $taxiFee;
             $deductFee = $deliveryFee + $otherFee + $taxiFee;

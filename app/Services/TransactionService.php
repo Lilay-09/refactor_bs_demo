@@ -3649,7 +3649,7 @@ class TransactionService
             $fees =  + $group->where('payer',$payer)->sum('other_fee') + $group->sum('delivery_fee');
             // Log::info("$type -- $driverCodUsd -- $payer --delivery: $deliveryFee ---other: $otherFee -- taxi fee=$taxiFee");
             $userTotal = self::getPackageTotalV1($type,$driverCodUsd,$driverCodKhr,$deliveryFee,$taxiFee,$otherFee,$payer);
-            // $amountUsd = $userTotal['total_usd'];
+            $amountUsd = $userTotal['total_usd'];
             // $amountKhr = $userTotal['total_khr'];
             $totalPackages += $packageTotal;
             $totalAmount += $totalPrice;
@@ -3677,7 +3677,7 @@ class TransactionService
         return DataResponse::Pagination(collect($groupData),$req,__('messages.Get List'),[
             'total_packages' => Helper::getNumber($totalPackages,0,true),
             'total_cod_usd' => (float)Helper::getNumber($totalAmount,2),
-            'total_cod_khr' => (float)Helper::getNumber($totalDriverCodKhr,2),
+            'total_cod_khr' => (float)Helper::getNumber($totalAmountKhr,2),
             'total_amount_usd' => (float)Helper::getNumber($totalDriverCodUsd,2),
             'total_amount_khr' => (float)Helper::getNumber($totalDriverCodKhr,2),
             'taxi_fee' => Helper::getNumber($totalTaxiFee,2,true),
