@@ -3638,8 +3638,8 @@ class TransactionService
             $payer = ($type == 'merchant') ? 'sender':'receiver';
             $packageTotal = $group->count(); // Count items in the group (equivalent to summing 1 per item)
             $totalPrice = $group->where('cod',1)->where('status_id','=',9)->sum('price');
-            $driverCodUsd = $group->where('status_id',9)->sum('driver_cod_usd');
-            $driverCodKhr = $group->where('status_id',9)->sum('driver_cod_khr');
+            $driverCodUsd = $group->whereIn('status_id',[9,19])->sum('driver_cod_usd');
+            $driverCodKhr = $group->whereIn('status_id',[9,19])->sum('driver_cod_khr');
             $representative = $group->first();
             $taxiFee = $group->where('status_id','=',9)->sum('taxi_fee');
             $totalTaxiFee += $taxiFee;
@@ -3649,13 +3649,13 @@ class TransactionService
             $fees =  + $group->where('payer',$payer)->sum('other_fee') + $group->sum('delivery_fee');
             // Log::info("$type -- $driverCodUsd -- $payer --delivery: $deliveryFee ---other: $otherFee -- taxi fee=$taxiFee");
             $userTotal = self::getPackageTotalV1($type,$driverCodUsd,$driverCodKhr,$deliveryFee,$taxiFee,$otherFee,$payer);
-            $amountUsd = $userTotal['total_usd'];
+            // $amountUsd = $userTotal['total_usd'];
             // $amountKhr = $userTotal['total_khr'];
             $totalPackages += $packageTotal;
             $totalAmount += $totalPrice;
             $totalAmountKhr += $group->where('cod',1)->where('status_id','=',9)->sum('price_khr');
-            $totalDriverCodUsd += $userTotal['total_usd'];
-            $totalDriverCodKhr += $userTotal['total_khr'];
+            $totalDriverCodUsd += $driverCodUsd;
+            $totalDriverCodKhr += $driverCodKhr;
             $totalFees += $fees;
 
             // $representative->package_count = $packageTotal; // Add the summed total_package
