@@ -412,14 +412,6 @@ class PaywayServiceImpl implements PaywayService
             Log::error("No User");
             return DataResponse::NotFound('No user');
         }
-        Package::where('is_deleted',false)
-        ->where('driver_id',$user->id)
-        ->where('status_id',6)
-        ->whereIn('id',$packageIds)
-        ->update([
-            'method' => $method,
-            'method_type' => $methodType
-        ]);
 
         $pmt = $this->prepareDriverSettlePayment($user,$packageIds,$currency,$amount,$method ?? PaymentMethod::ABA->value ?? 'bank',$tran_id);
         if($pmt->error){

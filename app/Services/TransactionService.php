@@ -730,6 +730,15 @@ class TransactionService
                 'branch_id' => $user->branch_id,
                 'company_id' => $user->company_id
             ]);
+            Package::where('is_deleted',false)
+                ->where('driver_id',$user->id)
+                ->where('status_id',6)
+                ->whereIn('id',$packageIds)
+                ->update([
+                    'method' => $method,
+                    'original_driver_cod_usd' => DB::raw('driver_cod_usd'),
+                    'original_driver_cod_khr' => DB::raw('driver_cod_khr')
+                ]);
             DB::commit();
             // return Package::whereIn('id',$packageIds)->get();
             return DataResponse::JsonResult([
