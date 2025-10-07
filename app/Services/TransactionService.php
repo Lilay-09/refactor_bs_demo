@@ -3831,6 +3831,10 @@ class TransactionService
         $inputs['delivery_fee'] = $calFee->delivery_fee;
         $inputs['driver_total'] = $calFee->driver_total; //($package->status_id == 19 && $package->cod) ? abs($price - $calFee->driver_total):
         $inputs['merchant_total'] = $calFee->merchant_total;
+        if(!$package->method || $package->method == PaymentMethod::COD->value){
+            $inputs['orginal_driver_cod_usd'] = $inputs['driver_cod_usd'];
+            $inputs['orginal_driver_cod_khr'] = $inputs['driver_cod_khr'];
+        }
         $package->update($inputs);
         return DataResponse::JsonResult(null,false ,__('messages.updated',[
             'info' => 'Package'
