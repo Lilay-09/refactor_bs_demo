@@ -474,7 +474,6 @@ class GeneralSettingController extends Controller
         $user = UserService::getAuthUser('driver');
         $item_ref = $req->item_ref;
         $confirm = $req->confirm;
-        Log::info($req->all());
         $package = Package::where('qr_code',$item_ref)->where('is_deleted',0)->with('driver')->first();
         if(!$package) $package = Package::where('is_deleted',0)->find($item_ref);
         if(!$package) return ApiResponse::NotFound();
