@@ -399,7 +399,7 @@ class GeneralSettingController extends Controller
                 ]));
                 $requester = $user->info->phone."($user->username)";
                 $topics = GeneralSettingService::getGeneralTopics($user->company_id,'driver',$package->driver_id);
-                $ttl = 11;
+                $ttl = 60;
                 Cache::put($topics->private, (object)[
                     'requester' => $requester,
                     'requester_id' => $user->id,
@@ -474,6 +474,7 @@ class GeneralSettingController extends Controller
         $user = UserService::getAuthUser('driver');
         $item_ref = $req->item_ref;
         $confirm = $req->confirm;
+        Log::info($req->all());
         $package = Package::where('qr_code',$item_ref)->where('is_deleted',0)->with('driver')->first();
         if(!$package) $package = Package::where('is_deleted',0)->find($item_ref);
         if(!$package) return ApiResponse::NotFound();
