@@ -1010,7 +1010,7 @@ class ReportController extends Controller
             unset($p->driver,$p->cashier);
             $allPayments[] = $p;
         }
-        $obj =(object)[
+        $obj = [
             'title' => 'Daily Packages Summary',
             'status' => 'All Driver',
             'date' => Helper::dateDMY($startDate).' to '.Helper::dateDMY($endDate),

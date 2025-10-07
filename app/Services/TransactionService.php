@@ -309,6 +309,10 @@ class TransactionService
                     $package->total = $package->payer == 'sender' ? -self::getPackageTotal($type,$cod,0,0,$package->other_fee,$package->additional_fee,$package->delivery_fee,$package->payer):0;
                 }else $package->{$type.'_total'} = $package->payer == 'receiver' ? $package->delivery_fee + $package->other_fee : 0;
             }
+            if(empty($package->method) || $package->method == PaymentMethod::COD->value){
+                $package->original_driver_cod_usd = 0;
+                $package->original_driver_cod_khr = 0;
+            }
             $package->fee = Helper::getNumber($package->delivery_fee + $package->other_fee + $package->additional_fee,2);
             return $package;
         };
@@ -980,7 +984,7 @@ class TransactionService
             ])->toArray();
             PaymentPackage::insert($paymentPackageArr);
 
-            $notif = new CloudMessagingService();
+            // $notif = new CloudMessagingService();
             $topics = GeneralSettingService::getGeneralTopics($user->company_id,'driver',$payerId);
             // return $topics;
             $notifReq = new Request([
@@ -993,7 +997,13 @@ class TransactionService
                 ]),
                 'body' => 'A total of '.$validPackages->total_package.' packages have been processed for this payment.'
             ]);
-            $notif->sendNotificationByTopic($notifReq,$user);
+            // SendNotificationJob::dispatch($notifReq)->onQueue()
+            $queueFCMName = config('queue_job_names.'.config('app.env').'.notification');
+            SendNotificationJob::dispatch($notifReq, $user)->onQueue($queueFCMName);
+            Package::whereIn('id',$packageIds)->update([
+                'method' => $method
+            ]);
+            // $notif->sendNotificationByTopic($notifReq,$user);
             DB::commit();
             // return Package::whereIn('id',$packageIds)->get();
             return DataResponse::JsonResult(null,false,__('messages.created',[
