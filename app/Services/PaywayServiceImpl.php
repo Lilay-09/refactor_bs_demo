@@ -74,7 +74,6 @@ class PaywayServiceImpl implements PaywayService
         ];
         $return_params = base64_encode(json_encode($pushbackParams));
 
-        // Log::info(json_encode($inputs));
         try{
             DB::beginTransaction();
             $this->prepareTempData($inputs['package_id'],$tran_id,$images,$authUser);
@@ -312,7 +311,6 @@ class PaywayServiceImpl implements PaywayService
             ]);
             $queueFCMName = config('queue_job_names.'.config('app.env').'.payment');
             $topic = "paymentUpdate".$validInputs['sub'];
-            // Log::info($topic);
             VerifyBatchPaymentJob::dispatch($validInputs['pl_id'],$topic,5)->onQueue($queueFCMName);
             // $this->deeplinkAfterKHQRScan(3,null);
             DB::commit();
@@ -329,7 +327,6 @@ class PaywayServiceImpl implements PaywayService
         $callback = $this->callbackUrl($req);
         $validInputs = $callback['inputs'];
         $decodedJson = $callback['return_params'];
-        Log::info('callback => '.json_encode($decodedJson));
         try{
             DB::beginTransaction();
             $updatePkg = $this->updatePackage($decodedJson['package_id'],$validInputs['sub'],$validInputs['sub_type'],$decodedJson);
@@ -344,8 +341,6 @@ class PaywayServiceImpl implements PaywayService
 
             $queueFCMName = config('queue_job_names.'.config('app.env').'.payment');
             $topic = "paymentUpdate".$validInputs['sub'];
-            // Log::info($topic);
-            // Log::info('queue => '.$queueFCMName);
             VerifyPaymentJob::dispatch($validInputs['pl_id'],$decodedJson['package_id'],$topic,5)->onQueue($queueFCMName);
             // $paymentStatus = $this->checkPaymentStatusForDriver($validInputs['sub'], $decodedJson['package_id']);
 
@@ -380,7 +375,6 @@ class PaywayServiceImpl implements PaywayService
         }else if($currency == 'USD'){
             $makeData['bank_amount'] = $amount;
         }
-        // Log::info(json_encode($makeData));
         $settleReq = new Request($makeData);
         return $tranx->receiveDriverSettleAmount($settleReq,$user,'driver');
     }
@@ -405,7 +399,6 @@ class PaywayServiceImpl implements PaywayService
             $makeData['bank_amount'] = $amount;
         }
         $settleReq = new Request($makeData);
-        // Log::info(json_encode($makeData));
         return $tranx->receivePaymentService($settleReq,$user,'driver');
     }
 
@@ -429,7 +422,6 @@ class PaywayServiceImpl implements PaywayService
         ]);
 
         $pmt = $this->prepareDriverSettlePayment($user,$packageIds,$currency,$amount,$method ?? PaymentMethod::ABA->value ?? 'bank',$tran_id);
-        // Log::info(json_encode($pmt));
         if($pmt->error){
             Log::error(json_encode($pmt));
         }
@@ -482,8 +474,10 @@ class PaywayServiceImpl implements PaywayService
 
         if($currency == 'USD'){
             $data['driver_cod_usd'] = $data['amount'];
+            $data['original_driver_cod_usd'] = $data['amount'];
         }else if($currency == 'KHR'){
             $data['driver_cod_khr'] = $data['amount'];
+            $data['original_driver_cod_khr'] = $data['amount'];
         }
 
         if($payer){
@@ -492,10 +486,7 @@ class PaywayServiceImpl implements PaywayService
             $data['merchant_total'] = $calucalteFee->merchant_total;
             $data['driver_total'] = $calucalteFee->driver_total;
         }
-        // Log::error(json_encode($data));
         $pkg->update($data);
-        // Log::error("Package updated: ".json_encode($data));
-        // Log::info("Package updated: ".json_encode($pkg->toArray()));
         $dp = DeliveryPackage::where('package_id',$packageId)->where('driver_id',$user->id)
         ->where('is_deleted',0)
         ->where('has_swap',0)
@@ -505,12 +496,10 @@ class PaywayServiceImpl implements PaywayService
             'status_id' => $statusId
         ]);
         GeneralSettingService::updateTripStatus($dp->delivery_id,$user);
-        // Log::info("Package updated: ".json_encode($data));
         $pmt = $this->prepareSettlePayment($user,[(int)$packageId],$data['currency'],$data['amount'],$data['method'] ?? PaymentMethod::ABA->value ?? 'bank',$data['tran_id']);
         if($pmt->error){
             Log::error(json_encode($pmt));
         }
-        // Log::info('success');
         return DataResponse::JsonResult(null);
     }
 
@@ -647,7 +636,6 @@ class PaywayServiceImpl implements PaywayService
             return DataResponse::NotFound('Wrong package or driver'); // Return a 404 response if package not found
         }
         if (!isset($pkg->tran_id) || trim($pkg->tran_id) === '') {
-            // Log::info(json_encode($pkg));
             Log::error("Package {$pkg->qr_code} does not have a transaction ID");
             return DataResponse::NotFound('No transaction ID found for this package');
         }
@@ -663,7 +651,6 @@ class PaywayServiceImpl implements PaywayService
             return DataResponse::BadRequest();
         }
         if($pw->status === PaywayStatus::PENDING->value){
-            // Log::info(json_encode($pw->details));
             return DataResponse::ValidateFail();
         }
         return DataResponse::JsonResult([
@@ -705,10 +692,6 @@ class PaywayServiceImpl implements PaywayService
             $response = $client->send($request);
             $statusCode = $response->getStatusCode();
             $content    = $response->getBody()->getContents();
-            // Log::info("ABA API Response", [
-            //     'status'  => $statusCode,
-            //     'content' => $content
-            // ]);
             $contentDecoded = json_decode($content, true);
             if($contentDecoded['status']['code'] !== '00'){
                 return DataResponse::Error('Failed');
@@ -762,14 +745,12 @@ class PaywayServiceImpl implements PaywayService
     }
 
     public function bankABAKHQRSettleGeneratePayload(Request $req,object $authUser): object{
-        // Log::info($req->all());
         $validator = validator($req->all(),[
             'amount' => 'required',
             'method' => 'required',
             'currency' => 'required|in:KHR,USD',
             'packages' => 'array'
         ]);
-        // Log::info($req->all());
         if($validator->fails()){
             return DataResponse::ValidateFail($validator->errors()->first());
         }
@@ -860,15 +841,11 @@ class PaywayServiceImpl implements PaywayService
             $response = $client->send($request);
             $statusCode = $response->getStatusCode();
             $content    = $response->getBody()->getContents();
-            // Log::info("ABA API Response", [
-            //     'status'  => $statusCode,
-            //     'content' => $content
-            // ]);
+
             $contentDecoded = json_decode($content, true);
             if($contentDecoded['status']['code'] !== '00'){
                 return DataResponse::Error('Failed');
             }
-            // Log::info('payer:'.$contentDecoded['data']['payer_account']);
             $payload = [
                 'tran_id' => $tranId,
                 // 'package_ref' => $pkg->qr_code ?? '',
@@ -920,8 +897,6 @@ class PaywayServiceImpl implements PaywayService
                 'payload' => $payload,
                 'error' => false
             ]));
-            // Log::info("topic => ".$topic);
-            // Log::info("action => receiverPayViaDriver");
             $client->close();
         } catch (Exception $e) {
             Log::error("WS failed: " . $e->getMessage());
