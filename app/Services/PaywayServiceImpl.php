@@ -329,7 +329,7 @@ class PaywayServiceImpl implements PaywayService
         $callback = $this->callbackUrl($req);
         $validInputs = $callback['inputs'];
         $decodedJson = $callback['return_params'];
-        Log::info(json_encode($req));
+        Log::info('callback => '.json_encode($req));
         try{
             DB::beginTransaction();
             $updatePkg = $this->updatePackage($decodedJson['package_id'],$validInputs['sub'],$validInputs['sub_type'],$decodedJson);
