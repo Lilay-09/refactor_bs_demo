@@ -33,6 +33,7 @@ class Package extends Model
         'driver_display_order',
         'last_remark_user',
         'package_name',
+        'method',
         'product_type',
         'returned_uid',
         'price',

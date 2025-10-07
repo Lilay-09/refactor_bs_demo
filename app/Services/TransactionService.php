@@ -674,6 +674,7 @@ class TransactionService
             //         $type.'_payment_id' => $paymentId
             // ];
             Package::whereIn('id',$packageIds)->update([
+                'method' => $method,
                 'original_driver_cod_usd' => DB::raw('driver_cod_usd'),
                 'original_driver_cod_khr' => DB::raw('driver_cod_khr')
             ]);
