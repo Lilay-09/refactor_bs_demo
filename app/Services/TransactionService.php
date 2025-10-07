@@ -3740,6 +3740,10 @@ class TransactionService
             'khInfo' => 'កញ្ចប់'
         ]));
         $inputs['update_uid'] = $user->id;
+        if(!$package->method || $package->method == PaymentMethod::COD->value){
+            $inputs['orginal_driver_cod_usd'] = $inputs['driver_cod_usd'];
+            $inputs['orginal_driver_cod_khr'] = $inputs['driver_cod_khr'];
+        }
         $package->update($inputs);
         return DataResponse::JsonResult(null,false,__('messages.saved'));
     }
