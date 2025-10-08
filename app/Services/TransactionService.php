@@ -4106,7 +4106,6 @@ class TransactionService
         // }
         $breakDownNotes = trim($breakDownNotes, '| ');
         $paymentType = 'payment';
-        Log::info('Break => '.$breakDownNotes);
         DB::beginTransaction();
         try{
             $disArr = [
