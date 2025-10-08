@@ -13,11 +13,11 @@ use App\Models\MerchantOperator;
 use App\Models\Package;
 use App\Models\User;
 use DataResponse;
-use DB;
+use Illuminate\Support\Facades\DB;
 use Exception;
 use Helper;
 use Illuminate\Http\Request;
-use Log;
+use Illuminate\Support\Facades\Log;
 use WebSocket\Client;
 
 class CommentServiceImpl implements CommentService
