@@ -1408,7 +1408,8 @@ class TransactionService
             ->whereIn('package_id', $packageIds)
             ->where('payer_type', $type)
             ->whereHas('payment', function ($q) {
-                $q->where('is_deleted', false);
+                $q->where('is_deleted', false)
+                ->where('payer_type','merchant');
             })
             ->with([
                 'payment' => function ($q) {
@@ -1467,7 +1468,8 @@ class TransactionService
             ->whereIn('package_id', $packageIds)
             ->where('payee_type', $type)
             ->whereHas('disbursement', function ($q) {
-                $q->where('is_deleted', false);
+                $q->where('is_deleted', false)
+                ->where('payee_type','merchant');
             })
             ->with([
                 'disbursement' => function ($q) {
@@ -1774,7 +1776,6 @@ class TransactionService
         }
     }
 
-
     private function preparePayIn(int $pkgId, string $type, string $payingCurrency, object $validPkg, int $mId, object $payOutPkgs){
         $result = [
             'fullyPaidInfo'       => [],
@@ -1796,7 +1797,6 @@ class TransactionService
             // Log::info($payOutPkg);
             $usdDue = $payment->amount_due_usd - $payment->received_amount_usd;
             $khrDue = $payment->amount_due_khr - $payment->received_amount_khr;
-
 
             $result['target'] = $payment;
             $result['targetId'] = $payment->id;
@@ -1920,7 +1920,7 @@ class TransactionService
             $amountUsd = $disbursement->amount_due_usd ?? 0;
             $amountKhr = $disbursement->amount_due_khr ?? 0;
             $usdDue = $amountUsd - $disbursement->received_amount_usd;
-            $khrDue = $amountKhr - $disbursement->received_amount_khr;
+            $khrDue = $amountKhr - $disbursement->received_amount_khr ?? 0;
 
             if($amountUsd > 0 && $usdDue == 0 && $payingCurrency === 'USD'){
                 $result['currencyConflictInfo'][] = [
