@@ -830,18 +830,40 @@ class GeneralSettingService
             ->first();
             $plZone = PriceListZone::with('priceList:taxi_fee,other_fee,base_fee,below_kg,below_kg_price,id,price,above_kg_price,above_kg,delivery_type')->where('zone_id',$zone_id)->where('price_list_id',$priceList?->id)->first();
             if($merchant_id){
+                // Log::info($plZone);
                 $plNameId = MerchantPriceList::where('merchant_id',$merchant_id)->take(1)->value('price_list_id');
                 if($plNameId){
                     $plIds = PriceList::where('price_list_name_id',$plNameId)
                     ->where('delivery_type',$delivery_type)
+                    ->where('is_deleted',false)
                     ->pluck('id')->toArray();
                     if(!empty($plIds)){
-                        $plZone = PriceListZone::with('priceList:taxi_fee,other_fee,base_fee,below_kg,below_kg_price,id,price,above_kg_price,above_kg,delivery_type')
-                            ->where(function ($query) use ($zone_id, $plIds) {
-                                $query->whereIn('price_list_id', $plIds)
-                                    ->orWhere('zone_id', $zone_id);
-                            })
-                            ->first();
+                    $plZone = PriceListZone::with([
+                        'priceList' => function ($q) {
+                            $q->where('is_deleted', false)
+                            // ->where('price_list_name_id',$plNameId)
+                                ->select([
+                                    'id',
+                                    'taxi_fee',
+                                    'other_fee',
+                                    'base_fee',
+                                    'below_kg',
+                                    'below_kg_price',
+                                    'above_kg',
+                                    'above_kg_price',
+                                    'delivery_type',
+                                    'price',
+                                ]);
+                            },
+                        ])
+                        //with(['priceList:taxi_fee,other_fee,base_fee,below_kg,below_kg_price,id,price,above_kg_price,above_kg,delivery_type'])
+                        // ->where(function ($query) use ($zone_id, $plIds) {
+                        //     $query->whereIn('price_list_id', $plIds)
+                        //         ->orWhere('zone_id', $zone_id);
+                        // })
+                        ->where('zone_id',$zone_id)
+                        ->whereIn('price_list_id',$plIds)
+                        ->first();
                     }
                 }
             }
@@ -856,10 +878,8 @@ class GeneralSettingService
                 $row->delivery_type = $plZone->priceList->delivery_type;
                 $row->taxi_fee = $plZone->priceList->taxi_fee;
                 $row->other_fee = $plZone->priceList->other_fee;
-                // Log::info($plZone->priceList);
                 unset($plZone->zones,$plZone->price,$plZone->priceList);
             }else if($priceList){
-                
                 $row->base_fee = $priceList->base_fee;
                 $row->price = $priceList->price;
                 $row->above_kg_price = $priceList->above_kg_price;

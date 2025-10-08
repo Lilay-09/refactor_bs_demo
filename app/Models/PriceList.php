@@ -37,5 +37,4 @@ class PriceList extends Model
     public function priceListName(){
         return $this->belongsTo(PriceListname::class,'price_list_name_id','id');
     }
-
 }
