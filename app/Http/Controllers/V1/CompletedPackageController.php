@@ -154,10 +154,12 @@ class CompletedPackageController extends Controller
             // $qP->total = Helper::getNumber(abs($qP->driver_total - $qP->merchant_total),2);
             $driverCodUsd = $qP->driver_cod_usd ?? 0;
             $driverCodKhr = $qP->driver_cod_khr ?? 0;
-            $fees = $qP->delivery_fee + $qP->extra_charge;
+            $fees = $qP->delivery_fee + $qP->extra_charge + $qP->taxi_fee;
             Helper::deductAmountBase($driverCodUsd,$driverCodKhr,$fees);
             $qP->total = Helper::getNumber($driverCodUsd,2,true);
             $qP->total_khr = Helper::getNumber($driverCodKhr,2,true);
+            $qP->driver_cod_usd = Helper::getNumber($driverCodUsd,2,true);
+            $qP->driver_cod_khr = Helper::getNumber($driverCodKhr,2,true);
             // $qP->cod = $qP->cod ? "1":"0";
             unset($qP->returnUser);
             return $qP;

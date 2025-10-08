@@ -289,7 +289,7 @@ class TransactionService
         $clbMapper = function($package) use($statusKey,$type){
             $cod = $package->cod;
             $package->cod = $cod ? 'Yes' : 'No';
-            $package->has_paid = $package->payment ? true : false;
+            $package->has_paid = ($package->payment || $package->disbursement) ? true : false;
             if($type == 'driver'){
                 $package->payment_status = $package->payment ? 'Paid' : ' Unpaid';
             }
@@ -4098,14 +4098,15 @@ class TransactionService
         }
 
         $breakDownNotes = null;
-        if(($dueAmountUsd || $dueAmountKhr) < 0){
+        // if(($dueAmountUsd || $dueAmountKhr) < 0){
             if($cashUSD > 0) $breakDownNotes .= 'Cash: USD '.$cashUSD.'|';
             if($cashKHR > 0) $breakDownNotes .= 'Cash: KHR '.$cashKHR.'|';
             if($bankAmountUSD > 0) $breakDownNotes .= $bankName.': USD '.$bankAmountUSD.'|';
             if($bankAmountKHR > 0) $breakDownNotes .= $bankName.': KHR '.$bankAmountKHR.'|';
-        }
+        // }
         $breakDownNotes = trim($breakDownNotes, '| ');
         $paymentType = 'payment';
+        Log::info('Break => '.$breakDownNotes);
         DB::beginTransaction();
         try{
             $disArr = [
@@ -4266,7 +4267,8 @@ class TransactionService
 
             // return Package::whereIn('id',$packageIds)->get();
             return DataResponse::JsonResult(null,false,__('messages.created',[
-                'info' => 'Payment'
+                'info' => 'Payment',
+                'khInfo' => 'ទូរទាត់'
             ]));
         }catch(Exception $e){
             Log::error($e->getMessage());
