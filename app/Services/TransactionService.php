@@ -1367,7 +1367,6 @@ class TransactionService
                 'info' => 'Payment type must be on of disbursement or receive'
             ]));
         }
-        Log::info($paymentType);
 
         if($paymentType == 'disbursement'){
             return $this->disbursementPaymentV1($req,$user,$type);
