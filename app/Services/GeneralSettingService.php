@@ -1071,12 +1071,14 @@ class GeneralSettingService
             if($payer != 'receiver'){
                 $fees = 0;
             }
+            $fees += $taxiFee;
             Helper::deductAmountBase($price,$priceKhr,$fees);
         }
         else if($userType == 'merchant'){
             if($payer != 'sender'){
                 $fees = 0;
             }
+            $fees += $taxiFee;
             Helper::deductAmountBase($price,$priceKhr,$fees);
         }
         return [

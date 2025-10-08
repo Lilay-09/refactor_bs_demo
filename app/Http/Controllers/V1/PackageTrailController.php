@@ -141,6 +141,7 @@ class PackageTrailController extends Controller
             
             $driverCalPrice = GeneralSettingService::calculatePackageFeeV2($priceUsd,$priceKhr,'driver',$pkg->delivery_fee,$pkg->payer,$pkg->other_fee,$pkg->taxi_fee);
             $pkg->driver_total = $driverCalPrice['total_usd'];
+            // Log::info($pkg->driver_total);
             $pkg->driver_total_khr = $driverCalPrice['total_khr'];
             $merchantCalPrice = GeneralSettingService::calculatePackageFeeV2($priceUsd,$priceKhr,'merchant',$pkg->delivery_fee,$pkg->payer,$pkg->other_fee,$pkg->taxi_fee);
             $pkg->merchant_total = $merchantCalPrice['total_usd'];
@@ -228,6 +229,7 @@ class PackageTrailController extends Controller
         $inputs['actual_kg'] = $actualKg;
         $taxiFee = $inputs['taxi_fee'] ?? 0;
         $inputs['taxi_fee'] = $taxiFee;
+        // Log::info($taxiFee);
         $payer = $inputs['payer'];
         $cod = $inputs['cod'] ?? $package->cod;
         $inputs['billed_kg'] = $actualKg;
