@@ -87,6 +87,8 @@ class MerchantTransactionServiceImpl implements MerchantTransactionService
     {
         $perPage = $req->input('per_page', 10);
         $page = $req->input('page', 1);
+        $startDate = $req->startDate;
+        $endDate = $req->endDate;
 
         // Common callback for transforming each record
         $callback = function($q) {
@@ -165,6 +167,16 @@ class MerchantTransactionServiceImpl implements MerchantTransactionService
             $disQuery->where('payment_status_id',$status);
         }
 
+        if($startDate && $endDate){
+            $startDateTime = Helper::dateYMD($startDate).' 00:00:00';
+            $endDatetime = Helper::dateYMD($endDate).' 23:59:59';
+            $disQuery->whereBetween('requested_date',[
+                $startDateTime,$endDatetime
+            ]);
+            $payQuery->whereBetween('requested_date',[
+                $startDateTime,$endDatetime
+            ]);
+        }
         // Fetch slices only for the current page
         $disData = $disQuery->orderBy('requested_date', 'desc')
             ->skip(($page - 1) * $perPage)
