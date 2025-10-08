@@ -40,6 +40,7 @@ class TransactionService
         $startDate = $req->startDate;
         $endDate = $req->endDate;
         $search = $req->search;
+        Log::info($req->all());
         $qP = Package::query()
             ->from('packages as p')
             ->with(['payment' => function ($query) use ($type) {
@@ -61,7 +62,7 @@ class TransactionService
                 'p.extra_charge','p.additional_fee','p.remarks','p.cod','p.price','p.price_khr','d.phone as driver_phone','p.taxi_fee','p.payer','p.delivery_fee','p.assign_driver_datetime',
                 'p.merchant_total','m.username as merchant_name','m.phone as merchant_phone','d.username as driver_name','p.status_id','p.id as package_id','d.id as driver_id',
                 'p.qr_code','ts.name as status_code','p.delivered_datetime','p.failed_datetime','p.zone_code','p.receiver_phone','p.delivery_type','p.zone_name',
-                'p.receiver_address','p.driver_cod_usd','p.driver_cod_khr','p.other_fee'
+                'p.receiver_address','p.driver_cod_usd','p.driver_cod_khr','p.other_fee','p.arrive_warehouse_datetime'
             ]);
             if($type == 'driver'){
                 $qP->whereNotExists(function ($sub) use ($type) {
@@ -97,19 +98,21 @@ class TransactionService
                             ->where('dp.is_deleted', false);
                     });
                 } elseif ($pmtStatusId == 2) { // Paid
-                    $qP->whereExists(function ($sub) {
-                        $sub->select(DB::raw(1))
-                            ->from('payment_packages as pp')
-                            ->whereColumn('pp.package_id', 'p.id')
-                            ->where('pp.payer_type', 'merchant')
-                            ->where('pp.is_deleted', false);
-                    })->orWhereExists(function ($sub) {
-                        $sub->select(DB::raw(1))
-                            ->from('disbursement_packages as dp')
-                            ->whereColumn('dp.package_id', 'p.id')
-                            ->where('dp.payee_type', 'merchant')
-                            ->where('dp.type','payment')
-                            ->where('dp.is_deleted', false);
+                    $qP->where(function ($qP){
+                            $qP->whereExists(function ($sub) {
+                            $sub->select(DB::raw(1))
+                                ->from('payment_packages as pp')
+                                ->whereColumn('pp.package_id', 'p.id')
+                                ->where('pp.payer_type', 'merchant')
+                                ->where('pp.is_deleted', false);
+                        })->orWhereExists(function ($sub) {
+                            $sub->select(DB::raw(1))
+                                ->from('disbursement_packages as dp')
+                                ->whereColumn('dp.package_id', 'p.id')
+                                ->where('dp.payee_type', 'merchant')
+                                ->where('dp.type','payment')
+                                ->where('dp.is_deleted', false);
+                        });
                     });
                 }
             }
@@ -136,13 +139,23 @@ class TransactionService
                 // Check for status_id = 9, delivered_datetime should be within the date range
                 $q->where(function ($q) use ($startDateTime, $endDateTime) {
                     $q->where('p.status_id', 9)
-                    ->whereRaw('p.delivered_datetime >= ? AND p.delivered_datetime <= ?', [$startDateTime, $endDateTime]);
-                })
-                // Check for status_id = 19, failed_datetime should be within the date range
-                ->orWhere(function ($q) use ($startDateTime, $endDateTime) {
-                    $q->where('p.status_id', 19)
-                    ->whereRaw('p.failed_datetime >= ? AND p.failed_datetime <= ?', [$startDateTime, $endDateTime]);
+                    ->whereBetween('p.delivered_datetime',[
+                        $startDateTime,$endDateTime
+                    ])
+                    ->orWhere('p.status_id', 19)
+                    ->whereBetween('p.failed_datetime',[
+                        $startDateTime,$endDateTime
+                    ]);
+                    // ->whereRaw('p.delivered_datetime >= ? AND p.delivered_datetime <= ?', [$startDateTime, $endDateTime]);
                 });
+                // Check for status_id = 19, failed_datetime should be within the date range
+                // ->orWhere(function ($q) use ($startDateTime, $endDateTime) {
+                //     $q->where('p.status_id', 19)
+                //     ->whereBetween('p.failed_datetime',[
+                //         $startDateTime,$endDateTime
+                //     ]);
+                //     // ->whereRaw('p.failed_datetime >= ? AND p.failed_datetime <= ?', [$startDateTime, $endDateTime]);
+                // });
             });
         }
 
@@ -1407,12 +1420,12 @@ class TransactionService
         return PaymentPackage::where('is_deleted', false)
             ->whereIn('package_id', $packageIds)
             ->where('payer_type', $type)
-            ->whereHas('payment', function ($q) {
-                $q->where('is_deleted', false)
-                ->where('payer_type','merchant');
-            })
+            // ->whereHas('payment', function ($q) use($type){
+            //     $q->where('is_deleted', false)
+            //     ->where('payer_type',$type);
+            // })
             ->with([
-                'payment' => function ($q) {
+                'payment' => function ($q) use($type) {
                     $q->select(
                         'id',
                         'amount_due_usd',
@@ -1452,6 +1465,7 @@ class TransactionService
                         'branch_id',
                         'company_id'
                     )->where('is_deleted', false)
+                    ->where('payer_type',$type)
                     ->whereIn('payment_status_id',[
                         PaymentStatus::DECLINED->value,
                         PaymentStatus::PARTIAL->value
@@ -1467,12 +1481,11 @@ class TransactionService
         return DisbursementPackage::where('is_deleted', false)
             ->whereIn('package_id', $packageIds)
             ->where('payee_type', $type)
-            ->whereHas('disbursement', function ($q) {
-                $q->where('is_deleted', false)
-                ->where('payee_type','merchant');
-            })
+            // ->whereHas('disbursement', function ($q) use($type) {
+            //     $q->where('is_deleted', false)
+            // })
             ->with([
-                'disbursement' => function ($q) {
+                'disbursement' => function ($q) use($type) {
                     $q->select(
                         'id',
                         'amount_due_usd',
@@ -1513,6 +1526,7 @@ class TransactionService
                         'branch_id',
                         'company_id'
                     )->where('is_deleted', false)
+                    ->where('payee_type',$type)
                     ->whereIn('payment_status_id',[
                         PaymentStatus::DECLINED->value,
                         PaymentStatus::PARTIAL->value
@@ -1730,10 +1744,10 @@ class TransactionService
         }
 
         if (!empty($fullyPaidInfo)) {
-            $count = count($fullyPaidInfo);
+            // $count = count($fullyPaidInfo);
             // $packages = implode(', ', array_column($fullyPaidInfo, 'package_id'));
             // $users = implode(', ', array_unique(array_column($fullyPaidInfo, "{$type}_name")));
-            return DataResponse::Duplicated("{$count} fully paid package(s) detected for {$type}(s): {$type}s.");
+            return DataResponse::Duplicated("All fully paid packages detected for {$type}(s): {$type}s.");
         }
 
         if (!empty($invalidAmountInfo)) {
@@ -1747,11 +1761,11 @@ class TransactionService
 
         // Report currency conflicts
         if (!empty($currencyConflictInfo)) {
-            $count = count($currencyConflictInfo);
+            // $count = count(array_unique(array_column($currencyConflictInfo, 'package_id')));
             $packages = implode(', ', array_column($currencyConflictInfo, 'package_id'));
             // $users = implode(', ', array_unique(array_column($currencyConflictInfo, "{$type}_name")));
             $currency = $currencyConflictInfo[0]['currency'] ?? '';
-            return DataResponse::Duplicated("{$count} package(s) already partially paid with {$currency} for {$type}(s): {$type}s.");
+            return DataResponse::Duplicated("These packages already partially paid with {$currency} for {$type}(s): {$type}s.");
         }
 
         try {
@@ -1792,7 +1806,7 @@ class TransactionService
         $payOutPkg = $payOutPkgs[$pkgId] ?? null;
         $validUsdAmt = abs($validPkg->data['total_due_amount_usd']); // abs for not sign when insert
         $validKhrAmt = abs($validPkg->data['total_due_amount_khr']); // abs for not sign when insert
-        if ($payOutPkg) {
+        if ($payOutPkg && $payOutPkg->payment) {
             $payment = $payOutPkg->payment;
             // Log::info($payOutPkg);
             $usdDue = $payment->amount_due_usd - $payment->received_amount_usd;
@@ -1914,9 +1928,8 @@ class TransactionService
         $disbPkg = $disbursementPkg[$pkgId] ?? null;
         $validUsdAmt = $validPkg->data['total_due_amount_usd'];
         $validKhrAmt = $validPkg->data['total_due_amount_khr'];
-        if ($disbPkg) {
+        if ($disbPkg && $disbPkg->disbursement) {
             $disbursement = $disbPkg->disbursement;
-            // Log::info($disbPkg);
             $amountUsd = $disbursement->amount_due_usd ?? 0;
             $amountKhr = $disbursement->amount_due_khr ?? 0;
             $usdDue = $amountUsd - $disbursement->received_amount_usd;
