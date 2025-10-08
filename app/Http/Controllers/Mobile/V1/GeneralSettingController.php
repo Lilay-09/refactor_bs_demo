@@ -399,7 +399,7 @@ class GeneralSettingController extends Controller
                 ]));
                 $requester = $user->info->phone."($user->username)";
                 $topics = GeneralSettingService::getGeneralTopics($user->company_id,'driver',$package->driver_id);
-                $ttl = 300;
+                $ttl = 60;
                 Cache::put($topics->private, (object)[
                     'requester' => $requester,
                     'requester_id' => $user->id,
@@ -413,7 +413,7 @@ class GeneralSettingController extends Controller
                     'body' => "$requester request change package ",
                     'data' => [
                         'action' => 'change-driver',
-                        'time_to_live' => now()->addSeconds(60),
+                        'time_to_live' => now()->addSeconds(11),
                         'requester' => $requester,
                         'barcode' => $item_ref,
                         "en_message" => "$requester request change package ",//$requester." request swap the package",

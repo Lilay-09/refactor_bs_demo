@@ -45,7 +45,7 @@ use Illuminate\Support\Facades\DB;
 use Helper;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
-
+use SebastianBergmann\CodeCoverage\Report\Xml\Totals;
 
 class GeneralSettingService
 {
@@ -830,18 +830,40 @@ class GeneralSettingService
             ->first();
             $plZone = PriceListZone::with('priceList:taxi_fee,other_fee,base_fee,below_kg,below_kg_price,id,price,above_kg_price,above_kg,delivery_type')->where('zone_id',$zone_id)->where('price_list_id',$priceList?->id)->first();
             if($merchant_id){
+                // Log::info($plZone);
                 $plNameId = MerchantPriceList::where('merchant_id',$merchant_id)->take(1)->value('price_list_id');
                 if($plNameId){
                     $plIds = PriceList::where('price_list_name_id',$plNameId)
                     ->where('delivery_type',$delivery_type)
+                    ->where('is_deleted',false)
                     ->pluck('id')->toArray();
                     if(!empty($plIds)){
-                        $plZone = PriceListZone::with('priceList:taxi_fee,other_fee,base_fee,below_kg,below_kg_price,id,price,above_kg_price,above_kg,delivery_type')
-                            ->where(function ($query) use ($zone_id, $plIds) {
-                                $query->whereIn('price_list_id', $plIds)
-                                    ->orWhere('zone_id', $zone_id);
-                            })
-                            ->first();
+                    $plZone = PriceListZone::with([
+                        'priceList' => function ($q) {
+                            $q->where('is_deleted', false)
+                            // ->where('price_list_name_id',$plNameId)
+                                ->select([
+                                    'id',
+                                    'taxi_fee',
+                                    'other_fee',
+                                    'base_fee',
+                                    'below_kg',
+                                    'below_kg_price',
+                                    'above_kg',
+                                    'above_kg_price',
+                                    'delivery_type',
+                                    'price',
+                                ]);
+                            },
+                        ])
+                        //with(['priceList:taxi_fee,other_fee,base_fee,below_kg,below_kg_price,id,price,above_kg_price,above_kg,delivery_type'])
+                        // ->where(function ($query) use ($zone_id, $plIds) {
+                        //     $query->whereIn('price_list_id', $plIds)
+                        //         ->orWhere('zone_id', $zone_id);
+                        // })
+                        ->where('zone_id',$zone_id)
+                        ->whereIn('price_list_id',$plIds)
+                        ->first();
                     }
                 }
             }
@@ -881,11 +903,6 @@ class GeneralSettingService
 
     public static function optionsMerchantType($user){
         return ClientType::where('is_deleted',0)->selectRaw('id,name')->get();
-    }
-
-
-    public function getAvailableTransfer(){
-        return PackageTransfer::where('')->get();
     }
 
 
@@ -1044,6 +1061,29 @@ class GeneralSettingService
             'driver_total' => Helper::getNumber($driverTotal,2),
             'merchant_total' => Helper::getNumber($merchant_total,2),
             'total' => Helper::getNumber($total,2)
+        ];
+    }
+
+    public static function calculatePackageFeeV2($price,$priceKhr,$userType,$deliveryFee,$payer,$otherFee,$taxiFee){
+        // $priceList = GeneralSettingService::getZonePriceByCode($zone_code,$user);
+        $fees = $deliveryFee + $otherFee;
+        if($userType == 'driver'){
+            if($payer != 'receiver'){
+                $fees = 0;
+            }
+            $fees += $taxiFee;
+            Helper::deductAmountBase($price,$priceKhr,$fees);
+        }
+        else if($userType == 'merchant'){
+            if($payer != 'sender'){
+                $fees = 0;
+            }
+            $fees += $taxiFee;
+            Helper::deductAmountBase($price,$priceKhr,$fees);
+        }
+        return [
+            'total_khr' => $priceKhr,
+            'total_usd' => $price
         ];
     }
 

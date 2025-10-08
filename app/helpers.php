@@ -1472,6 +1472,12 @@ class Helper{
         return $sanitizedData;
     }
 
+    static function time($date,$fmt='h:i A'){
+        $datetime = str_replace(" PM", "", $date);
+        $datetime = str_replace(" AM", "", $datetime);
+        return $date ? date($fmt,strtotime($datetime)):null;
+    }
+
 
     static function timeAgo($datetime,$useSecond=true) {
         // Convert the datetime string into a timestamp

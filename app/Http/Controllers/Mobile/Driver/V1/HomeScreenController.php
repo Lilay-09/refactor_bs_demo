@@ -10,6 +10,7 @@ use App\Enums\ImageDirectory;
 use App\Enums\TrackingStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Mobile\V1\GeneralSettingController;
+use App\Jobs\SendNotificationJob;
 use App\Models\Delivery;
 use App\Models\DeliveryPackage;
 use App\Models\DriverCommission;
@@ -261,8 +262,8 @@ class HomeScreenController extends Controller
 
         $isSalaryDay = $user->info->isSalaryDay;
         return ApiResponse::JsonResult(data: HomeBalanceCardDTO::fromModel([
-            'settleAmountUsd' => Helper::currencyAmount(Helper::getNumber($collectedCod->drivercodusd ?? 0,2,true),'USD'),//'USD ' . Helper::getNumber($collectedCod->drivercodusd ?? 0,2,true),
-            'settleAmountKhr' => Helper::currencyAmount(Helper::getNumber($collectedCod->drivercodkhr ?? 0,2,true),'KHR'),//'KHR '. Helper::getNumber($collectedCod->drivercodkhr ?? 0,2,true),
+            'settleAmountUsd' => 'USD'.Helper::getNumber($collectedCod->drivercodusd ?? 0,2),//'USD ' . Helper::getNumber($collectedCod->drivercodusd ?? 0,2,true),
+            'settleAmountKhr' => 'KHR'.Helper::getNumber($collectedCod->drivercodkhr ?? 0,2),//'KHR '. Helper::getNumber($collectedCod->drivercodkhr ?? 0,2,true),
             "accepted_order_count" => $pickedUpCount.$pcsUnitLng,
             "delivered_pkg_count" => $totalDeliveredPkg.$pcsUnitLng,
             "earning" =>  !$isSalaryDay ? "":Helper::currencyAmount(Helper::getNumber($normalDeliveryComm,2,true),'USD'),
@@ -579,7 +580,7 @@ class HomeScreenController extends Controller
         };
 
         if ($datetimeMap) {
-            $row->date = Helper::formatCustomDateTime($datetimeMap, 'd m,Y');
+            $row->date = Helper::formatCustomDateTime($datetimeMap, 'd m Y');
             $row->time = Helper::formatCustomDateTime($datetimeMap, 'h:i A');
         }
         return $row;
@@ -1073,10 +1074,12 @@ class HomeScreenController extends Controller
         $package = Package::where('is_deleted',0)->where('driver_id',$user->id)->find($packageRef);
         if(!$package) Package::where('is_deleted',0)->where('driver_id',$user->id)->where('qr_code',$packageRef);
         if(!$package) return ApiResponse::NotFound(__('messages.not_found',[
-            'info' => 'Package'
+            'info' => 'Package',
+            'khInfo' => 'កញ្ចប់'
         ]));
         if($package->is_contact) return ApiResponse::Duplicated(__('messages.info',[
-            'info' => 'This package has already contacted'
+            'info' => 'This package has already contacted',
+            'khInfo' => 'កញ្ចប់នេះបានទំនាក់ទំនងរួចរាល់'
         ]));
         // if(!in_array($package->status_id,[6])) return ApiResponse::ValidateFail(__('messages.info',[
         //     'info' => 'You can not mark as dropped'
@@ -1091,7 +1094,6 @@ class HomeScreenController extends Controller
         ]);
 
         //** Send Notif */
-        $notif = new CloudMessagingService();
         $topics = GeneralSettingService::getGeneralTopics($user->company_id,'merchant',$package->merchant_id);
         $notifReq = new Request([
             'topic' => $topics->private,
@@ -1100,8 +1102,8 @@ class HomeScreenController extends Controller
             'title' => 'Contact receiver',
             'body' => 'Driver contacted receiver '.$package->receiver_phone
         ]);
-        $notif->sendNotificationByTopic($notifReq,$user);
-        // SendNotificationJob::dispatch($notifReq, $user);
+        $queueFCMName = config('queue_job_names.'.config('app.env').'.notification');
+        SendNotificationJob::dispatch($notifReq, $user)->onQueue($queueFCMName);
         return ApiResponse::JsonResult(null,__('messages.saved'));
 
     }
@@ -1319,7 +1321,7 @@ class HomeScreenController extends Controller
                 FeedbackAnswer::insert($answerArr);
             });
             if(!empty($failMsg)) return ApiResponse::ValidateFail($failMsg);
-            return ApiResponse::JsonResult(null,'Success');
+            return ApiResponse::JsonResult(null,__('messages.saved'));
         }catch (Exception $e){
             Log::error($e->getTraceAsString());
             Log::error($e->getMessage());
