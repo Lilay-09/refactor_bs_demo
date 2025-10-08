@@ -1917,10 +1917,12 @@ class TransactionService
         if ($disbPkg) {
             $disbursement = $disbPkg->disbursement;
             // Log::info($disbPkg);
-            $usdDue = $disbursement->amount_due_usd - $disbursement->received_amount_usd;
-            $khrDue = $disbursement->amount_due_khr - $disbursement->received_amount_khr;
+            $amountUsd = $disbursement->amount_due_usd ?? 0;
+            $amountKhr = $disbursement->amount_due_khr ?? 0;
+            $usdDue = $amountUsd - $disbursement->received_amount_usd;
+            $khrDue = $amountKhr - $disbursement->received_amount_khr;
 
-            if($disbursement->amount_due_usd > 0 && $usdDue == 0 && $payingCurrency === 'USD'){
+            if($amountUsd > 0 && $usdDue == 0 && $payingCurrency === 'USD'){
                 $result['currencyConflictInfo'][] = [
                     'package_id'    => $pkgId,
                     "{$type}_name" => $validPkg->data["{$type}_name"] ?? $mId,
@@ -1931,7 +1933,7 @@ class TransactionService
                 ];
             }
 
-            if($disbursement->amount_due_khr > 0 && $khrDue == 0 && $payingCurrency === 'KHR'){
+            if($amountKhr > 0 && $khrDue == 0 && $payingCurrency === 'KHR'){
                 $result['currencyConflictInfo'][] = [
                     'package_id'    => $pkgId,
                     "{$type}_name" => $validPkg->data["{$type}_name"] ?? $mId,
