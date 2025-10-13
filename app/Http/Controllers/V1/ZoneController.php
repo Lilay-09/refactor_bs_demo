@@ -11,7 +11,7 @@ use App\Models\UserZone;
 use App\Models\Zone;
 use App\Services\UserService;
 use DataResponse;
-use DB;
+use Illuminate\Support\Facades\DB;
 use Helper;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -19,7 +19,6 @@ use Illuminate\Support\Collection;
 class ZoneController extends Controller
 {
     //
-
     public function zoneValidation(Request $req){
         return validator($req->all(),[
             'zone_code' => 'nullable|string|max:30',
@@ -422,7 +421,7 @@ class ZoneController extends Controller
         }
 
         // Now handle removed subzones where parent_id does not match
-        $removed = collect($userSubZones)->filter(function ($subZone) use ($children, $extraFields) {
+        $removed = $userSubZones->filter(function ($subZone) use ($children, $extraFields) {
             // Flag to indicate if match is found
             $isMatched = false;
 
