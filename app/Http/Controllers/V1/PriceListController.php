@@ -77,94 +77,387 @@ class PriceListController extends Controller
     //     return ApiResponse::JsonResult(null,'Created');
     // }
 
-    public function assignZoneToPriceList(Request $req){
+    // public function assignZoneToPriceList(Request $req){
+    //     $user = UserService::getAuthUser();
+    //     // Log::info($req->all());
+    //     $validate = validator($req->all(),[
+    //         'price_list_name_id' => 'required|exists:price_list_names,id',
+    //         'price_list_id' => 'nullable',
+    //         'base_fee' => 'nullable',
+    //         'taxi_fee' => 'nullable',
+    //         'other_fee' => 'nullable',
+    //         'identifier' => 'nullable|string',
+    //         'zones' => 'required|array'
+    //     ]);
+    //     if($validate->fails()) return ApiResponse::ValidateFail($validate->errors()->first());
+    //     $inputs = $validate->validated();
+    //     $zoneIds = $inputs['zones'];
+    //     $identifier = $inputs[ 'identifier'] ?? null;
+    //     $priceListNameId = $inputs['price_list_name_id'];
+    //     $priceListName = PriceListname::where('is_deleted',0)->find($priceListNameId);
+    //     if(!$priceListName) return ApiResponse::NotFound(__('messages.not_found',['info' => 'Price List']));
+    //     // $priceList = PriceList::where('price_list_name_id',$priceListNameId)->first();
+    //     $priceListIds = [];
+    //     if(isset($inputs['price_list_id'])) $priceListIds[] = $inputs['price_list_id'];
+    //     // $isUpdate = $priceListId ? true:false;
+    //     if(!isset($priceListIds[0]) && $identifier){
+    //         $priceListIds = PriceListZone::where('identifier', $identifier)->selectRaw('price_list_id')->groupByRaw('price_list_id')->pluck('price_list_id')->toArray();
+    //     }
+    //     $defaultPlIds = PriceList::where('price_list_name_id',$priceListNameId)->where('is_deleted',0)->pluck('id')->toArray();
+    //     // return $priceListIds;
+    //     // Log::info($req->all());
+    //     DB::beginTransaction();
+    //     try{
+    //         if(!isset($priceListIds[0]) && !$identifier){
+    //             $create = PriceList::create([
+    //                 'price' => 0,
+    //                 'price_list_name_id' => $inputs['price_list_name_id'],
+    //                 'below_kg' => $priceListName->kg_marker,
+    //                 'above_kg' => $priceListName->kg_marker,
+    //                 'base_fee' => $inputs['base_fee'] ?? 0,
+    //                 'taxi_fee' => $inputs['taxi_fee'] ?? 0,
+    //                 'other_fee' => $inputs['other_fee'] ?? 0,
+    //                 'delivery_type' => 'normal',
+    //                 'create_uid' => $user->id,
+    //                 'update_uid' => $user->id,
+    //                 'company_id' => $user->company_id,
+    //                 'branch_id' => $user->branch_id,
+    //             ]);
+    //             $priceListIds[] = $create->id;
+    //         }
+
+    //         $existZone = Zone::where('is_deleted', 0)
+    //             ->select('id', 'zone_name', 'identity')
+    //             ->get()
+    //             ->keyBy('id');
+
+    //         $uniqueKeys = $identifier ?? uniqid('PZ');
+
+    //         // 1️⃣ Preload all PriceListZone data for the relevant price/zone combinations
+    //         $existingPriceListZones = PriceListZone::with('zone:id,zone_name')
+    //             ->whereIn('price_list_id', $defaultPlIds)
+    //             ->whereIn('zone_id', $zoneIds)
+    //             ->get()
+    //             ->groupBy('zone_id'); // group by zone for quick lookup
+
+    //         // 2️⃣ Preload existing combinations (price_list_id + identifier + zone_id)
+    //         $existingCombinations = PriceListZone::whereIn('price_list_id', $priceListIds)
+    //             ->where('identifier', $uniqueKeys)
+    //             ->whereIn('zone_id', $zoneIds)
+    //             ->get()
+    //             ->keyBy(fn($pz) => "{$pz->price_list_id}-{$pz->zone_id}");
+
+    //         // 3️⃣ Preload zones with different identifiers in default price lists
+    //         $existsWithDiffGroup = PriceListZone::with('zone:id,zone_name')
+    //             ->whereIn('price_list_id', $defaultPlIds)
+    //             ->where('identifier', '!=', $uniqueKeys)
+    //             ->whereIn('zone_id', $zoneIds)
+    //             ->get()
+    //             ->groupBy('zone_id');
+
+    //         $insertData = [];
+
+    //         // 4️⃣ Loop logic — purely in-memory checks now
+    //         foreach ($priceListIds as $plId) {
+    //             foreach ($zoneIds as $idx => $id) {
+    //                 // Check if zone exists
+    //                 if (empty($existZone[$id])) {
+    //                     return ApiResponse::NotFound(__('messages.not_found', [
+    //                         'info' => 'Zone'
+    //                     ]) . ' at row ' . ($idx + 1));
+    //                 }
+
+    //                 // Check duplicate in default list (same identifier)
+    //                 if (!$identifier) {
+    //                     $exists = $existingPriceListZones[$id][0] ?? null;
+    //                     if ($exists) {
+    //                         return ApiResponse::Duplicated(__('messages.info', [
+    //                             'info' => 'Zone (' . $exists->zone->zone_name . ') is already assigned.'
+    //                         ]));
+    //                     }
+    //                 }
+
+    //                 // Check if combination already exists
+    //                 $combinationKey = "{$plId}-{$id}";
+    //                 $priceListZone = $existingCombinations[$combinationKey] ?? null;
+
+    //                 // Check duplicate with different identifier
+    //                 $diffGroup = $existsWithDiffGroup[$id][0] ?? null;
+    //                 if ($diffGroup) {
+    //                     return ApiResponse::Duplicated(__('messages.info', [
+    //                         'info' => 'Zone (' . $diffGroup->zone->zone_name . ') is already assigned.'
+    //                     ]));
+    //                 }
+
+    //                 // Create if not exists
+    //                 if (!$priceListZone) {
+    //                     $insertData[] = [
+    //                         'zone_id' => $id,
+    //                         'price_list_id' => $plId,
+    //                         'identifier' => $uniqueKeys,
+    //                         'base_fee' => $priceList?->base_fee ?? 0,
+    //                         'additional_fee' => $priceList?->additional_fee ?? 0,
+    //                         'created_at' => now(),
+    //                         'updated_at' => now(),
+    //                     ];
+    //                     // PriceListZone::create([
+    //                     //     'zone_id' => $id,
+    //                     //     'price_list_id' => $plId,
+    //                     //     'identifier' => $uniqueKeys,
+    //                     //     'base_fee' => $priceList?->base_fee ?? 0,
+    //                     //     'additional_fee' => $priceList?->additional_fee ?? 0,
+    //                     // ]);
+    //                 }
+    //             }
+    //         }
+
+    //         if (!empty($insertData)) {
+    //             DB::table('price_list_zones')->insert($insertData);
+    //         }
+
+
+
+    //         // $useIds = [];
+    //         // $existZone = Zone::where('is_deleted',0)->select('id','identity','')->get()->keyBy('id');
+    //         // $existingPriceListZones = PriceListZone::with('zone:id,zone_name')
+    //         // ->whereIn('price_list_id', $defaultPlIds)
+    //         // ->whereIn('zone_id', $zoneIds)
+    //         // ->get()
+    //         // ->keyBy('zone_id');
+    //         // $uniqueKeys = $identifier ?? uniqid('PZ');
+    //         // foreach($priceListIds as $plId){
+    //         //     foreach($zoneIds as $idx=>$id){
+    //         //         if(empty($existZone[$id])) return ApiResponse::NotFound(__('messages.not_found',['info' => 'Zone']).' at row '.($idx+1));
+    //         //         if(!$identifier){
+    //         //             $exists = $existingPriceListZones[$id] ?? null;
+    //         //             if($exists) return ApiResponse::Duplicated(__('messages.info',[
+    //         //                 'info' => 'Zone ('.$exists->zone->zone_name.') is already assigned.'
+    //         //             ]));
+    //         //         }
+    //         //         $priceListZone = PriceListZone::where('price_list_id',$plId)->where('identifier',$uniqueKeys)->where('zone_id',$id)->first();
+    //         //         // if($priceListId) $useIds[] = $id;
+    //         //         $existsWithDiffGroup = PriceListZone::with('zone')->whereIn('price_list_id',$defaultPlIds)->where('identifier','!=',$uniqueKeys)->where('zone_id',$id)->first();
+    //         //         if($existsWithDiffGroup) return ApiResponse::Duplicated(__('messages.info',[
+    //         //                 'info' => 'Zone ('.$existsWithDiffGroup->zone->zone_name.') is already assigned.'
+    //         //         ]));
+    //         //         if(!$priceListZone) {
+    //         //             PriceListZone::create([
+    //         //                 'zone_id' => $id,
+    //         //                 'price_list_id' => $plId,
+    //         //                 'identifier' => $uniqueKeys,
+    //         //                 'base_fee' => $priceList?->base_fee ?? 0,
+    //         //                 'additional_fee' => $priceList?->additional_fee ?? 0
+    //         //             ]);
+    //         //         }
+    //         //     }
+    //         // }
+
+    //         PriceListZone::whereIn('price_list_id',$priceListIds)->where('identifier',$uniqueKeys)->whereNotIn('zone_id',$zoneIds)->delete();
+    //         // DB::commit();
+    //         return ApiResponse::JsonResult(null,__('messages.assigned',[
+    //             'info' => 'Zone(s)',
+    //             'khInfo' => 'ទីតាំងចំនួន('.count($zoneIds).')បានបញ្ចូលក្នុងតារាងតម្លៃ('.$priceListName->name.')'
+    //         ]));
+    //     }catch(Exception $e){
+    //         Log::error($e->getMessage());
+    //         return ApiResponse::Error(__('messages.error',['info' => 'Fail to save']));
+    //     }
+    // }
+
+
+    public function assignZoneToPriceList(Request $req)
+    {
         $user = UserService::getAuthUser();
-        // Log::info($req->all());
-        $validate = validator($req->all(),[
+
+        $validate = validator($req->all(), [
             'price_list_name_id' => 'required|exists:price_list_names,id',
             'price_list_id' => 'nullable',
             'base_fee' => 'nullable',
             'taxi_fee' => 'nullable',
             'other_fee' => 'nullable',
             'identifier' => 'nullable|string',
-            'zones' => 'required|array'
+            'zones' => 'required|array',
         ]);
-        if($validate->fails()) return ApiResponse::ValidateFail($validate->errors()->first());
-        $inputs = $validate->validated();
-        $zoneIds = $inputs[ 'zones'];
-        $identifier = $inputs[ 'identifier'] ?? null;
-        $priceListNameId = $inputs['price_list_name_id'];
-        $priceListName = PriceListname::where('is_deleted',0)->find($priceListNameId);
-        if(!$priceListName) return ApiResponse::NotFound(__('messages.not_found',['info' => 'Price List']));
-        // $priceList = PriceList::where('price_list_name_id',$priceListNameId)->first();
-        $priceListIds = [];
-        if(isset($inputs['price_list_id'])) $priceListIds[] = $inputs['price_list_id'];
-        // $isUpdate = $priceListId ? true:false;
-        if(!isset($priceListIds[0]) && $identifier){
-            $priceListIds = PriceListZone::where('identifier', $identifier)->selectRaw('price_list_id')->groupByRaw('price_list_id')->pluck('price_list_id')->toArray();
+
+        if ($validate->fails()) {
+            return ApiResponse::ValidateFail($validate->errors()->first());
         }
-        $defaultPlIds = PriceList::where('price_list_name_id',$priceListNameId)->where('is_deleted',0)->pluck('id')->toArray();
-        // return $priceListIds;
-        DB::beginTransaction();
-        try{
-            if(!isset($priceListIds[0]) && !$identifier){
-                $create = PriceList::create([
-                    'price' => 0,
-                    'price_list_name_id' => $inputs['price_list_name_id'],
-                    'below_kg' => $priceListName->kg_marker,
-                    'above_kg' => $priceListName->kg_marker,
-                    'base_fee' => $inputs['base_fee'] ?? 0,
-                    'taxi_fee' => $inputs['taxi_fee'] ?? 0,
-                    'other_fee' => $inputs['other_fee'] ?? 0,
-                    'delivery_type' => 'normal',
-                    'create_uid' => $user->id,
-                    'update_uid' => $user->id,
-                    'company_id' => $user->company_id,
-                    'branch_id' => $user->branch_id,
-                ]);
-                $priceListIds[] = $create->id;
+
+        $inputs = $validate->validated();
+        $zoneIds = $inputs['zones'];
+        $identifier = $inputs['identifier'] ?? null;
+        $priceListNameId = $inputs['price_list_name_id'];
+
+        $priceListName = PriceListname::where('is_deleted', 0)->find($priceListNameId);
+        if (!$priceListName) {
+            return ApiResponse::NotFound(__('messages.not_found', ['info' => 'Price List']));
+        }
+
+        $priceListIds = [];
+        if (!empty($inputs['price_list_id'])) {
+            $priceListIds[] = $inputs['price_list_id'];
+        }
+
+        if (empty($priceListIds) && $identifier) {
+            $priceListIds = PriceListZone::where('identifier', $identifier)
+                ->selectRaw('price_list_id')
+                ->groupByRaw('price_list_id')
+                ->pluck('price_list_id')
+                ->toArray();
+        }
+
+        $defaultPlIds = PriceList::where('price_list_name_id', $priceListNameId)
+            ->where('is_deleted', 0)
+            ->pluck('id')
+            ->toArray();
+
+        $existZone = Zone::where('is_deleted', 0)
+            ->select('id', 'zone_name', 'identity')
+            ->get()
+            ->keyBy('id');
+
+        if (empty($zoneIds)) {
+            return ApiResponse::ValidateFail('Zone list cannot be empty');
+        }
+
+        $uniqueKeys = $identifier ?? uniqid('PZ');
+
+        $existingPriceListZones = PriceListZone::with('zone:id,zone_name')
+            ->whereIn('price_list_id', $defaultPlIds)
+            ->whereIn('zone_id', $zoneIds)
+            ->get()
+            ->groupBy('zone_id');
+
+        $existingCombinations = PriceListZone::whereIn('price_list_id', $priceListIds)
+            ->where('identifier', $uniqueKeys)
+            ->whereIn('zone_id', $zoneIds)
+            ->get()
+            ->keyBy(fn($pz) => "{$pz->price_list_id}-{$pz->zone_id}");
+
+        $existsWithDiffGroup = PriceListZone::with('zone:id,zone_name')
+            ->whereIn('price_list_id', $defaultPlIds)
+            ->where('identifier', '!=', $uniqueKeys)
+            ->whereIn('zone_id', $zoneIds)
+            ->get()
+            ->groupBy('zone_id');
+
+        $retreivedParentZoneIds = [];
+
+        foreach ($zoneIds as $idx => $id) {
+            if (empty($existZone[$id])) {
+                return ApiResponse::NotFound(__('messages.not_found', [
+                    'info' => 'Zone',
+                ]) . ' at row ' . ($idx + 1));
             }
-            // $useIds = [];
-            $uniqueKeys = $identifier ?? uniqid('PZ');
-            foreach($priceListIds as $plId){
-                foreach($zoneIds as $idx=>$id){
-                    $existZone = Zone::where('is_deleted',0)->find($id);
-                    if(!$existZone) return ApiResponse::NotFound(__('messages.not_found',['info' => 'Zone']).' at row '.($idx+1));
-                    if(!$identifier){
-                        $exists = PriceListZone::with('zone')->whereIn('price_list_id',$defaultPlIds)->where('zone_id',$id)->first();
-                        if($exists) return ApiResponse::Duplicated(__('messages.info',[
-                            'info' => 'Zone ('.$exists->zone->zone_name.') is already assigned.'
-                        ]));
-                    }
-                    $priceListZone = PriceListZone::where('price_list_id',$plId)->where('identifier',$uniqueKeys)->where('zone_id',$id)->first();
-                    // if($priceListId) $useIds[] = $id;
-                    $existsWithDiffGroup = PriceListZone::with('zone')->whereIn('price_list_id',$defaultPlIds)->where('identifier','!=',$uniqueKeys)->where('zone_id',$id)->first();
-                    if($existsWithDiffGroup) return ApiResponse::Duplicated(__('messages.info',[
-                            'info' => 'Zone ('.$existsWithDiffGroup->zone->zone_name.') is already assigned.'
+            if($existZone[$id]->identity == 'child'){
+                continue;
+            }
+
+            if (!$identifier) {
+                $exists = $existingPriceListZones[$id][0] ?? null;
+                if ($exists) {
+                    return ApiResponse::Duplicated(__('messages.info', [
+                        'info' => 'Zone (' . $exists->zone->zone_name . ') is already assigned.',
                     ]));
-                    if(!$priceListZone) {
-                        PriceListZone::create([
-                            'zone_id' => $id,
-                            'price_list_id' => $plId,
-                            'identifier' => $uniqueKeys,
-                            'base_fee' => $priceList?->base_fee ?? 0,
-                            'additional_fee' => $priceList?->additional_fee ?? 0
-                        ]);
-                    }
                 }
             }
 
-            PriceListZone::whereIn('price_list_id',$priceListIds)->where('identifier',$uniqueKeys)->whereNotIn('zone_id',$zoneIds)->delete();
-            DB::commit();
-            return ApiResponse::JsonResult(null,__('messages.assigned',[
+            $diffGroup = $existsWithDiffGroup[$id][0] ?? null;
+            if ($diffGroup) {
+                return ApiResponse::Duplicated(__('messages.info', [
+                    'info' => 'Zone (' . $diffGroup->zone->zone_name . ') is already assigned.',
+                ]));
+            }
+            $retreivedParentZoneIds[] = $id; 
+        }
+
+        // Log::info(count($retreivedParentZoneIds));
+        // Log::info($req->all());
+        $zoneIds = collect($retreivedParentZoneIds);
+
+        $childrenZoneIds = Zone::where('is_deleted', false)
+            ->whereIn('parent_id', $retreivedParentZoneIds)
+            ->pluck('id');
+
+        while ($childrenZoneIds->isNotEmpty()) {
+            $zoneIds = $zoneIds->merge($childrenZoneIds);
+
+            $childrenZoneIds = Zone::where('is_deleted', false)
+                ->whereIn('parent_id', $childrenZoneIds)
+                ->pluck('id');
+        }
+
+        $zoneIds = $zoneIds->unique()->values();
+        // Log::info(count($zoneIds));
+
+        try {
+            DB::transaction(function () use (
+                $user,
+                $inputs,
+                $priceListIds,
+                $identifier,
+                $uniqueKeys,
+                $priceListName,
+                $zoneIds,
+                $existingCombinations
+            ) {
+                // create price list if not exists
+                if (empty($priceListIds) && !$identifier) {
+                    $priceList = PriceList::create([
+                        'price' => 0,
+                        'price_list_name_id' => $inputs['price_list_name_id'],
+                        'below_kg' => $priceListName->kg_marker,
+                        'above_kg' => $priceListName->kg_marker,
+                        'base_fee' => $inputs['base_fee'] ?? 0,
+                        'taxi_fee' => $inputs['taxi_fee'] ?? 0,
+                        'other_fee' => $inputs['other_fee'] ?? 0,
+                        'delivery_type' => 'normal',
+                        'create_uid' => $user->id,
+                        'update_uid' => $user->id,
+                        'company_id' => $user->company_id,
+                        'branch_id' => $user->branch_id,
+                    ]);
+                    $priceListIds[] = $priceList->id;
+                }
+
+                $insertData = [];
+                foreach ($priceListIds as $plId) {
+                    foreach ($zoneIds as $id) {
+                        $combinationKey = "{$plId}-{$id}";
+                        if (!isset($existingCombinations[$combinationKey])) {
+                            $insertData[] = [
+                                'zone_id' => $id,
+                                'price_list_id' => $plId,
+                                'identifier' => $uniqueKeys,
+                                'base_fee' => $inputs['base_fee'] ?? 0,
+                                'additional_fee' => $inputs['taxi_fee'] ?? 0,
+                                'created_at' => now(),
+                                'updated_at' => now(),
+                            ];
+                        }
+                    }
+                }
+
+                if (!empty($insertData)) {
+                    DB::table('price_list_zones')->insert($insertData);
+                }
+
+                PriceListZone::whereIn('price_list_id', $priceListIds)
+                    ->where('identifier', $uniqueKeys)
+                    ->whereNotIn('zone_id', $zoneIds)
+                    ->delete();
+            });
+
+            return ApiResponse::JsonResult(null, __('messages.assigned', [
                 'info' => 'Zone(s)',
-                'khInfo' => 'ទីតាំងចំនួន('.count($zoneIds).')បានបញ្ចូលក្នុងតារាងតម្លៃ('.$priceListName->name.')'
+                'khInfo' => 'ទីតាំងចំនួន(' . count($zoneIds) . ')បានបញ្ចូលក្នុងតារាងតម្លៃ(' . $priceListName->name . ')',
             ]));
-        }catch(Exception $e){
+        } catch (Exception $e) {
             Log::error($e->getMessage());
-            return ApiResponse::Error(__('messages.error',['info' => 'Fail to save']));
+            return ApiResponse::Error(__('messages.error', ['info' => 'Fail to save']));
         }
     }
+
 
 
 
@@ -210,6 +503,7 @@ class PriceListController extends Controller
             unset($inputs['delivery_type']);
             $priceList->update($inputs);
         }
+        // Log::info($req->all());
         unset($inputs['zones']);
         $uniqueKeys = $inputs['identifier'] ?? uniqid('PZ');
 
