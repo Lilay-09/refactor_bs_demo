@@ -16,7 +16,6 @@ use App\Models\Payment;
 use App\Models\PaymentTransaction;
 use App\Models\UserBank;
 use DataResponse;
-use Dflydev\DotAccessData\Data;
 use Illuminate\Support\Facades\DB;
 use Exception;
 use Helper;
@@ -720,7 +719,7 @@ class MerchantTransactionServiceImpl implements MerchantTransactionService
                     'company_id' => $authUser->company_id
                 ];
                 $toPayout[] = [
-                    'account' => $dueAccount['account_number'],
+                    'account' => $dueAccount['account_number'] ?? '',
                     'currency' => $dueAmt['currency'],
                     'amount' => $dueAmt['amount'],
                 ];
