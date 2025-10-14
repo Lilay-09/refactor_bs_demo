@@ -694,12 +694,14 @@ class MerchantTransactionServiceImpl implements MerchantTransactionService
                 $payment->merchant->username : $disbursement->merchant->username;
 
             foreach ($dueAmounts as $dueAmt) {
-                $dueAccount = $this->dueBankAccounts($accountList, $targetUid, $dueAmt['currency']);
-                if (empty($dueAccount)) {
-                    return DataResponse::NotFound(__('messages.info', [
-                        'info'   => "Merchant {$targetUsername} has no bank account for {$dueAmt['currency']}",
-                        'khInfo' => "អ្នកលក់ {$targetUsername} មិនមានគណនីសម្រាប់រូបិយប័ណ្ណ {$dueAmt['currency']}"
-                    ]));
+                if(!$isManual){
+                    $dueAccount = $this->dueBankAccounts($accountList, $targetUid, $dueAmt['currency']);
+                    if (empty($dueAccount)) {
+                        return DataResponse::NotFound(__('messages.info', [
+                            'info'   => "Merchant {$targetUsername} has no bank account for {$dueAmt['currency']}",
+                            'khInfo' => "អ្នកលក់ {$targetUsername} មិនមានគណនីសម្រាប់រូបិយប័ណ្ណ {$dueAmt['currency']}"
+                        ]));
+                    }
                 }
                 $toInsertTrans[] = [
                     'currency' => $dueAmt['currency'],

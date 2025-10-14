@@ -433,7 +433,6 @@ class CommentServiceImpl implements CommentService
         $commentDescription->deleted_uid = $authUser->id;
         $commentDescription->deleted_datetime = now();
         $commentDescription->save();
-
         return DataResponse::JsonResult([], false, __('messages.deleted'));
     }
 
