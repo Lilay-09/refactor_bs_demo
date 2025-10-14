@@ -15,6 +15,7 @@ use Illuminate\Support\Facades\DB;
 use Helper;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Log;
 
 class ZoneController extends Controller
 {
@@ -75,6 +76,10 @@ class ZoneController extends Controller
         if($search){
             $query->where(function($q) use($search){
                 $q->where('zone_name','ilike','%'.$search.'%')->orWhere('zone_code','ilike','%'.$search.'%');
+            })->orWhere(function ($q) use($search){
+                $q->whereHas('sub_zones',function ($q) use($search){
+                    $q->where('zone_name','ilike','%'.$search.'%')->orWhere('zone_code','ilike','%'.$search.'%');
+                });
             });
         }
         $select = ['id','identity','zone_code','zone_type','parent_id','zone_name','commune','description','city','district','country_id','status'];
@@ -142,7 +147,12 @@ class ZoneController extends Controller
 
     public function getZoneChildren(Request $req){
         $parentId = $req->id;
-        $children = Zone::where('is_deleted',0)->where('parent_id',$parentId)->get();
+        $search = $req->search;
+        $qC = Zone::where('is_deleted',0)->where('parent_id',$parentId);
+        if($search){
+            $qC->where('zone_name','ILIKE',"%{$search}%");
+        }
+        $children = $qC->get();
         return ApiResponse::JsonResult($children);
     }
 

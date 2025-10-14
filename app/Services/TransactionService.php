@@ -820,7 +820,10 @@ class TransactionService
             }
         }
         if($type === 'merchant'){
-            if ($payer === 'sender' && ($fees > 0 || $taxiFee > 0)) {
+            if (($fees > 0 || $taxiFee > 0)) {
+                if($payer === 'receiver'){
+                    $fees = 0;
+                }
                 Helper::deductAmountBase($totalUsd,$totalKhr,$fees + $taxiFee,$exchangeRateBase);
             }
         }
@@ -1789,7 +1792,7 @@ class TransactionService
         }
     }
 
-    private function preparePayIn(int $pkgId, string $type, string $payingCurrency, object $validPkg, int $mId, object $payOutPkgs){
+    private function preparePayIn(int $pkgId, string $type, string $payingCurrency, object $validPkg, int $mId, object $payInPkgs){
         $result = [
             'fullyPaidInfo'       => [],
             'currencyConflictInfo'=> [],
@@ -1802,14 +1805,15 @@ class TransactionService
             'receivedKHR' => 0
         ];
 
-        $payOutPkg = $payOutPkgs[$pkgId] ?? null;
+        $payInPkg = $payInPkgs[$pkgId] ?? null;
         $validUsdAmt = abs($validPkg->data['total_due_amount_usd']); // abs for not sign when insert
         $validKhrAmt = abs($validPkg->data['total_due_amount_khr']); // abs for not sign when insert
-        if ($payOutPkg && $payOutPkg->payment) {
-            $payment = $payOutPkg->payment;
+        if ($payInPkg && $payInPkg->payment) {
+            $payment = $payInPkg->payment;
             // Log::info($payOutPkg);
             $usdDue = $payment->amount_due_usd - $payment->received_amount_usd;
             $khrDue = $payment->amount_due_khr - $payment->received_amount_khr;
+            
 
             $result['target'] = $payment;
             $result['targetId'] = $payment->id;
@@ -1933,7 +1937,6 @@ class TransactionService
             $amountKhr = $disbursement->amount_due_khr ?? 0;
             $usdDue = $amountUsd - $disbursement->received_amount_usd;
             $khrDue = $amountKhr - $disbursement->received_amount_khr ?? 0;
-
             if($amountUsd > 0 && $usdDue == 0 && $payingCurrency === 'USD'){
                 $result['currencyConflictInfo'][] = [
                     'package_id'    => $pkgId,
@@ -3010,7 +3013,7 @@ class TransactionService
             // Log::info(json_encode($rowTotal));
             // $obj->total_due_amount_khr += $rowTotal['total_khr'];
             // $obj->total_due_amount_usd += $rowTotal['total_usd'];
-
+            // Log::info($rowTotal['fees']);
             $obj->total_fees += $rowTotal['fees'];
             if($package->cod) $obj->total_cod += $package->price;
             $obj->total_amount += $package->price + $package->delivery_fee;
@@ -3022,8 +3025,8 @@ class TransactionService
         }
         // if($paymentType == 'disbursement') $obj->total_due_amount = abs($obj->total_due_amount);
         // Log::error(json_encode($obj));
-        Helper::deductAmountBase($totalDriverCodUsd,$totalDriverCodKhr,$obj->total_fees + $obj->total_taxi_fee);
-        // Log::info($totalDriverCodUsd.'---'.$totalDriverCodKhr);
+        // Log::info($obj->total_fees);
+        Helper::deductAmountBase($totalDriverCodUsd,$totalDriverCodKhr,($obj->total_fees + $obj->total_taxi_fee));
         return DataResponse::JsonResult([
             'pacakage_ids' => $packageIds,
             'total_delivery_fee' => round($obj->total_delivery_fee,2),
@@ -3776,6 +3779,9 @@ class TransactionService
         if(!$package->method || $package->method == PaymentMethod::COD->value){
             $inputs['orginal_driver_cod_usd'] = $inputs['driver_cod_usd'];
             $inputs['orginal_driver_cod_khr'] = $inputs['driver_cod_khr'];
+        }
+        if($package->hasMerchantPayment()){
+            return DataResponse::ValidateFail('Package has already paid to merchant, You cannot modify');
         }
         $package->update($inputs);
         return DataResponse::JsonResult(null,false,__('messages.saved'));

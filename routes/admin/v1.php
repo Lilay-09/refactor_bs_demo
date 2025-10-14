@@ -215,7 +215,6 @@ Route::middleware(['jwt','localize','userAccess:admin','rateLimit'])->prefix('ad
                 Route::post('payment',[MerchantTransactionController::class,'receivePackagesPayment']);
                 Route::post('payment-bulk',[MerchantTransactionController::class,'receivePackagesBulkPaymentV1']);
                 Route::get('packages',[MerchantTransactionController::class,'getMerchantDeliveryPackages']);
-
             });
 
             Route::prefix('payment')->group(function(){
