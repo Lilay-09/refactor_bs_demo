@@ -712,7 +712,7 @@ class MerchantTransactionServiceImpl implements MerchantTransactionService
                     'payment_id' => $pId,
                     'transaction_type' => TransactionType::TRNASFER_OUT->value,
                     'from_account' => 'NG Company',
-                    'to_account' => $dueAccount['concat'],
+                    'to_account' => $dueAccount['concat'] ?? '',
                     'approved_uid' => $authUser->id,
                     'create_uid' => $authUser->id,
                     'update_uid' => $authUser->id,
