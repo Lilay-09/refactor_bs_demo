@@ -278,7 +278,7 @@ class MerchantTransactionServiceImpl implements MerchantTransactionService
                 'payment_id' => $paymentId,
                 'tran_via' => 'internal',
                 'transaction_type' => TransactionType::TRNASFER_OUT->value,
-                'from_account' => 'Ng Company',
+                'from_account' => 'NG Company',
                 'to_account' => $dueAccount['concat'],
                 'approved_uid' => $authUser->id,
                 'create_uid' => $authUser->id,
@@ -343,15 +343,35 @@ class MerchantTransactionServiceImpl implements MerchantTransactionService
      */
 
     public function declineRequetedSettlement(int $paymentId,Request $req,object $authUser):object{
-
         $transactionType = $req->transaction_type;
-
+        $reason = $req->input('reason');
+        // if(empty($reason)){
+        //     return DataResponse::BadRequest('Please fill reason');
+        // }
         if($transactionType === TransactionType::TRNASFER_OUT->value){
             $disbursement = Disbursement::where('is_deleted',false)
             ->where('payment_status_id',PaymentStatus::REQUESTED->value)
             ->find($paymentId);
+            if(!$disbursement)return DataResponse::NotFound('Not found');
+            $disbursement->update([
+                'payment_status_id' => PaymentStatus::DECLINED->value,
+                'reason' => $reason,
+                'received_amount_khr' => 0,
+                'received_amount_usd' => 0
+            ]);
+        }else if($transactionType === TransactionType::TRANSFER_IN->value){
+            $payment = Payment::where('is_deleted',false)
+            ->where('payment_status_id',PaymentStatus::REQUESTED->value)
+            ->find($paymentId);
+            if(!$payment)return DataResponse::NotFound('Not found');
+            $payment->update([
+                'payment_status_id' => PaymentStatus::DECLINED->value,
+                'reason' => $reason,
+                'received_amount_khr' => 0,
+                'received_amount_usd' => 0
+            ]);
         }
-        return DataResponse::JsonResult(null);
+        return DataResponse::JsonResult(null,false,'Declined');
     }
     // public function approveAndSettleBulkRequestedSettlement(Request $req,object $authUser):object{
     //     $validator = validator($req->all(),[
@@ -856,6 +876,11 @@ class MerchantTransactionServiceImpl implements MerchantTransactionService
     }
 
     public function getSettledPaymentTransactions(Request $req,$authUser):object{
+        $startDate = $req->query('startDate');
+        $endDate = $req->query('endDate');
+        $merchantId = $req->query('merchant_id');
+        $transactionType = $req->query('transaction_type');
+        Log::info($req->all());
         $qTrx = PaymentTransaction::query()
         ->with([
             'disbursement:id,payee_id',
@@ -864,6 +889,33 @@ class MerchantTransactionServiceImpl implements MerchantTransactionService
             'payment:id,payer_id'
         ])
         ->where('is_deleted',false);
+        if($transactionType){
+            $qTrx->where('transaction_type',$transactionType);
+        }
+
+        if($merchantId){
+            $qTrx->where(function ($q) use ($merchantId) {
+                $q->where(function ($sub) use ($merchantId) {
+                    $sub->where('transaction_type', 'out')
+                        ->whereHas('disbursement.merchant', function ($m) use ($merchantId) {
+                            $m->where('id',$merchantId);
+                        });
+                })
+                ->orWhere(function ($sub) use ($merchantId) {
+                    $sub->where('transaction_type', 'in')
+                        ->whereHas('payment.merchant', function ($p) use ($merchantId) {
+                            $p->where('id',$merchantId);
+                        });
+                });
+            });
+        }
+
+        if($startDate && $endDate){
+            $qTrx->whereBetween('payment_date',[
+                Helper::dateYMD($startDate).' 00:00:00',
+                Helper::dateYMD($endDate). ' 23:59:59'
+            ]);
+        }
         $select = ['id','tran_via','approved_uid','payment_id','payment_date','to_account','from_account','payment_ref','amount','currency'];
         $callback = function($q): MerchantSettledTransactionDTO{
             $q->merchant_name = $q->disbursement->merchant->username ?? '';

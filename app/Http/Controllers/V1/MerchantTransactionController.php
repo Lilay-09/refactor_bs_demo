@@ -11,6 +11,7 @@ use App\Services\UserService;
 use Illuminate\Support\Facades\DB;
 use Helper;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 class MerchantTransactionController extends Controller
 {
@@ -39,6 +40,7 @@ class MerchantTransactionController extends Controller
 
     public function declineRequestedPayment(Request $req){
         $user = UserService::getAuthUser();
+        // Log::info($req->all());
         return ApiResponse::flex($this->merchantTransactionService->declineRequetedSettlement($req->paymentId,$req,$user));
     }
 
@@ -66,6 +68,11 @@ class MerchantTransactionController extends Controller
         return ApiResponse::flex($this->merchantTransactionService->approveAndSettleRequestedSettlement($req->paymentId,$req->input('transaction_type'),$user));
     }
 
+
+    public function declinePayment(Request $req){
+        $user = UserService::getAuthUser();
+        return ApiResponse::flex($this->merchantTransactionService->declineRequetedSettlement($req->paymentId,$req,$user));
+    }
 
     public function getSettledPayments(Request $req){
         $user = UserService::getAuthUser();
