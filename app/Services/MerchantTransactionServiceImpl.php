@@ -270,7 +270,6 @@ class MerchantTransactionServiceImpl implements MerchantTransactionService
                     'khInfo' => "អ្នកលក់ {$disbursement->merchant->username} មិនមានគណនីសម្រាប់រូបិយប័ណ្ណ {KHR ឬ USD}"
                 ]));
             }
-
             $toBeSettleList[] = [
                 'currency' => $dueAmt['currency'],
                 'amount' => $dueAmt['amount'],

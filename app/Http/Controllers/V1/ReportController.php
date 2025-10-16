@@ -18,11 +18,13 @@ use App\Models\User;
 use App\Models\UserBank;
 use App\Services\CompanyProfileService;
 use App\Services\GeneralSettingService;
+use App\Services\PackageTrailServiceImpl;
 use App\Services\TransactionService;
 use App\Services\UserService;
 use Illuminate\Support\Facades\DB;
 use Helper;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 class ReportController extends Controller
 {
@@ -101,7 +103,14 @@ class ReportController extends Controller
         $qP = Package::where('is_deleted',0)
         ->with(['status','driver','merchant','returnUser'])
         ->where('outstanding',0)
-        ->selectRaw('zone_name,qr_code,merchant_id,driver_id,returned_uid,payer,product_type,receiver_address,remarks,receiver_phone,cod,price,delivery_fee,additional_fee,driver_total,merchant_total,status_id,remarks,arrive_warehouse_datetime,assign_driver_datetime,updated_at,failed_datetime,returned_datetime,delivered_datetime,extra_charge,created_at');
+        ->selectRaw('
+            zone_name,qr_code,merchant_id,driver_id,returned_uid,payer,price_khr,
+            driver_cod_usd,driver_cod_khr
+            product_type,receiver_address,remarks,receiver_phone,cod,price,delivery_fee,
+            additional_fee,driver_total,merchant_total,status_id,remarks,arrive_warehouse_datetime,
+            assign_driver_datetime,updated_at,failed_datetime,returned_datetime,delivered_datetime,
+            other_fee,created_at'
+        );
         if($statusId){
             $qP->where('status_id',$statusId);
         }
@@ -119,7 +128,10 @@ class ReportController extends Controller
             'cod' => 0,
             'fees' => 0,
             'driver_total' => 0,
-            'merchant_total' => 0
+            'merchant_total' => 0,
+            'driver_total_khr' => 0,
+            'merchant_total_khr' => 0
+
         ];
 
         if($startDate && $endDate){
@@ -158,24 +170,49 @@ class ReportController extends Controller
         $packages = $qP->orderByDesc('created_at')->get()
         ->each(function ($q) use($lang,&$grand){
             if($lang == 'km'){
-                    $q->status_code = GeneralSettingService::$statusCodeTrans[$q->status_id] ?? '';
+                $q->status_code = GeneralSettingService::$statusCodeTrans[$q->status_id] ?? '';
             }else $q->status_code = $q->status->name;
-            $q->merchant_name = $q->merchant->user_name;
+            $q->merchant_name = $q->merchant->username;
             $q->merchant_phone = $q->merchant->phone;
-            $q->driver_name = $q->status_id == 11 ? $q->returnUser?->user_name : $q->driver?->user_name;
+            $q->driver_name = $q->status_id == 11 ? $q->returnUser?->username : $q->driver?->username;
             $q->driver_phone = $q->driver?->phone;
-            $q->cod_fee = $q->price;
+            // $q->cod_fee = $q->price;
             $merchantTotal = $q->cod ? $q->price:0;
-            $fees = $q->delivery_fee + $q->extra_charge - $q->taxi_fee;
+            $fees = (float)($q->delivery_fee + $q->other_fee);//- $q->taxi_fee;
             if($q->payer == 'sender'){
                 $merchantTotal -= $fees + $q->taxi_fee;
             }
-            $grand['cod'] += $q->driver_total;
-            $grand['driver_total'] += $q->driver_total;
-            $grand['merchant_total'] += $merchantTotal;
+            $driverCodUsd =(float)($q->driver_cod_usd ?? 0);
+            $driverCodKhr = (float)($q->driver_cod_khr ?? 0);
+            $taxiFee = (float)$q->taxi_fee;
+            $driverTotal = PackageTrailServiceImpl::calculateCodAmtBothCurrencies(
+                $driverCodUsd,
+                $driverCodKhr,
+                'driver',
+                $q->payer,
+                $q->status_id,
+                $fees,
+                $taxiFee
+            );
+            $merchantTotal = PackageTrailServiceImpl::calculateCodAmtBothCurrencies(
+                $driverCodUsd,
+                $driverCodKhr,
+                'merchant',
+                $q->payer,
+                $q->status_id,
+                $fees,
+                $taxiFee
+            );
+            $q->driver_total = $driverTotal['amount_usd'];
+            $q->driver_total_khr = $driverTotal['amount_khr'];
+            // $grand['cod'] += $q->driver_total;
+            $grand['driver_total'] += $driverTotal['amount_usd'];
+            $grand['driver_total_khr'] += $driverTotal['amount_khr'];
+            $grand['merchant_total'] += $merchantTotal['amount_usd'];
+            $grand['merchant_total_khr'] += $merchantTotal['amount_khr'];
             $grand['fees'] += $fees;
-            $q->merchant_total = $merchantTotal;
-            $q->fee = $q->delivery_fee + $q->extra_charge;
+            // $q->merchant_total = $merchantTotal;
+            $q->fee = $q->delivery_fee + $q->other_fee;
             $q->arrive_warehouse_datetime = Helper::formatCustomDateTime($q->arrive_warehouse_datetime,'d-M-Y');
             $actionDate = null;
             if ($q->status_id == 5) $actionDate = Helper::formatCustomDateTime($q->arrive_warehouse_datetime,'d-M-Y h:i A');
@@ -582,7 +619,7 @@ class ReportController extends Controller
         $packages = $packageQuery->get([
             'id', 'merchant_id', 'driver_id', 'status_id',
             'cod', 'price', 'delivery_fee', 'payer',
-            'extra_charge','taxi_fee'
+            'other_fee','taxi_fee'
         ]);
 
 
@@ -628,12 +665,12 @@ class ReportController extends Controller
 
         $receiverFeesTotal = $packages
         ->filter(fn($p) => $p->payer === 'receiver')
-        ->sum(fn($p) => $p->delivery_fee + $p->extra_charge);
+        ->sum(fn($p) => $p->delivery_fee + $p->other_fee);
         $codTotal = $pkgPrice + $receiverFeesTotal;
 
         // Total delivery + extra fees (status 9 and 19)
         $feesTotal = $financialPackages
-            ->sum(fn($p) => $p->delivery_fee + $p->extra_charge);
+            ->sum(fn($p) => $p->delivery_fee + $p->other_fee);
 
         // Fees that merchant still owes (no disbursement or payment)
         $merchantOweFees = $financialPackages
@@ -654,7 +691,7 @@ class ReportController extends Controller
             }) &&
             $p->payer === 'sender'
         )
-        ->sum(fn($p) => $p->delivery_fee + $p->extra_charge + $p->taxi_fee);
+        ->sum(fn($p) => $p->delivery_fee + $p->other_fee + $p->taxi_fee);
 
 
         $payback = $codTotal - $merchantOweFees;
@@ -1037,7 +1074,11 @@ class ReportController extends Controller
         $qP = Package::where('is_deleted',0)->where('outstanding',0)
         ->with(['merchant:id,username','status:id,name'])
         ->orderByDesc('id')
-        ->selectRaw('status_id,qr_code,merchant_id,receiver_phone,receiver_name,receiver_address,cod,delivery_fee,taxi_fee,driver_total,remarks,zone_code,zone_name,payer,driver_id,price');
+        ->selectRaw('
+            status_id,qr_code,merchant_id,receiver_phone,receiver_name,receiver_address,cod,other_fee,
+            delivery_fee,taxi_fee,driver_total,remarks,zone_code,zone_name,payer,driver_id,price,
+            price_khr,driver_cod_usd,driver_cod_khr
+        ');
 
         if($branchId){
             $qP->where('branch_id',$branchId);
@@ -1096,6 +1137,33 @@ class ReportController extends Controller
                 $uniqueDrivers[$p->driver_id] = true; // Mark this driver_id as seen
                 $distinctDriverCount+=1; // Increment the distinct count
             }
+            $fees = (float)($p->delivery_fee + $p->other_fee);//- $p->taxi_fee;
+            $driverCodUsd =(float)($p->driver_cod_usd ?? 0);
+            $driverCodKhr = (float)($p->driver_cod_khr ?? 0);
+            $taxiFee = (float)$p->taxi_fee;
+            $driverCodUsd =(float)($p->driver_cod_usd ?? 0);
+            $driverCodKhr = (float)($p->driver_cod_khr ?? 0);
+            $taxiFee = (float)$p->taxi_fee;
+            $driverTotal = PackageTrailServiceImpl::calculateCodAmtBothCurrencies(
+                $driverCodUsd,
+                $driverCodKhr,
+                'driver',
+                $p->payer,
+                $p->status_id,
+                $fees,
+                $taxiFee
+            );
+            // $merchantTotal = PackageTrailServiceImpl::calculateCodAmtBothCurrencies(
+            //     $driverCodUsd,
+            //     $driverCodKhr,
+            //     'merchant',
+            //     $p->payer,
+            //     $p->status_id,
+            //     $fees,
+            //     $taxiFee
+            // );
+            $p->driver_total = $driverTotal['amount_usd'];
+            $p->driver_total_khr = $driverTotal['amount_khr'];
             unset($p->merchant,$p->status);
         }
         $obj =(object)[
@@ -1330,7 +1398,7 @@ class ReportController extends Controller
                 ->where('dis.payee_id',$merchantId)
                 ->where('dis.payee_type', '=', 'merchant')->where('dis.type','payment'); // Add merchant filter
         })
-        ->selectRaw('p.order_id,p.merchant_total,p.merchant_id,p.remarks,p.delivery_remarks,p.status_id,p.id,p.qr_code,p.delivered_datetime,p.failed_datetime,p.delivery_remarks,p.remarks,p.taxi_fee,p.extra_charge,p.delivery_fee,p.cod,p.price,p.payer,
+        ->selectRaw('p.order_id,p.merchant_total,p.merchant_id,p.remarks,p.delivery_remarks,p.status_id,p.id,p.qr_code,p.delivered_datetime,p.failed_datetime,p.delivery_remarks,p.remarks,p.taxi_fee,p.other_fee,p.delivery_fee,p.cod,p.price,p.payer,
         p.returned_datetime,p.arrive_warehouse_datetime,p.assign_driver_datetime,p.receiver_phone,p.receiver_name,p.receiver_address,p.zone_name,p.delivery_remarks,p.merchant_disbursement_id,p.merchant_payment_id'.$pmtCase);
         if($branchId){
             $qP->where('p.branch_id',$branchId);
@@ -1434,7 +1502,7 @@ class ReportController extends Controller
                 $item->price = $item->cod ? $item->price:0;
                 $total = $item->cod && $item->status_id == 9 ? $item->price : 0;
                 if($item->payer == 'sender') {
-                    $item->delivery_fee = $isCal ? ($item->delivery_fee + $item->extra_charge) : 0;
+                    $item->delivery_fee = $isCal ? ($item->delivery_fee + $item->other_fee) : 0;
                     $total -= $item->delivery_fee + $item->taxi_fee;
                 }else $item->delivery_fee = 0;
                 $totalDeliveryFee += $item->delivery_fee;
@@ -1906,7 +1974,7 @@ class ReportController extends Controller
         $totalMerchantCount = 0;
         $startDate = $req->startDate;
         $endDate = $req->endDate;
-        $sumAmount = 'SUM(CASE WHEN packages.payer = \'sender\' THEN packages.delivery_fee + packages.extra_charge + packages.taxi_fee ELSE packages.taxi_fee END) AS amount';
+        $sumAmount = 'SUM(CASE WHEN packages.payer = \'sender\' THEN packages.delivery_fee + packages.other_fee + packages.taxi_fee ELSE packages.taxi_fee END) AS amount';
         $pQ = Package::where('packages.is_deleted', 0)
         ->whereIn('packages.status_id',[9,19])
         // ->whereNull('packages.merchant_disbursement_id')
@@ -1926,7 +1994,7 @@ class ReportController extends Controller
                 ->where('dp.is_deleted', false);
         })
         ->where('packages.cod', true) // Filter only COD packages
-        ->whereRaw('packages.price - (packages.delivery_fee + packages.extra_charge + packages.taxi_fee) < 0')
+        ->whereRaw('packages.price - (packages.delivery_fee + packages.other_fee + packages.taxi_fee) < 0')
         ->join('users as m', 'm.id', '=', 'packages.merchant_id')
         ->leftJoinSub(
             DB::table('user_bank_accounts as uba')
@@ -1952,7 +2020,7 @@ class ReportController extends Controller
             m.username as merchant_name,
             COUNT(packages.id) as total_package,
             SUM(packages.taxi_fee) as taxi_fee,
-            SUM(CASE WHEN packages.payer = \'sender\' THEN packages.delivery_fee + packages.extra_charge ELSE 0 END) AS total_delivery_fee,
+            SUM(CASE WHEN packages.payer = \'sender\' THEN packages.delivery_fee + packages.other_fee ELSE 0 END) AS total_delivery_fee,
             ' . $sumAmount
         )
         ->groupByRaw('m.code, packages.merchant_id, m.username, uba.bank_info') ;

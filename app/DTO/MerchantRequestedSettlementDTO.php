@@ -20,6 +20,7 @@ class MerchantRequestedSettlementDTO {
         public readonly string $cod_to_be_paid_khr,
         public readonly string $status,
         public readonly string $transaction_type,
+        public readonly ?int $payment_status_id = null,
         public readonly ?string $requested_username = null,
         public readonly ?array $bank_accounts = [],
     ) {}
@@ -44,6 +45,7 @@ class MerchantRequestedSettlementDTO {
             requested_username: $dis->requested_username,
             status: $dis->status,
             transaction_type: $dis->transaction_type,
+            payment_status_id: $dis->payment_status_id,
             bank_accounts: is_array($dis->bank_accounts)
                 ? $dis->bank_accounts
                 : (!empty($dis->bank_accounts) ? json_decode($dis->bank_accounts, true) : []),
