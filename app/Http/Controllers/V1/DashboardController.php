@@ -5,6 +5,7 @@ namespace App\Http\Controllers\V1;
 use ApiResponse;
 use App\Http\Controllers\Controller;
 use App\Models\Package;
+use App\Models\Payment;
 use App\Models\PaymentDetail;
 use App\Models\User;
 use Carbon\Carbon;
@@ -171,62 +172,99 @@ class DashboardController extends Controller
 
     }
 
-    private function driverDailyCollection(int $branchId){
-        $pkgPayments = DB::table('packages as p')
-            ->where('p.is_deleted',false)
-            ->where('p.branch_id',$branchId)
-            ->join(DB::raw("(
-                SELECT
-                    pp.package_id,
-                    pm.id AS payment_id,
-                    pm.exchange_rate,
-                    pm.payment_datetime
-                FROM payment_packages pp
-                JOIN payments pm ON pm.id = pp.payment_id
-                WHERE pp.payer_type = 'merchant' AND pp.is_deleted = false
-
-                UNION ALL
-
-                SELECT
-                    dp.package_id,
-                    ds.id AS payment_id,
-                    ds.exchange_rate,
-                    ds.payment_datetime
-                FROM disbursement_packages dp
-                JOIN disbursements ds ON ds.id = dp.disbursement_id
-                WHERE dp.payee_type = 'merchant' AND dp.type = 'payment' AND dp.is_deleted = false
-            ) AS unified_payments"), 'p.id', '=', 'unified_payments.package_id')
-            ->where('p.updated_at', '>=', Carbon::now()->subDays($this->days))
-            ->selectRaw('
-                unified_payments.exchange_rate,
-                unified_payments.payment_id,
-                DATE(unified_payments.payment_datetime) as payment_date,
-                COUNT(DISTINCT(p.driver_id)) as total_driver,
-                COUNT(DISTINCT(p.merchant_id)) as total_merchant
-            ')
-            ->groupBy('unified_payments.exchange_rate', 'unified_payments.payment_id', 'unified_payments.payment_datetime')
-            ->orderByDesc('unified_payments.payment_datetime')
+    private function driverDailyCollection()
+    {
+        $dateThreshold = Carbon::now()->subDays($this->days);
+        // Step 1: Fetch payments within range (drivers as payers)
+        $cashSum = 0;
+        $bankSum = 0;
+        $cashSumKhr = 0;
+        $bankSumKhr = 0;
+        $payments = Payment::query()
+            ->where('is_deleted', false)
+            ->where('approved', true)
+            ->where('payer_type', 'driver')
+            ->where('payment_datetime', '>=', $dateThreshold)
+            ->with([
+                'paymentDetails',
+                'paymentPackages' => function ($q) {
+                    $q->where('payer_type', 'driver')
+                    ->where('is_deleted', false)
+                    ->with(['package:id,merchant_id']);
+                }
+            ])
+            ->select(['id', 'payer_id', 'payment_datetime'])
+            ->orderByDesc('payment_datetime')
             ->get();
+            // ->each(function($q) use($cashSum,$cashSumKhr,$bankSum,$bankSumKhr){
+                // $pmtDetails = $this->getPaymentDetails($q->id,$q->paymentDetails);
+                // if($pmtDetails){
+                //     $cashSum += $pmtDetails['cash_usd'];
+                //     $cashSumKhr += $pmtDetails['cash_khr'];
+                //     $bankSum += $pmtDetails['bank_usd'];
+                //     $bankSumKhr += $pmtDetails['bank_khr'];
+                // }
+            //     // Log::info($pmtDetails);
+            // });
 
-        $paymentDetails = PaymentDetail::get();
-        $paymentList = [];
-        foreach($pkgPayments as $pmt){
-            $pmtDetails = $this->getPaymentDetails($pmt->payment_id,$paymentDetails);
-            if($pmtDetails){
-                // $amountConverted = TransactionService::amountToOneCurrency('USD',$pmtDetails['cash_usd'],$pmtDetails['cash_khr'],$pmtDetails['bank_usd'],$pmtDetails['bank_khr'],4000);
-                // $pmt->cash = $amountConverted['cash'];
-                // $pmt->bank_amount = $amountConverted['bank'];
-                // $pmt->total = $amountConverted['total'];
-                $pmt->cash_usd = $pmtDetails['cash_usd'];
-                $pmt->cash_khr = $pmtDetails['cash_khr'];
-                $pmt->bank_usd = $pmtDetails['bank_usd'];
-                $pmt->bank_khr = $pmtDetails['bank_khr'];
-                $pmt->total_usd = $pmtDetails['bank_usd'] + $pmtDetails['cash_usd'];
-                $pmt->total_khr = $pmtDetails['bank_khr'] + $pmtDetails['cash_khr'];
+        // Step 2: Group payments by date
+        $paymentsByDate = $payments->groupBy(function ($p) {
+            return Carbon::parse($p->payment_datetime)->toDateString(); // "2025-10-08"
+        });
+
+        // Step 3: Aggregate
+        $result = [];
+
+        foreach ($paymentsByDate as $date => $items) {
+            // unique drivers from payments
+            $totalDrivers = $items->pluck('payer_id')->unique()->count();
+
+            // collect merchant_ids from related packages
+            $merchantIds = collect();
+            foreach ($items as $payment) {
+                // $merchants = $payment->paymentPackages
+                //     ->pluck('package.merchant_id')
+                //     ->filter();
+                // $merchantIds = $merchantIds->merge($merchants);
+
+                // ✅ Fix: use $payment instead of $q
+                $pmtDetails = $this->getPaymentDetails($payment->id, $payment->paymentDetails);
+
+                if ($pmtDetails) {
+                    $cashSum += $pmtDetails['cash_usd'] ?? 0;
+                    $cashSumKhr += $pmtDetails['cash_khr'] ?? 0;
+                    $bankSum += $pmtDetails['bank_usd'] ?? 0;
+                    $bankSumKhr += $pmtDetails['bank_khr'] ?? 0;
+                }
+
+                // Collect merchants from related packages
+                $merchants = $payment->paymentPackages
+                    ->pluck('package.merchant_id')
+                    ->filter();
+
+                $merchantIds = $merchantIds->merge($merchants);
             }
-            $paymentList[] = $pmt;
+
+            $totalMerchants = $merchantIds->unique()->count();
+
+            $result[] = (object)[
+                'payment_date_raw' => $date,
+                'payment_date' => Carbon::parse($date)->format('d/m/Y'),
+                'total_driver' => $totalDrivers,
+                'total_merchant' => $totalMerchants,
+                'cash_usd' => number_format($cashSum, 2, '.', ''),
+                'cash_khr' => number_format($cashSumKhr, 2, '.', ''),
+                'bank_amount_usd' => number_format($bankSum, 2, '.', ''),
+                'bank_amount_khr' => number_format($bankSumKhr, 2, '.', ''),
+                'total_usd' => number_format($cashSum + $bankSum, 2, '.', ''),
+                'total_khr' => number_format($cashSumKhr + $bankSumKhr, 2, '.', ''),
+            ];
         }
-        return $paymentList;
+
+        // Step 4: Sort by date descending
+        return collect($result)
+            ->sortByDesc('payment_date_raw')
+            ->values();
     }
 
     private function getPaymentDetails($paymentId,$rows){
@@ -236,6 +274,8 @@ class DashboardController extends Controller
         $cashUsd = 0;
         foreach($rows as $row) {
             if($row->payment_id == $paymentId){
+                // \Log::info($row);
+                // return $row;
                 if($row->method == 'cash' && $row->currency_code == 'KHR'){
                     $cashKhr += $row->amount;
                 }else if($row->method == 'cash' && $row->currency_code == 'USD'){
@@ -255,6 +295,91 @@ class DashboardController extends Controller
             'cash_usd' => $cashUsd
         ];
     }
+
+    // private function driverDailyCollection(int $branchId){
+    //     $pkgPayments = DB::table('packages as p')
+    //         ->where('p.is_deleted',false)
+    //         ->where('p.branch_id',$branchId)
+    //         ->join(DB::raw("(
+    //             SELECT
+    //                 pp.package_id,
+    //                 pm.id AS payment_id,
+    //                 pm.exchange_rate,
+    //                 pm.payment_datetime
+    //             FROM payment_packages pp
+    //             JOIN payments pm ON pm.id = pp.payment_id
+    //             WHERE pp.payer_type = 'merchant' AND pp.is_deleted = false
+
+    //             UNION ALL
+
+    //             SELECT
+    //                 dp.package_id,
+    //                 ds.id AS payment_id,
+    //                 ds.exchange_rate,
+    //                 ds.payment_datetime
+    //             FROM disbursement_packages dp
+    //             JOIN disbursements ds ON ds.id = dp.disbursement_id
+    //             WHERE dp.payee_type = 'merchant' AND dp.type = 'payment' AND dp.is_deleted = false
+    //         ) AS unified_payments"), 'p.id', '=', 'unified_payments.package_id')
+    //         ->where('p.updated_at', '>=', Carbon::now()->subDays($this->days))
+    //         ->selectRaw('
+    //             unified_payments.exchange_rate,
+    //             unified_payments.payment_id,
+    //             DATE(unified_payments.payment_datetime) as payment_date,
+    //             COUNT(DISTINCT(p.driver_id)) as total_driver,
+    //             COUNT(DISTINCT(p.merchant_id)) as total_merchant
+    //         ')
+    //         ->groupBy('unified_payments.exchange_rate', 'unified_payments.payment_id', 'unified_payments.payment_datetime')
+    //         ->orderByDesc('unified_payments.payment_datetime')
+    //         ->get();
+
+    //     $paymentDetails = PaymentDetail::get();
+    //     $paymentList = [];
+    //     foreach($pkgPayments as $pmt){
+    //         $pmtDetails = $this->getPaymentDetails($pmt->payment_id,$paymentDetails);
+    //         if($pmtDetails){
+    //             // $amountConverted = TransactionService::amountToOneCurrency('USD',$pmtDetails['cash_usd'],$pmtDetails['cash_khr'],$pmtDetails['bank_usd'],$pmtDetails['bank_khr'],4000);
+    //             // $pmt->cash = $amountConverted['cash'];
+    //             // $pmt->bank_amount = $amountConverted['bank'];
+    //             // $pmt->total = $amountConverted['total'];
+    //             $pmt->cash_usd = $pmtDetails['cash_usd'];
+    //             $pmt->cash_khr = $pmtDetails['cash_khr'];
+    //             $pmt->bank_usd = $pmtDetails['bank_usd'];
+    //             $pmt->bank_khr = $pmtDetails['bank_khr'];
+    //             $pmt->total_usd = $pmtDetails['bank_usd'] + $pmtDetails['cash_usd'];
+    //             $pmt->total_khr = $pmtDetails['bank_khr'] + $pmtDetails['cash_khr'];
+    //         }
+    //         $paymentList[] = $pmt;
+    //     }
+    //     return $paymentList;
+    // }
+
+    // private function getPaymentDetails($paymentId,$rows){
+    //     $bankKhr = 0;
+    //     $bankUsd = 0;
+    //     $cashKhr = 0;
+    //     $cashUsd = 0;
+    //     foreach($rows as $row) {
+    //         if($row->payment_id == $paymentId){
+    //             if($row->method == 'cash' && $row->currency_code == 'KHR'){
+    //                 $cashKhr += $row->amount;
+    //             }else if($row->method == 'cash' && $row->currency_code == 'USD'){
+    //                 $cashUsd += $row->amount;
+    //             }else if($row->method !== 'cash' && $row->currency_code == 'KHR'){
+    //                 $bankKhr += $row->amount;
+    //             }else if($row->method !== 'cash' && $row->currency_code == 'USD'){
+    //                 $bankUsd += $row->amount;
+    //             }
+    //         }
+    //     }
+
+    //     return [
+    //         'bank_khr' => $bankKhr,
+    //         'bank_usd' => $bankUsd,
+    //         'cash_khr' => $cashKhr,
+    //         'cash_usd' => $cashUsd
+    //     ];
+    // }
 
     // private function getEarning($rows)
     // {
@@ -455,12 +580,15 @@ class DashboardController extends Controller
         //     $join->on('p.merchant_disbursement_id', '=', 'dis.id')
         //         ->where('dis.approved', '=', 1);
         // })
-        ->selectRaw('
+        ->selectRaw("
             m.username as merchant_name,
-            CASE
-                WHEN p.status_id = 9 THEN p.delivered_datetime::DATE
-                ELSE p.failed_datetime::DATE
-            END AS finished_date,
+            TO_CHAR(
+                CASE
+                    WHEN p.status_id = 9 THEN p.delivered_datetime::DATE
+                    ELSE p.failed_datetime::DATE
+                END,
+                'DD/MM/YYYY'
+            ) AS finished_date,
             SUM(
                 CASE
                     WHEN p.cod = TRUE AND p.status_id = 9 THEN p.price
@@ -469,19 +597,19 @@ class DashboardController extends Controller
             ) AS cod_amount,
             SUM(
                 CASE
-                    WHEN p.payer = \'sender\' THEN p.taxi_fee
+                    WHEN p.payer = 'sender' THEN p.taxi_fee
                     ELSE 0
                 END
             ) AS taxi_fee,
             SUM(
                 CASE
-                    WHEN p.payer = \'sender\' THEN p.delivery_fee + p.extra_charge
+                    WHEN p.payer = 'sender' THEN p.delivery_fee + p.extra_charge
                     ELSE 0
                 END
             ) AS fees,
-            \'unpaid\' AS payment_status,
+            'unpaid' AS payment_status,
             SUM(1) AS package_count
-        ')
+        ")
 
         // ->selectRaw('
         //     m.username as merchant_name,

@@ -70,8 +70,16 @@ class Payment extends Model
         return $this->belongsTo(User::class,$fkId,'id');
     }
 
+    public function paymentPackages(){
+        return $this->hasMany(PaymentPackage::class,'payment_id')
+        ->where('is_deleted',false);
+    }
+
     public function pmtPackages(){
         return $this->hasMany(PaymentPackage::class,'payment_id');
+    }
+    public function paymentDetails(){
+        return $this->hasMany(PaymentDetail::class,'payment_id');
     }
 
 }
