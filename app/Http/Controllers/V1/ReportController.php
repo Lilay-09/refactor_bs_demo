@@ -105,11 +105,10 @@ class ReportController extends Controller
         ->where('outstanding',0)
         ->selectRaw('
             zone_name,qr_code,merchant_id,driver_id,returned_uid,payer,price_khr,
-            driver_cod_usd,driver_cod_khr
-            product_type,receiver_address,remarks,receiver_phone,cod,price,delivery_fee,
+            driver_cod_usd,driver_cod_khr,receiver_address,remarks,receiver_phone,cod,price,delivery_fee,
             additional_fee,driver_total,merchant_total,status_id,remarks,arrive_warehouse_datetime,
             assign_driver_datetime,updated_at,failed_datetime,returned_datetime,delivered_datetime,
-            other_fee,created_at'
+            other_fee,created_at,product_type'
         );
         if($statusId){
             $qP->where('status_id',$statusId);
@@ -237,7 +236,6 @@ class ReportController extends Controller
             'grand' => $grand,
             'list' => $packages
         ];
-
         return ApiResponse::JsonResult($obj,'Get Pickup List');
     }
 
