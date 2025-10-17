@@ -460,7 +460,7 @@ class TransactionService
             })
             ->with(['merchant:id,username,code', 'merchant.primaryBank'])
             ->select($select)
-            ->groupBy('merchant_id', 'finish_date', DB::raw('COALESCE(d.payment_status_id, p.payment_status_id)'))
+            ->groupBy('merchant_id', 'finish_date', DB::raw("COALESCE(p.id, d.id)"))
             ->when($paymentType === TransactionType::TRANSFER_IN->value, fn($q) =>
                 $q->havingRaw("($amountUsdExpr) < 0 OR ($amountKhrExpr) < 0")
             )
