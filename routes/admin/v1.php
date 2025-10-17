@@ -215,7 +215,6 @@ Route::middleware(['jwt','localize','userAccess:admin','rateLimit'])->prefix('ad
                 Route::post('payment',[MerchantTransactionController::class,'receivePackagesPayment']);
                 Route::post('payment-bulk',[MerchantTransactionController::class,'receivePackagesBulkPaymentV1']);
                 Route::get('packages',[MerchantTransactionController::class,'getMerchantDeliveryPackages']);
-
             });
 
             Route::prefix('payment')->group(function(){
@@ -223,9 +222,10 @@ Route::middleware(['jwt','localize','userAccess:admin','rateLimit'])->prefix('ad
                 Route::get('',[MerchantTransactionController::class,'getPayments']);
                 Route::put('',[MerchantTransactionController::class,'approvePayments']);
                 Route::delete('{id}',[MerchantTransactionController::class,'deleteSettlePayment']);
-                Route::post('decline/{id}',[MerchantTransactionController::class,'declinePayment']);
+                // Route::post('decline/{id}',[MerchantTransactionController::class,'declinePayment']);
                 Route::post('approve-settle-batch',[MerchantTransactionController::class,'approveAdnSettleBulkRequestedSettlement']);
                 Route::post('approve-settle/{paymentId}',[MerchantTransactionController::class,'approveAndSettleRequestedSettlement']);
+                Route::post('decline-requested-payment/{paymentId}',[MerchantTransactionController::class,'declinePayment']);
             });
 
             Route::prefix('settled')->group(function(){

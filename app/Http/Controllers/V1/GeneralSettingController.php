@@ -17,7 +17,6 @@ use App\Services\UserService;
 use Helper;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Log as FacadesLog;
 
 class GeneralSettingController extends Controller
 {
