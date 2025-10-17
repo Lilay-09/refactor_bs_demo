@@ -879,7 +879,6 @@ class MerchantTransactionServiceImpl implements MerchantTransactionService
         $endDate = $req->query('endDate');
         $merchantId = $req->query('merchant_id');
         $transactionType = $req->query('transaction_type');
-        Log::info($req->all());
         $qTrx = PaymentTransaction::query()
         ->with([
             'disbursement:id,payee_id',
