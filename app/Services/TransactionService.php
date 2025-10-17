@@ -398,6 +398,7 @@ class TransactionService
             DB::raw("COUNT(packages.id) as package_count"),
             DB::raw("SUM(packages.price) as total_price"),
             DB::raw("SUM(packages.price_khr) as total_price_khr"),
+            // DB::raw("COALESCE(p.payment_status_id, d.payment_status_id, 0) as payment_status_id"),
             // DB::raw("SUM(CASE WHEN packages.payer = 'sender' THEN packages.delivery_fee ELSE 0 END) as delivery_fee"),
             // DB::raw("SUM(CASE WHEN packages.payer = 'sender' THEN packages.other_fee ELSE 0 END) as other_fee"),
             DB::raw("
@@ -459,7 +460,7 @@ class TransactionService
             })
             ->with(['merchant:id,username,code', 'merchant.primaryBank'])
             ->select($select)
-            ->groupBy('merchant_id', 'finish_date')
+            ->groupBy('merchant_id', 'finish_date', DB::raw('COALESCE(d.payment_status_id, p.payment_status_id)'))
             ->when($paymentType === TransactionType::TRANSFER_IN->value, fn($q) =>
                 $q->havingRaw("($amountUsdExpr) < 0 OR ($amountKhrExpr) < 0")
             )
