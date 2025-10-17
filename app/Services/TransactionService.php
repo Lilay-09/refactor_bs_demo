@@ -532,7 +532,6 @@ class TransactionService
                 // 🛠 Fix: Collect unique methods
                 $methods = [];
                 if (isset($pmtBillings[$row->id])) {
-                    // Log::info($pmtBillings[$row->id]);
                     foreach ($pmtBillings[$row->id] as $billing) {
 
                         if (!in_array($billing->method, $methods)) {
@@ -1065,7 +1064,6 @@ class TransactionService
         $bankAmountKHR = $inputs['bank_amount_khr'] ?? 0;
         $dueAmountUsd = $validPackages->total_due_amount_usd;
         $dueAmountKhr = $validPackages->total_due_amount_khr;
-        // Log::info($req->all());
         $bankName = null;
         if($bankId) {
             $existsBank = Bank::where('is_deleted',0)->find($bankId);
@@ -1266,9 +1264,6 @@ class TransactionService
             ]);
             $notif->sendNotificationByTopic($notifReq,$user);
             DB::commit();
-            // Log::info(json_encode($createPayment));
-            // return Package::whereIn('id',$packageIds)->get();
-            // Log::info(json_encode(PaymentDetail::where('payment_id',$paymentId)->get()));
             return DataResponse::JsonResult(null,false,__('messages.created',[
                 'info' => 'Payment',
                 'khInfo' => 'ទទួលការបង់ប្រាក់'
@@ -1314,8 +1309,6 @@ class TransactionService
             $paymentSuggestion = $this->paymentSuggestionByCurrency(0,$cashKHR,0,$bankAmountKHR,$dueAmountKhr,'KHR',$exchangeRate);
             if($paymentSuggestion->error) return $paymentSuggestion;
         }
-
-        // Log::info($totalPaidKHR.' --- '.$totalPaidUSD);
         $data = (object)[
             'error' => false,
             'totalPaidUSD' => $totalPaidUSD,
@@ -1326,7 +1319,6 @@ class TransactionService
             'isValidKHR' => $isValidKHR,
             'bankId' => $bankId
         ];
-        // Log::info(json_encode($data));
         return $data;
     }
 
@@ -1360,7 +1352,6 @@ class TransactionService
         $originalBankAmtKh = 0;
         if($dueAmount > 0){
             if($totalInputAmount <=0) return DataResponse::ValidateFail('Invalid payment amount');
-            // Log::info('currency---'.$currency);
             $paymentSuggestion = !empty($currency) ? $this->paymentSuggestionByCurrency($cash,$cashKh,$bankAmount,$bankAmountKh,$dueAmount,$currency,$exhangeRate,true):$this->paymentSuggestion($cash,$cashKh,$bankAmount,$bankAmountKh,$dueAmount,$exhangeRate);
             if($paymentSuggestion->error) return $paymentSuggestion;
             $originalCashKh = $paymentSuggestion->original_cash_amount_kh;
@@ -1557,7 +1548,6 @@ class TransactionService
         if($validator->fails()){
             return DataResponse::ValidateFail($validator->errors()->first());
         }
-        // Log::info($req->all());
         $inputs = $validator->validated();
         $payingCurrency = $inputs['currency'];
         $userIds = collect($inputs["{$type}s"])->pluck('id')->toArray();
@@ -1639,10 +1629,10 @@ class TransactionService
                 }
                 $paidPackageIds[] = $pkgId;
             }
-            // Log::info("{$allUSDReceived} --- {$allKHRReceived}");
             $paymentStatusId = ($allUSDReceived && $allKHRReceived)
                 ? PaymentStatus::REQUESTED->value
-                : PaymentStatus::PARTIAL->value;
+                : (($hasPmtId && $targetPmt->payment_status_id == PaymentStatus::PARTIAL->value) 
+                ? PaymentStatus::REQUESTED->value : PaymentStatus::PARTIAL->value);
 
             if ($hasPmtId && $targetPmt) {
                 // Update existing disbursement instead of inserting
@@ -1675,7 +1665,6 @@ class TransactionService
                 foreach ($allowedColumns as $col) {
                     if (!array_key_exists($col, $updatePmt)) {
                         $updatePmt[$col] = $targetPmt->$col ?? null;
-                        // Log::info($col.' ==> '.$targetPmt->$col);
                     }
                 }
 
@@ -1697,7 +1686,6 @@ class TransactionService
                     $updatePmt['receiver_uid']        = $targetPmt->receiver_uid;
                     $upSertPayIn[] = $updatePmt;
                 }
-                // Log::info(json_encode($updatePmt));
                 // $targetDisbursement->update($updatePmt);
 
             }else{
@@ -1782,7 +1770,6 @@ class TransactionService
                 $this->batchPayInUpSert($insertPayIn,$upSertPayIn,$payingCurrency,$user);
             }
             DB::commit();
-            // Log::info($insertPayout);
             return DataResponse::JsonResult($upSertPayout,false,__('messages.saved'));
         } catch (Exception $e) {
             DB::rollBack();
@@ -1813,7 +1800,6 @@ class TransactionService
         $validKhrAmt = abs($validPkg->data['total_due_amount_khr']); // abs for not sign when insert
         if ($payInPkg && $payInPkg->payment) {
             $payment = $payInPkg->payment;
-            // Log::info($payOutPkg);
             $usdDue = $payment->amount_due_usd - $payment->received_amount_usd;
             $khrDue = $payment->amount_due_khr - $payment->received_amount_khr;
             
@@ -1984,7 +1970,7 @@ class TransactionService
             if ($payingCurrency === 'USD') {
                 $result['receivedUSD'] = $validUsdAmt;
                 if ($usdDue == $validUsdAmt) {
-                    if ($usdDue == $validKhrAmt) {
+                    if ($khrDue == $validKhrAmt) {
                         $result['allKHRReceived'] = true;
                     }
                 } else {
@@ -1997,6 +1983,10 @@ class TransactionService
                             ? 'This package is already fully settled in USD.'
                             : 'This package has partial USD payment already, cannot pay again in USD.',
                     ];
+                }
+            }else{
+                if($validKhrAmt > 0){
+                    $result['allKHRReceived'] = false;
                 }
             }
 
@@ -2018,6 +2008,10 @@ class TransactionService
                             : 'This package has partial KHR payment already, cannot pay again in KHR.',
                     ];
                     // return $result;
+                }
+            }else{
+                if($validUsdAmt > 0){
+                    $result['allUSDReceived'] = false;
                 }
             }
         } else {
@@ -2101,7 +2095,6 @@ class TransactionService
         if (!empty($insertPayin)) {
             foreach ($insertPayin as $payIn) {
                 // Insert into disbursements table (main payment record)
-                // Log::info(json_encode($payIn));
                 $payment = Payment::create($this->filterBulkPaymentColumns($payIn,$user,$payIn['transaction_type']));
                 self::transactionCodeGenerator('transaction_sequences','payment','payments','trx_code',$user->branch_id,$user->company_id,$payment->id);
                 // Attach each package to this payment
@@ -2174,7 +2167,6 @@ class TransactionService
         if (!empty($insertPayout)) {
             foreach ($insertPayout as $disbData) {
                 // Insert into disbursements table (main payment record)
-                // Log::info(json_encode($disbData));
                 $disbursement = Disbursement::create($this->filterBulkPaymentColumns($disbData,$user,$disbData['transaction_type']));
                 self::transactionCodeGenerator('transaction_sequences','payment','disbursements','trx_code',$user->branch_id,$user->company_id,$disbursement->id);
                 // Attach each package to this disbursement
@@ -2593,7 +2585,6 @@ class TransactionService
     //             if ($cashKh) $originalCashKh += $suggestionAmtCashKh;
 
     //             if ($bankAmountKh && $cashKh) {
-    //                 // Log::info($dueAmount);
     //                 $minSuggestionAmt = abs($bankAmountKh - $suggestionAmt);
     //                 $minSuggestionAmtDown = floor($minSuggestionAmt / 100) * 100;
     //                 $maxSuggestionAmt = ceil($minSuggestionAmt / 100) * 100;
@@ -2898,7 +2889,6 @@ class TransactionService
             $totalDriverCodUsd += $package->driver_cod_usd;
             $totalDriverCodKhr += $package->driver_cod_khr;
             $rowTotal = self::getPackageTotalV1($type,$package->driver_cod_usd,$package->driver_cod_khr,$package->delivery_fee,$package->taxi_fee,$package->other_fee,$package->payer,$package->status_id);
-            // Log::info('Row Total'.json_encode($rowTotal));
             if($package->status_id == 19){
                 if($type == 'merchant'){
                     $rowTotal = self::getPackageTotalV1($type,$package->cod,0,0,$package->extra_charge,$package->additional_fee,$package->delivery_fee,$package->payer);
@@ -2906,7 +2896,6 @@ class TransactionService
                 }
                 // else $rowTotal = $package->payer == 'receiver' ? $package->delivery_fee+ $package->extra_charge : 0;
             }
-            // Log::info(json_encode($rowTotal));
             $obj->total_due_amount_khr += $rowTotal['total_khr'];
             $obj->total_due_amount_usd += $rowTotal['total_usd'];
             if($package->cod) $obj->total_cod += $package->price;
@@ -2914,10 +2903,7 @@ class TransactionService
             $obj->total_package_price += $package->price;
             $obj->total_fees += $rowTotal['fees'];
         }
-        // if($paymentType == 'disbursement') $obj->total_due_amount = abs($obj->total_due_amount);
-        // Log::error(json_encode($obj));
-        // Helper::deductAmountBase($totalDriverCodUsd,$totalDriverCodKhr,$obj->total_fees + $obj->total_taxi_fee);
-        // Log::info($totalDriverCodUsd);
+
         return DataResponse::JsonRaw([
             'error' => false,
             'pacakage_ids' => $packageIds,
@@ -2986,7 +2972,7 @@ class TransactionService
                     'khInfo' => 'កញ្ចប់មិនត្រឹមត្រូវនៅជួរលេខ (' . ($index + 1) . ')',
                 ]));
             }
-            // Log::info($package);
+
             // if (in_array($id, $paidOrDisbursedPackageIds)) {
             //     return DataResponse::ValidateFail(__('messages.error', [
             //         'info' => 'Check list might include package that has been paid',
@@ -3005,7 +2991,7 @@ class TransactionService
             $obj->driver_total += $package->driver_total;
             $obj->merchant_total += $package->merchant_total;
             $rowTotal = self::getPackageTotalV1($type,$package->driver_cod_usd,$package->driver_cod_khr,$package->delivery_fee,$package->taxi_fee,$package->other_fee,$package->payer,$package->status_id);
-            // Log::info('Row Total => '.$rowTotal['total_usd']);
+
             if($package->status_id == 19){
                 if($type == 'merchant'){
                     $rowTotal = self::getPackageTotalV1($type,$package->driver_cod_usd,$package->driver_cod_khr,$package->delivery_fee,$package->taxi_fee,$package->other_fee,$package->payer,$package->status_id);
@@ -3013,10 +2999,8 @@ class TransactionService
                 }
                 // else $rowTotal = $package->payer == 'receiver' ? $package->delivery_fee+ $package->extra_charge : 0;
             }
-            // Log::info(json_encode($rowTotal));
             // $obj->total_due_amount_khr += $rowTotal['total_khr'];
             // $obj->total_due_amount_usd += $rowTotal['total_usd'];
-            // Log::info($rowTotal['fees']);
             $obj->total_fees += $rowTotal['fees'];
             if($package->cod) $obj->total_cod += $package->price;
             $obj->total_amount += $package->price + $package->delivery_fee;
@@ -3028,7 +3012,6 @@ class TransactionService
         }
         // if($paymentType == 'disbursement') $obj->total_due_amount = abs($obj->total_due_amount);
         // Log::error(json_encode($obj));
-        // Log::info($obj->total_fees);
         Helper::deductAmountBase($totalDriverCodUsd,$totalDriverCodKhr,($obj->total_fees + $obj->total_taxi_fee));
         return DataResponse::JsonResult([
             'pacakage_ids' => $packageIds,
@@ -3322,7 +3305,6 @@ class TransactionService
         $validType = $this->validType($type);
         if($validType->error) return $validType;
         if($trxType=='receive'){
-            // Log::info($id);
             $payment = Payment::where('is_deleted',0)->orderByDesc('id')->find($id);
             if(!$payment) return DataResponse::NotFound(__('messages.not_found',[
                 'info' => 'Payment'
@@ -3686,7 +3668,6 @@ class TransactionService
             $otherFee = $group->sum('other_fee');
 
             $fees =  + $group->where('payer',$payer)->sum('other_fee') + $group->sum('delivery_fee');
-            // Log::info("$type -- $driverCodUsd -- $payer --delivery: $deliveryFee ---other: $otherFee -- taxi fee=$taxiFee");
             $userTotal = self::getPackageTotalV1($type,$driverCodUsd,$driverCodKhr,$deliveryFee,$taxiFee,$otherFee,$payer);
             // $amountUsd = $userTotal['total_usd'];
             // $amountKhr = $userTotal['total_khr'];
@@ -3813,7 +3794,6 @@ class TransactionService
             'info' => 'Package'
         ]));
         $hasPayment = $package->hasMerchantPayment();
-        // Log::info($hasPayment);
         if($hasPayment){
             $updateArr = [
                 'remarks' => $inputs['remarks'] ?? '',
@@ -4285,7 +4265,6 @@ class TransactionService
             // return $packageIds;
             // return Package::whereIn('id',$packageIds)->get();
             DB::commit();
-            // Log::info(json_encode($createPayment));
 
             // return Package::whereIn('id',$packageIds)->get();
             return DataResponse::JsonResult(null,false,__('messages.created',[
@@ -4322,7 +4301,6 @@ class TransactionService
         if($validType->error) return $validType;
         $startDate = $req->startDate;
         $endDate = $req->endDate;
-        // Log::info($req->all());
         $validate = self::disbursementPaymentValidation($req,$type);
         if($validate->fails()) return DataResponse::ValidateFail($validate->errors()->first());
         $inputs = $validate->validated();
@@ -4341,7 +4319,6 @@ class TransactionService
         $bankAmount = $inputs['bank_amount'] ?? 0;
         $bankAmountKh = $inputs['bank_amount_kh'] ?? 0;
         $dueAmount = $validPackages->grand_total;
-        // Log::info($dueAmount);
         $validPayment = $this->validPayment($cash,$cashKh,$bankAmount,$bankAmountKh,$bankId,$dueAmount,$exchangeRate);
         if($validPayment->error) return $validPayment;
         $breakDownNotes = null;
@@ -4530,7 +4507,6 @@ class TransactionService
         if($payeeId) {
             $qP->where('p.'.$payeeKey,$payeeId);
         }
-        // Log::info($qP->count())
 
         $qO = Order::query()
         ->select('id','driver_id') // select only needed columns
@@ -4581,7 +4557,6 @@ class TransactionService
 
         if($normalDeliveryStartDate && $endDate){
             // $endDate = Helper::dateYMD($endDate);
-            // Log::info($normalDeliveryStartDate.' '.$endDate);
             $qP->whereRaw("
                 p.status_id = 9 AND p.delivered_datetime >= ? AND p.delivered_datetime <= ?
             ", [$normalDeliveryStartDate, $endDate]);
@@ -4598,8 +4573,6 @@ class TransactionService
         }
         $packages = $qP->get();
         $orders = $qO->get();
-        // Log::info('pkg count'.count($packages));
-        // Log::info('order count'.count($orders));
         // $qDc = DriverCommission::where('driver_id',$payeeId)->where('is_deleted',0)->selectRaw('id,driver_id,delivery_type,pickup_commission,pickup_commission_type,delivery_commission_type,delivery_commission,pickup_commission_start_date,delivery_commission_start_date');
         // $driverCommissions = $qDc->get();
         // $dc = TransactionService::getDriverCommissionInfo($driverCommissions,$payeeId);
@@ -4608,7 +4581,6 @@ class TransactionService
             // $obj->order_ids[] = $order->id;
         // }
         $pickUpInfo = $this->getPickUpDetails($orders, $payeeId);
-        // Log::info(' o => '.$pickUpCount);
         $obj->order_ids = $pickUpInfo->order_ids;
         $pickUpCount = $pickUpInfo->total_package;
         $totalCommissionPkg = 0;
@@ -4643,7 +4615,6 @@ class TransactionService
                 $totalCommissionPkg +=1;
             }
         }
-        // Log::info($pickUpCount);
         $obj->total_pickup = $pickUpCount * $dc->normal_pickup_commission;
         $obj->total_delivered = $normalDeliveredCount * $dc->normal_delivery_commission + $fastDeliveredCount * $dc->fast_delivery_commission;
         $obj->total_package = $pickUpCount + $normalDeliveredCount + $fastDeliveredCount + $normalFailedWithFeeCount + $fastFailedWithFeeCount;
@@ -4666,8 +4637,6 @@ class TransactionService
         $obj->total_pickup_count = $pickUpCount;
 
         $obj->grand_total = Helper::getNumber($obj->total_pickup + $obj->total_delivered,2);
-        // Log::info(json_encode($obj));
-        // Log::info($obj->total_pickup);
         if(empty($obj->package_ids) && empty($obj->order_ids)){
             return DataResponse::NotFound('No package found');
         }
