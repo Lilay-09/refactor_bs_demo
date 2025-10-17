@@ -213,6 +213,7 @@ Route::middleware(['jwt','localize','userAccess:admin','rateLimit'])->prefix('ad
                 Route::get('package',[MerchantTransactionController::class,'getDeliveryPackages']);
                 Route::put('package/{id}',[MerchantTransactionController::class,'updateDeliveryPackage']);
                 Route::post('payment',[MerchantTransactionController::class,'receivePackagesPayment']);
+                Route::post('payment-bulk',[MerchantTransactionController::class,'receivePackagesBulkPaymentV1']);
                 Route::get('packages',[MerchantTransactionController::class,'getMerchantDeliveryPackages']);
             });
 
