@@ -312,7 +312,7 @@ class TransactionService
             // $taxiFee = !($package->status_id === TrackingStatus::FAILED_WITH_FEE->value) ? $package->taxi_fee : 0;
             $taxiFee = self::getTaxiFee($package->taxi_fee,$package->status_id,$package->payer,'merchant');
             $total = self::getPackageTotalV1($type,$package->driver_cod_usd,$package->driver_cod_khr,$package->delivery_fee,$taxiFee,$package->other_fee,$package->payer,$package->status_id);
-            $package->{$type.'_total_usd'} = $package->status_id == 19 && $package->payer == 'receiver' ? -$total['total_usd'] : $total['total_usd'];
+            $package->{$type.'_total_usd'} = $package->status_id == 19 && $package->payer == 'receiver' ? $total['total_usd'] : $total['total_usd'];
             $package->{$type.'_total_khr'} = $total['total_khr'];
             // if($type == 'merchant') $package->total = -$total;
             if($package->status_id == 19){
@@ -815,6 +815,9 @@ class TransactionService
                 }
                 if($statusId === TrackingStatus::FAILED_WITH_FEE->value){
                     $taxiFee = 0;
+                    if($payer === 'receiver'){
+                        $totalUsd += $fees;
+                    }
                 }
                 Helper::deductAmountBase($totalUsd,$totalKhr,($fees + $taxiFee),$exchangeRateBase);
             }
