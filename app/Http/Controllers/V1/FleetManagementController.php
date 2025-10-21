@@ -366,6 +366,7 @@ class FleetManagementController extends Controller
         $user = UserService::getAuthUser();
         $trip_id = $req->trip_id;
         $package_id = $req->package_id;
+        $statusId = $req->status_id ?? 5;
         $kickReason = $req->kick_reason ?? null;
         if(!$kickReason) return ApiResponse::ValidateFail(__('messages.info',[
             'info' => 'Please enter your reason'
@@ -388,7 +389,7 @@ class FleetManagementController extends Controller
                 'driver_id' => null,
                 'kick_uid' => $user->id,
                 'kick_reason' => $kickReason,
-                'status_id' => 5,
+                'status_id' => $statusId,
                 'kick_notes' => $package->kick_notes."|[$user->id]$user->username remove package from Driver($driverName) at ($todayDT) on fleet number $fleetNumber",
                 'tracking_notes' => $trackingNotes
             ]);

@@ -372,6 +372,35 @@ class Package extends Model
             });
     }
 
+    public function scopeWithoutMerchantPayment($query)
+    {
+        
+        $from = $query->getQuery()->from; // e.g. "packages" or "packages as p"
+
+        // If aliased, take just the alias part
+        if (str_contains(strtolower($from), ' as ')) {
+            $parts = preg_split('/\s+as\s+/i', $from);
+            $table = $parts[1]; // alias (e.g. "p")
+        } else {
+            $table = $from; // default (e.g. "packages")
+        }
+        return $query
+        ->whereExists(function ($q) use ($table) {
+            $q->select(DB::raw(1))
+                ->from('payment_packages')
+                ->whereColumn('payment_packages.package_id', $table.'.id')
+                ->where('payer_type', 'merchant')
+                ->where('is_deleted', false);
+        })
+        ->orWhereExists(function ($q) use ($table) {
+            $q->select(DB::raw(1))
+                ->from('disbursement_packages')
+                ->whereColumn('disbursement_packages.package_id', $table.'.id')
+                ->where('payee_type', 'merchant')
+                ->where('is_deleted', false);
+        });
+    }
+
 
     // Optional: Combined check
     public function hasAnyPayment(): bool
