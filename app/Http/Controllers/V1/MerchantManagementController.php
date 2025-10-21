@@ -5,6 +5,7 @@ namespace App\Http\Controllers\V1;
 use ApiResponse;
 use App\Http\Controllers\Controller;
 use App\Models\MerchantPriceList;
+use App\Models\TelegramSendLog;
 use App\Models\User;
 use App\Models\UserBank;
 use App\Models\Zone;
@@ -14,6 +15,9 @@ use App\Services\UserService;
 use Illuminate\Support\Facades\DB;
 use Helper;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Log;
+
 class MerchantManagementController extends Controller
 {
     //
@@ -156,12 +160,27 @@ class MerchantManagementController extends Controller
         return null;
     }
 
+    private function getTelegramSendLogKeyByReceiverId(string $startDate, string $endDate, ?int $receiverId = null): Collection
+    {
+        $qt = TelegramSendLog::query()
+            ->whereDate('start', '>=', Helper::dateYMD($startDate))
+            ->whereDate('start', '<=', Helper::dateYMD($endDate));
+
+        if ($receiverId !== null) {
+            $qt->where('receiver_id', $receiverId);
+        }
+
+        return $qt->get()->keyBy('receiver_id');
+    }
+
+
     public function getMerchantListByDate(Request $req){
         $startDate = $req->startDate ? Helper::dateDMY($req->startDate) : null;
         $endDate = $req->endDate ? Helper::dateDMY($req->endDate) : null;
         $search = $req->search;
         if(!$startDate || !$endDate) return ApiResponse::ValidateFail('Please select a date range to view this report');
         $user = UserService::getAuthUser();
+        $telegramSendLogKeyBy = $this->getTelegramSendLogKeyByReceiverId($startDate,$endDate);
         $select = [
             'users.id',
             'users.id as merchant_id',
@@ -239,7 +258,9 @@ class MerchantManagementController extends Controller
             }
         }
 
-        $callback = function ($q){
+        $callback = function ($q) use($telegramSendLogKeyBy){
+            // Log::info($q);
+            $q->has_sent = empty($telegramSendLogKeyBy[$q->id]) ? false:true;
             return $q;
         };
 

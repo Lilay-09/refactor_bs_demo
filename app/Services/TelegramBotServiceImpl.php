@@ -3,6 +3,8 @@
 namespace App\Services;
 
 use App\Models\TelegramBot;
+use App\Models\TelegramSendLog;
+use App\Models\User;
 use DataResponse;
 use Illuminate\Support\Facades\Auth;
 
@@ -92,4 +94,23 @@ class TelegramBotServiceImpl implements TelegramBotService
         ]);
         return DataResponse::JsonResult($telegramBot);
     }
+
+    public function sendLog(User $authUser,array $data){
+        $validator = validator($data,[
+            'package_count' => 'required|int',
+            'receiver_id' => 'required|int',
+            'start' => 'required',
+            'end' => 'required',
+        ]);
+        if($validator->fails()){
+            return DataResponse::ValidateFail($validator->errors()->first());
+        }
+        $inputs = $validator->validated();
+        $inputs['sender_id'] = $authUser->id;
+        $inputs['sent_at'] = now();
+        $inputs['unique'] = strtotime($inputs['start']).strtotime($inputs['end']);
+        // TelegramSendLog::insert($inputs);
+        return DataResponse::JsonResult(null,false,'Logged');
+    }
+    
 }

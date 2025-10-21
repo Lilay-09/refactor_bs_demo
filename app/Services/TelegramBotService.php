@@ -2,6 +2,8 @@
 
 namespace App\Services;
 
+use App\Models\User;
+
 interface TelegramBotService
 {
     //
@@ -10,4 +12,5 @@ interface TelegramBotService
     public function getBotById(int $id);
     public function deleteBotById(int $id);
     public function getBots(array $filter);
+    public function sendLog(User $senderId,array $data);
 }

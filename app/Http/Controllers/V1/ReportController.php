@@ -14,6 +14,7 @@ use App\Models\Order;
 use App\Models\Package;
 use App\Models\Payment;
 use App\Models\PaymentDetail;
+use App\Models\TelegramSendLog;
 use App\Models\User;
 use App\Models\UserBank;
 use App\Services\CompanyProfileService;
@@ -21,9 +22,11 @@ use App\Services\GeneralSettingService;
 use App\Services\PackageTrailServiceImpl;
 use App\Services\TransactionService;
 use App\Services\UserService;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Helper;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 
 class ReportController extends Controller
@@ -2054,6 +2057,83 @@ class ReportController extends Controller
         return ApiResponse::JsonResult($obj);
     }
 
+    public function getMerchantPayable(Request $req)
+    {
+        $authUser = Auth::user();
+        $startDate = $req->query('startDate');
+        $endDate = $req->query('endDate');
+        $qP = Package::query()
+            ->select([
+                'p.merchant_id',
+                'm.username as merchant_name',
+                DB::raw("COUNT(*) as package_count"),
+                DB::raw("
+                    SUM(
+                        CASE 
+                            WHEN p.payer = 'sender' 
+                            THEN (COALESCE(p.delivery_fee, 0) + COALESCE(p.extra_charge, 0))
+                            ELSE 0
+                        END
+                    ) as fees
+                "),
+                DB::raw("SUM(p.taxi_fee) as taxi_fee"),
+                DB::raw("SUM(p.driver_cod_usd) as cod_amount"),
+                DB::raw("SUM(p.driver_cod_khr) as cod_amount_khr"),
+                DB::raw("TO_CHAR(COALESCE(p.delivered_datetime, p.failed_datetime), 'DD/MM/YYYY') as finished_date")
+            ])
+            ->from('packages as p')
+            ->join('users as m', 'm.id', '=', 'p.merchant_id')
+            ->where('p.is_deleted', false)
+            ->whereIn('p.status_id', [9, 19])
+            ->withoutMerchantPayment()
+            ->groupBy('p.merchant_id','m.username', DB::raw("TO_CHAR(COALESCE(p.delivered_datetime, p.failed_datetime), 'DD/MM/YYYY')"))
+            ->orderByRaw("MAX(COALESCE(p.delivered_datetime, p.failed_datetime)) DESC");
+            if($startDate && $endDate){
+                $qP->where(function ($query) use ($startDate,$endDate) {
+                    $startDateTime = Helper::dateYMD($startDate).' 00:00:00';
+                    $endDateTime = Helper::dateYMD($endDate).' 00:00:00';
+                    $query->where(function ($q) use ($startDateTime,$endDateTime) {
+                        $q->where('p.status_id', 9)
+                        ->whereBetween('p.delivered_datetime',[$startDateTime,$endDateTime]);
+                    })->orWhere(function ($q) use ($startDateTime,$endDateTime) {
+                        $q->where('p.status_id', 19)
+                        ->whereBetween('p.failed_datetime',[$startDateTime,$endDateTime]);
+                    });
+                });
+            }
+            $totalKhr = 0;
+            $totalUsd = 0;
+            $payableList = $qP->get()
+            ->each(function($q) use(&$totalKhr,&$totalUsd){
+                $q->payment_status = 'Unpaid';
+                $codUsd = $q->cod_amount;
+                $codKhr = $q->cod_amount_khr;
+                Helper::deductAmountBase($codUsd,$codKhr,$q->fees + $q->taxi_fee);
+                $totalKhr += $codKhr;
+                $totalUsd += $codUsd;
+                $q->amount = Helper::amountStdFmt($codUsd, 'USD');
+                $q->amount_khr = Helper::amountStdFmt($codKhr,'KHR');
+                $q->cod_amount = Helper::amountStdFmt($q->cod_amount, 'USD');
+                $q->cod_amount_khr = Helper::amountStdFmt($q->cod_amount_khr,'KHR');
+            });
+
+        $obj =(object)[
+            'title' => 'Merchant Payable',
+            'status' => '',
+            'date' => Helper::dateDMY($startDate).' to '.Helper::dateDMY($endDate),
+            'company_profile' => CompanyProfileService::profileInfo($authUser),
+            'total_amount' => Helper::amountStdFmt($totalUsd),
+            'total_amount_khr' => Helper::amountStdFmt($totalKhr, 'KHR'),
+            'list' => $payableList
+        ];
+        return ApiResponse::JsonResult($obj);
+        // return [
+            // 'total_amount' => Helper::amountStdFmt($totalUsd),
+            // 'total_amount_khr' => Helper::amountStdFmt($totalKhr, 'KHR'),
+        //     'list' => $payableList
+        // ];
+    }
+    
     public function getMerchantDailyPackage(){
 
     }

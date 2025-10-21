@@ -119,6 +119,7 @@ Route::middleware(['jwt','localize','userAccess:admin','rateLimit'])->prefix('ad
 
         Route::prefix('telegram-bots')->group(function(){
             Route::post('',[TelegramBotController::class,'create']);
+            Route::post('/log',[TelegramBotController::class,'sendLog']);
             Route::get('',[TelegramBotController::class,'getBots']);
             Route::get('{id}',[TelegramBotController::class,'getBotById']);
             Route::put('{id}',[TelegramBotController::class,'updateById']);
@@ -145,6 +146,7 @@ Route::middleware(['jwt','localize','userAccess:admin','rateLimit'])->prefix('ad
         Route::post('/{id}/setLock',[DriverManagementController::class,'setLockDriver']);
         Route::post('/{id}/setPassword',[DriverManagementController::class,'setPassword']);
 
+        Route::post('batch-lock',[DriverManagementController::class,'setLockDrivers']);
         Route::prefix('{id}/commission')->group(function(): void{
             Route::get('',[DriverManagementController::class,'getDriverCommissions']);
             Route::put('',[DriverManagementController::class,'saveDriverCommission']);
@@ -713,6 +715,8 @@ Route::middleware(['jwt','localize','userAccess:admin','rateLimit'])->prefix('ad
             Route::get('/list/option',[ReportController::class,'formOptionUser']);
             Route::get('summary',[ReportController::class,'getMerchantSummaryReport']);
             Route::get('summary/option',[ReportController::class,'merchantSummaryReportOption']);
+            Route::get('payable',[ReportController::class,'getMerchantPayable']);
+            Route::get('payable/option',[ReportController::class,'merchantSummaryReportOption']);
             Route::get('payment',[ReportController::class,'getMerchantPaymentReport']);
             Route::get('payment/option',[ReportController::class,'getMerchatnPaymentReportOption']);
             Route::get('owe',[ReportController::class,'getMerchantOweFees']);
