@@ -632,6 +632,14 @@ class Helper{
         return array_column($data,$key);
     }
 
+    static function amountStdFmt($amount,$currency='USD'){
+        if($currency == 'USD'){
+            return number_format($amount,2);
+        }else if($currency == 'KHR'){
+            return number_format($amount,0,'');
+        }
+    }
+
     // static function formatCustomDateTime($datetime, $outputFormat = 'd-M-Y h:i:s A', $useMeridiem = false) {
     //     if (!$datetime) return null;
 
@@ -937,7 +945,7 @@ class Helper{
      * @param  int|null  $maxHeight
      * @return object
      */
-    static function isValidUploadImage($image, float $maxSizeMB = 2.0, int $maxWidth = null, int $maxHeight = null,$lang='en'): object
+    static function isValidUploadImage($image, float $maxSizeMB = 2.0, ?int $maxWidth = null, ?int $maxHeight = null,$lang='en'): object
     {
         $info = self::getImageInfo($image,$lang);
         if ($info->error) {
@@ -1712,14 +1720,14 @@ class DataResponse //extends Model
      */
     public static function PaginationV1(
         Builder $query,
-        Request $filter = null,
+        ?Request $filter = null,
         string $message = '',
         array $additionalKey = [],
         int $limit = 1000,
-        callable $transformCallback = null,
+        ?callable $transformCallback = null,
         array $select = ['*'],
         bool $reverse = false,
-        int $cache = null,
+        ?int $cache = null,
         array $cacheTags = [] // 🆕 Customizable cache tags
     ) {
         $filter = (object) $filter;
@@ -1759,6 +1767,7 @@ class DataResponse //extends Model
             }
         }
         // Apply transformation if provided
+        /** @var \Illuminate\Pagination\LengthAwarePaginator $data */
         if ($transformCallback) {
             $data->getCollection()->transform($transformCallback);
         }

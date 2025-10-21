@@ -6,6 +6,7 @@ use ApiResponse;
 use App\Http\Controllers\Controller;
 use App\Services\TelegramBotService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 
 class TelegramBotController extends Controller
 {
@@ -32,5 +33,10 @@ class TelegramBotController extends Controller
 
     public function deleteBotById(Request $req){
         return ApiResponse::flex($this->telegramService->deleteBotById($req->id));
+    }
+
+    public function sendLog(Request $req){
+        $authUser = Auth::user();
+        return ApiResponse::flex($this->telegramService->sendLog($authUser,$req->all()));
     }
 }

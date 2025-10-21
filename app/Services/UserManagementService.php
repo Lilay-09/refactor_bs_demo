@@ -3,11 +3,12 @@
 namespace App\Services;
 
 use App\Models\AppModule;
+use App\Models\User;
 use DataResponse;
-use DB;
+use Illuminate\Support\Facades\DB;
 use Exception;
 use Illuminate\Http\Request;
-use Log;
+use Illuminate\Support\Facades\Log;
 
 class UserManagementService
 {
@@ -159,5 +160,17 @@ class UserManagementService
         $update = $module->update($inputs);
         if(!$update) return DataResponse::Error('Failed');
         return DataResponse::JsonResult(null,false,'Updated');
+    }
+
+    public static function setLockBatchUsers(string $isLock,string $isAll='0', array $driverIds,$type='driver'){
+        $toLockUsers = User::where('account_type',$type);
+        if($isAll !== '1'){
+            $toLockUsers->whereIn('id',$driverIds);
+        }
+        $toLockUsers->update([
+            'lock' => $isLock
+        ]);
+        $message = $isLock == '0' ? 'Active drivers': 'Locked Drivers';
+        return DataResponse::JsonResult(null,false,$message);
     }
 }

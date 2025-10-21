@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Models\UserTargetPolicy;
 use App\Models\UserZone;
 use App\Services\GeneralSettingService;
+use App\Services\UserManagementService;
 use App\Services\UserService;
 use App\Services\UserTargetPolicyService;
 use Helper;
@@ -282,7 +283,6 @@ class DriverManagementController extends Controller
         return ApiResponse::flex(UserService::setLockUser($user,$req->id,'driver'));
     }
 
-
     public function setPassword(Request $req){
         $user = UserService::getAuthUser();
         return ApiResponse::flex(UserService::setNewPassword($req,$req->id,'driver',$user));
@@ -291,6 +291,10 @@ class DriverManagementController extends Controller
     public function deleteDriver(Request $req){
         $user = UserService::getAuthUser();
         return ApiResponse::flex(UserService::deleteUser($req->id,'driver',$user));
+    }
+
+    public function setLockDrivers(Request $req){
+        return ApiResponse::flex(UserManagementService::setLockBatchUsers($req->is_lock,$req->is_all,$req->driver_ids,'driver'));
     }
 }
 
