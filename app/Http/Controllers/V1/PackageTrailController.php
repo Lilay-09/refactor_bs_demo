@@ -105,7 +105,9 @@ class PackageTrailController extends Controller
         }
         if($search){
             // $query->where(function ($q) use($search){
-                $query->where('qr_code',$search)->orWhere('receiver_phone','ilike','%'.$search.'%');
+                $query->where(function($q) use($search){
+                    $q->where('qr_code',$search)->orWhere('receiver_phone','ilike','%'.$search.'%');
+                });
             // });
         }
         if($startDate && $endDate){
