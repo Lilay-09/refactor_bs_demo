@@ -7,15 +7,15 @@ class MerchantSettledTransactionByIdDTO {
         public readonly int $id,
         public readonly string $payment_date,
         public readonly string $payment_time,
-        public readonly string $merchant_name,
-        public readonly string $merchant_code,
+        public readonly ?string $merchant_name,
+        public readonly ?string $merchant_code,
         public readonly string $to_account,
         public readonly string $amount,
         public readonly ?string $tran_via,
         public readonly ?string $payment_ref,
         public readonly string $currency,
         public readonly string $performed_by,
-        public readonly object $details
+        public readonly ?object $details
     ) {}
 
     public static function fromModel(PaymentTransaction $pmtTrx): self
@@ -32,7 +32,7 @@ class MerchantSettledTransactionByIdDTO {
             to_account: (string) $pmtTrx->to_account,
             performed_by: $pmtTrx->performed_by,
             payment_ref: $pmtTrx->payment_ref,
-            details: $pmtTrx->disbursement,
+            details: $pmtTrx?->disbursement,
         );
     }
 

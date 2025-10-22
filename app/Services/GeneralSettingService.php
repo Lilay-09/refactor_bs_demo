@@ -1027,8 +1027,8 @@ class GeneralSettingService
         $zoneId = Zone::where('zone_code',$zone_code)->where('is_deleted',0)->take(1)->value('id');
         $priceList = GeneralSettingService::priceByZone($zoneId,$user,$merchant_id);
         if(!$priceList) return DataResponse::NotFound('Zone price not found');
-        $baseFee = $priceList->price > 0 ? $priceList->price : $priceList->base_fee;
-        if($baseFee <=0) return DataResponse::NotFound('Please set price to your zone');
+        $baseFee = $priceList->price > 0 ? $priceList->price : ($priceList->base_fee ?? 0);
+        // if($baseFee <=0) return DataResponse::NotFound('Please set price to your zone');
         $zPrice = $baseFee + $extraCharge;
         $selectKg = $billedKg ?? $actualKg;
         $additionalPrice = 0;
