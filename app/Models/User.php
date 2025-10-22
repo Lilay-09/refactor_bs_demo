@@ -218,5 +218,4 @@ class User extends Authenticatable implements JWTSubject
         return $this->hasMany(Package::class, 'driver_id');
     }
 
-
 }

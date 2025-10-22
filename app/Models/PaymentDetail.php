@@ -17,4 +17,10 @@ class PaymentDetail extends Model
         'currency_code',
         'original_amount',
     ];
+
+    public function paymentPackage()
+    {
+        return $this->belongsTo(PaymentPackage::class, 'payment_id', 'payment_id');
+    }
+
 }
