@@ -150,6 +150,13 @@ class Package extends Model
             fn ($value) => $value ?? $this->zone_name
         );
     }
+    
+
+
+    public function driverPackages()
+    {
+        return $this->hasMany(Package::class, 'driver_id', 'driver_id');
+    }
 
 
 
