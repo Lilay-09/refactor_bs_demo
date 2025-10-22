@@ -124,20 +124,20 @@ class MerchantTransactionController extends Controller
             ->whereIn('p.status_id',[9,19])
             ->orderByRaw('COALESCE(p.failed_datetime, p.delivered_datetime) DESC NULLS LAST')
             ->with([
-                'merchantPackages:id,driver_id',
-                'merchantPackages.paymentPackages' => function ($query) {
+                'driverPackages:id,driver_id',
+                'driverPackages.paymentPackages' => function ($query) {
                     $query->where('is_deleted', false)
                         ->select('payment_id', 'package_id');
                 },
-                'merchantPackages.paymentPackages.payment:id,payer_id',
-                'merchantPackages.paymentPackages.payment.paymentDetails',
+                'driverPackages.paymentPackages.payment:id,payer_id',
+                'driverPackages.paymentPackages.payment.paymentDetails',
 
-                'merchantPackages.disbursementPackages' => function ($query) {
+                'driverPackages.disbursementPackages' => function ($query) {
                     $query->where('is_deleted', false)
                         ->select('disbursement_id', 'package_id');
                 },
-                'merchantPackages.disbursementPackages.disbursement:id,payee_id',
-                'merchantPackages.disbursementPackages.disbursement.disbursementDetails',
+                'driverPackages.disbursementPackages.disbursement:id,payee_id',
+                'driverPackages.disbursementPackages.disbursement.disbursementDetails',
             ])
             // ->join('payments as pmt','p.driver_payment_id','pmt.id')
             // ->where('pmt.is_settled',0)
@@ -210,7 +210,6 @@ class MerchantTransactionController extends Controller
         })->map(function ($group, $key) use(&$grandTotalUsd,&$grandTotalKhr,&$totalPackageCount,&$totalDriverCodUsd,&$totalDriverCodKhr,&$totalFee,$transactionType) {
             // Extract date and driver_id from the key
             [$date, $driver_id] = explode('|', $key);
-
             // Sum the package counts for this group
             $packageTotal = $group->count(); // Count items in the group (equivalent to summing 1 per item)
             // $rowTotalUsd = $group->where('cod',1)->where('status_id','=',9)->sum('price');
@@ -227,8 +226,9 @@ class MerchantTransactionController extends Controller
             $dis = collect();
             $paidPackageIds = collect();
             foreach ($group as $pkg) {
+                // Log::info($pkg);
                 foreach ($pkg->driverPackages as $dp) {
-                    Log::info($dp->disbursementPackages);
+                    
                     // Collect payments
                     $dpPayments = $dp->paymentPackages
                                     ->where('is_deleted', false) // optional safety
@@ -259,7 +259,6 @@ class MerchantTransactionController extends Controller
                 }
             }
 
-            // Log::info($paidPackageIds);
             // Remove duplicates by 'id'
             $pmt = $pmt->unique('id')->values();
             $dis = $dis->unique('id')->values();
@@ -308,14 +307,14 @@ class MerchantTransactionController extends Controller
 
 
 
-            $driverCodUsd = $group->whereIn('status_id',[9])->sum('driver_cod_usd');
-            $merchantCodUsd = $driverCodUsd;
-            $driverCodKhr = $group->whereIn('status_id',[9])->sum('driver_cod_khr');
-            $merchantCodKhr = $driverCodKhr;
+            $driverCodUsd = $group->sum('driver_cod_usd');
+            $tobePaidUsd = $driverCodUsd;
+            $driverCodKhr = $group->sum('driver_cod_khr');
+            $tobePaidKhr = $driverCodKhr;
             // $totalAmount = $rowTotalUsd - $deliveryFee - $taxiFee;
             $deductFee = $deliveryFee + $otherFee + $taxiFee;
             $totalFee += $group->sum('delivery_fee') + $otherFee;
-            Helper::deductAmountBase($merchantCodUsd,$merchantCodKhr,$deductFee);
+            Helper::deductAmountBase($tobePaidUsd,$tobePaidKhr,$deductFee);
             // $representative->package_count = $packageTotal; // Add the summed total_package
             $bankInfo = $representative->bank_accounts->where('is_primary',1)->first();
             if(!$bankInfo) $bankInfo = $representative->bank_accounts->first();
@@ -336,11 +335,13 @@ class MerchantTransactionController extends Controller
                 'merchant_name' => $representative->merchant_name,
                 'code' => $representative->code,
                 'package_count' => $packageTotal,
-                'driver_cod_usd' => Helper::getNumber($driverCodUsd,2),
-                'driver_cod_khr' => Helper::getNumber($driverCodKhr,2),
-                'merchant_cod_usd' => (float)Helper::getNumber($merchantCodUsd,2),
-                'merchant_cod_khr' => (float)Helper::getNumber($merchantCodKhr,2),
+                'merchant_cod_usd' => (float)Helper::getNumber($group->whereIn('status_id',[9,19])->sum('price'),2),
+                'merchant_cod_khr' => (float)Helper::getNumber($group->whereIn('status_id',[9,19])->sum('price_khr'),2),
+                'to_be_cod_usd' => (float)Helper::getNumber($tobePaidUsd,2),
+                'to_be_cod_khr' => (float)Helper::getNumber($tobePaidKhr,2),     
                 'fee' => Helper::getNumber($deliveryFee + $otherFee,2),
+                'base_fee' => $deliveryFee,
+                'other_fee' => $otherFee,
                 'taxi_fee' => $taxiFee,
                 'status_id' => $representative->status_id,
                 // 'amount' => Helper::getNumber($totalAmount,2),
