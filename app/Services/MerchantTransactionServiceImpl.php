@@ -5,6 +5,7 @@ namespace App\Services;
 use App\DTO\MerchantRequestedSettlementDTO;
 use App\DTO\MerchantSettledTransactionByIdDTO;
 use App\DTO\MerchantSettledTransactionDTO;
+use App\Enums\PaymentMethod;
 use App\Enums\PaymentStatus;
 use App\Enums\PaywayProvider;
 use App\Enums\PaywayStatus;
@@ -12,7 +13,9 @@ use App\Enums\PaywayType;
 use App\Enums\TrackingStatus;
 use App\Enums\TransactionType;
 use App\Models\Disbursement;
+use App\Models\DisbursementDetails;
 use App\Models\Payment;
+use App\Models\PaymentDetail;
 use App\Models\PaymentTransaction;
 use App\Models\UserBank;
 use DataResponse;
@@ -788,6 +791,13 @@ class MerchantTransactionServiceImpl implements MerchantTransactionService
                             'is_settled'       => true,
                             'settled_uid'      => $authUser->id,
                         ]);
+                        DisbursementDetails::create([
+                            'disbursement_id' => $pId,
+                            'method' => 'internal',
+                            'amount' => $dueAmt['amount'],
+                            'original_amount' => $dueAmt['amount'],
+                            'currency_code' => $currency
+                        ]);
                     } else {
                         // Keep existing partial logic
                         $usdIncrement = $currency === 'USD' ? $approvedAmt : 0;
@@ -811,6 +821,14 @@ class MerchantTransactionServiceImpl implements MerchantTransactionService
                             'settled_datetime' => now(),
                             'is_settled'       => true,
                             'settled_uid'      => $authUser->id,
+                        ]);
+
+                        DisbursementDetails::create([
+                            'disbursement_id' => $pId,
+                            'method' => 'internal',
+                            'amount' => $dueAmt['amount'],
+                            'original_amount' => $dueAmt['amount'],
+                            'currency_code' => $currency
                         ]);
                     }
 
@@ -852,6 +870,15 @@ class MerchantTransactionServiceImpl implements MerchantTransactionService
                     'settled_uid'       => $authUser->id
                 ];
                 Payment::whereIn('id', $toUpdatePayin)->update($updateData);
+                foreach($toUpdatePayin as $pId){
+                    PaymentDetail::create([
+                        'disbursement_id' => $pId,
+                        'method' => 'internal',
+                        'amount' => $dueAmt['amount'],
+                        'original_amount' => $dueAmt['amount'],
+                        'currency_code' => $currency
+                    ]);
+                }
             }
 
             // if(!empty($toUpdatePayin)){
