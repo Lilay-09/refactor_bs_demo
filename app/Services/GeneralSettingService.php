@@ -209,7 +209,7 @@ class GeneralSettingService
     }
 
     static function disclaimerText($text=null){
-        return $text ? $text : 'សូមអរគុណនូវការប្រើប្រាស់សេវាកម្មដឹកជញ្ជូន Arrizon របស់ខ្ញុំ។';
+        return $text ? $text : 'សូមអរគុណនូវការប្រើប្រាស់សេវាកម្មដឹកជញ្ជូនរបស់ខ្ញុំ។';
     }
     static function optionsGender(){
         return [
@@ -231,8 +231,6 @@ class GeneralSettingService
             ['name' => 'Inactive', 'value' => 0]
         ];
     }
-
-
 
     static function optionsEmployeeType(){
         return [
@@ -825,7 +823,7 @@ class GeneralSettingService
             })
             ->where('delivery_type',$delivery_type)
             // ->orderByDesc('id')
-            ->where('base_fee','>',0)
+            ->where('base_fee','>=',0)
             ->selectRaw('base_fee,taxi_fee,other_fee,below_kg,below_kg_price,id,price,above_kg_price,above_kg,delivery_type')
             ->first();
             $plZone = PriceListZone::with('priceList:taxi_fee,other_fee,base_fee,below_kg,below_kg_price,id,price,above_kg_price,above_kg,delivery_type')->where('zone_id',$zone_id)->where('price_list_id',$priceList?->id)->first();

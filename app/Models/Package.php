@@ -424,4 +424,29 @@ class Package extends Model
     }
 
 
+    public function paymentDetails()
+    {
+        return $this->hasManyThrough(
+            PaymentDetail::class,
+            PaymentPackage::class,
+            'package_id',  // FK on PaymentPackage
+            'payment_id',  // FK on PaymentDetail
+            'id',          // Local key on Package
+            'payment_id'   // Local key on PaymentPackage
+        )->where('payment_packages.is_deleted', false); // ensure only active pivot
+    }
+
+    public function disbursementDetails()
+    {
+        return $this->hasManyThrough(
+            DisbursementDetails::class,
+            DisbursementPackage::class,
+            'package_id',      // FK on DisbursementPackage
+            'disbursement_id', // FK on DisbursementDetail
+            'id',              // Local key on Package
+            'disbursement_id'  // Local key on DisbursementPackage
+        )->where('disbursement_packages.is_deleted', false); // ensure only active pivot
+    }
+
+
 }
