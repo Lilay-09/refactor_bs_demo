@@ -300,7 +300,7 @@ class DriverTransactionController extends Controller
     public function getDriverBalance(Request $req){
         $user = UserService::getAuthUser();
         $trxService = new TransactionService();
-        $receive = $trxService->getBalance($req,$user);
+        $receive = $trxService->getBalanceV1($req,$user);
         return ApiResponse::flex($receive);
     }
 

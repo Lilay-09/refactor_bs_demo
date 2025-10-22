@@ -83,4 +83,8 @@ class Disbursement extends Model
     public function disbursement(){
         return $this->belongsTo(Disbursement::class,'disbursement_id');
     }
+
+    public function disbursementDetails(){
+        return $this->hasMany(DisbursementDetails::class,'disbursement_id');
+    }
 }

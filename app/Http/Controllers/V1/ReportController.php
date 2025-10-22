@@ -1375,7 +1375,7 @@ class ReportController extends Controller
             }
         }
         unset($merchantInfo->bank_accounts);
-        $xRate = ExchangeRate::whereRaw('DATE(x_date) >= ? AND DATE(x_date) <= ?', [$startDate, $endDate])
+        $xRate = ExchangeRate::whereRaw('DATE(x_date) >= ? AND DATE(x_date) <= ?', [Helper::dateYMD($startDate), Helper::dateYMD($endDate)])
             ->orderBy('x_date', 'desc') // Ensures the latest rate in the range is prioritized
             ->take(1)->value('buy_rate');
 
