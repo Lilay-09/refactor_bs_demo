@@ -123,6 +123,22 @@ class MerchantTransactionController extends Controller
             ->where('p.is_deleted',0)
             ->whereIn('p.status_id',[9,19])
             ->orderByRaw('COALESCE(p.failed_datetime, p.delivered_datetime) DESC NULLS LAST')
+            ->with([
+                'merchantPackages:id,driver_id',
+                'merchantPackages.paymentPackages' => function ($query) {
+                    $query->where('is_deleted', false)
+                        ->select('payment_id', 'package_id');
+                },
+                'merchantPackages.paymentPackages.payment:id,payer_id',
+                'merchantPackages.paymentPackages.payment.paymentDetails',
+
+                'merchantPackages.disbursementPackages' => function ($query) {
+                    $query->where('is_deleted', false)
+                        ->select('disbursement_id', 'package_id');
+                },
+                'merchantPackages.disbursementPackages.disbursement:id,payee_id',
+                'merchantPackages.disbursementPackages.disbursement.disbursementDetails',
+            ])
             // ->join('payments as pmt','p.driver_payment_id','pmt.id')
             // ->where('pmt.is_settled',0)
             ->selectRaw('
@@ -130,20 +146,20 @@ class MerchantTransactionController extends Controller
                 d.id,d.username as merchant_name,d.code,p.status_id,p.updated_at,p.driver_cod_usd,p.driver_cod_khr
             ');
             // $qP->where(function ($q) {
-                $qP->whereNotExists(function ($sub) {
-                    $sub->select(DB::raw(1))
-                        ->from('payment_packages as pp')
-                        ->whereColumn('pp.package_id', 'p.id')
-                        ->where('pp.payer_type', 'merchant')
-                        ->where('pp.is_deleted', false);
-                })->whereNotExists(function ($sub) {
-                    $sub->select(DB::raw(1))
-                        ->from('disbursement_packages as dp')
-                        ->whereColumn('dp.package_id', 'p.id')
-                        ->where('dp.payee_type', 'merchant')
-                        ->where('dp.type','payment')
-                        ->where('dp.is_deleted', false);
-                });
+                // $qP->whereNotExists(function ($sub) {
+                //     $sub->select(DB::raw(1))
+                //         ->from('payment_packages as pp')
+                //         ->whereColumn('pp.package_id', 'p.id')
+                //         ->where('pp.payer_type', 'merchant')
+                //         ->where('pp.is_deleted', false);
+                // })->whereNotExists(function ($sub) {
+                //     $sub->select(DB::raw(1))
+                //         ->from('disbursement_packages as dp')
+                //         ->whereColumn('dp.package_id', 'p.id')
+                //         ->where('dp.payee_type', 'merchant')
+                //         ->where('dp.type','payment')
+                //         ->where('dp.is_deleted', false);
+                // });
             // });
             // ->groupBy(['d.id','pmt.payable_amount',DB::raw('DATE(p.delivered_datetime)'),DB::raw('DATE(p.failed_datetime)')]);
         if($userId){
@@ -206,9 +222,95 @@ class MerchantTransactionController extends Controller
             $otherFee = $group->where('payer','sender')->sum('other_fee');
             $deliveryFee = $group->where('payer','sender')->sum('delivery_fee');
             $representative = $group->first();
-            $driverCodUsd = $group->whereIn('status_id',[9,19])->sum('driver_cod_usd');
+
+            $pmt = collect();
+            $dis = collect();
+            $paidPackageIds = collect();
+            foreach ($group as $pkg) {
+                foreach ($pkg->driverPackages as $dp) {
+                    Log::info($dp->disbursementPackages);
+                    // Collect payments
+                    $dpPayments = $dp->paymentPackages
+                                    ->where('is_deleted', false) // optional safety
+                                    ->map(fn($pp) => $pp->payment)
+                                    ->filter(); // remove nulls
+
+                    if ($dpPayments->isNotEmpty()) {
+                        $pmt = $pmt->merge($dpPayments);
+                    }
+
+                    // Collect disbursements
+                    $dpDisbursements = $dp->disbursementPackages
+                                        ->where('is_deleted', false) // optional
+                                        ->map(fn($dpb) => $dpb->disbursement)
+                                        ->filter(); // remove nulls
+
+                    if ($dpDisbursements->isNotEmpty()) {
+                        $dis = $dis->merge($dpDisbursements);
+                    }
+
+                    $paidPackageIds = $paidPackageIds->merge(
+                        $dp->paymentPackages->where('is_deleted', false)->pluck('package_id')
+                    );
+
+                    $paidPackageIds = $paidPackageIds->merge(
+                        $dp->disbursementPackages->where('is_deleted', false)->pluck('package_id')
+                    );
+                }
+            }
+
+            // Log::info($paidPackageIds);
+            // Remove duplicates by 'id'
+            $pmt = $pmt->unique('id')->values();
+            $dis = $dis->unique('id')->values();
+            // --- Aggregate payments ---
+            $aggregatedPayments = $pmt->flatMap(fn($payment) => $payment->paymentDetails)
+                ->groupBy(fn($detail) => $detail->method . '|' . $detail->currency_code)
+                ->map(function ($details, $key) {
+                    $first = $details->first();
+                    $total = $details->sum(fn($d) => (float)$d->amount);
+
+                    return [
+                        'method' => $first->method,
+                        'currency_code' => $first->currency_code,
+                        'total_amount' => number_format($total, 2, '.', ''),
+                    ];
+                })
+                ->values();
+
+            // --- Aggregate disbursements ---
+            $aggregatedDisbursements = $dis->flatMap(fn($disb) => $disb->disbursementDetails)
+                ->groupBy(fn($detail) => $detail->method . '|' . $detail->currency_code)
+                ->map(function ($details, $key) {
+                    $first = $details->first();
+                    $total = $details->sum(fn($d) => (float)$d->amount);
+                    return [
+                        'method' => $first->method,
+                        'currency_code' => $first->currency_code,
+                        'total_amount' => number_format($total, 2, '.', ''),
+                    ];
+                })
+                ->values();
+
+            $merged = $aggregatedPayments->merge($aggregatedDisbursements)
+                ->groupBy(fn($item) => $item['method'] . '|' . $item['currency_code'])
+                ->map(function ($items, $key) {
+                    $first = $items->first();
+                    $total = collect($items)->sum(fn($i) => (float)$i['total_amount']);
+
+                    return [
+                        'method' => $first['method'],
+                        'currency_code' => $first['currency_code'],
+                        'total_amount' => number_format($total, 2, '.', ''),
+                    ];
+                })
+                ->values();
+
+
+
+            $driverCodUsd = $group->whereIn('status_id',[9])->sum('driver_cod_usd');
             $merchantCodUsd = $driverCodUsd;
-            $driverCodKhr = $group->whereIn('status_id',[9,19])->sum('driver_cod_khr');
+            $driverCodKhr = $group->whereIn('status_id',[9])->sum('driver_cod_khr');
             $merchantCodKhr = $driverCodKhr;
             // $totalAmount = $rowTotalUsd - $deliveryFee - $taxiFee;
             $deductFee = $deliveryFee + $otherFee + $taxiFee;
@@ -242,7 +344,8 @@ class MerchantTransactionController extends Controller
                 'taxi_fee' => $taxiFee,
                 'status_id' => $representative->status_id,
                 // 'amount' => Helper::getNumber($totalAmount,2),
-                'account_info' => $bankInfo
+                'account_info' => $bankInfo,
+                'collected' => $merged
             ];
         })->filter()->values();
         return ApiResponse::Pagination($groupData,$req,null,[

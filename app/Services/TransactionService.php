@@ -3573,7 +3573,6 @@ class TransactionService
             ->whereIn('p.status_id',[9,19])
             ->with([
                 'driverPackages:id,driver_id',
-                
                 'driverPackages.paymentPackages' => function ($query) {
                     $query->where('is_deleted', false)
                         ->select('payment_id', 'package_id');
@@ -3588,24 +3587,12 @@ class TransactionService
                 'driverPackages.disbursementPackages.disbursement:id,payee_id',
                 'driverPackages.disbursementPackages.disbursement.disbursementDetails',
             ])
-
-            // ->with([
-            //     'driverPackages:id,driver_id',
-            //     'driverPackages.paymentPackages:payment_id,package_id',
-            //     'driverPackages.paymentPackages.payment:id,payer_id',
-            //     'driverPackages.paymentPackages.payment.paymentDetails',
-
-            //     'driverPackages.disbursementPackages:disbursement_id,package_id',
-            //     'driverPackages.disbursementPackages.disbursement:id,payer_id',
-            //     'driverPackages.disbursementPackages.disbursement.disbursementDetails'
-            //     // 'driverPackages:id,driver_id.disbursement',payment
-            // ])
             ->orderByRaw('COALESCE(p.failed_datetime, p.delivered_datetime) DESC NULLS LAST')
             ->select([
                 'p.additional_fee','p.extra_charge','p.payer','p.cod','p.delivery_fee','p.price','p.taxi_fee',
                 'p.other_fee','p.delivered_datetime','p.failed_datetime','d.id as driver_id','d.id',
                 'd.username as driver_name','d.code','p.status_id','p.updated_at','p.driver_cod_khr',
-                'p.driver_cod_usd','p.price_khr'
+                'p.driver_cod_usd','p.price_khr','p.id as package_id'
             ]);
             // ->groupBy(['d.id','pmt.payable_amount',DB::raw('DATE(p.delivered_datetime)'),DB::raw('DATE(p.failed_datetime)')]);
         if($userId){
@@ -3652,24 +3639,14 @@ class TransactionService
             $deliveryFee = $packages->sum('delivery_fee');
             $otherFee = $packages->sum('other_fee');
             $taxiFee = $packages->sum('taxi_fee');
-            $driverCodUsd = $packages->sum('driver_cod_usd');
-            $driverCodKhr = $packages->sum('driver_cod_khr');
-            $totalPrice = $packages->where('cod',1)->where('status_id',9)->sum('price');
-
-            $totalPackages += $packageCount;
-            $totalAmount += $totalPrice;
-            $totalAmountKhr += $packages->where('cod',1)->where('status_id',9)->sum('price_khr');
-            $totalDriverCodUsd += $driverCodUsd;
-            $totalDriverCodKhr += $driverCodKhr;
-            $totalBaseFee += $deliveryFee;
-            $totalOtherFee += $otherFee;
-            $totalTaxiFee += $taxiFee;
 
             $representative = $packages->first(); // pick one for driver info
             $pmt = collect();
             $dis = collect();
+            $paidPackageIds = collect();
             foreach ($packages as $pkg) {
                 foreach ($pkg->driverPackages as $dp) {
+                    // Log::info($dp->paymentPackages);
                     // Collect payments
                     $dpPayments = $dp->paymentPackages
                                     ->where('is_deleted', false) // optional safety
@@ -3689,9 +3666,18 @@ class TransactionService
                     if ($dpDisbursements->isNotEmpty()) {
                         $dis = $dis->merge($dpDisbursements);
                     }
+
+                    $paidPackageIds = $paidPackageIds->merge(
+                        $dp->paymentPackages->where('is_deleted', false)->pluck('package_id')
+                    );
+
+                    $paidPackageIds = $paidPackageIds->merge(
+                        $dp->disbursementPackages->where('is_deleted', false)->pluck('package_id')
+                    );
                 }
             }
 
+            // Log::info($paidPackageIds);
             // Remove duplicates by 'id'
             $pmt = $pmt->unique('id')->values();
             $dis = $dis->unique('id')->values();
@@ -3739,7 +3725,19 @@ class TransactionService
                     ->values();
 
 
-
+            
+            $totalPrice = $packages->where('cod',1)->where('status_id',9)->sum('price');
+            $paidPackageIds = $paidPackageIds->unique()->values();
+            $driverCodUsd = $packages->whereNotIn('package_id', $paidPackageIds)->sum('driver_cod_usd');
+            $driverCodKhr = $packages->whereNotIn('package_id', $paidPackageIds)->sum('driver_cod_khr');
+            $totalPackages += $packageCount;
+            $totalAmount += $totalPrice;
+            $totalAmountKhr += $packages->where('cod',1)->where('status_id',9)->sum('price_khr');
+            $totalDriverCodUsd += $driverCodUsd;
+            $totalDriverCodKhr += $driverCodKhr;
+            $totalBaseFee += $deliveryFee;
+            $totalOtherFee += $otherFee;
+            $totalTaxiFee += $taxiFee;
 
             return [
                 'finished_date' => $date,
