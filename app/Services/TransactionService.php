@@ -1071,9 +1071,12 @@ class TransactionService
             if(!$existsBank) return DataResponse::NotFound(__('messages.not_found',['info' =>'Bank']));
             $bankName = $existsBank->name;
         }
-        if($dueAmountUsd < 0) return DataResponse::ValidateFail(__('messages.info',[
-            'info' => 'This case should be receive not disbursement'
+        if($dueAmountUsd < 0 && $dueAmountKhr < 0) {
+            return DataResponse::ValidateFail(__('messages.info',[
+            'info' => 'This case should be receive not disbursement',
+            'khInfo' => 'This case should be receive not disbursement'
         ]));
+        }
         $validPayment = $this->validPaymentV1($dueAmountUsd,$dueAmountKhr,$cashUSD,$cashKHR,null,$bankAmountUSD,$bankAmountKHR,$exchangeRate);
         if($validPayment->error){
             return $validPayment;
@@ -1372,6 +1375,7 @@ class TransactionService
 
     public function receiveOrDisburesementV1(Request $req,$user,$type){
         $paymentType = $req->payment_type;
+        // Log::info($paymentType);
         if(!in_array($paymentType,['disbursement','receive']) || !$paymentType){
             return DataResponse::ValidateFail(__('messages.info',[
                 'info' => 'Payment type must be on of disbursement or receive'
@@ -2905,6 +2909,7 @@ class TransactionService
             $obj->total_fees += $rowTotal['fees'];
         }
 
+        Helper::deductAmountBase($obj->total_due_amount_usd,$obj->total_due_amount_khr,($obj->total_fees + $obj->total_taxi_fee));
         return DataResponse::JsonRaw([
             'error' => false,
             'pacakage_ids' => $packageIds,
@@ -3641,7 +3646,6 @@ class TransactionService
             $dis = [];
 
             foreach ($packages as $pkg) {
-                Log::info($pkg);
                 if ($pkg->paymentPackages) {
                     foreach ($pkg->paymentPackages as $pp) {
                         $pmt[] = [
