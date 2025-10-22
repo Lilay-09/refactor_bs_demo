@@ -17,4 +17,9 @@ class DisbursementDetails extends Model
         'currency_code',
         'original_amount',
     ];
+
+    public function disbursementPackage()
+    {
+        return $this->belongsTo(DisbursementPackage::class, 'disbursement_id', 'disbursement_id');
+    }
 }

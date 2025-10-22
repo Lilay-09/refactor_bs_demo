@@ -105,7 +105,9 @@ class PackageTrailController extends Controller
         }
         if($search){
             // $query->where(function ($q) use($search){
-                $query->where('qr_code',$search)->orWhere('receiver_phone','ilike','%'.$search.'%');
+                $query->where(function($q) use($search){
+                    $q->where('qr_code',$search)->orWhere('receiver_phone','ilike','%'.$search.'%');
+                });
             // });
         }
         if($startDate && $endDate){
@@ -179,7 +181,7 @@ class PackageTrailController extends Controller
         }
         // if($isKm) $package->payer = GeneralSettingService::$payerTrans[$package->payer] ?? '';
         $package->base_fee = $package->delivery_fee;
-        $package->delivery_fee = $package->delivery_fee + $package->extra_charge + $package->taxi_fee;
+        $package->delivery_fee = $package->delivery_fee + $package->other_fee + $package->taxi_fee;
         $package->warehouse_timeago = Helper::timeAgo($package->arrive_warehouse_datetime,false);
         unset($package->status,$package->driver);
         return ApiResponse::JsonResult($package);
@@ -410,7 +412,7 @@ class PackageTrailController extends Controller
         $obj = (object)[
             'company_info' => $companyInfo,
             'package' => $package,
-            'notes' => GeneralSettingService::disclaimerText($companyInfo?->disclaimer),//'រាល់ទំនិញខុសច្បាប់ ម្ចាស់ទំនិញត្រូវទទួលខុសត្រូវចំពោះមុខច្បាប់ដោយខ្លួនឯង ក្រុមហ៊ុនមិនទទួលខុសត្រូវឡេីយ។ អរគុណសម្រាប់ការប្រើប្រាស់សេវាកម្មដឹកជញ្ជូន JS Express របស់ខ្ញុំ។',
+            'notes' => GeneralSettingService::disclaimerText($companyInfo?->disclaimer),//'រាល់ទំនិញខុសច្បាប់ ម្ចាស់ទំនិញត្រូវទទួលខុសត្រូវចំពោះមុខច្បាប់ដោយខ្លួនឯង ក្រុមហ៊ុនមិនទទួលខុសត្រូវឡេីយ។ អរគុណសម្រាប់ការប្រើប្រាស់សេវាកម្មដឹកជញ្ជូន របស់ខ្ញុំ។',
             'redirect' => asset('api/redirect-store')
         ];
         return ApiResponse::JsonResult($obj,__('messages.info',['info' => 'Print Information']));
@@ -472,7 +474,7 @@ class PackageTrailController extends Controller
         $obj = (object)[
             'company_info' => $companyInfo,
             'packages' => $packages,
-            'notes' => GeneralSettingService::disclaimerText($companyInfo?->disclaimer),//'រាល់ទំនិញខុសច្បាប់ ម្ចាស់ទំនិញត្រូវទទួលខុសត្រូវចំពោះមុខច្បាប់ដោយខ្លួនឯង ក្រុមហ៊ុនមិនទទួលខុសត្រូវឡេីយ។ អរគុណសម្រាប់ការប្រើប្រាស់សេវាកម្មដឹកជញ្ជូន JS Express របស់ខ្ញុំ។',
+            'notes' => GeneralSettingService::disclaimerText($companyInfo?->disclaimer),//'រាល់ទំនិញខុសច្បាប់ ម្ចាស់ទំនិញត្រូវទទួលខុសត្រូវចំពោះមុខច្បាប់ដោយខ្លួនឯង ក្រុមហ៊ុនមិនទទួលខុសត្រូវឡេីយ។ អរគុណសម្រាប់ការប្រើប្រាស់សេវាកម្មដឹកជញ្ជូន របស់ខ្ញុំ។',
             'redirect' => asset('api/redirect-store')
         ];
         return ApiResponse::JsonResult($obj,__('messages.info',['info' => 'Print Information']));

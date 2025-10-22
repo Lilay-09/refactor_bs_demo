@@ -261,10 +261,11 @@ class MerchantManagementController extends Controller
         $callback = function ($q) use($telegramSendLogKeyBy){
             // Log::info($q);
             $q->has_sent = empty($telegramSendLogKeyBy[$q->id]) ? false:true;
-            return $q;
+            // return $q;
         };
-
-        return ApiResponse::PaginationV1($query,$req, 'Get Merchant List By Date',[],1000,$callback,$select);
+        $data = $query->get()->each($callback);
+        return ApiResponse::JsonResult($data);
+        // return ApiResponse::PaginationV1($query,$req, 'Get Merchant List By Date',[],1000,$callback,$select);
     }
 
     //

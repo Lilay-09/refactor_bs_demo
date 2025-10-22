@@ -928,45 +928,134 @@ class MerchantTransactionServiceImpl implements MerchantTransactionService
         return DataResponse::PaginationV1($qTrx,$req,'',[],500,$callback,$select);
     }
 
-    public function getSettledPaymentTransactionById(int $tranId,object $authUser):object{
-        $qTrx = PaymentTransaction::where('is_deleted',false)
-        ->with([
-            'disbursement:id,payee_id',
-            'disbursement.merchant:id,username,phone,code',
-            'performer:id,username'
-        ])
-        ->select(['id','tran_via','approved_uid','payment_id','payment_date','to_account','from_account','payment_ref','amount','currency'])
-        ->find($tranId);
-        if(!$qTrx){
+    public function getSettledPaymentTransactionById(int $tranId, object $authUser): object
+    {
+        $qTrx = PaymentTransaction::where('is_deleted', false)
+            ->with(['performer:id,username'])
+            ->select([
+                'id',
+                'tran_via',
+                'approved_uid',
+                'payment_id',
+                'payment_date',
+                'to_account',
+                'from_account',
+                'payment_ref',
+                'amount',
+                'currency',
+                'transaction_type',
+            ])
+            ->find($tranId);
+
+        if (!$qTrx) {
             return DataResponse::NotFound();
         }
-        $qTrx->load([
-            'disbursement:id,payee_id,amount_due_khr,amount_due_usd,package_count,received_amount_usd,received_amount_khr',
-            'disbursement.pmtPackages:id,disbursement_id,package_id',
-            'disbursement.pmtPackages.package:id,qr_code,status_id,zone_name,receiver_address,zone_code'
-        ]);
+        // return DataResponse::JsonResult($qTrx);
 
-        $qTrx->merchant_name = $qTrx->disbursement->merchant->username;
-        $qTrx->merchant_code = $qTrx->disbursement->merchant->code;
-        $pmtDate = $qTrx->payment_date;
-        $qTrx->payment_date = Helper::formatCustomDateTime($pmtDate,'d-M-Y');
-        $qTrx->payment_time = Helper::formatCustomDateTime($pmtDate,'h:i A');
-        // return $qTrx;
-        $items = [];
-        foreach ($qTrx->disbursement->pmtPackages as $dp) {
-            $d = [];
-            foreach ($dp->package->getAttributes() as $key => $p) {
-                if($key === 'status_id'){
-                    $d['status'] = TrackingStatus::tryFrom($p)->label();
-                }
-                $d[$key] = $p;
+        $items = []; // unified items array
+
+        if ($qTrx->transaction_type === 'out') {
+            $qTrx->load([
+                'disbursement:id,payee_id,amount_due_khr,amount_due_usd,package_count,received_amount_usd,received_amount_khr',
+                'disbursement.merchant:id,username,phone,code',
+                'disbursement.pmtPackages:id,disbursement_id,package_id',
+                'disbursement.pmtPackages.package:id,qr_code,status_id,zone_name,receiver_address,zone_code,failed_datetime,status_id,delivered_datetime'
+            ]);
+
+            $qTrx->merchant_name = $qTrx->disbursement?->merchant?->username;
+            $qTrx->merchant_code = $qTrx->disbursement?->merchant?->code;
+
+            foreach ($qTrx->disbursement->pmtPackages as $dp) {
+                $items[] = $this->transformPackageItem($dp->package);
             }
-            $items[] = $d;
-        }
-        $qTrx->disbursement->items = $items;
-        $qTrx->performed_by = $qTrx->performer->username;
-        unset($qTrx->disbursement->merchant,$qTrx->disbursement->pmtPackages);
 
-        return DataResponse::JsonResult(MerchantSettledTransactionByIdDTO::fromModel($qTrx));
+            unset($qTrx->disbursement->merchant, $qTrx->disbursement->pmtPackages);
+        } elseif ($qTrx->transaction_type === 'in') {
+            // Load payment and its packages
+            $qTrx->load([
+                'payment:id,payer_id,amount_due_khr,amount_due_usd,package_count,received_amount_usd,received_amount_khr',
+                'payment.pmtPackages:id,payment_id,package_id',
+                'payment.merchant:id,username,phone,code',
+                'payment.pmtPackages.package:id,qr_code,status_id,zone_name,receiver_address,zone_code,failed_datetime,status_id,delivered_datetime'
+            ]);
+
+            $qTrx->merchant_name = $qTrx->payment?->merchant?->username;
+            $qTrx->merchant_code = $qTrx->payment?->merchant?->code;
+
+            if ($qTrx->payment) {
+                foreach ($qTrx->payment->pmtPackages as $pp) {
+                    $items[] = $this->transformPackageItem($pp->package);
+                }
+            }
+        }
+
+        // Common formatting
+        $pmtDate = $qTrx->payment_date;
+        $qTrx->payment_date = Helper::formatCustomDateTime($pmtDate, 'd-M-Y');
+        $qTrx->payment_time = Helper::formatCustomDateTime($pmtDate, 'h:i A');
+        $qTrx->performed_by = $qTrx->performer->username;
+        return DataResponse::JsonResult($items);
     }
+
+    /**
+     * Transform a package into a standardized item structure.
+     */
+    private function transformPackageItem($package): array
+    {
+        $d = [];
+        foreach ($package->getAttributes() as $key => $value) {
+            if ($key === 'status_id') {
+                $d['status'] = TrackingStatus::tryFrom($value)?->label();
+                if($value == 9){
+                    $d['finished_date'] = Helper::dateYMD($package->getAttribute('delivered_datetime'),'d/m/Y h:i A');
+                }else{
+                    $d['finished_date'] = Helper::dateYMD($package->getAttribute('failed_datetime'),'d/m/Y h:i A');
+                }
+            }
+            $d[$key] = $value;
+        }
+        return $d;
+    }
+
+    // public function getSettledPaymentTransactionById(int $tranId,object $authUser):object{
+    //     $qTrx = PaymentTransaction::where('is_deleted',false)
+    //     ->with([
+    //         'disbursement:id,payee_id',
+    //         'disbursement.merchant:id,username,phone,code',
+    //         'performer:id,username'
+    //     ])
+    //     ->select(['id','tran_via','approved_uid','payment_id','payment_date','to_account','from_account','payment_ref','amount','currency'])
+    //     ->find($tranId);
+    //     if(!$qTrx){
+    //         return DataResponse::NotFound();
+    //     }
+    //     $qTrx->load([
+    //         'disbursement:id,payee_id,amount_due_khr,amount_due_usd,package_count,received_amount_usd,received_amount_khr',
+    //         'disbursement.pmtPackages:id,disbursement_id,package_id',
+    //         'disbursement.pmtPackages.package:id,qr_code,status_id,zone_name,receiver_address,zone_code'
+    //     ]);
+
+    //     $qTrx->merchant_name = $qTrx->disbursement->merchant->username;
+    //     $qTrx->merchant_code = $qTrx->disbursement->merchant->code;
+    //     $pmtDate = $qTrx->payment_date;
+    //     $qTrx->payment_date = Helper::formatCustomDateTime($pmtDate,'d-M-Y');
+    //     $qTrx->payment_time = Helper::formatCustomDateTime($pmtDate,'h:i A');
+    //     // return $qTrx;
+    //     $items = [];
+    //     foreach ($qTrx->disbursement->pmtPackages as $dp) {
+    //         $d = [];
+    //         foreach ($dp->package->getAttributes() as $key => $p) {
+    //             if($key === 'status_id'){
+    //                 $d['status'] = TrackingStatus::tryFrom($p)->label();
+    //             }
+    //             $d[$key] = $p;
+    //         }
+    //         $items[] = $d;
+    //     }
+    //     $qTrx->disbursement->items = $items;
+    //     $qTrx->performed_by = $qTrx->performer->username;
+    //     unset($qTrx->disbursement->merchant,$qTrx->disbursement->pmtPackages);
+
+    //     return DataResponse::JsonResult(MerchantSettledTransactionByIdDTO::fromModel($qTrx));
+    // }
 }

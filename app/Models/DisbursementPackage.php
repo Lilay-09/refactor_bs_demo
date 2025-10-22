@@ -28,4 +28,9 @@ class DisbursementPackage extends Model
     public function package(){
         return $this->belongsTo(Package::class,'package_id');
     }
+
+    public function disbursementPackages()
+    {
+        return $this->hasMany(DisbursementPackage::class, 'package_id');
+    }
 }
