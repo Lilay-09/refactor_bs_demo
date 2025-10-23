@@ -3620,6 +3620,7 @@ class TransactionService
         $totalDriverCodUsd = 0;
         $totalDriverCodKhr = 0;
         $totalTaxiFee = 0;
+        $summaryTotals = collect();
         $groupData = $drivers->map(function ($package) {
             // Determine finished date
             $finishedDate = $package->status_id == 9
@@ -3633,7 +3634,7 @@ class TransactionService
             // Group by driver and finished date
             return $package->driver_id . '|' . $package->finished_date;
         })
-        ->map(function ($packages, $key) use (&$totalPackages, &$totalAmount, &$totalAmountKhr, &$totalDriverCodUsd, &$totalDriverCodKhr, &$totalOtherFee,&$totalBaseFee, &$totalTaxiFee) {
+        ->map(function ($packages, $key) use (&$totalToBePaidUsd,&$totalToBePaidKhr,&$totalPackages, &$totalAmount, &$totalAmountKhr, &$totalDriverCodUsd, &$totalDriverCodKhr, &$totalOtherFee,&$totalBaseFee, &$totalTaxiFee,&$summaryTotals) {
             [$driver_id, $date] = explode('|', $key);
             $packageCount = $packages->count();
             $deliveryFee = $packages->sum('delivery_fee');
@@ -3724,17 +3725,23 @@ class TransactionService
                     })
                     ->values();
 
-
+            $summaryTotals = $summaryTotals->merge($merged);
             
             $totalPrice = $packages->where('cod',1)->where('status_id',9)->sum('price');
             $paidPackageIds = $paidPackageIds->unique()->values();
-            $driverCodUsd = $packages->whereNotIn('package_id', $paidPackageIds)->sum('driver_cod_usd');
-            $driverCodKhr = $packages->whereNotIn('package_id', $paidPackageIds)->sum('driver_cod_khr');
+            $driverCodUsd = $packages->sum('driver_cod_usd');
+            $driverCodKhr = $packages->sum('driver_cod_khr');
+            $tobePaidUsd = $packages->whereNotIn('package_id', $paidPackageIds)->sum('driver_cod_usd');
+            $tobePaidKhr = $packages->whereNotIn('package_id', $paidPackageIds)->sum('driver_cod_khr');
+
+            $totalToBePaidUsd +=$tobePaidUsd;
+            $totalToBePaidKhr +=$tobePaidKhr;
             $totalPackages += $packageCount;
             $totalAmount += $totalPrice;
             $totalAmountKhr += $packages->where('cod',1)->where('status_id',9)->sum('price_khr');
             $totalDriverCodUsd += $driverCodUsd;
             $totalDriverCodKhr += $driverCodKhr;
+            
             $totalBaseFee += $deliveryFee;
             $totalOtherFee += $otherFee;
             $totalTaxiFee += $taxiFee;
@@ -3747,6 +3754,8 @@ class TransactionService
                 'base_fee' => $deliveryFee,
                 'other_fee' => $otherFee,
                 'taxi_fee' => $taxiFee,
+                'to_be_paid_usd' => Helper::getNumber($tobePaidUsd,2,true),
+                'to_be_paid_khr' => Helper::getNumber($tobePaidKhr,0,true),
                 'driver_cod_usd' => Helper::getNumber($driverCodUsd,2,true),
                 'driver_cod_khr' => Helper::getNumber($driverCodKhr,0,true),
                 'total_price_usd' => Helper::getNumber($totalPrice,2,true),
@@ -3756,6 +3765,20 @@ class TransactionService
         })
         ->values();
 
+        $finalSummary = $summaryTotals
+        ->groupBy(fn($item) => $item['method'] . '|' . $item['currency_code'])
+        ->map(function ($items) {
+            $first = $items->first();
+            $total = collect($items)->sum(fn($i) => (float)$i['total_amount']);
+
+            return [
+                'method' => $first['method'],
+                'currency_code' => $first['currency_code'],
+                'total_amount' => number_format($total, 2, '.', ''),
+            ];
+        })
+        ->values()
+        ->toArray();
 
 
         return DataResponse::Pagination(collect($groupData),$req,__('messages.Get List'),[
@@ -3764,10 +3787,13 @@ class TransactionService
             'total_cod_khr' => (float)Helper::getNumber($totalAmountKhr,0,true),
             'total_amount_usd' => (float)Helper::getNumber($totalDriverCodUsd,2,true),
             'total_amount_khr' => (float)Helper::getNumber($totalDriverCodKhr,0,true),
+            'total_to_be_paid_usd' => (float)Helper::getNumber($totalToBePaidUsd,2,true),
+            'total_to_be_paid_khr' => (float)Helper::getNumber($totalToBePaidKhr,0,true),
             'taxi_fee' => Helper::getNumber($totalTaxiFee,2,true),
             'total_other_fee' => Helper::getNumber($totalOtherFee,2,true),
             'total_base_fee' => Helper::getNumber($totalBaseFee,2,true),
-            'fees' => Helper::getNumber(($totalBaseFee + $totalOtherFee),2,true)
+            'fees' => Helper::getNumber(($totalBaseFee + $totalOtherFee),2,true),
+            'summary_collected' => $finalSummary
         ]);
     }
 

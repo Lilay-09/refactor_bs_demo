@@ -123,22 +123,22 @@ class MerchantTransactionController extends Controller
             ->where('p.is_deleted',0)
             ->whereIn('p.status_id',[9,19])
             ->orderByRaw('COALESCE(p.failed_datetime, p.delivered_datetime) DESC NULLS LAST')
-            ->with([
-                'driverPackages:id,driver_id',
-                'driverPackages.paymentPackages' => function ($query) {
-                    $query->where('is_deleted', false)
-                        ->select('payment_id', 'package_id');
-                },
-                'driverPackages.paymentPackages.payment:id,payer_id',
-                'driverPackages.paymentPackages.payment.paymentDetails',
+            // ->with([
+            //     'driverPackages:id,driver_id',
+            //     'driverPackages.paymentPackages' => function ($query) {
+            //         $query->where('is_deleted', false)
+            //             ->select('payment_id', 'package_id');
+            //     },
+            //     'driverPackages.paymentPackages.payment:id,payer_id',
+            //     'driverPackages.paymentPackages.payment.paymentDetails',
 
-                'driverPackages.disbursementPackages' => function ($query) {
-                    $query->where('is_deleted', false)
-                        ->select('disbursement_id', 'package_id');
-                },
-                'driverPackages.disbursementPackages.disbursement:id,payee_id',
-                'driverPackages.disbursementPackages.disbursement.disbursementDetails',
-            ])
+            //     'driverPackages.disbursementPackages' => function ($query) {
+            //         $query->where('is_deleted', false)
+            //             ->select('disbursement_id', 'package_id');
+            //     },
+            //     'driverPackages.disbursementPackages.disbursement:id,payee_id',
+            //     'driverPackages.disbursementPackages.disbursement.disbursementDetails',
+            // ])
             // ->join('payments as pmt','p.driver_payment_id','pmt.id')
             // ->where('pmt.is_settled',0)
             ->selectRaw('
@@ -207,7 +207,10 @@ class MerchantTransactionController extends Controller
         })->groupBy(function ($item) {
             // Group by both groupDate and driver_id
             return $item->groupDate . '|' . $item->driver_id;
-        })->map(function ($group, $key) use(&$grandTotalUsd,&$grandTotalKhr,&$totalPackageCount,&$totalDriverCodUsd,&$totalDriverCodKhr,&$totalFee,$transactionType) {
+        })->map(function ($group, $key) use(
+                &$grandTotalUsd,&$grandTotalKhr,&$totalPackageCount,&$totalDriverCodUsd,
+                &$totalDriverCodKhr,&$totalFee,$transactionType,&$totalToBePaidUsd,&$totalToBePaidKhr
+            ) {
             // Extract date and driver_id from the key
             [$date, $driver_id] = explode('|', $key);
             // Sum the package counts for this group
@@ -221,91 +224,6 @@ class MerchantTransactionController extends Controller
             $otherFee = $group->where('payer','sender')->sum('other_fee');
             $deliveryFee = $group->where('payer','sender')->sum('delivery_fee');
             $representative = $group->first();
-
-            $pmt = collect();
-            $dis = collect();
-            $paidPackageIds = collect();
-            foreach ($group as $pkg) {
-                // Log::info($pkg);
-                foreach ($pkg->driverPackages as $dp) {
-                    
-                    // Collect payments
-                    $dpPayments = $dp->paymentPackages
-                                    ->where('is_deleted', false) // optional safety
-                                    ->map(fn($pp) => $pp->payment)
-                                    ->filter(); // remove nulls
-
-                    if ($dpPayments->isNotEmpty()) {
-                        $pmt = $pmt->merge($dpPayments);
-                    }
-
-                    // Collect disbursements
-                    $dpDisbursements = $dp->disbursementPackages
-                                        ->where('is_deleted', false) // optional
-                                        ->map(fn($dpb) => $dpb->disbursement)
-                                        ->filter(); // remove nulls
-
-                    if ($dpDisbursements->isNotEmpty()) {
-                        $dis = $dis->merge($dpDisbursements);
-                    }
-
-                    $paidPackageIds = $paidPackageIds->merge(
-                        $dp->paymentPackages->where('is_deleted', false)->pluck('package_id')
-                    );
-
-                    $paidPackageIds = $paidPackageIds->merge(
-                        $dp->disbursementPackages->where('is_deleted', false)->pluck('package_id')
-                    );
-                }
-            }
-
-            // Remove duplicates by 'id'
-            $pmt = $pmt->unique('id')->values();
-            $dis = $dis->unique('id')->values();
-            // --- Aggregate payments ---
-            $aggregatedPayments = $pmt->flatMap(fn($payment) => $payment->paymentDetails)
-                ->groupBy(fn($detail) => $detail->method . '|' . $detail->currency_code)
-                ->map(function ($details, $key) {
-                    $first = $details->first();
-                    $total = $details->sum(fn($d) => (float)$d->amount);
-
-                    return [
-                        'method' => $first->method,
-                        'currency_code' => $first->currency_code,
-                        'total_amount' => number_format($total, 2, '.', ''),
-                    ];
-                })
-                ->values();
-
-            // --- Aggregate disbursements ---
-            $aggregatedDisbursements = $dis->flatMap(fn($disb) => $disb->disbursementDetails)
-                ->groupBy(fn($detail) => $detail->method . '|' . $detail->currency_code)
-                ->map(function ($details, $key) {
-                    $first = $details->first();
-                    $total = $details->sum(fn($d) => (float)$d->amount);
-                    return [
-                        'method' => $first->method,
-                        'currency_code' => $first->currency_code,
-                        'total_amount' => number_format($total, 2, '.', ''),
-                    ];
-                })
-                ->values();
-
-            $merged = $aggregatedPayments->merge($aggregatedDisbursements)
-                ->groupBy(fn($item) => $item['method'] . '|' . $item['currency_code'])
-                ->map(function ($items, $key) {
-                    $first = $items->first();
-                    $total = collect($items)->sum(fn($i) => (float)$i['total_amount']);
-
-                    return [
-                        'method' => $first['method'],
-                        'currency_code' => $first['currency_code'],
-                        'total_amount' => number_format($total, 2, '.', ''),
-                    ];
-                })
-                ->values();
-
-
 
             $driverCodUsd = $group->sum('driver_cod_usd');
             $tobePaidUsd = $driverCodUsd;
@@ -329,12 +247,16 @@ class MerchantTransactionController extends Controller
             $totalDriverCodUsd += $driverCodUsd;
             $totalDriverCodKhr += $driverCodKhr;
             $totalPackageCount += $packageTotal;
+            $totalToBePaidUsd += $tobePaidUsd;
+            $totalToBePaidKhr += $tobePaidKhr;
             return [
                 'finished_date' => $date,
                 'driver_id' => $driver_id,
                 'merchant_name' => $representative->merchant_name,
                 'code' => $representative->code,
                 'package_count' => $packageTotal,
+                'driver_cod_usd' => Helper::getNumber($driverCodUsd,2,true),
+                'driver_cod_khr' => Helper::getNumber($driverCodKhr,0,true),
                 'merchant_cod_usd' => (float)Helper::getNumber($group->whereIn('status_id',[9,19])->sum('price'),2),
                 'merchant_cod_khr' => (float)Helper::getNumber($group->whereIn('status_id',[9,19])->sum('price_khr'),2),
                 'to_be_cod_usd' => (float)Helper::getNumber($tobePaidUsd,2),
@@ -346,15 +268,16 @@ class MerchantTransactionController extends Controller
                 'status_id' => $representative->status_id,
                 // 'amount' => Helper::getNumber($totalAmount,2),
                 'account_info' => $bankInfo,
-                'collected' => $merged
             ];
         })->filter()->values();
         return ApiResponse::Pagination($groupData,$req,null,[
             'total_package' => $totalPackageCount,
-            'total_cod_usd' => (float)Helper::getNumber($totalDriverCodUsd,2),
-            'total_cod_khr' => (float)Helper::getNumber($totalDriverCodKhr,2),
-            'total_amount_usd' => (float)Helper::getNumber($grandTotalUsd,2),
-            'total_amount_khr' => (float)Helper::getNumber($grandTotalKhr,2),
+            'total_cod_usd' => (float)Helper::getNumber($totalDriverCodUsd,2,true),
+            'total_cod_khr' => (float)Helper::getNumber($totalDriverCodKhr,0,true),
+            'total_amount_usd' => (float)Helper::getNumber($grandTotalUsd,2,true),
+            'total_amount_khr' => (float)Helper::getNumber($grandTotalKhr,0,true),
+            'total_to_be_paid_usd' => (float)Helper::getNumber($totalToBePaidUsd,2,true),
+            'total_to_be_paid_khr' => (float)Helper::getNumber($totalToBePaidKhr,0,true),
             'total_fee' => (float)Helper::getNumber($totalFee,2),
         ]);
     }
