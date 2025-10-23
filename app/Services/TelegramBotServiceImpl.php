@@ -92,7 +92,7 @@ class TelegramBotServiceImpl implements TelegramBotService
             'deleted_uid' => Auth::user()->id,
             'deleted_datetime' => now()
         ]);
-        return DataResponse::JsonResult($telegramBot);
+        return DataResponse::JsonResult(null,false,'Deleted');
     }
 
     public function sendLog(User $authUser,array $data){

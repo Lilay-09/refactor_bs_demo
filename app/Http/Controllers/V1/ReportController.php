@@ -1894,7 +1894,10 @@ class ReportController extends Controller
                 ->where('payer_type', 'merchant')
                 ->with(['merchant'])
                 ->join('users as b', 'payments.settled_uid', 'b.id')
-                ->selectRaw('payments.id, payments.package_count, payments.payable_amount, payments.breakdown_notes, b.username as booked_user, payments.remarks, payments.payment_datetime, payer_id');
+                ->select([
+                    'payments.id','payments.package_count','payments.payable_amount','payments.breakdown_notes',
+                    'b.username as booked_user','payments.remarks','payments.payment_datetime','payments.payer_id'
+                ]);
 
             $applyDateFilter($pQ);
             $payments = $pQ->get();
