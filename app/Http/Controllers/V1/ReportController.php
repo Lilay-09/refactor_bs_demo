@@ -111,7 +111,7 @@ class ReportController extends Controller
             driver_cod_usd,driver_cod_khr,receiver_address,remarks,receiver_phone,cod,price,delivery_fee,
             additional_fee,driver_total,merchant_total,status_id,remarks,arrive_warehouse_datetime,
             assign_driver_datetime,updated_at,failed_datetime,returned_datetime,delivered_datetime,
-            other_fee,created_at,product_type'
+            other_fee,created_at,product_type,taxi_fee'
         );
         if($statusId){
             $qP->where('status_id',$statusId);
@@ -127,8 +127,12 @@ class ReportController extends Controller
         }
 
         $grand = [
-            'cod' => 0,
+            'cod_usd' => 0,
+            'cod_khr' => 0,
             'fees' => 0,
+            'other_fee' => 0,
+            'taxi_fee' => 0,
+            'base_fee' => 0,
             'driver_total' => 0,
             'merchant_total' => 0,
             'driver_total_khr' => 0,
@@ -180,22 +184,23 @@ class ReportController extends Controller
             $q->driver_phone = $q->driver?->phone;
             // $q->cod_fee = $q->price;
             $merchantTotal = $q->cod ? $q->price:0;
-            $fees = (float)($q->delivery_fee + $q->other_fee);//- $q->taxi_fee;
+            $fees = (float)($q->delivery_fee + $q->other_fee); 
+            $grand['taxi_fee'] += $q->taxi_fee;
             if($q->payer == 'sender'){
                 $merchantTotal -= $fees + $q->taxi_fee;
             }
             $driverCodUsd =(float)($q->driver_cod_usd ?? 0);
             $driverCodKhr = (float)($q->driver_cod_khr ?? 0);
             $taxiFee = (float)$q->taxi_fee;
-            $driverTotal = PackageTrailServiceImpl::calculateCodAmtBothCurrencies(
-                $driverCodUsd,
-                $driverCodKhr,
-                'driver',
-                $q->payer,
-                $q->status_id,
-                $fees,
-                $taxiFee
-            );
+            // $driverTotal = PackageTrailServiceImpl::calculateCodAmtBothCurrencies(
+            //     $driverCodUsd,
+            //     $driverCodKhr,
+            //     'driver',
+            //     $q->payer,
+            //     $q->status_id,
+            //     $fees,
+            //     $taxiFee
+            // );
             $merchantTotal = PackageTrailServiceImpl::calculateCodAmtBothCurrencies(
                 $driverCodUsd,
                 $driverCodKhr,
@@ -205,16 +210,21 @@ class ReportController extends Controller
                 $fees,
                 $taxiFee
             );
-            $q->driver_total = $driverTotal['amount_usd'];
-            $q->driver_total_khr = $driverTotal['amount_khr'];
+            $q->driver_total = $driverCodUsd;
+            $q->driver_total_khr = $driverCodKhr;
+            $q->merchant_total = $merchantTotal['amount_usd'];
+            $q->merchant_total_khr = $merchantTotal['amount_khr'];
             // $grand['cod'] += $q->driver_total;
-            $grand['driver_total'] += $driverTotal['amount_usd'];
-            $grand['driver_total_khr'] += $driverTotal['amount_khr'];
+            // $grand['driver_total'] += $driverTotal['amount_usd'];
+            // $grand['driver_total_khr'] += $driverTotal['amount_khr'];
             $grand['merchant_total'] += $merchantTotal['amount_usd'];
             $grand['merchant_total_khr'] += $merchantTotal['amount_khr'];
-            $grand['fees'] += $fees;
+            $grand['cod_usd'] += $q->price;
+            $grand['cod_khr'] += $q->price_khr;
+            $grand['base_fee'] += $q->delivery_fee;
+            $grand['other_fee'] += $q->other_fee;
             // $q->merchant_total = $merchantTotal;
-            $q->fee = $q->delivery_fee + $q->other_fee;
+            $q->base_fee = $q->delivery_fee;
             $q->arrive_warehouse_datetime = Helper::formatCustomDateTime($q->arrive_warehouse_datetime,'d-M-Y');
             $actionDate = null;
             if ($q->status_id == 5) $actionDate = Helper::formatCustomDateTime($q->arrive_warehouse_datetime,'d-M-Y h:i A');
@@ -1872,6 +1882,8 @@ class ReportController extends Controller
         $totalAmt = 0;
         // $warehouseId = $req->warehouse_id;
         $bankAccounts = UserBank::orderByDesc('is_primary')
+        ->where('is_deleted',false)
+        ->select('id','bank_name','currency','bank_number','account_name','user_id')
         ->get()
         ->groupBy('user_id');
         $startDateTime = $startDate && $endDate ? Helper::dateYMD($startDate).' 00:00:00' : null;
@@ -1894,14 +1906,18 @@ class ReportController extends Controller
                 ->where('payer_type', 'merchant')
                 ->with(['merchant'])
                 ->join('users as b', 'payments.settled_uid', 'b.id')
-                ->selectRaw('payments.id, payments.package_count, payments.payable_amount, payments.breakdown_notes, b.username as booked_user, payments.remarks, payments.payment_datetime, payer_id');
+                ->select([
+                    'payments.id','payments.package_count','payments.payable_amount','payments.breakdown_notes',
+                    'b.username as booked_user','payments.remarks','payments.payment_datetime','payments.payer_id',
+                    'payments.received_amount_usd','payments.received_amount_khr'
+                ]);
 
             $applyDateFilter($pQ);
             $payments = $pQ->get();
 
             foreach ($payments as $p) {
                 $merchantIds->push($p->payer_id);
-                $p->bank_account = $this->userBankAccount($bankAccounts,$p->payer_id);
+                $p->bank_accounts = $this->userBankAccount($bankAccounts,$p->payer_id);
                 $p->payment_date = Helper::dateDMY($p->payment_datetime);
                 $p->trx_type = 'Receive';
                 $p->trx_type_code = 'receive';
@@ -1919,14 +1935,19 @@ class ReportController extends Controller
                 ->where('payee_type', 'merchant')
                 ->with(['merchant'])
                 ->join('users as b', 'disbursements.settled_uid', 'b.id')
-                ->selectRaw('disbursements.id, disbursements.package_count, disbursements.payable_amount, disbursements.breakdown_notes, b.username as booked_user, disbursements.remarks, disbursements.payment_datetime, payee_id');
+                ->select([
+                    'disbursements.id','disbursements.package_count','disbursements.payable_amount',
+                    'disbursements.breakdown_notes','b.username as booked_user','disbursements.remarks',
+                    'disbursements.payment_datetime','payee_id','disbursements.received_amount_khr',
+                    'disbursements.received_amount_usd'
+                ]);
 
             $applyDateFilter($dQ);
             $disbursements = $dQ->get();
 
             foreach ($disbursements as $p) {
                 $merchantIds->push($p->payee_id);
-                $p->bank_account = $this->userBankAccount($bankAccounts,$p->payer_id);
+                $p->bank_accounts = $this->userBankAccount($bankAccounts,$p->payee_id);
                 $p->payment_date = Helper::dateDMY($p->payment_datetime);
                 $p->merchant_name = $p->merchant?->username;
                 $p->trx_type = 'Disbursement';
@@ -1956,13 +1977,12 @@ class ReportController extends Controller
 
     private function userBankAccount($bankAccountsGrouped, $userId) {
         if (!isset($bankAccountsGrouped[$userId])) {
-            return null;
+            return [];//null;
         }
-
         // Get first (primary or just first)
-        $bank = $bankAccountsGrouped[$userId]->first();
+        // $bank = $bankAccountsGrouped[$userId]->first();
 
-        return GeneralSettingService::concatBankInfo($bank->bank_name, $bank->bank_number, $bank->account_name);
+        return $bankAccountsGrouped[$userId];//GeneralSettingService::concatBankInfo($bank->bank_name, $bank->bank_number, $bank->account_name);
     }
 
 

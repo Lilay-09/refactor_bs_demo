@@ -218,45 +218,45 @@ class MerchantManagementController extends Controller
         if($search){
             $query->where('users.username','ILIKE',"%{$search}%")
             ->orWhere('users.phone','ILIKE',"%{$search}%");
-        }else{
-            if($startDate && $endDate){
-                $startDatetime = Helper::dateYMD($startDate).' 00:00:00';
-                $endDatetime = Helper::dateYMD($endDate).' 23:59:59';
-                $query->where(function ($q) use ($startDatetime, $endDatetime) {
-                    $q->where(function ($q) use ($startDatetime, $endDatetime) {
-                        $q->where(function ($q) use ($startDatetime, $endDatetime) {
-                            $q->where('status_id', 5)
-                            ->whereBetween('arrive_warehouse_datetime', [$startDatetime, $endDatetime]);
-                        })->orWhere(function ($q) use ($startDatetime, $endDatetime) {
-                            $q->where('status_id', 6)
-                            ->whereBetween('assign_driver_datetime', [$startDatetime, $endDatetime]);
-                        })->orWhere(function ($q) use ($startDatetime, $endDatetime) {
-                            $q->where('status_id', 10)
-                            ->whereBetween('failed_datetime', [$startDatetime, $endDatetime]);
-                        })->orWhere(function ($q) use ($startDatetime, $endDatetime) {
-                            $q->where('status_id', 19)
-                            ->whereBetween('failed_datetime', [$startDatetime, $endDatetime]);
-                        })->orWhere(function ($q) use ($startDatetime, $endDatetime) {
-                            $q->where('status_id', 9)
-                            ->whereBetween('delivered_datetime', [$startDatetime, $endDatetime]);
-                        })->orWhere(function ($q) use ($startDatetime, $endDatetime) {
-                            $q->where('status_id', 11)
-                            ->whereBetween('returned_datetime', [$startDatetime, $endDatetime]);
-                        });
-                    });
-
-                    // $q->whereRaw(
-                    //     '(packages.status_id = 5 AND packages.arrive_warehouse_datetime BETWEEN ? AND ?)
-                    //     OR (packages.status_id = 6 AND packages.assign_driver_datetime BETWEEN ? AND ?)
-                    //     OR (packages.status_id = 10 AND packages.failed_datetime BETWEEN ? AND ?)
-                    //     OR (packages.status_id = 19 AND packages.failed_datetime BETWEEN ? AND ?)
-                    //     OR (packages.status_id = 9 AND packages.delivered_datetime BETWEEN ? AND ?)
-                    //     OR (packages.status_id = 11 AND packages.returned_datetime BETWEEN ? AND ?)',
-                    //     [$startDatetime, $endDatetime, $startDatetime, $endDatetime, $startDatetime, $endDatetime, $startDatetime, $endDatetime, $startDatetime, $endDatetime, $startDatetime, $endDatetime]
-                    // );
-                });
-            }
         }
+        if($startDate && $endDate){
+            $startDatetime = Helper::dateYMD($startDate).' 00:00:00';
+            $endDatetime = Helper::dateYMD($endDate).' 23:59:59';
+            $query->where(function ($q) use ($startDatetime, $endDatetime) {
+                $q->where(function ($q) use ($startDatetime, $endDatetime) {
+                    $q->where(function ($q) use ($startDatetime, $endDatetime) {
+                        $q->where('status_id', 5)
+                        ->whereBetween('arrive_warehouse_datetime', [$startDatetime, $endDatetime]);
+                    })->orWhere(function ($q) use ($startDatetime, $endDatetime) {
+                        $q->where('status_id', 6)
+                        ->whereBetween('assign_driver_datetime', [$startDatetime, $endDatetime]);
+                    })->orWhere(function ($q) use ($startDatetime, $endDatetime) {
+                        $q->where('status_id', 10)
+                        ->whereBetween('failed_datetime', [$startDatetime, $endDatetime]);
+                    })->orWhere(function ($q) use ($startDatetime, $endDatetime) {
+                        $q->where('status_id', 19)
+                        ->whereBetween('failed_datetime', [$startDatetime, $endDatetime]);
+                    })->orWhere(function ($q) use ($startDatetime, $endDatetime) {
+                        $q->where('status_id', 9)
+                        ->whereBetween('delivered_datetime', [$startDatetime, $endDatetime]);
+                    })->orWhere(function ($q) use ($startDatetime, $endDatetime) {
+                        $q->where('status_id', 11)
+                        ->whereBetween('returned_datetime', [$startDatetime, $endDatetime]);
+                    });
+                });
+
+                // $q->whereRaw(
+                //     '(packages.status_id = 5 AND packages.arrive_warehouse_datetime BETWEEN ? AND ?)
+                //     OR (packages.status_id = 6 AND packages.assign_driver_datetime BETWEEN ? AND ?)
+                //     OR (packages.status_id = 10 AND packages.failed_datetime BETWEEN ? AND ?)
+                //     OR (packages.status_id = 19 AND packages.failed_datetime BETWEEN ? AND ?)
+                //     OR (packages.status_id = 9 AND packages.delivered_datetime BETWEEN ? AND ?)
+                //     OR (packages.status_id = 11 AND packages.returned_datetime BETWEEN ? AND ?)',
+                //     [$startDatetime, $endDatetime, $startDatetime, $endDatetime, $startDatetime, $endDatetime, $startDatetime, $endDatetime, $startDatetime, $endDatetime, $startDatetime, $endDatetime]
+                // );
+            });
+        }
+        
 
         $callback = function ($q) use($telegramSendLogKeyBy){
             // Log::info($q);

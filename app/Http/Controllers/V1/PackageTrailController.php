@@ -88,37 +88,39 @@ class PackageTrailController extends Controller
             //     $q->where('warehouse_id',$warehouse_id);
             // });
         }
-        if($zoneCode) {
-            $query->where('zone_code',$zoneCode);
-        }
-        if($statusId){
-            $query->where('status_id',$statusId);
-        }
-        if($orderId){
-            $query->where('order_id',$orderId);
-        }
-        if($merchantId){
-            $query->where('merchant_id',$merchantId);
-        }
-        if($driverId){
-            $query->where('driver_id',$driverId);
-        }
         if($search){
             // $query->where(function ($q) use($search){
                 $query->where(function($q) use($search){
                     $q->where('qr_code',$search)->orWhere('receiver_phone','ilike','%'.$search.'%');
                 });
             // });
+        }else{
+            if($zoneCode) {
+                $query->where('zone_code',$zoneCode);
+            }
+            if($statusId){
+                $query->where('status_id',$statusId);
+            }
+            if($orderId){
+                $query->where('order_id',$orderId);
+            }
+            if($merchantId){
+                $query->where('merchant_id',$merchantId);
+            }
+            if($driverId){
+                $query->where('driver_id',$driverId);
+            }
+            if($startDate && $endDate){
+                $startDate = Helper::dateYMD($startDate).' 00:00:00';
+                $endDate = Helper::dateYMD($endDate).' 23:59:59';
+                $query->where(function ($q) use ($startDate, $endDate) {
+                    $q->whereBetween('created_at', [$startDate, $endDate])
+                    ->orWhereBetween('arrive_warehouse_datetime', [$startDate,$endDate])
+                    ->orWhereBetween('failed_datetime', [$startDate, $endDate]);
+                });
+            }
         }
-        if($startDate && $endDate){
-            $startDate = Helper::dateYMD($startDate).' 00:00:00';
-            $endDate = Helper::dateYMD($endDate).' 23:59:59';
-            $query->where(function ($q) use ($startDate, $endDate) {
-                $q->whereBetween('created_at', [$startDate, $endDate])
-                ->orWhereBetween('arrive_warehouse_datetime', [$startDate,$endDate])
-                ->orWhereBetween('failed_datetime', [$startDate, $endDate]);
-            });
-        }
+
         $callbackMapper = function($pkg) use ($lang){
             $cod = $pkg->cod;
             if($pkg->status_id === TrackingStatus::RETURNING->value){
