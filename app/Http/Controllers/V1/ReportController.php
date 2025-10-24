@@ -1976,11 +1976,9 @@ class ReportController extends Controller
     }
 
     private function userBankAccount($bankAccountsGrouped, $userId) {
-        Log::info($bankAccountsGrouped);
         if (!isset($bankAccountsGrouped[$userId])) {
             return [];//null;
         }
-
         // Get first (primary or just first)
         // $bank = $bankAccountsGrouped[$userId]->first();
 
