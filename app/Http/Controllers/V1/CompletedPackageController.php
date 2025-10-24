@@ -78,7 +78,7 @@ class CompletedPackageController extends Controller
             'p.returned_datetime','p.id as package_id','d.id as driver_id','p.qr_code','p.price','ts.name as status_code',
             'p.product_type','p.delivered_datetime','p.failed_datetime','p.taxi_fee','p.payer','p.cod','p.zone_code',
             'p.zone_name','p.receiver_phone','p.delivery_type','p.delivery_fee','p.driver_total','p.merchant_total',
-            'p.price_khr','p.driver_cod_usd','p.driver_cod_khr','p.extra_charge'
+            'p.price_khr','p.driver_cod_usd','p.driver_cod_khr','p.other_fee'
         ];
         // ->selectRaw('p.arrive_warehouse_datetime,p.returned_uid,p.receiver_address,p.driver_disbursement_id,p.driver_payment_id,p.delivered_datetime,m.username as merchant_name,m.phone as merchant_phone,d.username as driver_name,p.status_id,p.returned_datetime,p.id as package_id,d.id as driver_id,p.qr_code,p.price,ts.name as status_code,p.product_type,p.delivered_datetime,p.failed_datetime,p.taxi_fee,p.payer,p.cod,p.zone_code,p.zone_name,p.receiver_phone,p.delivery_type,p.delivery_fee,p.driver_total,p.merchant_total'.$driverSettled.$merchantSettled);
         // ->select('p.driver_id','p.arrive_warehouse_datetime','p.returned_uid','p.receiver_address','p.driver_disbursement_id','p.driver_payment_id','p.delivered_datetime','m.username as merchant_name','m.phone as merchant_phone','d.username as driver_name','p.status_id','p.returned_datetime','p.id as package_id','d.id as driver_id','p.qr_code','p.price','ts.name as status_code','p.product_type','p.delivered_datetime','p.failed_datetime','p.taxi_fee','p.payer','p.cod','p.zone_code','p.zone_name','p.receiver_phone','p.delivery_type','p.delivery_fee','p.driver_total','p.merchant_total');
@@ -235,7 +235,7 @@ class CompletedPackageController extends Controller
             'p.driver_cod_usd','p.driver_cod_khr','p.price_khr',
             // 'dpmt.approved as approved_driver_pmt',
             // 'mpmt.approved as approved_merchant_pmt',
-            'd.username as driver_name','p.status_id','p.id as package_id',
+            'd.username as driver_name','p.status_id','p.id as package_id','p.other_fee',
             'd.id as driver_id','p.qr_code','p.price','ts.name as status_code','p.product_type','p.delivered_datetime',
             'p.failed_datetime','p.taxi_fee','p.payer','p.cod','p.zone_code','p.zone_name','p.receiver_phone','p.delivery_type',
             'p.delivery_fee as base_fee','p.driver_total','p.merchant_total','p.extra_charge','p.actual_kg','p.billed_kg',

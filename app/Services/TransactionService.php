@@ -3575,6 +3575,7 @@ class TransactionService
                 'driverPackages:id,driver_id',
                 'driverPackages.paymentPackages' => function ($query) {
                     $query->where('is_deleted', false)
+                        ->where('payer_type','driver')
                         ->select('payment_id', 'package_id');
                 },
                 'driverPackages.paymentPackages.payment:id,payer_id',
@@ -3582,6 +3583,8 @@ class TransactionService
 
                 'driverPackages.disbursementPackages' => function ($query) {
                     $query->where('is_deleted', false)
+                        ->where('payee_type','driver')
+                        ->where('type','payment')
                         ->select('disbursement_id', 'package_id');
                 },
                 'driverPackages.disbursementPackages.disbursement:id,payee_id',
@@ -4034,7 +4037,7 @@ class TransactionService
             'receiver_phone' => 'nullable|string',
             'taxi_fee' => 'numeric|min:0',
             'zone_code' => 'required',
-            'extra_charge' => 'nullable|numeric|min:0'
+            'other_fee' => 'numeric|min:0'
         ]);
         if($validate->fails()) return DataResponse::ValidateFail($validate->errors()->first());
         $inputs = $validate->validated();
