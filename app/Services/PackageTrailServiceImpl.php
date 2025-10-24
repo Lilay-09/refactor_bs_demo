@@ -35,7 +35,9 @@ class PackageTrailServiceImpl
         }
 
         // Add taxi fee if package is delivered
-        if ($pkgStatusId === 9) {
+        if ($pkgStatusId === 9 && $userType == 'driver') {
+            $fees += $taxiFee;
+        }else{
             $fees += $taxiFee;
         }
 
