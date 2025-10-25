@@ -3788,12 +3788,12 @@ class TransactionService
 
         return DataResponse::Pagination(collect($groupData),$req,__('messages.Get List'),[
             'total_packages' => Helper::getNumber($totalPackages),
-            'total_cod_usd' => (float)Helper::getNumber($totalAmount,2,true),
-            'total_cod_khr' => (float)Helper::getNumber($totalAmountKhr,0,true),
-            'total_amount_usd' => (float)Helper::getNumber($totalDriverCodUsd,2,true),
-            'total_amount_khr' => (float)Helper::getNumber($totalDriverCodKhr,0,true),
+            'total_cod_usd' => Helper::getNumber($totalAmount,2,true),
+            'total_cod_khr' => Helper::getNumber($totalAmountKhr,0,true),
+            'total_amount_usd' => Helper::getNumber($totalDriverCodUsd,2,true),
+            'total_amount_khr' => Helper::getNumber($totalDriverCodKhr,0,true),
             'total_to_be_paid_usd' => (float)Helper::getNumber($totalToBePaidUsd,2,true),
-            'total_to_be_paid_khr' => (float)Helper::getNumber($totalToBePaidKhr,0,true),
+            'total_to_be_paid_khr' => Helper::getNumber($totalToBePaidKhr,0,true),
             'taxi_fee' => Helper::getNumber($totalTaxiFee,2,true),
             'total_other_fee' => Helper::getNumber($totalOtherFee,2,true),
             'total_base_fee' => Helper::getNumber($totalBaseFee,2,true),
