@@ -3572,7 +3572,9 @@ class TransactionService
             ->where('p.is_deleted',0)
             ->whereIn('p.status_id',[9,19])
             ->with([
-                'driverPackages:id,driver_id',
+                'driverPackages' => function ($query) {
+                    $query->select('id', 'driver_id', 'id as package_id');
+                },
                 'driverPackages.paymentPackages' => function ($query) {
                     $query->where('is_deleted', false)
                         ->where('payer_type','driver')
@@ -3594,7 +3596,7 @@ class TransactionService
             ->select([
                 'p.additional_fee','p.extra_charge','p.payer','p.cod','p.delivery_fee','p.price','p.taxi_fee',
                 'p.other_fee','p.delivered_datetime','p.failed_datetime','d.id as driver_id','d.id',
-                'd.username as driver_name','d.code','p.status_id','p.updated_at','p.driver_cod_khr',
+                'd.username as driver_name','d.phone as driver_phone','d.code as driver_code','p.status_id','p.updated_at','p.driver_cod_khr',
                 'p.driver_cod_usd','p.price_khr','p.id as package_id'
             ]);
             // ->groupBy(['d.id','pmt.payable_amount',DB::raw('DATE(p.delivered_datetime)'),DB::raw('DATE(p.failed_datetime)')]);
