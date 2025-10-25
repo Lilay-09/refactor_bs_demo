@@ -3737,11 +3737,12 @@ class TransactionService
             $paidPackageIds = $packages
                 ->filter(fn($p) => $p->method !== 'cod' || is_null($p->method))
                 ->pluck('package_id');
+            Log::info($paidPackageIds);
             $driverCodUsd = $packages->sum('driver_cod_usd');
             $driverCodKhr = $packages->sum('driver_cod_khr');
             $tobePaidUsd = $packages->whereNotIn('package_id', $paidPackageIds)->sum('driver_cod_usd');
             $tobePaidKhr = $packages->whereNotIn('package_id', $paidPackageIds)->sum('driver_cod_khr');
-            Log::info($packages);
+            // Log::info($packages);
             $collected = $packages
             ->groupBy(fn($p) => (empty($p->method) || $p->method == 'cod') ? 'cash':'ABA')
             ->flatMap(function ($group, $method) {
