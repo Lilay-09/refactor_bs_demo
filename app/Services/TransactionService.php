@@ -30,6 +30,8 @@ use Helper;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
+use function PHPUnit\Framework\isNull;
+
 class TransactionService
 {
 
@@ -3735,9 +3737,9 @@ class TransactionService
             $totalPrice = $packages->where('cod',1)->where('status_id',9)->sum('price');
             // $paidPackageIds = $paidPackageIds->unique()->values();
             $paidPackageIds = $packages
-                ->filter(fn($p) => $p->method !== 'cod' || is_null($p->method))
+                ->reject(fn($p) => is_null($p->method) || $p->method === 'cod')
                 ->pluck('package_id');
-            Log::info($paidPackageIds);
+
             $driverCodUsd = $packages->sum('driver_cod_usd');
             $driverCodKhr = $packages->sum('driver_cod_khr');
             $tobePaidUsd = $packages->whereNotIn('package_id', $paidPackageIds)->sum('driver_cod_usd');
@@ -3777,6 +3779,7 @@ class TransactionService
 
             $totalToBePaidUsd +=$tobePaidUsd;
             $totalToBePaidKhr +=$tobePaidKhr;
+            Log::info($totalToBePaidUsd);
             $totalPackages += $packageCount;
             $totalAmount += $totalPrice;
             $totalAmountKhr += $packages->where('cod',1)->where('status_id',9)->sum('price_khr');
