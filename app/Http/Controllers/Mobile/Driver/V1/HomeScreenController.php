@@ -516,7 +516,10 @@ class HomeScreenController extends Controller
                 })
                 ->where(function ($q2) {
                     $q2->where('d.finished', 0)
-                        ->orWhereDate('d.depart_datetime', Carbon::today());
+                        ->orWhereBetween('d.depart_datetime', [
+                            Carbon::now()->subDays(5)->startOfDay(),
+                            Carbon::now()
+                        ]);
                 });
         })
 
