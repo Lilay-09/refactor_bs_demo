@@ -37,11 +37,12 @@ class FleetManagementController extends Controller
         $endDate = $req->endDate;
         $statusId = $req->status_id;
         $packages = Package::fromRaw('packages as p')->join('delivery_packages as dp','p.id','dp.package_id')
+        ->where('p.is_deleted',false)
         ->selectRaw('p.id as package_id,dp.delivery_id,dp.delay_count,dp.has_swap,p.status_id,p.driver_total')
-        ->where('dp.is_deleted',0)
+        ->where('dp.is_deleted',false)
         ->where('dp.has_swap',0)
         ->where(function($q){
-            $q->where('dp.is_deleted',0)
+            $q->where('dp.is_deleted',false)
             ->where('dp.has_swap',0)
             ->where('dp.delay_count',0);
         })
@@ -209,6 +210,7 @@ class FleetManagementController extends Controller
     }
 
     public function setPackageStatus(Request $req){
+        // Log::info($req->all());
         $user = UserService::getAuthUser();
         $trip_id = $req->trip_id;
         $package_id = $req->package_id;
@@ -305,16 +307,18 @@ class FleetManagementController extends Controller
         $deliveredDatetime = $status_id == 9 ? now():null;
         DB::beginTransaction();
         try{
+            $payer = $req->payer ?? $package->payer;
             $updateArr = [
                 'update_uid' => $user->id,
                 'failure_notes' => $status_id == 10 ? $failure_notes:null,
                 'last_submit_uid' => $status_id == 10 ? $user->id:null,
                 'last_remark_user' => $status_id == 10 ? 'admin':null,
                 'failed_datetime' => $failDatetime,
+                'driver_cod_usd' => ($status_id == 19 && $payer == 'receiver') ? ($package->other_fee + $package->delivery_fee) : 0,
                 'delivered_datetime' => $deliveredDatetime,
                 'status_id' => $status_id
             ];
-            $payer = $req->payer ?? $package->payer;
+            
 
             if($status_id == 19) {
                 $driverTotal = $this->pickupCenterService::getDriverTotal($package->cod,$payer,0,$package->delivery_fee,$package->additional_fee,$package->extra_charge,0);
