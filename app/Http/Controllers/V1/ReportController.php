@@ -1395,7 +1395,7 @@ class ReportController extends Controller
 
         $merchantInfo->exchange_rate = $xRate;
         $pmtCase = ',CASE WHEN p.merchant_disbursement_id IS NOT NULL THEN dis.is_settled WHEN p.merchant_payment_id IS NOT NULL THEN pmt.is_settled ELSE FALSE END AS approved';
-        $qP = Package::from('packages as p')->where('p.is_deleted',0)
+        $qP = Package::from('packages as p')->where('p.is_deleted',false)
         ->where('p.merchant_id',$merchantId)
         ->whereIn('p.status_id',[5,6,9,10,11,19])
         ->with('status')
@@ -1588,7 +1588,8 @@ class ReportController extends Controller
                 'khInfo' => 'Merchant'
             ]));
         }
-        $qP = Package::where('merchant_id',$merchantId);
+        $qP = Package::where('is_deleted',false)
+        ->where('merchant_id',$merchantId);
         if($search){    
             
         }else {
