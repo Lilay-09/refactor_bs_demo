@@ -143,7 +143,7 @@ class MerchantTransactionController extends Controller
             // ->where('pmt.is_settled',0)
             ->selectRaw('
                 p.taxi_fee,p.extra_charge,p.additional_fee,p.payer,p.delivery_fee,p.cod,p.price,p.delivered_datetime,p.failed_datetime,d.id as driver_id,
-                d.id,d.username as merchant_name,d.code,p.status_id,p.updated_at,p.driver_cod_usd,p.driver_cod_khr,p.other_fee
+                d.id,d.username as merchant_name,d.code,p.status_id,p.updated_at,p.driver_cod_usd,p.driver_cod_khr,p.other_fee,p.price_khr
             ');
             // $qP->where(function ($q) {
                 // $qP->whereNotExists(function ($sub) {
@@ -258,10 +258,10 @@ class MerchantTransactionController extends Controller
                 'package_count' => $packageTotal,
                 'driver_cod_usd' => Helper::getNumber($driverCodUsd,2,true),
                 'driver_cod_khr' => Helper::getNumber($driverCodKhr,0,true),
-                'merchant_cod_usd' => (float)Helper::getNumber($group->whereIn('status_id',[9,19])->sum('price'),2),
-                'merchant_cod_khr' => (float)Helper::getNumber($group->whereIn('status_id',[9,19])->sum('price_khr'),0,true),
-                'to_be_cod_usd' => (float)Helper::getNumber($tobePaidUsd,2,true),
-                'to_be_cod_khr' => (float)Helper::getNumber($tobePaidKhr,0,true),     
+                'merchant_cod_usd' => Helper::getNumber($group->whereIn('status_id',[9,19])->sum('price'),2),
+                'merchant_cod_khr' => Helper::getNumber($group->whereIn('status_id',[9,19])->sum('price_khr'),0,true),
+                'to_be_cod_usd' => Helper::getNumber($tobePaidUsd,2,true),
+                'to_be_cod_khr' => Helper::getNumber($tobePaidKhr,0,true),     
                 'fee' => Helper::getNumber($deliveryFee + $otherFee,2),
                 'base_fee' => $deliveryFee,
                 'other_fee' => $otherFee,

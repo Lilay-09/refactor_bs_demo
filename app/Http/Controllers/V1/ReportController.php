@@ -127,8 +127,8 @@ class ReportController extends Controller
         }
 
         $grand = [
-            'cod_usd' => 0,
-            'cod_khr' => 0,
+            'price' => 0,
+            'price_khr' => 0,
             'fees' => 0,
             'other_fee' => 0,
             'taxi_fee' => 0,
@@ -215,12 +215,12 @@ class ReportController extends Controller
             $q->merchant_total = $merchantTotal['amount_usd'];
             $q->merchant_total_khr = $merchantTotal['amount_khr'];
             // $grand['cod'] += $q->driver_total;
-            // $grand['driver_total'] += $driverTotal['amount_usd'];
-            // $grand['driver_total_khr'] += $driverTotal['amount_khr'];
+            $grand['driver_total'] += $driverCodUsd;
+            $grand['driver_total_khr'] += $driverCodKhr;
             $grand['merchant_total'] += $merchantTotal['amount_usd'];
             $grand['merchant_total_khr'] += $merchantTotal['amount_khr'];
-            $grand['cod_usd'] += $q->price;
-            $grand['cod_khr'] += $q->price_khr;
+            $grand['price'] += $q->price;
+            $grand['price_khr'] += $q->price_khr;
             $grand['base_fee'] += $q->delivery_fee;
             $grand['other_fee'] += $q->other_fee;
             // $q->merchant_total = $merchantTotal;
@@ -238,7 +238,11 @@ class ReportController extends Controller
         });
 
         foreach($grand as $key=>$value){
-            $grand[$key] = Helper::getNumber($value,2,true);
+            $dec = 2;
+            if(in_array($value,['price_khr','driver_total_khr','merchant_total_khr'])){
+                $dec = 0;
+            }
+            $grand[$key] = Helper::getNumber($value,$dec,true);
         }
 
         $obj =(object)[
@@ -1395,7 +1399,7 @@ class ReportController extends Controller
 
         $merchantInfo->exchange_rate = $xRate;
         $pmtCase = ',CASE WHEN p.merchant_disbursement_id IS NOT NULL THEN dis.is_settled WHEN p.merchant_payment_id IS NOT NULL THEN pmt.is_settled ELSE FALSE END AS approved';
-        $qP = Package::from('packages as p')->where('p.is_deleted',0)
+        $qP = Package::from('packages as p')->where('p.is_deleted',false)
         ->where('p.merchant_id',$merchantId)
         ->whereIn('p.status_id',[5,6,9,10,11,19])
         ->with('status')
@@ -1588,7 +1592,8 @@ class ReportController extends Controller
                 'khInfo' => 'Merchant'
             ]));
         }
-        $qP = Package::where('merchant_id',$merchantId);
+        $qP = Package::where('is_deleted',false)
+        ->where('merchant_id',$merchantId);
         if($search){    
             
         }else {
