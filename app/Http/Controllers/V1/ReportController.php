@@ -215,8 +215,8 @@ class ReportController extends Controller
             $q->merchant_total = $merchantTotal['amount_usd'];
             $q->merchant_total_khr = $merchantTotal['amount_khr'];
             // $grand['cod'] += $q->driver_total;
-            // $grand['driver_total'] += $driverTotal['amount_usd'];
-            // $grand['driver_total_khr'] += $driverTotal['amount_khr'];
+            $grand['driver_total'] += $driverCodUsd;
+            $grand['driver_total_khr'] += $driverCodKhr;
             $grand['merchant_total'] += $merchantTotal['amount_usd'];
             $grand['merchant_total_khr'] += $merchantTotal['amount_khr'];
             $grand['price'] += $q->price;
