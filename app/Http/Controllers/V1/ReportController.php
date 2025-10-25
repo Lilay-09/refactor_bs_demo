@@ -127,8 +127,8 @@ class ReportController extends Controller
         }
 
         $grand = [
-            'cod_usd' => 0,
-            'cod_khr' => 0,
+            'price' => 0,
+            'price_khr' => 0,
             'fees' => 0,
             'other_fee' => 0,
             'taxi_fee' => 0,
@@ -219,8 +219,8 @@ class ReportController extends Controller
             // $grand['driver_total_khr'] += $driverTotal['amount_khr'];
             $grand['merchant_total'] += $merchantTotal['amount_usd'];
             $grand['merchant_total_khr'] += $merchantTotal['amount_khr'];
-            $grand['cod_usd'] += $q->price;
-            $grand['cod_khr'] += $q->price_khr;
+            $grand['price'] += $q->price;
+            $grand['price_khr'] += $q->price_khr;
             $grand['base_fee'] += $q->delivery_fee;
             $grand['other_fee'] += $q->other_fee;
             // $q->merchant_total = $merchantTotal;
@@ -238,7 +238,11 @@ class ReportController extends Controller
         });
 
         foreach($grand as $key=>$value){
-            $grand[$key] = Helper::getNumber($value,2,true);
+            $dec = 2;
+            if(in_array($value,['price_khr','driver_total_khr','merchant_total_khr'])){
+                $dec = 0;
+            }
+            $grand[$key] = Helper::getNumber($value,$dec,true);
         }
 
         $obj =(object)[
