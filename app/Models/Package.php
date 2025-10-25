@@ -423,12 +423,20 @@ class Package extends Model
 
     public function paymentPackages()
     {
-        return $this->hasMany(PaymentPackage::class, 'package_id');
+        return $this->hasMany(PaymentPackage::class, 'package_id','package_id')
+                ->where('is_deleted', false)
+                ->with(['payment' => function($q) {
+                    $q->where('is_deleted', false);
+                }]);
     }
 
     public function disbursementPackages()
     {
-        return $this->hasMany(DisbursementPackage::class, 'package_id');
+        return $this->hasMany(DisbursementPackage::class, 'package_id','package_id')
+                ->where('is_deleted', false)
+                ->with(['disbursement' => function($q) {
+                    $q->where('is_deleted', false);
+                }]);
     }
 
 
