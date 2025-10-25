@@ -206,39 +206,29 @@ class TransactionService
         $endDate = $req->endDate;
         $search = $req->search;
         $qP = Package::query()
-            ->from('packages as p')
-            ->with(['payment' => function ($query) use ($type) {
-                // Apply the dynamic payer_type condition
-                $query->where('payer_type', $type)
-                ->where('is_deleted',0);
-            }])
-            ->with(['disbursement' => function ($query) use ($type) {
-                // Apply the dynamic payer_type condition
-                $query->where('payee_type', $type)
-                ->where('is_deleted',0);
-            }])
-            ->where('p.is_deleted',0)
-            ->join('users as d','d.id','p.driver_id')
-            ->join('tracking_statuses as ts','ts.id','p.status_id')
-            ->join('users as m','m.id','p.merchant_id')
-            ->whereIn('p.status_id',[9,19])
+            // ->from('packages as p')
+            ->where('packages.is_deleted',0)
+            ->join('users as d','d.id','packages.driver_id')
+            ->join('tracking_statuses as ts','ts.id','packages.status_id')
+            ->join('users as m','m.id','packages.merchant_id')
+            ->whereIn('packages.status_id',[9,19])
             ->select([
-                'p.extra_charge','p.additional_fee','p.remarks','p.cod','p.price','p.price_khr','d.phone as driver_phone','p.taxi_fee','p.payer','p.delivery_fee','p.assign_driver_datetime',
-                'p.merchant_total','m.username as merchant_name','m.phone as merchant_phone','d.username as driver_name','p.status_id','p.id as package_id','d.id as driver_id',
-                'p.qr_code','ts.name as status_code','p.delivered_datetime','p.failed_datetime','p.zone_code','p.receiver_phone','p.delivery_type','p.zone_name',
-                'p.receiver_address','p.driver_cod_usd','p.driver_cod_khr','p.other_fee','p.original_driver_cod_usd','p.original_driver_cod_khr','p.method'
+                'packages.extra_charge','packages.additional_fee','packages.remarks','packages.cod','packages.price','packages.price_khr','d.phone as driver_phone','packages.taxi_fee','packages.payer','packages.delivery_fee','packages.assign_driver_datetime',
+                'packages.merchant_total','m.username as merchant_name','m.phone as merchant_phone','d.username as driver_name','packages.status_id','packages.id as package_id','d.id as driver_id',
+                'packages.qr_code','ts.name as status_code','packages.delivered_datetime','packages.failed_datetime','packages.zone_code','packages.receiver_phone','packages.delivery_type','packages.zone_name',
+                'packages.receiver_address','packages.driver_cod_usd','packages.driver_cod_khr','packages.other_fee','packages.original_driver_cod_usd','packages.original_driver_cod_khr','packages.method'
             ]);
             if ($pmtStatusId == 1) { // Unpaid
                 $qP->whereNotExists(function ($sub) use($type) {
                     $sub->select(DB::raw(1))
                         ->from('payment_packages as pp')
-                        ->whereColumn('pp.package_id', 'p.id')
+                        ->whereColumn('pp.package_id', 'packages.id')
                         ->where('pp.payer_type', $type)
                         ->where('pp.is_deleted', false);
                 })->whereNotExists(function ($sub) use($type) {
                     $sub->select(DB::raw(1))
                         ->from('disbursement_packages as dp')
-                        ->whereColumn('dp.package_id', 'p.id')
+                        ->whereColumn('dp.package_id', 'packages.id')
                         ->where('dp.payee_type', $type)
                         ->where('dp.type','payment')
                         ->where('dp.is_deleted', false);
@@ -248,13 +238,13 @@ class TransactionService
                     $q->whereExists(function ($sub) use ($type) {
                         $sub->select(DB::raw(1))
                             ->from('payment_packages as pp')
-                            ->whereColumn('pp.package_id', 'p.id')
+                            ->whereColumn('pp.package_id', 'packages.id')
                             ->where('pp.payer_type', $type)
                             ->where('pp.is_deleted', false);
                     })->orWhereExists(function ($sub) use ($type) {
                         $sub->select(DB::raw(1))
                             ->from('disbursement_packages as dp')
-                            ->whereColumn('dp.package_id', 'p.id')
+                            ->whereColumn('dp.package_id', 'packages.id')
                             ->where('dp.payee_type', $type)
                             ->where('dp.type','payment')
                             ->where('dp.is_deleted', false);
@@ -272,29 +262,29 @@ class TransactionService
 
                     // Check for status_id = 9, delivered_datetime should be within the date range
                     $q->where(function ($q) use ($startDateTime, $endDateTime) {
-                        $q->where('p.status_id', 9)
-                        ->whereRaw('p.delivered_datetime >= ? AND p.delivered_datetime <= ?', [$startDateTime, $endDateTime]);
+                        $q->where('packages.status_id', 9)
+                        ->whereRaw('packages.delivered_datetime >= ? AND packages.delivered_datetime <= ?', [$startDateTime, $endDateTime]);
                     })
                     // Check for status_id = 19, failed_datetime should be within the date range
                     ->orWhere(function ($q) use ($startDateTime, $endDateTime) {
-                        $q->where('p.status_id', 19)
-                        ->whereRaw('p.failed_datetime >= ? AND p.failed_datetime <= ?', [$startDateTime, $endDateTime]);
+                        $q->where('packages.status_id', 19)
+                        ->whereRaw('packages.failed_datetime >= ? AND packages.failed_datetime <= ?', [$startDateTime, $endDateTime]);
                     });
                 });
             }
 
             if($driverId || $merchantId){
                 if($type == 'driver') {
-                    $qP->where('p.driver_id',$driverId);
+                    $qP->where('packages.driver_id',$driverId);
                 }
                 else {
-                    $qP->where('p.merchant_id',$merchantId);
+                    $qP->where('packages.merchant_id',$merchantId);
                 }
             }
         }
 
         else{
-            $qP->where('p.qr_code',$search);
+            $qP->where('packages.qr_code',$search);
         }
 
         $statusKey = $type.'_payment_status';
@@ -303,7 +293,12 @@ class TransactionService
         $clbMapper = function($package) use($statusKey,$type){
             $cod = $package->cod;
             $package->cod = $cod ? 'Yes' : 'No';
-            $package->has_paid = ($package->payment || $package->disbursement) ? true : false;
+            $package->paymentPackages = $package->paymentPackages
+                ->filter(fn($pp) => !$pp->is_deleted && optional($pp->payment)->payer_id == $package->driver_id);
+
+            $package->disbursementPackages = $package->disbursementPackages
+                ->filter(fn($dp) => !$dp->is_deleted && optional($dp->disbursement)->payee_id == $package->driver_id);
+            $package->has_paid = $package->paymentPackages->isNotEmpty() || $package->disbursementPackages->isNotEmpty();
             if($type == 'driver'){
                 $package->payment_status = $package->payment ? 'Paid' : ' Unpaid';
             }
@@ -2897,6 +2892,7 @@ class TransactionService
             $totalDriverCodUsd += $package->driver_cod_usd;
             $totalDriverCodKhr += $package->driver_cod_khr;
             $rowTotal = self::getPackageTotalV1($type,$package->driver_cod_usd,$package->driver_cod_khr,$package->delivery_fee,$package->taxi_fee,$package->other_fee,$package->payer,$package->status_id);
+            // Log::info($rowTotal['total_usd']);
             if($package->status_id == 19){
                 if($type == 'merchant'){
                     $rowTotal = self::getPackageTotalV1($type,$package->cod,0,0,$package->extra_charge,$package->additional_fee,$package->delivery_fee,$package->payer);
@@ -2911,8 +2907,12 @@ class TransactionService
             $obj->total_package_price += $package->price;
             $obj->total_fees += $rowTotal['fees'];
         }
-
-        Helper::deductAmountBase($obj->total_due_amount_usd,$obj->total_due_amount_khr,($obj->total_fees + $obj->total_taxi_fee));
+        // Log::info($obj->total_due_amount_usd.'---'.$obj->total_due_amount_khr);
+        $usd = max(0, $obj->total_due_amount_usd);
+        $khr = max(0, $obj->total_due_amount_khr);
+        // Log::info($usd.'---'.$khr);
+        Helper::deductAmountBase($usd,$khr,($obj->total_fees + $obj->total_taxi_fee));
+        
         return DataResponse::JsonRaw([
             'error' => false,
             'pacakage_ids' => $packageIds,
@@ -2924,8 +2924,8 @@ class TransactionService
             'total_package_price' => $obj->total_package_price,
             'failed_with_fee_count' => $obj->failed_with_fee_count,
             'total_cod' => $obj->total_cod,
-            'total_due_amount_khr' => $obj->total_due_amount_khr,
-            'total_due_amount_usd' => $obj->total_due_amount_usd,
+            'total_due_amount_khr' => $khr,//$obj->total_due_amount_khr,
+            'total_due_amount_usd' => $usd,//$obj->total_due_amount_usd,
             'total_amount' => $obj->total_amount,
             'delivered_package_count' => $obj->delivered_package_count,
         ]);
@@ -3779,7 +3779,6 @@ class TransactionService
 
             $totalToBePaidUsd +=$tobePaidUsd;
             $totalToBePaidKhr +=$tobePaidKhr;
-            Log::info($totalToBePaidUsd);
             $totalPackages += $packageCount;
             $totalAmount += $totalPrice;
             $totalAmountKhr += $packages->where('cod',1)->where('status_id',9)->sum('price_khr');
