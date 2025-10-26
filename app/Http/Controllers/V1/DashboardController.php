@@ -575,7 +575,7 @@ class DashboardController extends Controller
         ->where(function ($query) use ($startDate, $endDate) {
             $query->where(function ($q) use ($startDate, $endDate) {
                 $q->where('p.status_id', 19)
-                ->whereBetween('p.failed_with_fee', [$startDate, $endDate]);
+                ->whereBetween('p.failed_datetime', [$startDate, $endDate]);
             })
             ->orWhere(function ($q) use ($startDate, $endDate) {
                 $q->where('p.status_id', 9)
