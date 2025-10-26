@@ -1978,7 +1978,7 @@ class ReportController extends Controller
             'company_profile' => CompanyProfileService::profileInfo($user),
             'grand' => [
                 'total' => Helper::getNumber($totalAmtUsd,2,true),
-                'total_khr' => Helper::getNumber($totalAmtUsd,0,true)
+                'total_khr' => Helper::getNumber($totalAmtKhr,0,true)
             ],
             'list' => $allPayments
         ];
