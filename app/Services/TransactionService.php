@@ -3735,6 +3735,7 @@ class TransactionService
             // $summaryTotals = $summaryTotals->merge($merged);
             
             $totalPrice = $packages->where('cod',1)->where('status_id',9)->sum('price');
+            $totalPriceKhr = $packages->where('cod',1)->where('status_id',9)->sum('price_khr');
             // $paidPackageIds = $paidPackageIds->unique()->values();
             $paidPackageIds = $packages
                 ->reject(fn($p) => is_null($p->method) || $p->method === 'cod')
@@ -3781,7 +3782,7 @@ class TransactionService
             $totalToBePaidKhr +=$tobePaidKhr;
             $totalPackages += $packageCount;
             $totalAmount += $totalPrice;
-            $totalAmountKhr += $packages->where('cod',1)->where('status_id',9)->sum('price_khr');
+            $totalAmountKhr += $totalPriceKhr
             $totalDriverCodUsd += $driverCodUsd;
             $totalDriverCodKhr += $driverCodKhr;
             
@@ -3802,7 +3803,7 @@ class TransactionService
                 'driver_cod_usd' => Helper::getNumber($driverCodUsd,2,true),
                 'driver_cod_khr' => Helper::getNumber($driverCodKhr,0,true),
                 'total_price_usd' => Helper::getNumber($totalPrice,2,true),
-                'total_price_khr' => Helper::getNumber($totalAmountKhr,0,true),
+                'total_price_khr' => Helper::getNumber($totalPriceKhr,0,true),
                 'collected' => $collected,
             ];
         })
