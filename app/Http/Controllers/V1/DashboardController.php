@@ -565,11 +565,23 @@ class DashboardController extends Controller
 
     private function merchantPayable(int $branchId){
         $totalAmount = 0;
+        $startDate = Carbon::now()->subDays($this->days)->startOfDay(); // 90 days ago, 00:00:00
+        $endDate = Carbon::now()->endOfDay();
         $dailyCollection = Package::fromRaw('packages as p')
         ->where('p.is_deleted', 0)
         ->whereIn('p.status_id', [9, 19])
         ->where('p.branch_id',$branchId)
-        ->where('p.updated_at', '>=', Carbon::now()->subDays($this->days))
+        // ->where('p.updated_at', '>=', Carbon::now()->subDays($this->days))
+        ->where(function ($query) use ($startDate, $endDate) {
+            $query->where(function ($q) use ($startDate, $endDate) {
+                $q->where('p.status_id', 19)
+                ->whereBetween('p.failed_datetime', [$startDate, $endDate]);
+            })
+            ->orWhere(function ($q) use ($startDate, $endDate) {
+                $q->where('p.status_id', 9)
+                ->whereBetween('p.delivered_datetime', [$startDate, $endDate]);
+            });
+        })
         ->join('tracking_statuses as ts', 'ts.id', '=', 'p.status_id')
         ->join('users as m', 'm.id', '=', 'p.merchant_id')
         // ->leftJoin('payments as pmt', function ($join) {
@@ -603,7 +615,7 @@ class DashboardController extends Controller
             ) AS taxi_fee,
             SUM(
                 CASE
-                    WHEN p.payer = 'sender' THEN p.delivery_fee + p.extra_charge
+                    WHEN p.payer = 'sender' THEN p.delivery_fee + p.other_fee
                     ELSE 0
                 END
             ) AS fees,
@@ -647,19 +659,25 @@ class DashboardController extends Controller
         // ')
         // ->whereNull('p.merchant_payment_id')
         // ->whereNull('p.merchant_disbursement_id')
-        ->whereNotExists(function ($sub) {
-            $sub->select(DB::raw(1))
-                ->from('payment_packages as pp')
-                ->whereColumn('pp.package_id', 'p.id')
-                ->where('pp.payer_type', 'merchant')
-                ->where('pp.is_deleted', false);
-        })->whereNotExists(function ($sub) {
-            $sub->select(DB::raw(1))
-                ->from('disbursement_packages as dp')
-                ->whereColumn('dp.package_id', 'p.id')
-                ->where('dp.payee_type', 'merchant')
-                ->where('dp.type','payment')
-                ->where('dp.is_deleted', false);
+        ->where(function ($q){
+            $q->whereNotExists(function ($sub) {
+                $sub->select(DB::raw(1))
+                    ->from('payment_packages as pp')
+                    ->whereColumn('pp.package_id', 'p.id')
+                    ->join('payments as pay', 'pp.payment_id', '=', 'pay.id')
+                    ->where('pp.payer_type', 'merchant')
+                    ->where('pay.is_deleted', false)
+                    ->where('pp.is_deleted', false);
+            })->whereNotExists(function ($sub) {
+                $sub->select(DB::raw(1))
+                    ->from('disbursement_packages as dp')
+                    ->join('disbursements as dis', 'dp.disbursement_id', '=', 'dis.id')
+                    ->whereColumn('dp.package_id', 'p.id')
+                    ->where('dp.payee_type', 'merchant')
+                    ->where('dp.type','payment')
+                    ->where('dp.is_deleted', false)
+                    ->where('dis.is_deleted', false);
+            });
         })
         ->groupByRaw('
             m.id,

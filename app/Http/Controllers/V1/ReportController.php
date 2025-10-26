@@ -446,6 +446,7 @@ class ReportController extends Controller
         $user = UserService::getAuthUser();
         $startDate = $req->startDate;
         $endDate = $req->endDate;
+        $branchId = $req->query('branch_id');
         $summary = $this->getOperationSummary($startDate, $endDate);
         $operationSummary = $summary->operation;
         $financialSummary = $summary->financial;
@@ -455,6 +456,9 @@ class ReportController extends Controller
             $startDatetime = Helper::dateYMD($startDate). ' 00:00:00'; //
             $endDatetime = Helper::dateYMD($endDate). ' 23:59:59';
             $qPmt->whereBetween('payment_datetime',[$startDatetime,$endDatetime]);
+        }
+        if($branchId){
+            $qPmt->where('branch_id',$branchId);
         }
         $payments = $qPmt->get();
         $closedFinancialSummary = [
@@ -1884,7 +1888,8 @@ class ReportController extends Controller
         $branchId = $req->branch_id;
         $merchantIds = collect();
         $totalPkgs = 0;
-        $totalAmt = 0;
+        $totalAmtUsd = 0;
+        $totalAmtKhr = 0;
         // $warehouseId = $req->warehouse_id;
         $bankAccounts = UserBank::orderByDesc('is_primary')
         ->where('is_deleted',false)
@@ -1927,14 +1932,15 @@ class ReportController extends Controller
                 $p->trx_type = 'Receive';
                 $p->trx_type_code = 'receive';
                 $p->merchant_name = $p->merchant?->username;
-                $totalAmt += $p->payable_amount;
+                $totalAmtUsd += $p->received_amount_usd;
+                $totalAmtKhr += $p->received_amount_khr;
                 $totalPkgs += $p->package_count;
                 unset($p->merchant);
                 $allPayments[] = $p;
             }
         }
 
-        if ($transactionType === TransactionType::TRANSFER_IN->value || $transactionType === null) {
+        if ($transactionType === TransactionType::TRNASFER_OUT->value || $transactionType === null) {
             $dQ = Disbursement::where('disbursements.is_deleted', 0)
                 ->where('disbursements.is_settled', 1)
                 ->where('payee_type', 'merchant')
@@ -1957,7 +1963,9 @@ class ReportController extends Controller
                 $p->merchant_name = $p->merchant?->username;
                 $p->trx_type = 'Disbursement';
                 $p->trx_type_code = 'disbursement';
-                $totalAmt -= $p->payable_amount;
+                // $totalAmt -= $p->payable_amount;
+                $totalAmtUsd -= $p->received_amount_usd;
+                $totalAmtKhr -= $p->received_amount_khr;
                 $totalPkgs += $p->package_count;
                 unset($p->merchant);
                 $allPayments[] = $p;
@@ -1973,7 +1981,8 @@ class ReportController extends Controller
             'date' => $startDate.' to '.$endDate,
             'company_profile' => CompanyProfileService::profileInfo($user),
             'grand' => [
-                'total' => 0
+                'total' => Helper::getNumber($totalAmtUsd,2,true),
+                'total_khr' => Helper::getNumber($totalAmtKhr,0,true)
             ],
             'list' => $allPayments
         ];
