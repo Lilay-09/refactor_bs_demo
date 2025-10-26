@@ -3782,7 +3782,7 @@ class TransactionService
             $totalToBePaidKhr +=$tobePaidKhr;
             $totalPackages += $packageCount;
             $totalAmount += $totalPrice;
-            $totalAmountKhr += $totalPriceKhr
+            $totalAmountKhr += $totalPriceKhr;
             $totalDriverCodUsd += $driverCodUsd;
             $totalDriverCodKhr += $driverCodKhr;
             
