@@ -647,19 +647,25 @@ class DashboardController extends Controller
         // ')
         // ->whereNull('p.merchant_payment_id')
         // ->whereNull('p.merchant_disbursement_id')
-        ->whereNotExists(function ($sub) {
-            $sub->select(DB::raw(1))
-                ->from('payment_packages as pp')
-                ->whereColumn('pp.package_id', 'p.id')
-                ->where('pp.payer_type', 'merchant')
-                ->where('pp.is_deleted', false);
-        })->whereNotExists(function ($sub) {
-            $sub->select(DB::raw(1))
-                ->from('disbursement_packages as dp')
-                ->whereColumn('dp.package_id', 'p.id')
-                ->where('dp.payee_type', 'merchant')
-                ->where('dp.type','payment')
-                ->where('dp.is_deleted', false);
+        ->where(function ($q){
+            $q->whereNotExists(function ($sub) {
+                $sub->select(DB::raw(1))
+                    ->from('payment_packages as pp')
+                    ->whereColumn('pp.package_id', 'p.id')
+                    ->join('payments as pay', 'pp.payment_id', '=', 'pay.id')
+                    ->where('pp.payer_type', 'merchant')
+                    ->where('pay.is_deleted', false)
+                    ->where('pp.is_deleted', false);
+            })->whereNotExists(function ($sub) {
+                $sub->select(DB::raw(1))
+                    ->from('disbursement_packages as dp')
+                    ->join('disbursements as dis', 'dp.disbursement_id', '=', 'dis.id')
+                    ->whereColumn('dp.package_id', 'p.id')
+                    ->where('dp.payee_type', 'merchant')
+                    ->where('dp.type','payment')
+                    ->where('dp.is_deleted', false)
+                    ->where('dis.is_deleted', false);
+            });
         })
         ->groupByRaw('
             m.id,
