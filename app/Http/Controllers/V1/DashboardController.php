@@ -615,7 +615,7 @@ class DashboardController extends Controller
             ) AS taxi_fee,
             SUM(
                 CASE
-                    WHEN p.payer = 'sender' THEN p.delivery_fee + p.extra_charge
+                    WHEN p.payer = 'sender' THEN p.delivery_fee + p.other_fee
                     ELSE 0
                 END
             ) AS fees,
