@@ -565,11 +565,23 @@ class DashboardController extends Controller
 
     private function merchantPayable(int $branchId){
         $totalAmount = 0;
+        $startDate = Carbon::now()->subDays($this->days)->startOfDay(); // 90 days ago, 00:00:00
+        $endDate = Carbon::now()->endOfDay();
         $dailyCollection = Package::fromRaw('packages as p')
         ->where('p.is_deleted', 0)
         ->whereIn('p.status_id', [9, 19])
         ->where('p.branch_id',$branchId)
-        ->where('p.updated_at', '>=', Carbon::now()->subDays($this->days))
+        // ->where('p.updated_at', '>=', Carbon::now()->subDays($this->days))
+        ->where(function ($query) use ($startDate, $endDate) {
+            $query->where(function ($q) use ($startDate, $endDate) {
+                $q->where('p.status_id', 19)
+                ->whereBetween('p.failed_with_fee', [$startDate, $endDate]);
+            })
+            ->orWhere(function ($q) use ($startDate, $endDate) {
+                $q->where('p.status_id', 9)
+                ->whereBetween('p.delivered_datetime', [$startDate, $endDate]);
+            });
+        })
         ->join('tracking_statuses as ts', 'ts.id', '=', 'p.status_id')
         ->join('users as m', 'm.id', '=', 'p.merchant_id')
         // ->leftJoin('payments as pmt', function ($join) {
