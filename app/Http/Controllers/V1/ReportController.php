@@ -446,6 +446,7 @@ class ReportController extends Controller
         $user = UserService::getAuthUser();
         $startDate = $req->startDate;
         $endDate = $req->endDate;
+        $branchId = $req->query('branch_id');
         $summary = $this->getOperationSummary($startDate, $endDate);
         $operationSummary = $summary->operation;
         $financialSummary = $summary->financial;
@@ -455,6 +456,9 @@ class ReportController extends Controller
             $startDatetime = Helper::dateYMD($startDate). ' 00:00:00'; //
             $endDatetime = Helper::dateYMD($endDate). ' 23:59:59';
             $qPmt->whereBetween('payment_datetime',[$startDatetime,$endDatetime]);
+        }
+        if($branchId){
+            $qPmt->where('branch_id',$branchId);
         }
         $payments = $qPmt->get();
         $closedFinancialSummary = [
