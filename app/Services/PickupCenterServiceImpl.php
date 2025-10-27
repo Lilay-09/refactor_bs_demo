@@ -40,6 +40,7 @@ class PickupCenterServiceImpl implements PickupCenterService
             'photo' => 'nullable',
             'product_type' => 'nullable|string',
             'price' => 'nullable|numeric|min:0',
+            'pass_duplicate_phone' => 'required|boolean',
             'price_khr' => 'nullable|numeric|min:0',
             'driver_cod_usd' => 'nullable|numeric|min:0',
             'driver_cod_khr' => 'nullable|numeric|min:0',
@@ -370,6 +371,7 @@ class PickupCenterServiceImpl implements PickupCenterService
         if(!$warehouse){
             return DataResponse::NotFound(__('messages.not_found',['info' => 'Warehouse','khInfo' => 'ឃ្លាំង']));
         }
+        $passDuplicatePhone = $inputs['pass_duplicate_phone'];
         if($orderId) $inputs['merchant_id'] = $order->merchant_id;
         $inputs['update_uid'] = $user->id;
         if($orderId) $inputs['order_id'] = $orderId;
@@ -422,6 +424,12 @@ class PickupCenterServiceImpl implements PickupCenterService
         $inputs['product_type'] = $productType;
 
         if(!$packageId){
+            if(!$passDuplicatePhone){
+                $checkDupPhone = $this->checkDuplicateReceiverPhoneByOrder($orderId,$inputs['receiver_phone']);
+                if($checkDupPhone) {
+                    return DataResponse::BadRequest('Duplicated phone number');
+                }
+            }
             $inputs['status_id'] = 7;
             $inputs['create_uid'] = $user->id;
             if($user->account_type == 'merchant'){
@@ -490,6 +498,13 @@ class PickupCenterServiceImpl implements PickupCenterService
                 $inputs['image_date'] = now();
             }
 
+            if(!$passDuplicatePhone){
+                $checkDupPhone = $this->checkDuplicateReceiverPhoneByOrder($orderId,$inputs['receiver_phone'],$packageId);
+                if($checkDupPhone) {
+                    return DataResponse::BadRequest('Duplicated phone number');
+                }
+            }
+
             $package = $qP->find($packageId);
             if($image){
                 $isValidUpload = Helper::isValidUploadImage($image,0.8);
@@ -517,6 +532,16 @@ class PickupCenterServiceImpl implements PickupCenterService
             $package->update($inputs);
             return DataResponse::JsonResult(null,false,__('messages.updated'));
         }
+    }
+
+    private function checkDuplicateReceiverPhoneByOrder(int $orderId,string $phone,?int $pkgId=null){
+        $dP = Package::where('is_deleted',false)
+                ->where('order_id',$orderId)
+                ->where('receiver_phone',$phone);
+        if($pkgId){
+            $dP->where('id','!=',$pkgId);
+        }
+        return $dP->exists();
     }
 
     public function createOrUpdateTrip($driverId,$packageId,$vehicleType,$user,$notes,$statusId,$action=null,$package=null){
