@@ -633,8 +633,9 @@ class GeneralSettingController extends Controller
     }
     public function getOptionsDriver(Request $req){
         $user = UserService::getAuthUser();
-        return ApiResponse::JsonResult($this->gs::optionsDriver($user,$req->vehicle_type));
+        return ApiResponse::JsonResult($this->gs::optionsDriver($user,$req->vehicle_type,$req->warehouse_id));
     }
+    
     public function getOptionsDriverByWarehouse(Request $req){
         $user = UserService::getAuthUser();
         return ApiResponse::JsonResult($this->gs::optionsDriver($user,$req->vehicle_type,$req->warehouseId ?? 'all'));

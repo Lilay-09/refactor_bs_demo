@@ -365,8 +365,7 @@ class PickupCenterServiceImpl implements PickupCenterService
         $inputs['company_id'] = $user->company_id;
         $warehouseId = $inputs['warehouse_id'] ?? null;
         $branchId = $inputs['branch_id'];
-        $warehouse = Warehouse::where('branch_id',$branchId)
-        ->where('is_deleted',false)
+        $warehouse = Warehouse::where('is_deleted',false)
         ->find($warehouseId);
         if(!$warehouse){
             return DataResponse::NotFound(__('messages.not_found',['info' => 'Warehouse','khInfo' => 'ឃ្លាំង']));

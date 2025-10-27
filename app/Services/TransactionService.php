@@ -3775,7 +3775,6 @@ class TransactionService
             ->values()
             ->toArray();
 
-
             $summaryTotals = $summaryTotals->merge($collected);
 
             $totalToBePaidUsd +=$tobePaidUsd;
