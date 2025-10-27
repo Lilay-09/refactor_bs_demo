@@ -427,7 +427,9 @@ class PickupCenterServiceImpl implements PickupCenterService
             if(!$passDuplicatePhone){
                 $checkDupPhone = $this->checkDuplicateReceiverPhoneByOrder($orderId,$inputs['receiver_phone']);
                 if($checkDupPhone) {
-                    return DataResponse::BadRequest('Duplicated phone number');
+                    return DataResponse::JsonResult(data:null,message:'Duplicated phone number',additionalKey:[
+                        'duplicate_number' => true
+                    ]);
                 }
             }
             $inputs['status_id'] = 7;
@@ -501,7 +503,9 @@ class PickupCenterServiceImpl implements PickupCenterService
             if(!$passDuplicatePhone){
                 $checkDupPhone = $this->checkDuplicateReceiverPhoneByOrder($orderId,$inputs['receiver_phone'],$packageId);
                 if($checkDupPhone) {
-                    return DataResponse::BadRequest('Duplicated phone number');
+                    return DataResponse::JsonResult(data:null,message:'Duplicated phone number',additionalKey:[
+                        'duplicate_number' => true
+                    ]);
                 }
             }
 
