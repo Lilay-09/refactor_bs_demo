@@ -298,9 +298,10 @@ class TransactionService
 
             $package->disbursementPackages = $package->disbursementPackages
                 ->filter(fn($dp) => !$dp->is_deleted && optional($dp->disbursement)->payee_id == $package->driver_id);
-            $package->has_paid = $package->paymentPackages->isNotEmpty() || $package->disbursementPackages->isNotEmpty();
+            $hasPaid = $package->paymentPackages->isNotEmpty() || $package->disbursementPackages->isNotEmpty();
+            $package->has_paid = $hasPaid;
             if($type == 'driver'){
-                $package->payment_status = $package->payment ? 'Paid' : ' Unpaid';
+                $package->payment_status = $hasPaid ? 'Paid' : ' Unpaid';
             }
             // $package->{$statusKey} = (!$package->{$type.'_payment_id'} && !$package->{$type.'_disbursement_id'}) ? 'Unpaid':'Paid';
             if($type == 'merchant') $package->{$statusKey} = ($package->payment || $package->disbursement) ? 'Paid':'Unpaid';
