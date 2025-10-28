@@ -1606,9 +1606,9 @@ class DataResponse //extends Model
         ];
     }
 
-    static function JsonResult($data, $error = false, $message = null,$errors=[],$status_code=200,$status="OK" ): object
+    static function JsonResult($data, $error = false, $message = null,$errors=[],$status_code=200,$status="OK",$additionalKey=[]): object
     {
-        return (object)[
+        $obj = (object)[
             'error' => $error,
             'status' => $status,
             'message' => $message,
@@ -1616,6 +1616,10 @@ class DataResponse //extends Model
             'errors' => $errors,
             'data' => $data,
         ];
+        foreach ((object)$additionalKey as $key => $value) {
+            $obj->$key = $value;
+        }
+        return $obj;
     }
 
     static function JsonRaw($json, $status = null): object
