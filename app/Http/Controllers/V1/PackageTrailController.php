@@ -218,8 +218,12 @@ class PackageTrailController extends Controller
         if($package->merchant_payment_id || $package->merchant_disbursement_id) return DataResponse::Duplicated(__('messages.info',[
             'info' => 'It seems like you try to update package which is on payment pending or paid with merchant'
         ]));
-        $req->merge(['merchant_id' => $package->merchant_id]);
+        $req->merge([
+            'merchant_id' => $package->merchant_id,
+            'pass_duplicate_phone' => true
+        ]);
         // Log::info('Update Package Request: '.json_encode($req->all()));
+        
         $validate = $this->pickupCenterService->packageValidation($req);
         if($validate->fails()) return ApiResponse::ValidateFail($validate->errors()->first());
         $inputs = $validate->validated();
