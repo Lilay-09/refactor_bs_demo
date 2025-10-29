@@ -1587,7 +1587,7 @@ class TransactionService
              ->groupBy(fn($p) => $p->disbursement->payee_id ?? null)
             ->map(fn($items) => $items->first()) // in case multiple packages under same merchant
             ->filter() // remove null keys
-            ->keyBy(fn($item) => $item->disbursement->payee_id);
+            ->keyBy(fn($item) => $item->disbursement?->payee_id);
 
         return (object) $packages;
     }
