@@ -1825,13 +1825,39 @@ class TransactionService
             return DataResponse::Duplicated("All fully paid packages detected for {$type}(s): {$type}s.");
         }
 
+        // if (!empty($invalidAmountInfo)) {
+        //     $users = implode(', ', array_unique(array_column($invalidAmountInfo, "{$type}_name")));
+        //     return DataResponse::Bad(__('messages.info', [
+        //         'info'   => "Some packages have invalid received amounts.",
+        //         'khInfo' => "មានកញ្ចប់មួយចំនួនមានចំនួនទឹកប្រាក់អវិជ្ជមាន។",
+        //         // 'details' => json_encode($invalidAmountInfo)
+        //     ]));
+        // }
+
         if (!empty($invalidAmountInfo)) {
-            return DataResponse::Duplicated(__('messages.info', [
-                'info'   => "Some packages have invalid negative received amounts.",
-                'khInfo' => "មានកញ្ចប់មួយចំនួនមានចំនួនទឹកប្រាក់អវិជ្ជមាន។",
-                // 'details' => json_encode($invalidAmountInfo)
-            ]));
+            $seen = [];
+            $uniqueMessages = [];
+
+            foreach ($invalidAmountInfo as $item) {
+                $key = $item["{$type}_name"]; // use user/package name as uniqueness key
+                if (!isset($seen[$key])) {
+                    $seen[$key] = true;
+                    $uniqueMessages[] = $item['message'];
+                }
+            }
+
+            // Combine messages into a single string
+            $allMessages = implode(' | ', $uniqueMessages); // or "\n" for line breaks
+
+            // Prepare localized message
+            $message = __('messages.info', [
+                'info'   => "Some packages have invalid amounts: {$allMessages}",
+                'khInfo' => "មានកញ្ចប់មួយចំនួនមានចំនួនទឹកប្រាក់មិនត្រឹមត្រូវ៖ {$allMessages}",
+            ]);
+
+            return DataResponse::BadRequest($message);
         }
+
 
 
         // Report currency conflicts
@@ -2201,7 +2227,7 @@ class TransactionService
                 if ($validUsdAmt == 0) {
                     $result['invalidAmountInfo'][] = [
                         'package_id'    => '',
-                        "{$type}_name" => $validPkg->data["{$type}_name"] ?? $mId,
+                        "{$type}_name" => $validPkg->data["{$type}_name"] . '(' . ($validPkg->data["{$type}_code"] ?? 'No Code') . ')',
                         'currency'      => 'USD',
                         'message'       => "Invalid amount: received USD ({$validUsdAmt}) cannot be positive."
                     ];
@@ -2215,9 +2241,9 @@ class TransactionService
                 if ($validKhrAmt == 0) {
                     $result['invalidAmountInfo'][] = [
                         'package_id'    => '',
-                        "{$type}_name" => $validPkg->data["{$type}_name"] ?? $mId,
+                        "{$type}_name" => $validPkg->data["{$type}_name"] . '(' . ($validPkg->data["{$type}_code"] ?? 'No Code') . ')',
                         'currency'      => 'KHR',
-                        'message'       => "Invalid amount: received KHR ({$validKhrAmt}) cannot be positive."
+                        'message' => "Invalid amount: received KHR ({$validKhrAmt}) cannot be positive. Please provide the amount in USD instead."
                     ];
                     return $result;
                 }
