@@ -329,223 +329,174 @@ class TransactionService
         return DataResponse::PaginationV1($qP,$req,'',[],1000,$clbMapper);
     }
 
-    public function getMerchantDeliveryPackages(Request $req, object $authUser) {
+    public function getMerchantDeliveryPackages(Request $req, object $authUser)
+    {
         $startDate = $req->startDate;
         $endDate = $req->endDate;
         $paymentType = $req->query('paymentType');
         $search = $req->query('search');
-        // Expressions for amount to be paid
-        // $totalFeeExpr = "
-        //     SUM(
-        //         CASE 
-        //             WHEN packages.payer = 'sender' 
-        //                 THEN packages.delivery_fee + packages.other_fee 
-        //                     + CASE WHEN packages.status_id = 19 THEN 0 ELSE packages.taxi_fee END
-        //             ELSE 0
-        //         END
-        //     )
-        // ";
 
-        // $amountUsdExpr = "
-        //     CASE
-        //         WHEN SUM(packages.driver_cod_usd) >= {$totalFeeExpr}
-        //             THEN SUM(packages.driver_cod_usd) - {$totalFeeExpr}
-        //         WHEN SUM(packages.driver_cod_usd) < {$totalFeeExpr}
-        //             AND SUM(packages.driver_cod_khr) >= ({$totalFeeExpr} - SUM(packages.driver_cod_usd)) * 4000
-        //             THEN 0
-        //         ELSE SUM(packages.driver_cod_usd) - (({$totalFeeExpr} - SUM(packages.driver_cod_usd)) * 4000 - SUM(packages.driver_cod_khr))/4000
-        //     END
-        // ";
-
-        // $amountKhrExpr = "
-        //     CASE
-        //         WHEN SUM(packages.driver_cod_usd) >= {$totalFeeExpr}
-        //             THEN SUM(packages.driver_cod_khr)
-        //         WHEN SUM(packages.driver_cod_usd) < {$totalFeeExpr}
-        //             AND SUM(packages.driver_cod_khr) >= ({$totalFeeExpr} - SUM(packages.driver_cod_usd)) * 4000
-        //             THEN SUM(packages.driver_cod_khr) - ({$totalFeeExpr} - SUM(packages.driver_cod_usd)) * 4000
-        //         ELSE 0
-        //     END
-        // ";
-
-        // $select = [
-        //     'merchant_id',
-        //     DB::raw("COUNT(packages.id) as package_count"),
-        //     DB::raw("SUM(packages.price) as total_price"),
-        //     DB::raw("SUM(packages.price_khr) as total_price_khr"),
-        //     // DB::raw("COALESCE(p.payment_status_id, d.payment_status_id, 0) as payment_status_id"),
-        //     // DB::raw("SUM(CASE WHEN packages.payer = 'sender' THEN packages.delivery_fee ELSE 0 END) as delivery_fee"),
-        //     // DB::raw("SUM(CASE WHEN packages.payer = 'sender' THEN packages.other_fee ELSE 0 END) as other_fee"),
-        //     DB::raw("
-        //         SUM(
-        //             CASE WHEN packages.payer = 'sender' THEN packages.delivery_fee ELSE 0 END +
-        //             CASE WHEN packages.payer = 'sender' THEN packages.other_fee ELSE 0 END
-        //         ) as fees
-        //     "),
-        //     DB::raw("SUM(CASE WHEN packages.payer = 'sender' THEN packages.taxi_fee ELSE 0 END) as taxi_fee"),
-        //     DB::raw('SUM(packages.driver_cod_khr) as total_driver_cod_khr'),
-        //     DB::raw("array_agg(DISTINCT packages.id) as package_ids"),
-        //     DB::raw('SUM(packages.driver_cod_usd) as total_driver_cod_usd'),
-        //     DB::raw("
-        //         CASE
-        //             WHEN packages.status_id = 9 THEN DATE(packages.delivered_datetime)
-        //             WHEN packages.status_id = 19 THEN DATE(packages.failed_datetime)
-        //         END as finish_date
-        //     "),
-        //     DB::raw("MAX(d.id) as disbursement_id"),
-        //     DB::raw("MAX(d.payment_status_id) as disbursement_status_id"),
-        //     DB::raw("MAX(p.id) as payment_id"),
-        //     DB::raw("MAX(p.payment_status_id) as payment_status_id"),
-        //     DB::raw("($amountUsdExpr) as amount_to_be_paid_usd"),
-        //     DB::raw("($amountKhrExpr) as amount_to_be_paid_khr"),
-        // ];
+        // ✅ Remove DISTINCT — it was masking duplicates caused by joins
         $totalFeeExpr = "
             SUM(
                 CASE 
                     WHEN packages.payer = 'sender' 
-                        THEN packages.delivery_fee + packages.other_fee 
-                            + CASE WHEN packages.status_id = 19 THEN 0 ELSE packages.taxi_fee END
+                        THEN packages.delivery_fee + packages.other_fee + 
+                            CASE WHEN packages.status_id = 19 THEN 0 ELSE packages.taxi_fee END
                     ELSE 0
                 END
             )
         ";
 
         $amountUsdExpr = "
-        ROUND(
-            (SUM(packages.driver_cod_usd) - {$totalFeeExpr} 
-            + LEAST(SUM(packages.driver_cod_khr)/4000, GREATEST({$totalFeeExpr} - SUM(packages.driver_cod_usd), 0)))::numeric,
-            2
-        )
+            ROUND(
+                (SUM(packages.driver_cod_usd) - {$totalFeeExpr} 
+                + LEAST(SUM(packages.driver_cod_khr)/4000, GREATEST({$totalFeeExpr} - SUM(packages.driver_cod_usd), 0)))::numeric,
+                2
+            )
         ";
 
         $amountKhrExpr = "
-        ROUND(
-            GREATEST(
-                SUM(packages.driver_cod_khr) - GREATEST({$totalFeeExpr} - SUM(packages.driver_cod_usd), 0) * 4000,
+            ROUND(
+                GREATEST(
+                    SUM(packages.driver_cod_khr) - GREATEST({$totalFeeExpr} - SUM(packages.driver_cod_usd), 0) * 4000,
+                    0
+                )::numeric,
                 0
-            )::numeric,
-            0
-        )
+            )
         ";
 
-
-
+        // ✅ Select list without DISTINCT
         $select = [
-            'merchant_id',
-            DB::raw("COUNT(packages.id) as package_count"),
-            DB::raw("SUM(packages.price) as total_price"),
-            DB::raw("SUM(packages.price_khr) as total_price_khr"),
+            'packages.merchant_id',
+            DB::raw('COUNT(packages.id) as package_count'),
+            DB::raw('SUM(packages.price) as total_price'),
+            DB::raw('SUM(packages.price_khr) as total_price_khr'),
             DB::raw("
                 SUM(
-                    CASE WHEN packages.payer = 'sender' THEN packages.delivery_fee ELSE 0 END +
-                    CASE WHEN packages.payer = 'sender' THEN packages.other_fee ELSE 0 END
+                    CASE WHEN packages.payer = 'sender' THEN packages.delivery_fee + packages.other_fee ELSE 0 END
                 ) as fees
             "),
             DB::raw("
                 SUM(
-                    CASE 
-                        WHEN packages.payer = 'sender' 
-                            THEN packages.taxi_fee 
-                        ELSE 0 
-                    END
+                    CASE WHEN packages.payer = 'sender' THEN packages.taxi_fee ELSE 0 END
                 ) as taxi_fee
             "),
             DB::raw('SUM(packages.driver_cod_usd) as total_driver_cod_usd'),
             DB::raw('SUM(packages.driver_cod_khr) as total_driver_cod_khr'),
-            DB::raw("array_agg(DISTINCT packages.id) as package_ids"),
-            DB::raw("
+            DB::raw("array_agg(packages.id) as package_ids"),
+            DB::raw("MAX(
                 CASE
                     WHEN packages.status_id = 9 THEN DATE(packages.delivered_datetime)
                     WHEN packages.status_id = 19 THEN DATE(packages.failed_datetime)
-                END as finish_date
-            "),
+                END
+            ) as finish_date"),
+            DB::raw("MAX(p.id) as payment_id"),
             DB::raw("MAX(d.id) as disbursement_id"),
             DB::raw("MAX(d.payment_status_id) as disbursement_status_id"),
-            DB::raw("MAX(p.id) as payment_id"),
             DB::raw("MAX(p.payment_status_id) as payment_status_id"),
             DB::raw("($amountUsdExpr) as amount_to_be_paid_usd"),
             DB::raw("($amountKhrExpr) as amount_to_be_paid_khr"),
         ];
 
+        // ✅ Subqueries to get latest related rows per package (prevent duplication)
+        $latestPP = DB::raw("
+            (
+                SELECT DISTINCT ON (package_id)
+                    package_id,
+                    payment_id,
+                    id AS pp_id
+                FROM payment_packages
+                WHERE is_deleted = false
+                ORDER BY package_id, id DESC
+            ) latest_pp
+        ");
 
+        $latestDP = DB::raw("
+            (
+                SELECT DISTINCT ON (package_id)
+                    package_id,
+                    disbursement_id,
+                    id AS dp_id
+                FROM disbursement_packages
+                WHERE is_deleted = false AND type = 'payment'
+                ORDER BY package_id, id DESC
+            ) latest_dp
+        ");
+
+        // ✅ Base query
         $qP = Package::query()
             ->where('packages.is_deleted', false)
             ->whereIn('packages.status_id', [9, 19])
-            ->leftJoin('disbursement_packages as dp', function($join) {
-                $join->on('packages.id', '=', 'dp.package_id')
-                    ->where('dp.is_deleted', false)
-                    ->where('dp.type', 'payment');
-            })
-            ->leftJoin('disbursements as d', function($join) {
-                $join->on('dp.disbursement_id', '=', 'd.id')
-                    ->where('d.payee_type','merchant')
+            ->leftJoin($latestDP, 'packages.id', '=', 'latest_dp.package_id')
+            ->leftJoin('disbursements as d', function ($join) {
+                $join->on('latest_dp.disbursement_id', '=', 'd.id')
+                    ->where('d.payee_type', 'merchant')
                     ->where('d.is_deleted', false);
             })
-            ->leftJoin('payment_packages as pp', function($join) {
-                $join->on('packages.id', '=', 'pp.package_id')
-                    ->where('pp.is_deleted', false);
+            ->leftJoin($latestPP, 'packages.id', '=', 'latest_pp.package_id')
+            ->leftJoin('payments as p', function ($join) {
+                $join->on('latest_pp.payment_id', '=', 'p.id')
+                    ->where('p.payer_type', 'merchant');
             })
-            ->leftJoin('payments as p', function($join) {
-                $join->on('pp.payment_id', '=', 'p.id')
-                    ->where('p.payer_type','merchant');
-            })
-            ->where(function($query) {
+            ->where(function ($query) {
                 $query->where(function ($q) {
-                    $q->whereNull('dp.id')
-                    ->orWhereIn('d.payment_status_id', [PaymentStatus::PARTIAL->value, PaymentStatus::DECLINED->value])
-                    ->orWhereNull('d.id');
+                    $q->whereNull('latest_dp.dp_id')
+                        ->orWhereIn('d.payment_status_id', [PaymentStatus::PARTIAL->value, PaymentStatus::DECLINED->value])
+                        ->orWhereNull('d.id');
                 });
                 $query->where(function ($q) {
-                    $q->whereNull('pp.id')
-                    ->orWhereIn('p.payment_status_id', [PaymentStatus::PARTIAL->value, PaymentStatus::DECLINED->value])
-                    ->orWhereNull('p.id');
+                    $q->whereNull('latest_pp.pp_id')
+                        ->orWhereIn('p.payment_status_id', [PaymentStatus::PARTIAL->value, PaymentStatus::DECLINED->value])
+                        ->orWhereNull('p.id');
                 });
             })
-            ->with(['merchant:id,username,code', 'merchant.primaryBank'])
-            ->select($select)
-            ->groupBy('merchant_id', 'finish_date', DB::raw("COALESCE(p.id, d.id)"))
             ->when($paymentType === TransactionType::TRANSFER_IN->value, fn($q) =>
                 $q->havingRaw("($amountUsdExpr) < 0 OR ($amountKhrExpr) < 0")
             )
             ->when($paymentType === TransactionType::TRNASFER_OUT->value, fn($q) =>
                 $q->havingRaw("($amountUsdExpr) > 0 OR ($amountKhrExpr) > 0")
             )
+            ->with(['merchant:id,username,code,phone', 'merchant.primaryBank'])
+            ->select($select)
+            ->groupByRaw("merchant_id, COALESCE(p.id, d.id, 0)")
             ->orderBy('finish_date', 'desc');
 
-        // Date filter
-        if(!$search){
+        // ✅ Date filter
+        if (!$search) {
             if ($startDate && $endDate) {
                 $startDate = Helper::dateYMD($startDate);
                 $endDate = Helper::dateYMD($endDate);
                 $qP->where(function ($q) use ($startDate, $endDate) {
                     $q->where(function ($sub) use ($startDate, $endDate) {
-                        $sub->where('status_id', 9)
-                            ->whereDate('delivered_datetime', '>=', $startDate)
-                            ->whereDate('delivered_datetime', '<=', $endDate);
+                        $sub->where('packages.status_id', 9)
+                            ->whereDate('packages.delivered_datetime', '>=', $startDate)
+                            ->whereDate('packages.delivered_datetime', '<=', $endDate);
                     })->orWhere(function ($sub) use ($startDate, $endDate) {
-                        $sub->where('status_id', 19)
-                            ->whereDate('failed_datetime', '>=', $startDate)
-                            ->whereDate('failed_datetime', '<=', $endDate);
+                        $sub->where('packages.status_id', 19)
+                            ->whereDate('packages.failed_datetime', '>=', $startDate)
+                            ->whereDate('packages.failed_datetime', '<=', $endDate);
                     });
                 });
             }
-        }
-        else{
-            $qP->whereHas('merchant', function($q) use($search){
+        } else {
+            $qP->whereHas('merchant', function ($q) use ($search) {
                 $q->where('username', 'ilike', "%$search%")
-                ->orWhere('code', 'ilike', "%$search%")
-                ->orWhere('phone', 'ilike', "%$search%");
+                    ->orWhere('code', 'ilike', "%$search%")
+                    ->orWhere('phone', 'ilike', "%$search%");
             });
         }
 
+        // ✅ Post-format callback
         $callback = function ($q) {
             $q->amount_to_be_paid_usd = Helper::getNumber($q->amount_to_be_paid_usd, 2, true);
             $q->amount_to_be_paid_khr = Helper::getNumber($q->amount_to_be_paid_khr, 2, true);
             $q->code = $q->merchant->code;
             $q->merchant_name = $q->merchant->username;
             $q->merchant_phone = $q->merchant->phone;
-            $q->finish_date = Helper::dateDMY($q->finish_date,'d-m-Y');
-             $q->transaction_type = TransactionType::TRNASFER_OUT->value;
+            $q->finish_date = Helper::dateDMY($q->finish_date, 'd-m-Y');
+
+            $q->transaction_type = TransactionType::TRNASFER_OUT->value;
             if ($q->amount_to_be_paid_khr < 0 || $q->amount_to_be_paid_usd < 0) {
                 $q->transaction_type = TransactionType::TRANSFER_IN->value;
             }
@@ -558,13 +509,217 @@ class TransactionService
 
             $q->status = isset($q->disbursement_id)
                 ? PaymentStatus::tryFrom($q->disbursement_status_id)->label()
-                : (isset($q->payment_id) ? PaymentStatus::tryFrom($q->payment_status_id)->label() : 'Unpaid');
+                : (isset($q->payment_id)
+                    ? PaymentStatus::tryFrom($q->payment_status_id)->label()
+                    : 'Unpaid');
+
             unset($q->merchant);
             return $q;
         };
 
         return DataResponse::PaginationV1($qP, $req, '', [], 1000, $callback, $select);
     }
+
+
+    // public function getMerchantDeliveryPackages(Request $req, object $authUser) {
+    //     $startDate = $req->startDate;
+    //     $endDate = $req->endDate;
+    //     $paymentType = $req->query('paymentType');
+    //     $search = $req->query('search');
+
+    //     $totalFeeExpr = "
+    //         SUM(
+    //             DISTINCT CASE 
+    //                 WHEN packages.payer = 'sender' 
+    //                     THEN packages.delivery_fee + packages.other_fee + CASE WHEN packages.status_id = 19 THEN 0 ELSE packages.taxi_fee END
+    //                 ELSE 0
+    //             END
+    //         )
+    //     ";
+
+    //     $amountUsdExpr = "
+    //     ROUND(
+    //         (SUM(DISTINCT packages.driver_cod_usd) - {$totalFeeExpr} 
+    //         + LEAST(SUM(DISTINCT packages.driver_cod_khr)/4000, GREATEST({$totalFeeExpr} - SUM(DISTINCT packages.driver_cod_usd), 0)))::numeric,
+    //         2
+    //     )
+    //     ";
+
+    //     $amountKhrExpr = "
+    //     ROUND(
+    //         GREATEST(
+    //             SUM(DISTINCT packages.driver_cod_khr) - GREATEST({$totalFeeExpr} - SUM(DISTINCT packages.driver_cod_usd), 0) * 4000,
+    //             0
+    //         )::numeric,
+    //         0
+    //     )
+    //     ";
+
+
+
+    //     $select = [
+    //         'packages.merchant_id',
+    //         DB::raw('COUNT(DISTINCT packages.id) as package_count'),
+    //         DB::raw('SUM(DISTINCT packages.price) as total_price'),
+    //         DB::raw('SUM(DISTINCT packages.price_khr) as total_price_khr'),
+    //         DB::raw("
+    //             SUM(
+    //                 DISTINCT CASE WHEN packages.payer = 'sender' THEN packages.delivery_fee + packages.other_fee ELSE 0 END
+    //             ) as fees
+    //         "),
+
+    //         DB::raw("
+    //             SUM(
+    //                 CASE WHEN packages.payer = 'sender' THEN packages.taxi_fee ELSE 0 END
+    //             ) as taxi_fee
+    //         "),
+    //         DB::raw('SUM(DISTINCT packages.driver_cod_usd) as total_driver_cod_usd'),
+    //         DB::raw('SUM(DISTINCT packages.driver_cod_khr) as total_driver_cod_khr'),
+    //         DB::raw("array_agg(DISTINCT packages.id) as package_ids"),
+    //         DB::raw("MAX(
+    //             CASE
+    //                 WHEN packages.status_id = 9 THEN DATE(packages.delivered_datetime)
+    //                 WHEN packages.status_id = 19 THEN DATE(packages.failed_datetime)
+    //             END
+    //         ) as finish_date"),
+    //         DB::raw("MAX(p.id) as payment_id"),
+    //         DB::raw("MAX(d.id) as disbursement_id"),
+    //         DB::raw("MAX(d.payment_status_id) as disbursement_status_id"),
+            
+    //         DB::raw("MAX(p.payment_status_id) as payment_status_id"),
+    //         DB::raw("($amountUsdExpr) as amount_to_be_paid_usd"),
+    //         DB::raw("($amountKhrExpr) as amount_to_be_paid_khr"),
+    //     ];
+
+
+    //     $latestPP = DB::table(DB::raw('(
+    //         SELECT DISTINCT ON (package_id)
+    //             package_id,
+    //             payment_id,
+    //             id AS pp_id
+    //         FROM payment_packages
+    //         WHERE is_deleted = false
+    //         ORDER BY package_id, id DESC
+    //     ) as latest_pp'));
+
+    //     $latestDP = DB::table(DB::raw('(
+    //         SELECT DISTINCT ON (package_id)
+    //             package_id,
+    //             disbursement_id,
+    //             id AS dp_id
+    //         FROM disbursement_packages
+    //         WHERE is_deleted = false AND type = \'payment\'
+    //         ORDER BY package_id, id DESC
+    //     ) as latest_dp'));
+
+
+
+    //     $baseQuery = Package::query()
+    //         ->where('packages.is_deleted', false)
+    //         ->whereIn('packages.status_id', [9, 19])
+    //         ->select([
+    //             'packages.*'
+    //         ]);
+
+    //     $qP = $baseQuery
+    //         ->leftJoin('disbursement_packages as dp', function($join) {
+    //             $join->on('packages.id', '=', 'dp.package_id')
+    //                 ->where('dp.is_deleted', false)
+    //                 ->where('dp.type', 'payment')
+    //                 ->orderByDesc('dp.id');
+    //         })
+    //         ->leftJoin('disbursements as d', function($join) {
+    //             $join->on('dp.disbursement_id', '=', 'd.id')
+    //                 ->where('d.payee_type','merchant')
+    //                 ->where('d.is_deleted', false);
+    //         })
+    //         ->leftJoin('payment_packages as pp', function($join) {
+    //             $join->on('packages.id', '=', 'pp.package_id')
+    //                 ->where('pp.is_deleted', false)
+    //                 ->orderByDesc('pp.id');
+    //         })
+    //         ->leftJoin('payments as p', function($join) {
+    //             $join->on('pp.payment_id', '=', 'p.id')
+    //                 ->where('p.payer_type','merchant');
+    //         })
+    //         ->where(function($query) {
+    //             $query->where(function ($q) {
+    //                 $q->whereNull('dp.id')
+    //                 ->orWhereIn('d.payment_status_id', [PaymentStatus::PARTIAL->value, PaymentStatus::DECLINED->value])
+    //                 ->orWhereNull('d.id');
+    //             });
+    //             $query->where(function ($q) {
+    //                 $q->whereNull('pp.id')
+    //                 ->orWhereIn('p.payment_status_id', [PaymentStatus::PARTIAL->value, PaymentStatus::DECLINED->value])
+    //                 ->orWhereNull('p.id');
+    //             });
+    //         })
+    //         ->when($paymentType === TransactionType::TRANSFER_IN->value, fn($q) =>
+    //             $q->havingRaw("($amountUsdExpr) < 0 OR ($amountKhrExpr) < 0")
+    //         )
+    //         ->when($paymentType === TransactionType::TRNASFER_OUT->value, fn($q) =>
+    //             $q->havingRaw("($amountUsdExpr) > 0 OR ($amountKhrExpr) > 0")
+    //         )
+    //         ->with(['merchant:id,username,code', 'merchant.primaryBank'])
+    //         ->select($select)
+    //         ->groupByRaw("merchant_id, COALESCE(p.id, d.id, 0)")
+    //         ->orderBy('finish_date', 'desc');
+
+
+
+    //     // Date filter
+    //     if(!$search){
+    //         if ($startDate && $endDate) {
+    //             $startDate = Helper::dateYMD($startDate);
+    //             $endDate = Helper::dateYMD($endDate);
+    //             $qP->where(function ($q) use ($startDate, $endDate) {
+    //                 $q->where(function ($sub) use ($startDate, $endDate) {
+    //                     $sub->where('packages.status_id', 9)
+    //                         ->whereDate('packages.delivered_datetime', '>=', $startDate)
+    //                         ->whereDate('packages.delivered_datetime', '<=', $endDate);
+    //                 })->orWhere(function ($sub) use ($startDate, $endDate) {
+    //                     $sub->where('packages.status_id', 19)
+    //                         ->whereDate('packages.failed_datetime', '>=', $startDate)
+    //                         ->whereDate('packages.failed_datetime', '<=', $endDate);
+    //                 });
+    //             });
+    //         }
+    //     }
+    //     else{
+    //         $qP->whereHas('merchant', function($q) use($search){
+    //             $q->where('username', 'ilike', "%$search%")
+    //             ->orWhere('code', 'ilike', "%$search%")
+    //             ->orWhere('phone', 'ilike', "%$search%");
+    //         });
+    //     }
+
+    //     $callback = function ($q) {
+    //         $q->amount_to_be_paid_usd = Helper::getNumber($q->amount_to_be_paid_usd, 2, true);
+    //         $q->amount_to_be_paid_khr = Helper::getNumber($q->amount_to_be_paid_khr, 2, true);
+    //         $q->code = $q->merchant->code;
+    //         $q->merchant_name = $q->merchant->username;
+    //         $q->merchant_phone = $q->merchant->phone;
+    //         $q->finish_date = Helper::dateDMY($q->finish_date,'d-m-Y');
+    //          $q->transaction_type = TransactionType::TRNASFER_OUT->value;
+    //         if ($q->amount_to_be_paid_khr < 0 || $q->amount_to_be_paid_usd < 0) {
+    //             $q->transaction_type = TransactionType::TRANSFER_IN->value;
+    //         }
+
+    //         if ($bankInfo = $q->merchant->primaryBank) {
+    //             $q->bank_name = $bankInfo->bank_name;
+    //             $q->bank_account_number = $bankInfo->bank_number;
+    //             $q->bank_account_name = $bankInfo->account_name;
+    //         }
+
+    //         $q->status = isset($q->disbursement_id)
+    //             ? PaymentStatus::tryFrom($q->disbursement_status_id)->label()
+    //             : (isset($q->payment_id) ? PaymentStatus::tryFrom($q->payment_status_id)->label() : 'Unpaid');
+    //         unset($q->merchant);
+    //         return $q;
+    //     };
+
+    //     return DataResponse::PaginationV1($qP, $req, '', [], 1000, $callback, $select);
+    // }
 
 
     static function getTrxDetailsV1($rows, $pmtId, $pmtBillings = null)
@@ -2726,6 +2881,7 @@ class TransactionService
                     ];
                 }
                 if(!empty($insertPayInPkgs)){
+                    Log::info($insertPayInPkgs);
                     PaymentPackage::insert($insertPayInPkgs);
                 }
 
