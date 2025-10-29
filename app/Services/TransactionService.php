@@ -1518,10 +1518,10 @@ class TransactionService
             ->get()
             // ->keyBy('package_id');
 
-            ->groupBy(fn($p) => $p->disbursement->payee_id ?? null)
+            ->groupBy(fn($p) => $p->payment->payer_id ?? null)
             ->map(fn($items) => $items->first()) // in case multiple packages under same merchant
             ->filter() // remove null keys
-            ->keyBy(fn($item) => $item->disbursement->payee_id);
+            ->keyBy(fn($item) => $item->payment->payer_id);
         return (object) $packages;
     }
 
@@ -2197,7 +2197,8 @@ class TransactionService
 
             if ($payingCurrency === 'USD') {
                 $result['receivedUSD'] = $validUsdAmt;
-                if ($validUsdAmt > 0) {
+                // Log::info($validUsdAmt);
+                if ($validUsdAmt == 0) {
                     $result['invalidAmountInfo'][] = [
                         'package_id'    => '',
                         "{$type}_name" => $validPkg->data["{$type}_name"] ?? $mId,
@@ -2211,7 +2212,7 @@ class TransactionService
 
             if ($payingCurrency === 'KHR') {
                 $result['receivedKHR'] = $validKhrAmt;
-                if ($validKhrAmt > 0) {
+                if ($validKhrAmt == 0) {
                     $result['invalidAmountInfo'][] = [
                         'package_id'    => '',
                         "{$type}_name" => $validPkg->data["{$type}_name"] ?? $mId,
