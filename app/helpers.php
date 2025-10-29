@@ -851,6 +851,19 @@ class Helper{
     }
 
 
+    /**
+     * Compare two float values safely.
+     *
+     * @param float|int|string $a
+     * @param float|int|string $b
+     * @param float $epsilon Allowed tolerance range
+     * @return bool
+     */
+    static function floatEquals($a, $b, float $epsilon = 0.5): bool
+    {
+        return abs(floatval($a) - floatval($b)) < $epsilon;
+    }
+
     static function getImageInfo($image,$lang='en'): object
     {
         try {
