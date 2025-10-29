@@ -216,8 +216,10 @@ class MerchantManagementController extends Controller
 
 
         if($search){
-            $query->where('users.username','ILIKE',"%{$search}%")
-            ->orWhere('users.phone','ILIKE',"%{$search}%");
+            $query->where(function ($q) use($search){
+                $q->where('users.username','ILIKE',"%{$search}%")
+                ->orWhere('users.phone','ILIKE',"%{$search}%");
+            });
         }
         if($startDate && $endDate){
             $startDatetime = Helper::dateYMD($startDate).' 00:00:00';
