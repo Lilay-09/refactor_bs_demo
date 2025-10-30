@@ -1907,6 +1907,8 @@ class TransactionService
                 }
 
                 if($transactionType === TransactionType::TRNASFER_OUT->value){
+                    $updatePmt['amount_due_khr']    = $validPkg->data['total_due_amount_khr'];
+                    $updatePmt['amount_due_usd']    = $validPkg->data['total_due_amount_usd'];
                     $updatePmt['payee_id']          = $targetPmt->payee_id;
                     $updatePmt['payee_type']        = $targetPmt->payee_type;
                     $updatePmt['receiptionist_uid']        = $targetPmt->receiptionist_uid;
@@ -1919,6 +1921,8 @@ class TransactionService
                 }
 
                 if($transactionType === TransactionType::TRANSFER_IN->value){
+                    $updatePmt['amount_due_khr']    = abs($validPkg->data['total_due_amount_khr']);
+                    $updatePmt['amount_due_usd']    = abs($validPkg->data['total_due_amount_usd']);
                     $updatePmt['payer_id']          = $targetPmt->payer_id;
                     $updatePmt['payer_type']        = $targetPmt->payer_type;
                     $updatePmt['receiver_uid']        = $targetPmt->receiver_uid;
