@@ -429,7 +429,7 @@ class PickupCenterServiceImpl implements PickupCenterService
                 if($checkDupPhone) {
                     return DataResponse::JsonResult(data:null,message:'Duplicated phone number',additionalKey:[
                         'duplicate_number' => true
-                    ]);
+                    ],error:true);
                 }
             }
             $inputs['status_id'] = 7;
@@ -505,7 +505,7 @@ class PickupCenterServiceImpl implements PickupCenterService
                 if($checkDupPhone) {
                     return DataResponse::JsonResult(data:null,message:'Duplicated phone number',additionalKey:[
                         'duplicate_number' => true
-                    ]);
+                    ],error:true);
                 }
             }
 
