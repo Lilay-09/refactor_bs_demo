@@ -1817,7 +1817,7 @@ class TransactionService
             $allKHRReceived = true;
 
             if($transactionType === TransactionType::TRNASFER_OUT->value){
-                $res = $this->preparePayout($packageIds, 'merchant', $payingCurrency, $validPkg, $mId, $payOutPackages);
+                $res = $this->preparePayout($m['packages'], 'merchant', $payingCurrency, $validPkg, $mId, $payOutPackages);
                 $fullyPaidInfo        = array_merge($fullyPaidInfo, $res['fullyPaidInfo']);
                 $currencyConflictInfo = array_merge($currencyConflictInfo, $res['currencyConflictInfo']);
                 $invalidAmountInfo    = array_merge($invalidAmountInfo, $res['invalidAmountInfo']);
@@ -1828,7 +1828,7 @@ class TransactionService
                 $receivedKHR = $res['receivedKHR'];
                 $receivedUSD = $res['receivedUSD'];
             }else if($transactionType === TransactionType::TRANSFER_IN->value){
-                $res = $this->preparePayIn($packageIds, 'merchant', $payingCurrency, $validPkg, $mId, $payInPackages);
+                $res = $this->preparePayIn($m['packages'], 'merchant', $payingCurrency, $validPkg, $mId, $payInPackages);
                 $fullyPaidInfo        = array_merge($fullyPaidInfo, $res['fullyPaidInfo']);
                 $currencyConflictInfo = array_merge($currencyConflictInfo, $res['currencyConflictInfo']);
                 $invalidAmountInfo    = array_merge($invalidAmountInfo, $res['invalidAmountInfo']);
@@ -2551,7 +2551,7 @@ class TransactionService
         $validUsdAmt = $validPkg->data['total_due_amount_usd'] ?? 0;
         $validKhrAmt = $validPkg->data['total_due_amount_khr'] ?? 0;
 
-        if ($disbPkg && $disbPkg->disbursement) {
+        if ($disbPkg && $disbPkg->disbursement && in_array($disbPkg->package_id,$pkgIds)) {
             $disbursement = $disbPkg->disbursement;
             $amountUsd = $disbursement->amount_due_usd ?? 0;
             $amountKhr = $disbursement->amount_due_khr ?? 0;
