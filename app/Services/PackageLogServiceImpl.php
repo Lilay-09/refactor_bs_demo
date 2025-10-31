@@ -10,6 +10,6 @@ class PackageLogServiceImpl
 
     public function saveLog(array $packageInfo,string $logReason){
         $packageInfo['log_reason'] = $logReason;
-        Package::create($packageInfo);
+        // Package::create($packageInfo);
     }
 }

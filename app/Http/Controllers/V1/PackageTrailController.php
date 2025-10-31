@@ -491,8 +491,6 @@ class PackageTrailController extends Controller
         $id = $req->id;
         $driver_id = $req->driver_id;
         $notes = $req->notes;
-
-
         $package = Package::where('company_id',$user->company_id)->where('is_deleted',0)
         ->where('outstanding',0)
         ->with('merchant:id,username,phone')

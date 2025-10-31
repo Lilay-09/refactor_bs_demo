@@ -1629,8 +1629,10 @@ class DataResponse //extends Model
             'errors' => $errors,
             'data' => $data,
         ];
-        foreach ((object)$additionalKey as $key => $value) {
-            $obj->$key = $value;
+        if (is_array($additionalKey)) {
+            foreach ($additionalKey as $key => $value) {
+                $obj->$key = $value;
+            }
         }
         return $obj;
     }

@@ -109,7 +109,7 @@ class TelegramBotServiceImpl implements TelegramBotService
         $inputs['sender_id'] = $authUser->id;
         $inputs['sent_at'] = now();
         $inputs['unique'] = strtotime($inputs['start']).strtotime($inputs['end']);
-        // TelegramSendLog::insert($inputs);
+        TelegramSendLog::insert($inputs);
         return DataResponse::JsonResult(null,false,'Logged');
     }
     

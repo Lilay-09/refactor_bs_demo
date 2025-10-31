@@ -160,17 +160,46 @@ class MerchantManagementController extends Controller
         return null;
     }
 
-    private function getTelegramSendLogKeyByReceiverId(string $startDate, string $endDate, ?int $receiverId = null): Collection
+    // private function getTelegramSendLogKeyByReceiverId(string $startDate, string $endDate, ?int $receiverId = null): Collection
+    // {
+    //     $qt = TelegramSendLog::query()
+    //         ->whereDate('start', '>=', Helper::dateYMD($startDate))
+    //         ->whereDate('start', '<=', Helper::dateYMD($endDate));
+
+    //     if ($receiverId !== null) {
+    //         $qt->where('receiver_id', $receiverId);
+    //     }
+
+    //     return $qt->orderByDesc('id')->get()->keyBy('receiver_id');
+    // }
+
+    private function getTelegramSendLogKeyByReceiverId(string $startDate, string $endDate, ?int $receiverId = null): array
     {
-        $qt = TelegramSendLog::query()
+        $query = TelegramSendLog::query()
             ->whereDate('start', '>=', Helper::dateYMD($startDate))
-            ->whereDate('start', '<=', Helper::dateYMD($endDate));
+            ->whereDate('start', '<=', Helper::dateYMD($endDate))
+            ->when($receiverId, fn($q) => $q->where('receiver_id', $receiverId));
 
-        if ($receiverId !== null) {
-            $qt->where('receiver_id', $receiverId);
-        }
+        // Fetch all logs (latest first)
+        $logs = $query->orderByDesc('id')->get();
+        // Group by receiver_id
+        $grouped = $logs->groupBy('receiver_id');
 
-        return $qt->get()->keyBy('receiver_id');
+        // Build result: last log + count + has_sent
+        $result = $grouped->mapWithKeys(function ($items, $receiverId) {
+            $latest = $items->first(); // because ordered DESC
+            return [
+                $receiverId => array_merge(
+                    $latest->toArray(),
+                    [
+                        'has_sent'   => true,
+                        'sent_count' => $items->count(),
+                    ]
+                )
+            ];
+        });
+
+        return $result->toArray();
     }
 
 
@@ -262,8 +291,14 @@ class MerchantManagementController extends Controller
 
         $callback = function ($q) use($telegramSendLogKeyBy){
             // Log::info($q);
-            $q->has_sent = empty($telegramSendLogKeyBy[$q->id]) ? false:true;
-            // return $q;
+            $hasSent = $telegramSendLogKeyBy[$q->id] ?? null;
+            // $q->has_sent = $hasSent; //($hasSent && $hasSent->package_count == $q->package_count) ? true : false;
+            if($hasSent){
+                $q->has_sent = [
+                    'has_sent' => ($hasSent['package_count'] == $q->package_count) ? true : false,
+                    'sent_count' => $hasSent['sent_count']
+                ];
+            }
         };
         $data = $query->get()->each($callback);
         return ApiResponse::JsonResult($data);
