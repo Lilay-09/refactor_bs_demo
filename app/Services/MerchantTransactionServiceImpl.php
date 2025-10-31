@@ -302,6 +302,7 @@ class MerchantTransactionServiceImpl implements MerchantTransactionService
             DB::commit();
             return DataResponse::JsonResult(null,false,__('messages.saved'));
         }catch(Exception $e){
+            Log::error($e->getTraceAsString());
             Log::error($e->getMessage());
             DB::rollBack();
             return DataResponse::Error('Failed to approve');
@@ -872,7 +873,7 @@ class MerchantTransactionServiceImpl implements MerchantTransactionService
                 Payment::whereIn('id', $toUpdatePayin)->update($updateData);
                 foreach($toUpdatePayin as $pId){
                     PaymentDetail::create([
-                        'disbursement_id' => $pId,
+                        'payment_id' => $pId,
                         'method' => 'internal',
                         'amount' => $dueAmt['amount'],
                         'original_amount' => $dueAmt['amount'],

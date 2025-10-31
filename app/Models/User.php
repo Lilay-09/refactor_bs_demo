@@ -171,6 +171,7 @@ class User extends Authenticatable implements JWTSubject
         //     }
         // });
     }
+    
     public function telegramBot(){
         return $this->hasOne(TelegramBotUser::class,'user_id')
         ->whereHas('bot',function ($q){

@@ -201,7 +201,6 @@ Route::middleware(['jwt','localize','userAccess:admin','rateLimit'])->prefix('ad
         Route::post('{merchantId}/whitelist-account/{accountId}',[MerchantManagementController::class,'whitelistAccount']);
         Route::post('{id}/telegram-bots/{botId}',[MerchantManagementController::class,'setMerchantTelegramBot']);
 
-
         Route::prefix('/{id}/employee')->group(function(){
             Route::post('',[MerchantEmployeeController::class,'createMerchantEmployee']);
             Route::get('',[MerchantEmployeeController::class,'getMerchantEmployees']);

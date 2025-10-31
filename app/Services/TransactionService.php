@@ -329,178 +329,174 @@ class TransactionService
         return DataResponse::PaginationV1($qP,$req,'',[],1000,$clbMapper);
     }
 
-    public function getMerchantDeliveryPackages(Request $req, object $authUser) {
+    public function getMerchantDeliveryPackages(Request $req, object $authUser)
+    {
         $startDate = $req->startDate;
         $endDate = $req->endDate;
         $paymentType = $req->query('paymentType');
         $search = $req->query('search');
-        // Expressions for amount to be paid
+
+        // ✅ Remove DISTINCT — it was masking duplicates caused by joins
         $totalFeeExpr = "
             SUM(
                 CASE 
                     WHEN packages.payer = 'sender' 
-                        THEN packages.delivery_fee + packages.other_fee 
-                            + CASE WHEN packages.status_id = 19 THEN 0 ELSE packages.taxi_fee END
+                        THEN packages.delivery_fee + packages.other_fee + 
+                            CASE WHEN packages.status_id = 19 THEN 0 ELSE packages.taxi_fee END
                     ELSE 0
                 END
             )
         ";
 
         $amountUsdExpr = "
-            CASE
-                WHEN SUM(packages.driver_cod_usd) >= {$totalFeeExpr}
-                    THEN SUM(packages.driver_cod_usd) - {$totalFeeExpr}
-                WHEN SUM(packages.driver_cod_usd) < {$totalFeeExpr}
-                    AND SUM(packages.driver_cod_khr) >= ({$totalFeeExpr} - SUM(packages.driver_cod_usd)) * 4000
-                    THEN 0
-                ELSE SUM(packages.driver_cod_usd) - (({$totalFeeExpr} - SUM(packages.driver_cod_usd)) * 4000 - SUM(packages.driver_cod_khr))/4000
-            END
+            ROUND(
+                (SUM(packages.driver_cod_usd) - {$totalFeeExpr} 
+                + LEAST(SUM(packages.driver_cod_khr)/4000, GREATEST({$totalFeeExpr} - SUM(packages.driver_cod_usd), 0)))::numeric,
+                2
+            )
         ";
 
         $amountKhrExpr = "
-            CASE
-                WHEN SUM(packages.driver_cod_usd) >= {$totalFeeExpr}
-                    THEN SUM(packages.driver_cod_khr)
-                WHEN SUM(packages.driver_cod_usd) < {$totalFeeExpr}
-                    AND SUM(packages.driver_cod_khr) >= ({$totalFeeExpr} - SUM(packages.driver_cod_usd)) * 4000
-                    THEN SUM(packages.driver_cod_khr) - ({$totalFeeExpr} - SUM(packages.driver_cod_usd)) * 4000
-                ELSE 0
-            END
+            ROUND(
+                GREATEST(
+                    SUM(packages.driver_cod_khr) - GREATEST({$totalFeeExpr} - SUM(packages.driver_cod_usd), 0) * 4000,
+                    0
+                )::numeric,
+                0
+            )
         ";
 
-
-        // $amountUsdExpr = "
-        //     CASE
-        //         WHEN SUM(packages.driver_cod_usd) >= SUM(packages.delivery_fee + packages.other_fee + packages.taxi_fee)
-        //             THEN SUM(packages.driver_cod_usd) - SUM(packages.delivery_fee + packages.other_fee + packages.taxi_fee)
-        //         WHEN SUM(packages.driver_cod_usd) < SUM(packages.delivery_fee + packages.other_fee + packages.taxi_fee)
-        //             AND SUM(packages.driver_cod_khr) >= (SUM(packages.delivery_fee + packages.other_fee + packages.taxi_fee) - SUM(packages.driver_cod_usd)) * 4000
-        //             THEN 0
-        //         ELSE SUM(packages.driver_cod_usd) - ((SUM(packages.delivery_fee + packages.other_fee + packages.taxi_fee) - SUM(packages.driver_cod_usd)) * 4000 - SUM(packages.driver_cod_khr))/4000
-        //     END
-        // ";
-
-        // $amountKhrExpr = "
-        //     CASE
-        //         WHEN SUM(packages.driver_cod_usd) >= SUM(packages.delivery_fee + packages.other_fee + packages.taxi_fee)
-        //             THEN SUM(packages.driver_cod_khr)
-        //         WHEN SUM(packages.driver_cod_usd) < SUM(packages.delivery_fee + packages.other_fee + packages.taxi_fee)
-        //             AND SUM(packages.driver_cod_khr) >= (SUM(packages.delivery_fee + packages.other_fee + packages.taxi_fee) - SUM(packages.driver_cod_usd)) * 4000
-        //             THEN SUM(packages.driver_cod_khr) - (SUM(packages.delivery_fee + packages.other_fee + packages.taxi_fee) - SUM(packages.driver_cod_usd)) * 4000
-        //         ELSE 0
-        //     END
-        // ";
-
+        // ✅ Select list without DISTINCT
         $select = [
-            'merchant_id',
-            DB::raw("COUNT(packages.id) as package_count"),
-            DB::raw("SUM(packages.price) as total_price"),
-            DB::raw("SUM(packages.price_khr) as total_price_khr"),
-            // DB::raw("COALESCE(p.payment_status_id, d.payment_status_id, 0) as payment_status_id"),
-            // DB::raw("SUM(CASE WHEN packages.payer = 'sender' THEN packages.delivery_fee ELSE 0 END) as delivery_fee"),
-            // DB::raw("SUM(CASE WHEN packages.payer = 'sender' THEN packages.other_fee ELSE 0 END) as other_fee"),
+            'packages.merchant_id',
+            DB::raw('COUNT(packages.id) as package_count'),
+            DB::raw('SUM(packages.price) as total_price'),
+            DB::raw('SUM(packages.price_khr) as total_price_khr'),
             DB::raw("
                 SUM(
-                    CASE WHEN packages.payer = 'sender' THEN packages.delivery_fee ELSE 0 END +
-                    CASE WHEN packages.payer = 'sender' THEN packages.other_fee ELSE 0 END
+                    CASE WHEN packages.payer = 'sender' THEN packages.delivery_fee + packages.other_fee ELSE 0 END
                 ) as fees
             "),
-            DB::raw("SUM(CASE WHEN packages.payer = 'sender' THEN packages.taxi_fee ELSE 0 END) as taxi_fee"),
-            DB::raw('SUM(packages.driver_cod_khr) as total_driver_cod_khr'),
-            DB::raw("array_agg(DISTINCT packages.id) as package_ids"),
-            DB::raw('SUM(packages.driver_cod_usd) as total_driver_cod_usd'),
             DB::raw("
+                SUM(
+                    CASE WHEN packages.payer = 'sender' THEN packages.taxi_fee ELSE 0 END
+                ) as taxi_fee
+            "),
+            DB::raw('SUM(packages.driver_cod_usd) as total_driver_cod_usd'),
+            DB::raw('SUM(packages.driver_cod_khr) as total_driver_cod_khr'),
+            DB::raw("array_agg(packages.id) as package_ids"),
+            DB::raw("MAX(
                 CASE
                     WHEN packages.status_id = 9 THEN DATE(packages.delivered_datetime)
                     WHEN packages.status_id = 19 THEN DATE(packages.failed_datetime)
-                END as finish_date
-            "),
+                END
+            ) as finish_date"),
+            DB::raw("MAX(p.id) as payment_id"),
             DB::raw("MAX(d.id) as disbursement_id"),
             DB::raw("MAX(d.payment_status_id) as disbursement_status_id"),
-            DB::raw("MAX(p.id) as payment_id"),
             DB::raw("MAX(p.payment_status_id) as payment_status_id"),
             DB::raw("($amountUsdExpr) as amount_to_be_paid_usd"),
             DB::raw("($amountKhrExpr) as amount_to_be_paid_khr"),
         ];
 
+        // ✅ Subqueries to get latest related rows per package (prevent duplication)
+        $latestPP = DB::raw("
+            (
+                SELECT DISTINCT ON (package_id)
+                    package_id,
+                    payment_id,
+                    id AS pp_id
+                FROM payment_packages
+                WHERE is_deleted = false
+                ORDER BY package_id, id DESC
+            ) latest_pp
+        ");
+
+        $latestDP = DB::raw("
+            (
+                SELECT DISTINCT ON (package_id)
+                    package_id,
+                    disbursement_id,
+                    id AS dp_id
+                FROM disbursement_packages
+                WHERE is_deleted = false AND type = 'payment'
+                ORDER BY package_id, id DESC
+            ) latest_dp
+        ");
+
+        // ✅ Base query
         $qP = Package::query()
             ->where('packages.is_deleted', false)
             ->whereIn('packages.status_id', [9, 19])
-            ->leftJoin('disbursement_packages as dp', function($join) {
-                $join->on('packages.id', '=', 'dp.package_id')
-                    ->where('dp.is_deleted', false)
-                    ->where('dp.type', 'payment');
-            })
-            ->leftJoin('disbursements as d', function($join) {
-                $join->on('dp.disbursement_id', '=', 'd.id')
-                    ->where('d.payee_type','merchant')
+            ->leftJoin($latestDP, 'packages.id', '=', 'latest_dp.package_id')
+            ->leftJoin('disbursements as d', function ($join) {
+                $join->on('latest_dp.disbursement_id', '=', 'd.id')
+                    ->where('d.payee_type', 'merchant')
                     ->where('d.is_deleted', false);
             })
-            ->leftJoin('payment_packages as pp', function($join) {
-                $join->on('packages.id', '=', 'pp.package_id')
-                    ->where('pp.is_deleted', false);
+            ->leftJoin($latestPP, 'packages.id', '=', 'latest_pp.package_id')
+            ->leftJoin('payments as p', function ($join) {
+                $join->on('latest_pp.payment_id', '=', 'p.id')
+                    ->where('p.payer_type', 'merchant');
             })
-            ->leftJoin('payments as p', function($join) {
-                $join->on('pp.payment_id', '=', 'p.id')
-                    ->where('p.payer_type','merchant');
-            })
-            ->where(function($query) {
+            ->where(function ($query) {
                 $query->where(function ($q) {
-                    $q->whereNull('dp.id')
-                    ->orWhereIn('d.payment_status_id', [PaymentStatus::PARTIAL->value, PaymentStatus::DECLINED->value])
-                    ->orWhereNull('d.id');
+                    $q->whereNull('latest_dp.dp_id')
+                        ->orWhereIn('d.payment_status_id', [PaymentStatus::PARTIAL->value, PaymentStatus::DECLINED->value])
+                        ->orWhereNull('d.id');
                 });
                 $query->where(function ($q) {
-                    $q->whereNull('pp.id')
-                    ->orWhereIn('p.payment_status_id', [PaymentStatus::PARTIAL->value, PaymentStatus::DECLINED->value])
-                    ->orWhereNull('p.id');
+                    $q->whereNull('latest_pp.pp_id')
+                        ->orWhereIn('p.payment_status_id', [PaymentStatus::PARTIAL->value, PaymentStatus::DECLINED->value])
+                        ->orWhereNull('p.id');
                 });
             })
-            ->with(['merchant:id,username,code', 'merchant.primaryBank'])
-            ->select($select)
-            ->groupBy('merchant_id', 'finish_date', DB::raw("COALESCE(p.id, d.id)"))
             ->when($paymentType === TransactionType::TRANSFER_IN->value, fn($q) =>
                 $q->havingRaw("($amountUsdExpr) < 0 OR ($amountKhrExpr) < 0")
             )
             ->when($paymentType === TransactionType::TRNASFER_OUT->value, fn($q) =>
                 $q->havingRaw("($amountUsdExpr) > 0 OR ($amountKhrExpr) > 0")
             )
+            ->with(['merchant:id,username,code,phone', 'merchant.primaryBank'])
+            ->select($select)
+            ->groupByRaw("merchant_id, COALESCE(p.id, d.id, 0)")
             ->orderBy('finish_date', 'desc');
 
-        // Date filter
-        if(!$search){
+        // ✅ Date filter
+        if (!$search) {
             if ($startDate && $endDate) {
                 $startDate = Helper::dateYMD($startDate);
                 $endDate = Helper::dateYMD($endDate);
                 $qP->where(function ($q) use ($startDate, $endDate) {
                     $q->where(function ($sub) use ($startDate, $endDate) {
-                        $sub->where('status_id', 9)
-                            ->whereDate('delivered_datetime', '>=', $startDate)
-                            ->whereDate('delivered_datetime', '<=', $endDate);
+                        $sub->where('packages.status_id', 9)
+                            ->whereDate('packages.delivered_datetime', '>=', $startDate)
+                            ->whereDate('packages.delivered_datetime', '<=', $endDate);
                     })->orWhere(function ($sub) use ($startDate, $endDate) {
-                        $sub->where('status_id', 19)
-                            ->whereDate('failed_datetime', '>=', $startDate)
-                            ->whereDate('failed_datetime', '<=', $endDate);
+                        $sub->where('packages.status_id', 19)
+                            ->whereDate('packages.failed_datetime', '>=', $startDate)
+                            ->whereDate('packages.failed_datetime', '<=', $endDate);
                     });
                 });
             }
-        }
-        else{
-            $qP->whereHas('merchant', function($q) use($search){
+        } else {
+            $qP->whereHas('merchant', function ($q) use ($search) {
                 $q->where('username', 'ilike', "%$search%")
-                ->orWhere('code', 'ilike', "%$search%")
-                ->orWhere('phone', 'ilike', "%$search%");
+                    ->orWhere('code', 'ilike', "%$search%")
+                    ->orWhere('phone', 'ilike', "%$search%");
             });
         }
 
+        // ✅ Post-format callback
         $callback = function ($q) {
             $q->amount_to_be_paid_usd = Helper::getNumber($q->amount_to_be_paid_usd, 2, true);
             $q->amount_to_be_paid_khr = Helper::getNumber($q->amount_to_be_paid_khr, 2, true);
             $q->code = $q->merchant->code;
             $q->merchant_name = $q->merchant->username;
             $q->merchant_phone = $q->merchant->phone;
-            $q->finish_date = Helper::dateDMY($q->finish_date,'d-m-Y');
-             $q->transaction_type = TransactionType::TRNASFER_OUT->value;
+            $q->finish_date = Helper::dateDMY($q->finish_date, 'd-m-Y');
+
+            $q->transaction_type = TransactionType::TRNASFER_OUT->value;
             if ($q->amount_to_be_paid_khr < 0 || $q->amount_to_be_paid_usd < 0) {
                 $q->transaction_type = TransactionType::TRANSFER_IN->value;
             }
@@ -513,13 +509,217 @@ class TransactionService
 
             $q->status = isset($q->disbursement_id)
                 ? PaymentStatus::tryFrom($q->disbursement_status_id)->label()
-                : (isset($q->payment_id) ? PaymentStatus::tryFrom($q->payment_status_id)->label() : 'Unpaid');
+                : (isset($q->payment_id)
+                    ? PaymentStatus::tryFrom($q->payment_status_id)->label()
+                    : 'Unpaid');
+
             unset($q->merchant);
             return $q;
         };
 
         return DataResponse::PaginationV1($qP, $req, '', [], 1000, $callback, $select);
     }
+
+
+    // public function getMerchantDeliveryPackages(Request $req, object $authUser) {
+    //     $startDate = $req->startDate;
+    //     $endDate = $req->endDate;
+    //     $paymentType = $req->query('paymentType');
+    //     $search = $req->query('search');
+
+    //     $totalFeeExpr = "
+    //         SUM(
+    //             DISTINCT CASE 
+    //                 WHEN packages.payer = 'sender' 
+    //                     THEN packages.delivery_fee + packages.other_fee + CASE WHEN packages.status_id = 19 THEN 0 ELSE packages.taxi_fee END
+    //                 ELSE 0
+    //             END
+    //         )
+    //     ";
+
+    //     $amountUsdExpr = "
+    //     ROUND(
+    //         (SUM(DISTINCT packages.driver_cod_usd) - {$totalFeeExpr} 
+    //         + LEAST(SUM(DISTINCT packages.driver_cod_khr)/4000, GREATEST({$totalFeeExpr} - SUM(DISTINCT packages.driver_cod_usd), 0)))::numeric,
+    //         2
+    //     )
+    //     ";
+
+    //     $amountKhrExpr = "
+    //     ROUND(
+    //         GREATEST(
+    //             SUM(DISTINCT packages.driver_cod_khr) - GREATEST({$totalFeeExpr} - SUM(DISTINCT packages.driver_cod_usd), 0) * 4000,
+    //             0
+    //         )::numeric,
+    //         0
+    //     )
+    //     ";
+
+
+
+    //     $select = [
+    //         'packages.merchant_id',
+    //         DB::raw('COUNT(DISTINCT packages.id) as package_count'),
+    //         DB::raw('SUM(DISTINCT packages.price) as total_price'),
+    //         DB::raw('SUM(DISTINCT packages.price_khr) as total_price_khr'),
+    //         DB::raw("
+    //             SUM(
+    //                 DISTINCT CASE WHEN packages.payer = 'sender' THEN packages.delivery_fee + packages.other_fee ELSE 0 END
+    //             ) as fees
+    //         "),
+
+    //         DB::raw("
+    //             SUM(
+    //                 CASE WHEN packages.payer = 'sender' THEN packages.taxi_fee ELSE 0 END
+    //             ) as taxi_fee
+    //         "),
+    //         DB::raw('SUM(DISTINCT packages.driver_cod_usd) as total_driver_cod_usd'),
+    //         DB::raw('SUM(DISTINCT packages.driver_cod_khr) as total_driver_cod_khr'),
+    //         DB::raw("array_agg(DISTINCT packages.id) as package_ids"),
+    //         DB::raw("MAX(
+    //             CASE
+    //                 WHEN packages.status_id = 9 THEN DATE(packages.delivered_datetime)
+    //                 WHEN packages.status_id = 19 THEN DATE(packages.failed_datetime)
+    //             END
+    //         ) as finish_date"),
+    //         DB::raw("MAX(p.id) as payment_id"),
+    //         DB::raw("MAX(d.id) as disbursement_id"),
+    //         DB::raw("MAX(d.payment_status_id) as disbursement_status_id"),
+            
+    //         DB::raw("MAX(p.payment_status_id) as payment_status_id"),
+    //         DB::raw("($amountUsdExpr) as amount_to_be_paid_usd"),
+    //         DB::raw("($amountKhrExpr) as amount_to_be_paid_khr"),
+    //     ];
+
+
+    //     $latestPP = DB::table(DB::raw('(
+    //         SELECT DISTINCT ON (package_id)
+    //             package_id,
+    //             payment_id,
+    //             id AS pp_id
+    //         FROM payment_packages
+    //         WHERE is_deleted = false
+    //         ORDER BY package_id, id DESC
+    //     ) as latest_pp'));
+
+    //     $latestDP = DB::table(DB::raw('(
+    //         SELECT DISTINCT ON (package_id)
+    //             package_id,
+    //             disbursement_id,
+    //             id AS dp_id
+    //         FROM disbursement_packages
+    //         WHERE is_deleted = false AND type = \'payment\'
+    //         ORDER BY package_id, id DESC
+    //     ) as latest_dp'));
+
+
+
+    //     $baseQuery = Package::query()
+    //         ->where('packages.is_deleted', false)
+    //         ->whereIn('packages.status_id', [9, 19])
+    //         ->select([
+    //             'packages.*'
+    //         ]);
+
+    //     $qP = $baseQuery
+    //         ->leftJoin('disbursement_packages as dp', function($join) {
+    //             $join->on('packages.id', '=', 'dp.package_id')
+    //                 ->where('dp.is_deleted', false)
+    //                 ->where('dp.type', 'payment')
+    //                 ->orderByDesc('dp.id');
+    //         })
+    //         ->leftJoin('disbursements as d', function($join) {
+    //             $join->on('dp.disbursement_id', '=', 'd.id')
+    //                 ->where('d.payee_type','merchant')
+    //                 ->where('d.is_deleted', false);
+    //         })
+    //         ->leftJoin('payment_packages as pp', function($join) {
+    //             $join->on('packages.id', '=', 'pp.package_id')
+    //                 ->where('pp.is_deleted', false)
+    //                 ->orderByDesc('pp.id');
+    //         })
+    //         ->leftJoin('payments as p', function($join) {
+    //             $join->on('pp.payment_id', '=', 'p.id')
+    //                 ->where('p.payer_type','merchant');
+    //         })
+    //         ->where(function($query) {
+    //             $query->where(function ($q) {
+    //                 $q->whereNull('dp.id')
+    //                 ->orWhereIn('d.payment_status_id', [PaymentStatus::PARTIAL->value, PaymentStatus::DECLINED->value])
+    //                 ->orWhereNull('d.id');
+    //             });
+    //             $query->where(function ($q) {
+    //                 $q->whereNull('pp.id')
+    //                 ->orWhereIn('p.payment_status_id', [PaymentStatus::PARTIAL->value, PaymentStatus::DECLINED->value])
+    //                 ->orWhereNull('p.id');
+    //             });
+    //         })
+    //         ->when($paymentType === TransactionType::TRANSFER_IN->value, fn($q) =>
+    //             $q->havingRaw("($amountUsdExpr) < 0 OR ($amountKhrExpr) < 0")
+    //         )
+    //         ->when($paymentType === TransactionType::TRNASFER_OUT->value, fn($q) =>
+    //             $q->havingRaw("($amountUsdExpr) > 0 OR ($amountKhrExpr) > 0")
+    //         )
+    //         ->with(['merchant:id,username,code', 'merchant.primaryBank'])
+    //         ->select($select)
+    //         ->groupByRaw("merchant_id, COALESCE(p.id, d.id, 0)")
+    //         ->orderBy('finish_date', 'desc');
+
+
+
+    //     // Date filter
+    //     if(!$search){
+    //         if ($startDate && $endDate) {
+    //             $startDate = Helper::dateYMD($startDate);
+    //             $endDate = Helper::dateYMD($endDate);
+    //             $qP->where(function ($q) use ($startDate, $endDate) {
+    //                 $q->where(function ($sub) use ($startDate, $endDate) {
+    //                     $sub->where('packages.status_id', 9)
+    //                         ->whereDate('packages.delivered_datetime', '>=', $startDate)
+    //                         ->whereDate('packages.delivered_datetime', '<=', $endDate);
+    //                 })->orWhere(function ($sub) use ($startDate, $endDate) {
+    //                     $sub->where('packages.status_id', 19)
+    //                         ->whereDate('packages.failed_datetime', '>=', $startDate)
+    //                         ->whereDate('packages.failed_datetime', '<=', $endDate);
+    //                 });
+    //             });
+    //         }
+    //     }
+    //     else{
+    //         $qP->whereHas('merchant', function($q) use($search){
+    //             $q->where('username', 'ilike', "%$search%")
+    //             ->orWhere('code', 'ilike', "%$search%")
+    //             ->orWhere('phone', 'ilike', "%$search%");
+    //         });
+    //     }
+
+    //     $callback = function ($q) {
+    //         $q->amount_to_be_paid_usd = Helper::getNumber($q->amount_to_be_paid_usd, 2, true);
+    //         $q->amount_to_be_paid_khr = Helper::getNumber($q->amount_to_be_paid_khr, 2, true);
+    //         $q->code = $q->merchant->code;
+    //         $q->merchant_name = $q->merchant->username;
+    //         $q->merchant_phone = $q->merchant->phone;
+    //         $q->finish_date = Helper::dateDMY($q->finish_date,'d-m-Y');
+    //          $q->transaction_type = TransactionType::TRNASFER_OUT->value;
+    //         if ($q->amount_to_be_paid_khr < 0 || $q->amount_to_be_paid_usd < 0) {
+    //             $q->transaction_type = TransactionType::TRANSFER_IN->value;
+    //         }
+
+    //         if ($bankInfo = $q->merchant->primaryBank) {
+    //             $q->bank_name = $bankInfo->bank_name;
+    //             $q->bank_account_number = $bankInfo->bank_number;
+    //             $q->bank_account_name = $bankInfo->account_name;
+    //         }
+
+    //         $q->status = isset($q->disbursement_id)
+    //             ? PaymentStatus::tryFrom($q->disbursement_status_id)->label()
+    //             : (isset($q->payment_id) ? PaymentStatus::tryFrom($q->payment_status_id)->label() : 'Unpaid');
+    //         unset($q->merchant);
+    //         return $q;
+    //     };
+
+    //     return DataResponse::PaginationV1($qP, $req, '', [], 1000, $callback, $select);
+    // }
 
 
     static function getTrxDetailsV1($rows, $pmtId, $pmtBillings = null)
@@ -1373,7 +1573,6 @@ class TransactionService
 
     public function receiveOrDisburesementV1(Request $req,$user,$type){
         $paymentType = $req->payment_type;
-        // Log::info($paymentType);
         if(!in_array($paymentType,['disbursement','receive']) || !$paymentType){
             return DataResponse::ValidateFail(__('messages.info',[
                 'info' => 'Payment type must be on of disbursement or receive'
@@ -1415,8 +1614,8 @@ class TransactionService
     }
 
 
-    private function getPayInPackagesKeyByPackageId(array $packageIds,string $type):object{
-        return PaymentPackage::where('is_deleted', false)
+    private function getPayInPackagesKeyByMerchantId(array $packageIds,string $type):object{
+        $packages = PaymentPackage::where('is_deleted', false)
             ->whereIn('package_id', $packageIds)
             ->where('payer_type', $type)
             // ->whereHas('payment', function ($q) use($type){
@@ -1472,12 +1671,18 @@ class TransactionService
                 }
             ])
             ->get()
-            ->keyBy('package_id');
+            // ->keyBy('package_id');
+
+            ->groupBy(fn($p) => $p->payment->payer_id ?? null)
+            ->map(fn($items) => $items->first()) // in case multiple packages under same merchant
+            ->filter() // remove null keys
+            ->keyBy(fn($item) => $item?->payment?->payer_id);
+        return (object) $packages;
     }
 
 
-    private function getPayOutPackagesKeyByPackageId(array $packageIds,string $type):object{
-        return DisbursementPackage::where('is_deleted', false)
+    private function getPayOutPackagesKeyByMerchantId(array $packageIds,string $type):object{
+        $packages = DisbursementPackage::where('is_deleted', false)
             ->whereIn('package_id', $packageIds)
             ->where('payee_type', $type)
             // ->whereHas('disbursement', function ($q) use($type) {
@@ -1533,7 +1738,13 @@ class TransactionService
                 }
             ])
             ->get()
-            ->keyBy('package_id');
+            // ->keyBy('package_id');
+             ->groupBy(fn($p) => $p->disbursement->payee_id ?? null)
+            ->map(fn($items) => $items->first()) // in case multiple packages under same merchant
+            ->filter() // remove null keys
+            ->keyBy(fn($item) => $item->disbursement?->payee_id);
+
+        return (object) $packages;
     }
 
     private function getBulkPaymentPackages(array $packageIds,string $type,array $userIds){
@@ -1544,7 +1755,6 @@ class TransactionService
         ->whereIn('id',$packageIds)
         ->get();
     }
-
 
     public function disburesementBulkV1(Request $req,$user,$type){
         $validator = $this->disburesementBulkV1Validator($req,$type);
@@ -1567,8 +1777,8 @@ class TransactionService
         $fullyPaidInfo = [];
         $currencyConflictInfo = [];
         $invalidAmountInfo = [];
-        $payOutPackages = $this->getPayOutPackagesKeyByPackageId($packageIds,$type);
-        $payInPackages = $this->getPayInPackagesKeyByPackageId($packageIds,$type);
+        $payOutPackages = $this->getPayOutPackagesKeyByMerchantId($packageIds,$type);
+        $payInPackages = $this->getPayInPackagesKeyByMerchantId($packageIds,$type);
 
         // return DataResponse::JsonResult($payOutPackages);
         foreach ($userInfo as $m) {
@@ -1606,32 +1816,57 @@ class TransactionService
             $allUSDReceived = true;
             $allKHRReceived = true;
 
-            foreach ($packages as $pkgId) {
-                if($transactionType === TransactionType::TRNASFER_OUT->value){
-                    $res = $this->preparePayout($pkgId, 'merchant', $payingCurrency, $validPkg, $mId, $payOutPackages);
-                    $fullyPaidInfo        = array_merge($fullyPaidInfo, $res['fullyPaidInfo']);
-                    $currencyConflictInfo = array_merge($currencyConflictInfo, $res['currencyConflictInfo']);
-                    $invalidAmountInfo    = array_merge($invalidAmountInfo, $res['invalidAmountInfo']);
-                    $allUSDReceived       = $allUSDReceived && $res['allUSDReceived'];
-                    $allKHRReceived       = $allKHRReceived && $res['allKHRReceived'];
-                    $hasPmtId = $res['targetId'];
-                    $targetPmt = $res['target'];
-                    $receivedKHR = $res['receivedKHR'];
-                    $receivedUSD = $res['receivedUSD'];
-                }else if($transactionType === TransactionType::TRANSFER_IN->value){
-                    $res = $this->preparePayIn($pkgId, 'merchant', $payingCurrency, $validPkg, $mId, $payInPackages);
-                    $fullyPaidInfo        = array_merge($fullyPaidInfo, $res['fullyPaidInfo']);
-                    $currencyConflictInfo = array_merge($currencyConflictInfo, $res['currencyConflictInfo']);
-                    $invalidAmountInfo    = array_merge($invalidAmountInfo, $res['invalidAmountInfo']);
-                    $allUSDReceived       = $allUSDReceived && $res['allUSDReceived'];
-                    $allKHRReceived       = $allKHRReceived && $res['allKHRReceived'];
-                    $hasPmtId = $res['targetId'];
-                    $targetPmt = $res['target'];
-                    $receivedKHR = $res['receivedKHR'];
-                    $receivedUSD = $res['receivedUSD'];
-                }
-                $paidPackageIds[] = $pkgId;
+            if($transactionType === TransactionType::TRNASFER_OUT->value){
+                $res = $this->preparePayout($m['packages'], 'merchant', $payingCurrency, $validPkg, $mId, $payOutPackages);
+                $fullyPaidInfo        = array_merge($fullyPaidInfo, $res['fullyPaidInfo']);
+                $currencyConflictInfo = array_merge($currencyConflictInfo, $res['currencyConflictInfo']);
+                $invalidAmountInfo    = array_merge($invalidAmountInfo, $res['invalidAmountInfo']);
+                $allUSDReceived       = $allUSDReceived && $res['allUSDReceived'];
+                $allKHRReceived       = $allKHRReceived && $res['allKHRReceived'];
+                $hasPmtId = $res['targetId'];
+                $targetPmt = $res['target'];
+                $receivedKHR = $res['receivedKHR'];
+                $receivedUSD = $res['receivedUSD'];
+            }else if($transactionType === TransactionType::TRANSFER_IN->value){
+                $res = $this->preparePayIn($m['packages'], 'merchant', $payingCurrency, $validPkg, $mId, $payInPackages);
+                $fullyPaidInfo        = array_merge($fullyPaidInfo, $res['fullyPaidInfo']);
+                $currencyConflictInfo = array_merge($currencyConflictInfo, $res['currencyConflictInfo']);
+                $invalidAmountInfo    = array_merge($invalidAmountInfo, $res['invalidAmountInfo']);
+                $allUSDReceived       = $allUSDReceived && $res['allUSDReceived'];
+                $allKHRReceived       = $allKHRReceived && $res['allKHRReceived'];
+                $hasPmtId = $res['targetId'];
+                $targetPmt = $res['target'];
+                $receivedKHR = $res['receivedKHR'];
+                $receivedUSD = $res['receivedUSD'];
             }
+            // return DataResponse::JsonResult($res);
+
+            // foreach ($packages as $pkgId) {
+                // if($transactionType === TransactionType::TRNASFER_OUT->value){
+                //     $res = $this->preparePayout($pkgId, 'merchant', $payingCurrency, $validPkg, $mId, $payOutPackages);
+                //     $fullyPaidInfo        = array_merge($fullyPaidInfo, $res['fullyPaidInfo']);
+                //     $currencyConflictInfo = array_merge($currencyConflictInfo, $res['currencyConflictInfo']);
+                //     $invalidAmountInfo    = array_merge($invalidAmountInfo, $res['invalidAmountInfo']);
+                //     $allUSDReceived       = $allUSDReceived && $res['allUSDReceived'];
+                //     $allKHRReceived       = $allKHRReceived && $res['allKHRReceived'];
+                //     $hasPmtId = $res['targetId'];
+                //     $targetPmt = $res['target'];
+                //     $receivedKHR = $res['receivedKHR'];
+                //     $receivedUSD = $res['receivedUSD'];
+                // }else if($transactionType === TransactionType::TRANSFER_IN->value){
+                //     $res = $this->preparePayIn($pkgId, 'merchant', $payingCurrency, $validPkg, $mId, $payInPackages);
+                //     $fullyPaidInfo        = array_merge($fullyPaidInfo, $res['fullyPaidInfo']);
+                //     $currencyConflictInfo = array_merge($currencyConflictInfo, $res['currencyConflictInfo']);
+                //     $invalidAmountInfo    = array_merge($invalidAmountInfo, $res['invalidAmountInfo']);
+                //     $allUSDReceived       = $allUSDReceived && $res['allUSDReceived'];
+                //     $allKHRReceived       = $allKHRReceived && $res['allKHRReceived'];
+                //     $hasPmtId = $res['targetId'];
+                //     $targetPmt = $res['target'];
+                //     $receivedKHR = $res['receivedKHR'];
+                //     $receivedUSD = $res['receivedUSD'];
+                // }
+            //     $paidPackageIds[] = $pkgId;
+            // }
             $paymentStatusId = ($allUSDReceived && $allKHRReceived)
                 ? PaymentStatus::REQUESTED->value
                 : (($hasPmtId && $targetPmt->payment_status_id == PaymentStatus::PARTIAL->value) 
@@ -1672,6 +1907,8 @@ class TransactionService
                 }
 
                 if($transactionType === TransactionType::TRNASFER_OUT->value){
+                    $updatePmt['amount_due_khr']    = $validPkg->data['total_due_amount_khr'];
+                    $updatePmt['amount_due_usd']    = $validPkg->data['total_due_amount_usd'];
                     $updatePmt['payee_id']          = $targetPmt->payee_id;
                     $updatePmt['payee_type']        = $targetPmt->payee_type;
                     $updatePmt['receiptionist_uid']        = $targetPmt->receiptionist_uid;
@@ -1684,12 +1921,13 @@ class TransactionService
                 }
 
                 if($transactionType === TransactionType::TRANSFER_IN->value){
+                    $updatePmt['amount_due_khr']    = abs($validPkg->data['total_due_amount_khr']);
+                    $updatePmt['amount_due_usd']    = abs($validPkg->data['total_due_amount_usd']);
                     $updatePmt['payer_id']          = $targetPmt->payer_id;
                     $updatePmt['payer_type']        = $targetPmt->payer_type;
                     $updatePmt['receiver_uid']        = $targetPmt->receiver_uid;
                     $upSertPayIn[] = $updatePmt;
                 }
-                // $targetDisbursement->update($updatePmt);
 
             }else{
                 $baseData = [
@@ -1721,7 +1959,7 @@ class TransactionService
                     'branch_id'              => $user->branch_id,
                     'payment_status_id'      => $paymentStatusId,
                     'type'                   => 'payment',
-                    'package_ids'            => json_encode($paidPackageIds),
+                    'package_ids'            => json_encode($packages),
                 ];
                 if($transactionType === TransactionType::TRNASFER_OUT->value){
                     $insertPayout[] = array_merge($baseData,[
@@ -1746,24 +1984,50 @@ class TransactionService
             return DataResponse::Duplicated("All fully paid packages detected for {$type}(s): {$type}s.");
         }
 
+        // if (!empty($invalidAmountInfo)) {
+        //     $users = implode(', ', array_unique(array_column($invalidAmountInfo, "{$type}_name")));
+        //     return DataResponse::Bad(__('messages.info', [
+        //         'info'   => "Some packages have invalid received amounts.",
+        //         'khInfo' => "មានកញ្ចប់មួយចំនួនមានចំនួនទឹកប្រាក់អវិជ្ជមាន។",
+        //         // 'details' => json_encode($invalidAmountInfo)
+        //     ]));
+        // }
+
         if (!empty($invalidAmountInfo)) {
-            return DataResponse::Duplicated(__('messages.info', [
-                'info'   => "Some packages have invalid negative received amounts.",
-                'khInfo' => "មានកញ្ចប់មួយចំនួនមានចំនួនទឹកប្រាក់អវិជ្ជមាន។",
-                // 'details' => json_encode($invalidAmountInfo)
-            ]));
+            $seen = [];
+            $uniqueMessages = [];
+
+            foreach ($invalidAmountInfo as $item) {
+                $key = $item["{$type}_name"]; // use user/package name as uniqueness key
+                if (!isset($seen[$key])) {
+                    $seen[$key] = true;
+                    $uniqueMessages[] = $item['message'];
+                }
+            }
+
+            // Combine messages into a single string
+            $allMessages = implode(' | ', $uniqueMessages); // or "\n" for line breaks
+
+            // Prepare localized message
+            $message = __('messages.info', [
+                'info'   => "Some packages have invalid amounts: {$allMessages}",
+                'khInfo' => "មានកញ្ចប់មួយចំនួនមានចំនួនទឹកប្រាក់មិនត្រឹមត្រូវ៖ {$allMessages}",
+            ]);
+
+            return DataResponse::BadRequest($message);
         }
+
 
 
         // Report currency conflicts
         if (!empty($currencyConflictInfo)) {
             // $count = count(array_unique(array_column($currencyConflictInfo, 'package_id')));
             $packages = implode(', ', array_column($currencyConflictInfo, 'package_id'));
-            // $users = implode(', ', array_unique(array_column($currencyConflictInfo, "{$type}_name")));
+            $users = implode(', ', array_unique(array_column($currencyConflictInfo, "{$type}_name")));
             $currency = $currencyConflictInfo[0]['currency'] ?? '';
-            return DataResponse::Duplicated("These packages already partially paid with {$currency} for {$type}(s): {$type}s.");
+            return DataResponse::Duplicated("These packages already partially paid with {$currency} for {$type}(s): {$users}.");
         }
-
+        // return DataResponse::JsonResult($insertPayout);
         try {
             DB::beginTransaction();
             if(!empty($insertPayout) || !empty($upSertPayout)){
@@ -1785,129 +2049,248 @@ class TransactionService
         }
     }
 
-    private function preparePayIn(int $pkgId, string $type, string $payingCurrency, object $validPkg, int $mId, object $payInPkgs){
-        $result = [
-            'fullyPaidInfo'       => [],
-            'currencyConflictInfo'=> [],
-            'invalidAmountInfo'   => [],
-            'allUSDReceived'      => true,
-            'allKHRReceived'      => true,
-            'target' => null,
-            'targetId' => null,
-            'receivedUSD' => 0,
-            'receivedKHR' => 0
-        ];
 
-        $payInPkg = $payInPkgs[$pkgId] ?? null;
-        $validUsdAmt = abs($validPkg->data['total_due_amount_usd']); // abs for not sign when insert
-        $validKhrAmt = abs($validPkg->data['total_due_amount_khr']); // abs for not sign when insert
-        if ($payInPkg && $payInPkg->payment) {
-            $payment = $payInPkg->payment;
-            $usdDue = $payment->amount_due_usd - $payment->received_amount_usd;
-            $khrDue = $payment->amount_due_khr - $payment->received_amount_khr;
-            
+    // public function disburesementBulkV1(Request $req,$user,$type){
+    //     $validator = $this->disburesementBulkV1Validator($req,$type);
+    //     if($validator->fails()){
+    //         return DataResponse::ValidateFail($validator->errors()->first());
+    //     }
+    //     $inputs = $validator->validated();
+    //     $payingCurrency = $inputs['currency'];
+    //     $userIds = collect($inputs["{$type}s"])->pluck('id')->toArray();
+    //     $packageIds = collect($inputs["{$type}s"])->pluck('packages')->flatten()->toArray();
+    //     $packages = $this->getBulkPaymentPackages($packageIds,$type,$userIds);
+    //     $clPkg = clone $packages;
+    //     $packageKeyById = $clPkg->keyBy('id');
+    //     $userInfo = $inputs["{$type}s"];
 
-            $result['target'] = $payment;
-            $result['targetId'] = $payment->id;
-            // Already fully paid
-            // if ($usdDue == 0 && $khrDue == 0 ) {
-            if (($usdDue == 0) && ($khrDue == 0) && ($payment->payment_status_id == PaymentStatus::REQUESTED->value)){
-                $result['fullyPaidInfo'][] = [
-                    'package_id'    => $pkgId,
-                    "{$type}_id"    => $mId,
-                    "{$type}_name"  => $validPkg->data["{$type}_name"] ?? $mId,
-                ];
-                if ($payingCurrency === 'USD') {
-                    $result['allUSDReceived'] = false;
-                }
-                if ($payingCurrency === 'KHR') {
-                    $result['allKHRReceived'] = false;
-                }
-                return $result; // stop here
-            }
+    //     $insertPayout = [];
+    //     $insertPayIn = [];
+    //     $upSertPayout = [];
+    //     $upSertPayIn = [];
+    //     $fullyPaidInfo = [];
+    //     $currencyConflictInfo = [];
+    //     $invalidAmountInfo = [];
+    //     $payOutPackages = $this->getPayOutPackagesKeyByPackageId($packageIds,$type);
+    //     $payInPackages = $this->getPayInPackagesKeyByPackageId($packageIds,$type);
 
-            // Handle USD
-            if ($payingCurrency === 'USD') {
-                $result['receivedUSD'] = $validUsdAmt;
-                if ($usdDue == $validUsdAmt) {
-                    if (($khrDue == $validKhrAmt) || ($validKhrAmt == 0)) {
-                        $result['allKHRReceived'] = true;
-                    }
-                } else {
-                    $result['allUSDReceived'] = false;
-                    $result['currencyConflictInfo'][] = [
-                        'package_id'    => $pkgId,
-                        "{$type}_name" => $validPkg->data["{$type}_name"] ?? $mId,
-                        'currency'      => 'USD',
-                        'message'       => $usdDue == 0
-                            ? 'This package is already fully settled in USD.'
-                            : 'This package has partial USD payment already, cannot pay again in USD.',
-                    ];
-                }
-            }
+    //     // return DataResponse::JsonResult($payOutPackages);
+    //     foreach ($userInfo as $m) {
+    //         $mId = $m['id'];
+    //         $transactionType = $m['transaction_type'] ?? null;
+    //         if(!$transactionType){
+    //             return DataResponse::BadRequest('Transaction Type must be provided');
+    //         }
+    //         $packages = $m['packages'];
+    //         // Validate packages
+    //         $validPkg = $this->validBulkPackagesV1($packageKeyById, $packages, $mId, $type);
+    //         if ($validPkg->error) {
+    //             return $validPkg;
+    //         }
 
-            // Handle KHR
-            if ($payingCurrency === 'KHR') {
-                $result['receivedKHR'] = $validKhrAmt;
-                if ($khrDue == $validKhrAmt) {
-                    if (($usdDue == $validUsdAmt) || ($validUsdAmt == 0)) {
-                        $result['allUSDReceived'] = true;
-                    }
-                } else {
-                    $result['allKHRReceived'] = false;
-                    $result['currencyConflictInfo'][] = [
-                        'package_id'    => $pkgId,
-                        "{$type}_name" => $validPkg->data["{$type}_name"] ?? $mId,
-                        'currency'      => 'KHR',
-                        'message'       => $khrDue == 0
-                            ? 'This package is already fully settled in KHR.'
-                            : 'This package has partial KHR payment already, cannot pay again in KHR.',
-                    ];
-                    return $result;
-                }
-            }
-        } else {
-            // No disbursement yet → validate amounts
-            if ($payingCurrency === 'USD') {
-                $receivedUSD = $validPkg->data['total_due_amount_usd'];
-                $result['receivedUSD'] = $validUsdAmt;
-                if ($receivedUSD > 0) {
-                    $result['invalidAmountInfo'][] = [
-                        'package_id'    => $pkgId,
-                        "{$type}_name" => $validPkg->data["{$type}_name"] ?? $mId,
-                        'currency'      => 'USD',
-                        'message'       => "Invalid amount: received USD ({$receivedUSD}) cannot be positive."
-                    ];
-                    return $result;
-                }
-                if ($validPkg->data['total_due_amount_khr'] > 0) {
-                    $result['allKHRReceived'] = false;
-                }
-            }
+    //         $totalDueUSD = $validPkg->data['total_due_amount_usd'] ?? 0;
+    //         $totalDueKHR = $validPkg->data['total_due_amount_khr'] ?? 0;
 
-            if ($payingCurrency === 'KHR') {
-                $receivedKHR = $validPkg->data['total_due_amount_khr'];
-                $result['receivedKHR'] = $validKhrAmt;
-                if ($receivedKHR > 0) {
-                    $result['invalidAmountInfo'][] = [
-                        'package_id'    => $pkgId,
-                        "{$type}_name" => $validPkg->data["{$type}_name"] ?? $mId,
-                        'currency'      => 'KHR',
-                        'message'       => "Invalid amount: received KHR ({$receivedKHR}) cannot be positive."
-                    ];
-                    return $result;
-                }
-                if ($validPkg->data['total_due_amount_usd'] > 0) {
-                    $result['allUSDReceived'] = false;
-                }
-            }
-        }
+    //         if (($totalDueUSD + $totalDueKHR) == 0) {
+    //             $merchantName = $validPkg->data['merchant_name'];
+    //             $merchantCode = $validPkg->data['merchant_code'];
+    //             return DataResponse::Duplicated(__('messages.info', [
+    //                 'info'   => "No payment is required for merchant {$merchantName} (ID: {$merchantCode}) because all packages have no due amount.",
+    //                 'khInfo' => "មិនចាំបាច់បង់សម្រាប់អ្នកលក់ {$merchantName} (ID: {$merchantCode}) ពីព្រោះគ្រប់កញ្ចប់គ្មានប្រាក់ដែលត្រូវបង់ទេ។"
+    //             ]));
+    //         }
 
-        return $result;
-    }
+    //         $paidPackageIds   = [];
+    //         $receivedUSD      = 0;
+    //         $receivedKHR      = 0;
+    //         $hasPmtId = false;
+    //         $targetPmt = null;
+    //         // $disbursementId = null;
+
+    //         $allUSDReceived = true;
+    //         $allKHRReceived = true;
+
+    //         foreach ($packages as $pkgId) {
+    //             if($transactionType === TransactionType::TRNASFER_OUT->value){
+    //                 $res = $this->preparePayout($pkgId, 'merchant', $payingCurrency, $validPkg, $mId, $payOutPackages);
+    //                 $fullyPaidInfo        = array_merge($fullyPaidInfo, $res['fullyPaidInfo']);
+    //                 $currencyConflictInfo = array_merge($currencyConflictInfo, $res['currencyConflictInfo']);
+    //                 $invalidAmountInfo    = array_merge($invalidAmountInfo, $res['invalidAmountInfo']);
+    //                 $allUSDReceived       = $allUSDReceived && $res['allUSDReceived'];
+    //                 $allKHRReceived       = $allKHRReceived && $res['allKHRReceived'];
+    //                 $hasPmtId = $res['targetId'];
+    //                 $targetPmt = $res['target'];
+    //                 $receivedKHR = $res['receivedKHR'];
+    //                 $receivedUSD = $res['receivedUSD'];
+    //             }else if($transactionType === TransactionType::TRANSFER_IN->value){
+    //                 $res = $this->preparePayIn($pkgId, 'merchant', $payingCurrency, $validPkg, $mId, $payInPackages);
+    //                 $fullyPaidInfo        = array_merge($fullyPaidInfo, $res['fullyPaidInfo']);
+    //                 $currencyConflictInfo = array_merge($currencyConflictInfo, $res['currencyConflictInfo']);
+    //                 $invalidAmountInfo    = array_merge($invalidAmountInfo, $res['invalidAmountInfo']);
+    //                 $allUSDReceived       = $allUSDReceived && $res['allUSDReceived'];
+    //                 $allKHRReceived       = $allKHRReceived && $res['allKHRReceived'];
+    //                 $hasPmtId = $res['targetId'];
+    //                 $targetPmt = $res['target'];
+    //                 $receivedKHR = $res['receivedKHR'];
+    //                 $receivedUSD = $res['receivedUSD'];
+    //             }
+    //             $paidPackageIds[] = $pkgId;
+    //         }
+    //         $paymentStatusId = ($allUSDReceived && $allKHRReceived)
+    //             ? PaymentStatus::REQUESTED->value
+    //             : (($hasPmtId && $targetPmt->payment_status_id == PaymentStatus::PARTIAL->value) 
+    //             ? PaymentStatus::REQUESTED->value : PaymentStatus::PARTIAL->value);
+
+    //         if ($hasPmtId && $targetPmt) {
+    //             // Update existing disbursement instead of inserting
+    //             $updatePmt = [
+    //                 'id' => $hasPmtId,
+    //                 'payment_status_id' => $paymentStatusId,
+    //                 'remarks'           => $inputs['remarks'] ?? $targetPmt->remarks,
+    //                 'create_uid'        => $targetPmt->create_uid,
+    //                 'branch_id'         => $targetPmt->branch_id,
+    //                 'company_id'        => $targetPmt->company_id,
+    //                 'update_uid'        => $user->id,
+    //                 'requested_uid'     => $user->id,
+    //                 'requested_date'    => now()
+    //             ];
+
+    //             if ($payingCurrency === 'USD') {
+    //                 $updatePmt['received_amount_usd'] = $validPkg->data['total_due_amount_usd'] ?? 0;
+    //             } else if ($payingCurrency === 'KHR') {
+    //                 $updatePmt['received_amount_khr'] = $validPkg->data['total_due_amount_khr'] ?? 0;
+    //             }
+    //             $allowedColumns = [
+    //                 'amount_due_usd', 'delivery_fee', 'amount_due_khr', 'received_amount_khr', 'received_amount_usd',
+    //                 'amount', 'payable_amount', 'taxi_fee', 'cod_amount', 'package_count', 'delivered_package_count',
+    //                 'approved', 'is_settled', 'breakdown_notes', 'settled_uid', 'exchange_rate','requested_uid',
+    //                 'approved_datetime', 'settled_datetime', 'payment_datetime', 'type',
+    //                 'failed_with_fee_count', 'trx_code', 'paid_amount','requested_date'
+    //             ];
+
+    //             // Merge existing values from targetPmt for allowed columns
+    //             foreach ($allowedColumns as $col) {
+    //                 if (!array_key_exists($col, $updatePmt)) {
+    //                     $updatePmt[$col] = $targetPmt->$col ?? null;
+    //                 }
+    //             }
+
+    //             if($transactionType === TransactionType::TRNASFER_OUT->value){
+    //                 $updatePmt['payee_id']          = $targetPmt->payee_id;
+    //                 $updatePmt['payee_type']        = $targetPmt->payee_type;
+    //                 $updatePmt['receiptionist_uid']        = $targetPmt->receiptionist_uid;
+    //                 $updatePmt['delivery_rate']        = $targetPmt->delivery_rate;
+    //                 $updatePmt['pickup_rate']        = $targetPmt->pickup_rate;
+    //                 $updatePmt['fast_delivery_rate']        = $targetPmt->fast_delivery_rate;
+    //                 $updatePmt['fast_pickup_rate']        = $targetPmt->fast_pickup_rate;
+    //                 $updatePmt['pickup_package_count']  = $targetPmt->pickup_package_count;
+    //                 $upSertPayout[] = $updatePmt;
+    //             }
+
+    //             if($transactionType === TransactionType::TRANSFER_IN->value){
+    //                 $updatePmt['payer_id']          = $targetPmt->payer_id;
+    //                 $updatePmt['payer_type']        = $targetPmt->payer_type;
+    //                 $updatePmt['receiver_uid']        = $targetPmt->receiver_uid;
+    //                 $upSertPayIn[] = $updatePmt;
+    //             }
+    //             // $targetDisbursement->update($updatePmt);
+
+    //         }else{
+    //             $baseData = [
+    //                 'taxi_fee'               => $validPkg->data['total_taxi_fee'] ?? 0,
+    //                 'delivery_fee'           => $validPkg->data['total_fees'] ?? 0,
+    //                 'amount_due_khr' => $transactionType === TransactionType::TRANSFER_IN->value
+    //                     ? abs($validPkg->data['total_due_amount_khr'])
+    //                     : ($validPkg->data['total_due_amount_khr'] > 0 ? $validPkg->data['total_due_amount_khr'] : 0),
+
+    //                 'amount_due_usd' => $transactionType === TransactionType::TRANSFER_IN->value
+    //                     ? abs($validPkg->data['total_due_amount_usd'])
+    //                     : ($validPkg->data['total_due_amount_usd'] > 0 ? $validPkg->data['total_due_amount_usd'] : 0),
+    //                 'received_amount_usd'    => $receivedUSD,
+    //                 'received_amount_khr'    => $receivedKHR,
+    //                 'create_uid'             => $user->id,
+    //                 'requested_uid'          => $user->id,
+    //                 'receiver_uid'           => $user->id,
+    //                 'receiptionist_uid'      => $user->id,
+    //                 'failed_with_fee_count'  => $validPkg->data['failed_with_fee_count'] ?? 0,
+    //                 'cod_amount'             => $validPkg->data['total_cod'] ?? 0,
+    //                 'remarks'                => $inputs['remarks'] ?? null,
+    //                 'package_count'          => $validPkg->data['total_package'] ?? count($paidPackageIds),
+    //                 'delivered_package_count'=> $validPkg->data['delivered_package_count'] ?? count($paidPackageIds),
+    //                 'update_uid'             => $user->id,
+    //                 'requested_date'         => now(),
+    //                 // 'payment_datetime'       => now(),
+    //                 'breakdown_notes'        => $breakDownNotes ?? null,
+    //                 'company_id'             => $user->company_id,
+    //                 'branch_id'              => $user->branch_id,
+    //                 'payment_status_id'      => $paymentStatusId,
+    //                 'type'                   => 'payment',
+    //                 'package_ids'            => json_encode($paidPackageIds),
+    //             ];
+    //             if($transactionType === TransactionType::TRNASFER_OUT->value){
+    //                 $insertPayout[] = array_merge($baseData,[
+    //                     'transaction_type'       => $m['transaction_type'],
+    //                     'payee_id'               => $mId,
+    //                     'payee_type'             => $type,
+    //                 ]);
+    //             }else if($transactionType === TransactionType::TRANSFER_IN->value){
+    //                 $insertPayIn[] = array_merge($baseData,[
+    //                     'transaction_type'       => $m['transaction_type'],
+    //                     'payer_id'               => $mId,
+    //                     'payer_type'             => $type,
+    //                 ]);
+    //             }
+    //         }
+    //     }
+
+    //     if (!empty($fullyPaidInfo)) {
+    //         // $count = count($fullyPaidInfo);
+    //         // $packages = implode(', ', array_column($fullyPaidInfo, 'package_id'));
+    //         // $users = implode(', ', array_unique(array_column($fullyPaidInfo, "{$type}_name")));
+    //         return DataResponse::Duplicated("All fully paid packages detected for {$type}(s): {$type}s.");
+    //     }
+
+    //     if (!empty($invalidAmountInfo)) {
+    //         return DataResponse::Duplicated(__('messages.info', [
+    //             'info'   => "Some packages have invalid negative received amounts.",
+    //             'khInfo' => "មានកញ្ចប់មួយចំនួនមានចំនួនទឹកប្រាក់អវិជ្ជមាន។",
+    //             // 'details' => json_encode($invalidAmountInfo)
+    //         ]));
+    //     }
 
 
-    private function preparePayout(int $pkgId, string $type, string $payingCurrency, object $validPkg, int $mId, object $disbursementPkg): array
+    //     // Report currency conflicts
+    //     if (!empty($currencyConflictInfo)) {
+    //         // $count = count(array_unique(array_column($currencyConflictInfo, 'package_id')));
+    //         $packages = implode(', ', array_column($currencyConflictInfo, 'package_id'));
+    //         // $users = implode(', ', array_unique(array_column($currencyConflictInfo, "{$type}_name")));
+    //         $currency = $currencyConflictInfo[0]['currency'] ?? '';
+    //         return DataResponse::Duplicated("These packages already partially paid with {$currency} for {$type}(s): {$type}s.");
+    //     }
+
+    //     try {
+    //         DB::beginTransaction();
+    //         if(!empty($insertPayout) || !empty($upSertPayout)){
+    //             $this->batchPayoutUpSert($insertPayout,$upSertPayout,$payingCurrency,$user);
+    //         }
+    //         if(!empty($insertPayIn) || !empty($upSertPayIn)){
+    //             $this->batchPayInUpSert($insertPayIn,$upSertPayIn,$payingCurrency,$user);
+    //         }
+    //         DB::commit();
+    //         return DataResponse::JsonResult($upSertPayout,false,__('messages.saved'));
+    //     } catch (Exception $e) {
+    //         DB::rollBack();
+    //         Log::error($e->getMessage());
+    //         Log::error($e->getTraceAsString());
+    //         return DataResponse::Error(__('messages.error',[
+    //             'info' => 'Failed to settle',
+    //             'khInfo' => 'Failed to settle'
+    //         ]));
+    //     }
+    // }
+    
+
+    private function preparePayIn(array $pkgIds, string $type, string $payingCurrency, object $validPkg, int $mId, object $payInPkgs)
     {
         $result = [
             'fullyPaidInfo'       => [],
@@ -1921,150 +2304,538 @@ class TransactionService
             'receivedKHR' => 0
         ];
 
-        $disbPkg = $disbursementPkg[$pkgId] ?? null;
-        $validUsdAmt = $validPkg->data['total_due_amount_usd'];
-        $validKhrAmt = $validPkg->data['total_due_amount_khr'];
-        if ($disbPkg && $disbPkg->disbursement) {
-            $disbursement = $disbPkg->disbursement;
-            $amountUsd = $disbursement->amount_due_usd ?? 0;
-            $amountKhr = $disbursement->amount_due_khr ?? 0;
-            $usdDue = $amountUsd - $disbursement->received_amount_usd;
-            $khrDue = $amountKhr - $disbursement->received_amount_khr ?? 0;
-            if($amountUsd > 0 && $usdDue == 0 && $payingCurrency === 'USD'){
-                $result['currencyConflictInfo'][] = [
-                    'package_id'    => $pkgId,
-                    "{$type}_name" => $validPkg->data["{$type}_name"] ?? $mId,
-                    'currency'      => 'USD',
-                    'message'       => $usdDue == 0
-                        ? 'This package is already fully settled in USD.'
-                        : 'This package has partial USD payment already, cannot pay again in USD.',
-                ];
-            }
+        $payInPkg = $payInPkgs[$mId] ?? null;
+        $validUsdAmt = abs($validPkg->data['total_due_amount_usd']); // abs for not sign when insert
+        $validKhrAmt = abs($validPkg->data['total_due_amount_khr']); // abs for not sign when insert
 
-            if($amountKhr > 0 && $khrDue == 0 && $payingCurrency === 'KHR'){
-                $result['currencyConflictInfo'][] = [
-                    'package_id'    => $pkgId,
-                    "{$type}_name" => $validPkg->data["{$type}_name"] ?? $mId,
-                    'currency'      => 'KHR',
-                    'message'       => $usdDue == 0
-                        ? 'This package is already fully settled in KHR.'
-                        : 'This package has partial KHR payment already, cannot pay again in KHR.',
-                ];
-            }
+        if ($payInPkg && $payInPkg->payment) {
+            $payment = $payInPkg->payment;
+            $usdDue = $payment->amount_due_usd - $payment->received_amount_usd;
+            $khrDue = $payment->amount_due_khr - $payment->received_amount_khr;
 
-            $result['target'] = $disbursement;
-            $result['targetId'] = $disbursement->id;
+            $result['target'] = $payment;
+            $result['targetId'] = $payment->id;
+
             // Already fully paid
-            if (($usdDue == 0) && ($khrDue == 0) && ($disbursement->payment_status_id == PaymentStatus::REQUESTED->value)) {
+            if (Helper::floatEquals($usdDue, 0) && Helper::floatEquals($khrDue, 0) && $payment->payment_status_id == PaymentStatus::REQUESTED->value) {
                 $result['fullyPaidInfo'][] = [
-                    'package_id'    => $pkgId,
+                    'package_id'    => '',
                     "{$type}_id"    => $mId,
                     "{$type}_name"  => $validPkg->data["{$type}_name"] ?? $mId,
                 ];
-                if ($payingCurrency === 'USD') {
-                    $result['allUSDReceived'] = false;
-                }
-                if ($payingCurrency === 'KHR') {
-                    $result['allKHRReceived'] = false;
-                }
-                // return $result; // stop here
+                if ($payingCurrency === 'USD') $result['allUSDReceived'] = false;
+                if ($payingCurrency === 'KHR') $result['allKHRReceived'] = false;
+                return $result; // stop here
             }
 
             // Handle USD
             if ($payingCurrency === 'USD') {
                 $result['receivedUSD'] = $validUsdAmt;
-                if ($usdDue == $validUsdAmt) {
-                    if ($khrDue == $validKhrAmt) {
-                        $result['allKHRReceived'] = true;
-                    }
-                } else {
+                if (!Helper::floatEquals($usdDue, $validUsdAmt)) {
                     $result['allUSDReceived'] = false;
                     $result['currencyConflictInfo'][] = [
-                        'package_id'    => $pkgId,
+                        'package_id'    => '',
                         "{$type}_name" => $validPkg->data["{$type}_name"] ?? $mId,
                         'currency'      => 'USD',
-                        'message'       => $usdDue == 0
+                        'message'       => Helper::floatEquals($usdDue, 0)
                             ? 'This package is already fully settled in USD.'
                             : 'This package has partial USD payment already, cannot pay again in USD.',
                     ];
-                }
-            }else{
-                if($validKhrAmt > 0){
-                    $result['allKHRReceived'] = false;
+                } else {
+                    if (Helper::floatEquals($khrDue, $validKhrAmt) || Helper::floatEquals($validKhrAmt, 0)) {
+                        $result['allKHRReceived'] = true;
+                    }
                 }
             }
 
             // Handle KHR
             if ($payingCurrency === 'KHR') {
                 $result['receivedKHR'] = $validKhrAmt;
-                if ($khrDue == $validKhrAmt) {
-                    if ($usdDue == $validUsdAmt) {
-                        $result['allUSDReceived'] = true;
-                    }
-                } else {
+                if (!Helper::floatEquals($khrDue, $validKhrAmt)) {
                     $result['allKHRReceived'] = false;
                     $result['currencyConflictInfo'][] = [
-                        'package_id'    => $pkgId,
+                        'package_id'    => '',
                         "{$type}_name" => $validPkg->data["{$type}_name"] ?? $mId,
                         'currency'      => 'KHR',
-                        'message'       => $khrDue == 0
+                        'message'       => Helper::floatEquals($khrDue, 0)
                             ? 'This package is already fully settled in KHR.'
                             : 'This package has partial KHR payment already, cannot pay again in KHR.',
                     ];
-                    // return $result;
-                }
-            }else{
-                if($validUsdAmt > 0){
-                    $result['allUSDReceived'] = false;
-                }
-            }
-        } else {
-            if($validKhrAmt === 0 && $validUsdAmt === 0){
-                $result['invalidAmountInfo'][] = [
-                    'package_id'    => $pkgId,
-                    "{$type}_name" => $validPkg->data["{$type}_name"] ?? $mId,
-                    'currency'      => 'USD',
-                    'message'       => "Invalid amount: there are no valid amount to be settle."
-                ];
-                // return $result;
-            }
-            // No disbursement yet → validate amounts
-            if ($payingCurrency === 'USD') {
-                $receivedUSD = $validUsdAmt;
-                $result['receivedUSD'] = $validUsdAmt;
-                if ($receivedUSD <= 0) {
-                    $result['invalidAmountInfo'][] = [
-                        'package_id'    => $pkgId,
-                        "{$type}_name" => $validPkg->data["{$type}_name"] ?? $mId,
-                        'currency'      => 'USD',
-                        'message'       => "Invalid amount: received USD ({$receivedUSD}) cannot be negative."
-                    ];
-                    // return $result;
-                }
-                if ($validKhrAmt > 0) {
-                    $result['allKHRReceived'] = false;
+                    return $result;
+                } else {
+                    if (Helper::floatEquals($usdDue, $validUsdAmt) || Helper::floatEquals($validUsdAmt, 0)) {
+                        $result['allUSDReceived'] = true;
+                    }
                 }
             }
 
-            if ($payingCurrency === 'KHR') {
-                $receivedKHR = $validKhrAmt;
-                $result['receivedKHR'] = $validKhrAmt;
-                if ($receivedKHR <= 0) {
+        } else {
+            // No payment yet → validate amounts
+            if (Helper::floatEquals($validKhrAmt, 0) && Helper::floatEquals($validUsdAmt, 0)) {
+                $result['invalidAmountInfo'][] = [
+                    'package_id'    => '',
+                    "{$type}_name" => $validPkg->data["{$type}_name"] ?? $mId,
+                    'currency'      => $payingCurrency,
+                    'message'       => "Invalid amount: there are no valid amounts to be settled."
+                ];
+            }
+
+            if ($payingCurrency === 'USD') {
+                $result['receivedUSD'] = $validUsdAmt;
+                // Log::info($validUsdAmt);
+                if ($validUsdAmt == 0) {
                     $result['invalidAmountInfo'][] = [
-                        'package_id'    => $pkgId,
-                        "{$type}_name" => $validPkg->data["{$type}_name"] ?? $mId,
-                        'currency'      => 'KHR',
-                        'message'       => "Invalid amount: received KHR ({$receivedKHR}) cannot be negative."
+                        'package_id'    => '',
+                        "{$type}_name" => $validPkg->data["{$type}_name"] . '(' . ($validPkg->data["{$type}_code"] ?? 'No Code') . ')',
+                        'currency'      => 'USD',
+                        'message'       => "Invalid amount: received USD ({$validUsdAmt}) cannot be positive."
                     ];
-                    // return $result;
+                    return $result;
                 }
-                if ($validUsdAmt > 0) {
-                    $result['allUSDReceived'] = false;
+                if ($validKhrAmt > 0) $result['allKHRReceived'] = false;
+            }
+
+            if ($payingCurrency === 'KHR') {
+                $result['receivedKHR'] = $validKhrAmt;
+                if ($validKhrAmt == 0) {
+                    $result['invalidAmountInfo'][] = [
+                        'package_id'    => '',
+                        "{$type}_name" => $validPkg->data["{$type}_name"] . '(' . ($validPkg->data["{$type}_code"] ?? 'No Code') . ')',
+                        'currency'      => 'KHR',
+                        'message' => "Invalid amount: received KHR ({$validKhrAmt}) cannot be positive. Please provide the amount in USD instead."
+                    ];
+                    return $result;
                 }
+                if ($validUsdAmt > 0) $result['allUSDReceived'] = false;
             }
         }
+
         return $result;
     }
+
+
+
+    // private function preparePayIn(int $pkgId, string $type, string $payingCurrency, object $validPkg, int $mId, object $payInPkgs){
+    //     $result = [
+    //         'fullyPaidInfo'       => [],
+    //         'currencyConflictInfo'=> [],
+    //         'invalidAmountInfo'   => [],
+    //         'allUSDReceived'      => true,
+    //         'allKHRReceived'      => true,
+    //         'target' => null,
+    //         'targetId' => null,
+    //         'receivedUSD' => 0,
+    //         'receivedKHR' => 0
+    //     ];
+
+    //     $payInPkg = $payInPkgs[$pkgId] ?? null;
+    //     $validUsdAmt = abs($validPkg->data['total_due_amount_usd']); // abs for not sign when insert
+    //     $validKhrAmt = abs($validPkg->data['total_due_amount_khr']); // abs for not sign when insert
+    //     if ($payInPkg && $payInPkg->payment) {
+    //         $payment = $payInPkg->payment;
+    //         $usdDue = $payment->amount_due_usd - $payment->received_amount_usd;
+    //         $khrDue = $payment->amount_due_khr - $payment->received_amount_khr;
+            
+
+    //         $result['target'] = $payment;
+    //         $result['targetId'] = $payment->id;
+    //         // Already fully paid
+    //         // if ($usdDue == 0 && $khrDue == 0 ) {
+    //         if (($usdDue == 0) && ($khrDue == 0) && ($payment->payment_status_id == PaymentStatus::REQUESTED->value)){
+    //             $result['fullyPaidInfo'][] = [
+    //                 'package_id'    => $pkgId,
+    //                 "{$type}_id"    => $mId,
+    //                 "{$type}_name"  => $validPkg->data["{$type}_name"] ?? $mId,
+    //             ];
+    //             if ($payingCurrency === 'USD') {
+    //                 $result['allUSDReceived'] = false;
+    //             }
+    //             if ($payingCurrency === 'KHR') {
+    //                 $result['allKHRReceived'] = false;
+    //             }
+    //             return $result; // stop here
+    //         }
+
+    //         // Handle USD
+    //         if ($payingCurrency === 'USD') {
+    //             $result['receivedUSD'] = $validUsdAmt;
+    //             if ($usdDue == $validUsdAmt) {
+    //                 if (($khrDue == $validKhrAmt) || ($validKhrAmt == 0)) {
+    //                     $result['allKHRReceived'] = true;
+    //                 }
+    //             } else {
+    //                 $result['allUSDReceived'] = false;
+    //                 $result['currencyConflictInfo'][] = [
+    //                     'package_id'    => $pkgId,
+    //                     "{$type}_name" => $validPkg->data["{$type}_name"] ?? $mId,
+    //                     'currency'      => 'USD',
+    //                     'message'       => $usdDue == 0
+    //                         ? 'This package is already fully settled in USD.'
+    //                         : 'This package has partial USD payment already, cannot pay again in USD.',
+    //                 ];
+    //             }
+    //         }
+
+    //         // Handle KHR
+    //         if ($payingCurrency === 'KHR') {
+    //             $result['receivedKHR'] = $validKhrAmt;
+    //             if ($khrDue == $validKhrAmt) {
+    //                 if (($usdDue == $validUsdAmt) || ($validUsdAmt == 0)) {
+    //                     $result['allUSDReceived'] = true;
+    //                 }
+    //             } else {
+    //                 $result['allKHRReceived'] = false;
+    //                 $result['currencyConflictInfo'][] = [
+    //                     'package_id'    => $pkgId,
+    //                     "{$type}_name" => $validPkg->data["{$type}_name"] ?? $mId,
+    //                     'currency'      => 'KHR',
+    //                     'message'       => $khrDue == 0
+    //                         ? 'This package is already fully settled in KHR.'
+    //                         : 'This package has partial KHR payment already, cannot pay again in KHR.',
+    //                 ];
+    //                 return $result;
+    //             }
+    //         }
+    //     } else {
+    //         // No disbursement yet → validate amounts
+    //         if ($payingCurrency === 'USD') {
+    //             $receivedUSD = $validPkg->data['total_due_amount_usd'];
+    //             $result['receivedUSD'] = $validUsdAmt;
+    //             if ($receivedUSD > 0) {
+    //                 $result['invalidAmountInfo'][] = [
+    //                     'package_id'    => $pkgId,
+    //                     "{$type}_name" => $validPkg->data["{$type}_name"] ?? $mId,
+    //                     'currency'      => 'USD',
+    //                     'message'       => "Invalid amount: received USD ({$receivedUSD}) cannot be positive."
+    //                 ];
+    //                 return $result;
+    //             }
+    //             if ($validPkg->data['total_due_amount_khr'] > 0) {
+    //                 $result['allKHRReceived'] = false;
+    //             }
+    //         }
+
+    //         if ($payingCurrency === 'KHR') {
+    //             $receivedKHR = $validPkg->data['total_due_amount_khr'];
+    //             $result['receivedKHR'] = $validKhrAmt;
+    //             if ($receivedKHR > 0) {
+    //                 $result['invalidAmountInfo'][] = [
+    //                     'package_id'    => $pkgId,
+    //                     "{$type}_name" => $validPkg->data["{$type}_name"] ?? $mId,
+    //                     'currency'      => 'KHR',
+    //                     'message'       => "Invalid amount: received KHR ({$receivedKHR}) cannot be positive."
+    //                 ];
+    //                 return $result;
+    //             }
+    //             if ($validPkg->data['total_due_amount_usd'] > 0) {
+    //                 $result['allUSDReceived'] = false;
+    //             }
+    //         }
+    //     }
+
+    //     return $result;
+    // }
+
+
+    private function preparePayout(array $pkgIds, string $type, string $payingCurrency, object $validPkg, int $mId, object $disbursementPkg): array
+    {
+        $result = [
+            'fullyPaidInfo'       => [],
+            'currencyConflictInfo'=> [],
+            'invalidAmountInfo'   => [],
+            'allUSDReceived'      => true,
+            'allKHRReceived'      => true,
+            'target' => null,
+            'targetId' => null,
+            'receivedUSD' => 0,
+            'receivedKHR' => 0
+        ];
+
+        $disbPkg = $disbursementPkg[$mId] ?? null;
+        $validUsdAmt = $validPkg->data['total_due_amount_usd'] ?? 0;
+        $validKhrAmt = $validPkg->data['total_due_amount_khr'] ?? 0;
+
+        if ($disbPkg && $disbPkg->disbursement && in_array($disbPkg->package_id,$pkgIds)) {
+            $disbursement = $disbPkg->disbursement;
+            $amountUsd = $disbursement->amount_due_usd ?? 0;
+            $amountKhr = $disbursement->amount_due_khr ?? 0;
+            $usdDue = $amountUsd - $disbursement->received_amount_usd;
+            $khrDue = $amountKhr - $disbursement->received_amount_khr;
+
+            // Currency conflict checks
+            if ($payingCurrency === 'USD' && $amountUsd > 0 && Helper::floatEquals($usdDue, 0)) {
+                $result['currencyConflictInfo'][] = [
+                    'package_id'    => '',
+                    "{$type}_name" => $validPkg->data["{$type}_name"] . '(' . ($validPkg->data["{$type}_code"] ?? 'No Code') . ')',
+                    'currency'      => 'USD',
+                    'message'       => 'This package is already fully settled in USD.'
+                ];
+            }
+
+            if ($payingCurrency === 'KHR' && $amountKhr > 0 && Helper::floatEquals($khrDue, 0)) {
+                $result['currencyConflictInfo'][] = [
+                    'package_id'    => '',
+                    "{$type}_name" => $validPkg->data["{$type}_name"] . '(' . ($validPkg->data["{$type}_code"] ?? 'No Code') . ')',
+                    'currency'      => 'KHR',
+                    'message'       => 'This package is already fully settled in KHR.'
+                ];
+            }
+
+            $result['target'] = $disbursement;
+            $result['targetId'] = $disbursement->id;
+
+            // Fully paid check
+            if (Helper::floatEquals($usdDue, 0) && Helper::floatEquals($khrDue, 0) && $disbursement->payment_status_id == PaymentStatus::REQUESTED->value) {
+                $result['fullyPaidInfo'][] = [
+                    'package_id'    => '',
+                    "{$type}_id"    => $mId,
+                    "{$type}_name"  => $validPkg->data["{$type}_name"] ?? $mId,
+                ];
+
+                if ($payingCurrency === 'USD') $result['allUSDReceived'] = false;
+                if ($payingCurrency === 'KHR') $result['allKHRReceived'] = false;
+            }
+
+            // Handle USD
+            if ($payingCurrency === 'USD') {
+                $result['receivedUSD'] = $validUsdAmt;
+                if (!Helper::floatEquals($usdDue, $validUsdAmt)) {
+                    $result['allUSDReceived'] = false;
+                    $result['currencyConflictInfo'][] = [
+                        'package_id'    => '',
+                        "{$type}_name" => $validPkg->data["{$type}_name"] . '(' . ($validPkg->data["{$type}_code"] ?? 'No Code') . ')',
+                        'currency'      => 'USD',
+                        'message'       => 'This package has partial USD payment already, cannot pay again in USD.',
+                    ];
+                } else {
+                    if (Helper::floatEquals($khrDue, $validKhrAmt)) {
+                        $result['allKHRReceived'] = true;
+                    }
+                }
+            } else {
+                if ($validKhrAmt > 0) $result['allKHRReceived'] = false;
+            }
+
+            // Handle KHR
+            if ($payingCurrency === 'KHR') {
+                $result['receivedKHR'] = $validKhrAmt;
+                if (!Helper::floatEquals($khrDue, $validKhrAmt)) {
+                    $result['allKHRReceived'] = false;
+                    $result['currencyConflictInfo'][] = [
+                        'package_id'    => '',
+                        "{$type}_name" => $validPkg->data["{$type}_name"] . '(' . ($validPkg->data["{$type}_code"] ?? 'No Code') . ')',
+                        'currency'      => 'KHR',
+                        'message'       => 'This package has partial KHR payment already, cannot pay again in KHR.',
+                    ];
+                } else {
+                    if (Helper::floatEquals($usdDue, $validUsdAmt)) {
+                        $result['allUSDReceived'] = true;
+                    }
+                }
+            } else {
+                if ($validUsdAmt > 0) $result['allUSDReceived'] = false;
+            }
+
+        } else {
+            // No disbursement yet → validate amounts
+            if (Helper::floatEquals($validKhrAmt, 0) && Helper::floatEquals($validUsdAmt, 0)) {
+                $result['invalidAmountInfo'][] = [
+                    'package_id'    => '',
+                    "{$type}_name" => $validPkg->data["{$type}_name"] . '(' . ($validPkg->data["{$type}_code"] ?? 'No Code') . ')',
+                    'currency'      => 'USD',
+                    'message'       => "Invalid amount: there are no valid amounts to be settled."
+                ];
+            }
+
+            if ($payingCurrency === 'USD') {
+                $result['receivedUSD'] = $validUsdAmt;
+                if (Helper::floatEquals($validUsdAmt, 0) && Helper::floatEquals($validKhrAmt, 0)) {
+                    $result['invalidAmountInfo'][] = [
+                        'package_id'    => '',
+                        "{$type}_name" => $validPkg->data["{$type}_name"] . '(' . ($validPkg->data["{$type}_code"] ?? 'No Code') . ')',
+                        'currency'      => 'USD',
+                        'message'       => "Invalid amount: received USD ({$validUsdAmt}) cannot be negative."
+                    ];
+                }
+                if ($validKhrAmt > 0) $result['allKHRReceived'] = false;
+            }
+
+            if ($payingCurrency === 'KHR') {
+                $result['receivedKHR'] = $validKhrAmt;
+                if (Helper::floatEquals($validKhrAmt, 0) && Helper::floatEquals($validUsdAmt, 0)) {
+                    $result['invalidAmountInfo'][] = [
+                        'package_id'    => '',
+                        "{$type}_name" => $validPkg->data["{$type}_name"] . '(' . ($validPkg->data["{$type}_code"] ?? 'No Code') . ')',
+                        'currency'      => 'KHR',
+                        'message'       => "Invalid amount: received KHR ({$validKhrAmt}) cannot be negative."
+                    ];
+                }
+                if ($validUsdAmt > 0) $result['allUSDReceived'] = false;
+            }
+        }
+
+        return $result;
+    }
+
+
+    // private function preparePayout(int $pkgId, string $type, string $payingCurrency, object $validPkg, int $mId, object $disbursementPkg): array
+    // {
+    //     $result = [
+    //         'fullyPaidInfo'       => [],
+    //         'currencyConflictInfo'=> [],
+    //         'invalidAmountInfo'   => [],
+    //         'allUSDReceived'      => true,
+    //         'allKHRReceived'      => true,
+    //         'target' => null,
+    //         'targetId' => null,
+    //         'receivedUSD' => 0,
+    //         'receivedKHR' => 0
+    //     ];
+
+    //     $disbPkg = $disbursementPkg[$pkgId] ?? null;
+    //     $validUsdAmt = $validPkg->data['total_due_amount_usd'];
+    //     $validKhrAmt = $validPkg->data['total_due_amount_khr'];
+    //     if ($disbPkg && $disbPkg->disbursement) {
+    //         $disbursement = $disbPkg->disbursement;
+    //         $amountUsd = $disbursement->amount_due_usd ?? 0;
+    //         $amountKhr = $disbursement->amount_due_khr ?? 0;
+    //         $usdDue = $amountUsd - $disbursement->received_amount_usd;
+    //         $khrDue = $amountKhr - $disbursement->received_amount_khr ?? 0;
+    //         if($amountUsd > 0 && $usdDue == 0 && $payingCurrency === 'USD'){
+    //             $result['currencyConflictInfo'][] = [
+    //                 'package_id'    => $pkgId,
+    //                 "{$type}_name" => $validPkg->data["{$type}_name"] ?? $mId,
+    //                 'currency'      => 'USD',
+    //                 'message'       => $usdDue == 0
+    //                     ? 'This package is already fully settled in USD.'
+    //                     : 'This package has partial USD payment already, cannot pay again in USD.',
+    //             ];
+    //         }
+
+    //         if($amountKhr > 0 && $khrDue == 0 && $payingCurrency === 'KHR'){
+    //             $result['currencyConflictInfo'][] = [
+    //                 'package_id'    => $pkgId,
+    //                 "{$type}_name" => $validPkg->data["{$type}_name"] ?? $mId,
+    //                 'currency'      => 'KHR',
+    //                 'message'       => $usdDue == 0
+    //                     ? 'This package is already fully settled in KHR.'
+    //                     : 'This package has partial KHR payment already, cannot pay again in KHR.',
+    //             ];
+    //         }
+
+    //         $result['target'] = $disbursement;
+    //         $result['targetId'] = $disbursement->id;
+    //         // Already fully paid
+    //         if (($usdDue == 0) && ($khrDue == 0) && ($disbursement->payment_status_id == PaymentStatus::REQUESTED->value)) {
+    //             $result['fullyPaidInfo'][] = [
+    //                 'package_id'    => $pkgId,
+    //                 "{$type}_id"    => $mId,
+    //                 "{$type}_name"  => $validPkg->data["{$type}_name"] ?? $mId,
+    //             ];
+    //             if ($payingCurrency === 'USD') {
+    //                 $result['allUSDReceived'] = false;
+    //             }
+    //             if ($payingCurrency === 'KHR') {
+    //                 $result['allKHRReceived'] = false;
+    //             }
+    //             // return $result; // stop here
+    //         }
+
+    //         // Handle USD
+    //         if ($payingCurrency === 'USD') {
+    //             $result['receivedUSD'] = $validUsdAmt;
+    //             if ($usdDue == $validUsdAmt) {
+    //                 if ($khrDue == $validKhrAmt) {
+    //                     $result['allKHRReceived'] = true;
+    //                 }
+    //             } else {
+    //                 $result['allUSDReceived'] = false;
+    //                 $result['currencyConflictInfo'][] = [
+    //                     'package_id'    => $pkgId,
+    //                     "{$type}_name" => $validPkg->data["{$type}_name"] ?? $mId,
+    //                     'currency'      => 'USD',
+    //                     'message'       => $usdDue == 0
+    //                         ? 'This package is already fully settled in USD.'
+    //                         : 'This package has partial USD payment already, cannot pay again in USD.',
+    //                 ];
+    //             }
+    //         }else{
+    //             if($validKhrAmt > 0){
+    //                 $result['allKHRReceived'] = false;
+    //             }
+    //         }
+
+    //         // Handle KHR
+    //         if ($payingCurrency === 'KHR') {
+    //             $result['receivedKHR'] = $validKhrAmt;
+    //             if ($khrDue == $validKhrAmt) {
+    //                 if ($usdDue == $validUsdAmt) {
+    //                     $result['allUSDReceived'] = true;
+    //                 }
+    //             } else {
+    //                 $result['allKHRReceived'] = false;
+    //                 $result['currencyConflictInfo'][] = [
+    //                     'package_id'    => $pkgId,
+    //                     "{$type}_name" => $validPkg->data["{$type}_name"] ?? $mId,
+    //                     'currency'      => 'KHR',
+    //                     'message'       => $khrDue == 0
+    //                         ? 'This package is already fully settled in KHR.'
+    //                         : 'This package has partial KHR payment already, cannot pay again in KHR.',
+    //                 ];
+    //                 // return $result;
+    //             }
+    //         }else{
+    //             if($validUsdAmt > 0){
+    //                 $result['allUSDReceived'] = false;
+    //             }
+    //         }
+    //     } else {
+    //         if($validKhrAmt === 0 && $validUsdAmt === 0){
+    //             $result['invalidAmountInfo'][] = [
+    //                 'package_id'    => $pkgId,
+    //                 "{$type}_name" => $validPkg->data["{$type}_name"] ?? $mId,
+    //                 'currency'      => 'USD',
+    //                 'message'       => "Invalid amount: there are no valid amount to be settle."
+    //             ];
+    //             // return $result;
+    //         }
+    //         // No disbursement yet → validate amounts
+    //         if ($payingCurrency === 'USD') {
+    //             $receivedUSD = $validUsdAmt;
+    //             $result['receivedUSD'] = $validUsdAmt;
+    //             if ($receivedUSD <= 0) {
+    //                 $result['invalidAmountInfo'][] = [
+    //                     'package_id'    => $pkgId,
+    //                     "{$type}_name" => $validPkg->data["{$type}_name"] ?? $mId,
+    //                     'currency'      => 'USD',
+    //                     'message'       => "Invalid amount: received USD ({$receivedUSD}) cannot be negative."
+    //                 ];
+    //                 // return $result;
+    //             }
+    //             if ($validKhrAmt > 0) {
+    //                 $result['allKHRReceived'] = false;
+    //             }
+    //         }
+
+    //         if ($payingCurrency === 'KHR') {
+    //             $receivedKHR = $validKhrAmt;
+    //             $result['receivedKHR'] = $validKhrAmt;
+    //             if ($receivedKHR <= 0) {
+    //                 $result['invalidAmountInfo'][] = [
+    //                     'package_id'    => $pkgId,
+    //                     "{$type}_name" => $validPkg->data["{$type}_name"] ?? $mId,
+    //                     'currency'      => 'KHR',
+    //                     'message'       => "Invalid amount: received KHR ({$receivedKHR}) cannot be negative."
+    //                 ];
+    //                 // return $result;
+    //             }
+    //             if ($validUsdAmt > 0) {
+    //                 $result['allUSDReceived'] = false;
+    //             }
+    //         }
+    //     }
+    //     return $result;
+    // }
 
     /**
      * This function use to insert or update batch of payin
@@ -2114,6 +2885,7 @@ class TransactionService
                     ];
                 }
                 if(!empty($insertPayInPkgs)){
+                    Log::info($insertPayInPkgs);
                     PaymentPackage::insert($insertPayInPkgs);
                 }
 
@@ -2893,7 +3665,6 @@ class TransactionService
             $totalDriverCodUsd += $package->driver_cod_usd;
             $totalDriverCodKhr += $package->driver_cod_khr;
             $rowTotal = self::getPackageTotalV1($type,$package->driver_cod_usd,$package->driver_cod_khr,$package->delivery_fee,$package->taxi_fee,$package->other_fee,$package->payer,$package->status_id);
-            // Log::info($rowTotal['total_usd']);
             if($package->status_id == 19){
                 if($type == 'merchant'){
                     $rowTotal = self::getPackageTotalV1($type,$package->cod,0,0,$package->extra_charge,$package->additional_fee,$package->delivery_fee,$package->payer);
@@ -2908,10 +3679,8 @@ class TransactionService
             $obj->total_package_price += $package->price;
             $obj->total_fees += $rowTotal['fees'];
         }
-        // Log::info($obj->total_due_amount_usd.'---'.$obj->total_due_amount_khr);
         $usd = max(0, $obj->total_due_amount_usd);
         $khr = max(0, $obj->total_due_amount_khr);
-        // Log::info($usd.'---'.$khr);
         Helper::deductAmountBase($usd,$khr,($obj->total_fees + $obj->total_taxi_fee));
         
         return DataResponse::JsonRaw([
@@ -2974,6 +3743,7 @@ class TransactionService
 
         $totalDriverCodUsd = 0;
         $totalDriverCodKhr = 0;
+        // $byMerchant = [];
         foreach($packageIds as $index=>$id){
             $package = $packages->get($id);
             if (!$package) {
@@ -3017,11 +3787,41 @@ class TransactionService
             $obj->total_package_price += $package->price;
             $obj->merchant_name = $package->merchant?->username;
             $obj->merchant_code = $package->merchant?->code;
+            // if($package->driver_cod_usd == 0 && $package->driver_cod_khr == 0){
+                // if (!isset($byMerchant[$package->merchant_id])) {
+                //     $byMerchant[$package->merchant_id] = [
+                //         'qr' => [],
+                //         'id' => [],
+                //         'merchant_id' => $package->merchant_id,
+                //         'driver_cod_usd' => 0,
+                //         'driver_cod_khr' => 0,
+                //         'fees' => 0,
+                //         'taxi_fee' => 0,
+                //     ];
+                // }
+                // $driverCodUsd = $package->driver_cod_usd;
+                // $driverCodKhr = $package->driver_cod_khr;
+                // $fees = ($package->payer == 'sender') ? ($package->delivery_fee + $package->other_fee):0;
+                // $byMerchant[$package->merchant_id]['driver_cod_usd'] += $driverCodUsd;
+                // $byMerchant[$package->merchant_id]['driver_cod_khr'] += $driverCodKhr;
+                // $byMerchant[$package->merchant_id]['qr'][] = $package->qr_code;
+                // $byMerchant[$package->merchant_id]['fees'] += number_format($fees,2,'.','');
+                // $byMerchant[$package->merchant_id]['taxi_fee'] += $package->taxi_fee;
+            // }
+
             $totalDriverCodUsd += $package->driver_cod_usd;
             $totalDriverCodKhr += $package->driver_cod_khr;
         }
         // if($paymentType == 'disbursement') $obj->total_due_amount = abs($obj->total_due_amount);
-        // Log::error(json_encode($obj));
+        // if(!empty($byMerchant)){
+        //     // Log::error(json_encode($byMerchant));
+        //     $filtered = collect($byMerchant)->filter(function ($item) {
+        //         return $item['merchant_id'] == 663;
+        //     });
+        //     if(!empty($filtered)){
+        //         Log::info(json_encode($filtered));
+        //     }
+        // }
         Helper::deductAmountBase($totalDriverCodUsd,$totalDriverCodKhr,($obj->total_fees + $obj->total_taxi_fee));
         return DataResponse::JsonResult([
             'pacakage_ids' => $packageIds,
@@ -3655,7 +4455,6 @@ class TransactionService
             // $paidPackageIds = collect();
             // foreach ($packages as $pkg) {
             //     foreach ($pkg->driverPackages as $dp) {
-            //         // Log::info($dp->paymentPackages);
             //         // Collect payments
             //         $dpPayments = $dp->paymentPackages
             //                         ->where('is_deleted', false) // optional safety
@@ -3686,7 +4485,6 @@ class TransactionService
             //     }
             // }
 
-            // Log::info($paidPackageIds);
             // Remove duplicates by 'id'
             // $pmt = $pmt->unique('id')->values();
             // $dis = $dis->unique('id')->values();
@@ -3746,7 +4544,6 @@ class TransactionService
             $driverCodKhr = $packages->sum('driver_cod_khr');
             $tobePaidUsd = $packages->whereNotIn('package_id', $paidPackageIds)->sum('driver_cod_usd');
             $tobePaidKhr = $packages->whereNotIn('package_id', $paidPackageIds)->sum('driver_cod_khr');
-            // Log::info($packages);
             $collected = $packages
             ->groupBy(fn($p) => (empty($p->method) || $p->method == 'cod') ? 'cash':'ABA')
             ->flatMap(function ($group, $method) {

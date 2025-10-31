@@ -1186,7 +1186,6 @@ class GeneralSettingService
                 $updateArr['finished_datetime'] = now();
                 $updateArr['finished_uid'] = $user->id;
             }
-            // Log::info($updateArr);
             $trip->update($updateArr);
         }
     }
