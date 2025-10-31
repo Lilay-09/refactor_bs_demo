@@ -8,11 +8,11 @@ use App\Models\Package;
 use App\Models\User;
 use App\Services\GeneralSettingService;
 use DataResponse;
-use DB;
+use Illuminate\Support\Facades\DB;
 use Exception;
 use Helper;
 use Illuminate\Http\Request;
-use Log;
+use Illuminate\Support\Facades\Log;
 
 class FleetServiceImpl
 {

@@ -147,67 +147,123 @@ class FleetManagementController extends Controller
         ];
     }
 
-    public function getTripPackages(Request $req){
+    public function getTripPackages(Request $req)
+    {
         $trip_id = $req->trip_id;
         $isKm = $req->lang == 'km';
         $search = $req->search;
-        // $caseHistory = 'CASE
-        //     WHEN p.status_id != dp.status_id AND p.driver_id != dp.driver_id AND (dp.delay_count = TRUE OR dp.has_swap = TRUE) THEN true
-        //     ELSE false
-        // END AS is_history';
-        // $countHistory = 'SUM(
-        //     CASE
-        //         WHEN
-        //             p.status_id != dp.status_id
-        //             OR p.driver_id != dp.driver_id
-        //             OR dp.delay_count = TRUE
-        //             OR dp.has_swap = TRUE
-        //         THEN 1
-        //         ELSE 0
-        //     END
-        // ) AS history_count';
-        $caseHistory = 'CASE
-            WHEN
-                p.status_id != dp.status_id
-                OR p.driver_id != dp.driver_id
-                OR dp.delay_count = TRUE
-                OR dp.has_swap = TRUE
-            THEN true
-            ELSE false
-        END AS is_history';
 
+        // Subquery: latest dp per package where driver is same, no delay, no swap
+        $latestDpSub = DB::table('delivery_packages as sub')
+            ->selectRaw('MAX(sub.id) as latest_dp_id')
+            ->where('sub.is_deleted', 0)
+            ->where('sub.delay_count', false)
+            ->where('sub.has_swap', false)
+            ->join('packages as p', 'p.id', '=', 'sub.package_id')
+            ->whereColumn('sub.driver_id', 'p.driver_id') // same driver
+            ->groupBy('sub.package_id');
 
-        $qP = Package::query()->fromRaw('packages as p')->join('delivery_packages as dp','p.id','dp.package_id')
-        ->where('dp.is_deleted',0)
-        // ->where('dp.delay_count', 0)
-        // ->whereIn('dp.status_id',[6,9,10,19])
-        ->whereIn('p.status_id',[6,9,10,19])
-        // ->where(function ($q) {
-        //     $q->where('dp.status_id', '!=', 6) // Allow other statuses freely
-        //     ->orWhere('dp.has_swap', 0); // Only allow status_id = 6 if has_swap = 0
-        // })
-        // ->where('dp.delay_count',0)
-        ->where('dp.delivery_id',$trip_id)
-        ->join('users as m','m.id','p.merchant_id')
-        ->join('users as d','d.id','p.driver_id')
-        ->join('tracking_statuses as ts','ts.id','p.status_id')
-        ->selectRaw('p.assign_driver_datetime,dp.has_swap,p.qr_code,p.price,p.cod,p.receiver_name,p.receiver_phone,p.zone_code,p.zone_name,ts.name as status_code,d.username as driver_name,d.phone as driver_phone,m.username as merchant_name,m.phone as merchant_phone,p.id as package_id,dp.delivery_id,p.zone_code,p.zone_name,p.delivery_fee as base_fee,p.driver_total,p.taxi_fee,p.product_type,p.status_id,p.payer,'.$caseHistory)
-        // ->orderByRaw('(dp.status_id = ?) DESC', [6]);
-        ->orderByRaw('(p.status_id = ?) DESC', [6]);
+        $qP = Package::query()
+            ->from('packages as p')
+            ->join('delivery_packages as dp', 'p.id', '=', 'dp.package_id')
+            ->joinSub($latestDpSub, 'latest_dp', function ($join) {
+                $join->on('dp.id', '=', 'latest_dp.latest_dp_id');
+            })
+            ->where('dp.is_deleted', 0)
+            ->where('dp.delivery_id', $trip_id)
+            ->whereIn('p.status_id', [6, 9, 10, 19])
+            ->join('users as m', 'm.id', '=', 'p.merchant_id')
+            ->join('users as d', 'd.id', '=', 'p.driver_id')
+            ->join('tracking_statuses as ts', 'ts.id', '=', 'p.status_id')
+            ->selectRaw('
+                p.assign_driver_datetime,
+                dp.has_swap,
+                p.qr_code,
+                p.price,
+                p.cod,
+                p.receiver_name,
+                p.receiver_phone,
+                p.zone_code,
+                p.zone_name,
+                ts.name as status_code,
+                d.username as driver_name,
+                d.phone as driver_phone,
+                m.username as merchant_name,
+                m.phone as merchant_phone,
+                p.id as package_id,
+                dp.delivery_id,
+                p.delivery_fee as base_fee,
+                p.driver_total,
+                p.taxi_fee,
+                p.product_type,
+                p.status_id,
+                p.payer
+            ')
+            ->orderByRaw('(p.status_id = ?) DESC', [6]);
+
         if ($search && str_starts_with($search, 'NG')) {
-            $qP->where('p.qr_code',$search);
+            $qP->where('p.qr_code', $search);
         }
-        // $packages = $qP->get();
-        $clbMapper = function ($package) use($isKm){
-            $package->delivery_fee = $package->base_fee + $package->extra_charge;
-            if($isKm) $package->status_code = GeneralSettingService::$statusCodeTrans[$package->status_id] ?? '';
+
+        $clbMapper = function ($package) use ($isKm) {
+            $package->delivery_fee = $package->base_fee + ($package->extra_charge ?? 0);
+            if ($isKm) {
+                $package->status_code = GeneralSettingService::$statusCodeTrans[$package->status_id] ?? '';
+            }
             unset($package->status);
             return $package;
         };
 
-        return ApiResponse::PaginationV1($qP,$req,null,[],200,$clbMapper);
-        // return ApiResponse::Pagination($packages,$req,__('messages.get_list',['info' => 'Package']));
+        return ApiResponse::PaginationV1($qP, $req, null, [], 200, $clbMapper);
     }
+
+
+    // public function getTripPackages(Request $req){
+    //     $trip_id = $req->trip_id;
+    //     $isKm = $req->lang == 'km';
+    //     $search = $req->search;
+    //     $caseHistory = 'CASE
+    //         WHEN
+    //             p.status_id != dp.status_id
+    //             OR p.driver_id != dp.driver_id
+    //             OR dp.delay_count = TRUE
+    //             OR dp.has_swap = TRUE
+    //         THEN true
+    //         ELSE false
+    //     END AS is_history';
+
+
+    //     $qP = Package::query()->fromRaw('packages as p')->join('delivery_packages as dp','p.id','dp.package_id')
+    //     ->where('dp.is_deleted',0)
+    //     // ->where('dp.delay_count', 0)
+    //     // ->whereIn('dp.status_id',[6,9,10,19])
+    //     ->whereIn('p.status_id',[6,9,10,19])
+    //     // ->where(function ($q) {
+    //     //     $q->where('dp.status_id', '!=', 6) // Allow other statuses freely
+    //     //     ->orWhere('dp.has_swap', 0); // Only allow status_id = 6 if has_swap = 0
+    //     // })
+    //     // ->where('dp.delay_count',0)
+    //     ->where('dp.delivery_id',$trip_id)
+    //     ->join('users as m','m.id','p.merchant_id')
+    //     ->join('users as d','d.id','p.driver_id')
+    //     ->join('tracking_statuses as ts','ts.id','p.status_id')
+    //     ->selectRaw('p.assign_driver_datetime,dp.has_swap,p.qr_code,p.price,p.cod,p.receiver_name,p.receiver_phone,p.zone_code,p.zone_name,ts.name as status_code,d.username as driver_name,d.phone as driver_phone,m.username as merchant_name,m.phone as merchant_phone,p.id as package_id,dp.delivery_id,p.zone_code,p.zone_name,p.delivery_fee as base_fee,p.driver_total,p.taxi_fee,p.product_type,p.status_id,p.payer,'.$caseHistory)
+    //     // ->orderByRaw('(dp.status_id = ?) DESC', [6]);
+    //     ->orderByRaw('(p.status_id = ?) DESC', [6]);
+    //     if ($search && str_starts_with($search, 'NG')) {
+    //         $qP->where('p.qr_code',$search);
+    //     }
+    //     // $packages = $qP->get();
+    //     $clbMapper = function ($package) use($isKm){
+    //         $package->delivery_fee = $package->base_fee + $package->extra_charge;
+    //         if($isKm) $package->status_code = GeneralSettingService::$statusCodeTrans[$package->status_id] ?? '';
+    //         unset($package->status);
+    //         return $package;
+    //     };
+
+    //     return ApiResponse::PaginationV1($qP,$req,null,[],200,$clbMapper);
+    //     // return ApiResponse::Pagination($packages,$req,__('messages.get_list',['info' => 'Package']));
+    // }
 
     public function setPackageStatus(Request $req){
         // Log::info($req->all());
