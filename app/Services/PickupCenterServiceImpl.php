@@ -2,6 +2,7 @@
 
 namespace App\Services;
 use App\Enums\ImageDirectory;
+use App\Enums\TrackingStatus;
 use App\Jobs\SendNotificationJob;
 use App\Models\Delivery;
 use App\Models\DeliveryPackage;
@@ -538,18 +539,42 @@ class PickupCenterServiceImpl implements PickupCenterService
         }
     }
 
-    private function checkDuplicateReceiverPhoneByOrder(int $orderId,string $phone,?int $pkgId=null){
-        $dP = Package::where('is_deleted',false)
-                ->where('order_id',$orderId)
-                ->where('receiver_phone',$phone);
-        if($pkgId){
-            $dP->where('id','!=',$pkgId);
+    private function checkDuplicateReceiverPhoneByOrder(int $orderId, string $phone, ?int $pkgId = null): bool
+    {
+        if ($pkgId) {
+            $package = Package::where('is_deleted', false)
+                ->where('id', $pkgId)
+                ->where('order_id', $orderId)
+                ->first();
+
+            if (!$package) {
+                // If package not found, treat as no duplicate
+                return false;
+            }
+
+            // If phone not changed, no duplicate
+            if ($package->receiver_phone === $phone) {
+                return false;
+            }
+
+            // Check if another package has the same phone
+            return Package::where('is_deleted', false)
+                ->where('order_id', $orderId)
+                ->where('id', '!=', $pkgId)
+                ->where('receiver_phone', $phone)
+                ->exists();
         }
-        return $dP->exists();
+
+        // For new package, check if any package has the phone
+        return Package::where('is_deleted', false)
+            ->where('order_id', $orderId)
+            ->where('receiver_phone', $phone)
+            ->exists();
     }
 
+
     public function createOrUpdateTrip($driverId,$packageId,$vehicleType,$user,$notes,$statusId,$action=null,$package=null){
-        $today = date('Y-m-d');
+        // $today = date('Y-m-d');
         $isNewPkg = true;
         $pendingTrip = Delivery::where(function($query) {
             $query->where('finished', 0)
@@ -622,7 +647,7 @@ class PickupCenterServiceImpl implements PickupCenterService
             $updateArr = [
                 'driver_id' => $driverId,
                 'delay_count' => $delay,
-                'status_id' => 14,
+                'status_id' => TrackingStatus::ON_DELIVERY_TRIP->value,
                 'is_completed' => false,
                 'finished' => false,
                 'package_count' => $newPackageCount,
@@ -646,7 +671,8 @@ class PickupCenterServiceImpl implements PickupCenterService
         //** add delivery tracking */
         if($isNewPkg) {
             $dPackage = DeliveryPackage::create([
-                'order_id' => $package?->order_id,
+                'order_id' => $package->order_id,
+                'delivery_id' => $deliveryId,
                 'payer' => $package->payer,
                 'receiver_phone' => $package->receiver_phone,
                 'receiver_address' => $package->receiver_address,
@@ -658,7 +684,6 @@ class PickupCenterServiceImpl implements PickupCenterService
                 'notes' => $notes,
                 'assign_uid' => $action == 'assign' ? $user->id : null,
                 'driver_id' => $driverId,
-                'delivery_id' => $deliveryId,
                 'package_id' => $packageId,
                 'status_id' => 6, // On Delivery
                 'update_uid' => $user->id,
