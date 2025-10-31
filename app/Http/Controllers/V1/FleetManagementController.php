@@ -54,7 +54,7 @@ class FleetManagementController extends Controller
         ->selectRaw('id,fleet_tracking_number,status_id,driver_id,depart_datetime,remarks,package_count,delivered_count,failed_count,warehouse_id,vehicle_type,driver_id,is_completed,finished');
         if($search){
             $query->whereHas('packages.package',function($q) use ($search){
-                $q->where('qr_code',$search);
+                $q->where('qr_code',$search)->orWhere('receiver_phone',$search);
             })->orWhere('fleet_tracking_number',$search)->orWhereHas('driver',function($q) use ($search){
                 $q->where('username','ilike','%'.$search.'%')->orWhere('name_km','ilike','%'.$search.'%');
             });
