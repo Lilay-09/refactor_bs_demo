@@ -54,7 +54,7 @@ class FleetManagementController extends Controller
         ->selectRaw('id,fleet_tracking_number,status_id,driver_id,depart_datetime,remarks,package_count,delivered_count,failed_count,warehouse_id,vehicle_type,driver_id,is_completed,finished');
         if($search){
             $query->whereHas('packages.package',function($q) use ($search){
-                $q->where('qr_code',$search);
+                $q->where('qr_code',$search)->orWhere('receiver_phone',$search);
             })->orWhere('fleet_tracking_number',$search)->orWhereHas('driver',function($q) use ($search){
                 $q->where('username','ilike','%'.$search.'%')->orWhere('name_km','ilike','%'.$search.'%');
             });
@@ -201,8 +201,10 @@ class FleetManagementController extends Controller
             ')
             ->orderByRaw('(p.status_id = ?) DESC', [6]);
 
-        if ($search && str_starts_with($search, 'NG')) {
-            $qP->where('p.qr_code', $search);
+        // if ($search && str_starts_with($search, 'NG')) {
+        if($search){
+            $qP->where('p.qr_code', $search)
+            ->orWhere('p.receiver_phone',$search);
         }
 
         $clbMapper = function ($package) use ($isKm) {
@@ -213,7 +215,6 @@ class FleetManagementController extends Controller
             unset($package->status);
             return $package;
         };
-
         return ApiResponse::PaginationV1($qP, $req, null, [], 200, $clbMapper);
     }
 
