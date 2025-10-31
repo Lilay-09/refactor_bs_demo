@@ -201,8 +201,10 @@ class FleetManagementController extends Controller
             ')
             ->orderByRaw('(p.status_id = ?) DESC', [6]);
 
-        if ($search && str_starts_with($search, 'NG')) {
-            $qP->where('p.qr_code', $search);
+        // if ($search && str_starts_with($search, 'NG')) {
+        if($search){
+            $qP->where('p.qr_code', $search)
+            ->orWhere('p.receiver_phone',$search);
         }
 
         $clbMapper = function ($package) use ($isKm) {
@@ -213,7 +215,6 @@ class FleetManagementController extends Controller
             unset($package->status);
             return $package;
         };
-
         return ApiResponse::PaginationV1($qP, $req, null, [], 200, $clbMapper);
     }
 
