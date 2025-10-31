@@ -888,7 +888,9 @@ class UserService
         $inputs['bot_token'] = $tlBot->token;
         $inputs['bot_name'] = $tlBot->name;
         $inputs['type'] = $userType;
-        $ursTelegramBot = TelegramBotUser::where('is_deleted',false)->where('bot_id',$botId)->first();
+        $ursTelegramBot = TelegramBotUser::where('is_deleted',false)
+        ->where('user_id',$userId)
+        ->where('bot_id',$botId)->first();
         if(!$ursTelegramBot){
             $inputs['create_uid'] = Auth::user()->id;
             TelegramBotUser::create($inputs);
