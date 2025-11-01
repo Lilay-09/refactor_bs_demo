@@ -54,6 +54,21 @@ class Delivery extends Model
     }
 
     public function packages(){
-        return $this->hasMany(DeliveryPackage::class,'delivery_id','id')->where('is_deleted',0);
+        return $this->hasMany(DeliveryPackage::class,'delivery_id','id')
+        ->where('is_deleted',0)
+        ->orderByDesc('id');
     }
+
+    /**
+     * Get unique packages per delivery (for phone search)
+     */
+    public function distinctPackages()
+    {
+        return $this->hasMany(DeliveryPackage::class, 'delivery_id', 'id')
+                    ->where('is_deleted', 0)
+                    ->select('id', 'delivery_id', 'package_id') // only necessary fields
+                    ->groupBy('package_id'); // ensures unique package_id
+    }
+
+
 }
