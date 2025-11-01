@@ -62,6 +62,8 @@ class FleetManagementController extends Controller
                     $q->whereHas('packages.package', function ($sub) use ($search) {
                         $sub->where('receiver_phone', $search);
                     });
+                }else{
+                    $q->where('fleet_tracking_number',$search);
                 }
             });
         }else{
@@ -210,8 +212,7 @@ class FleetManagementController extends Controller
             ')
             ->orderByRaw('(p.status_id = ?) DESC', [6]);
 
-        // if ($search && str_starts_with($search, 'NG')) {
-        if($search){
+        if ($search && str_starts_with($search, 'NG') || str_starts_with($search, '0')) {
             $qP->where('p.qr_code', $search)
             ->orWhere('p.receiver_phone',$search);
         }
