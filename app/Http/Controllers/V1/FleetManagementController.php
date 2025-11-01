@@ -52,13 +52,20 @@ class FleetManagementController extends Controller
         ->orderBy('status_id')
         ->orderByDesc('id')
         ->selectRaw('id,fleet_tracking_number,status_id,driver_id,depart_datetime,remarks,package_count,delivered_count,failed_count,warehouse_id,vehicle_type,driver_id,is_completed,finished');
-        if($search){
-            $query->whereHas('packages.package',function($q) use ($search){
-                $q->where('qr_code',$search)->orWhere('receiver_phone',$search);
-            })->orWhere('fleet_tracking_number',$search)->orWhereHas('driver',function($q) use ($search){
-                $q->where('username','ilike','%'.$search.'%')->orWhere('name_km','ilike','%'.$search.'%');
+        if ($search) {
+            $query->where(function ($q) use ($search) {
+                if (str_starts_with($search, 'NG')) {
+                    $q->whereHas('packages.package', function ($sub) use ($search) {
+                        $sub->where('qr_code', $search);
+                    });
+                } elseif (str_starts_with($search, '0')) {
+                    $q->whereHas('packages.package', function ($sub) use ($search) {
+                        $sub->where('receiver_phone', $search);
+                    });
+                }
             });
         }
+
         if($driverId){
             $query->where('driver_id',$driverId);
         }
