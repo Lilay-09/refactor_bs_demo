@@ -36,45 +36,75 @@ class FleetManagementController extends Controller
         $lang = $req->lang;
         $endDate = $req->endDate;
         $statusId = $req->status_id;
-        $packages = Package::fromRaw('packages as p')->join('delivery_packages as dp','p.id','dp.package_id')
-        ->where('p.is_deleted',false)
-        ->selectRaw('p.id as package_id,dp.delivery_id,dp.delay_count,dp.has_swap,p.status_id,p.driver_total')
-        ->where('dp.is_deleted',false)
-        ->where('dp.has_swap',0)
-        ->where(function($q){
-            $q->where('dp.is_deleted',false)
-            ->where('dp.has_swap',0)
-            ->where('dp.delay_count',0);
-        })
-        // ->groupBy('p.id','dp.delivery_id','dp.delay_count')
-        ->get();
+        // $packages = Package::fromRaw('packages as p')->join('delivery_packages as dp','p.id','dp.package_id')
+        // ->where('p.is_deleted',false)
+        // ->selectRaw('p.id as package_id,dp.delivery_id,dp.delay_count,dp.has_swap,p.status_id,p.driver_total')
+        // ->where('dp.is_deleted',false)
+        // ->where('dp.has_swap',0)
+        // ->where(function($q){
+        //     $q->where('dp.is_deleted',false)
+        //     ->where('dp.has_swap',0)
+        //     ->where('dp.delay_count',0);
+        // })
+        // ->get();
+        $latestDeliveryPackages = DB::table('delivery_packages as dp')
+            ->selectRaw('MAX(dp.id) as id')
+            ->where('dp.is_deleted', false)
+            ->groupBy('dp.package_id')
+            ->pluck('id');
+
+        // Step 2: Load package info only from latest delivery_packages
+        $packages = Package::from('packages as p')
+            ->join('delivery_packages as dp', 'p.id', '=', 'dp.package_id')
+            ->whereIn('dp.id', $latestDeliveryPackages)
+            ->where([
+                ['p.is_deleted', false],
+                ['dp.is_deleted', false],
+                ['dp.has_swap', 0],
+                ['dp.delay_count', 0],
+            ])
+            ->selectRaw('p.id as package_id, dp.delivery_id, dp.delay_count, dp.has_swap, p.status_id, p.driver_total')
+            ->get();
         $query = Delivery::query()->with(['status','driver'])->where('is_deleted',0)->where('company_id',$user->company_id)
         ->orderBy('status_id')
         ->orderByDesc('id')
         ->selectRaw('id,fleet_tracking_number,status_id,driver_id,depart_datetime,remarks,package_count,delivered_count,failed_count,warehouse_id,vehicle_type,driver_id,is_completed,finished');
-        if($search){
-            $query->whereHas('packages.package',function($q) use ($search){
-                $q->where('qr_code',$search)->orWhere('receiver_phone',$search);
-            })->orWhere('fleet_tracking_number',$search)->orWhereHas('driver',function($q) use ($search){
-                $q->where('username','ilike','%'.$search.'%')->orWhere('name_km','ilike','%'.$search.'%');
+        if ($search) {
+            $query->where(function ($q) use ($search) {
+                if (str_starts_with($search, 'NG')) {
+                    $q->whereHas('packages.package', function ($sub) use ($search) {
+                        $sub->where('qr_code', $search);
+                    });
+                } elseif (str_starts_with($search, '0')) {
+                    // Phone search — use distinctPackages
+                    $q->whereHas('distinctPackages.package', function($q) use ($search) {
+                        $q->where('receiver_phone', $search)
+                        ->whereColumn('packages.driver_id', 'delivery_packages.driver_id');
+                    });
+                }else{
+                    $q->where('fleet_tracking_number',$search);
+                }
             });
-        }
-        if($driverId){
-            $query->where('driver_id',$driverId);
-        }
-        if($statusId){
-            $query->where('status_id',$statusId);
-        }
-        if($startDate && $endDate){
-            $startDate = date('Y-m-d',strtotime($startDate));
-            $endDate = date('Y-m-d',strtotime($endDate));
-            $query->where(function ($q) use ($startDate, $endDate) {
-                $q->whereBetween('depart_datetime', ["$startDate 00:00:00", "$endDate 23:59:59"]);
-            });
-
         }else{
-            $query->whereDate('depart_datetime',now());
+            if($driverId){
+                $query->where('driver_id',$driverId);
+            }
+            if($statusId){
+                $query->where('status_id',$statusId);
+            }
+            if($startDate && $endDate){
+                $startDate = date('Y-m-d',strtotime($startDate));
+                $endDate = date('Y-m-d',strtotime($endDate));
+                $query->where(function ($q) use ($startDate, $endDate) {
+                    $q->whereBetween('depart_datetime', ["$startDate 00:00:00", "$endDate 23:59:59"]);
+                });
+
+            }else{
+                $query->whereDate('depart_datetime',now());
+            }
         }
+
+        
         // $deliveries = $query;
         $callback = function($delivery) use($lang,$packages){
             if($lang == 'km'){
@@ -201,8 +231,7 @@ class FleetManagementController extends Controller
             ')
             ->orderByRaw('(p.status_id = ?) DESC', [6]);
 
-        // if ($search && str_starts_with($search, 'NG')) {
-        if($search){
+        if ($search && str_starts_with($search, 'NG') || str_starts_with($search, '0')) {
             $qP->where('p.qr_code', $search)
             ->orWhere('p.receiver_phone',$search);
         }
