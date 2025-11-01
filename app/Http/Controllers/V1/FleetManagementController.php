@@ -64,24 +64,26 @@ class FleetManagementController extends Controller
                     });
                 }
             });
-        }
-
-        if($driverId){
-            $query->where('driver_id',$driverId);
-        }
-        if($statusId){
-            $query->where('status_id',$statusId);
-        }
-        if($startDate && $endDate){
-            $startDate = date('Y-m-d',strtotime($startDate));
-            $endDate = date('Y-m-d',strtotime($endDate));
-            $query->where(function ($q) use ($startDate, $endDate) {
-                $q->whereBetween('depart_datetime', ["$startDate 00:00:00", "$endDate 23:59:59"]);
-            });
-
         }else{
-            $query->whereDate('depart_datetime',now());
+            if($driverId){
+                $query->where('driver_id',$driverId);
+            }
+            if($statusId){
+                $query->where('status_id',$statusId);
+            }
+            if($startDate && $endDate){
+                $startDate = date('Y-m-d',strtotime($startDate));
+                $endDate = date('Y-m-d',strtotime($endDate));
+                $query->where(function ($q) use ($startDate, $endDate) {
+                    $q->whereBetween('depart_datetime', ["$startDate 00:00:00", "$endDate 23:59:59"]);
+                });
+
+            }else{
+                $query->whereDate('depart_datetime',now());
+            }
         }
+
+        
         // $deliveries = $query;
         $callback = function($delivery) use($lang,$packages){
             if($lang == 'km'){
