@@ -23,7 +23,7 @@ class JwtAuthMiddleware
      */
     public function handle(Request $request, Closure $next)
     {
-        // Log::info($request->header('User-Agent'));
+        Log::info($request->header('User-Agent'));
         $cookieHeader = $request->header('cookie');
         $cookies = $cookieHeader ? $this->parseCookies($cookieHeader):null;
         $accessToken = $cookies['access_token'] ?? null;
