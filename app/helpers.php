@@ -1739,7 +1739,7 @@ class DataResponse //extends Model
      */
     public static function PaginationV1(
         Builder $query,
-        ?array $filter = null,
+        Request|array|null $filter = null,
         string $message = '',
         array $additionalKey = [],
         int $limit = 1000,
