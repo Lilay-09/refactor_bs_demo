@@ -1611,8 +1611,17 @@ class ReportController extends Controller
                         OR (status_id = 10 AND failed_datetime BETWEEN ? AND ?)
                         OR (status_id = 19 AND failed_datetime BETWEEN ? AND ?)
                         OR (status_id = 9 AND delivered_datetime BETWEEN ? AND ?)
-                        OR (status_id = 11 AND returned_datetime BETWEEN ? AND ?)",
-                        [$startDatetime, $endDatetime, $startDatetime, $endDatetime, $startDatetime, $endDatetime, $startDatetime, $endDatetime, $startDatetime, $endDatetime, $startDatetime, $endDatetime]
+                        OR (status_id = 11 AND assigned_return_at BETWEEN ? AND ?)
+                        OR (status_id = 23 AND returned_datetime BETWEEN ? AND ?)",
+                        [
+                            $startDatetime, $endDatetime, 
+                            $startDatetime, $endDatetime, 
+                            $startDatetime, $endDatetime, 
+                            $startDatetime, $endDatetime, 
+                            $startDatetime, $endDatetime, 
+                            $startDatetime, $endDatetime,
+                            $startDatetime, $endDatetime
+                        ]
                     );
                 });
             }
@@ -1687,18 +1696,18 @@ class ReportController extends Controller
                     'delivery_fee' => $deliveryFee,
                     'other_fee' => $otherFee
                 ],
-                'totalCharge' => $deductFees,
+                'totalCharge' => Helper::getNumber($deductFees,2,true),
                 'totalCod' => [
                     'usd' => Helper::getNumber($items->sum('price_usd'),2,true),
-                    'khr' => Helper::getNumber($items->sum('price_khr'),2,true)
+                    'khr' => Helper::getNumber($items->sum('price_khr'),0,true)
                 ],
                 'totalReceived' => [
                     'usd' => Helper::getNumber($driverCodUsd,2,true),
-                    'khr' => Helper::getNumber($driverCodKhr,2,true)
+                    'khr' => Helper::getNumber($driverCodKhr,0,true)
                 ],
                 'to_return' => [
                     'usd' => Helper::getNumber($toSettleUsd,2,true),
-                    'khr' => Helper::getNumber($toSettleKhr,2,true)
+                    'khr' => Helper::getNumber($toSettleKhr,0,true)
                 ],
                 'items' => $items->values(),      // reset keys
             ];
