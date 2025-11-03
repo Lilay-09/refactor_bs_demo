@@ -1676,7 +1676,8 @@ class ReportController extends Controller
         //     'taxi_fee' => 0,
         //     'other_fee' => 0
         // ];
-        $groupedPackages = $packages->groupBy('status')->map(function ($items, $group) use (&$totalCount) {
+        $unique = null;
+        $groupedPackages = $packages->groupBy('status')->map(function ($items, $group) use (&$unique,&$totalCount) {
             $totalCount += $items->count();
             $driverCodUsd = $items->sum('driver_cod_usd');
             $driverCodKhr = $items->sum('driver_cod_khr');
@@ -1687,10 +1688,13 @@ class ReportController extends Controller
             $otherFee = $items->where('payer','sender')->sum('other_fee');
             $deductFees = $taxiFee + $deliveryFee + $otherFee;
             Helper::deductAmountBase($toSettleUsd,$toSettleKhr,$deductFees);
+            $statusId = $items->first()->status_id;
+            $count=$items->count();
+            $unique .= "$count-$statusId";
             return [
                 'group' => $group,
-                'status_id' => $items->first()->status_id,
-                'count' => $items->count(),
+                'status_id' => $statusId,
+                'count' => $count,
                 'service_fees' => [
                     'taxi_fee' => $taxiFee,
                     'delivery_fee' => $deliveryFee,
@@ -1713,9 +1717,6 @@ class ReportController extends Controller
             ];
         })->values();
 
-
-
-
         $obj =(object)[
             'title' => 'Merchant Summary',
             // 'status' => 'All Driver',
@@ -1728,6 +1729,7 @@ class ReportController extends Controller
             //     'total_received' => $total,
             //     'service_fees' => $service_fees
             // ],
+            'unique' => $unique,
             'list' => $groupedPackages
         ];
         return ApiResponse::JsonResult($obj);

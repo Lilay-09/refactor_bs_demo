@@ -67,7 +67,7 @@ class ZoneController extends Controller
     }
 
     public function getZones(Request $req){
-        $user = UserService::getAuthUser();
+        // $user = UserService::getAuthUser();
         $search = $req->search;
         $query = Zone::query()->where('is_deleted',0)
         ->where('identity','parent')
