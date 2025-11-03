@@ -3,6 +3,8 @@
 namespace App\Providers;
 
 use App\Exceptions\Handler;
+use App\Services\ActivityLogService;
+use App\Services\ActivityLogServiceImpl;
 use App\Services\BranchService;
 use App\Services\BranchServiceImpl;
 use App\Services\CommentService;
@@ -45,6 +47,7 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(MerchantTransactionService::class,MerchantTransactionServiceImpl::class);
         $this->app->bind(PaywayService::class,PaywayServiceImpl::class);
         $this->app->bind(TelegramBotService::class,TelegramBotServiceImpl::class);
+        $this->app->bind(ActivityLogService::class,ActivityLogServiceImpl::class);
     }
 
     /**

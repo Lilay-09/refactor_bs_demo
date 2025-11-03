@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\V1\ActivityLogController;
 use App\Http\Controllers\V1\BannerController;
 use App\Http\Controllers\V1\BranchController;
 use App\Http\Controllers\V1\ClientTypeController;
@@ -125,6 +126,10 @@ Route::middleware(['jwt','localize','userAccess:admin','rateLimit'])->prefix('ad
             Route::put('{id}',[TelegramBotController::class,'updateById']);
             Route::delete('{id}',[TelegramBotController::class,'deleteBotById']);
         }); 
+    });
+
+    Route::prefix('activity-logs')->group(function(){
+        Route::get('',[ActivityLogController::class,'getActivities']);
     });
 
     Route::get('dashboard',[DashboardController::class,'getDashboardSummary']);
