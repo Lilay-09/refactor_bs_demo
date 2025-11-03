@@ -272,6 +272,10 @@ class MerchantManagementController extends Controller
                         ->whereBetween('delivered_datetime', [$startDatetime, $endDatetime]);
                     })->orWhere(function ($q) use ($startDatetime, $endDatetime) {
                         $q->where('status_id', 11)
+                        ->whereBetween('assigned_return_at', [$startDatetime, $endDatetime]);
+                    })
+                    ->orWhere(function ($q) use ($startDatetime, $endDatetime) {
+                        $q->where('status_id', 23)
                         ->whereBetween('returned_datetime', [$startDatetime, $endDatetime]);
                     });
                 });

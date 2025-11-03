@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\ImageDirectory;
+use App\Traits\LogsActivity;
 use Illuminate\Support\Facades\DB;
 use Helper;
 use Illuminate\Database\Eloquent\Casts\Attribute;
@@ -11,7 +12,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class Package extends Model
 {
-    use HasFactory;
+    use HasFactory,LogsActivity;
     protected $table = 'packages';
     // protected $casts = [
     //     'price' => 'float',
