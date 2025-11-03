@@ -194,6 +194,7 @@ class MerchantManagementController extends Controller
                     [
                         'has_sent'   => true,
                         'sent_count' => $items->count(),
+                        'unique'     => $latest->unique,
                     ]
                 )
             ];
@@ -238,7 +239,8 @@ class MerchantManagementController extends Controller
             'bank_accounts' => function ($q) {
                 $q->select('id', 'user_id', 'bank_number as account_number', 'bank_name','account_name','currency');
             },
-            'telegramBot:id,user_id,group_name,group_id,bot_id,default_caption,bot_token'
+            'telegramBot:id,user_id,group_name,group_id,bot_id,default_caption,bot_token',
+            'merchantPackages:id,merchant_id,status_id,payer,taxi_fee,delivery_fee,other_fee,driver_cod_usd,driver_cod_khr,price,price_khr'
         ])
         ->groupBy('users.id', 'users.username', 'users.name_km', 'users.phone','users.code')
         ->orderByDesc('users.id');
@@ -279,16 +281,6 @@ class MerchantManagementController extends Controller
                         ->whereBetween('returned_datetime', [$startDatetime, $endDatetime]);
                     });
                 });
-
-                // $q->whereRaw(
-                //     '(packages.status_id = 5 AND packages.arrive_warehouse_datetime BETWEEN ? AND ?)
-                //     OR (packages.status_id = 6 AND packages.assign_driver_datetime BETWEEN ? AND ?)
-                //     OR (packages.status_id = 10 AND packages.failed_datetime BETWEEN ? AND ?)
-                //     OR (packages.status_id = 19 AND packages.failed_datetime BETWEEN ? AND ?)
-                //     OR (packages.status_id = 9 AND packages.delivered_datetime BETWEEN ? AND ?)
-                //     OR (packages.status_id = 11 AND packages.returned_datetime BETWEEN ? AND ?)',
-                //     [$startDatetime, $endDatetime, $startDatetime, $endDatetime, $startDatetime, $endDatetime, $startDatetime, $endDatetime, $startDatetime, $endDatetime, $startDatetime, $endDatetime]
-                // );
             });
         }
         
@@ -297,10 +289,34 @@ class MerchantManagementController extends Controller
             // Log::info($q);
             $hasSent = $telegramSendLogKeyBy[$q->id] ?? null;
             // $q->has_sent = $hasSent; //($hasSent && $hasSent->package_count == $q->package_count) ? true : false;
-            if($hasSent){
+            // if($hasSent){
+            //     $q->has_sent = [
+            //         'has_sent' => ($hasSent['package_count'] == $q->package_count) ? true : false,
+            //         'sent_count' => $hasSent['sent_count']
+            //     ];
+            // }
+            $currentUnique = null;
+
+            // ✅ Build current unique pattern from packages
+            $groupedPackages = $q->merchantPackages->groupBy('status_id');
+            foreach ($groupedPackages as $statusId => $items) {
+                $count = $items->count();
+                $currentUnique .= "{$count}-{$statusId}";
+            }
+            if ($hasSent) {
+                $dbUnique = $hasSent['unique'] ?? null; // from telegram logs
+                
+
                 $q->has_sent = [
-                    'has_sent' => ($hasSent['package_count'] == $q->package_count) ? true : false,
-                    'sent_count' => $hasSent['sent_count']
+                    'has_sent'   => ($dbUnique === $currentUnique),
+                    'sent_count' => $hasSent['sent_count'],
+                    'unique'     => $currentUnique,
+                ];
+            } else {
+                $q->has_sent = [
+                    'has_sent'   => false,
+                    'sent_count' => 0,
+                    'unique'     => $currentUnique,
                 ];
             }
         };
