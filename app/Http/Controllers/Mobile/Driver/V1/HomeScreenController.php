@@ -580,7 +580,7 @@ class HomeScreenController extends Controller
         $statusId = $req->query('status_id');
         $startDate = $req->query('startDate');
         $endDate = $req->query('endDate');
-        Log::info($req->all());
+        Log::error(json_encode($req->all(),JSON_PRETTY_PRINT));
 
         // Date range filter (only applies when both start & end are given)
         $dateRangeFilter = function ($q) use ($startDate, $endDate, $cutoff) {
