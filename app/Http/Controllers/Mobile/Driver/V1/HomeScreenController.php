@@ -580,19 +580,26 @@ class HomeScreenController extends Controller
         $statusId = $req->query('status_id');
         $startDate = $req->query('startDate');
         $endDate = $req->query('endDate');
-        Log::error(json_encode($req->all(),JSON_PRETTY_PRINT));
 
         // Date range filter (only applies when both start & end are given)
         $dateRangeFilter = function ($q) use ($startDate, $endDate, $cutoff) {
             if ($startDate && $endDate) {
-                $q->where(function ($q) use ($startDate, $endDate) {
-                    $q->where(function ($q) use ($startDate, $endDate) {
+                $start = Carbon::parse($startDate)->startOfDay();
+                $end = Carbon::parse($endDate)->endOfDay();
+
+                // Limit the range to max 30 days
+                if ($start->diffInDays($end) > 30) {
+                    $end = $start->copy()->addDays(30)->endOfDay();
+                }
+
+                $q->where(function ($q) use ($start, $end) {
+                    $q->where(function ($q) use ($start, $end) {
                         $q->where('status_id', 9)
-                            ->whereBetween('delivered_datetime', ["$startDate 00:00:00", "$endDate 23:59:59"]);
+                            ->whereBetween('delivered_datetime', [$start, $end]);
                     })
-                    ->orWhere(function ($q) use ($startDate, $endDate) {
+                    ->orWhere(function ($q) use ($start, $end) {
                         $q->whereIn('status_id', [10, 19])
-                            ->whereBetween('failed_datetime', ["$startDate 00:00:00", "$endDate 23:59:59"]);
+                            ->whereBetween('failed_datetime', [$start, $end]);
                     })
                     ->orWhere(function ($q) {
                         // status 6 — no date filter
@@ -600,7 +607,7 @@ class HomeScreenController extends Controller
                     });
                 });
             } else {
-                // ✅ Fallback: use cutoff if no date range provided
+                // Fallback: use cutoff if no date range provided
                 $q->whereRaw("
                     (
                         (status_id = 9 AND delivered_datetime >= ?)
@@ -610,6 +617,7 @@ class HomeScreenController extends Controller
                 ", [$cutoff, $cutoff]);
             }
         };
+
 
 
         // Shared subquery for delivery existence
