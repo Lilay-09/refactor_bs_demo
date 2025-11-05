@@ -613,6 +613,7 @@ class HomeScreenController extends Controller
                         (status_id = 9 AND delivered_datetime >= ?)
                         OR (status_id IN (10,19) AND failed_datetime >= ?)
                         OR (status_id NOT IN (9,10,19))
+                        OR (status_id = 6)
                     )
                 ", [$cutoff, $cutoff]);
             }
