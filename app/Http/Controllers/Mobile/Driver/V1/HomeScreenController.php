@@ -482,33 +482,157 @@ class HomeScreenController extends Controller
         return ApiResponse::PaginationV1($query,$req,'',[],100,$callback);
     }
 
-    public function getDeliveriesPackages(Request $req){
+    // public function getDeliveriesPackages(Request $req){
+    //     $user = UserService::getAuthUser();
+    //     $driverId = $user->id;
+    //     $cutoff = Carbon::now()->subDays(15);
+    //     $statusId = $req->query('status_id');
+    //     $qP = Package::query()
+    //     ->from('packages as p')
+    //     ->where('p.is_deleted',false)
+    //     ->where('p.driver_id', $driverId)
+    //     ->whereIn('p.status_id', [6,9,10,19])
+    //     ->whereRaw("
+    //         (
+    //             (p.status_id = 9 AND p.delivered_datetime >= ?)
+    //             OR (p.status_id IN (10,19) AND p.failed_datetime >= ?)
+    //             OR (p.status_id NOT IN (9,10,19))
+    //         )
+    //     ", [$cutoff, $cutoff])
+    //     // ->where('p.arrive_warehouse_datetime', '>=', Carbon::now()->subDays(15))
+    //     ->whereExists(function ($q) use ($driverId) {
+    //         $q->select(DB::raw(1))
+    //             ->from('delivery_packages as dp')
+    //             ->join('deliveries as d', 'd.id', 'dp.delivery_id')
+    //             ->whereColumn('dp.package_id', 'p.id')
+    //             ->where('dp.is_deleted', 0)
+    //             ->where('dp.has_swap', 0)
+    //             ->where('dp.delay_count', 0)
+    //             ->where('d.driver_id', $driverId)
+    //             ->where('dp.id', function ($sub) {
+    //                 $sub->selectRaw('MAX(id)')
+    //                     ->from('delivery_packages')
+    //                     ->whereColumn('package_id', 'p.id');
+    //             })
+    //             ->where(function ($q2) {
+    //                 $q2->where('d.finished', 0)
+    //                     ->orWhereBetween('d.depart_datetime', [
+    //                         Carbon::now()->subDays(7)->startOfDay(),
+    //                         Carbon::now()
+    //                     ]);
+    //             });
+    //     })
+
+    //     ->join('users as d', 'd.id', 'p.driver_id')
+    //     ->join('users as m', 'm.id', 'p.merchant_id')
+    //     // ->join('tracking_statuses as ts', 'ts.id', 'p.status_id')
+    //     ->orderBy('p.driver_display_order', 'asc')
+    //     // ->orderBy('p.status_id', 'desc');
+    //     ->orderByRaw("
+    //         CASE WHEN p.status_id = ? THEN assign_driver_datetime
+    //         WHEN p.status_id = ? THEN delivered_datetime
+    //         WHEN p.status_id IN (?,?) THEN failed_datetime
+    //         END DESC, d.id DESC
+    //     ",[6,9,10,19]);
+
+    //     $totalOnDelivery = (clone $qP)->where('p.status_id', 6)->count();
+    //     $totalDelivered = (clone $qP)->where('p.status_id', 9)->count();
+    //     $totalFailed = (clone $qP)->where('p.status_id', 10)->count();
+    //     $totalFailedWithFee = (clone $qP)->where('p.status_id', 19)->count();
+    //     if ($statusId) {
+    //         $qP->where('p.status_id', $statusId);
+    //     }
+    //     $select = [
+    //         'p.driver_display_order','p.payer','p.receiver_address','p.extra_charge','p.id','p.delivered_datetime','p.failed_datetime',
+    //         'p.assign_driver_datetime','p.merchant_id','p.qr_code','p.price','p.cod','p.receiver_name','p.receiver_phone','p.zone_code',
+    //         'p.zone_name','d.username as driver_name','d.phone as driver_phone','m.username as merchant_name','p.arrive_warehouse_datetime',
+    //         'm.phone as merchant_phone','p.id as package_id','p.zone_code','p.zone_name','p.delivery_fee as base_fee','p.driver_total',
+    //         'p.taxi_fee','p.product_type','p.status_id','p.driver_notes','p.is_contact','p.remarks','p.price_khr','p.other_fee'
+    //     ];
+    //     $xRate = 4000;//GeneralSettingService::getLatestXRate()->sell_rate;
+    //     $callback = function($q) use($xRate){
+    //         $q->status = TrackingStatus::tryFrom($q->status_id)->label();
+    //         $q->self_notes = $q->driver_notes;
+    //         $q->total = $q->driver_total;
+    //         $q->append('image_url');
+    //         $priceKhr = $q->price_khr;
+    //         $fees = $q->base_fee + $q->other_fee;
+    //         $q->total_khr = $priceKhr > 0 ? number_format($priceKhr + ($q->payer == 'receiver' ? $fees:0) * $xRate,2,'.',''):"0";
+    //         $q->fees_usd = $fees;
+    //         $q->fees_khr = $fees * $xRate;
+    //         // $q->exchange_rate = $xRate;
+    //         $this->dateTimeByStatus($q,$q->status_id);
+    //         return DeliveryTripsPackagesDTO::fromModel($q);
+    //     };
+    //     return ApiResponse::PaginationV1($qP,$req,'',[
+    //         'total_count' => $totalOnDelivery + $totalDelivered + $totalFailed + $totalFailedWithFee,
+    //         'total_on_delivery' => $totalOnDelivery,
+    //         'total_delivered' => $totalDelivered,
+    //         'total_failed' => $totalFailed,
+    //         'total_failed_with_fee' => $totalFailedWithFee
+    //     ],250,$callback,$select);
+    // }
+    public function getDeliveriesPackages(Request $req)
+    {
         $user = UserService::getAuthUser();
         $driverId = $user->id;
         $cutoff = Carbon::now()->subDays(15);
         $statusId = $req->query('status_id');
-        $qP = Package::query()
-        ->from('packages as p')
-        ->where('p.is_deleted',false)
-        ->where('p.driver_id', $driverId)
-        ->whereIn('p.status_id', [6,9,10,19])
-        ->whereRaw("
-            (
-                (p.status_id = 9 AND p.delivered_datetime >= ?)
-                OR (p.status_id IN (10,19) AND p.failed_datetime >= ?)
-                OR (p.status_id NOT IN (9,10,19))
-            )
-        ", [$cutoff, $cutoff])
-        // ->where('p.arrive_warehouse_datetime', '>=', Carbon::now()->subDays(15))
-        ->whereExists(function ($q) use ($driverId) {
+        $startDate = $req->query('startDate');
+        $endDate = $req->query('endDate');
+
+        // Date range filter (only applies when both start & end are given)
+        $dateRangeFilter = function ($q) use ($startDate, $endDate, $cutoff) {
+            if ($startDate && $endDate) {
+                $start = Carbon::parse($startDate)->startOfDay();
+                $end = Carbon::parse($endDate)->endOfDay();
+
+                // Limit the range to max 30 days
+                if ($start->diffInDays($end) > 30) {
+                    $end = $start->copy()->addDays(30)->endOfDay();
+                }
+
+                $q->where(function ($q) use ($start, $end) {
+                    $q->where(function ($q) use ($start, $end) {
+                        $q->where('status_id', 9)
+                            ->whereBetween('delivered_datetime', [$start, $end]);
+                    })
+                    ->orWhere(function ($q) use ($start, $end) {
+                        $q->whereIn('status_id', [10, 19])
+                            ->whereBetween('failed_datetime', [$start, $end]);
+                    })
+                    ->orWhere(function ($q) {
+                        // status 6 — no date filter
+                        $q->where('status_id', 6);
+                    });
+                });
+            } else {
+                // Fallback: use cutoff if no date range provided
+                $q->whereRaw("
+                    (
+                        (status_id = 9 AND delivered_datetime >= ?)
+                        OR (status_id IN (10,19) AND failed_datetime >= ?)
+                        OR (status_id NOT IN (9,10,19))
+                        OR (status_id = 6)
+                    )
+                ", [$cutoff, $cutoff]);
+            }
+        };
+
+
+
+        // Shared subquery for delivery existence
+        $deliveryExistsQuery = function ($q) use ($driverId) {
             $q->select(DB::raw(1))
                 ->from('delivery_packages as dp')
-                ->join('deliveries as d', 'd.id', 'dp.delivery_id')
+                ->join('deliveries as d', 'd.id', '=', 'dp.delivery_id')
                 ->whereColumn('dp.package_id', 'p.id')
-                ->where('dp.is_deleted', 0)
-                ->where('dp.has_swap', 0)
-                ->where('dp.delay_count', 0)
-                ->where('d.driver_id', $driverId)
+                ->where([
+                    ['dp.is_deleted', '=', 0],
+                    ['dp.has_swap', '=', 0],
+                    ['dp.delay_count', '=', 0],
+                    ['d.driver_id', '=', $driverId],
+                ])
                 ->where('dp.id', function ($sub) {
                     $sub->selectRaw('MAX(id)')
                         ->from('delivery_packages')
@@ -518,60 +642,119 @@ class HomeScreenController extends Controller
                     $q2->where('d.finished', 0)
                         ->orWhereBetween('d.depart_datetime', [
                             Carbon::now()->subDays(7)->startOfDay(),
-                            Carbon::now()
+                            Carbon::now(),
                         ]);
                 });
-        })
+        };
 
-        ->join('users as d', 'd.id', 'p.driver_id')
-        ->join('users as m', 'm.id', 'p.merchant_id')
-        // ->join('tracking_statuses as ts', 'ts.id', 'p.status_id')
-        ->orderBy('p.driver_display_order', 'asc')
-        // ->orderBy('p.status_id', 'desc');
-        ->orderByRaw("
-            CASE WHEN p.status_id = ? THEN assign_driver_datetime
-            WHEN p.status_id = ? THEN delivered_datetime
-            WHEN p.status_id IN (?,?) THEN failed_datetime
-            END DESC, d.id DESC
-        ",[6,9,10,19]);
+        // ✅ Main query
+        $qP = Package::query()
+            ->from('packages as p')
+            ->where([
+                ['p.is_deleted', false],
+                ['p.driver_id', $driverId],
+            ])
+            ->whereIn('p.status_id', [6, 9, 10, 19])
+            ->whereRaw("
+                (
+                    (p.status_id = 9 AND p.delivered_datetime >= ?)
+                    OR (p.status_id IN (10,19) AND p.failed_datetime >= ?)
+                    OR (p.status_id NOT IN (9,10,19))
+                )
+            ", [$cutoff, $cutoff])
+            ->whereExists($deliveryExistsQuery)
+            ->join('users as d', 'd.id', '=', 'p.driver_id')
+            ->join('users as m', 'm.id', '=', 'p.merchant_id')
+            ->orderBy('p.driver_display_order', 'asc')
+            ->orderByRaw("
+                CASE 
+                    WHEN p.status_id = ? THEN assign_driver_datetime
+                    WHEN p.status_id = ? THEN delivered_datetime
+                    WHEN p.status_id IN (?, ?) THEN failed_datetime
+                END DESC, d.id DESC
+            ", [6, 9, 10, 19]);
 
-        $totalOnDelivery = (clone $qP)->where('p.status_id', 6)->count();
-        $totalDelivered = (clone $qP)->where('p.status_id', 9)->count();
-        $totalFailed = (clone $qP)->where('p.status_id', 10)->count();
-        $totalFailedWithFee = (clone $qP)->where('p.status_id', 19)->count();
         if ($statusId) {
             $qP->where('p.status_id', $statusId);
         }
+
+        $dateRangeFilter($qP);
+
+        // ✅ Lightweight count query — no joins except for delivery check
+        $countQuery = DB::table('packages as p')
+            ->where([
+                ['p.is_deleted', false],
+                ['p.driver_id', $driverId],
+            ])
+            ->whereIn('p.status_id', [6, 9, 10, 19])
+            ->whereRaw("
+                (
+                    (p.status_id = 9 AND p.delivered_datetime >= ?)
+                    OR (p.status_id IN (10,19) AND p.failed_datetime >= ?)
+                    OR (p.status_id NOT IN (9,10,19))
+                )
+            ", [$cutoff, $cutoff])
+            ->whereExists($deliveryExistsQuery);
+
+        $dateRangeFilter($countQuery);
+
+        $counts = $countQuery->selectRaw("
+            SUM(CASE WHEN p.status_id = 6 THEN 1 ELSE 0 END) as total_on_delivery,
+            SUM(CASE WHEN p.status_id = 9 THEN 1 ELSE 0 END) as total_delivered,
+            SUM(CASE WHEN p.status_id = 10 THEN 1 ELSE 0 END) as total_failed,
+            SUM(CASE WHEN p.status_id = 19 THEN 1 ELSE 0 END) as total_failed_with_fee
+        ")->first();
+
+        // ✅ Simplify totals
+        $totalOnDelivery = (int) ($counts->total_on_delivery ?? 0);
+        $totalDelivered = (int) ($counts->total_delivered ?? 0);
+        $totalFailed = (int) ($counts->total_failed ?? 0);
+        $totalFailedWithFee = (int) ($counts->total_failed_with_fee ?? 0);
+        $totalCount = $totalOnDelivery + $totalDelivered + $totalFailed + $totalFailedWithFee;
+
+        // ✅ Selection columns
         $select = [
-            'p.driver_display_order','p.payer','p.receiver_address','p.extra_charge','p.id','p.delivered_datetime','p.failed_datetime',
-            'p.assign_driver_datetime','p.merchant_id','p.qr_code','p.price','p.cod','p.receiver_name','p.receiver_phone','p.zone_code',
-            'p.zone_name','d.username as driver_name','d.phone as driver_phone','m.username as merchant_name','p.arrive_warehouse_datetime',
-            'm.phone as merchant_phone','p.id as package_id','p.zone_code','p.zone_name','p.delivery_fee as base_fee','p.driver_total',
-            'p.taxi_fee','p.product_type','p.status_id','p.driver_notes','p.is_contact','p.remarks','p.price_khr','p.other_fee'
+            'p.driver_display_order', 'p.payer', 'p.receiver_address', 'p.extra_charge',
+            'p.id', 'p.delivered_datetime', 'p.failed_datetime', 'p.assign_driver_datetime',
+            'p.merchant_id', 'p.qr_code', 'p.price', 'p.cod', 'p.receiver_name', 'p.receiver_phone',
+            'p.zone_code', 'p.zone_name', 'd.username as driver_name', 'd.phone as driver_phone',
+            'm.username as merchant_name', 'p.arrive_warehouse_datetime', 'm.phone as merchant_phone',
+            'p.id as package_id', 'p.zone_code', 'p.zone_name', 'p.delivery_fee as base_fee',
+            'p.driver_total', 'p.taxi_fee', 'p.product_type', 'p.status_id', 'p.driver_notes',
+            'p.is_contact', 'p.remarks', 'p.price_khr', 'p.other_fee',
         ];
-        $xRate = 4000;//GeneralSettingService::getLatestXRate()->sell_rate;
-        $callback = function($q) use($xRate){
+
+        $xRate = 4000; // GeneralSettingService::getLatestXRate()->sell_rate;
+
+        // ✅ Output formatting callback
+        $callback = function ($q) use ($xRate) {
             $q->status = TrackingStatus::tryFrom($q->status_id)->label();
             $q->self_notes = $q->driver_notes;
             $q->total = $q->driver_total;
             $q->append('image_url');
-            $priceKhr = $q->price_khr;
+
             $fees = $q->base_fee + $q->other_fee;
-            $q->total_khr = $priceKhr > 0 ? number_format($priceKhr + ($q->payer == 'receiver' ? $fees:0) * $xRate,2,'.',''):"0";
+            $priceKhr = $q->price_khr;
+            $q->total_khr = $priceKhr > 0
+                ? number_format($priceKhr + ($q->payer == 'receiver' ? $fees : 0) * $xRate, 2, '.', '')
+                : "0";
             $q->fees_usd = $fees;
             $q->fees_khr = $fees * $xRate;
-            // $q->exchange_rate = $xRate;
-            $this->dateTimeByStatus($q,$q->status_id);
+
+            $this->dateTimeByStatus($q, $q->status_id);
             return DeliveryTripsPackagesDTO::fromModel($q);
         };
-        return ApiResponse::PaginationV1($qP,$req,'',[
-            'total_count' => $totalOnDelivery + $totalDelivered + $totalFailed + $totalFailedWithFee,
+
+        // ✅ Final API response
+        return ApiResponse::PaginationV1($qP, $req, '', [
+            'total_count' => $totalCount,
             'total_on_delivery' => $totalOnDelivery,
             'total_delivered' => $totalDelivered,
             'total_failed' => $totalFailed,
-            'total_failed_with_fee' => $totalFailedWithFee
-        ],250,$callback,$select);
+            'total_failed_with_fee' => $totalFailedWithFee,
+        ], 250, $callback, $select);
     }
+
 
     private function dateTimeByStatus(&$row, $statusId)
     {

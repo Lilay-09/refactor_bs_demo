@@ -101,6 +101,7 @@ class TelegramBotServiceImpl implements TelegramBotService
             'receiver_id' => 'required|int',
             'start' => 'required',
             'end' => 'required',
+            'unique' => 'nullable'
         ]);
         if($validator->fails()){
             return DataResponse::ValidateFail($validator->errors()->first());
@@ -108,7 +109,7 @@ class TelegramBotServiceImpl implements TelegramBotService
         $inputs = $validator->validated();
         $inputs['sender_id'] = $authUser->id;
         $inputs['sent_at'] = now();
-        $inputs['unique'] = strtotime($inputs['start']).strtotime($inputs['end']);
+        $inputs['unique'] = $inputs['unique'] ?? strtotime($inputs['start']).strtotime($inputs['end']); 
         TelegramSendLog::insert($inputs);
         return DataResponse::JsonResult(null,false,'Logged');
     }
