@@ -576,7 +576,7 @@ class HomeScreenController extends Controller
     {
         $user = UserService::getAuthUser();
         $driverId = $user->id;
-        $cutoff = Carbon::now()->subDays(15);
+        $cutoff = Carbon::now()->subDays(7);
         $statusId = $req->query('status_id');
         $startDate = $req->query('startDate');
         $endDate = $req->query('endDate');
@@ -662,7 +662,7 @@ class HomeScreenController extends Controller
                     OR (p.status_id NOT IN (9,10,19))
                 )
             ", [$cutoff, $cutoff])
-            ->whereExists($deliveryExistsQuery)
+            // ->whereExists($deliveryExistsQuery)
             ->join('users as d', 'd.id', '=', 'p.driver_id')
             ->join('users as m', 'm.id', '=', 'p.merchant_id')
             ->orderBy('p.driver_display_order', 'asc')
@@ -693,8 +693,8 @@ class HomeScreenController extends Controller
                     OR (p.status_id IN (10,19) AND p.failed_datetime >= ?)
                     OR (p.status_id NOT IN (9,10,19))
                 )
-            ", [$cutoff, $cutoff])
-            ->whereExists($deliveryExistsQuery);
+            ", [$cutoff, $cutoff]);
+            // ->whereExists($deliveryExistsQuery);
 
         $dateRangeFilter($countQuery);
 
