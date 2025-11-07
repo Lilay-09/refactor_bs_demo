@@ -149,7 +149,7 @@ class GeneralSettingController extends Controller
         }
 
         $diffDriver = $package->driver_id && $user->id !== $package->driver_id;
-        $isOnDelivery = ($user->id == $package->driver_id) ? true : false;// $package->status_id === TrackingStatus::ON_DELIVERY->value;
+        $isOnDelivery = ($user->id == $package->driver_id && $package->status_id == 6) ? true : false;// $package->status_id === TrackingStatus::ON_DELIVERY->value;
         $isReturning = $package->status_id === TrackingStatus::RETURNING->value;
 
         $info = null;
