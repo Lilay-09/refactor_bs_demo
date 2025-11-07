@@ -317,22 +317,35 @@ class MerchantManagementController extends Controller
         // }
         $this->applyPackageDateFilter($query, $startDate, $endDate);
         
-
-        $callback = function ($q) use($telegramSendLogKeyBy){
+        $callback = function ($q) use ($telegramSendLogKeyBy) {
             $hasSent = $telegramSendLogKeyBy[$q->id] ?? null;
             $currentUnique = null;
 
-            // ✅ Build current unique pattern from packages
-            $groupedPackages = $q->merchantPackages->groupBy('status_id');
-            foreach ($groupedPackages as $statusId => $items) {
-                $count = $items->count();
-                $currentUnique .= "{$count}-{$statusId}";
+            // Use the same status order as in getMerchantSummaryReportV2packageOrder
+            $statusOrder = [9, 10, 5, 6, 11, 23, 19];
+
+            // Preload grouped packages
+            $grouped = $q->merchantPackages->groupBy('status_id');
+
+            // Build currentUnique following the fixed order
+            foreach ($statusOrder as $statusId) {
+                if ($grouped->has($statusId)) {
+                    $count = $grouped[$statusId]->count();
+                    $currentUnique .= "{$count}-{$statusId}";
+                }
             }
+
+            // Handle merchants with empty packages
+            if (empty($currentUnique)) {
+                $currentUnique = '0';
+            }
+
+            // Compare with DB record
             if ($hasSent) {
-                $dbUnique = $hasSent['unique'] ?? null; // from telegram logs
+                $dbUnique = $hasSent['unique'] ?? null;
                 $q->has_sent = [
                     'has_sent'   => ($dbUnique === $currentUnique),
-                    'sent_count' => $hasSent['sent_count'],
+                    'sent_count' => $hasSent['sent_count'] ?? 0,
                     'unique'     => $currentUnique,
                 ];
             } else {
@@ -343,6 +356,7 @@ class MerchantManagementController extends Controller
                 ];
             }
         };
+
         $data = $query->get()->each($callback);
         return ApiResponse::JsonResult($data);
         // return ApiResponse::PaginationV1($query,$req, 'Get Merchant List By Date',[],1000,$callback,$select);
