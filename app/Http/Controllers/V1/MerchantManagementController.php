@@ -203,6 +203,33 @@ class MerchantManagementController extends Controller
         return $result->toArray();
     }
 
+    private function applyPackageDateFilter($query, $startDate, $endDate)
+    {
+        if ($startDate && $endDate) {
+            $start = Helper::dateYMD($startDate) . ' 00:00:00';
+            $end   = Helper::dateYMD($endDate) . ' 23:59:59';
+            $statuses = [
+                5  => 'arrive_warehouse_datetime',
+                6  => 'assign_driver_datetime',
+                10 => 'failed_datetime',
+                19 => 'failed_datetime',
+                9  => 'delivered_datetime',
+                11 => 'assigned_return_at',
+                23 => 'returned_datetime'
+            ];
+
+            $query->where(function ($q) use ($statuses, $start, $end) {
+                foreach ($statuses as $status => $column) {
+                    $q->orWhere(function ($q) use ($status, $column, $start, $end) {
+                        $q->where('status_id', $status)->whereBetween($column, [$start, $end]);
+                    });
+                }
+            });
+        }
+        return $query;
+    }
+
+
 
     public function getMerchantListByDate(Request $req){
         $startDate = $req->startDate ? Helper::dateDMY($req->startDate) : null;
@@ -240,7 +267,12 @@ class MerchantManagementController extends Controller
                 $q->select('id', 'user_id', 'bank_number as account_number', 'bank_name','account_name','currency');
             },
             'telegramBot:id,user_id,group_name,group_id,bot_id,default_caption,bot_token',
-            'merchantPackages:id,merchant_id,status_id,payer,taxi_fee,delivery_fee,other_fee,driver_cod_usd,driver_cod_khr,price,price_khr'
+            // 'merchantPackages:id,merchant_id,status_id,payer,taxi_fee,delivery_fee,other_fee,driver_cod_usd,driver_cod_khr,price,price_khr'
+            'merchantPackages' => function ($q) use ($startDate, $endDate) {
+                $q->where('is_deleted', 0)
+                ->where('outstanding', 0);
+                $this->applyPackageDateFilter($q, $startDate, $endDate);
+            }
         ])
         ->groupBy('users.id', 'users.username', 'users.name_km', 'users.phone','users.code')
         ->orderByDesc('users.id');
@@ -252,64 +284,68 @@ class MerchantManagementController extends Controller
                 ->orWhere('users.phone','ILIKE',"%{$search}%");
             });
         }
-        if($startDate && $endDate){
-            $startDatetime = Helper::dateYMD($startDate).' 00:00:00';
-            $endDatetime = Helper::dateYMD($endDate).' 23:59:59';
-            $query->where(function ($q) use ($startDatetime, $endDatetime) {
-                $q->where(function ($q) use ($startDatetime, $endDatetime) {
-                    $q->where(function ($q) use ($startDatetime, $endDatetime) {
-                        $q->where('status_id', 5)
-                        ->whereBetween('arrive_warehouse_datetime', [$startDatetime, $endDatetime]);
-                    })->orWhere(function ($q) use ($startDatetime, $endDatetime) {
-                        $q->where('status_id', 6)
-                        ->whereBetween('assign_driver_datetime', [$startDatetime, $endDatetime]);
-                    })->orWhere(function ($q) use ($startDatetime, $endDatetime) {
-                        $q->where('status_id', 10)
-                        ->whereBetween('failed_datetime', [$startDatetime, $endDatetime]);
-                    })->orWhere(function ($q) use ($startDatetime, $endDatetime) {
-                        $q->where('status_id', 19)
-                        ->whereBetween('failed_datetime', [$startDatetime, $endDatetime]);
-                    })->orWhere(function ($q) use ($startDatetime, $endDatetime) {
-                        $q->where('status_id', 9)
-                        ->whereBetween('delivered_datetime', [$startDatetime, $endDatetime]);
-                    })->orWhere(function ($q) use ($startDatetime, $endDatetime) {
-                        $q->where('status_id', 11)
-                        ->whereBetween('assigned_return_at', [$startDatetime, $endDatetime]);
-                    })
-                    ->orWhere(function ($q) use ($startDatetime, $endDatetime) {
-                        $q->where('status_id', 23)
-                        ->whereBetween('returned_datetime', [$startDatetime, $endDatetime]);
-                    });
-                });
-            });
-        }
+        // if($startDate && $endDate){
+        //     $startDatetime = Helper::dateYMD($startDate).' 00:00:00';
+        //     $endDatetime = Helper::dateYMD($endDate).' 23:59:59';
+        //     $query->where(function ($q) use ($startDatetime, $endDatetime) {
+        //         $q->where(function ($q) use ($startDatetime, $endDatetime) {
+        //             $q->where(function ($q) use ($startDatetime, $endDatetime) {
+        //                 $q->where('status_id', 5)
+        //                 ->whereBetween('arrive_warehouse_datetime', [$startDatetime, $endDatetime]);
+        //             })->orWhere(function ($q) use ($startDatetime, $endDatetime) {
+        //                 $q->where('status_id', 6)
+        //                 ->whereBetween('assign_driver_datetime', [$startDatetime, $endDatetime]);
+        //             })->orWhere(function ($q) use ($startDatetime, $endDatetime) {
+        //                 $q->where('status_id', 10)
+        //                 ->whereBetween('failed_datetime', [$startDatetime, $endDatetime]);
+        //             })->orWhere(function ($q) use ($startDatetime, $endDatetime) {
+        //                 $q->where('status_id', 19)
+        //                 ->whereBetween('failed_datetime', [$startDatetime, $endDatetime]);
+        //             })->orWhere(function ($q) use ($startDatetime, $endDatetime) {
+        //                 $q->where('status_id', 9)
+        //                 ->whereBetween('delivered_datetime', [$startDatetime, $endDatetime]);
+        //             })->orWhere(function ($q) use ($startDatetime, $endDatetime) {
+        //                 $q->where('status_id', 11)
+        //                 ->whereBetween('assigned_return_at', [$startDatetime, $endDatetime]);
+        //             })
+        //             ->orWhere(function ($q) use ($startDatetime, $endDatetime) {
+        //                 $q->where('status_id', 23)
+        //                 ->whereBetween('returned_datetime', [$startDatetime, $endDatetime]);
+        //             });
+        //         });
+        //     });
+        // }
+        $this->applyPackageDateFilter($query, $startDate, $endDate);
         
-
-        $callback = function ($q) use($telegramSendLogKeyBy){
-            // Log::info($q);
+        $callback = function ($q) use ($telegramSendLogKeyBy) {
             $hasSent = $telegramSendLogKeyBy[$q->id] ?? null;
-            // $q->has_sent = $hasSent; //($hasSent && $hasSent->package_count == $q->package_count) ? true : false;
-            // if($hasSent){
-            //     $q->has_sent = [
-            //         'has_sent' => ($hasSent['package_count'] == $q->package_count) ? true : false,
-            //         'sent_count' => $hasSent['sent_count']
-            //     ];
-            // }
             $currentUnique = null;
 
-            // ✅ Build current unique pattern from packages
-            $groupedPackages = $q->merchantPackages->groupBy('status_id');
-            foreach ($groupedPackages as $statusId => $items) {
-                $count = $items->count();
-                $currentUnique .= "{$count}-{$statusId}";
-            }
-            if ($hasSent) {
-                $dbUnique = $hasSent['unique'] ?? null; // from telegram logs
-                
+            // Use the same status order as in getMerchantSummaryReportV2packageOrder
+            $statusOrder = [9, 10, 5, 6, 11, 23, 19];
 
+            // Preload grouped packages
+            $grouped = $q->merchantPackages->groupBy('status_id');
+
+            // Build currentUnique following the fixed order
+            foreach ($statusOrder as $statusId) {
+                if ($grouped->has($statusId)) {
+                    $count = $grouped[$statusId]->count();
+                    $currentUnique .= "{$count}-{$statusId}";
+                }
+            }
+
+            // Handle merchants with empty packages
+            if (empty($currentUnique)) {
+                $currentUnique = '0';
+            }
+
+            // Compare with DB record
+            if ($hasSent) {
+                $dbUnique = $hasSent['unique'] ?? null;
                 $q->has_sent = [
                     'has_sent'   => ($dbUnique === $currentUnique),
-                    'sent_count' => $hasSent['sent_count'],
+                    'sent_count' => $hasSent['sent_count'] ?? 0,
                     'unique'     => $currentUnique,
                 ];
             } else {
@@ -320,6 +356,7 @@ class MerchantManagementController extends Controller
                 ];
             }
         };
+
         $data = $query->get()->each($callback);
         return ApiResponse::JsonResult($data);
         // return ApiResponse::PaginationV1($query,$req, 'Get Merchant List By Date',[],1000,$callback,$select);
