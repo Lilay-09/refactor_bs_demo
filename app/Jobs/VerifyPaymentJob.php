@@ -22,7 +22,6 @@ class VerifyPaymentJob implements ShouldQueue
     public $maxRetries;
     public $topic;
 
-
     /**
      * Create a new job instance.
      */
