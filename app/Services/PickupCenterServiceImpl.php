@@ -194,16 +194,16 @@ class PickupCenterServiceImpl implements PickupCenterService
                 'status_id' => $statusId
             ]);
 
-            LogsActivity::logActivity([
-                'action'   => 'Order created with code and status updated',
-                'module'   => 'Order',
-                'ref_id'   => $createOrder->id,
-                'ref_code' => $code,
-                'after'    => [
-                    'code' => $code,
-                    'status_id' => $statusId
-                ]
-            ]);
+            // LogsActivity::logActivity([
+            //     'action'   => 'Order created with code and status updated',
+            //     'module'   => 'Order',
+            //     'ref_id'   => $createOrder->id,
+            //     'ref_code' => $code,
+            //     'after'    => [
+            //         'code' => $code,
+            //         'status_id' => $statusId
+            //     ]
+            // ]);
             $saveOrderImages = [];
             if(isset($images[0])){
                 foreach($images as $idx => $photo){
