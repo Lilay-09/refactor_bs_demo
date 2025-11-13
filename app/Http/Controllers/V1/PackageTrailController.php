@@ -96,6 +96,7 @@ class PackageTrailController extends Controller
             // });
         }else{
             if($zoneCode) {
+                Log::info(urldecode($zoneCode));
                 $query->where('zone_code',$zoneCode);
             }
             if($statusId){

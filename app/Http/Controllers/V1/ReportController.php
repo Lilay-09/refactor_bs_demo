@@ -1666,16 +1666,8 @@ class ReportController extends Controller
                 $q->remarks = $q->delivery_remarks;
             }
         });
+        
         $totalCount = 0;
-        // $totalCod = [
-        //     'usd' => 0,
-        //     'khr' => 0
-        // ];
-        // $service_fees = [
-        //     'delivery_fee' => 0,
-        //     'taxi_fee' => 0,
-        //     'other_fee' => 0
-        // ];
         $unique = null;
         $groupedPackages = $packages->groupBy('status')->map(function ($items, $group) use (&$unique,&$totalCount) {
             $totalCount += $items->count();

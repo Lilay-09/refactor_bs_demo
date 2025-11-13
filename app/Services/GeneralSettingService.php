@@ -163,7 +163,7 @@ class GeneralSettingService
 
     public static function optionsCommissionType($lang='en'){
         return Helper::translateOptions([
-            // 'percentage' => ['en' => '%','km'=>'%'],
+            'percentage' => ['en' => '%','km'=>'%'],
             'amount' => ['en' => '$','km'=>'$'],
         ],$lang);
     }

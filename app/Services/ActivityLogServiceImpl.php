@@ -11,7 +11,7 @@ class ActivityLogServiceImpl implements ActivityLogService
     {
         $query = ActivityLog::query()
         ->select([
-            'id','ref_code','before','after','metadata'
+            'id','ref_code','before','after','metadata','ref_id',
         ]);
         return DataResponse::PaginationV1($query,$filter,'',[],1000);
     }
