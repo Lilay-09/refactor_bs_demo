@@ -167,7 +167,7 @@ class PickupCenterServiceImpl implements PickupCenterService
         try{
             DB::beginTransaction();
             $createOrder = Order::create($inputs);
-            $createOrder->skipLog = true;
+            // $createOrder->skipLog = true;
             if(!$createOrder) return DataResponse::Error('Fail to create order!');
             $orderId = $createOrder->id;
             $code = Helper::generateCode($this->orderCodePrefix,$orderId,'',8);
