@@ -15,6 +15,7 @@ use App\Models\User;
 use App\Models\Zone;
 use App\Services\CompanyProfileService;
 use App\Services\GeneralSettingService;
+use App\Services\PackageTrailServiceImpl;
 use App\Services\PickupCenterService;
 use App\Services\UserService;
 use DataResponse;
@@ -799,5 +800,9 @@ class PackageTrailController extends Controller
 
         GeneralSettingService::updateTripStatus($deliveryId,$user);
         return DataResponse::JsonResult(null);
+    }
+
+    public function getPackageInformation(Request $req){
+        return ApiResponse::flex(PackageTrailServiceImpl::getPackageInformations($req->all()));
     }
 }
