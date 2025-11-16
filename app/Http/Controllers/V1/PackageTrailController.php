@@ -109,8 +109,11 @@ class PackageTrailController extends Controller
             }
             if($driverId){
                 $query->where(function($q) use($driverId){
-                    $q->where('driver_id',$driverId)
-                    ->orWhere('returned_uid',$driverId);
+                    $q->where('driver_id',$driverId);
+                    $q->orWhere(function ($q) use ($driverId) {
+                        $q->where('returned_uid', $driverId)
+                        ->where('status_id', 11);
+                    });
                 });
             }
             if($startDate && $endDate){
