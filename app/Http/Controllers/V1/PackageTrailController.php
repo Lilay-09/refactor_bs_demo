@@ -109,7 +109,10 @@ class PackageTrailController extends Controller
             }
             if($driverId){
                 $query->where(function($q) use($driverId){
-                    $q->where('driver_id',$driverId);
+                    $q->where(function($q) use ($driverId) {
+                        $q->where('driver_id', $driverId)
+                        ->whereNotIn('status_id', [11]);
+                    });
                     $q->orWhere(function ($q) use ($driverId) {
                         $q->where('returned_uid', $driverId)
                         ->where('status_id', 11);
