@@ -13,6 +13,7 @@ use App\Models\User;
 use App\Models\VehicleType;
 use App\Models\Warehouse;
 use App\Models\Zone;
+use App\Traits\LogsActivity;
 use DataResponse;
 use Illuminate\Support\Facades\DB;
 use Exception;
@@ -166,11 +167,10 @@ class PickupCenterServiceImpl implements PickupCenterService
         try{
             DB::beginTransaction();
             $createOrder = Order::create($inputs);
-            $createOrder->skipLog = true;
+            // $createOrder->skipLog = true;
             if(!$createOrder) return DataResponse::Error('Fail to create order!');
             $orderId = $createOrder->id;
             $code = Helper::generateCode($this->orderCodePrefix,$orderId,'',8);
-
             // $statusId = $inputs['status_id'];
             if(isset($details[0])){
                 if($userType == 'driver') $statusId = 4;
@@ -193,6 +193,17 @@ class PickupCenterServiceImpl implements PickupCenterService
                 'code' => $code,
                 'status_id' => $statusId
             ]);
+
+            // LogsActivity::logActivity([
+            //     'action'   => 'Order created with code and status updated',
+            //     'module'   => 'Order',
+            //     'ref_id'   => $createOrder->id,
+            //     'ref_code' => $code,
+            //     'after'    => [
+            //         'code' => $code,
+            //         'status_id' => $statusId
+            //     ]
+            // ]);
             $saveOrderImages = [];
             if(isset($images[0])){
                 foreach($images as $idx => $photo){

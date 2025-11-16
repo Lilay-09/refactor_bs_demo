@@ -81,6 +81,7 @@ trait LogsActivity
 
         ActivityLog::create([
             'user_id'   => $data['user_id'] ?? Auth::id(),
+            'group'     => $data['group'] ?? null,
             'action'    => $data['action'] ?? 'unknown',
             'module'    => $data['module'] ?? null,
             'ref_id'    => $data['ref_id'] ?? null,
