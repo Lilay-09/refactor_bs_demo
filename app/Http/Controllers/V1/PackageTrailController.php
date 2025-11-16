@@ -96,7 +96,6 @@ class PackageTrailController extends Controller
             // });
         }else{
             if($zoneCode) {
-                Log::info(urldecode($zoneCode));
                 $query->where('zone_code',$zoneCode);
             }
             if($statusId){
@@ -109,7 +108,10 @@ class PackageTrailController extends Controller
                 $query->where('merchant_id',$merchantId);
             }
             if($driverId){
-                $query->where('driver_id',$driverId);
+                $query->where(function($q) use($driverId){
+                    $q->where('driver_id',$driverId)
+                    ->orWhere('returned_uid',$driverId);
+                });
             }
             if($startDate && $endDate){
                 $startDate = Helper::dateYMD($startDate).' 00:00:00';
