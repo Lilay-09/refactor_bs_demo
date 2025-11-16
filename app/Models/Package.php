@@ -465,5 +465,12 @@ class Package extends Model
         )->where('disbursement_packages.is_deleted', false); // ensure only active pivot
     }
 
+    public function deletedUser(){
+        return $this->belongsTo(User::class,'deleted_uid','id');
+    }
+
+    public function createUser(){
+        return $this->belongsTo(User::class,'create_uid','id');
+    }   
 
 }
