@@ -238,7 +238,7 @@ class PackageTrailController extends Controller
         if($validate->fails()) return ApiResponse::ValidateFail($validate->errors()->first());
         $inputs = $validate->validated();
         $inputs['company_id'] = $user->company_id;
-        $inputs['branch_id'] = $user->branch_id;
+        // $inputs['branch_id'] = $user->branch_id;
         $inputs['update_uid'] = $user->id;
         $price = $inputs['price'] ?? 0;
         // $inputs['price'] = $price;
@@ -803,6 +803,8 @@ class PackageTrailController extends Controller
     }
 
     public function getPackageInformation(Request $req){
-        return ApiResponse::flex(PackageTrailServiceImpl::getPackageInformations($req->all()));
+        if($req->key == config('services.package.info_key')){
+            return ApiResponse::flex(PackageTrailServiceImpl::getPackageInformations($req->all()));
+        }
     }
 }

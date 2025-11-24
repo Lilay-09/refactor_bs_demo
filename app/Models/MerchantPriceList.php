@@ -24,4 +24,8 @@ class MerchantPriceList extends Model
         'deleted_datetime',
         'deleted_uid'
     ];
+
+    public function priceList(){
+        return $this->belongsTo(PriceList::class,'price_list_id');
+    }
 }

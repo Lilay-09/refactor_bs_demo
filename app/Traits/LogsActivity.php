@@ -4,6 +4,8 @@ namespace App\Traits;
 
 use App\Models\ActivityLog;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
+
 // use Illuminate\Support\Facades\Log;
 
 trait LogsActivity
@@ -50,7 +52,6 @@ trait LogsActivity
                     ?? $model->getAttribute('trx_code') 
                     ?? $model->getAttribute('code') 
                     ?? null;
-
                 $insertData = [
                     'user_id'   => $userId,
                     'action'    => $event,

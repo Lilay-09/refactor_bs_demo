@@ -165,7 +165,7 @@ class DriverManagementController extends Controller
         if($driverCommissions){
             foreach($commissionArr as $c){
                 $c['update_uid'] = $user->id;
-                $c['branch_id'] = $user->branch_id;
+                // $c['branch_id'] = $user->branch_id;
                 $c['company_id'] = $user->company_id;
                 DriverCommission::where('driver_id',$driver_id)->where('is_deleted',0)->where('delivery_type',$c['delivery_type'])->update($c);
                 $success = 1;

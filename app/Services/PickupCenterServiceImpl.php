@@ -378,7 +378,7 @@ class PickupCenterServiceImpl implements PickupCenterService
         $inputs = $validate->validated();
         $inputs['company_id'] = $user->company_id;
         $warehouseId = $inputs['warehouse_id'] ?? null;
-        $branchId = $inputs['branch_id'];
+        // $branchId = $inputs['branch_id'];
         $warehouse = Warehouse::where('is_deleted',false)
         ->find($warehouseId);
         if(!$warehouse){

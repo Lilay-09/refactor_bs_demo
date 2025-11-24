@@ -130,6 +130,8 @@ Route::middleware(['jwt','localize','userAccess:admin','rateLimit'])->prefix('ad
 
     Route::prefix('activity-logs')->group(function(){
         Route::get('',[ActivityLogController::class,'getActivities']);
+        Route::get('packages',[ActivityLogController::class,'getPackageLogInfo']);
+        Route::get('packages/{packageId}',[ActivityLogController::class,'getPackageLogInfoByPackageId']);
     });
 
     Route::get('dashboard',[DashboardController::class,'getDashboardSummary']);
@@ -318,7 +320,6 @@ Route::middleware(['jwt','localize','userAccess:admin','rateLimit'])->prefix('ad
 
     Route::prefix('package')->group(function(){
         Route::get('',[PackageTrailController::class,'getPackages']);
-        Route::put('/information',[PackageTrailController::class,'getPackageInformation']);
         Route::get('/{id}',[PackageTrailController::class,'getOnePackage']);
         Route::put('{id}',[PackageTrailController::class,'updatePackage']);
         Route::put('{id}/driver/{driver_id}',[PackageTrailController::class,'assignDriver']);

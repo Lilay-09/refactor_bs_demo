@@ -14,6 +14,7 @@ class Package extends Model
 {
     use HasFactory,LogsActivity;
     protected $table = 'packages';
+    public $skipLog = false;
     // protected $casts = [
     //     'price' => 'float',
     //     'extra_charge' => 'float',
@@ -24,6 +25,7 @@ class Package extends Model
     //     'driver_total' => 'float',
     // ];
     protected $fillable = [
+        'id',
         'main_zone_name',
         'main_zone_code',
         'receiver_lat',
@@ -53,6 +55,7 @@ class Package extends Model
         'delivered_datetime',
         'pickup_notes',
         'pickup_datetime',
+        'pickup_uid',
         'order_id',
         // 'return_uid',
         'payer',
@@ -97,7 +100,6 @@ class Package extends Model
         'priority_level',
         'arrive_warehouse_datetime',
         'warehouse_id',
-
         'cod_khr',
         'cod_usd',
         'cod_fee',
@@ -154,10 +156,17 @@ class Package extends Model
     }
     
 
+    public function branchLocation(){
+        return $this->belongsTo(Branch::class,'branch_id');
+    }
 
     public function driverPackages()
     {
         return $this->hasMany(Package::class, 'driver_id', 'driver_id');
+    }
+
+    public function getLastTransferDriver(){
+        return $this->hasOne(DeliveryPackage::class,'package_id')->orderBy('id','desc');
     }
 
 
@@ -214,6 +223,10 @@ class Package extends Model
 
     public function driver(){
         return $this->belongsTo(User::class,'driver_id','id');
+    }
+
+    public function pickupDriver(){
+        return $this->belongsTo(User::class,'pickup_uid','id');
     }
 
     public function returnUser(){

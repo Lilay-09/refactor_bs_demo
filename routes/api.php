@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\V1\AppSettingController;
+use App\Http\Controllers\V1\PackageTrailController;
 use App\Http\Controllers\V1\PaywayController;
 use Illuminate\Support\Facades\Route;
 Route::get('redirect-store',[AppSettingController::class,'redirectBarcodeScan']);
@@ -24,6 +25,10 @@ Route::middleware(['localize'])->prefix('{role}/v1/{lang}')
     // Route::post('transaction-check',[PaywayController::class,'checkTransaction']);
     Route::post('payway/sent',action: [PaywayController::class,'deeplinkAfterKHQRScan']);
     Route::post('payway/check-transaction',[PaywayController::class,'generateCheckTransaction']);
+
+    Route::prefix('package')->group(function(){
+        Route::get('/information-{key}',[PackageTrailController::class,'getPackageInformation']);
+    });
 });
 
 
