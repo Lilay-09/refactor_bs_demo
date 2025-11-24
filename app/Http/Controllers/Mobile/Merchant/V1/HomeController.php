@@ -160,7 +160,7 @@ class HomeController extends Controller
 
     public function getBankAccount(){
         $user = UserService::getAuthUser('merchant');
-        $userBanks = UserBank::where('user_id',$user->id)->selectRaw('id,bank_id,bank_name,bank_number,account_name,is_primary')->orderByDesc('is_primary')->first();
+        $userBanks = UserBank::where('user_id',$user->id)->selectRaw('id,bank_id,currency,bank_name,bank_number,account_name,is_primary')->orderByDesc('is_primary')->first();
         return ApiResponse::JsonResult($userBanks);
     }
 

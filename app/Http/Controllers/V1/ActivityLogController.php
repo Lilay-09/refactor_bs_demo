@@ -17,4 +17,12 @@ class ActivityLogController extends Controller
     public function getActivities(Request $req){
         return ApiResponse::flex($this->activityLogService->getActivities($req->all()));
     }
+
+    public function getPackageLogInfo(Request $req){
+        return ApiResponse::flex($this->activityLogService->getPackageLogInfo($req->all()));
+    }
+
+    public function getPackageLogInfoByPackageId(Request $req){
+        return ApiResponse::flex($this->activityLogService->getPackageLogInfoByPackageId($req->packageId));
+    }
 }

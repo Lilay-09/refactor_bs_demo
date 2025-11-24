@@ -93,6 +93,16 @@ class User extends Authenticatable implements JWTSubject
         return $this->hasOne(MerchantPriceList::class,'merchant_id','id');
     }
 
+    public function merchantPriceListName()
+    {
+        return $this->merchant
+            ?->merchantPriceList
+            ?->priceList
+            ?->priceListName // relation or field
+            ?? null;
+    }
+
+
     public function merchantPackages(){
         return $this->hasMany(Package::class,'merchant_id','id');
     }

@@ -40,6 +40,9 @@ return [
         'chat_service_socket' => env('CHAT_SERVICE_SOCKET','ws://localhost:3000/_ws'),
         'chat_service_key' => env('CHAT_API_KEY')
     ],
+    'package' => [
+        'info_key' => env('INFO_KEY','asdf354feff'),
+    ],
 
     'plasgate' => [
         'base_url' => env('PLASGATE_BASE_URL'),

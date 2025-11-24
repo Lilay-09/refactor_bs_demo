@@ -71,7 +71,7 @@ class PickUpCenterController extends Controller
         if(!$validMerchant) return ApiResponse::ValidateFail('Invalid sender identity!');
         $inputs['create_uid'] = $user->id;
         $inputs['update_uid'] = $user->id;
-        $inputs['branch_id'] = $user->branch_id;
+        $inputs['branch_id'] = $inputs['branch_id'] ?? $order->branch_id ?? $user->branch_id;
         $inputs['company_id'] = $user->company_id;
         $inputs['booking_channel'] = 'admin';
         $pickupAddress = $inputs['pickup_address'] ?? null;
@@ -141,7 +141,7 @@ class PickUpCenterController extends Controller
             'driver_id' => $driver_id,
             'udpate_uid' => $user->id,
             'status_id' => $status_id,
-            'branch_id' => $user->branch_id
+            // 'branch_id' => $user->branch_id
         ]);
 
         return ApiResponse::JsonResult(null,__('messages.info',$message));
@@ -328,6 +328,10 @@ class PickUpCenterController extends Controller
         if(!$order) return ApiResponse::NotFound(trans('messages.not_found',['info' => 'Order']));
         $order->update([
             'update_uid' => $user->id
+        ]);
+        Package::where('is_deleted',false)
+        ->where('order_id',$orderId)->update([
+            'pickup_uid' => $order->driver_id
         ]);
         return ApiResponse::JsonResult(null,'Arrived warehouse');
     }

@@ -103,15 +103,25 @@ class ReportController extends Controller
         $branchId = $req->branch_id;
         $warehouseId = $req->warehouse_id;
         $merchantId = $req->merchant_id;
-        $qP = Package::where('is_deleted',0)
-        ->with(['status','driver','merchant','returnUser'])
+        $qP = Package::query()
+        ->where('is_deleted',0)
+        ->with([
+            'status',
+            'driver:id,code,username,phone',
+            'merchant:id,code,username,phone',
+            'returnUser:id,code,username,phone',
+            'pickupDriver:id,code,username,phone',
+            'merchant.merchantPriceList',
+            'merchant.merchantPriceList.priceList.priceListName',
+            'branchLocation:id,name_en'
+        ])
         ->where('outstanding',0)
         ->selectRaw('
             zone_name,qr_code,merchant_id,driver_id,returned_uid,payer,price_khr,
             driver_cod_usd,driver_cod_khr,receiver_address,remarks,receiver_phone,cod,price,delivery_fee,
             additional_fee,driver_total,merchant_total,status_id,remarks,arrive_warehouse_datetime,
             assign_driver_datetime,updated_at,failed_datetime,returned_datetime,delivered_datetime,
-            other_fee,created_at,product_type,taxi_fee'
+            other_fee,created_at,product_type,taxi_fee,pickup_uid,branch_id'
         );
         if($statusId){
             $qP->where('status_id',$statusId);
@@ -133,11 +143,10 @@ class ReportController extends Controller
             'other_fee' => 0,
             'taxi_fee' => 0,
             'base_fee' => 0,
-            'driver_total' => 0,
-            'merchant_total' => 0,
-            'driver_total_khr' => 0,
-            'merchant_total_khr' => 0
-
+            'driver_cod_usd' => 0,
+            'merchant_cod_usd' => 0,
+            'driver_cod_khr' => 0,
+            'merchant_cod_khr' => 0
         ];
 
         if($startDate && $endDate){
@@ -172,9 +181,8 @@ class ReportController extends Controller
                 });
             });
         }
-
-        $packages = $qP->orderByDesc('created_at')->get()
-        ->each(function ($q) use($lang,&$grand){
+        $qP->orderByDesc('created_at');
+        $callback = function ($q) use($lang){
             if($lang == 'km'){
                 $q->status_code = GeneralSettingService::$statusCodeTrans[$q->status_id] ?? '';
             }else $q->status_code = $q->status->name;
@@ -182,10 +190,14 @@ class ReportController extends Controller
             $q->merchant_phone = $q->merchant->phone;
             $q->driver_name = $q->status_id == 11 ? $q->returnUser?->username : $q->driver?->username;
             $q->driver_phone = $q->driver?->phone;
+            $q->pickup_driver_name = $q->pickupDriver?->username;
+            $q->pickup_driver_phone = $q->pickupDriver?->phone;
+            $q->price_list = $q->merchant?->merchantPriceList?->priceList?->priceListName->name ?? null;
             // $q->cod_fee = $q->price;
+            $q->branch_name = $q->branchLocation->name_en ?? null;
             $merchantTotal = $q->cod ? $q->price:0;
             $fees = (float)($q->delivery_fee + $q->other_fee); 
-            $grand['taxi_fee'] += $q->taxi_fee;
+            // $grand['taxi_fee'] += $q->taxi_fee;
             if($q->payer == 'sender'){
                 $merchantTotal -= $fees + $q->taxi_fee;
             }
@@ -215,14 +227,14 @@ class ReportController extends Controller
             $q->merchant_total = $merchantTotal['amount_usd'];
             $q->merchant_total_khr = $merchantTotal['amount_khr'];
             // $grand['cod'] += $q->driver_total;
-            $grand['driver_total'] += $driverCodUsd;
-            $grand['driver_total_khr'] += $driverCodKhr;
-            $grand['merchant_total'] += $merchantTotal['amount_usd'];
-            $grand['merchant_total_khr'] += $merchantTotal['amount_khr'];
-            $grand['price'] += $q->price;
-            $grand['price_khr'] += $q->price_khr;
-            $grand['base_fee'] += $q->delivery_fee;
-            $grand['other_fee'] += $q->other_fee;
+            // $grand['driver_total'] += $driverCodUsd;
+            // $grand['driver_total_khr'] += $driverCodKhr;
+            // $grand['merchant_total'] += $merchantTotal['amount_usd'];
+            // $grand['merchant_total_khr'] += $merchantTotal['amount_khr'];
+            // $grand['price'] += $q->price;
+            // $grand['price_khr'] += $q->price_khr;
+            // $grand['base_fee'] += $q->delivery_fee;
+            // $grand['other_fee'] += $q->other_fee;
             // $q->merchant_total = $merchantTotal;
             $q->base_fee = $q->delivery_fee;
             $q->arrive_warehouse_datetime = Helper::formatCustomDateTime($q->arrive_warehouse_datetime,'d-M-Y');
@@ -234,27 +246,247 @@ class ReportController extends Controller
             if ($q->status_id == 19) $actionDate = Helper::formatCustomDateTime($q->failed_datetime,'d-M-Y h:i A');
             if ($q->status_id == 11) $actionDate = Helper::formatCustomDateTime($q->returned_datetime,'d-M-Y h:i A');
             $q->action_date = $actionDate;
-            $q->makeHidden(['status','merchant','driver','returnUser']);
-        });
+            $q->makeHidden(['status','merchant','branchLocation','driver','returnUser','pickupDriver']);
+            return $q;
+        };
 
+        // Log::info($grand);
+        $grandQuery = clone $qP;
+        $allPackages = $grandQuery->get();
+
+        foreach($allPackages as $q){
+            $driverCodUsd =(float)($q->driver_cod_usd ?? 0);
+            $driverCodKhr = (float)($q->driver_cod_khr ?? 0);
+            $taxiFee = (float)$q->taxi_fee;
+            // $driverTotal = PackageTrailServiceImpl::calculateCodAmtBothCurrencies(
+            //     $driverCodUsd,
+            //     $driverCodKhr,
+            //     'driver',
+            //     $q->payer,
+            //     $q->status_id,
+            //     $fees,
+            //     $taxiFee
+            // );
+            $fees = (float)($q->delivery_fee + $q->other_fee); 
+            $merchantTotal = PackageTrailServiceImpl::calculateCodAmtBothCurrencies(
+                $driverCodUsd,
+                $driverCodKhr,
+                'merchant',
+                $q->payer,
+                $q->status_id,
+                $fees,
+                $taxiFee
+            );
+            $q->driver_total = $driverCodUsd;
+            $q->driver_total_khr = $driverCodKhr;
+            $q->merchant_total = $merchantTotal['amount_usd'];
+            $q->merchant_total_khr = $merchantTotal['amount_khr'];
+            $grand['taxi_fee'] += $q->taxi_fee;
+            $grand['driver_cod_usd'] += $driverCodUsd;
+            $grand['driver_cod_khr'] += $driverCodKhr;
+            $grand['merchant_cod_usd'] += $merchantTotal['amount_usd'];
+            $grand['merchant_cod_khr'] += $merchantTotal['amount_khr'];
+            $grand['price'] += $q->price;
+            $grand['price_khr'] += $q->price_khr;
+            $grand['base_fee'] += $q->delivery_fee;
+            $grand['other_fee'] += $q->other_fee;
+        }
         foreach($grand as $key=>$value){
             $dec = 2;
-            if(in_array($value,['price_khr','driver_total_khr','merchant_total_khr'])){
+            if(in_array($value,['price_khr','driver_cod_khr','merchant_cod_khr'])){
                 $dec = 0;
             }
             $grand[$key] = Helper::getNumber($value,$dec,true);
         }
 
-        $obj =(object)[
+        $additionalKeys = [
             'title' => 'Daily Packages',
             'sub_title' => 'Arrivate Date:',
             'date' => Helper::dateDMY($startDate).' to '.Helper::dateDMY($endDate),
             'company_profile' => CompanyProfileService::profileInfo($user),
             'grand' => $grand,
-            'list' => $packages
         ];
-        return ApiResponse::JsonResult($obj,'Get Pickup List');
+        // return ApiResponse::JsonResult($obj,'Get Pickup List');
+        return ApiResponse::PaginationV1(
+            query:$qP,
+            filter:$req,
+            transformCallback:$callback,
+            additionalKey:$additionalKeys,
+            limit:500
+        );
     }
+
+    // public function getDailyPackageReport(Request $req){
+    //     $user = UserService::getAuthUser();
+    //     $startDate = $req->startDate;
+    //     $endDate = $req->endDate;
+    //     $lang = $req->lang;
+    //     $statusId = $req->status_id;
+    //     $branchId = $req->branch_id;
+    //     $warehouseId = $req->warehouse_id;
+    //     $merchantId = $req->merchant_id;
+    //     $qP = Package::where('is_deleted',0)
+    //     ->with([
+    //         'status',
+    //         'driver:id,code,username,phone',
+    //         'merchant:id,code,username,phone',
+    //         'returnUser:id,code,username,phone',
+    //         'pickupDriver:id,code,username,phone',
+    //         'merchant.merchantPriceList',
+    //         'merchant.merchantPriceList.priceList.priceListName'
+    //     ])
+    //     ->where('outstanding',0)
+    //     ->selectRaw('
+    //         zone_name,qr_code,merchant_id,driver_id,returned_uid,payer,price_khr,
+    //         driver_cod_usd,driver_cod_khr,receiver_address,remarks,receiver_phone,cod,price,delivery_fee,
+    //         additional_fee,driver_total,merchant_total,status_id,remarks,arrive_warehouse_datetime,
+    //         assign_driver_datetime,updated_at,failed_datetime,returned_datetime,delivered_datetime,
+    //         other_fee,created_at,product_type,taxi_fee,pickup_uid'
+    //     );
+    //     if($statusId){
+    //         $qP->where('status_id',$statusId);
+    //     }
+    //     if($merchantId){
+    //         $qP->where('merchant_id',$merchantId);
+    //     }
+    //     if($branchId){
+    //         $qP->where('branch_id',$branchId);
+    //     }
+    //     if($warehouseId){
+    //         $qP->where('warehouse_id',$warehouseId);
+    //     }
+
+    //     $grand = [
+    //         'price' => 0,
+    //         'price_khr' => 0,
+    //         'fees' => 0,
+    //         'other_fee' => 0,
+    //         'taxi_fee' => 0,
+    //         'base_fee' => 0,
+    //         'driver_total' => 0,
+    //         'merchant_total' => 0,
+    //         'driver_total_khr' => 0,
+    //         'merchant_total_khr' => 0
+    //     ];
+
+    //     if($startDate && $endDate){
+    //         $startDatetime = Helper::dateYMD($startDate). ' 00:00:00';
+    //         $endDatetime = Helper::dateYMD($endDate). ' 23:59:59';
+    //         $qP->where(function($q) use ($startDatetime, $endDatetime) {
+    //             $q->where(function($q) use ($startDatetime, $endDatetime) {
+    //                 // For status_id 19, query only failed_datetime
+    //                 $q->whereBetween('failed_datetime', [$startDatetime, $endDatetime])
+    //                 ->whereIn('status_id', [10,19]);
+    //             })
+    //             ->orWhere(function($q) use ($startDatetime, $endDatetime) {
+    //                 // For status_id 9, query only delivered_datetime
+    //                 $q->whereBetween('delivered_datetime', [$startDatetime, $endDatetime])
+    //                 ->where('status_id', 9);
+    //             })
+    //             ->orWhere(function($q) use ($startDatetime, $endDatetime) {
+    //                 // For status_id 9, query only delivered_datetime
+    //                 $q->whereBetween('arrive_warehouse_datetime', [$startDatetime, $endDatetime])
+    //                 ->where('status_id', 5);
+    //             })
+    //             ->orWhere(function($q) use ($startDatetime, $endDatetime) {
+    //                 // For status_id 9, query only delivered_datetime
+    //                 $q->whereBetween('assign_driver_datetime', [$startDatetime, $endDatetime])
+    //                 ->where('status_id', 6);
+    //             })
+
+    //             ->orWhere(function($q) use ($startDatetime, $endDatetime) {
+    //                 // For status_id 11, query only returned_datetime
+    //                 $q->whereBetween('returned_datetime', [$startDatetime, $endDatetime])
+    //                 ->where('status_id', 11);
+    //             });
+    //         });
+    //     }
+
+    //     $packages = $qP->limit(50)->orderByDesc('created_at')->get()
+    //     ->each(function ($q) use($lang,&$grand){
+    //         if($lang == 'km'){
+    //             $q->status_code = GeneralSettingService::$statusCodeTrans[$q->status_id] ?? '';
+    //         }else $q->status_code = $q->status->name;
+    //         $q->merchant_name = $q->merchant->username;
+    //         $q->merchant_phone = $q->merchant->phone;
+    //         $q->driver_name = $q->status_id == 11 ? $q->returnUser?->username : $q->driver?->username;
+    //         $q->driver_phone = $q->driver?->phone;
+    //         $q->pickup_driver_name = $q->pickupDriver?->username;
+    //         $q->pickup_driver_phone = $q->pickupDriver?->phone;
+    //         $q->price_list = $q->merchant?->merchantPriceList?->priceList?->priceListName->name ?? null;
+    //         // $q->cod_fee = $q->price;
+    //         $merchantTotal = $q->cod ? $q->price:0;
+    //         $fees = (float)($q->delivery_fee + $q->other_fee); 
+    //         $grand['taxi_fee'] += $q->taxi_fee;
+    //         if($q->payer == 'sender'){
+    //             $merchantTotal -= $fees + $q->taxi_fee;
+    //         }
+    //         $driverCodUsd =(float)($q->driver_cod_usd ?? 0);
+    //         $driverCodKhr = (float)($q->driver_cod_khr ?? 0);
+    //         $taxiFee = (float)$q->taxi_fee;
+    //         // $driverTotal = PackageTrailServiceImpl::calculateCodAmtBothCurrencies(
+    //         //     $driverCodUsd,
+    //         //     $driverCodKhr,
+    //         //     'driver',
+    //         //     $q->payer,
+    //         //     $q->status_id,
+    //         //     $fees,
+    //         //     $taxiFee
+    //         // );
+    //         $merchantTotal = PackageTrailServiceImpl::calculateCodAmtBothCurrencies(
+    //             $driverCodUsd,
+    //             $driverCodKhr,
+    //             'merchant',
+    //             $q->payer,
+    //             $q->status_id,
+    //             $fees,
+    //             $taxiFee
+    //         );
+    //         $q->driver_total = $driverCodUsd;
+    //         $q->driver_total_khr = $driverCodKhr;
+    //         $q->merchant_total = $merchantTotal['amount_usd'];
+    //         $q->merchant_total_khr = $merchantTotal['amount_khr'];
+    //         // $grand['cod'] += $q->driver_total;
+    //         $grand['driver_total'] += $driverCodUsd;
+    //         $grand['driver_total_khr'] += $driverCodKhr;
+    //         $grand['merchant_total'] += $merchantTotal['amount_usd'];
+    //         $grand['merchant_total_khr'] += $merchantTotal['amount_khr'];
+    //         $grand['price'] += $q->price;
+    //         $grand['price_khr'] += $q->price_khr;
+    //         $grand['base_fee'] += $q->delivery_fee;
+    //         $grand['other_fee'] += $q->other_fee;
+    //         // $q->merchant_total = $merchantTotal;
+    //         $q->base_fee = $q->delivery_fee;
+    //         $q->arrive_warehouse_datetime = Helper::formatCustomDateTime($q->arrive_warehouse_datetime,'d-M-Y');
+    //         $actionDate = null;
+    //         if ($q->status_id == 5) $actionDate = Helper::formatCustomDateTime($q->arrive_warehouse_datetime,'d-M-Y h:i A');
+    //         if ($q->status_id == 6) $actionDate = Helper::formatCustomDateTime($q->assign_driver_datetime,'d-M-Y h:i A');
+    //         if ($q->status_id == 10) $actionDate = Helper::formatCustomDateTime($q->failed_datetime,'d-M-Y h:i A');
+    //         if ($q->status_id == 9) $actionDate = Helper::formatCustomDateTime($q->delivered_datetime,'d-M-Y h:i A');
+    //         if ($q->status_id == 19) $actionDate = Helper::formatCustomDateTime($q->failed_datetime,'d-M-Y h:i A');
+    //         if ($q->status_id == 11) $actionDate = Helper::formatCustomDateTime($q->returned_datetime,'d-M-Y h:i A');
+    //         $q->action_date = $actionDate;
+    //         $q->makeHidden(['status','merchant','driver','returnUser','pickupDriver']);
+    //     });
+
+    //     foreach($grand as $key=>$value){
+    //         $dec = 2;
+    //         if(in_array($value,['price_khr','driver_total_khr','merchant_total_khr'])){
+    //             $dec = 0;
+    //         }
+    //         $grand[$key] = Helper::getNumber($value,$dec,true);
+    //     }
+
+    //     $obj =(object)[
+    //         'title' => 'Daily Packages',
+    //         'sub_title' => 'Arrivate Date:',
+    //         'date' => Helper::dateDMY($startDate).' to '.Helper::dateDMY($endDate),
+    //         'company_profile' => CompanyProfileService::profileInfo($user),
+    //         'grand' => $grand,
+    //         'list' => $packages
+    //     ];
+    //     return ApiResponse::JsonResult($obj,'Get Pickup List');
+    // }
 
     public function getDailyPackageSummaryReport(Request $req){
         $user = UserService::getAuthUser();

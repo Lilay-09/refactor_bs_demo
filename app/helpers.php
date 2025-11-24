@@ -143,7 +143,7 @@ class ApiResponse
         $message = null,
         $additionalKey = [],
         $limit = 1000,
-        callable $transformCallback = null,
+        ?callable $transformCallback = null,
         array $selectCols = ['*'],
         bool $reverse = false, // Added parameter to control reverse order
         $cache = null,
@@ -188,17 +188,26 @@ class ApiResponse
         }
 
         // Prepare the response object
-        $response = array_merge([
-            'status' => "OK",
-            'error' => false,
-            'message' => $message,
-            'data' => $reverse ? array_reverse($data->items()) : $data->items(),
-            'per_page' => $data->perPage(),
-            'total' => $data->total(),
-            'total_page' => $data->lastPage(),
-            'page_no' => $data->currentPage(),
-            'errors' => [],
-        ], $additionalKey);
+        $base = [
+            'status'     => "OK",
+            'error'      => false,
+            'message'    => $message,
+        ];
+
+        // Additional keys placed here after "message"
+        $base = array_merge($base, $additionalKey);
+
+        $rest = [
+            'data'        => $reverse ? array_reverse($data->items()) : $data->items(),
+            'per_page'    => $data->perPage(),
+            'total'       => $data->total(),
+            'total_page'  => $data->lastPage(),
+            'page_no'     => $data->currentPage(),
+            'errors'      => [],
+        ];
+
+        $response = array_merge($base, $rest);
+
 
         // Cache the response if caching is enabled
         if ($isCaching) {

@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Enums\TrackingStatus;
 use App\Models\Package;
 use DataResponse;
+use Google\Rpc\Help;
 use Helper;
 
 class PackageTrailServiceImpl
@@ -62,13 +63,14 @@ class PackageTrailServiceImpl
         $receiverPhone = $filter['receiver_phone'] ?? null;
         $query = Package::query()
         ->with([
-            'merchant:id,phone,usename,code',
+            'merchant:id,phone,username,code',
             'driver:id,phone,username,code',
             'createUser:id,username,code',
             'updateUser:id,username,code',
             'deletedUser:id,username,code',
             'returnUser:id,username,code',
-        ]);
+        ])
+        ->orderBy('id','desc');
         if($statusId){
             $query->where('status_id',$statusId);
         }
@@ -88,8 +90,32 @@ class PackageTrailServiceImpl
             $query->where('receiver_phone',$receiverPhone);
         }
         $callback = function($q){
+            $statusId = $q->status_id;
             $q->status = TrackingStatus::tryFrom($q->status_id)->label();
-            unset($q->status_id, $q->create_uid, $q->update_uid, $q->deleted_uid, $q->returned_uid,$q->driver_id,$q->merchant_id);
+            $finishDate = Helper::formatDateTime($q->updated_at);
+            if($statusId == TrackingStatus::DELIVERED->value){
+                $finishDate = Helper::formatCustomDateTime($q->delivered_datetime);
+            }elseif($statusId == TrackingStatus::FAILED->value){
+                $finishDate = Helper::formatCustomDateTime($q->failed_datetime);
+            }elseif($statusId == TrackingStatus::FAILED_WITH_FEE->value){
+                $finishDate = Helper::formatCustomDateTime($q->failed_datetime);
+            }elseif($statusId == TrackingStatus::ON_DELIVERY->value){
+                $finishDate = Helper::formatCustomDateTime($q->assign_driver_datetime);
+            }elseif($statusId == TrackingStatus::AT_WAREHOUSE->value){
+                $finishDate = Helper::formatCustomDateTime($q->arrive_warehouse_datetime);
+            }elseif($statusId == TrackingStatus::RETURNED->value){
+                $finishDate = Helper::formatCustomDateTime($q->returned_datetime);
+            }
+            $q->warehouse_date = Helper::formatCustomDateTime($q->arrive_warehouse_datetime);
+            $q->returning_date = Helper::formatCustomDateTime($q->assigned_return_at);
+            $q->finish_date = $finishDate;
+            $q->deleted_date = Helper::formatDateTime($q->deleted_at);
+            unset(
+                $q->status_id, $q->create_uid, $q->update_uid, $q->deleted_uid, $q->returned_uid,
+                $q->driver_id,$q->merchant_id,$q->created_at,$q->updated_at,$q->deleted_at,
+                $q->returned_datetime,$q->arrive_warehouse_datetime, $q->assign_driver_datetime,
+                $q->failed_datetime, $q->delivered_datetime
+            );
             return $q;
         };
         return DataResponse::PaginationV1(
