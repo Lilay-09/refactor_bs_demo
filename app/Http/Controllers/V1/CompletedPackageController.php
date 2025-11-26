@@ -133,25 +133,7 @@ class CompletedPackageController extends Controller
                     });
                 });
             }
-            
         }
-
-        if($statusId) $qP->where('p.status_id',$statusId);
-        // if($driverId) $qP->where('p.driver_id',$driverId);
-        if ($driverId) {
-            $qP->where(function ($query) use ($driverId) {
-                $query->where(function ($subQuery) use ($driverId) {
-                    $subQuery->where('p.status_id', '!=', 23)
-                            ->where('p.driver_id', $driverId);
-                })->orWhere(function ($subQuery) use ($driverId) {
-                    $subQuery->where('p.status_id', 23)
-                            ->where('p.returned_uid', $driverId);
-                });
-            });
-        }
-
-        if($merchantId) $qP->where('p.merchant_id',$merchantId);
-        if($warehouseId) $qP->where('o.warehouse_id',$warehouseId);
 
         $this->finishPackagePaymentStatus($qP,$driverId,$merchantId,$paymentStatusId);
 

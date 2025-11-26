@@ -1043,7 +1043,12 @@ class ReportController extends Controller
         $user = UserService::getAuthUser();
         $obj =(object)[
             'statuses' => GeneralSettingService::optionsTrackingStatus($user,[],[5,6,9,10,11,19]),
-            'branches' => GeneralSettingService::optionsBranch()
+            'branches' => GeneralSettingService::optionsBranch(),
+            'zones' => GeneralSettingService::optionsZone($user,'children'),
+            'branches' => GeneralSettingService::optionsBranch(),
+            'price_list' => GeneralSettingService::optionsPriceListName($user),
+            'drivers' => GeneralSettingService::optionsDriver($user),
+            'merchants' => GeneralSettingService::optionsMerchant($user)
         ];
         return ApiResponse::JsonResult($obj);
     }
@@ -1914,7 +1919,9 @@ class ReportController extends Controller
             Helper::deductAmountBase($toSettleUsd,$toSettleKhr,$deductFees);
             $statusId = $items->first()->status_id;
             $count=$items->count();
-            $unique .= "$count-$statusId";
+            if ($statusId == 9) {
+                $unique .= "{$count}-{$statusId}";
+            }
             return [
                 'group' => $group,
                 'status_id' => $statusId,
