@@ -54,7 +54,6 @@ class CompletedPackageController extends Controller
                 ELSE p.driver_id
             END"));
         })
-
         ->join('tracking_statuses as ts','ts.id','p.status_id')
         ->join('orders as o','o.id','p.order_id')
         ->join('users as m','m.id','p.merchant_id')
