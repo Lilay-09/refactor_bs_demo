@@ -50,11 +50,10 @@ class CompletedPackageController extends Controller
         ->with('returnUser')
         ->join('users as d', function ($join) {
             $join->on('d.id', '=', DB::raw("CASE
-                WHEN p.status_id = 11 THEN p.returned_uid
+                WHEN p.status_id = 23 THEN p.returned_uid
                 ELSE p.driver_id
             END"));
         })
-
         ->join('tracking_statuses as ts','ts.id','p.status_id')
         ->join('orders as o','o.id','p.order_id')
         ->join('users as m','m.id','p.merchant_id')
