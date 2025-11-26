@@ -209,19 +209,23 @@ class MerchantManagementController extends Controller
             $start = Helper::dateYMD($startDate) . ' 00:00:00';
             $end   = Helper::dateYMD($endDate) . ' 23:59:59';
             $statuses = [
-                5  => 'arrive_warehouse_datetime',
-                6  => 'assign_driver_datetime',
-                10 => 'failed_datetime',
-                19 => 'failed_datetime',
+                // 5  => 'arrive_warehouse_datetime',
+                // 6  => 'assign_driver_datetime',
+                // 10 => 'failed_datetime',
+                // 19 => 'failed_datetime',
                 9  => 'delivered_datetime',
-                11 => 'assigned_return_at',
-                23 => 'returned_datetime'
+                // 11 => 'assigned_return_at',
+                // 23 => 'returned_datetime'
             ];
 
             $query->where(function ($q) use ($statuses, $start, $end) {
                 foreach ($statuses as $status => $column) {
                     $q->orWhere(function ($q) use ($status, $column, $start, $end) {
                         $q->where('status_id', $status)->whereBetween($column, [$start, $end]);
+                    });
+                    // Other statuses: do NOT filter by date, but still included
+                    $q->orWhere(function ($x) {
+                        $x->where('status_id', '!=', 9);
                     });
                 }
             });
@@ -230,137 +234,364 @@ class MerchantManagementController extends Controller
     }
 
 
+// public function getMerchantListByDate(Request $req)
+// {
+//     $startDate  = $req->startDate ? Helper::dateDMY($req->startDate) : null;
+//     $endDate    = $req->endDate ? Helper::dateDMY($req->endDate) : null;
+//     $search     = $req->search;
+//     $sentStatus = $req->query('sent_status');
 
-    public function getMerchantListByDate(Request $req){
-        $startDate = $req->startDate ? Helper::dateDMY($req->startDate) : null;
-        $endDate = $req->endDate ? Helper::dateDMY($req->endDate) : null;
-        $search = $req->search;
-        if(!$startDate || !$endDate) return ApiResponse::ValidateFail('Please select a date range to view this report');
-        $user = UserService::getAuthUser();
-        $telegramSendLogKeyBy = $this->getTelegramSendLogKeyByReceiverId($startDate,$endDate);
-        $select = [
+//     if (!$startDate || !$endDate) {
+//         return ApiResponse::ValidateFail('Please select a date range to view this report');
+//     }
+
+//     $user = UserService::getAuthUser();
+//     $telegramSendLogKeyBy = $this->getTelegramSendLogKeyByReceiverId($startDate, $endDate);
+
+//     $start = Helper::dateYMD($startDate) . ' 00:00:00';
+//     $end   = Helper::dateYMD($endDate) . ' 23:59:59';
+
+//     // Aggregate packages per merchant
+//     $packageSummary = DB::table('packages')
+//         ->select('merchant_id')
+//         ->selectRaw("
+//             COUNT(*) AS package_count,
+//             SUM(CASE WHEN payer = 'sender' THEN delivery_fee + other_fee ELSE 0 END) AS fees,
+//             SUM(taxi_fee) AS taxi_fee,
+//             SUM(price) AS price_usd,
+//             SUM(price_khr) AS price_khr,
+//             SUM(driver_cod_usd) AS collected_usd,
+//             SUM(driver_cod_khr) AS collected_khr,
+//             MIN(status_id) AS min_status,
+//             MAX(status_id) AS max_status,
+//             COALESCE(
+//             STRING_AGG(
+//                 CASE WHEN status_id = 9 THEN '9' END,
+//                 '-'
+//             ),
+//             ''
+//         ) AS unique_signature
+
+
+//         ")
+//         ->where('is_deleted', 0)
+//         ->where('outstanding', 0)
+//         ->where(function ($q) use ($start, $end) {
+//             $q->where(function ($q2) use ($start, $end) {
+//                 $q2->where('status_id', 9)
+//                    ->whereBetween('delivered_datetime', [$start, $end])
+//                    ->orWhere('status_id', '!=', 9);
+//             });
+//         })
+//         ->groupBy('merchant_id')
+//         ->havingRaw('NOT (MIN(status_id) = 5 AND MAX(status_id) = 5)');
+
+//     // Join aggregated packages with users
+//     $query = User::query()
+//         ->joinSub($packageSummary, 'pkg', function ($join) {
+//             $join->on('users.id', '=', 'pkg.merchant_id');
+//         })
+//         ->where('users.company_id', $user->company_id)
+//         ->where('users.account_type', 'merchant')
+//         ->where('users.is_deleted', 0)
+//         ->select([
+//             'users.id',
+//             'users.id as merchant_id',
+//             'users.username',
+//             'users.name_km',
+//             'users.phone',
+//             'users.code',
+//             'pkg.package_count',
+//             'pkg.fees',
+//             'pkg.taxi_fee',
+//             'pkg.price_usd',
+//             'pkg.price_khr',
+//             'pkg.collected_usd',
+//             'pkg.collected_khr',
+//         ])
+//         ->with([
+//             'bank_accounts:id,user_id,bank_number as account_number,bank_name,account_name,currency',
+//             'telegramBot:id,user_id,group_name,group_id,bot_id,default_caption,bot_token'
+//         ])
+//         ->when($search, fn($q) => $q->where(fn($q2) =>
+//             $q2->where('users.username','ILIKE',"%{$search}%")
+//                ->orWhere('users.phone','ILIKE',"%{$search}%")
+//         ))
+//         ->orderByDesc('users.id');
+
+//     $data = $query->get()->map(function ($merchant) use ($telegramSendLogKeyBy) {
+//         $hasSent = $telegramSendLogKeyBy[$merchant->id] ?? null;
+//         $merchant->has_sent = [
+//             'has_sent'   => $hasSent && ($hasSent['unique'] === $merchant->unique_signature),
+//             'sent_count' => $hasSent['sent_count'] ?? 0,
+//             'unique'     => $merchant->unique_signature,
+//         ];
+//         return $merchant;
+//     });
+
+//     if ($sentStatus === 'sent') {
+//         $data = $data->filter(fn($m) => $m->has_sent['has_sent'] === true)->values();
+//     } elseif ($sentStatus === 'unsent') {
+//         $data = $data->filter(fn($m) => $m->has_sent['has_sent'] === false)->values();
+//     }
+
+//     return ApiResponse::JsonResult($data);
+// }
+
+public function getMerchantListByDate(Request $req)
+{
+    $startDate  = $req->startDate ? Helper::dateDMY($req->startDate) : null;
+    $endDate    = $req->endDate ? Helper::dateDMY($req->endDate) : null;
+    $search     = $req->search;
+    $sentStatus = $req->query('sent_status');
+
+    if (!$startDate || !$endDate) {
+        return ApiResponse::ValidateFail('Please select a date range to view this report');
+    }
+
+    $user = UserService::getAuthUser();
+    $telegramSendLogKeyBy = $this->getTelegramSendLogKeyByReceiverId($startDate, $endDate);
+
+    $start = Helper::dateYMD($startDate) . ' 00:00:00';
+    $end   = Helper::dateYMD($endDate) . ' 23:59:59';
+
+    // Aggregate packages per merchant
+    $packageSummary = DB::table('packages')
+        ->select('merchant_id')
+        ->selectRaw("
+            COUNT(*) AS package_count,
+            SUM(CASE WHEN payer = 'sender' THEN delivery_fee + other_fee ELSE 0 END) AS fees,
+            SUM(taxi_fee) AS taxi_fee,
+            SUM(price) AS price_usd,
+            SUM(price_khr) AS price_khr,
+            SUM(driver_cod_usd) AS collected_usd,
+            SUM(driver_cod_khr) AS collected_khr,
+            MIN(status_id) AS min_status,
+            MAX(status_id) AS max_status
+        ")
+        ->where('is_deleted', 0)
+        ->where('outstanding', 0)
+        ->groupBy('merchant_id')
+        ->havingRaw('NOT (MIN(status_id) = 5 AND MAX(status_id) = 5)');
+
+    // Efficient unique_signature calculation
+    $uniqueSignatures = DB::table('packages')
+        ->select('merchant_id')
+        ->selectRaw("
+            STRING_AGG(cnt || '-9', '-' ORDER BY min_delivered) AS unique_signature
+        ")
+        ->fromSub(function($query) use ($start, $end) {
+            $query->select('merchant_id', DB::raw('COUNT(*) AS cnt'), DB::raw('MIN(delivered_datetime) AS min_delivered'))
+                ->from('packages')
+                ->where('status_id', 9)
+                ->whereBetween('delivered_datetime', [$start, $end])
+                ->where('is_deleted', 0)
+                ->where('outstanding', 0)
+                ->groupBy('merchant_id');
+        }, 'sub')
+        ->groupBy('merchant_id');
+
+    // Join aggregated packages and unique_signature with users
+    $query = User::query()
+        ->joinSub($packageSummary, 'pkg', function ($join) {
+            $join->on('users.id', '=', 'pkg.merchant_id');
+        })
+        ->leftJoinSub($uniqueSignatures, 'sig', function ($join) {
+            $join->on('users.id', '=', 'sig.merchant_id');
+        })
+        ->where('users.company_id', $user->company_id)
+        ->where('users.account_type', 'merchant')
+        ->where('users.is_deleted', 0)
+        ->select([
             'users.id',
             'users.id as merchant_id',
             'users.username',
             'users.name_km',
             'users.phone',
             'users.code',
-            DB::raw('COUNT(packages.id) as package_count'),
-            DB::raw("SUM(CASE WHEN packages.payer = 'sender' THEN packages.delivery_fee + packages.other_fee ELSE 0 END) as fees"),
-            DB::raw('SUM(packages.taxi_fee) as taxi_fee'),
-            DB::raw('SUM(packages.price) as price_usd'),
-            DB::raw('SUM(packages.price_khr) as price_khr'),
-            DB::raw('SUM(packages.driver_cod_usd) as collected_usd'),
-            DB::raw('SUM(packages.driver_cod_khr) as collected_khr'),
-        ];
-
-        $query = User::query()
-        ->join('packages', 'users.id', '=', 'packages.merchant_id')
-        ->where('packages.is_deleted', 0)
-        ->where('packages.outstanding', 0)
-        ->where('users.company_id', $user->company_id)
-        ->where('users.account_type', 'merchant')
-        ->where('users.is_deleted', 0)
-        ->select($select)
-        ->with([
-            'bank_accounts' => function ($q) {
-                $q->select('id', 'user_id', 'bank_number as account_number', 'bank_name','account_name','currency');
-            },
-            'telegramBot:id,user_id,group_name,group_id,bot_id,default_caption,bot_token',
-            // 'merchantPackages:id,merchant_id,status_id,payer,taxi_fee,delivery_fee,other_fee,driver_cod_usd,driver_cod_khr,price,price_khr'
-            'merchantPackages' => function ($q) use ($startDate, $endDate) {
-                $q->where('is_deleted', 0)
-                ->where('outstanding', 0);
-                $this->applyPackageDateFilter($q, $startDate, $endDate);
-            }
+            'pkg.package_count',
+            'pkg.fees',
+            'pkg.taxi_fee',
+            'pkg.price_usd',
+            'pkg.price_khr',
+            'pkg.collected_usd',
+            'pkg.collected_khr',
+            'sig.unique_signature',
         ])
-        ->groupBy('users.id', 'users.username', 'users.name_km', 'users.phone','users.code')
+        ->with([
+            'bank_accounts:id,user_id,bank_number as account_number,bank_name,account_name,currency',
+            'telegramBot:id,user_id,group_name,group_id,bot_id,default_caption,bot_token'
+        ])
+        ->when($search, fn($q) => $q->where(fn($q2) =>
+            $q2->where('users.username','ILIKE',"%{$search}%")
+               ->orWhere('users.phone','ILIKE',"%{$search}%")
+        ))
         ->orderByDesc('users.id');
 
+    // Map telegram sent status
+    $data = $query->get()->map(function ($merchant) use ($telegramSendLogKeyBy) {
+        $hasSent = $telegramSendLogKeyBy[$merchant->id] ?? null;
+        $merchant->has_sent = [
+            'has_sent'   => $hasSent && ($hasSent['unique'] === $merchant->unique_signature),
+            'sent_count' => $hasSent['sent_count'] ?? 0,
+            'unique'     => $merchant->unique_signature,
+        ];
+        return $merchant;
+    });
 
-        if($search){
-            $query->where(function ($q) use($search){
-                $q->where('users.username','ILIKE',"%{$search}%")
-                ->orWhere('users.phone','ILIKE',"%{$search}%");
-            });
-        }
-        // if($startDate && $endDate){
-        //     $startDatetime = Helper::dateYMD($startDate).' 00:00:00';
-        //     $endDatetime = Helper::dateYMD($endDate).' 23:59:59';
-        //     $query->where(function ($q) use ($startDatetime, $endDatetime) {
-        //         $q->where(function ($q) use ($startDatetime, $endDatetime) {
-        //             $q->where(function ($q) use ($startDatetime, $endDatetime) {
-        //                 $q->where('status_id', 5)
-        //                 ->whereBetween('arrive_warehouse_datetime', [$startDatetime, $endDatetime]);
-        //             })->orWhere(function ($q) use ($startDatetime, $endDatetime) {
-        //                 $q->where('status_id', 6)
-        //                 ->whereBetween('assign_driver_datetime', [$startDatetime, $endDatetime]);
-        //             })->orWhere(function ($q) use ($startDatetime, $endDatetime) {
-        //                 $q->where('status_id', 10)
-        //                 ->whereBetween('failed_datetime', [$startDatetime, $endDatetime]);
-        //             })->orWhere(function ($q) use ($startDatetime, $endDatetime) {
-        //                 $q->where('status_id', 19)
-        //                 ->whereBetween('failed_datetime', [$startDatetime, $endDatetime]);
-        //             })->orWhere(function ($q) use ($startDatetime, $endDatetime) {
-        //                 $q->where('status_id', 9)
-        //                 ->whereBetween('delivered_datetime', [$startDatetime, $endDatetime]);
-        //             })->orWhere(function ($q) use ($startDatetime, $endDatetime) {
-        //                 $q->where('status_id', 11)
-        //                 ->whereBetween('assigned_return_at', [$startDatetime, $endDatetime]);
-        //             })
-        //             ->orWhere(function ($q) use ($startDatetime, $endDatetime) {
-        //                 $q->where('status_id', 23)
-        //                 ->whereBetween('returned_datetime', [$startDatetime, $endDatetime]);
-        //             });
-        //         });
-        //     });
-        // }
-        $this->applyPackageDateFilter($query, $startDate, $endDate);
-        
-        $callback = function ($q) use ($telegramSendLogKeyBy) {
-            $hasSent = $telegramSendLogKeyBy[$q->id] ?? null;
-            $currentUnique = null;
-
-            // Use the same status order as in getMerchantSummaryReportV2packageOrder
-            $statusOrder = [9, 10, 5, 6, 11, 23, 19];
-
-            // Preload grouped packages
-            $grouped = $q->merchantPackages->groupBy('status_id');
-
-            // Build currentUnique following the fixed order
-            foreach ($statusOrder as $statusId) {
-                if ($grouped->has($statusId)) {
-                    $count = $grouped[$statusId]->count();
-                    $currentUnique .= "{$count}-{$statusId}";
-                }
-            }
-
-            // Handle merchants with empty packages
-            if (empty($currentUnique)) {
-                $currentUnique = '0';
-            }
-
-            // Compare with DB record
-            if ($hasSent) {
-                $dbUnique = $hasSent['unique'] ?? null;
-                $q->has_sent = [
-                    'has_sent'   => ($dbUnique === $currentUnique),
-                    'sent_count' => $hasSent['sent_count'] ?? 0,
-                    'unique'     => $currentUnique,
-                ];
-            } else {
-                $q->has_sent = [
-                    'has_sent'   => false,
-                    'sent_count' => 0,
-                    'unique'     => $currentUnique,
-                ];
-            }
-        };
-
-        $data = $query->get()->each($callback);
-        return ApiResponse::JsonResult($data);
-        // return ApiResponse::PaginationV1($query,$req, 'Get Merchant List By Date',[],1000,$callback,$select);
+    // Filter by sent / unsent if requested
+    if ($sentStatus === 'sent') {
+        $data = $data->filter(fn($m) => $m->has_sent['has_sent'] === true)->values();
+    } elseif ($sentStatus === 'unsent') {
+        $data = $data->filter(fn($m) => $m->has_sent['has_sent'] === false)->values();
     }
+
+    return ApiResponse::JsonResult($data);
+}
+
+
+
+
+
+
+
+    // public function getMerchantListByDate(Request $req){
+    //     $startDate = $req->startDate ? Helper::dateDMY($req->startDate) : null;
+    //     $endDate = $req->endDate ? Helper::dateDMY($req->endDate) : null;
+    //     $search = $req->search;
+    //     $sentStatus = $req->query('sent_status');
+    //     if(!$startDate || !$endDate) return ApiResponse::ValidateFail('Please select a date range to view this report');
+    //     $user = UserService::getAuthUser();
+    //     $telegramSendLogKeyBy = $this->getTelegramSendLogKeyByReceiverId($startDate,$endDate);
+    //     $select = [
+    //         'users.id',
+    //         'users.id as merchant_id',
+    //         'users.username',
+    //         'users.name_km',
+    //         'users.phone',
+    //         'users.code',
+    //         DB::raw('COUNT(packages.id) as package_count'),
+    //         DB::raw("SUM(CASE WHEN packages.payer = 'sender' THEN packages.delivery_fee + packages.other_fee ELSE 0 END) as fees"),
+    //         DB::raw('SUM(packages.taxi_fee) as taxi_fee'),
+    //         DB::raw('SUM(packages.price) as price_usd'),
+    //         DB::raw('SUM(packages.price_khr) as price_khr'),
+    //         DB::raw('SUM(packages.driver_cod_usd) as collected_usd'),
+    //         DB::raw('SUM(packages.driver_cod_khr) as collected_khr'),
+    //     ];
+
+    //     $query = User::query()
+    //     ->join('packages', 'users.id', '=', 'packages.merchant_id')
+    //     ->where('packages.is_deleted', 0)
+    //     ->where('packages.outstanding', 0)
+    //     ->where('users.company_id', $user->company_id)
+    //     ->where('users.account_type', 'merchant')
+    //     ->where('users.is_deleted', 0)
+    //     ->select($select)
+    //     ->with([
+    //         'bank_accounts' => function ($q) {
+    //             $q->select('id', 'user_id', 'bank_number as account_number', 'bank_name','account_name','currency');
+    //         },
+    //         'telegramBot:id,user_id,group_name,group_id,bot_id,default_caption,bot_token',
+    //         // 'merchantPackages:id,merchant_id,status_id,payer,taxi_fee,delivery_fee,other_fee,driver_cod_usd,driver_cod_khr,price,price_khr'
+    //         'merchantPackages' => function ($q) use ($startDate, $endDate) {
+    //             $q->where('is_deleted', 0)
+    //             ->where('outstanding', 0);
+    //             $this->applyPackageDateFilter($q, $startDate, $endDate);
+    //         }
+    //     ])
+    //     ->groupBy('users.id', 'users.username', 'users.name_km', 'users.phone','users.code')
+    //     ->orderByDesc('users.id');
+
+
+    //     if($search){
+    //         $query->where(function ($q) use($search){
+    //             $q->where('users.username','ILIKE',"%{$search}%")
+    //             ->orWhere('users.phone','ILIKE',"%{$search}%");
+    //         });
+    //     }
+    //     // if($startDate && $endDate){
+    //     //     $startDatetime = Helper::dateYMD($startDate).' 00:00:00';
+    //     //     $endDatetime = Helper::dateYMD($endDate).' 23:59:59';
+    //     //     $query->where(function ($q) use ($startDatetime, $endDatetime) {
+    //     //         $q->where(function ($q) use ($startDatetime, $endDatetime) {
+    //     //             $q->where(function ($q) use ($startDatetime, $endDatetime) {
+    //     //                 $q->where('status_id', 5)
+    //     //                 ->whereBetween('arrive_warehouse_datetime', [$startDatetime, $endDatetime]);
+    //     //             })->orWhere(function ($q) use ($startDatetime, $endDatetime) {
+    //     //                 $q->where('status_id', 6)
+    //     //                 ->whereBetween('assign_driver_datetime', [$startDatetime, $endDatetime]);
+    //     //             })->orWhere(function ($q) use ($startDatetime, $endDatetime) {
+    //     //                 $q->where('status_id', 10)
+    //     //                 ->whereBetween('failed_datetime', [$startDatetime, $endDatetime]);
+    //     //             })->orWhere(function ($q) use ($startDatetime, $endDatetime) {
+    //     //                 $q->where('status_id', 19)
+    //     //                 ->whereBetween('failed_datetime', [$startDatetime, $endDatetime]);
+    //     //             })->orWhere(function ($q) use ($startDatetime, $endDatetime) {
+    //     //                 $q->where('status_id', 9)
+    //     //                 ->whereBetween('delivered_datetime', [$startDatetime, $endDatetime]);
+    //     //             })->orWhere(function ($q) use ($startDatetime, $endDatetime) {
+    //     //                 $q->where('status_id', 11)
+    //     //                 ->whereBetween('assigned_return_at', [$startDatetime, $endDatetime]);
+    //     //             })
+    //     //             ->orWhere(function ($q) use ($startDatetime, $endDatetime) {
+    //     //                 $q->where('status_id', 23)
+    //     //                 ->whereBetween('returned_datetime', [$startDatetime, $endDatetime]);
+    //     //             });
+    //     //         });
+    //     //     });
+    //     // }
+    //     $this->applyPackageDateFilter($query, $startDate, $endDate);
+        
+    //     $callback = function ($q) use ($telegramSendLogKeyBy) {
+    //         $hasSent = $telegramSendLogKeyBy[$q->id] ?? null;
+    //         $currentUnique = null;
+
+    //         // Use the same status order as in getMerchantSummaryReportV2packageOrder
+    //         $statusOrder = [9, 10, 5, 6, 11, 23, 19];
+
+    //         // Preload grouped packages
+    //         $grouped = $q->merchantPackages->groupBy('status_id');
+
+    //         // Build currentUnique following the fixed order
+    //         foreach ($statusOrder as $statusId) {
+    //             if ($grouped->has($statusId)) {
+    //                 $count = $grouped[$statusId]->count();
+    //                 $currentUnique .= "{$count}-{$statusId}";
+    //             }
+    //         }
+
+    //         // Handle merchants with empty packages
+    //         if (empty($currentUnique)) {
+    //             $currentUnique = '0';
+    //         }
+
+    //         // Compare with DB record
+    //         if ($hasSent) {
+    //             $dbUnique = $hasSent['unique'] ?? null;
+    //             $q->has_sent = [
+    //                 'has_sent'   => ($dbUnique === $currentUnique),
+    //                 'sent_count' => $hasSent['sent_count'] ?? 0,
+    //                 'unique'     => $currentUnique,
+    //             ];
+    //         } else {
+    //             $q->has_sent = [
+    //                 'has_sent'   => false,
+    //                 'sent_count' => 0,
+    //                 'unique'     => $currentUnique,
+    //             ];
+    //         }
+    //     };
+
+    //     $data = $query->get()->each($callback);
+    //     if ($sentStatus === 'sent') {
+    //         $data = $data->filter(fn($item) => $item->has_sent['has_sent'] === true)->values();
+    //     } 
+    //     elseif ($sentStatus === 'unsent') {
+    //         $data = $data->filter(fn($item) => $item->has_sent['has_sent'] === false)->values();
+    //     }
+    //     return ApiResponse::JsonResult($data);
+    //     // return ApiResponse::PaginationV1($query,$req, 'Get Merchant List By Date',[],1000,$callback,$select);
+    // }
 
     //
     //     $user = UserService::getAuthUser();

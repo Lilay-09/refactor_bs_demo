@@ -7,6 +7,7 @@ use App\Models\TelegramSendLog;
 use App\Models\User;
 use DataResponse;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 
 class TelegramBotServiceImpl implements TelegramBotService
 {
@@ -103,6 +104,7 @@ class TelegramBotServiceImpl implements TelegramBotService
             'end' => 'required',
             'unique' => 'nullable'
         ]);
+        Log::info($data);
         if($validator->fails()){
             return DataResponse::ValidateFail($validator->errors()->first());
         }
@@ -111,7 +113,7 @@ class TelegramBotServiceImpl implements TelegramBotService
         $inputs['sent_at'] = now();
         $inputs['unique'] = $inputs['unique'] ?? strtotime($inputs['start']).strtotime($inputs['end']); 
         TelegramSendLog::insert($inputs);
-        return DataResponse::JsonResult(null,false,'Logged');
+        return DataResponse::JsonResult(null,false,'Sent');
     }
     
 }
