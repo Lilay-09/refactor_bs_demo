@@ -371,6 +371,7 @@ public function getMerchantListByDate(Request $req)
         ")
         ->where('is_deleted', 0)
         ->where('outstanding', 0)
+        ->whereBetween('delivered_datetime', [$start, $end])
         ->groupBy('merchant_id')
         ->havingRaw('NOT (MIN(status_id) = 5 AND MAX(status_id) = 5)');
 

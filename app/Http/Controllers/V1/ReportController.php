@@ -1062,7 +1062,21 @@ class ReportController extends Controller
             'branches' => GeneralSettingService::optionsBranch(),
             'price_list' => GeneralSettingService::optionsPriceListName($user),
             'drivers' => GeneralSettingService::optionsDriver($user),
-            'merchants' => GeneralSettingService::optionsMerchant($user)
+            'merchants' => GeneralSettingService::optionsMerchant($user),
+            'has_remarks' => [
+                [
+                    'lable' => 'All',
+                    'value' => 0,
+                ],
+                [
+                    'lable' => 'No remarks',
+                    'value' => 1,
+                ],
+                [
+                    'lable' => 'Has remarks',
+                    'value' => 2
+                ]
+            ]
         ];
         return ApiResponse::JsonResult($obj);
     }
@@ -1837,6 +1851,8 @@ class ReportController extends Controller
         // $branchId = $req->branch_id;
         // $warehouseId = $req->warehouse_id;
         $search = $req->search;
+
+        $hasRemarks = $req->query('hasRemarks');
         $merchantInfo = User::where('account_type','merchant')
         ->select(['id','phone','username','code','address'])
         ->where('is_deleted',false)
@@ -1853,6 +1869,13 @@ class ReportController extends Controller
         if($search){    
             
         }else {
+            if($hasRemarks){
+                if($hasRemarks == 1){
+                    $qP->whereNull('delivery_remarks');
+                }elseif ($hasRemarks == 2){
+                    $qP->whereNotNull('delivery_remarks');
+                }
+            }
             if($startDate && $endDate){
                 $startDatetime = Helper::dateYMD($startDate).' 00:00:00';
                 $endDatetime = Helper::dateYMD($endDate).' 23:59:59';
