@@ -46,6 +46,7 @@ class PickupCenterServiceImpl implements PickupCenterService
             'price_khr' => 'numeric|min:0',
             'driver_cod_usd' => 'nullable|numeric|min:0',
             'driver_cod_khr' => 'nullable|numeric|min:0',
+            'pickup_uid' => 'nullable|int',
             'dim_z' => 'nullable|numeric',
             'dim_y' => 'nullable|numeric',
             'dim_x' => 'nullable|numeric',
