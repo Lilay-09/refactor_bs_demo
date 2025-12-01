@@ -362,13 +362,14 @@ class PickupCenterServiceImpl implements PickupCenterService
      */
     public function createOrUpdatePackage(Request $req,$user,?int $packageId,?int $orderId,?array $statusIds=[1,7],?callable $whereClause=null): object{
         if($orderId){
-            $order = Order::where('is_deleted',0)->select(['merchant_id','delivery_type','warehouse_id','branch_id'])->find($orderId);
+            $order = Order::where('is_deleted',0)->select(['merchant_id','delivery_type','warehouse_id','branch_id','driver_id'])->find($orderId);
             $req->merge([
                 'merchant_id' => $order->merchant_id,
                 'delivery_type' => $req->delivery_type ?? $order->delivery_type,
                 'product_type' => $req->product_type ?? $order->product_type,
                 'warehouse_id' => $order->warehouse_id,
-                'branch_id' => $order->branch_id
+                'branch_id' => $order->branch_id,
+                'pickup_uid' => $order->driver_id,
             ]);
             if(!$order) return DataResponse::NotFound('Order not found');
         }

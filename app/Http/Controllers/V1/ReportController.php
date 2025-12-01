@@ -103,6 +103,7 @@ class ReportController extends Controller
         $branchId = $req->branch_id;
         $warehouseId = $req->warehouse_id;
         $merchantId = $req->merchant_id;
+        $pickupDriverId = $req->query('pickup_driver_id');
         $search = $req->query('search');
         $qP = Package::query()
         ->where('is_deleted',0)
@@ -143,6 +144,9 @@ class ReportController extends Controller
             }
             if($warehouseId){
                 $qP->where('warehouse_id',$warehouseId);
+            }  
+            if($pickupDriverId){
+                $qP->where('pickup_uid',$pickupDriverId);
             }
         }
 
