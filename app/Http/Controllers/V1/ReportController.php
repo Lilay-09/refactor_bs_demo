@@ -1848,6 +1848,7 @@ class ReportController extends Controller
             ]));
         }
         $qP = Package::where('is_deleted',false)
+        ->whereIn('status_id',[5,6,9,10,19,11,23])
         ->where('merchant_id',$merchantId);
         if($search){    
             
@@ -1856,24 +1857,30 @@ class ReportController extends Controller
                 $startDatetime = Helper::dateYMD($startDate).' 00:00:00';
                 $endDatetime = Helper::dateYMD($endDate).' 23:59:59';
                 $qP->where(function ($q) use ($startDatetime,$endDatetime){
-                    $q->whereRaw(
-                        "(status_id = 5 AND arrive_warehouse_datetime BETWEEN ? AND ?)
-                        OR (status_id = 6 AND assign_driver_datetime BETWEEN ? AND ?)
-                        OR (status_id = 10 AND failed_datetime BETWEEN ? AND ?)
-                        OR (status_id = 19 AND failed_datetime BETWEEN ? AND ?)
-                        OR (status_id = 9 AND delivered_datetime BETWEEN ? AND ?)
-                        OR (status_id = 11 AND assigned_return_at BETWEEN ? AND ?)
-                        OR (status_id = 23 AND returned_datetime BETWEEN ? AND ?)",
-                        [
-                            $startDatetime, $endDatetime, 
-                            $startDatetime, $endDatetime, 
-                            $startDatetime, $endDatetime, 
-                            $startDatetime, $endDatetime, 
-                            $startDatetime, $endDatetime, 
-                            $startDatetime, $endDatetime,
-                            $startDatetime, $endDatetime
-                        ]
-                    );
+                    $q->where('status_id', '!=', 9)
+                    // ✔ Only show status 9 if delivered in range
+                    ->orWhere(function ($s) use ($startDatetime, $endDatetime) {
+                        $s->where('status_id', 9)
+                            ->whereBetween('delivered_datetime', [$startDatetime, $endDatetime]);
+                    });
+                    // $q->whereRaw(
+                    //     "(status_id = 5 AND arrive_warehouse_datetime BETWEEN ? AND ?)
+                    //     OR (status_id = 6 AND assign_driver_datetime BETWEEN ? AND ?)
+                    //     OR (status_id = 10 AND failed_datetime BETWEEN ? AND ?)
+                    //     OR (status_id = 19 AND failed_datetime BETWEEN ? AND ?)
+                    //     OR (status_id = 9 AND delivered_datetime BETWEEN ? AND ?)
+                    //     OR (status_id = 11 AND assigned_return_at BETWEEN ? AND ?)
+                    //     OR (status_id = 23 AND returned_datetime BETWEEN ? AND ?)",
+                    //     [
+                    //         $startDatetime, $endDatetime, 
+                    //         $startDatetime, $endDatetime, 
+                    //         $startDatetime, $endDatetime, 
+                    //         $startDatetime, $endDatetime, 
+                    //         $startDatetime, $endDatetime, 
+                    //         $startDatetime, $endDatetime,
+                    //         $startDatetime, $endDatetime
+                    //     ]
+                    // );
                 });
             }
         }
