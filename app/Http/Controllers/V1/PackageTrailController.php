@@ -44,7 +44,6 @@ class PackageTrailController extends Controller
         $zoneCode = $req->query('zone_code', $req->query('zone_id', null));
         $startDate = $req->query('startDate', null);
         $endDate = $req->query('endDate', null);
-
         $query = Package::query()->where('is_deleted',0)
         ->with([
             'status',
@@ -65,7 +64,6 @@ class PackageTrailController extends Controller
                 ELSE NULL
             END DESC
         ");
-
 
         // ->selectRaw('merchant_id,order_id,id,taxi_fee,delivery_type,qr_code,price,driver_id,product_type,dim_z,dim_x,dim_y,status_id,failed_datetime,failure_notes,payer,cod,delivery_fee,receiver_address,zone_code,zone_name,receiver_name,receiver_phone,delivered_datetime,assign_driver_datetime,arrive_warehouse_datetime,driver_total,merchant_total,billed_kg,actual_kg,created_at')
         // ->orderBy('arrive_warehouse_datetime','desc')

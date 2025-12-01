@@ -3428,9 +3428,11 @@ class TransactionService
             if($cashKh) $originalCashKh += $suggestionAmtCashKh; //** keep original amount */
             $roundSuggestionAmtUp = ceil($totalSuggestionAmt_KH / 100) * 100;
             $roundSuggestionAmtDown = floor($totalSuggestionAmt_KH / 100) * 100;
-            if(!($totalAmountKHR >= $roundSuggestionAmtDown && $totalAmountKHR <= $roundSuggestionAmtUp)) return DataResponse::ValidateFail(message: __('messages.info',[
-                'info' => 'Amount KHR must be around (KHR '.$roundSuggestionAmtUp .' & KHR '.$roundSuggestionAmtDown.'), base '.$totalSuggestionAmt_KH
-            ]));
+            if(!($totalAmountKHR >= $roundSuggestionAmtDown && $totalAmountKHR <= $roundSuggestionAmtUp)) {
+                return DataResponse::ValidateFail(message: __('messages.info',[
+                    'info' => 'Amount KHR must be around (KHR '.$roundSuggestionAmtUp .' & KHR '.$roundSuggestionAmtDown.'), base '.$totalSuggestionAmt_KH
+                ]));
+            }
             // Log::error($totalAllAmt.'---'.$dueAmount.'--------'.$totalAmountKHR_to_USD.'------'.$totalAmountKHR);
             if($totalAllAmt != $dueAmount) return DataResponse::ValidateFail(__('messages.info',[
                 'info' => 'If USD amount($'.$totalAmountUSD.')'.' additional in KHR must be ('.$roundSuggestionAmtUp.' or '.$totalSuggestionAmt_KH.')',
@@ -4962,6 +4964,7 @@ class TransactionService
             $type.'_id' => 'required|int',
             'cash' => 'nullable|numeric',
             'cash_kh' => 'nullable|numeric',
+            'cash_khr' => 'nullable|numeric',
             'bank_amount' => 'nullable|numeric',
             'bank_amount_kh' => 'nullable|numeric',
             'bank_id' => 'nullable|int',
@@ -5403,7 +5406,7 @@ class TransactionService
         $packageIds = $validPackages->package_ids;
         $orderIds = $validPackages->order_ids;
         $exchangeRate = $inputs['exchange_rate'] ?? GeneralSettingService::getLatestXRate()->buy_rate;
-        $cashKh = $inputs['cash_kh'] ?? 0;
+        $cashKh = $inputs['cash_kh'] ?? $inputs['cash_khr'] ?? 0;
         $cash = $inputs['cash'] ?? 0;
         $bankId = $inputs['bank_id'] ?? null;
         $bankAmount = $inputs['bank_amount'] ?? 0;
@@ -5535,11 +5538,13 @@ class TransactionService
         // Package::where('is_deleted',0)->where($pmtKey,$id)->update([
         //     $pmtKey => null
         // ]);
-        DisbursementPackage::where('disbursement_id',$id)->update([
-            'is_deleted' => true,
-            'deleted_datetime' => now(),
-            'deleted_uid' => $user->id
-        ]);
+        DisbursementPackage::where('disbursement_id',$id)
+            ->where('type','commission')
+            ->update([
+                'is_deleted' => true,
+                'deleted_datetime' => now(),
+                'deleted_uid' => $user->id
+            ]);
         
 
         Order::where('is_deleted',0)->where($pmtKey,$id)->update([
@@ -5582,9 +5587,12 @@ class TransactionService
         // ];
         $payeeKey = $type.'_id';
         $qP = Package::from('packages as p')
-            ->selectRaw('p.id, p.status_id, p.driver_id,p.delivery_type')
+            ->selectRaw('p.id, p.status_id,p.prev_status_id,p.driver_id,p.delivery_type')
             // ->whereIn('p.status_id', [9, 19])
-            ->whereIn('p.status_id', [9])
+            ->where(function ($query) {
+                $query->whereIn('p.status_id', [9, 19])
+                    ->orWhere('p.prev_status_id', 19);
+            })
             ->where('p.is_deleted', 0)
         ->whereNotExists(function ($sub) use($type) {
             $sub->select(DB::raw(1))
@@ -5605,7 +5613,10 @@ class TransactionService
         ->where('status_id', 5)
         ->withCount([
             'packages as qty' => fn($q) => $q
-                ->where('status_id', 9)
+                ->where(function ($query) {
+                $query->whereIn('status_id', [9, 19])
+                        ->orWhere('prev_status_id', 19);
+                })
                 ->where('is_deleted', 0)
         ])
         ->groupBy('id')
@@ -5647,9 +5658,22 @@ class TransactionService
 
         if($normalDeliveryStartDate && $endDate){
             // $endDate = Helper::dateYMD($endDate);
-            $qP->whereRaw("
-                p.status_id = 9 AND p.delivered_datetime >= ? AND p.delivered_datetime <= ?
-            ", [$normalDeliveryStartDate, $endDate]);
+            // $qP->whereRaw("
+            //     p.status_id = 9 AND p.delivered_datetime >= ? AND p.delivered_datetime <= ?
+            // ", [$normalDeliveryStartDate, $endDate]);
+            $qP->where(function ($q) use ($normalDeliveryStartDate, $endDate) {
+                // Status 9: delivered packages within date range
+                $q->where('p.status_id', 9)
+                ->whereBetween('p.delivered_datetime', [$normalDeliveryStartDate, $endDate]);
+            })
+            ->orWhere(function ($q) use ($normalDeliveryStartDate, $endDate) {
+                // Failed packages (status 19 or prev_status_id 19) within failed_datetime
+                $q->where(function ($q) {
+                    $q->where('p.status_id', 19)
+                    ->orWhere('p.prev_status_id', 19);
+                })
+                ->whereBetween('p.failed_datetime', [$normalDeliveryStartDate, $endDate]);
+            });
             // $qP->whereRaw("
             //     (
             //         (p.status_id = 19 AND p.failed_datetime >= ? AND p.failed_datetime <= ?)
@@ -5695,7 +5719,8 @@ class TransactionService
                 }
                 $totalCommissionPkg +=1;
             }
-            if($package->status_id == 19) {
+            if($package->status_id == 19 || $package->prev_status_id == 19) {
+                // Log::info("{$package->status_id} ---- {$package->prev_status_id}");
                 if($package->delivery_type == 'normal'){
                     $normalFailedWithFeeCount +=1;
                 }
@@ -5723,10 +5748,11 @@ class TransactionService
         $obj->fast_failed_with_fee_count = $fastFailedWithFeeCount;
         $obj->total_failed_with_fee_package = $normalFailedWithFeeCount + $fastFailedWithFeeCount;
         //----
-
+        $normalRate = $dc->normal_delivery_commission;
+        $totalPkg = ($normalDeliveredCount * $normalRate) + ($normalFailedWithFeeCount * $normalRate);
         $obj->total_pickup_count = $pickUpCount;
 
-        $obj->grand_total = Helper::getNumber($obj->total_pickup + $obj->total_delivered,2);
+        $obj->grand_total = Helper::getNumber($obj->total_pickup + $totalPkg,2);
         if(empty($obj->package_ids) && empty($obj->order_ids)){
             return DataResponse::NotFound('No package found');
         }
