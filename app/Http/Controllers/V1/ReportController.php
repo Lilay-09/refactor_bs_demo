@@ -96,14 +96,6 @@ class ReportController extends Controller
 
     public function getDailyPackageReport(Request $req){
         $user = UserService::getAuthUser();
-        $startDate = $req->startDate;
-        $endDate = $req->endDate;
-        $lang = $req->lang;
-        $statusId = $req->status_id;
-        $branchId = $req->branch_id;
-        $warehouseId = $req->warehouse_id;
-        $merchantId = $req->merchant_id;
-        $pickupDriverId = $req->query('pickup_driver_id');
         $search = $req->query('search');
         $qP = Package::query()
         ->where('is_deleted',0)
@@ -133,6 +125,24 @@ class ReportController extends Controller
                 ->orWhere('zone_code','LIKE',"%{$search}%");
             });
         }else{
+            $startDate = $req->startDate;
+            $endDate = $req->endDate;
+            $lang = $req->lang;
+            $statusId = $req->status_id;
+            $branchId = $req->branch_id;
+            $warehouseId = $req->warehouse_id;
+            $merchantId = $req->merchant_id;
+            $pickupDriverId = $req->query('pickup_driver_id');
+            $hasRemarks = $req->query('hasRemarks');
+            
+            if($hasRemarks){
+                if($hasRemarks == 1){
+                    $qP->whereNull('delivery_remarks');
+                }elseif ($hasRemarks == 2){
+                    $qP->whereNotNull('delivery_remarks');
+                }
+            }
+            
             if($statusId){
                 $qP->where('status_id',$statusId);
             }
@@ -1852,7 +1862,6 @@ class ReportController extends Controller
         // $warehouseId = $req->warehouse_id;
         $search = $req->search;
 
-        $hasRemarks = $req->query('hasRemarks');
         $merchantInfo = User::where('account_type','merchant')
         ->select(['id','phone','username','code','address'])
         ->where('is_deleted',false)
@@ -1869,13 +1878,6 @@ class ReportController extends Controller
         if($search){    
             
         }else {
-            if($hasRemarks){
-                if($hasRemarks == 1){
-                    $qP->whereNull('delivery_remarks');
-                }elseif ($hasRemarks == 2){
-                    $qP->whereNotNull('delivery_remarks');
-                }
-            }
             if($startDate && $endDate){
                 $startDatetime = Helper::dateYMD($startDate).' 00:00:00';
                 $endDatetime = Helper::dateYMD($endDate).' 23:59:59';
