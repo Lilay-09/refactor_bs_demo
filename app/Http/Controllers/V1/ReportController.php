@@ -103,6 +103,7 @@ class ReportController extends Controller
         $branchId = $req->branch_id;
         $warehouseId = $req->warehouse_id;
         $merchantId = $req->merchant_id;
+        $search = $req->query('search');
         $qP = Package::query()
         ->where('is_deleted',0)
         ->with([
@@ -123,17 +124,26 @@ class ReportController extends Controller
             assign_driver_datetime,updated_at,failed_datetime,returned_datetime,delivered_datetime,
             other_fee,created_at,product_type,taxi_fee,pickup_uid,branch_id'
         );
-        if($statusId){
-            $qP->where('status_id',$statusId);
-        }
-        if($merchantId){
-            $qP->where('merchant_id',$merchantId);
-        }
-        if($branchId){
-            $qP->where('branch_id',$branchId);
-        }
-        if($warehouseId){
-            $qP->where('warehouse_id',$warehouseId);
+
+        if($search){
+            $qP->where(function($q) use($search){
+                $q->where('qr_code','LIKE',"%{$search}%")
+                ->orWhere('receiver_phone','LIKE',"%{$search}%")
+                ->orWhere('zone_code','LIKE',"%{$search}%");
+            });
+        }else{
+            if($statusId){
+                $qP->where('status_id',$statusId);
+            }
+            if($merchantId){
+                $qP->where('merchant_id',$merchantId);
+            }
+            if($branchId){
+                $qP->where('branch_id',$branchId);
+            }
+            if($warehouseId){
+                $qP->where('warehouse_id',$warehouseId);
+            }
         }
 
         $grand = [
