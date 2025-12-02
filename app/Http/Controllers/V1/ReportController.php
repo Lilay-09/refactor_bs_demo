@@ -96,14 +96,6 @@ class ReportController extends Controller
 
     public function getDailyPackageReport(Request $req){
         $user = UserService::getAuthUser();
-        $startDate = $req->startDate;
-        $endDate = $req->endDate;
-        $lang = $req->lang;
-        $statusId = $req->status_id;
-        $branchId = $req->branch_id;
-        $warehouseId = $req->warehouse_id;
-        $merchantId = $req->merchant_id;
-        $pickupDriverId = $req->query('pickup_driver_id');
         $search = $req->query('search');
         $qP = Package::query()
         ->where('is_deleted',0)
@@ -133,6 +125,24 @@ class ReportController extends Controller
                 ->orWhere('zone_code','LIKE',"%{$search}%");
             });
         }else{
+            $startDate = $req->startDate;
+            $endDate = $req->endDate;
+            $lang = $req->lang;
+            $statusId = $req->status_id;
+            $branchId = $req->branch_id;
+            $warehouseId = $req->warehouse_id;
+            $merchantId = $req->merchant_id;
+            $pickupDriverId = $req->query('pickup_driver_id');
+            $hasRemarks = $req->query('hasRemarks');
+            
+            if($hasRemarks){
+                if($hasRemarks == 1){
+                    $qP->whereNull('delivery_remarks');
+                }elseif ($hasRemarks == 2){
+                    $qP->whereNotNull('delivery_remarks');
+                }
+            }
+            
             if($statusId){
                 $qP->where('status_id',$statusId);
             }
@@ -1062,7 +1072,21 @@ class ReportController extends Controller
             'branches' => GeneralSettingService::optionsBranch(),
             'price_list' => GeneralSettingService::optionsPriceListName($user),
             'drivers' => GeneralSettingService::optionsDriver($user),
-            'merchants' => GeneralSettingService::optionsMerchant($user)
+            'merchants' => GeneralSettingService::optionsMerchant($user),
+            'has_remarks' => [
+                [
+                    'lable' => 'All',
+                    'value' => 0,
+                ],
+                [
+                    'lable' => 'No remarks',
+                    'value' => 1,
+                ],
+                [
+                    'lable' => 'Has remarks',
+                    'value' => 2
+                ]
+            ]
         ];
         return ApiResponse::JsonResult($obj);
     }
@@ -1837,6 +1861,7 @@ class ReportController extends Controller
         // $branchId = $req->branch_id;
         // $warehouseId = $req->warehouse_id;
         $search = $req->search;
+
         $merchantInfo = User::where('account_type','merchant')
         ->select(['id','phone','username','code','address'])
         ->where('is_deleted',false)
