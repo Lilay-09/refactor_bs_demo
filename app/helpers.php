@@ -349,6 +349,28 @@ class Helper{
         };
     }
 
+    // Map type to symbol
+    private static array $symbols = [
+        'percentage' => '%',
+        'dollar'     => '$',
+        'riel'       => '៛',
+        // add more types if needed
+    ];
+
+    /**
+     * Format number with type symbol.
+     *
+     * @param float|int $value
+     * @param string $type
+     * @param bool $prefix Whether the symbol is before the number
+     * @return string
+     */
+    public static function formatWithType($value, string $type, bool $prefix = false): string {
+        $symbol = self::$symbols[$type] ?? '';
+        return $prefix ? $symbol . $value : $value . $symbol;
+    }
+
+    
     static function currencyAmount($amount, string $currency): string
     {
         $symbol = self::currency_symbol($currency);

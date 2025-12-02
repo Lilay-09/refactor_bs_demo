@@ -111,7 +111,7 @@ class ReportController extends Controller
         ])
         ->where('outstanding',0)
         ->selectRaw('
-            zone_name,qr_code,merchant_id,driver_id,returned_uid,payer,price_khr,
+            zone_name,zone_code,qr_code,merchant_id,driver_id,returned_uid,payer,price_khr,
             driver_cod_usd,driver_cod_khr,receiver_address,remarks,receiver_phone,cod,price,delivery_fee,
             additional_fee,driver_total,merchant_total,status_id,remarks,arrive_warehouse_datetime,
             assign_driver_datetime,updated_at,failed_datetime,returned_datetime,delivered_datetime,
@@ -134,7 +134,7 @@ class ReportController extends Controller
             $merchantId = $req->merchant_id;
             $pickupDriverId = $req->query('pickup_driver_id');
             $hasRemarks = $req->query('hasRemarks');
-            
+
             if($hasRemarks){
                 if($hasRemarks == 1){
                     $qP->whereNull('delivery_remarks');
@@ -1786,7 +1786,7 @@ class ReportController extends Controller
             unset($item->status);
             return $item;
         })->groupBy('groupDate')
-        ->map(function ($group, $date) use ($isKm,&$grandTotal){
+        ->map(function ($group, $date) use ($isKm,&$grand,&$grandTotal){
             $group->each(function ($item) use (&$grand,$isKm,&$totalDeliveryFee) {
                 $item->finished_date = Helper::dateDMY($item->groupDate);//($item->failed_datetime  && $item->status_id != 9) ? Helper::dateDMY($item->failed_datetime): Helper::dateDMY($item->delivered_datetime);
                 $finished_time = Helper::dateDMY($item->groupDate);//$item->failed_datetime ? Helper::formatCustomDateTime($item->failed_datetime,'h:i:s A'):Helper::formatCustomDateTime($item->delivered_datetime,'h:i:s A');
