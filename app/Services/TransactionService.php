@@ -2885,7 +2885,6 @@ class TransactionService
                     ];
                 }
                 if(!empty($insertPayInPkgs)){
-                    Log::info($insertPayInPkgs);
                     PaymentPackage::insert($insertPayInPkgs);
                 }
 
@@ -5427,7 +5426,7 @@ class TransactionService
         $breakDownNotes = trim($breakDownNotes, '| ');
         DB::beginTransaction();
         try{
-            $createPayment = Disbursement::create([
+            $inserData = [
                 'payee_id' => $payeeId,
                 'type' => 'commission',
                 'payee_type' => $type,
@@ -5441,8 +5440,10 @@ class TransactionService
                 'approved' => true,
                 'is_settled' => true,
                 'pickup_rate' => $validPackages->pickup_rate,
+                'pickup_rate_type' => $validPackages->pickup_rate_type,
                 'fast_pickup_rate' => $validPackages->fast_pickup_rate,
-                'delivery_rate' => $validPackages->fast_delivery_rate,
+                'delivery_rate' => $validPackages->delivery_rate,
+                'delivery_rate_type' => $validPackages->delivery_rate_type,
                 'fast_delivery_rate' => $validPackages->fast_delivery_rate,
                 'settled_uid' => $user->id,
                 'approved_uid' => $user->id,
@@ -5459,7 +5460,9 @@ class TransactionService
                 'breakdown_notes' => $breakDownNotes,
                 'company_id' => $user->company_id,
                 'branch_id' => $user->branch_id
-            ]);
+            ];
+            
+            $createPayment = Disbursement::create($inserData);
             $paymentId = $createPayment->id;
             if($cash && $dueAmount > 0){
                 DisbursementDetails::create([
@@ -5510,6 +5513,7 @@ class TransactionService
                 'payee_type' => $type
             ])->toArray());
 
+            // Log::info($orderIds);
             Order::whereIn('id',$orderIds)->update([
                 $type.'_commission_id' => $paymentId
             ]);
@@ -5590,7 +5594,8 @@ class TransactionService
         // ];
         $payeeKey = $type.'_id';
         $qP = Package::from('packages as p')
-            ->selectRaw('p.id, p.status_id,p.prev_status_id,p.driver_id,p.delivery_type')
+            ->where('p.delivery_fee','>',0)
+            ->selectRaw('p.qr_code,p.id, p.status_id,p.delivery_fee,p.prev_status_id,p.driver_id,p.delivery_type')
             // ->whereIn('p.status_id', [9, 19])
             ->where(function ($query) {
                 $query->whereIn('p.status_id', [9, 19])
@@ -5614,14 +5619,6 @@ class TransactionService
         ->where('is_deleted', 0)
         ->whereNull('driver_commission_id')
         ->where('status_id', 5)
-        ->withCount([
-            'packages as qty' => fn($q) => $q
-                ->where(function ($query) {
-                $query->whereIn('status_id', [9, 19])
-                        ->orWhere('prev_status_id', 19);
-                })
-                ->where('is_deleted', 0)
-        ])
         ->groupBy('id')
         ->having('qty', '>', 0);
 
@@ -5677,6 +5674,27 @@ class TransactionService
                 })
                 ->whereBetween('p.failed_datetime', [$normalDeliveryStartDate, $endDate]);
             });
+
+            $qO->whereHas('packages', function ($q) use ($normalDeliveryStartDate, $endDate) {
+
+                // Delivered packages within date range
+                $q->where(function ($query) use ($normalDeliveryStartDate, $endDate) {
+                    $query->where('status_id', 9)
+                        ->whereBetween('delivered_datetime', [$normalDeliveryStartDate, $endDate]);
+                })
+
+                // OR Failed packages within date range
+                ->orWhere(function ($query) use ($normalDeliveryStartDate, $endDate) {
+                    $query->where(function ($sub) {
+                            $sub->where('status_id', 19)
+                                ->orWhere('prev_status_id', 19);
+                        })
+                        ->whereBetween('failed_datetime', [$normalDeliveryStartDate, $endDate]);
+                })
+
+                ->where('is_deleted', 0);
+            });
+
             // $qP->whereRaw("
             //     (
             //         (p.status_id = 19 AND p.failed_datetime >= ? AND p.failed_datetime <= ?)
@@ -5689,7 +5707,24 @@ class TransactionService
             // $qO->whereBetween('pickup_datetime',[$normalPickUpStartDate,$endDate]);
         }
         $packages = $qP->get();
-        $orders = $qO->get();
+        $orders = $qO->withCount([
+            'packages as qty' => fn($q) => $q
+                ->where(function ($query) {
+                $query->whereIn('status_id', [9, 19])
+                        ->orWhere('prev_status_id', 19);
+                })
+                ->where('delivery_fee','>',0)
+                ->where('is_deleted', 0)
+        ])
+        ->withSum([
+            'packages as total_delivery_fee' => fn($q) => $q
+                ->where(function ($query) {
+                    $query->whereIn('status_id', [9, 19])
+                        ->orWhere('prev_status_id', 19);
+                })
+                ->where('is_deleted', 0)
+        ], 'delivery_fee')
+        ->get();
         // $qDc = DriverCommission::where('driver_id',$payeeId)->where('is_deleted',0)->selectRaw('id,driver_id,delivery_type,pickup_commission,pickup_commission_type,delivery_commission_type,delivery_commission,pickup_commission_start_date,delivery_commission_start_date');
         // $driverCommissions = $qDc->get();
         // $dc = TransactionService::getDriverCommissionInfo($driverCommissions,$payeeId);
@@ -5700,12 +5735,14 @@ class TransactionService
         $pickUpInfo = $this->getPickUpDetails($orders, $payeeId);
         $obj->order_ids = $pickUpInfo->order_ids;
         $pickUpCount = $pickUpInfo->total_package;
+        // Log::info(json_encode($pickUpInfo));
         $totalCommissionPkg = 0;
         $normalDeliveredCount = 0;
         $fastDeliveredCount = 0;
 
         $normalFailedWithFeeCount = 0;
         $fastFailedWithFeeCount = 0;
+        $totalNormalBaseFee = 0;
         foreach($packages as $package){
             // if($package->status_id == 9) {
             //     $deliveredCount += 1;
@@ -5716,6 +5753,7 @@ class TransactionService
             // if($package->taxi_fee) $obj->total_taxi_fee += $package->taxi_fee;
             if($package->status_id == 9) {
                 if($package->delivery_type == 'normal'){
+                    $totalNormalBaseFee += $package->delivery_fee;
                     $normalDeliveredCount +=1;
                 }else if($package->delivery_type == 'fast'){
                     $fastDeliveredCount +=1;
@@ -5726,6 +5764,7 @@ class TransactionService
                 // Log::info("{$package->status_id} ---- {$package->prev_status_id}");
                 if($package->delivery_type == 'normal'){
                     $normalFailedWithFeeCount +=1;
+                    $totalNormalBaseFee += $package->delivery_fee;
                 }
                 else if($package->delivery_type == 'fast'){
                     $fastFailedWithFeeCount +=1;
@@ -5733,7 +5772,13 @@ class TransactionService
                 $totalCommissionPkg +=1;
             }
         }
-        $obj->total_pickup = $pickUpCount * $dc->normal_pickup_commission;
+        $pickup_rate = $dc->normal_pickup_commission;
+        $delivery_rate = $dc->normal_delivery_commission;
+        $normalPickupCommissionType = $dc->normal_pickup_commission_type;
+        $normalDeliveryCommissionType = $dc->normal_delivery_commission_type;
+        $totalPickup = TransactionService::calculateCommission($pickup_rate,$normalPickupCommissionType,$pickUpCount,$pickUpInfo->total_base_fee);
+        $totalPkg = TransactionService::calculateCommission($delivery_rate,$normalDeliveryCommissionType,($normalDeliveredCount + $normalFailedWithFeeCount),$totalNormalBaseFee);
+        $obj->total_pickup = $totalPickup;
         $obj->total_delivered = $normalDeliveredCount * $dc->normal_delivery_commission + $fastDeliveredCount * $dc->fast_delivery_commission;
         $obj->total_package = $pickUpCount + $normalDeliveredCount + $fastDeliveredCount + $normalFailedWithFeeCount + $fastFailedWithFeeCount;
         //** Deliverd pkgs */
@@ -5742,8 +5787,10 @@ class TransactionService
         //-----
         $obj->total_delivered_package = $normalDeliveredCount + $fastDeliveredCount;
         $obj->total_pickup_package = $pickUpCount;
-        $obj->delivery_rate = $dc->normal_delivery_commission;
+        $obj->delivery_rate = $delivery_rate;
+        $obj->delivery_rate_type = $normalDeliveryCommissionType;
         $obj->pickup_rate = $dc->normal_pickup_commission;
+        $obj->pickup_rate_type = $normalPickupCommissionType;
         $obj->fast_delivery_rate = $dc->fast_delivery_commission;
         $obj->fast_pickup_rate = $dc->fast_pickup_commission;
         //** FailedWithFee pkgs */
@@ -5751,11 +5798,11 @@ class TransactionService
         $obj->fast_failed_with_fee_count = $fastFailedWithFeeCount;
         $obj->total_failed_with_fee_package = $normalFailedWithFeeCount + $fastFailedWithFeeCount;
         //----
-        $normalRate = $dc->normal_delivery_commission;
-        $totalPkg = ($normalDeliveredCount * $normalRate) + ($normalFailedWithFeeCount * $normalRate);
+        // $normalRate = $dc->normal_delivery_commission;
+        // $totalPkg = ($normalDeliveredCount * $normalRate) + ($normalFailedWithFeeCount * $normalRate);
         $obj->total_pickup_count = $pickUpCount;
 
-        $obj->grand_total = Helper::getNumber($obj->total_pickup + $totalPkg,2);
+        $obj->grand_total = Helper::getNumber($totalPickup + $totalPkg,2);
         if(empty($obj->package_ids) && empty($obj->order_ids)){
             return DataResponse::NotFound('No package found');
         }
@@ -5766,15 +5813,18 @@ class TransactionService
     public static function getPickUpDetails($orders,$driverId): object{
         $totalPkg = 0;
         $orderIds = [];
+        $totalBaseFee = 0;
         foreach($orders as $order){
             if($order->driver_id == $driverId){
                 $totalPkg += $order->qty;
                 $orderIds[] = $order->id;
+                $totalBaseFee += $order->total_delivery_fee;
             }
         }
         return (object)[
             'total_package' => $totalPkg,
-            'order_ids' => $orderIds
+            'order_ids' => $orderIds,
+            'total_base_fee' => $totalBaseFee,
         ];
     }
 
