@@ -128,6 +128,27 @@ class DriverTransactionController extends Controller
                     ->whereBetween('p.failed_datetime', [$normalDeliveryStartDate, $endDate]);
                 });
             });
+
+            $qO->whereHas('packages', function ($q) use ($normalDeliveryStartDate, $endDate) {
+
+                // Delivered packages within date range
+                $q->where(function ($query) use ($normalDeliveryStartDate, $endDate) {
+                    $query->where('status_id', 9)
+                        ->whereBetween('delivered_datetime', [$normalDeliveryStartDate, $endDate]);
+                })
+
+                // OR Failed packages within date range
+                ->orWhere(function ($query) use ($normalDeliveryStartDate, $endDate) {
+                    $query->where(function ($sub) {
+                            $sub->where('status_id', 19)
+                                ->orWhere('prev_status_id', 19);
+                        })
+                        ->whereBetween('failed_datetime', [$normalDeliveryStartDate, $endDate]);
+                })
+
+                ->where('is_deleted', 0);
+            });
+
             // $qP->where(function ($q) use ($normalDeliveryStartDate,$fastDeliveryStartDate, $endDate) {
             //     $q->where(function ($q) use ($normalDeliveryStartDate, $endDate) {
             //         $q->where('p.delivery_type', 'normal')
@@ -189,7 +210,6 @@ class DriverTransactionController extends Controller
             $driver->normal_failed_with_fee_count = $deliverdInfo->normal_failed_with_fee_count;
             $driver->fast_failed_with_fee_count = $deliverdInfo->fast_failed_with_fee_count;
 
-
             $totalNormalBaseFee = $deliverdInfo->total_normal_base_fee;
             $totalPickupBaseFee = $pickUpInfo->total_base_fee;
             $totalPickupRate = TransactionService::calculateCommission($pickup_rate,$normalPickupCommissionType,$totalPickUp,$totalPickupBaseFee);
@@ -203,15 +223,27 @@ class DriverTransactionController extends Controller
                 'delivery' => null
             ];
             if($normalPickupCommissionType == 'percentage'){
-                $calculator['pickup'] = "$driver->pickup_rate * $totalPickupBaseFee = $totalPickupRate";
+                if(!isset($calculator['pickup_base_fee'])){
+                    $calculator['pickup_base_fee'] = ": $$totalPickupBaseFee";
+                }
+                $calculator['pickup'] = ": $driver->pickup_rate * $totalPickupBaseFee = $totalPickupRate";
             }else{
-                $calculator['pickup'] = "$driver->pickup_rate * $totalPickUp = $totalPickupRate";
+                if(!isset($calculator['pickup_count'])){
+                    $calculator['pickup_count'] = $totalPickUp;
+                }
+                $calculator['pickup'] = ": $driver->pickup_rate * $totalPickUp = $totalPickupRate";
             }
 
-            if($normalPickupCommissionType == 'percentage'){
-                $calculator['delivery'] = "$driver->delivery_rate * $totalPickupBaseFee = $totalDeliveryNormal";
+            if($normalDeliveryCommissionType == 'percentage'){
+                if(!isset($calculator['delivery_base_fee'])){
+                    $calculator['delivery_base_fee'] = ": $$totalNormalBaseFee";
+                }
+                $calculator['delivery'] = ": $driver->delivery_rate * $totalNormalBaseFee = $totalDeliveryNormal";
             }else{
-                $calculator['delivery'] = "$driver->delivery_rate * $totalNormalPkg = $totalDeliveryNormal";
+                if(!isset($calculator['delivery_count'])){
+                    $calculator['delivery_count'] = $totalNormalPkg;
+                }
+                $calculator['delivery'] = ": $driver->delivery_rate * $totalNormalPkg = $totalDeliveryNormal";
             }
 
             $driver->calculator = $calculator;
