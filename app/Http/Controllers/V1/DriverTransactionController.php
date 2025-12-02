@@ -38,7 +38,8 @@ class DriverTransactionController extends Controller
         $qD = User::query()->selectRaw('code,id,username as driver_name,phone as driver_phone')->where('account_type','driver');
         if($driverId) $qD->where('id',$driverId);
         $qP = Package::query()->from('packages as p')
-        ->select('p.status_id','p.prev_status_id','p.driver_id','p.delivery_type')
+        ->where('p.delivery_fee', '>' ,0)
+        ->select('p.status_id','p.prev_status_id','p.delivery_fee','p.driver_id','p.delivery_type')
         ->where(function ($query) {
             $query->whereIn('p.status_id', [9, 19])
                 ->orWhere('p.prev_status_id', 19);
@@ -65,8 +66,17 @@ class DriverTransactionController extends Controller
                 $query->whereIn('status_id', [9, 19])
                         ->orWhere('prev_status_id', 19);
                 })
+                ->where('delivery_fee','>',0)
                 ->where('is_deleted', 0)
         ])
+        ->withSum([
+            'packages as total_delivery_fee' => fn($q) => $q
+                ->where(function ($query) {
+                    $query->whereIn('status_id', [9, 19])
+                        ->orWhere('prev_status_id', 19);
+                })
+                ->where('is_deleted', 0)
+        ], 'delivery_fee')
         ->groupBy('id')
         ->having('qty', '>', 0);
 
@@ -76,7 +86,6 @@ class DriverTransactionController extends Controller
             $qO->where('driver_id',$driverId);
             $qDc->where('driver_id',$driverId);
         }
-
         // if($driverId)
         $driverCommissions = $qDc->get();
         // $driverCommissionInfo = TransactionService::getDriverCommissionInfo($driverCommissions,$driverId);
@@ -103,7 +112,6 @@ class DriverTransactionController extends Controller
         $endDate = $endDate ? Helper::dateYMD($endDate). ' 23:59:59' : null;
         // return $endDate;
 
-        // \Log::info($normalDeliveryStartDate);
         if($normalDeliveryStartDate && $endDate){
             $qP->where(function ($q) use ($normalDeliveryStartDate, $endDate) {
                 $q->where(function ($q) use ($normalDeliveryStartDate, $endDate) {
@@ -153,8 +161,14 @@ class DriverTransactionController extends Controller
         $clbMapper = function ($driver) use ($driverCommissions,$orders, $packages) {
             // $commissionInfo = TransactionService::getDriverCommissionInfo($driverCommissionInfo, $driver->id);
             $driverCommissionInfo = TransactionService::getDriverCommissionInfo($driverCommissions,$driver->id);
-            $driver->pickup_rate = $driverCommissionInfo->normal_pickup_commission;
-            $driver->delivery_rate = $driverCommissionInfo->normal_delivery_commission;
+
+            $pickup_rate = $driverCommissionInfo->normal_pickup_commission;
+            $delivery_rate = $driverCommissionInfo->normal_delivery_commission;
+            $normalPickupCommissionType = $driverCommissionInfo->normal_pickup_commission_type;
+            $normalDeliveryCommissionType = $driverCommissionInfo->normal_delivery_commission_type;
+            
+            $driver->pickup_rate = Helper::formatWithType($pickup_rate,$normalPickupCommissionType);
+            $driver->delivery_rate = Helper::formatWithType($delivery_rate,$normalDeliveryCommissionType);
             $driver->delivery_fast_rate = $driverCommissionInfo->fast_delivery_commission;
 
             $pickUpInfo = $this->getPickUpDetails($orders, $driver->id);
@@ -175,12 +189,32 @@ class DriverTransactionController extends Controller
             $driver->normal_failed_with_fee_count = $deliverdInfo->normal_failed_with_fee_count;
             $driver->fast_failed_with_fee_count = $deliverdInfo->fast_failed_with_fee_count;
 
-            $totalPickupRate = TransactionService::calculateCommission($driver->pickup_rate,$driverCommissionInfo->normal_pickup_commission_type,$totalPickUp);
-            $totalDeliveryNormal = TransactionService::calculateCommission($driver->delivery_rate,$driverCommissionInfo->normal_delivery_commission_type,$totalNormalPkg);
+
+            $totalNormalBaseFee = $deliverdInfo->total_normal_base_fee;
+            $totalPickupBaseFee = $pickUpInfo->total_base_fee;
+            $totalPickupRate = TransactionService::calculateCommission($pickup_rate,$normalPickupCommissionType,$totalPickUp,$totalPickupBaseFee);
+            $totalDeliveryNormal = TransactionService::calculateCommission($delivery_rate,$normalDeliveryCommissionType,$totalNormalPkg,$totalNormalBaseFee);
             $driver->total = Helper::getNumber(
                 $totalPickupRate + $totalDeliveryNormal,
                 2
             );
+            $calculator = [
+                'pickup' => null,
+                'delivery' => null
+            ];
+            if($normalPickupCommissionType == 'percentage'){
+                $calculator['pickup'] = "$driver->pickup_rate * $totalPickupBaseFee = $totalPickupRate";
+            }else{
+                $calculator['pickup'] = "$driver->pickup_rate * $totalPickUp = $totalPickupRate";
+            }
+
+            if($normalPickupCommissionType == 'percentage'){
+                $calculator['delivery'] = "$driver->delivery_rate * $totalPickupBaseFee = $totalDeliveryNormal";
+            }else{
+                $calculator['delivery'] = "$driver->delivery_rate * $totalNormalPkg = $totalDeliveryNormal";
+            }
+
+            $driver->calculator = $calculator;
 
             // Bank account info
             $driver->bank_account = null;
@@ -234,14 +268,17 @@ class DriverTransactionController extends Controller
 
     public function getPickUpDetails($orders,$driverId){
         $totalPkg = 0;
+        $totalBaseFee = 0;
         foreach($orders as $order){
             // Log::info("{$order->driver} - {$driverId}");
             if($order->driver_id == $driverId){
                 $totalPkg += $order->qty;
+                $totalBaseFee += $order->total_delivery_fee;
             }
         }
         return (object)[
             'total_package' => $totalPkg,
+            'total_base_fee' => $totalBaseFee
         ];
     }
 
@@ -252,20 +289,24 @@ class DriverTransactionController extends Controller
         $fastFailedWithFeeCount = 0;
         $normalDeliveredCount = 0;
         $totalCommissionPkg = 0;
+        $totalNormalBaseFee = 0;
         foreach($packages as $pkg){
             if($pkg->driver_id == $driverId){
                 $totalPkg += 1;
                 if($pkg->status_id == 9) {
                     if($pkg->delivery_type == 'normal'){
                         $normalDeliveredCount +=1;
+                        $totalNormalBaseFee += $pkg->delivery_fee;
                     }else if($pkg->delivery_type == 'fast'){
                         $fastDeliveredCount +=1;
                     }
                     $totalCommissionPkg +=1;
+                    
                 }
                 if($pkg->status_id == 19 || $pkg->prev_status_id == 19) {
                     if($pkg->delivery_type == 'normal'){
                         $normalFailedWithFeeCount +=1;
+                        $totalNormalBaseFee += $pkg->delivery_fee;
                     }
                     else if($pkg->delivery_type == 'fast'){
                         $fastFailedWithFeeCount +=1;
@@ -282,7 +323,8 @@ class DriverTransactionController extends Controller
             'normal_failed_with_fee_count' => $normalFailedWithFeeCount,
             'fast_delivered_count' => $fastDeliveredCount,
             'fast_failed_with_fee_count' => $fastFailedWithFeeCount,
-            'total_commission_pkg' => $totalCommissionPkg
+            'total_commission_pkg' => $totalCommissionPkg,
+            'total_normal_base_fee' => $totalNormalBaseFee,
         ];
     }
 

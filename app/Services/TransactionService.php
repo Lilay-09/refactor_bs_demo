@@ -5372,21 +5372,24 @@ class TransactionService
         }
     }
 
-    public static function calculateCommission($rate, $rateType, $number)
-{
-    if (!is_numeric($rate) || !is_numeric($number)) {
+    /**
+     * @rule => if type = percentage sum base fee of pkg and * rate
+     */
+    public static function calculateCommission($rate, $rateType, $number,$totalBaseFee=0)
+    {
+        if (!is_numeric($rate) || !is_numeric($number)) {
+            return 0;
+        }
+
+        if ($rateType === 'percentage') {
+            return $rate * $totalBaseFee / 100;
+        } else if ($rateType === 'amount') {
+            return $rate * $number;
+        }
+
+        // Unknown rate type
         return 0;
     }
-
-    if ($rateType === 'percentage') {
-        return $rate * $number / 100;
-    } else if ($rateType === 'amount') {
-        return $rate * $number;
-    }
-
-    // Unknown rate type
-    return 0;
-}
 
 
     public function disbursementCommission(Request $req,$user,$type){
