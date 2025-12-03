@@ -39,7 +39,7 @@ class DriverTransactionController extends Controller
         if($driverId) $qD->where('id',$driverId);
         $qP = Package::query()->from('packages as p')
         ->where('p.delivery_fee', '>' ,0)
-        ->select('p.status_id','p.prev_status_id','p.delivery_fee','p.driver_id','p.delivery_type')
+        ->select('p.status_id','p.qr_code','p.prev_status_id','p.delivery_fee','p.driver_id','p.delivery_type')
         ->where(function ($query) {
             $query->whereIn('p.status_id', [9, 19])
                 ->orWhere('p.prev_status_id', 19);
@@ -54,40 +54,10 @@ class DriverTransactionController extends Controller
                 ->where('dp.type','commission')
                 ->where('dp.is_deleted', false);
         });
-        
-        $qO = Order::query()
-        ->select('id','driver_id') // select only needed columns
-        ->where('is_deleted', 0)
-        ->whereNull('driver_commission_id')
-        ->where('status_id', 5)
-        ->withCount([
-            'packages as qty' => fn($q) => $q
-                ->where(function ($query) {
-                $query->whereIn('status_id', [9, 19])
-                        ->orWhere('prev_status_id', 19);
-                })
-                ->where('delivery_fee','>',0)
-                ->where('is_deleted', 0)
-        ])
-        ->withSum([
-            'packages as total_delivery_fee' => fn($q) => $q
-                ->where(function ($query) {
-                    $query->whereIn('status_id', [9, 19])
-                        ->orWhere('prev_status_id', 19);
-                })
-                ->where('is_deleted', 0)
-        ], 'delivery_fee')
-        ->groupBy('id')
-        ->having('qty', '>', 0);
 
         $qDc = DriverCommission::query()->where('is_deleted',0)->selectRaw('id,driver_id,delivery_type,pickup_commission,pickup_commission_type,delivery_commission,delivery_commission_type,pickup_commission_start_date,delivery_commission_start_date');
-        if($driverId) {
-            $qP->where('driver_id',$driverId);
-            $qO->where('driver_id',$driverId);
-            $qDc->where('driver_id',$driverId);
-        }
+        
         // if($driverId)
-        $driverCommissions = $qDc->get();
         // $driverCommissionInfo = TransactionService::getDriverCommissionInfo($driverCommissions,$driverId);
         // return $driverCommissionInfo;
         // $pickUpStartDate = $req->query('startDate',$driverCommissionInfo->normal_pickup_commission_start_date);
@@ -112,6 +82,51 @@ class DriverTransactionController extends Controller
         $endDate = $endDate ? Helper::dateYMD($endDate). ' 23:59:59' : null;
         // return $endDate;
 
+        $qO = Order::query()
+        ->select('id','driver_id') // select only needed columns
+        ->where('is_deleted', 0)
+        ->whereNull('driver_commission_id')
+        ->where('status_id', 5)
+        // ->withCount([
+        //     'packages as qty' => fn($q) => $q
+        //         ->where(function ($query) {
+        //         $query->whereIn('status_id', [9, 19])
+        //                 ->orWhere('prev_status_id', 19);
+        //         })
+        //         ->where('delivery_fee','>',0)
+        //         ->where('is_deleted', 0)
+        // ])
+        ->withCount([
+            'packages as qty' => fn($q) => $q
+                ->where(function ($query) use ($normalDeliveryStartDate, $endDate) {
+                    $query->where(function($q2) use ($normalDeliveryStartDate, $endDate){
+                        $q2->where('status_id', 9)
+                        ->whereBetween('delivered_datetime', [$normalDeliveryStartDate, $endDate]);
+                    })
+                    ->orWhere(function($q2) use ($normalDeliveryStartDate, $endDate){
+                        $q2->where(function($q3){
+                            $q3->where('status_id', 19)
+                            ->orWhere('prev_status_id', 19);
+                        })
+                        ->whereBetween('failed_datetime', [$normalDeliveryStartDate, $endDate]);
+                    });
+                })
+                ->where('delivery_fee','>',0)
+                ->where('is_deleted', 0)
+        ])
+
+        ->withSum([
+            'packages as total_delivery_fee' => fn($q) => $q
+                ->where(function ($query) {
+                    $query->whereIn('status_id', [9, 19])
+                        ->orWhere('prev_status_id', 19);
+                })
+                ->where('delivery_fee','>',0)
+                ->where('is_deleted', 0)
+        ], 'delivery_fee')
+        ->groupBy('id')
+        ->having('qty', '>', 0);
+
         if($normalDeliveryStartDate && $endDate){
             $qP->where(function ($q) use ($normalDeliveryStartDate, $endDate) {
                 $q->where(function ($q) use ($normalDeliveryStartDate, $endDate) {
@@ -130,7 +145,6 @@ class DriverTransactionController extends Controller
             });
 
             $qO->whereHas('packages', function ($q) use ($normalDeliveryStartDate, $endDate) {
-
                 // Delivered packages within date range
                 $q->where(function ($query) use ($normalDeliveryStartDate, $endDate) {
                     $query->where('status_id', 9)
@@ -145,7 +159,6 @@ class DriverTransactionController extends Controller
                         })
                         ->whereBetween('failed_datetime', [$normalDeliveryStartDate, $endDate]);
                 })
-
                 ->where('is_deleted', 0);
             });
 
@@ -171,18 +184,23 @@ class DriverTransactionController extends Controller
             // });
         }
 
-        if($normalPickUpStartDate && $endDate){
-            $qO->whereBetween('pickup_datetime',[$normalPickUpStartDate,$endDate]);
+        // if($normalPickUpStartDate && $endDate){
+        //     $qO->whereBetween('pickup_datetime',[$normalPickUpStartDate,$endDate]);
+        // }
+        if($driverId) {
+            $qP->where('driver_id',$driverId);
+            $qO->where('driver_id',$driverId);
+            $qDc->where('driver_id',$driverId);
         }
-
         $packages = $qP->get();
         $orders = $qO->get();
+        $driverCommissions = $qDc->get();
+        // Log::info(json_encode($orders,JSON_PRETTY_PRINT));
         //** Callback func */
         // Log::info(json_encode($driverCommissionInfo));
         $clbMapper = function ($driver) use ($driverCommissions,$orders, $packages) {
             // $commissionInfo = TransactionService::getDriverCommissionInfo($driverCommissionInfo, $driver->id);
             $driverCommissionInfo = TransactionService::getDriverCommissionInfo($driverCommissions,$driver->id);
-
             $pickup_rate = $driverCommissionInfo->normal_pickup_commission;
             $delivery_rate = $driverCommissionInfo->normal_delivery_commission;
             $normalPickupCommissionType = $driverCommissionInfo->normal_pickup_commission_type;
@@ -302,7 +320,6 @@ class DriverTransactionController extends Controller
         $totalPkg = 0;
         $totalBaseFee = 0;
         foreach($orders as $order){
-            // Log::info("{$order->driver} - {$driverId}");
             if($order->driver_id == $driverId){
                 $totalPkg += $order->qty;
                 $totalBaseFee += $order->total_delivery_fee;
