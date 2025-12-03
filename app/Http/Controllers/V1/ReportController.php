@@ -336,7 +336,7 @@ class ReportController extends Controller
         $additionalKeys = [
             'title' => 'Daily Packages',
             'sub_title' => 'Arrivate Date:',
-            'date' => Helper::dateDMY($startDate).' to '.Helper::dateDMY($endDate),
+            'date' => Helper::dateDMY($startDate ?? $arriveStartDate).' to '.Helper::dateDMY($endDate ?? $arriveEndDate),
             'company_profile' => CompanyProfileService::profileInfo($user),
             'grand' => $grand,
         ];
