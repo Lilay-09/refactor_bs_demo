@@ -5709,9 +5709,18 @@ class TransactionService
         $packages = $qP->get();
         $orders = $qO->withCount([
             'packages as qty' => fn($q) => $q
-                ->where(function ($query) {
-                $query->whereIn('status_id', [9, 19])
-                        ->orWhere('prev_status_id', 19);
+                ->where(function ($query) use ($normalDeliveryStartDate, $endDate) {
+                    $query->where(function($q2) use ($normalDeliveryStartDate, $endDate){
+                        $q2->where('status_id', 9)
+                        ->whereBetween('delivered_datetime', [$normalDeliveryStartDate, $endDate]);
+                    })
+                    ->orWhere(function($q2) use ($normalDeliveryStartDate, $endDate){
+                        $q2->where(function($q3){
+                            $q3->where('status_id', 19)
+                            ->orWhere('prev_status_id', 19);
+                        })
+                        ->whereBetween('failed_datetime', [$normalDeliveryStartDate, $endDate]);
+                    });
                 })
                 ->where('delivery_fee','>',0)
                 ->where('is_deleted', 0)
