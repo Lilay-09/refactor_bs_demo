@@ -97,6 +97,7 @@ class ReportController extends Controller
     public function getDailyPackageReport(Request $req){
         $user = UserService::getAuthUser();
         $search = $req->query('search');
+        $lang = $req->lang;
         $qP = Package::query()
         ->where('is_deleted',0)
         ->with([
@@ -127,13 +128,14 @@ class ReportController extends Controller
         }else{
             $startDate = $req->startDate;
             $endDate = $req->endDate;
-            $lang = $req->lang;
+            $arriveStartDate = $req->arrive_start_date;
+            $arriveEndDate = $req->arrive_start_date;
             $statusId = $req->status_id;
             $branchId = $req->branch_id;
             $warehouseId = $req->warehouse_id;
             $merchantId = $req->merchant_id;
             $pickupDriverId = $req->query('pickup_driver_id');
-            $hasRemarks = $req->query('hasRemarks');
+            $hasRemarks = $req->query('has_remark');
 
             if($hasRemarks){
                 if($hasRemarks == 1){
@@ -144,7 +146,8 @@ class ReportController extends Controller
             }
             
             if($statusId){
-                $qP->where('status_id',$statusId);
+                $statusIds = explode(',',$statusId);
+                $qP->whereIn('status_id',$statusIds);
             }
             if($merchantId){
                 $qP->where('merchant_id',$merchantId);
@@ -157,6 +160,45 @@ class ReportController extends Controller
             }  
             if($pickupDriverId){
                 $qP->where('pickup_uid',$pickupDriverId);
+            }
+
+            if($startDate && $endDate){
+                $startDatetime = Helper::dateYMD($startDate). ' 00:00:00';
+                $endDatetime = Helper::dateYMD($endDate). ' 23:59:59';
+                $qP->where(function($q) use ($startDatetime, $endDatetime) {
+                    $q->where(function($q) use ($startDatetime, $endDatetime) {
+                        // For status_id 19, query only failed_datetime
+                        $q->whereBetween('failed_datetime', [$startDatetime, $endDatetime])
+                        ->whereIn('status_id', [10,19]);
+                    })
+                    ->orWhere(function($q) use ($startDatetime, $endDatetime) {
+                        // For status_id 9, query only delivered_datetime
+                        $q->whereBetween('delivered_datetime', [$startDatetime, $endDatetime])
+                        ->where('status_id', 9);
+                    })
+                    ->orWhere(function($q) use ($startDatetime, $endDatetime) {
+                        // For status_id 9, query only delivered_datetime
+                        $q->whereBetween('arrive_warehouse_datetime', [$startDatetime, $endDatetime])
+                        ->where('status_id', 5);
+                    })
+                    ->orWhere(function($q) use ($startDatetime, $endDatetime) {
+                        // For status_id 9, query only delivered_datetime
+                        $q->whereBetween('assign_driver_datetime', [$startDatetime, $endDatetime])
+                        ->where('status_id', 6);
+                    })
+
+                    ->orWhere(function($q) use ($startDatetime, $endDatetime) {
+                        // For status_id 11, query only returned_datetime
+                        $q->whereBetween('returned_datetime', [$startDatetime, $endDatetime])
+                        ->where('status_id', 11);
+                    });
+                });
+            }else if($arriveStartDate && $arriveEndDate){
+                $arriveStartDateTime = Helper::dateYMD($arriveStartDate). ' 00:00:00';
+                $arriveEndDateTime = Helper::dateYMD($arriveEndDate). ' 23:59:59';
+                $qP->whereBetween('arrive_warehouse_datetime',[
+                    $arriveStartDateTime,$arriveEndDateTime
+                ]);
             }
         }
 
@@ -173,38 +215,6 @@ class ReportController extends Controller
             'merchant_cod_khr' => 0
         ];
 
-        if($startDate && $endDate){
-            $startDatetime = Helper::dateYMD($startDate). ' 00:00:00';
-            $endDatetime = Helper::dateYMD($endDate). ' 23:59:59';
-            $qP->where(function($q) use ($startDatetime, $endDatetime) {
-                $q->where(function($q) use ($startDatetime, $endDatetime) {
-                    // For status_id 19, query only failed_datetime
-                    $q->whereBetween('failed_datetime', [$startDatetime, $endDatetime])
-                    ->whereIn('status_id', [10,19]);
-                })
-                ->orWhere(function($q) use ($startDatetime, $endDatetime) {
-                    // For status_id 9, query only delivered_datetime
-                    $q->whereBetween('delivered_datetime', [$startDatetime, $endDatetime])
-                    ->where('status_id', 9);
-                })
-                ->orWhere(function($q) use ($startDatetime, $endDatetime) {
-                    // For status_id 9, query only delivered_datetime
-                    $q->whereBetween('arrive_warehouse_datetime', [$startDatetime, $endDatetime])
-                    ->where('status_id', 5);
-                })
-                ->orWhere(function($q) use ($startDatetime, $endDatetime) {
-                    // For status_id 9, query only delivered_datetime
-                    $q->whereBetween('assign_driver_datetime', [$startDatetime, $endDatetime])
-                    ->where('status_id', 6);
-                })
-
-                ->orWhere(function($q) use ($startDatetime, $endDatetime) {
-                    // For status_id 11, query only returned_datetime
-                    $q->whereBetween('returned_datetime', [$startDatetime, $endDatetime])
-                    ->where('status_id', 11);
-                });
-            });
-        }
         $qP->orderByDesc('created_at');
         $callback = function ($q) use($lang){
             if($lang == 'km'){
@@ -261,7 +271,7 @@ class ReportController extends Controller
             // $grand['other_fee'] += $q->other_fee;
             // $q->merchant_total = $merchantTotal;
             $q->base_fee = $q->delivery_fee;
-            $q->arrive_warehouse_datetime = Helper::formatCustomDateTime($q->arrive_warehouse_datetime,'d-M-Y');
+            $q->arrive_warehouse_datetime = Helper::formatCustomDateTime($q->arrive_warehouse_datetime,'d-M-Y h:i A');
             $actionDate = null;
             if ($q->status_id == 5) $actionDate = Helper::formatCustomDateTime($q->arrive_warehouse_datetime,'d-M-Y h:i A');
             if ($q->status_id == 6) $actionDate = Helper::formatCustomDateTime($q->assign_driver_datetime,'d-M-Y h:i A');
@@ -269,7 +279,7 @@ class ReportController extends Controller
             if ($q->status_id == 9) $actionDate = Helper::formatCustomDateTime($q->delivered_datetime,'d-M-Y h:i A');
             if ($q->status_id == 19) $actionDate = Helper::formatCustomDateTime($q->failed_datetime,'d-M-Y h:i A');
             if ($q->status_id == 11) $actionDate = Helper::formatCustomDateTime($q->returned_datetime,'d-M-Y h:i A');
-            $q->action_date = $actionDate;
+            $q->finished_date = $actionDate;
             $q->makeHidden(['status','merchant','branchLocation','driver','returnUser','pickupDriver']);
             return $q;
         };
@@ -1075,15 +1085,15 @@ class ReportController extends Controller
             'merchants' => GeneralSettingService::optionsMerchant($user),
             'has_remarks' => [
                 [
-                    'lable' => 'All',
+                    'label' => 'All',
                     'value' => 0,
                 ],
                 [
-                    'lable' => 'No remarks',
+                    'label' => 'No remarks',
                     'value' => 1,
                 ],
                 [
-                    'lable' => 'Has remarks',
+                    'label' => 'Has remarks',
                     'value' => 2
                 ]
             ]
