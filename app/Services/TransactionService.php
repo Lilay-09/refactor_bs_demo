@@ -5753,34 +5753,37 @@ class TransactionService
         $fastFailedWithFeeCount = 0;
         $totalNormalBaseFee = 0;
         foreach($packages as $package){
-            // if($package->status_id == 9) {
-            //     $deliveredCount += 1;
-                $obj->package_ids[] = $package->id;
-            // }
-            // if($package->status_id == 19) $failedWithFeeCount +=1;
-            // if($package->cod) $obj->total_taxi_fee += $package->delivery_fee;
-            // if($package->taxi_fee) $obj->total_taxi_fee += $package->taxi_fee;
-            if($package->status_id == 9) {
-                if($package->delivery_type == 'normal'){
-                    $totalNormalBaseFee += $package->delivery_fee;
-                    $normalDeliveredCount +=1;
-                }else if($package->delivery_type == 'fast'){
-                    $fastDeliveredCount +=1;
+            if($package->driver_id == $payeeId){
+                    // if($package->status_id == 9) {
+                //     $deliveredCount += 1;
+                    $obj->package_ids[] = $package->id;
+                // }
+                // if($package->status_id == 19) $failedWithFeeCount +=1;
+                // if($package->cod) $obj->total_taxi_fee += $package->delivery_fee;
+                // if($package->taxi_fee) $obj->total_taxi_fee += $package->taxi_fee;
+                if($package->status_id == 9) {
+                    if($package->delivery_type == 'normal'){
+                        $totalNormalBaseFee += $package->delivery_fee;
+                        $normalDeliveredCount +=1;
+                    }else if($package->delivery_type == 'fast'){
+                        $fastDeliveredCount +=1;
+                    }
+                    $totalCommissionPkg +=1;
                 }
-                $totalCommissionPkg +=1;
-            }
-            if($package->status_id == 19 || $package->prev_status_id == 19) {
-                // Log::info("{$package->status_id} ---- {$package->prev_status_id}");
-                if($package->delivery_type == 'normal'){
-                    $normalFailedWithFeeCount +=1;
-                    $totalNormalBaseFee += $package->delivery_fee;
+                if($package->status_id == 19 || $package->prev_status_id == 19) {
+                    // Log::info("{$package->status_id} ---- {$package->prev_status_id}");
+                    if($package->delivery_type == 'normal'){
+                        $normalFailedWithFeeCount +=1;
+                        $totalNormalBaseFee += $package->delivery_fee;
+                    }
+                    else if($package->delivery_type == 'fast'){
+                        $fastFailedWithFeeCount +=1;
+                    }
+                    $totalCommissionPkg +=1;
                 }
-                else if($package->delivery_type == 'fast'){
-                    $fastFailedWithFeeCount +=1;
-                }
-                $totalCommissionPkg +=1;
             }
         }
+        // Log::info($totalNormalBaseFee);
         $pickup_rate = $dc->normal_pickup_commission;
         $delivery_rate = $dc->normal_delivery_commission;
         $normalPickupCommissionType = $dc->normal_pickup_commission_type;
