@@ -163,6 +163,7 @@ class ReportController extends Controller
             if($pickupDriverId){
                 $qP->where('pickup_uid',$pickupDriverId);
             }
+
             if($priceListId){
                 $qP->whereHas('merchant.merchantPriceList.priceList',function ($q) use($priceListId){
                     $q->where('price_list_name_id',$priceListId);

@@ -32,13 +32,264 @@ class DriverTransactionController extends Controller
         return ApiResponse::flex($trxService->getDeliveryPackagesV1($req,'driver',$user));
     }
 
+    // public function getDriverCommissionPackage(Request $req){
+    //     $driverId = $req->driver_id;
+    //     $qD = User::query()->selectRaw('code,id,username as driver_name,phone as driver_phone')->where('account_type','driver');
+    //     if($driverId) $qD->where('id',$driverId);
+    //     $qP = Package::query()->from('packages as p')
+    //     ->where('p.delivery_fee', '>' ,0)
+    //     ->select('p.status_id','p.qr_code','p.prev_status_id','p.delivery_fee','p.driver_id','p.delivery_type')
+    //     ->where(function ($query) {
+    //         $query->whereIn('p.status_id', [9, 19])
+    //             ->orWhere('p.prev_status_id', 19);
+    //     })
+    //     ->where('p.is_deleted',0)
+    //     // ->whereNull('driver_commission_id');
+    //     ->whereNotExists(function ($sub) {
+    //         $sub->select(DB::raw(1))
+    //             ->from('disbursement_packages as dp')
+    //             ->whereColumn('dp.package_id', 'p.id')
+    //             ->where('dp.payee_type', 'driver')
+    //             ->where('dp.type','commission')
+    //             ->where('dp.is_deleted', false);
+    //     });
+    //     $qDc = DriverCommission::query()->where('is_deleted',0)->selectRaw('id,driver_id,delivery_type,pickup_commission,pickup_commission_type,delivery_commission,delivery_commission_type,pickup_commission_start_date,delivery_commission_start_date');
+    //     // if($driverId)
+    //     // $driverCommissionInfo = TransactionService::getDriverCommissionInfo($driverCommissions,$driverId);
+    //     // return $driverCommissionInfo;
+    //     // $pickUpStartDate = $req->query('startDate',$driverCommissionInfo->normal_pickup_commission_start_date);
+    //     $startDateFromQuery = $req->query('startDate');
+    //     $endDate = $req->query('endDate');
+    //     // $defaultNormalDeliveryDate = $driverCommissionInfo->normal_delivery_commission_start_date;
+    //     // $defaultFastDeliveryDate = $driverCommissionInfo->fast_delivery_commission_start_date;
+    //     // $defaultNormalPickUpDate = $driverCommissionInfo->normal_pickup_commission_start_date;
+
+    //     // $normalDeliveryStartDate = $startDateFromQuery
+    //     //     ? max(Helper::dateYMD($startDateFromQuery).' 00:00:00', $defaultNormalDeliveryDate)
+    //     //     : null;
+    //     // $fastDeliveryStartDate = $startDateFromQuery
+    //     //     ? max(Helper::dateYMD($startDateFromQuery).' 00:00:00', $defaultFastDeliveryDate)
+    //     //     : null;
+    //     // $normalPickUpStartDate = $startDateFromQuery
+    //     //     ? max(Helper::dateYMD($startDateFromQuery).' 00:00:00', $defaultNormalPickUpDate)
+    //     //     : null;
+    //     $normalDeliveryStartDate = Helper::dateYMD($startDateFromQuery);
+    //     $fastDeliveryStartDate = null;
+    //     $normalPickUpStartDate = $normalDeliveryStartDate;
+    //     $endDate = $endDate ? Helper::dateYMD($endDate). ' 23:59:59' : null;
+    //     // return $endDate;
+
+    //     $qO = Order::query()
+    //     ->select('id','driver_id') // select only needed columns
+    //     ->where('is_deleted', 0)
+    //     ->whereNull('driver_commission_id')
+    //     ->where('status_id', 5)
+    //     // ->withCount([
+    //     //     'packages as qty' => fn($q) => $q
+    //     //         ->where(function ($query) {
+    //     //         $query->whereIn('status_id', [9, 19])
+    //     //                 ->orWhere('prev_status_id', 19);
+    //     //         })
+    //     //         ->where('delivery_fee','>',0)
+    //     //         ->where('is_deleted', 0)
+    //     // ])
+    //     ->withCount([
+    //         'packages as qty' => fn($q) => $q
+    //             ->where(function ($query) use ($normalDeliveryStartDate, $endDate) {
+    //                 $query->where(function($q2) use ($normalDeliveryStartDate, $endDate){
+    //                     $q2->where('status_id', 9)
+    //                     ->whereBetween('delivered_datetime', [$normalDeliveryStartDate, $endDate]);
+    //                 })
+    //                 ->orWhere(function($q2) use ($normalDeliveryStartDate, $endDate){
+    //                     $q2->where(function($q3){
+    //                         $q3->where('status_id', 19)
+    //                         ->orWhere('prev_status_id', 19);
+    //                     })
+    //                     ->whereBetween('failed_datetime', [$normalDeliveryStartDate, $endDate]);
+    //                 });
+    //             })
+    //             ->where('delivery_fee','>',0)
+    //             ->where('is_deleted', 0)
+    //     ])
+
+    //     ->withSum([
+    //         'packages as total_delivery_fee' => fn($q) => $q
+    //             ->where(function ($query) {
+    //                 $query->whereIn('status_id', [9, 19])
+    //                     ->orWhere('prev_status_id', 19);
+    //             })
+    //             ->where('delivery_fee','>',0)
+    //             ->where('is_deleted', 0)
+    //     ], 'delivery_fee')
+    //     ->groupBy('id')
+    //     ->having('qty', '>', 0);
+
+    //     if($normalDeliveryStartDate && $endDate){
+    //         $qP->where(function ($q) use ($normalDeliveryStartDate, $endDate) {
+    //             $q->where(function ($q) use ($normalDeliveryStartDate, $endDate) {
+    //                 // Status 9: delivered packages within date range
+    //                 $q->where('p.status_id', 9)
+    //                 ->whereBetween('p.delivered_datetime', [$normalDeliveryStartDate, $endDate]);
+    //             })
+    //             ->orWhere(function ($q) use ($normalDeliveryStartDate, $endDate) {
+    //                 // Failed packages (status 19 or prev_status_id 19) within failed_datetime
+    //                 $q->where(function ($q) {
+    //                     $q->where('p.status_id', 19)
+    //                     ->orWhere('p.prev_status_id', 19);
+    //                 })
+    //                 ->whereBetween('p.failed_datetime', [$normalDeliveryStartDate, $endDate]);
+    //             });
+    //         });
+
+    //         $qO->whereHas('packages', function ($q) use ($normalDeliveryStartDate, $endDate) {
+    //             // Delivered packages within date range
+    //             $q->where(function ($query) use ($normalDeliveryStartDate, $endDate) {
+    //                 $query->where('status_id', 9)
+    //                     ->whereBetween('delivered_datetime', [$normalDeliveryStartDate, $endDate]);
+    //             })
+
+    //             // OR Failed packages within date range
+    //             ->orWhere(function ($query) use ($normalDeliveryStartDate, $endDate) {
+    //                 $query->where(function ($sub) {
+    //                         $sub->where('status_id', 19)
+    //                             ->orWhere('prev_status_id', 19);
+    //                     })
+    //                     ->whereBetween('failed_datetime', [$normalDeliveryStartDate, $endDate]);
+    //             })
+    //             ->where('is_deleted', 0);
+    //         });
+
+    //         // $qP->where(function ($q) use ($normalDeliveryStartDate,$fastDeliveryStartDate, $endDate) {
+    //         //     $q->where(function ($q) use ($normalDeliveryStartDate, $endDate) {
+    //         //         $q->where('p.delivery_type', 'normal')
+    //         //         ->whereBetween('p.delivered_datetime',[$normalDeliveryStartDate,$endDate]);
+    //         //     });
+
+    //         //     // ->orWhere(function ($q) use ($fastDeliveryStartDate, $endDate) {
+    //         //     //     $q->where('p.delivery_type', 'fast')
+    //         //     //     ->whereRaw("
+    //         //     //             (
+    //         //     //                 (p.status_id = 19 AND p.failed_datetime BETWEEN ? AND ?)
+    //         //     //                 OR
+    //         //     //                 (p.status_id = 9 AND p.delivered_datetime BETWEEN ? AND ?)
+    //         //     //             )
+    //         //     //         ", [
+    //         //     //             $fastDeliveryStartDate, $endDate,
+    //         //     //             $fastDeliveryStartDate, $endDate
+    //         //     //         ]);
+    //         //     // });
+    //         // });
+    //     }
+
+    //     // if($normalPickUpStartDate && $endDate){
+    //     //     $qO->whereBetween('pickup_datetime',[$normalPickUpStartDate,$endDate]);
+    //     // }
+    //     if($driverId) {
+    //         $qP->where('driver_id',$driverId);
+    //         $qO->where('driver_id',$driverId);
+    //         $qDc->where('driver_id',$driverId);
+    //     }
+    //     $packages = $qP->get();
+    //     $orders = $qO->get();
+    //     $driverCommissions = $qDc->get();
+    //     // Log::info(json_encode($orders,JSON_PRETTY_PRINT));
+    //     //** Callback func */
+    //     // Log::info(json_encode($driverCommissionInfo));
+    //     $clbMapper = function ($driver) use ($driverCommissions,$orders, $packages) {
+    //         // $commissionInfo = TransactionService::getDriverCommissionInfo($driverCommissionInfo, $driver->id);
+    //         $driverCommissionInfo = TransactionService::getDriverCommissionInfo($driverCommissions,$driver->id);
+    //         $pickup_rate = $driverCommissionInfo->normal_pickup_commission;
+    //         $delivery_rate = $driverCommissionInfo->normal_delivery_commission;
+    //         $normalPickupCommissionType = $driverCommissionInfo->normal_pickup_commission_type;
+    //         $normalDeliveryCommissionType = $driverCommissionInfo->normal_delivery_commission_type;
+            
+    //         $driver->pickup_rate = Helper::formatWithType($pickup_rate,$normalPickupCommissionType);
+    //         $driver->delivery_rate = Helper::formatWithType($delivery_rate,$normalDeliveryCommissionType);
+    //         $driver->delivery_fast_rate = $driverCommissionInfo->fast_delivery_commission;
+
+    //         $pickUpInfo = $this->getPickUpDetails($orders, $driver->id);
+    //         $deliverdInfo = $this->getDeliveredDetails($packages, $driver->id);
+    //         // Log::info(json_encode($deliverdInfo));
+
+    //         $totalPickUp = $pickUpInfo->total_package ?? 0;
+    //         $totalNormalPkg = ($deliverdInfo->normal_delivered_count ?? 0) + ($deliverdInfo->normal_failed_with_fee_count ?? 0);//($deliverdInfo->normal_delivered_count ?? 0) + ($deliverdInfo->normal_failed_with_fee_count ?? 0);
+    //         $totalFastPkg = ($deliverdInfo->fast_delivered_count ?? 0) + ($deliverdInfo->fast_failed_with_fee_count ?? 0);
+
+    //         $driver->total_pickup = $totalPickUp;
+    //         $driver->total_delivered = ($deliverdInfo->normal_delivered_count ?? 0) + ($deliverdInfo->fast_delivered_count ?? 0);
+    //         $driver->normal_delivered_count = $deliverdInfo->normal_delivered_count;
+    //         $driver->fast_delivered_count = $deliverdInfo->fast_delivered_count;
+
+    //         $driver->total_failed_with_fee = ($deliverdInfo->normal_failed_with_fee_count ?? 0) + ($deliverdInfo->fast_failed_with_fee_count ?? 0);
+    //         $driver->total_commission_packages = $deliverdInfo->total_commission_pkg ?? 0;
+    //         $driver->normal_failed_with_fee_count = $deliverdInfo->normal_failed_with_fee_count;
+    //         $driver->fast_failed_with_fee_count = $deliverdInfo->fast_failed_with_fee_count;
+
+    //         $totalNormalBaseFee = $deliverdInfo->total_normal_base_fee;
+    //         $totalPickupBaseFee = $pickUpInfo->total_base_fee;
+    //         $totalPickupRate = TransactionService::calculateCommission($pickup_rate,$normalPickupCommissionType,$totalPickUp,$totalPickupBaseFee);
+    //         $totalDeliveryNormal = TransactionService::calculateCommission($delivery_rate,$normalDeliveryCommissionType,$totalNormalPkg,$totalNormalBaseFee);
+    //         $driver->total = Helper::getNumber(
+    //             $totalPickupRate + $totalDeliveryNormal,
+    //             2
+    //         );
+    //         $calculator = [
+    //             'pickup' => null,
+    //             'delivery' => null
+    //         ];
+    //         if($normalPickupCommissionType == 'percentage'){
+    //             if(!isset($calculator['pickup_base_fee'])){
+    //                 $calculator['pickup_base_fee'] = ": $$totalPickupBaseFee";
+    //             }
+    //             $calculator['pickup'] = ": $driver->pickup_rate * $totalPickupBaseFee = $totalPickupRate";
+    //         }else{
+    //             if(!isset($calculator['pickup_count'])){
+    //                 $calculator['pickup_count'] = $totalPickUp;
+    //             }
+    //             $calculator['pickup'] = ": $driver->pickup_rate * $totalPickUp = $totalPickupRate";
+    //         }
+
+    //         if($normalDeliveryCommissionType == 'percentage'){
+    //             if(!isset($calculator['delivery_base_fee'])){
+    //                 $calculator['delivery_base_fee'] = ": $$totalNormalBaseFee";
+    //             }
+    //             $calculator['delivery'] = ": $driver->delivery_rate * $totalNormalBaseFee = $totalDeliveryNormal";
+    //         }else{
+    //             if(!isset($calculator['delivery_count'])){
+    //                 $calculator['delivery_count'] = $totalNormalPkg;
+    //             }
+    //             $calculator['delivery'] = ": $driver->delivery_rate * $totalNormalPkg = $totalDeliveryNormal";
+    //         }
+
+    //         $driver->calculator = $calculator;
+
+    //         // Bank account info
+    //         $driver->bank_account = null;
+    //         foreach ($driver->bank_accounts as $b) {
+    //             $driver->bank_account = GeneralSettingService::concatBankInfo($b->bank_name, $b->bank_number, $b->account_name);
+    //             if ($b->is_primary) {
+    //                 break; // Prefer primary bank account
+    //             }
+    //         }
+
+    //         $driver->status_code = 'Pending';
+    //         unset($driver->bank_accounts);
+
+    //         return $driver;
+    //     };
+
+    //     return ApiResponse::PaginationV1($qD,$req,null,[],1000,$clbMapper);
+    //     // return ApiResponse::Pagination($driverInfo,$req);
+    // }
+
     public function getDriverCommissionPackage(Request $req){
         $driverId = $req->driver_id;
-        // Log::info($req->all());
         $qD = User::query()->selectRaw('code,id,username as driver_name,phone as driver_phone')->where('account_type','driver');
         if($driverId) $qD->where('id',$driverId);
+
         $qP = Package::query()->from('packages as p')
         ->where('p.delivery_fee', '>' ,0)
+        ->whereIn('p.driver_id',$qD->pluck('id'))
         ->select('p.status_id','p.qr_code','p.prev_status_id','p.delivery_fee','p.driver_id','p.delivery_type')
         ->where(function ($query) {
             $query->whereIn('p.status_id', [9, 19])
@@ -54,9 +305,7 @@ class DriverTransactionController extends Controller
                 ->where('dp.type','commission')
                 ->where('dp.is_deleted', false);
         });
-
         $qDc = DriverCommission::query()->where('is_deleted',0)->selectRaw('id,driver_id,delivery_type,pickup_commission,pickup_commission_type,delivery_commission,delivery_commission_type,pickup_commission_start_date,delivery_commission_start_date');
-        
         // if($driverId)
         // $driverCommissionInfo = TransactionService::getDriverCommissionInfo($driverCommissions,$driverId);
         // return $driverCommissionInfo;
@@ -81,51 +330,76 @@ class DriverTransactionController extends Controller
         $normalPickUpStartDate = $normalDeliveryStartDate;
         $endDate = $endDate ? Helper::dateYMD($endDate). ' 23:59:59' : null;
         // return $endDate;
+        $packageSubQuery = Package::query()
+        ->select(
+            'order_id',  // <-- aggregate per order
+            DB::raw('COUNT(*) as qty'),
+            DB::raw('SUM(delivery_fee) as total_delivery_fee')
+        )
+        ->where('is_deleted', 0)
+        ->where('delivery_fee', '>', 0)
+        ->where(function($q) use ($normalDeliveryStartDate, $endDate){
+            $q->where(function($q2) use ($normalDeliveryStartDate, $endDate){
+                $q2->where('status_id', 9)
+                ->whereBetween('delivered_datetime', [$normalDeliveryStartDate, $endDate]);
+            })
+            ->orWhere(function($q2) use ($normalDeliveryStartDate, $endDate){
+                $q2->where(function($q3){
+                    $q3->where('status_id', 19)
+                    ->orWhere('prev_status_id', 19);
+                })
+                ->whereBetween('failed_datetime', [$normalDeliveryStartDate, $endDate]);
+            });
+        })
+        ->groupBy('order_id');  // <-- group by order_id
 
         $qO = Order::query()
-        ->select('id','driver_id') // select only needed columns
-        ->where('is_deleted', 0)
-        ->whereNull('driver_commission_id')
-        ->where('status_id', 5)
+            ->select('orders.id', 'orders.driver_id', 'pSub.qty', 'pSub.total_delivery_fee')
+            ->where('orders.is_deleted', 0)
+            ->whereNull('driver_commission_id')
+            ->where('status_id', 5)
+            ->joinSub($packageSubQuery, 'pSub', function($join){
+                // $join->on('orders.driver_id', '=', 'pSub.driver_id');
+                $join->on('orders.id', '=', 'pSub.order_id');
+            })
+            ->groupBy('orders.id', 'orders.driver_id', 'pSub.qty', 'pSub.total_delivery_fee')
+            ->having('pSub.qty', '>', 0);
+
+        // $qO = Order::query()
+        // ->select('id','driver_id') // select only needed columns
+        // ->where('is_deleted', 0)
+        // ->whereNull('driver_commission_id')
+        // ->where('status_id', 5)
         // ->withCount([
         //     'packages as qty' => fn($q) => $q
-        //         ->where(function ($query) {
-        //         $query->whereIn('status_id', [9, 19])
-        //                 ->orWhere('prev_status_id', 19);
+        //         ->where(function ($query) use ($normalDeliveryStartDate, $endDate) {
+        //             $query->where(function($q2) use ($normalDeliveryStartDate, $endDate){
+        //                 $q2->where('status_id', 9)
+        //                 ->whereBetween('delivered_datetime', [$normalDeliveryStartDate, $endDate]);
+        //             })
+        //             ->orWhere(function($q2) use ($normalDeliveryStartDate, $endDate){
+        //                 $q2->where(function($q3){
+        //                     $q3->where('status_id', 19)
+        //                     ->orWhere('prev_status_id', 19);
+        //                 })
+        //                 ->whereBetween('failed_datetime', [$normalDeliveryStartDate, $endDate]);
+        //             });
         //         })
         //         ->where('delivery_fee','>',0)
         //         ->where('is_deleted', 0)
         // ])
-        ->withCount([
-            'packages as qty' => fn($q) => $q
-                ->where(function ($query) use ($normalDeliveryStartDate, $endDate) {
-                    $query->where(function($q2) use ($normalDeliveryStartDate, $endDate){
-                        $q2->where('status_id', 9)
-                        ->whereBetween('delivered_datetime', [$normalDeliveryStartDate, $endDate]);
-                    })
-                    ->orWhere(function($q2) use ($normalDeliveryStartDate, $endDate){
-                        $q2->where(function($q3){
-                            $q3->where('status_id', 19)
-                            ->orWhere('prev_status_id', 19);
-                        })
-                        ->whereBetween('failed_datetime', [$normalDeliveryStartDate, $endDate]);
-                    });
-                })
-                ->where('delivery_fee','>',0)
-                ->where('is_deleted', 0)
-        ])
 
-        ->withSum([
-            'packages as total_delivery_fee' => fn($q) => $q
-                ->where(function ($query) {
-                    $query->whereIn('status_id', [9, 19])
-                        ->orWhere('prev_status_id', 19);
-                })
-                ->where('delivery_fee','>',0)
-                ->where('is_deleted', 0)
-        ], 'delivery_fee')
-        ->groupBy('id')
-        ->having('qty', '>', 0);
+        // ->withSum([
+        //     'packages as total_delivery_fee' => fn($q) => $q
+        //         ->where(function ($query) {
+        //             $query->whereIn('status_id', [9, 19])
+        //                 ->orWhere('prev_status_id', 19);
+        //         })
+        //         ->where('delivery_fee','>',0)
+        //         ->where('is_deleted', 0)
+        // ], 'delivery_fee')
+        // ->groupBy('id')
+        // ->having('qty', '>', 0);
 
         if($normalDeliveryStartDate && $endDate){
             $qP->where(function ($q) use ($normalDeliveryStartDate, $endDate) {
