@@ -97,6 +97,10 @@ class ReportController extends Controller
     public function getDailyPackageReport(Request $req){
         $user = UserService::getAuthUser();
         $search = $req->query('search');
+        $startDate = $req->startDate;
+        $endDate = $req->endDate;
+        $arriveStartDate = $req->arrive_start_date;
+        $arriveEndDate = $req->arrive_start_date;
         $lang = $req->lang;
         $qP = Package::query()
         ->where('is_deleted',0)
@@ -126,10 +130,6 @@ class ReportController extends Controller
                 ->orWhere('zone_code','LIKE',"%{$search}%");
             });
         }else{
-            $startDate = $req->startDate;
-            $endDate = $req->endDate;
-            $arriveStartDate = $req->arrive_start_date;
-            $arriveEndDate = $req->arrive_start_date;
             $statusId = $req->status_id;
             $branchId = $req->branch_id;
             $warehouseId = $req->warehouse_id;
