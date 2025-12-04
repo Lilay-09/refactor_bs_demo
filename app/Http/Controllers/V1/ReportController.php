@@ -136,6 +136,8 @@ class ReportController extends Controller
             $merchantId = $req->merchant_id;
             $pickupDriverId = $req->query('pickup_driver_id');
             $hasRemarks = $req->query('has_remark');
+            $priceListId = $req->query('price_list_id');
+            Log::info($req->all());
 
             if($hasRemarks){
                 if($hasRemarks == 1){
@@ -160,6 +162,11 @@ class ReportController extends Controller
             }  
             if($pickupDriverId){
                 $qP->where('pickup_uid',$pickupDriverId);
+            }
+            if($priceListId){
+                $qP->whereHas('merchant.merchantPriceList.priceList',function ($q) use($priceListId){
+                    $q->where('price_list_name_id',$priceListId);
+                });
             }
 
             if($startDate && $endDate){
@@ -273,7 +280,7 @@ class ReportController extends Controller
             $q->base_fee = $q->delivery_fee;
             $q->arrive_warehouse_datetime = Helper::formatCustomDateTime($q->arrive_warehouse_datetime,'d-M-Y h:i A');
             $actionDate = null;
-            if ($q->status_id == 5) $actionDate = Helper::formatCustomDateTime($q->arrive_warehouse_datetime,'d-M-Y h:i A');
+            // if ($q->status_id == 5) $actionDate = Helper::formatCustomDateTime($q->arrive_warehouse_datetime,'d-M-Y h:i A');
             if ($q->status_id == 6) $actionDate = Helper::formatCustomDateTime($q->assign_driver_datetime,'d-M-Y h:i A');
             if ($q->status_id == 10) $actionDate = Helper::formatCustomDateTime($q->failed_datetime,'d-M-Y h:i A');
             if ($q->status_id == 9) $actionDate = Helper::formatCustomDateTime($q->delivered_datetime,'d-M-Y h:i A');
