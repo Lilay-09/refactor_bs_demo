@@ -446,11 +446,12 @@ class ReportController extends Controller
     // Calculate grand totals using a fresh query (avoid group by issues)
     $grandTotalsQuery = Package::query()
         ->where('is_deleted',0)
-        ->where('outstanding',0)
-        ->whereIn('status_id',[5,6,9,10,11,19]);
+        ->where('outstanding',0);
 
     if($statusId){
-        $qP->whereIn('status_id', explode(',',$statusId));
+        $grandTotalsQuery->whereIn('status_id', explode(',',$statusId));
+    }else{
+        $grandTotalsQuery->whereIn('status_id',[5,6,9,10,11,19]);
     }
 
     if($startDate && $endDate){
