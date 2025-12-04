@@ -1496,6 +1496,7 @@ class ReportController extends Controller
         $warehouseId = $req->warehouse_id;
         $qD = User::from('users as d')->where('d.account_type','driver')
         ->join('disbursements as dis','dis.payee_id','d.id')
+        ->where('dis.is_deleted',false)
         ->join('users as r','r.id','dis.receiptionist_uid')
         ->orderByDesc('dis.id')
         ->selectRaw('d.username as driver_name,d.code,dis.pickup_rate,dis.delivery_rate,dis.failed_with_fee_count,dis.delivered_package_count,dis.pickup_package_count,dis.payable_amount,dis.payment_datetime,dis.breakdown_notes,r.username as paid_by')
