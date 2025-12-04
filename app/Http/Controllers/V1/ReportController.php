@@ -137,7 +137,6 @@ class ReportController extends Controller
             $pickupDriverId = $req->query('pickup_driver_id');
             $hasRemarks = $req->query('has_remark');
             $priceListId = $req->query('price_list_id');
-            Log::info($req->all());
 
             if($hasRemarks){
                 if($hasRemarks == 1){
