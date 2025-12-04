@@ -1085,7 +1085,7 @@ class ReportController extends Controller
         $obj =(object)[
             'statuses' => GeneralSettingService::optionsTrackingStatus($user,[],[5,6,9,10,11,19]),
             'branches' => GeneralSettingService::optionsBranch(),
-            'zones' => GeneralSettingService::optionsZone($user,'children'),
+            'zones' => GeneralSettingService::optionsZone($user,'child'),
             'branches' => GeneralSettingService::optionsBranch(),
             'price_list' => GeneralSettingService::optionsPriceListName($user),
             'drivers' => GeneralSettingService::optionsDriver($user),
