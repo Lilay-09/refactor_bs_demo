@@ -137,6 +137,7 @@ class ReportController extends Controller
             $pickupDriverId = $req->query('pickup_driver_id');
             $hasRemarks = $req->query('has_remark');
             $priceListId = $req->query('price_list_id');
+            $zoneCode = $req->query('zone_code');
 
             if($hasRemarks){
                 if($hasRemarks == 1){
@@ -166,6 +167,9 @@ class ReportController extends Controller
                 $qP->whereHas('merchant.merchantPriceList.priceList',function ($q) use($priceListId){
                     $q->where('price_list_name_id',$priceListId);
                 });
+            }
+            if($zoneCode){
+                $qP->where('zone_code',$zoneCode);
             }
 
             if($startDate && $endDate){
