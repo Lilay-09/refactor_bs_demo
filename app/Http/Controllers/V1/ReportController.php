@@ -2097,6 +2097,7 @@ class ReportController extends Controller
             ]));
         }
         $qP = Package::where('is_deleted',false)
+        ->where('outstanding',0)
         ->whereIn('status_id',[5,6,9,10,19,11,23])
         ->where('merchant_id',$merchantId);
         if($search){    
@@ -2106,11 +2107,15 @@ class ReportController extends Controller
                 $startDatetime = Helper::dateYMD($startDate).' 00:00:00';
                 $endDatetime = Helper::dateYMD($endDate).' 23:59:59';
                 $qP->where(function ($q) use ($startDatetime,$endDatetime){
-                    $q->where('status_id', '!=', 9)
+                    $q->whereNotIn('status_id', [9,23])
                     // ✔ Only show status 9 if delivered in range
                     ->orWhere(function ($s) use ($startDatetime, $endDatetime) {
                         $s->where('status_id', 9)
                             ->whereBetween('delivered_datetime', [$startDatetime, $endDatetime]);
+                    })
+                    ->orWhere(function ($s) use ($startDatetime, $endDatetime) {
+                        $s->where('status_id', 23)
+                            ->whereBetween('returned_datetime', [$startDatetime, $endDatetime]);
                     });
                     // $q->whereRaw(
                     //     "(status_id = 5 AND arrive_warehouse_datetime BETWEEN ? AND ?)
