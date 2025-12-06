@@ -200,10 +200,9 @@ class ReportController extends Controller
             }
 
             if ($priceListId) {
-
                 $priceListCallback = function ($q) use ($priceListId) {
-                    $q->whereHas('merchant.merchantPriceList.priceList', function($q2) use ($priceListId) {
-                        $q2->where('price_list_name_id', $priceListId);
+                    $q->whereHas('merchant.merchantPriceList', function($q2) use ($priceListId) {
+                        $q2->where('price_list_id', $priceListId);
                     });
                 };
 
@@ -336,8 +335,9 @@ class ReportController extends Controller
             $q->driver_phone = $q->driver?->phone;
             $q->pickup_driver_name = $q->pickupDriver?->username;
             $q->pickup_driver_phone = $q->pickupDriver?->phone;
-            $q->price_list = $q->merchant?->merchantPriceList?->priceList?->priceListName->name ?? null;
+            $q->price_list = $q->merchant?->merchantPriceList?->priceListName->name ?? null;
             $q->branch_name = $q->branchLocation->name_en ?? null;
+            // Log::info(json_encode($q->merchant?->merchantPriceList?->priceList,JSON_PRETTY_PRINT));
 
             $fees = (float)($q->delivery_fee + $q->other_fee); 
             $driverCodUsd = (float)($q->driver_cod_usd ?? 0);
