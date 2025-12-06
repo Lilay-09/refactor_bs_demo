@@ -14,7 +14,7 @@ use App\Models\Order;
 use App\Models\Package;
 use App\Models\Payment;
 use App\Models\PaymentDetail;
-use App\Models\TelegramSendLog;
+// use App\Models\TelegramSendLog;
 use App\Models\User;
 use App\Models\UserBank;
 use App\Services\CompanyProfileService;
@@ -94,470 +94,296 @@ class ReportController extends Controller
         return ApiResponse::JsonResult($obj,'Get Pickup List');
     }
 
-    // public function getDailyPackageReport(Request $req){
-    //     $user = UserService::getAuthUser();
-    //     $search = $req->query('search');
-    //     $startDate = $req->startDate;
-    //     $endDate = $req->endDate;
-    //     $arriveStartDate = $req->arrive_start_date;
-    //     $arriveEndDate = $req->arrive_start_date;
-    //     $lang = $req->lang;
-    //     $qP = Package::query()
-    //     ->where('is_deleted',0)
-    //     ->with([
-    //         'status',
-    //         'driver:id,code,username,phone',
-    //         'merchant:id,code,username,phone',
-    //         'returnUser:id,code,username,phone',
-    //         'pickupDriver:id,code,username,phone',
-    //         'merchant.merchantPriceList',
-    //         'merchant.merchantPriceList.priceList.priceListName',
-    //         'branchLocation:id,name_en'
-    //     ])
-    //     ->where('outstanding',0)
-    //     ->selectRaw('
-    //         zone_name,zone_code,qr_code,merchant_id,driver_id,returned_uid,payer,price_khr,
-    //         driver_cod_usd,driver_cod_khr,receiver_address,remarks,receiver_phone,cod,price,delivery_fee,
-    //         additional_fee,driver_total,merchant_total,status_id,remarks,arrive_warehouse_datetime,
-    //         assign_driver_datetime,updated_at,failed_datetime,returned_datetime,delivered_datetime,
-    //         other_fee,created_at,product_type,taxi_fee,pickup_uid,branch_id'
-    //     );
-
-    //     if($search){
-    //         $qP->where(function($q) use($search){
-    //             $q->where('qr_code','LIKE',"%{$search}%")
-    //             ->orWhere('receiver_phone','LIKE',"%{$search}%")
-    //             ->orWhere('zone_code','LIKE',"%{$search}%");
-    //         });
-    //     }else{
-    //         $statusId = $req->status_id;
-    //         $branchId = $req->branch_id;
-    //         $warehouseId = $req->warehouse_id;
-    //         $merchantId = $req->merchant_id;
-    //         $pickupDriverId = $req->query('pickup_driver_id');
-    //         $hasRemarks = $req->query('has_remark');
-    //         $priceListId = $req->query('price_list_id');
-    //         $zoneCode = $req->query('zone_code');
-
-    //         if($hasRemarks){
-    //             if($hasRemarks == 1){
-    //                 $qP->whereNull('delivery_remarks');
-    //             }elseif ($hasRemarks == 2){
-    //                 $qP->whereNotNull('delivery_remarks');
-    //             }
-    //         }
-            
-    //         if($statusId){
-    //             $statusIds = explode(',',$statusId);
-    //             $qP->whereIn('status_id',$statusIds);
-    //         }
-    //         if($merchantId){
-    //             $qP->where('merchant_id',$merchantId);
-    //         }
-    //         if($branchId){
-    //             $qP->where('branch_id',$branchId);
-    //         }
-    //         if($warehouseId){
-    //             $qP->where('warehouse_id',$warehouseId);
-    //         }  
-    //         if($pickupDriverId){
-    //             $qP->where('pickup_uid',$pickupDriverId);
-    //         }
-
-    //         if($priceListId){
-    //             $qP->whereHas('merchant.merchantPriceList.priceList',function ($q) use($priceListId){
-    //                 $q->where('price_list_name_id',$priceListId);
-    //             });
-    //         }
-    //         if($zoneCode){
-    //             $qP->where('zone_code',$zoneCode);
-    //         }
-
-    //         if($startDate && $endDate){
-    //             $startDatetime = Helper::dateYMD($startDate). ' 00:00:00';
-    //             $endDatetime = Helper::dateYMD($endDate). ' 23:59:59';
-    //             $qP->where(function($q) use ($startDatetime, $endDatetime) {
-    //                 $q->where(function($q) use ($startDatetime, $endDatetime) {
-    //                     // For status_id 19, query only failed_datetime
-    //                     $q->whereBetween('failed_datetime', [$startDatetime, $endDatetime])
-    //                     ->whereIn('status_id', [10,19]);
-    //                 })
-    //                 ->orWhere(function($q) use ($startDatetime, $endDatetime) {
-    //                     // For status_id 9, query only delivered_datetime
-    //                     $q->whereBetween('delivered_datetime', [$startDatetime, $endDatetime])
-    //                     ->where('status_id', 9);
-    //                 })
-    //                 ->orWhere(function($q) use ($startDatetime, $endDatetime) {
-    //                     // For status_id 9, query only delivered_datetime
-    //                     $q->whereBetween('arrive_warehouse_datetime', [$startDatetime, $endDatetime])
-    //                     ->where('status_id', 5);
-    //                 })
-    //                 ->orWhere(function($q) use ($startDatetime, $endDatetime) {
-    //                     // For status_id 9, query only delivered_datetime
-    //                     $q->whereBetween('assign_driver_datetime', [$startDatetime, $endDatetime])
-    //                     ->where('status_id', 6);
-    //                 })
-
-    //                 ->orWhere(function($q) use ($startDatetime, $endDatetime) {
-    //                     // For status_id 11, query only returned_datetime
-    //                     $q->whereBetween('returned_datetime', [$startDatetime, $endDatetime])
-    //                     ->where('status_id', 11);
-    //                 });
-    //             });
-    //         }else if($arriveStartDate && $arriveEndDate){
-    //             $arriveStartDateTime = Helper::dateYMD($arriveStartDate). ' 00:00:00';
-    //             $arriveEndDateTime = Helper::dateYMD($arriveEndDate). ' 23:59:59';
-    //             $qP->whereBetween('arrive_warehouse_datetime',[
-    //                 $arriveStartDateTime,$arriveEndDateTime
-    //             ]);
-    //         }
-    //     }
-
-    //     $grand = [
-    //         'price' => 0,
-    //         'price_khr' => 0,
-    //         'fees' => 0,
-    //         'other_fee' => 0,
-    //         'taxi_fee' => 0,
-    //         'base_fee' => 0,
-    //         'driver_cod_usd' => 0,
-    //         'merchant_cod_usd' => 0,
-    //         'driver_cod_khr' => 0,
-    //         'merchant_cod_khr' => 0
-    //     ];
-
-    //     $qP->orderByDesc('created_at');
-    //     $callback = function ($q) use($lang){
-    //         if($lang == 'km'){
-    //             $q->status_code = GeneralSettingService::$statusCodeTrans[$q->status_id] ?? '';
-    //         }else $q->status_code = $q->status->name;
-    //         $q->merchant_name = $q->merchant->username;
-    //         $q->merchant_phone = $q->merchant->phone;
-    //         $q->driver_name = $q->status_id == 11 ? $q->returnUser?->username : $q->driver?->username;
-    //         $q->driver_phone = $q->driver?->phone;
-    //         $q->pickup_driver_name = $q->pickupDriver?->username;
-    //         $q->pickup_driver_phone = $q->pickupDriver?->phone;
-    //         $q->price_list = $q->merchant?->merchantPriceList?->priceList?->priceListName->name ?? null;
-    //         // $q->cod_fee = $q->price;
-    //         $q->branch_name = $q->branchLocation->name_en ?? null;
-    //         $merchantTotal = $q->cod ? $q->price:0;
-    //         $fees = (float)($q->delivery_fee + $q->other_fee); 
-    //         // $grand['taxi_fee'] += $q->taxi_fee;
-    //         if($q->payer == 'sender'){
-    //             $merchantTotal -= $fees + $q->taxi_fee;
-    //         }
-    //         $driverCodUsd =(float)($q->driver_cod_usd ?? 0);
-    //         $driverCodKhr = (float)($q->driver_cod_khr ?? 0);
-    //         $taxiFee = (float)$q->taxi_fee;
-    //         // $driverTotal = PackageTrailServiceImpl::calculateCodAmtBothCurrencies(
-    //         //     $driverCodUsd,
-    //         //     $driverCodKhr,
-    //         //     'driver',
-    //         //     $q->payer,
-    //         //     $q->status_id,
-    //         //     $fees,
-    //         //     $taxiFee
-    //         // );
-    //         $merchantTotal = PackageTrailServiceImpl::calculateCodAmtBothCurrencies(
-    //             $driverCodUsd,
-    //             $driverCodKhr,
-    //             'merchant',
-    //             $q->payer,
-    //             $q->status_id,
-    //             $fees,
-    //             $taxiFee
-    //         );
-    //         $q->driver_total = $driverCodUsd;
-    //         $q->driver_total_khr = $driverCodKhr;
-    //         $q->merchant_total = $merchantTotal['amount_usd'];
-    //         $q->merchant_total_khr = $merchantTotal['amount_khr'];
-    //         // $grand['cod'] += $q->driver_total;
-    //         // $grand['driver_total'] += $driverCodUsd;
-    //         // $grand['driver_total_khr'] += $driverCodKhr;
-    //         // $grand['merchant_total'] += $merchantTotal['amount_usd'];
-    //         // $grand['merchant_total_khr'] += $merchantTotal['amount_khr'];
-    //         // $grand['price'] += $q->price;
-    //         // $grand['price_khr'] += $q->price_khr;
-    //         // $grand['base_fee'] += $q->delivery_fee;
-    //         // $grand['other_fee'] += $q->other_fee;
-    //         // $q->merchant_total = $merchantTotal;
-    //         $q->base_fee = $q->delivery_fee;
-    //         $q->arrive_warehouse_datetime = Helper::formatCustomDateTime($q->arrive_warehouse_datetime,'d-M-Y h:i A');
-    //         $actionDate = null;
-    //         // if ($q->status_id == 5) $actionDate = Helper::formatCustomDateTime($q->arrive_warehouse_datetime,'d-M-Y h:i A');
-    //         if ($q->status_id == 6) $actionDate = Helper::formatCustomDateTime($q->assign_driver_datetime,'d-M-Y h:i A');
-    //         if ($q->status_id == 10) $actionDate = Helper::formatCustomDateTime($q->failed_datetime,'d-M-Y h:i A');
-    //         if ($q->status_id == 9) $actionDate = Helper::formatCustomDateTime($q->delivered_datetime,'d-M-Y h:i A');
-    //         if ($q->status_id == 19) $actionDate = Helper::formatCustomDateTime($q->failed_datetime,'d-M-Y h:i A');
-    //         if ($q->status_id == 11) $actionDate = Helper::formatCustomDateTime($q->returned_datetime,'d-M-Y h:i A');
-    //         $q->finished_date = $actionDate;
-    //         $q->makeHidden(['status','merchant','branchLocation','driver','returnUser','pickupDriver']);
-    //         return $q;
-    //     };
-
-    //     // Log::info($grand);
-    //     $grandQuery = clone $qP;
-    //     $allPackages = $grandQuery->get();
-
-    //     foreach($allPackages as $q){
-    //         $driverCodUsd =(float)($q->driver_cod_usd ?? 0);
-    //         $driverCodKhr = (float)($q->driver_cod_khr ?? 0);
-    //         $taxiFee = (float)$q->taxi_fee;
-    //         // $driverTotal = PackageTrailServiceImpl::calculateCodAmtBothCurrencies(
-    //         //     $driverCodUsd,
-    //         //     $driverCodKhr,
-    //         //     'driver',
-    //         //     $q->payer,
-    //         //     $q->status_id,
-    //         //     $fees,
-    //         //     $taxiFee
-    //         // );
-    //         $fees = (float)($q->delivery_fee + $q->other_fee); 
-    //         $merchantTotal = PackageTrailServiceImpl::calculateCodAmtBothCurrencies(
-    //             $driverCodUsd,
-    //             $driverCodKhr,
-    //             'merchant',
-    //             $q->payer,
-    //             $q->status_id,
-    //             $fees,
-    //             $taxiFee
-    //         );
-    //         $q->driver_total = $driverCodUsd;
-    //         $q->driver_total_khr = $driverCodKhr;
-    //         $q->merchant_total = $merchantTotal['amount_usd'];
-    //         $q->merchant_total_khr = $merchantTotal['amount_khr'];
-    //         $grand['taxi_fee'] += $q->taxi_fee;
-    //         $grand['driver_cod_usd'] += $driverCodUsd;
-    //         $grand['driver_cod_khr'] += $driverCodKhr;
-    //         $grand['merchant_cod_usd'] += $merchantTotal['amount_usd'];
-    //         $grand['merchant_cod_khr'] += $merchantTotal['amount_khr'];
-    //         $grand['price'] += $q->price;
-    //         $grand['price_khr'] += $q->price_khr;
-    //         $grand['base_fee'] += $q->delivery_fee;
-    //         $grand['other_fee'] += $q->other_fee;
-    //     }
-    //     foreach($grand as $key=>$value){
-    //         $dec = 2;
-    //         if(in_array($value,['price_khr','driver_cod_khr','merchant_cod_khr'])){
-    //             $dec = 0;
-    //         }
-    //         $grand[$key] = Helper::getNumber($value,$dec,true);
-    //     }
-
-    //     $additionalKeys = [
-    //         'title' => 'Daily Packages',
-    //         'sub_title' => 'Arrivate Date:',
-    //         'date' => Helper::dateDMY($startDate ?? $arriveStartDate).' to '.Helper::dateDMY($endDate ?? $arriveEndDate),
-    //         'company_profile' => CompanyProfileService::profileInfo($user),
-    //         'grand' => $grand,
-    //     ];
-    //     // return ApiResponse::JsonResult($obj,'Get Pickup List');
-    //     return ApiResponse::PaginationV1(
-    //         query:$qP,
-    //         filter:$req,
-    //         transformCallback:$callback,
-    //         additionalKey:$additionalKeys,
-    //         limit:500
-    //     );
-    // }
-
 
     public function getDailyPackageReport(Request $req){
-    $user = UserService::getAuthUser();
-    $search = $req->query('search');
-    $startDate = $req->startDate;
-    $statusId = $req->status_id;
-    $endDate = $req->endDate;
-    $arriveStartDate = $req->arrive_start_date;
-    $arriveEndDate = $req->arrive_end_date ?? $arriveStartDate;
+        $user = UserService::getAuthUser();
+        $search = $req->query('search');
+        $startDate = $req->startDate;
+        $statusId = $req->status_id;
+        $endDate = $req->endDate;
+        $arriveStartDate = $req->arrive_start_date;
+        $arriveEndDate = $req->arrive_end_date ?? $arriveStartDate;
+        $lang = $req->lang;
 
-    $lang = $req->lang;
+        $appliedFilters = [];
+        // Base query
+        $qP = Package::query()
+            ->where('is_deleted', 0)
+            ->where('outstanding', 0)
+            ->with([
+                'status',
+                'driver:id,code,username,phone',
+                'merchant:id,code,username,phone',
+                'returnUser:id,code,username,phone',
+                'pickupDriver:id,code,username,phone',
+                'merchant.merchantPriceList',
+                'merchant.merchantPriceList.priceList.priceListName',
+                'branchLocation:id,name_en'
+            ])
+            ->selectRaw('
+                zone_name,zone_code,qr_code,merchant_id,driver_id,returned_uid,payer,price_khr,
+                driver_cod_usd,driver_cod_khr,receiver_address,remarks,receiver_phone,cod,price,delivery_fee,
+                additional_fee,driver_total,merchant_total,status_id,remarks,arrive_warehouse_datetime,
+                assign_driver_datetime,updated_at,failed_datetime,returned_datetime,delivered_datetime,
+                other_fee,created_at,product_type,taxi_fee,pickup_uid,branch_id
+            ');
 
-    // Base query
-    $qP = Package::query()
-        ->where('is_deleted', 0)
-        ->where('outstanding', 0)
-        ->with([
-            'status',
-            'driver:id,code,username,phone',
-            'merchant:id,code,username,phone',
-            'returnUser:id,code,username,phone',
-            'pickupDriver:id,code,username,phone',
-            'merchant.merchantPriceList',
-            'merchant.merchantPriceList.priceList.priceListName',
-            'branchLocation:id,name_en'
-        ])
-        ->selectRaw('
-            zone_name,zone_code,qr_code,merchant_id,driver_id,returned_uid,payer,price_khr,
-            driver_cod_usd,driver_cod_khr,receiver_address,remarks,receiver_phone,cod,price,delivery_fee,
-            additional_fee,driver_total,merchant_total,status_id,remarks,arrive_warehouse_datetime,
-            assign_driver_datetime,updated_at,failed_datetime,returned_datetime,delivered_datetime,
-            other_fee,created_at,product_type,taxi_fee,pickup_uid,branch_id
-        ');
+        // Filters
+        if($search){
 
-    // Filters
-    if($search){
-        $qP->where(function($q) use($search){
-            $q->where('qr_code','LIKE',"%{$search}%")
-              ->orWhere('receiver_phone','LIKE',"%{$search}%")
-              ->orWhere('zone_code','LIKE',"%{$search}%");
-        });
-    } else {
-        $branchId = $req->branch_id;
-        $warehouseId = $req->warehouse_id;
-        $merchantId = $req->merchant_id;
-        $pickupDriverId = $req->query('pickup_driver_id');
-        $hasRemarks = $req->query('has_remark');
-        $priceListId = $req->query('price_list_id');
-        $zoneCode = $req->query('zone_code');
+            $searchCallback = function ($q) use ($search) {
+                $q->where('qr_code','LIKE',"%{$search}%")
+                ->orWhere('receiver_phone','LIKE',"%{$search}%")
+                ->orWhere('zone_code','LIKE',"%{$search}%");
+            };
 
-        if($hasRemarks == 1) $qP->whereNull('delivery_remarks');
-        if($hasRemarks == 2) $qP->whereNotNull('delivery_remarks');
-        if($statusId) $qP->whereIn('status_id', explode(',',$statusId));
-        if($merchantId) $qP->where('merchant_id', $merchantId);
-        if($branchId) $qP->where('branch_id', $branchId);
-        if($warehouseId) $qP->where('warehouse_id', $warehouseId);
-        if($pickupDriverId) $qP->where('pickup_uid', $pickupDriverId);
-        if($priceListId) {
-            $qP->whereHas('merchant.merchantPriceList.priceList', function($q) use($priceListId){
-                $q->where('price_list_name_id', $priceListId);
-            });
+            $appliedFilters[] = fn($q) => $q->where($searchCallback);
+
+            $qP->where($searchCallback);
+        } else {
+            $branchId = $req->branch_id;
+            $warehouseId = $req->warehouse_id;
+            $merchantId = $req->merchant_id;
+            $pickupDriverId = $req->query('pickup_driver_id');
+            $hasRemarks = $req->query('has_remark');
+            $priceListId = $req->query('price_list_id');
+            $zoneCode = $req->query('zone_code');
+            $driverId = $req->query('driver_id');
+
+            if ($driverId) {
+
+                $driverFilter = function ($q) use ($driverId) {
+
+                    $q->where(function ($q2) use ($driverId) {
+                        $q2->whereIn('status_id', [23,11])
+                            ->where('returned_uid', $driverId);
+                    })
+
+                    ->orWhere(function ($q2) use ($driverId) {
+                        $q2->whereNotIn('status_id', [23,11])
+                            ->where('driver_id', $driverId);
+                    });
+                };
+
+                $appliedFilters[] = $driverFilter;
+                $qP->where($driverFilter);
+            }
+            if ($hasRemarks == 1) {
+                $appliedFilters[] = fn($q) => $q->whereNull('delivery_remarks');
+                $qP->whereNull('delivery_remarks');
+            }
+            if ($hasRemarks == 2) {
+                $appliedFilters[] = fn($q) => $q->whereNotNull('delivery_remarks');
+                $qP->whereNotNull('delivery_remarks');
+            }
+            if ($statusId) {
+                $arr = explode(',', $statusId);
+                $appliedFilters[] = fn($q) => $q->whereIn('status_id', $arr);
+                $qP->whereIn('status_id', $arr);
+            }
+
+            if ($merchantId) {
+                $appliedFilters[] = fn($q) => $q->where('merchant_id', $merchantId);
+                $qP->where('merchant_id', $merchantId);
+            }
+            if ($branchId) {
+                $appliedFilters[] = fn($q) => $q->where('branch_id', $branchId);
+                $qP->where('branch_id', $branchId);
+            }
+            if ($warehouseId) {
+                $appliedFilters[] = fn($q) => $q->where('warehouse_id', $warehouseId);
+                $qP->where('warehouse_id', $warehouseId);
+            }
+            if ($pickupDriverId) {
+                $appliedFilters[] = fn($q) => $q->where('pickup_uid', $pickupDriverId);
+                $qP->where('pickup_uid', $pickupDriverId);
+            }
+
+            if ($priceListId) {
+
+                $priceListCallback = function ($q) use ($priceListId) {
+                    $q->whereHas('merchant.merchantPriceList.priceList', function($q2) use ($priceListId) {
+                        $q2->where('price_list_name_id', $priceListId);
+                    });
+                };
+
+                $appliedFilters[] = $priceListCallback;
+                $qP->where($priceListCallback);
+            }
+            // if($statusId) $qP->whereIn('status_id', explode(',',$statusId));
+            // if($merchantId) $qP->where('merchant_id', $merchantId);
+            // if($branchId) $qP->where('branch_id', $branchId);
+            // if($warehouseId) $qP->where('warehouse_id', $warehouseId);
+            // if($pickupDriverId) $qP->where('pickup_uid', $pickupDriverId);
+            // if($priceListId) {
+            //     $qP->whereHas('merchant.merchantPriceList.priceList', function($q) use($priceListId){
+            //         $q->where('price_list_name_id', $priceListId);
+            //     });
+            // }
+            if($zoneCode) $qP->where('zone_code', $zoneCode);
+            if ($zoneCode) {
+                $appliedFilters[] = fn($q) => $q->where('zone_code', $zoneCode);
+                $qP->where('zone_code', $zoneCode);
+            }
+
+            // Date filters
+            if ($startDate && $endDate) {
+
+                $startDatetime = Helper::dateYMD($startDate).' 00:00:00';
+                $endDatetime = Helper::dateYMD($endDate).' 23:59:59';
+
+                $dateCallback = function ($q) use ($startDatetime,$endDatetime) {
+                    $q->whereBetween('failed_datetime', [$startDatetime,$endDatetime])->whereIn('status_id',[10,19])
+                    ->orWhereBetween('delivered_datetime', [$startDatetime,$endDatetime])->where('status_id',9)
+                    ->orWhereBetween('returned_datetime', [$startDatetime,$endDatetime])->where('status_id',23);
+                };
+
+                $appliedFilters[] = $dateCallback;
+
+                $qP->where($dateCallback);
+
+            } elseif ($arriveStartDate && $arriveEndDate) {
+
+                $arriveStart = Helper::dateYMD($arriveStartDate) . ' 00:00:00';
+                $arriveEnd = Helper::dateYMD($arriveEndDate) . ' 23:59:59';
+
+                $dateCallback = fn($q) => $q->whereBetween('arrive_warehouse_datetime', [$arriveStart, $arriveEnd]);
+
+                $appliedFilters[] = $dateCallback;
+
+                $qP->whereBetween('arrive_warehouse_datetime', [$arriveStart, $arriveEnd]);
+            }
+            // if($startDate && $endDate){
+            //     $startDatetime = Helper::dateYMD($startDate) . ' 00:00:00';
+            //     $endDatetime = Helper::dateYMD($endDate) . ' 23:59:59';
+            //     $qP->where(function($q) use($startDatetime, $endDatetime){
+            //         $q->whereBetween('failed_datetime', [$startDatetime, $endDatetime])->whereIn('status_id', [10,19])
+            //         ->orWhereBetween('delivered_datetime', [$startDatetime, $endDatetime])->where('status_id', 9)
+            //         ->orWhereBetween('returned_datetime', [$startDatetime, $endDatetime])->where('status_id', 23);
+            //     });
+            // } elseif ($arriveStartDate && $arriveEndDate){
+            //     $arriveStartDateTime = Helper::dateYMD($arriveStartDate) . ' 00:00:00';
+            //     $arriveEndDateTime = Helper::dateYMD($arriveEndDate) . ' 23:59:59';
+            //     $qP->whereBetween('arrive_warehouse_datetime', [$arriveStartDateTime, $arriveEndDateTime]);
+            // }
         }
-        if($zoneCode) $qP->where('zone_code', $zoneCode);
 
-        // Date filters
+        // Calculate grand totals using a fresh query (avoid group by issues)
+        $grandTotalsQuery = Package::query()
+            ->where('is_deleted',0)
+            ->where('outstanding',0);
+
+        foreach ($appliedFilters as $callback) {
+            $grandTotalsQuery->where($callback);
+        }
+
+        if($statusId){
+            $grandTotalsQuery->whereIn('status_id', explode(',',$statusId));
+        }else{
+            $grandTotalsQuery->whereIn('status_id',[5,6,9,10,11,19,23]);
+        }
+
         if($startDate && $endDate){
             $startDatetime = Helper::dateYMD($startDate) . ' 00:00:00';
             $endDatetime = Helper::dateYMD($endDate) . ' 23:59:59';
-            $qP->where(function($q) use($startDatetime, $endDatetime){
+            $grandTotalsQuery->where(function($q) use($startDatetime, $endDatetime){
                 $q->whereBetween('failed_datetime', [$startDatetime, $endDatetime])->whereIn('status_id', [10,19])
-                  ->orWhereBetween('delivered_datetime', [$startDatetime, $endDatetime])->where('status_id', 9)
-                  ->orWhereBetween('arrive_warehouse_datetime', [$startDatetime, $endDatetime])->where('status_id', 5)
-                  ->orWhereBetween('assign_driver_datetime', [$startDatetime, $endDatetime])->where('status_id', 6)
-                  ->orWhereBetween('returned_datetime', [$startDatetime, $endDatetime])->where('status_id', 11);
+                    ->orWhereBetween('delivered_datetime', [$startDatetime, $endDatetime])->where('status_id', 9)
+                    ->orWhereBetween('arrive_warehouse_datetime', [$startDatetime, $endDatetime])->where('status_id', 5)
+                    ->orWhereBetween('assign_driver_datetime', [$startDatetime, $endDatetime])->where('status_id', 6)
+                    ->orWhereBetween('returned_datetime', [$startDatetime, $endDatetime])->where('status_id', 11);
             });
         } elseif($arriveStartDate && $arriveEndDate){
             $arriveStartDateTime = Helper::dateYMD($arriveStartDate) . ' 00:00:00';
             $arriveEndDateTime = Helper::dateYMD($arriveEndDate) . ' 23:59:59';
-            $qP->whereBetween('arrive_warehouse_datetime', [$arriveStartDateTime, $arriveEndDateTime]);
+            $grandTotalsQuery->whereBetween('arrive_warehouse_datetime', [$arriveStartDateTime, $arriveEndDateTime]);
         }
-    }
+        
 
-    // Calculate grand totals using a fresh query (avoid group by issues)
-    $grandTotalsQuery = Package::query()
-        ->where('is_deleted',0)
-        ->where('outstanding',0);
+        $grandTotals = $grandTotalsQuery->selectRaw("
+            SUM(price) as price,
+            SUM(price_khr) as price_khr,
+            SUM(delivery_fee) as base_fee,
+            SUM(other_fee) as other_fee,
+            SUM(taxi_fee) as taxi_fee,
+            SUM(price) as merchant_cod_usd,
+            SUM(price_khr) as merchant_cod_khr,
+            SUM(driver_cod_usd) as driver_cod_usd,
+            SUM(driver_cod_khr) as driver_cod_khr
+        ")->first();
 
-    if($statusId){
-        $grandTotalsQuery->whereIn('status_id', explode(',',$statusId));
-    }else{
-        $grandTotalsQuery->whereIn('status_id',[5,6,9,10,11,19]);
-    }
+        // Format grand totals
+        $grand = [
+            'price' => Helper::getNumber($grandTotals->price ?? 0, 2, true),
+            'price_khr' => Helper::getNumber($grandTotals->price_khr ?? 0, 0, true),
+            'base_fee' => Helper::getNumber($grandTotals->base_fee ?? 0, 2, true),
+            'other_fee' => Helper::getNumber($grandTotals->other_fee ?? 0, 2, true),
+            'taxi_fee' => Helper::getNumber($grandTotals->taxi_fee ?? 0, 2, true),
+            'driver_cod_usd' => Helper::getNumber($grandTotals->driver_cod_usd ?? 0, 2, true),
+            'driver_cod_khr' => Helper::getNumber($grandTotals->driver_cod_khr ?? 0, 0, true),
+            'merchant_cod_usd' => Helper::getNumber($grandTotals->merchant_cod_usd ?? 0, 2, true),
+            'merchant_cod_khr' => Helper::getNumber($grandTotals->merchant_cod_khr ?? 0, 2, true),
+        ];
 
-    if($startDate && $endDate){
-        $startDatetime = Helper::dateYMD($startDate) . ' 00:00:00';
-        $endDatetime = Helper::dateYMD($endDate) . ' 23:59:59';
-        $grandTotalsQuery->where(function($q) use($startDatetime, $endDatetime){
-            $q->whereBetween('failed_datetime', [$startDatetime, $endDatetime])->whereIn('status_id', [10,19])
-                ->orWhereBetween('delivered_datetime', [$startDatetime, $endDatetime])->where('status_id', 9)
-                ->orWhereBetween('arrive_warehouse_datetime', [$startDatetime, $endDatetime])->where('status_id', 5)
-                ->orWhereBetween('assign_driver_datetime', [$startDatetime, $endDatetime])->where('status_id', 6)
-                ->orWhereBetween('returned_datetime', [$startDatetime, $endDatetime])->where('status_id', 11);
-        });
-    } elseif($arriveStartDate && $arriveEndDate){
-        $arriveStartDateTime = Helper::dateYMD($arriveStartDate) . ' 00:00:00';
-        $arriveEndDateTime = Helper::dateYMD($arriveEndDate) . ' 23:59:59';
-        $grandTotalsQuery->whereBetween('arrive_warehouse_datetime', [$arriveStartDateTime, $arriveEndDateTime]);
-    }
-    
+        // Transform callback
+        $callback = function($q) use($lang) {
+            $q->status_code = $lang == 'km' 
+                ? GeneralSettingService::$statusCodeTrans[$q->status_id] ?? '' 
+                : $q->status->name;
+            $q->merchant_name = $q->merchant->username;
+            $q->merchant_phone = $q->merchant->phone;
+            $q->driver_name = ($q->status_id == 11 || $q->status_id == 23) ? $q->returnUser?->username : $q->driver?->username;
+            $q->driver_phone = $q->driver?->phone;
+            $q->pickup_driver_name = $q->pickupDriver?->username;
+            $q->pickup_driver_phone = $q->pickupDriver?->phone;
+            $q->price_list = $q->merchant?->merchantPriceList?->priceList?->priceListName->name ?? null;
+            $q->branch_name = $q->branchLocation->name_en ?? null;
 
-    $grandTotals = $grandTotalsQuery->selectRaw("
-        SUM(price) as price,
-        SUM(price_khr) as price_khr,
-        SUM(delivery_fee) as base_fee,
-        SUM(other_fee) as other_fee,
-        SUM(taxi_fee) as taxi_fee,
-        SUM(price) as merchant_cod_usd,
-        SUM(price_khr) as merchant_cod_khr,
-        SUM(driver_cod_usd) as driver_cod_usd,
-        SUM(driver_cod_khr) as driver_cod_khr
-    ")->first();
+            $fees = (float)($q->delivery_fee + $q->other_fee); 
+            $driverCodUsd = (float)($q->driver_cod_usd ?? 0);
+            $driverCodKhr = (float)($q->driver_cod_khr ?? 0);
+            $taxiFee = (float)$q->taxi_fee;
 
-    // Format grand totals
-    $grand = [
-        'price' => Helper::getNumber($grandTotals->price ?? 0, 2, true),
-        'price_khr' => Helper::getNumber($grandTotals->price_khr ?? 0, 0, true),
-        'base_fee' => Helper::getNumber($grandTotals->base_fee ?? 0, 2, true),
-        'other_fee' => Helper::getNumber($grandTotals->other_fee ?? 0, 2, true),
-        'taxi_fee' => Helper::getNumber($grandTotals->taxi_fee ?? 0, 2, true),
-        'driver_cod_usd' => Helper::getNumber($grandTotals->driver_cod_usd ?? 0, 2, true),
-        'driver_cod_khr' => Helper::getNumber($grandTotals->driver_cod_khr ?? 0, 0, true),
-        'merchant_cod_usd' => Helper::getNumber($grandTotals->merchant_cod_usd ?? 0, 2, true),
-        'merchant_cod_khr' => Helper::getNumber($grandTotals->merchant_cod_khr ?? 0, 2, true),
-    ];
+            $merchantTotal = PackageTrailServiceImpl::calculateCodAmtBothCurrencies(
+                $driverCodUsd, $driverCodKhr, 'merchant', $q->payer, $q->status_id, $fees, $taxiFee
+            );
 
-    // Transform callback
-    $callback = function($q) use($lang) {
-        $q->status_code = $lang == 'km' 
-            ? GeneralSettingService::$statusCodeTrans[$q->status_id] ?? '' 
-            : $q->status->name;
-        $q->merchant_name = $q->merchant->username;
-        $q->merchant_phone = $q->merchant->phone;
-        $q->driver_name = $q->status_id == 11 ? $q->returnUser?->username : $q->driver?->username;
-        $q->driver_phone = $q->driver?->phone;
-        $q->pickup_driver_name = $q->pickupDriver?->username;
-        $q->pickup_driver_phone = $q->pickupDriver?->phone;
-        $q->price_list = $q->merchant?->merchantPriceList?->priceList?->priceListName->name ?? null;
-        $q->branch_name = $q->branchLocation->name_en ?? null;
-
-        $fees = (float)($q->delivery_fee + $q->other_fee); 
-        $driverCodUsd = (float)($q->driver_cod_usd ?? 0);
-        $driverCodKhr = (float)($q->driver_cod_khr ?? 0);
-        $taxiFee = (float)$q->taxi_fee;
-
-        $merchantTotal = PackageTrailServiceImpl::calculateCodAmtBothCurrencies(
-            $driverCodUsd, $driverCodKhr, 'merchant', $q->payer, $q->status_id, $fees, $taxiFee
-        );
-
-        $q->driver_total = $driverCodUsd;
-        $q->driver_total_khr = $driverCodKhr;
-        $q->merchant_total = $merchantTotal['amount_usd'];
-        $q->merchant_total_khr = $merchantTotal['amount_khr'];
-        $q->merchant_cod_usd = $q->price;
-        $q->merchant_cod_khr = $q->price_khr;
-        $q->base_fee = $q->delivery_fee;
-
-        $actionDate = match($q->status_id){
-            6 => $q->assign_driver_datetime,
-            10, 19 => $q->failed_datetime,
-            9 => $q->delivered_datetime,
-            11 => $q->returned_datetime,
-            default => null
+            $q->driver_total = $driverCodUsd;
+            $q->driver_total_khr = $driverCodKhr;
+            $q->merchant_total = $merchantTotal['amount_usd'];
+            $q->merchant_total_khr = $merchantTotal['amount_khr'];
+            $q->merchant_cod_usd = $q->price;
+            $q->merchant_cod_khr = $q->price_khr;
+            $q->base_fee = $q->delivery_fee;
+            $actionDate = match($q->status_id){
+                10, 19 => $q->failed_datetime,
+                9 => $q->delivered_datetime,
+                23 => $q->returned_datetime,
+                default => null
+            };
+            $q->finished_date = $actionDate ? Helper::formatCustomDateTime($actionDate,'d-M-Y h:i A') : null;
+            $q->makeHidden(['status','merchant','branchLocation','driver','returnUser','pickupDriver']);
+            return $q;
         };
-        $q->finished_date = $actionDate ? Helper::formatCustomDateTime($actionDate,'d-M-Y h:i A') : null;
 
-        $q->makeHidden(['status','merchant','branchLocation','driver','returnUser','pickupDriver']);
-        return $q;
-    };
+        $qP->orderByDesc('created_at');
 
-    $qP->orderByDesc('created_at');
+        $additionalKeys = [
+            'title' => 'Daily Packages',
+            'sub_title' => 'Arrive Date:',
+            'date' => Helper::dateDMY($startDate ?? $arriveStartDate).' to '.Helper::dateDMY($endDate ?? $arriveEndDate),
+            'company_profile' => CompanyProfileService::profileInfo($user),
+            'grand' => $grand,
+        ];
 
-    $additionalKeys = [
-        'title' => 'Daily Packages',
-        'sub_title' => 'Arrive Date:',
-        'date' => Helper::dateDMY($startDate ?? $arriveStartDate).' to '.Helper::dateDMY($endDate ?? $arriveEndDate),
-        'company_profile' => CompanyProfileService::profileInfo($user),
-        'grand' => $grand,
-    ];
-
-    return ApiResponse::PaginationV1(
-        query: $qP,
-        filter: $req,
-        transformCallback: $callback,
-        additionalKey: $additionalKeys,
-        limit: 500 // safe for large dataset, adjust as needed
-    );
-}
+        return ApiResponse::PaginationV1(
+            query: $qP,
+            filter: $req,
+            transformCallback: $callback,
+            additionalKey: $additionalKeys,
+            limit: 500 // safe for large dataset, adjust as needed
+        );
+    }
 
 
 
@@ -1289,7 +1115,7 @@ class ReportController extends Controller
     public function getDailyPackageReportOption(Request $req){
         $user = UserService::getAuthUser();
         $obj =(object)[
-            'statuses' => GeneralSettingService::optionsTrackingStatus($user,[],[5,6,9,10,11,19]),
+            'statuses' => GeneralSettingService::optionsTrackingStatus($user,[],[5,6,9,10,11,19,23]),
             'branches' => GeneralSettingService::optionsBranch(),
             'zones' => GeneralSettingService::optionsZone($user,'child'),
             'branches' => GeneralSettingService::optionsBranch(),
@@ -1588,7 +1414,6 @@ class ReportController extends Controller
         $isKm = $req->lang == 'km';
         $branchId = $req->branch_id;
         $warehouseId = $req->warehouse_id;
-        Log::info($req->all());
         $qP = Package::where('is_deleted',0)->where('outstanding',0)
         ->with(['merchant:id,username','status:id,name'])
         ->orderByDesc('id')
