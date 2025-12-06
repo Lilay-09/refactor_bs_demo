@@ -1588,6 +1588,7 @@ class ReportController extends Controller
         $isKm = $req->lang == 'km';
         $branchId = $req->branch_id;
         $warehouseId = $req->warehouse_id;
+        Log::info($req->all());
         $qP = Package::where('is_deleted',0)->where('outstanding',0)
         ->with(['merchant:id,username','status:id,name'])
         ->orderByDesc('id')
