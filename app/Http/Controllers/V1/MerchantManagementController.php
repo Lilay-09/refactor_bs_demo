@@ -679,7 +679,7 @@ public function getMerchantListByDate(Request $req)
         ]));
         $merchantPriceList = MerchantPriceList::where('merchant_id',$id)->first();
         $insertOrUpdate = [
-            'price_list_id' => $priceListId,
+            'price_list_id' => $priceListId, // price list name
             'update_uid' => $user->id,
             'branch_id' => $user->id,
             'company_id' => $user->id
