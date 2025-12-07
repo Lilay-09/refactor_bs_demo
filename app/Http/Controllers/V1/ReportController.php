@@ -130,7 +130,6 @@ class ReportController extends Controller
 
         // Filters
         if($search){
-
             $searchCallback = function ($q) use ($search) {
                 $q->where('qr_code','LIKE',"%{$search}%")
                 ->orWhere('receiver_phone','LIKE',"%{$search}%")
@@ -138,7 +137,6 @@ class ReportController extends Controller
             };
 
             $appliedFilters[] = fn($q) => $q->where($searchCallback);
-
             $qP->where($searchCallback);
         } else {
             $branchId = $req->branch_id;
@@ -151,9 +149,7 @@ class ReportController extends Controller
             $driverId = $req->query('driver_id');
 
             if ($driverId) {
-
                 $driverFilter = function ($q) use ($driverId) {
-
                     $q->where(function ($q2) use ($driverId) {
                         $q2->whereIn('status_id', [23,11])
                             ->where('returned_uid', $driverId);
@@ -164,7 +160,6 @@ class ReportController extends Controller
                             ->where('driver_id', $driverId);
                     });
                 };
-
                 $appliedFilters[] = $driverFilter;
                 $qP->where($driverFilter);
             }
