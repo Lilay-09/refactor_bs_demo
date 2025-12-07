@@ -47,22 +47,46 @@ class FleetManagementController extends Controller
         //     ->where('dp.delay_count',0);
         // })
         // ->get();
-        $latestDeliveryPackages = DB::table('delivery_packages as dp')
-            ->selectRaw('MAX(dp.id) as id')
-            ->where('dp.is_deleted', false)
-            ->groupBy('dp.package_id')
-            ->pluck('id');
+        // $latestDeliveryPackages = DB::table('delivery_packages as dp')
+        //     ->selectRaw('MAX(dp.id) as id')
+        //     ->where('dp.is_deleted', false)
+        //     ->groupBy('dp.package_id')
+        //     ->pluck('id');
 
         // Step 2: Load package info only from latest delivery_packages
         $packages = Package::from('packages as p')
             ->join('delivery_packages as dp', 'p.id', '=', 'dp.package_id')
-            ->whereIn('dp.id', $latestDeliveryPackages)
+            // ->whereIn('dp.id', $latestDeliveryPackages)
+            ->whereIn('dp.id', function ($q) {
+                $q->selectRaw('MAX(dp2.id)')
+                ->from('delivery_packages as dp2')
+                ->where('dp2.is_deleted', false)
+                ->groupBy('dp2.package_id');
+            })
             ->where([
                 ['p.is_deleted', false],
                 ['dp.is_deleted', false],
                 ['dp.has_swap', 0],
                 ['dp.delay_count', 0],
             ])
+            // ->where(function($q) use($startDate,$endDate){
+            //     $startDatetime = date('Y-m-d',strtotime($startDate))." 00:00:00";
+            //     $endDatetime = date('Y-m-d',strtotime($endDate))." 23:59:59";
+            //     $q->where(function($q) use($startDatetime,$endDatetime){
+            //         $q->where('p.status_id',6)->whereBetween('p.assign_driver_datetime',[
+            //             $startDatetime,$endDatetime
+            //         ]);
+            //     })->orWhere(function($q) use($startDatetime,$endDatetime){
+            //         $q->whereIn('p.status_id',[10,19])->whereBetween('p.failed_datetime',[
+            //             $startDatetime,$endDatetime
+            //         ]);
+            //     })
+            //     ->orWhere(function($q) use($startDatetime,$endDatetime){
+            //         $q->where('p.status_id',9)->whereBetween('p.delivered_datetime',[
+            //             $startDatetime,$endDatetime
+            //         ]);
+            //     });
+            // })
             ->selectRaw('p.id as package_id, dp.delivery_id, dp.delay_count, dp.has_swap, p.status_id, p.driver_total')
             ->get();
         $query = Delivery::query()->with(['status','driver'])->where('is_deleted',0)->where('company_id',$user->company_id)
@@ -296,7 +320,6 @@ class FleetManagementController extends Controller
     // }
 
     public function setPackageStatus(Request $req){
-        // Log::info($req->all());
         $user = UserService::getAuthUser();
         $trip_id = $req->trip_id;
         $package_id = $req->package_id;
@@ -433,7 +456,6 @@ class FleetManagementController extends Controller
                 'status_id' => $status_id
             ]);
             GeneralSettingService::updateTripStatus($trip_id,$user);
-            // Log::error(json_encode(Delivery::where('id',$trip_id)->selectRaw('id,status_id')->first()));
             DB::commit();
         }catch(Exception $e){
             DB::rollBack();
@@ -507,9 +529,7 @@ class FleetManagementController extends Controller
                         'is_completed' => 1,
                         'status_id' => 16
                     ]);
-                    // Log::error(json_encode(Delivery::select('status_id','is_completed','finished')->find($trip_id)));
                 }
-                // Log::error($onDeliveryCount);
                 if($trip->package_count == 0) $trip->update([
                     'is_deleted' => 1,
                     'deleted_uid' => $user->id,
