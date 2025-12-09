@@ -566,10 +566,11 @@ class PickUpCenterController extends Controller
         ->get();
         foreach($orderImages as $img){
             $imageAt = Helper::dateYMD($img->created_at);
-            $img->is_link = $img->package_id ? true : false;
+            $img->is_link = ($img->package_id && $img->package) ? true : false;
             $img->qr_code = $img->package?->qr_code;
             $img->receiver_phone = $img->package?->receiver_phone;
             $img->zone_name = $img->package?->zone_name;
+            $img->package_id = $img->package ? $img->package_id : null;
             $img->image_url = Helper::getImageUrl($img->photo_file_name,$user->company_id,'order_image',$imageAt);
             $img->makeHidden(['package']);
         }
