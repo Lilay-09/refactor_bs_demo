@@ -22,6 +22,7 @@ class TrackingFailPackageDTO extends BaseTrackingPackageDTO {
         ?string $remarks = null,
         ?string $fees,
         ?string $taxi_fee,
+        public array $driver_contacts = []
     ) {
         parent::__construct(
             package_id:$package_id,

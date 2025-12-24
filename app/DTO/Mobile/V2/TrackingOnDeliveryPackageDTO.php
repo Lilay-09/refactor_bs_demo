@@ -1,5 +1,8 @@
 <?php
 namespace App\DTO\Mobile\V2;
+
+use Illuminate\Support\Facades\Log;
+
 class TrackingOnDeliveryPackageDTO extends BaseTrackingPackageDTO {
     public function __construct(
         int $package_id,
@@ -19,10 +22,10 @@ class TrackingOnDeliveryPackageDTO extends BaseTrackingPackageDTO {
         ?string $driver_name = null,
         ?string $driver_phone = null,
         ?string $remarks = null,
-
+        public array $driver_contacts = []
     ) {
         parent::__construct(
-            package_id:$package_id,
+            package_id: $package_id,
             code: $code,
             receiver_phone: $receiver_phone,
             cod_usd: $cod_usd,

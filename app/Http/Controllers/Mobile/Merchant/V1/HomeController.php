@@ -140,8 +140,7 @@ class HomeController extends Controller
             ->first();
 
 
-        $totalCount = $orderCounts->pending + $orderCounts->pick +
-                    $packageCounts->at_warehouse + $packageCounts->on_delivery +
+        $totalCount = $orderCounts->pending + $orderCounts->pick + $packageCounts->on_delivery +
                     $packageCounts->success + $packageCounts->failed + 
                     $packageCounts->returned + $packageCounts->failed_with_fee;
 
@@ -296,7 +295,10 @@ class HomeController extends Controller
         // if (array_intersect($statusIds, [11, 19])) {
         //     $qP->with(['returnUser:id,username as username,phone']);
         // } else {
-            $qP->with(['driver:id,username,phone']);
+            $qP->with([
+                'driver:id,username,phone',
+                'driver.userContacts:user_id,phone'
+            ]);
         // }
 
         // Date filtering
@@ -342,10 +344,11 @@ class HomeController extends Controller
             startDate: $req->query('startDate'),
             endDate: $req->query('endDate'),
             select: $select
-        );
+        )->orderBy('id','desc');
 
         $callback = function ($q){
             $fees = $q->payer == 'sender' ? Helper::currencyAmount($q->delivery_fee + $q->extra_charge,'USD'):'$0';
+            $driver_contacts = $q->driver?->userContacts?->toArray() ?? [];
             return new TrackingOnDeliveryPackageDTO(
                 package_id: $q->id,
                 code:$q->qr_code,
@@ -363,6 +366,7 @@ class HomeController extends Controller
                 driver_phone: $q->driver->phone,
                 taxi_fee: ($q->taxi_fee > 0 && $q->payer == 'sender') ? Helper::currencyAmount($q->taxi_fee,'USD'):'$0',
                 fees: $fees,
+                driver_contacts: $driver_contacts
             );
         };
         return ApiResponse::PaginationV1($query,$req,'',[],200,$callback,$select); 
@@ -389,6 +393,7 @@ class HomeController extends Controller
         );
 
         $callback = function ($q):TrackingSuccessPackageDTO{
+            $driver_contacts = $q->driver?->userContacts?->toArray() ?? [];
             $fees = $q->payer == 'sender' ? Helper::currencyAmount($q->delivery_fee + $q->extra_charge,'USD'):'$0';
             $receivedAmtUsd = Helper::currencyAmount(0,'USD');
             $receivedAmtKhr = Helper::currencyAmount(0,'KHR');
@@ -427,7 +432,8 @@ class HomeController extends Controller
                 receiver_amt_usd: $receivedAmtUsd,
                 receiver_amt_khr: $receivedAmtKhr,
                 taxi_fee: ($q->taxi_fee > 0 && $q->payer == 'sender') ? Helper::currencyAmount($q->taxi_fee,'USD'):'$0',
-                fees: $fees
+                fees: $fees,
+                driver_contacts: $driver_contacts
             );
         };
         return ApiResponse::PaginationV1($query,$req,'',[],200,$callback,$select); 
@@ -451,6 +457,7 @@ class HomeController extends Controller
         );
 
         $callback = function ($q):TrackingFailPackageDTO{
+            $driver_contacts = $q->driver?->userContacts?->toArray() ?? [];
             $fees = $q->payer == 'sender' ? Helper::currencyAmount($q->delivery_fee + $q->extra_charge,'USD'):'$0';
             return new TrackingFailPackageDTO(
                 package_id: $q->id,
@@ -472,7 +479,8 @@ class HomeController extends Controller
                 taxi_fee: ($q->taxi_fee > 0 && $q->payer == 'sender') ? Helper::currencyAmount($q->taxi_fee,'USD'):'$0',
                 fees: $fees,
                 reason: $q->delivery_remarks,
-                remarks: $q->remarks
+                remarks: $q->remarks,
+                driver_contacts: $driver_contacts
             );
         };
         return ApiResponse::PaginationV1($query,$req,'',[],200,$callback,$select); 

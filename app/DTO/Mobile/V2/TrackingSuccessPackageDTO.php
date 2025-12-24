@@ -24,7 +24,8 @@ class TrackingSuccessPackageDTO extends BaseTrackingPackageDTO {
         public readonly ?string $pmt_status,
         ?string $remarks,
         ?string $fees,
-        ?string $taxi_fee
+        ?string $taxi_fee,
+        public array $driver_contacts = []
     ) {
         parent::__construct(
             package_id:$package_id,
