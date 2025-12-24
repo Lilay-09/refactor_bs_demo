@@ -143,6 +143,10 @@ class User extends Authenticatable implements JWTSubject
             ->format($format);
     }
 
+    public function userContact(){
+        
+    }
+
     /**
      * The attributes that should be hidden for serialization.
      *

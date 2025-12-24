@@ -34,6 +34,7 @@ use App\Services\UserService;
 use Illuminate\Support\Facades\Cache;
 use Helper;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Validator;
 
 class HomeController extends Controller
@@ -111,15 +112,15 @@ class HomeController extends Controller
         // Packages summary with date filters applied
         $packageCounts = Package::where('merchant_id', $user->id)
             ->where('is_deleted', false)
-            ->whereIn('status_id',[5,6,9,10,11,19])
+            ->whereIn('status_id',[5,6,9,10,23,19])
             ->selectRaw('
                 SUM(CASE WHEN status_id = 5 THEN 1 ELSE 0 END) as at_warehouse,
                 SUM(CASE WHEN status_id = 6 AND assign_driver_datetime BETWEEN ? AND ? THEN 1 ELSE 0 END) as on_delivery,
                 SUM(CASE WHEN status_id = 9 AND delivered_datetime BETWEEN ? AND ? THEN 1 ELSE 0 END) as success,
-                SUM(CASE WHEN status_id = 11 AND returned_datetime BETWEEN ? AND ? THEN 1 ELSE 0 END) as returned,
+                SUM(CASE WHEN status_id = 23 AND returned_datetime BETWEEN ? AND ? THEN 1 ELSE 0 END) as returned,
                 SUM(CASE WHEN status_id = 10 AND failed_datetime BETWEEN ? AND ? THEN 1 ELSE 0 END) as failed,
                 SUM(CASE WHEN status_id = 19 AND failed_datetime BETWEEN ? AND ? THEN 1 ELSE 0 END) as failed_with_fee,
-                SUM(CASE WHEN status_id != 11 AND (
+                SUM(CASE WHEN status_id != 23 AND (
                     delivered_datetime BETWEEN ? AND ? OR
                     returned_datetime BETWEEN ? AND ? OR
                     assign_driver_datetime BETWEEN ? AND ? OR
@@ -204,6 +205,8 @@ class HomeController extends Controller
     public function getPendingOrders(Request $req){
         // $today = now();
         // $dateaAgo = Helper::getDateDaysAgo(0);
+        $startDate = $req->query('startDate');
+        $endDate = $req->query('endDate');
         $lang = $req->lang;
         $user = UserService::getAuthUser('merchant');
         $qO = Order::where('merchant_id',$user->id)
@@ -213,6 +216,11 @@ class HomeController extends Controller
         // $qO->where(function ($q) use ($dateaAgo, $today) {
         //     $q->whereBetween('order_datetime', [$dateaAgo, $today]);
         // });
+        if($startDate && $endDate){
+            $startDatetime = Helper::dateYMD($startDate). ' 00:00:00';
+            $endDatetime = Helper::dateYMD($endDate). ' 23:59:59';
+            $qO->whereBetween('order_datetime',[$startDatetime,$endDatetime]);
+        }
         $orders = $qO->orderByDesc('id');
         $callback = function($order) use($lang){
             if($lang == 'km') $order->status_code = 'រង់ចាំ';
@@ -231,15 +239,23 @@ class HomeController extends Controller
     public function getPickOrders(Request $req){
         // $today = now();
         // $dateaAgo = Helper::getDateDaysAgo(0);
+        $startDate = $req->query('startDate');
+        $endDate = $req->query('endDate');
         $user = UserService::getAuthUser('merchant');
-        $lang = $req->lang;
+        // $lang = $req->lang;
         $qO = Order::where('merchant_id',$user->id)
+        ->where('is_deleted',false)
         ->with(['tracking_status','driver'])
         ->where('is_deleted',0)
-        ->selectRaw('id,code,qty,product_type,vehicle_type,order_datetime,status_id,driver_id')->whereIn('status_id',[2,3,4]);
+        ->selectRaw('id,code,qty,product_type,vehicle_type,order_datetime,status_id,pickup_datetime,driver_id')->whereIn('status_id',[2,3,4]);
         // $qO->where(function ($q) use ($dateaAgo, $today) {
         //     $q->whereBetween('order_datetime', [$dateaAgo, $today]);
         // });
+        if($startDate && $endDate){
+            $startDatetime = Helper::dateYMD($startDate). ' 00:00:00';
+            $endDatetime = Helper::dateYMD($endDate). ' 23:59:59';
+            $qO->whereBetween('pickup_datetime',[$startDatetime,$endDatetime]);
+        }
         $orders = $qO->orderByDesc('id');
         $callback = function($order): MerchantPickupDTO{
             // if($lang == 'km') $order->status_code = GeneralSettingService::$statusCodeTrans[$order->status_id];
@@ -254,13 +270,13 @@ class HomeController extends Controller
                 id:$order->id,
                 code:$order->code,
                 qty:$order->qty,
-                date:Helper::dateDMY($order->order_datetime),
-                time:Helper::time($order->order_datetime),
+                date:Helper::dateDMY($order->pickup_datetime),
+                time:Helper::time($order->pickup_datetime),
                 status_id: $order->status_id,
                 status_code:TrackingStatus::tryFrom($order->status_id)->label() ?? '',
                 vehicle_type: $order->vehicle_type,
                 driver_name:$order->driver->username,
-                driver_phone:$order->driver->username,
+                driver_phone:$order->driver->phone,
                 product_type:$order->product_type
             );
         };
@@ -343,7 +359,7 @@ class HomeController extends Controller
                 cod_khr: Helper::currencyAmount($q->price_khr,'KHR'),
                 receiver_address: $q->receiver_address,
                 image: '',
-                driver_name: $q->driver->driver_name,
+                driver_name: $q->driver->username,
                 driver_phone: $q->driver->phone,
                 taxi_fee: ($q->taxi_fee > 0 && $q->payer == 'sender') ? Helper::currencyAmount($q->taxi_fee,'USD'):'$0',
                 fees: $fees,

@@ -506,7 +506,7 @@ class GeneralSettingController extends Controller
                 else{
                     $client = new Client(config('app.cl_socket'),[
                         'headers' => [
-                            'Origin' => 'https://dev.ngexpresscambodia.com'
+                            'Origin' => config('services.socket.client_origin')
                         ]
                     ]);
                     $message = json_encode([
