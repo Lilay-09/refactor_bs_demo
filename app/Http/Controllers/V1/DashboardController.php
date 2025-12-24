@@ -27,9 +27,9 @@ class DashboardController extends Controller
             'monthly' => $this->getMonthlyEarning($branchId),
             'top_rider' => $this->topRiders(5,$branchId),
             'unpaid_rider' => $this->unpaidRiders($branchId),
-            'merchant_payable' => $this->merchantPayable($branchId),
-            'driver_daily_collection' => $this->driverDailyCollection($branchId),
-            'merchants_by_category' => $this->merchantsByCategory($branchId),
+            'merchant_payable' => $this->merchantPayable($branchId,25),
+            'driver_daily_collection' => $this->driverDailyCollection(25),
+            'merchants_by_category' => $this->merchantsByCategory($branchId,$this->days),
             'bar_charts' => $this->barChart($branchId)
         ];
         return ApiResponse::JsonResult($obj);
@@ -154,11 +154,11 @@ class DashboardController extends Controller
         ];
     }
 
-    private function merchantsByCategory(int $branchId){
+    private function merchantsByCategory(int $branchId,int $days=25){
         $packageCount = Package::where('is_deleted',0)
         ->where('branch_id',$branchId)
         ->where('outstanding',0)
-        ->where('updated_at', '>=', Carbon::now()->subDays($this->days))
+        ->where('updated_at', '>=', Carbon::now()->subDays($days))
         ->selectRaw('
             SUM(CASE WHEN status_id = 5 THEN 1 ELSE 0 END) as at_warehouse_count,
             SUM(CASE WHEN status_id = 6 THEN 1 ELSE 0 END) as on_delivery_count,
@@ -172,9 +172,9 @@ class DashboardController extends Controller
 
     }
 
-    private function driverDailyCollection()
+    private function driverDailyCollection(int $days = 25)
     {
-        $dateThreshold = Carbon::now()->subDays($this->days);
+        $dateThreshold = Carbon::now()->subDays($days);
         // Step 1: Fetch payments within range (drivers as payers)
         $cashSum = 0;
         $bankSum = 0;
@@ -563,9 +563,9 @@ class DashboardController extends Controller
     //     return $balanceDues;
     // }
 
-    private function merchantPayable(int $branchId){
+    private function merchantPayable(int $branchId,int $days=25){
         $totalAmount = 0;
-        $startDate = Carbon::now()->subDays($this->days)->startOfDay(); // 90 days ago, 00:00:00
+        $startDate = Carbon::now()->subDays($days)->startOfDay(); // 90 days ago, 00:00:00
         $endDate = Carbon::now()->endOfDay();
         $dailyCollection = Package::fromRaw('packages as p')
         ->where('p.is_deleted', 0)
