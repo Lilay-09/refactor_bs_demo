@@ -409,6 +409,7 @@ class HomeController extends Controller
                 }
                 $pmtStatus = 'Received';
             }
+            $image = $q->image_url;
             return new TrackingSuccessPackageDTO(
                 package_id: $q->id,
                 code:$q->qr_code,
@@ -421,7 +422,7 @@ class HomeController extends Controller
                 status_code: TrackingStatus::tryFrom($q->status_id)->label(),
                 cod_khr: Helper::currencyAmount($q->price_khr,'KHR'),
                 receiver_address: $q->receiver_address,
-                image: $q->append('image_url'),
+                image: $image,
                 remarks: $q->remarks,
                 driver_name: $q->driver->username,
                 driver_phone: $q->driver->phone,
