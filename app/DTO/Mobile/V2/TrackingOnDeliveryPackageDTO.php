@@ -1,8 +1,6 @@
 <?php
 namespace App\DTO\Mobile\V2;
 
-use Illuminate\Support\Facades\Log;
-
 class TrackingOnDeliveryPackageDTO extends BaseTrackingPackageDTO {
     public function __construct(
         int $package_id,
