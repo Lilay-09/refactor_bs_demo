@@ -143,8 +143,8 @@ class User extends Authenticatable implements JWTSubject
             ->format($format);
     }
 
-    public function userContact(){
-        
+    public function userContacts(){
+        return $this->hasMany(userContact::class,'user_id');
     }
 
     /**
