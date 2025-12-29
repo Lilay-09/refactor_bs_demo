@@ -158,6 +158,7 @@ Route::middleware(['jwtMerchant','localize'])->prefix('merchant/v1/{lang}')->gro
             Route::get('delivery',[HomeController::class,'getOnDeliveryPackages']);
             Route::get('success',[HomeController::class,'getSuccessPackages']);
             Route::get('fail',[HomeController::class,'getFailPackages']);
+            Route::get('at-warehouse',[HomeController::class,'getAtWarehousePackages']);
             Route::get('return',[HomeController::class,'getReturnPackages']);
             Route::get('activity',[HomeController::class,'trackingActivitySummary']);
             Route::post('order/{id}/cancel',[HomeController::class,'cancelOrder']);
