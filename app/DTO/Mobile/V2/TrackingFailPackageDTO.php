@@ -24,6 +24,7 @@ class TrackingFailPackageDTO extends BaseTrackingPackageDTO {
         ?string $taxi_fee,
         ?string $delivery_fee,
         ?string $other_fee,
+        public ?array $submitted_image_urls = [],
         public array $driver_contacts = []
     ) {
         parent::__construct(
