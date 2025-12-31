@@ -183,6 +183,7 @@ Route::middleware(['jwtMerchant','localize'])->prefix('merchant/v1/{lang}')->gro
             Route::get('search/status',[GeneralSettingController::class,'getOptionsSearchStatus']);
             Route::get('payment-method',[GeneralSettingController::class,'getOptionsPaymentMethod']);
         });
+        
         Route::prefix('form')->group(function (){
             Route::get('profile',[GeneralSettingController::class,'getProfileFormOptions']);
             Route::get('booking',[GeneralSettingController::class,'getMerchantFormBooking']);

@@ -63,6 +63,11 @@ class Order extends Model
         return \Carbon\Carbon::parse($value)->timezone(config('app.timezone'))->format('d-M-Y h:i:s A');
     }
 
+
+    public function images(){
+        return $this->hasMany(OrderImage::class,'order_id');
+    }
+
     public function packages(){
         return $this->hasMany(Package::class,'order_id','id');
     }

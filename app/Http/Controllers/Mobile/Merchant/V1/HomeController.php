@@ -244,7 +244,11 @@ class HomeController extends Controller
         // $lang = $req->lang;
         $qO = Order::where('merchant_id',$user->id)
         ->where('is_deleted',false)
-        ->with(['tracking_status','driver'])
+        ->with([
+            'tracking_status',
+            'driver',
+            'images'
+        ])
         ->where('is_deleted',0)
         ->selectRaw('id,code,qty,product_type,vehicle_type,order_datetime,status_id,pickup_datetime,driver_id')->whereIn('status_id',[2,3,4]);
         // $qO->where(function ($q) use ($dateaAgo, $today) {
@@ -265,6 +269,11 @@ class HomeController extends Controller
             // $order->driver_name = $order->driver->username;
             // $order->order_datetime = Helper::formatCustomDateTime($order->order_datetime);
             unset($order->tracking_status,$order->driver);
+            $imgs = [];
+            foreach($order->images as $img){
+                $imageAt = Helper::dateYMD($img->created_at);
+                $imgs[] = $img->image_url = Helper::getImageUrl($img->photo_file_name,1,'order_image',$imageAt);
+            }
             return new MerchantPickupDTO(
                 id:$order->id,
                 code:$order->code,
@@ -276,7 +285,8 @@ class HomeController extends Controller
                 vehicle_type: $order->vehicle_type,
                 driver_name:$order->driver->username,
                 driver_phone:$order->driver->phone,
-                product_type:$order->product_type
+                product_type:$order->product_type,
+                images: $imgs
             );
         };
 
