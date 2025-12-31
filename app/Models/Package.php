@@ -142,8 +142,28 @@ class Package extends Model
         return Helper::getImageUrl($this->orderImage->photo_file_name,1,ImageDirectory::ORDER_IMAGE->value,Helper::dateYMD($this->orderImage->created_at));
     }
 
+
+    public function returnImage(){
+        return $this->hasOne(PackageAttachment::class,'package_id')->where('status','return')->orderBy('id','desc');
+    }
+
+    public function getReturnImageUrlAttribute(): ?string
+    {
+        $image = $this->returnImage; // load relation
+
+        if (!$image) {
+            return null;
+        }
+        return Helper::getImageUrl(
+            $image->file_name,
+            1,
+            ImageDirectory::RETURNED_IMAGE->value,
+            Helper::dateYMD($image->created_at)
+        );
+    }
+
     public function returnImages(){
-        return $this->hasMany(PackageAttachment::class,'package_id')->where('status','return')->limit(2);
+        return $this->hasMany(PackageAttachment::class,'package_id')->where('status','return')->orderBy('id','desc')->limit(2);
     }
 
     public function getReturnImageUrlsAttribute(): array
