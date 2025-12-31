@@ -154,7 +154,7 @@ class Package extends Model
             return null; // no image found
         }
 
-        return Helper::getImageUrl($this->submitImage->file_name,1,ImageDirectory::ORDER_IMAGE->value,Helper::dateYMD($this->submitImage->created_at));
+        return Helper::getImageUrl($this->submitImage->file_name,1,ImageDirectory::RETURNED_IMAGE->value,Helper::dateYMD($this->submitImage->created_at));
     }
 
     public function getAssignDriverDatetimeAttribute($value)
