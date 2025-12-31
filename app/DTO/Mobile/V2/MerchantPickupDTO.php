@@ -12,7 +12,8 @@ class MerchantPickupDTO{
         public readonly string $vehicle_type,
         public readonly string $driver_name,
         public readonly string $driver_phone,
-        public readonly ?string $product_type = null
+        public readonly ?string $product_type = null,
+        public readonly ?array $images = []
     )
     {}
 }
