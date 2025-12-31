@@ -509,6 +509,7 @@ class GeneralSettingController extends Controller
                             'Origin' => config('services.socket.client_origin')
                         ]
                     ]);
+
                     $message = json_encode([
                         'topic' => 'ng_express',
                         'type' => 'receive',
@@ -524,6 +525,7 @@ class GeneralSettingController extends Controller
                 'package_id' => $package->id,
                 'file_dir' => $isReturn ? ImageDirectory::RETURNED_IMAGE->value:ImageDirectory::SUBMIT_PACKAGE->value,
                 'file_name' => $returnImg,
+                'status' => 'return',
                 'created_at' => now(),
                 'updated_at' => now()
             ]);

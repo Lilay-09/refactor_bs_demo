@@ -20,7 +20,9 @@ class MerchantUnpaidPackageDTO extends BaseTrackingPackageDTO {
         public readonly string $finished_time,
         ?string $remarks,
         ?string $fees,
-        ?string $taxi_fee
+        ?string $taxi_fee,
+        ?string $other_fee,
+        ?string $delivery_fee,
     ) {
         parent::__construct(
             package_id:$package_id,
@@ -39,7 +41,9 @@ class MerchantUnpaidPackageDTO extends BaseTrackingPackageDTO {
             driver_phone: $driver_phone,
             fees: $fees,
             taxi_fee: $taxi_fee,
-            remarks: $remarks
+            remarks: $remarks,
+            delivery_fee: $delivery_fee,
+            other_fee: $other_fee
         );
     }
 }
