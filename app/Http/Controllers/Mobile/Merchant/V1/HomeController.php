@@ -348,7 +348,7 @@ class HomeController extends Controller
         $user = UserService::getAuthUser();
         $select = [
             'id','arrive_warehouse_datetime','receiver_address','receiver_phone','price','price_khr',
-            'status_id','qr_code','delivery_fee','extra_charge','driver_id','zone_name','taxi_fee',
+            'status_id','qr_code','delivery_fee','other_fee','driver_id','zone_name','taxi_fee',
             'payer'
         ];
         $query = $this->getQueryPackages(
@@ -360,7 +360,7 @@ class HomeController extends Controller
         )->orderBy('id','desc');
 
         $callback = function ($q){
-            $fees = $q->payer == 'sender' ? Helper::currencyAmount($q->delivery_fee + $q->extra_charge,'USD'):'$0';
+            $fees = $q->payer == 'sender' ? Helper::currencyAmount($q->delivery_fee + $q->other_fee,'USD'):'$0';
             $driver_contacts = $q->driver?->userContacts?->toArray() ?? [];
             return new TrackingOnDeliveryPackageDTO(
                 package_id: $q->id,
@@ -379,6 +379,8 @@ class HomeController extends Controller
                 driver_phone: $q->driver->phone,
                 taxi_fee: ($q->taxi_fee > 0 && $q->payer == 'sender') ? Helper::currencyAmount($q->taxi_fee,'USD'):'$0',
                 fees: $fees,
+                other_fee: $q->other_fee,
+                delivery_fee: $q->delivery_fee,
                 driver_contacts: $driver_contacts
             );
         };
@@ -394,7 +396,7 @@ class HomeController extends Controller
         $user = UserService::getAuthUser();
         $select = [
             'id','arrive_warehouse_datetime','receiver_address','receiver_phone','price','price_khr',
-            'status_id','qr_code','delivery_fee','extra_charge','driver_id','zone_name','method',
+            'status_id','qr_code','delivery_fee','other_fee','driver_id','zone_name','method',
             'driver_cod_khr','driver_cod_usd','merchant_id','delivered_datetime','payer','remarks'
         ];
         $query = $this->getQueryPackages(
@@ -407,7 +409,7 @@ class HomeController extends Controller
 
         $callback = function ($q):TrackingSuccessPackageDTO{
             $driver_contacts = $q->driver?->userContacts?->toArray() ?? [];
-            $fees = $q->payer == 'sender' ? Helper::currencyAmount($q->delivery_fee + $q->extra_charge,'USD'):'$0';
+            $fees = $q->payer == 'sender' ? Helper::currencyAmount($q->delivery_fee + $q->other_fee,'USD'):'$0';
             $receivedAmtUsd = Helper::currencyAmount(0,'USD');
             $receivedAmtKhr = Helper::currencyAmount(0,'KHR');
             $pmtStatus = 'pending';
@@ -447,6 +449,8 @@ class HomeController extends Controller
                 receiver_amt_khr: $receivedAmtKhr,
                 taxi_fee: ($q->taxi_fee > 0 && $q->payer == 'sender') ? Helper::currencyAmount($q->taxi_fee,'USD'):'$0',
                 fees: $fees,
+                other_fee: $q->other_fee,
+                delivery_fee: $q->delivery_fee,
                 driver_contacts: $driver_contacts
             );
         };
@@ -458,7 +462,7 @@ class HomeController extends Controller
         $user = UserService::getAuthUser();
         $select = [
             'id','arrive_warehouse_datetime','receiver_address','receiver_phone','price','price_khr',
-            'status_id','qr_code','delivery_fee','extra_charge','driver_id','zone_name','method',
+            'status_id','qr_code','delivery_fee','other_fee','driver_id','zone_name','method',
             'driver_cod_khr','driver_cod_usd','merchant_id','failed_datetime','taxi_fee','delivery_remarks',
             'remarks'
         ];
@@ -472,7 +476,7 @@ class HomeController extends Controller
 
         $callback = function ($q):TrackingFailPackageDTO{
             $driver_contacts = $q->driver?->userContacts?->toArray() ?? [];
-            $fees = $q->payer == 'sender' ? Helper::currencyAmount($q->delivery_fee + $q->extra_charge,'USD'):'$0';
+            $fees = $q->payer == 'sender' ? Helper::currencyAmount($q->delivery_fee + $q->other_fee,'USD'):'$0';
             return new TrackingFailPackageDTO(
                 package_id: $q->id,
                 code:$q->qr_code,
@@ -494,6 +498,8 @@ class HomeController extends Controller
                 fees: $fees,
                 reason: $q->delivery_remarks,
                 remarks: $q->remarks,
+                other_fee: $q->other_fee,
+                delivery_fee: $q->delivery_fee,
                 driver_contacts: $driver_contacts
             );
         };
@@ -504,7 +510,7 @@ class HomeController extends Controller
         $user = UserService::getAuthUser();
         $select = [
             'id','arrive_warehouse_datetime','receiver_address','receiver_phone','price','price_khr',
-            'status_id','qr_code','delivery_fee','extra_charge','returned_uid','zone_name','method',
+            'status_id','qr_code','delivery_fee','other_fee','returned_uid','zone_name','method','other_fee',
             'driver_cod_khr','driver_cod_usd','merchant_id','returned_datetime','taxi_fee','delivery_remarks',
             'remarks'
         ];
@@ -517,7 +523,7 @@ class HomeController extends Controller
         );
 
         $callback = function ($q):TrackingReturnDTO{
-            $fees = $q->payer == 'sender' ? Helper::currencyAmount($q->delivery_fee + $q->extra_charge,'USD'):'$0';
+            $fees = $q->payer == 'sender' ? Helper::currencyAmount($q->delivery_fee + $q->other_fee,'USD'):'$0';
             return new TrackingReturnDTO(
                 package_id: $q->id,
                 code:$q->qr_code,
@@ -537,6 +543,8 @@ class HomeController extends Controller
                 finished_time: Helper::time($q->returned_datetime),
                 taxi_fee: ($q->taxi_fee > 0 && $q->payer == 'sender') ? Helper::currencyAmount($q->taxi_fee,'USD'):'$0',
                 fees: $fees,
+                other_fee: $q->other_fee,
+                delivery_fee: $q->delivery_fee,
                 reason: $q->delivery_remarks,
                 remarks: $q->remarks
             );
@@ -548,7 +556,7 @@ class HomeController extends Controller
         $user = UserService::getAuthUser();
         $select = [
             'id','arrive_warehouse_datetime','receiver_address','receiver_phone','price','price_khr',
-            'status_id','qr_code','delivery_fee','extra_charge','returned_uid','zone_name','method',
+            'status_id','qr_code','delivery_fee','other_fee','returned_uid','zone_name','method',
             'driver_cod_khr','driver_cod_usd','merchant_id','returned_datetime','taxi_fee','delivery_remarks',
             'remarks'
         ];
@@ -561,7 +569,7 @@ class HomeController extends Controller
         );
 
         $callback = function ($q):TrackingAtWarehouseDTO{
-            $fees = $q->payer == 'sender' ? Helper::currencyAmount($q->delivery_fee + $q->extra_charge,'USD'):'$0';
+            $fees = $q->payer == 'sender' ? Helper::currencyAmount($q->delivery_fee + $q->other_fee,'USD'):'$0';
             return new TrackingAtWarehouseDTO(
                 package_id: $q->id,
                 code:$q->qr_code,
