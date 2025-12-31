@@ -150,11 +150,11 @@ class Package extends Model
 
     public function getReturnImageUrlAttribute()
     {
-        if (!$this->submitImage?->photo_file_name) {
+        if (!$this->submitImage?->file_name) {
             return null; // no image found
         }
 
-        return Helper::getImageUrl($this->submitImage->photo_file_name,1,ImageDirectory::ORDER_IMAGE->value,Helper::dateYMD($this->submitImage->created_at));
+        return Helper::getImageUrl($this->submitImage->file_name,1,ImageDirectory::ORDER_IMAGE->value,Helper::dateYMD($this->submitImage->created_at));
     }
 
     public function getAssignDriverDatetimeAttribute($value)
