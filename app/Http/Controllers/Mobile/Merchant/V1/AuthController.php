@@ -12,12 +12,12 @@ use App\Services\Mobile\AuthService;
 use App\Services\UserService;
 use App\Services\UserShopService;
 use DB;
-use Hash;
+use Illuminate\Support\Facades\Hash;
 use Helper;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Cache;
-use Log;
+use Illuminate\Support\Facades\Log;
 use Tymon\JWTAuth\Exceptions\JWTException;
 use Tymon\JWTAuth\Facades\JWTAuth;
 
@@ -159,6 +159,7 @@ class AuthController extends Controller
         $newReq = new Request([
             'username' => $inputs['full_name'] ?? null,
             'phone' => $phone,
+            'login_name' => $phone,
             'address' => $inputs['address'] ?? null,
             'account_type' => 'merchant',
             'business_type' => $inputs['business_type'] ?? null,
@@ -175,7 +176,8 @@ class AuthController extends Controller
                 'khInfo' => 'លេខសំងាត់ '.$otp
         ]);
         $smsPhoneFmt = Helper::formatPhoneNumber($phone);
-        $smsInfo = AppSetting::sendSms(config('services.plasgate.sender'),$smsPhoneFmt,$message);
+        Log::info("plasgate => ".config('services.plasgate.sender'));
+        $smsInfo = AppSetting::sendSms(config('app.plasgate_sender'),$smsPhoneFmt,$message);
         if($smsInfo->error) return ApiResponse::ValidateFail('Error sending SMS, Please try again later.');
         return ApiResponse::JsonResult([
             'phone' => $phone,
