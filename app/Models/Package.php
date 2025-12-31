@@ -120,7 +120,7 @@ class Package extends Model
     ];
 
 
-    public function image()
+    public function orderImage()
     {
         return $this->hasOne(OrderImage::class, 'package_id')
             ->orderByRaw("
@@ -136,11 +136,25 @@ class Package extends Model
 
     public function getImageUrlAttribute()
     {
-        if (!$this->image?->photo_file_name) {
+        if (!$this->orderImage?->photo_file_name) {
+            return null; // no image found
+        }
+        return Helper::getImageUrl($this->orderImage->photo_file_name,1,ImageDirectory::ORDER_IMAGE->value,Helper::dateYMD($this->orderImage->created_at));
+    }
+
+    public function submitImage(){
+        return $this->hasOne(PackageAttachment::class,'package_id')->where('status','return');
+    }
+
+    
+
+    public function getReturnImageUrlAttribute()
+    {
+        if (!$this->submitImage?->photo_file_name) {
             return null; // no image found
         }
 
-        return Helper::getImageUrl($this->image->photo_file_name,1,ImageDirectory::ORDER_IMAGE->value,Helper::dateYMD($this->image->created_at));
+        return Helper::getImageUrl($this->submitImage->photo_file_name,1,ImageDirectory::ORDER_IMAGE->value,Helper::dateYMD($this->submitImage->created_at));
     }
 
     public function getAssignDriverDatetimeAttribute($value)

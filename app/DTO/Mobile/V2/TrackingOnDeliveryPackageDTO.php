@@ -20,6 +20,8 @@ class TrackingOnDeliveryPackageDTO extends BaseTrackingPackageDTO {
         ?string $driver_name = null,
         ?string $driver_phone = null,
         ?string $remarks = null,
+        ?string $other_fee,
+        ?string $delivery_fee,
         public array $driver_contacts = []
     ) {
         parent::__construct(
@@ -39,7 +41,9 @@ class TrackingOnDeliveryPackageDTO extends BaseTrackingPackageDTO {
             driver_phone: $driver_phone,
             fees: $fees,
             taxi_fee: $taxi_fee,
-            remarks: $remarks
+            remarks: $remarks,
+            other_fee: $other_fee,
+            delivery_fee: $delivery_fee
         );
     }
 }

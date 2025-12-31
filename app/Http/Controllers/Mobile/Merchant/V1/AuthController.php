@@ -11,7 +11,7 @@ use App\Services\CloudMessagingService;
 use App\Services\Mobile\AuthService;
 use App\Services\UserService;
 use App\Services\UserShopService;
-use DB;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Helper;
 use Illuminate\Http\Request;
@@ -176,7 +176,6 @@ class AuthController extends Controller
                 'khInfo' => 'លេខសំងាត់ '.$otp
         ]);
         $smsPhoneFmt = Helper::formatPhoneNumber($phone);
-        Log::info("plasgate => ".config('services.plasgate.sender'));
         $smsInfo = AppSetting::sendSms(config('app.plasgate_sender'),$smsPhoneFmt,$message);
         if($smsInfo->error) return ApiResponse::ValidateFail('Error sending SMS, Please try again later.');
         return ApiResponse::JsonResult([

@@ -18,6 +18,8 @@ abstract class BaseTrackingPackageDTO{
         public readonly ?string $image = null,
         public readonly ?string $driver_name = null,
         public readonly ?string $driver_phone = null,
-        public readonly ?string $remarks = null
+        public readonly ?string $remarks = null,
+        public readonly ?string $delivery_fee = null,
+        public readonly ?string $other_fee = null
     ){}
 }
