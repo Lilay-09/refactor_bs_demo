@@ -142,20 +142,28 @@ class Package extends Model
         return Helper::getImageUrl($this->orderImage->photo_file_name,1,ImageDirectory::ORDER_IMAGE->value,Helper::dateYMD($this->orderImage->created_at));
     }
 
-    public function submitImage(){
-        return $this->hasOne(PackageAttachment::class,'package_id')->where('status','return');
+    public function returnImages(){
+        return $this->hasMany(PackageAttachment::class,'package_id')->where('status','return')->limit(2);
     }
 
-    
-
-    public function getReturnImageUrlAttribute()
+    public function getReturnImageUrlsAttribute(): array
     {
-        if (!$this->submitImage?->file_name) {
-            return null; // no image found
+        $images = $this->returnImages; // load relation
+
+        if ($images->isEmpty()) {
+            return [];
         }
 
-        return Helper::getImageUrl($this->submitImage->file_name,1,ImageDirectory::RETURNED_IMAGE->value,Helper::dateYMD($this->submitImage->created_at));
+        return $images->map(function ($image) {
+            return Helper::getImageUrl(
+                $image->file_name,
+                1,
+                ImageDirectory::RETURNED_IMAGE->value,
+                Helper::dateYMD($image->created_at)
+            );
+        })->toArray();
     }
+
 
     public function getAssignDriverDatetimeAttribute($value)
     {
