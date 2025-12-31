@@ -49,6 +49,7 @@ return [
         'base_url' => env('PLASGATE_BASE_URL'),
         'private_key' => env('PLASGATE_PRIVATE_KEY'),
         'secret' => env('PLASGATE_SECRET'),
+        'sender' => env('PLASGATE_SENDER'),
     ],
 
     'aba' => [
