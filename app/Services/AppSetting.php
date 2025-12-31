@@ -145,11 +145,11 @@ class AppSetting
         ]));
     }
 
-    public static function sendSms($sender='JS Express', $to, $content) {
-        $privateKey = env('PLASGATE_PRIVATE_KEY') ?? '';
-        $secret = env('PLASGATE_SECRET') ?? '';
+    public static function sendSms($sender, $to, $content) {
+        $privateKey = config('services.plasgate.private_key') ?? '';
+        $secret = config('services.plasgate.secret') ?? '';
 
-        $url = 'https://cloudapi.plasgate.com/rest/send?private_key=' . $privateKey;
+        $url = config('services.plasgate.base_url').'/rest/send?private_key=' . $privateKey;
 
         $headers = [
             'X-Secret' => $secret,

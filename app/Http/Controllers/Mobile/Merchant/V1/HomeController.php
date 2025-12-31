@@ -270,9 +270,11 @@ class HomeController extends Controller
             // $order->order_datetime = Helper::formatCustomDateTime($order->order_datetime);
             unset($order->tracking_status,$order->driver);
             $imgs = [];
-            foreach($order->images as $img){
-                $imageAt = Helper::dateYMD($img->created_at);
-                $imgs[] = $img->image_url = Helper::getImageUrl($img->photo_file_name,1,'order_image',$imageAt);
+            if(!empty($order->images)){
+                foreach($order->images as $img){
+                    $imageAt = Helper::dateYMD($img->created_at);
+                    $imgs[] = $img->image_url = Helper::getImageUrl($img->photo_file_name,1,'order_image',$imageAt);
+                }
             }
             return new MerchantPickupDTO(
                 id:$order->id,
