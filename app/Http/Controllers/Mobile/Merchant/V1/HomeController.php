@@ -537,7 +537,7 @@ class HomeController extends Controller
                 cod_khr: Helper::currencyAmount($q->price_khr,'KHR'),
                 receiver_address: $q->receiver_address,
                 image: $q->image_url,
-                return_images: $q->return_image_urls,
+                return_images: $q->return_image_url,
                 driver_name: $q->returnUser?->username,
                 driver_phone: $q->returnUser?->phone,
                 finished_date: Helper::dateDMY($q->returned_datetime),
