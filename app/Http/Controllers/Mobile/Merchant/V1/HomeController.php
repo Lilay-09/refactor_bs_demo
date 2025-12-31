@@ -295,7 +295,7 @@ class HomeController extends Controller
         return ApiResponse::PaginationV1($orders,$req,'',[],200,$callback);
     }
 
-    private function getQueryPackages($userId, array $statusIds, $startDate, $endDate, $select = ['*'])
+    private function getQueryPackages($userId, array $statusIds, $startDate, $endDate, $select = ['*'],$additionalWith=[])
     {
         $qP = Package::query()
             ->where('is_deleted', false)
@@ -307,11 +307,20 @@ class HomeController extends Controller
         // if (array_intersect($statusIds, [11, 19])) {
         //     $qP->with(['returnUser:id,username as username,phone']);
         // } else {
-            $qP->with([
-                'driver:id,username,phone',
-                'driver.userContacts:user_id,phone',
-                'orderImage'
-            ]);
+        $with = [
+            'driver:id,username,phone',
+            'orderImage',
+        ];
+
+        if (!empty($additionalWith)) {
+            $with = array_merge($with, $additionalWith);
+        }
+
+        $qP->with($with)
+        ->with([
+            'driver.userContacts' => fn ($q) => $q->select('user_id', 'phone'),
+        ]);
+
         // }
 
         // Date filtering
@@ -439,6 +448,7 @@ class HomeController extends Controller
                 receiver_address: $q->receiver_address,
                 image: $image,
                 remarks: $q->remarks,
+                submitted_image_urls: $q->submitted_image_urls,
                 driver_name: $q->driver->username,
                 driver_phone: $q->driver->phone,
                 finished_date: Helper::dateDMY($q->delivered_datetime),
@@ -537,7 +547,7 @@ class HomeController extends Controller
                 cod_khr: Helper::currencyAmount($q->price_khr,'KHR'),
                 receiver_address: $q->receiver_address,
                 image: $q->image_url,
-                return_images: $q->return_image_url,
+                return_image: $q->return_image_url,
                 driver_name: $q->returnUser?->username,
                 driver_phone: $q->returnUser?->phone,
                 finished_date: Helper::dateDMY($q->returned_datetime),
