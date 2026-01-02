@@ -520,7 +520,7 @@ class GeneralSettingController extends Controller
                         $client->send($message);
                         $client->close();
                     }catch(Exception $e){
-                        Log::error($e->getTraceAsString());
+                        Log::error('driver change package error stocket');
                     }
                 }
             }
