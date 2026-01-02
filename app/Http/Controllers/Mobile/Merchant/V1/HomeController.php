@@ -87,6 +87,7 @@ class HomeController extends Controller
         ]);
         return ApiResponse::JsonResult(null,__('messages.canceled'));
     }
+    
     public function trackingActivitySummary(Request $req)
     {
         $user = UserService::getAuthUser('merchant');
@@ -114,7 +115,7 @@ class HomeController extends Controller
             ->where('is_deleted', false)
             ->whereIn('status_id',[5,6,9,10,23,19])
             ->selectRaw('
-                SUM(CASE WHEN status_id = 5 THEN 1 ELSE 0 END) as at_warehouse,
+                SUM(CASE WHEN status_id = 5 AND arrive_warehouse_datetime BETWEEN ? AND ? THEN 1 ELSE 0 END) as at_warehouse,
                 SUM(CASE WHEN status_id = 6 AND assign_driver_datetime BETWEEN ? AND ? THEN 1 ELSE 0 END) as on_delivery,
                 SUM(CASE WHEN status_id = 9 AND delivered_datetime BETWEEN ? AND ? THEN 1 ELSE 0 END) as success,
                 SUM(CASE WHEN status_id = 23 AND returned_datetime BETWEEN ? AND ? THEN 1 ELSE 0 END) as returned,
