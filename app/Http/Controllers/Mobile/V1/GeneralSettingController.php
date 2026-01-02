@@ -459,7 +459,7 @@ class GeneralSettingController extends Controller
                 $returnImg = $img->filename;
             }
         }
-
+        DB::beginTransaction();
         try{
             if($changeDriver){
                 if($user->id == $package->driver_id) return ApiResponse::Duplicated(__('messages.info',[
@@ -498,26 +498,30 @@ class GeneralSettingController extends Controller
                 $updateArr['tracking_notes'] = $package->tracking_notes."|[$user->id]Driver ($user->username) ask [$package->driver_id]Driver $driverName to change driver";
             }
             // if(empty($updateArr)) return ApiResponse::JsonResult(null,__('messages.updated'));
-            DB::beginTransaction();
+            
             if(!$isReturn){
                 $trxSImpl = new TransferServiceImpl();
                 $rct = $trxSImpl->driverScanReceive($user,$package->id);
                 if($rct->error) return $rct;
                 else{
-                    $client = new Client(config('app.cl_socket'),[
-                        'headers' => [
-                            'Origin' => config('services.socket.client_origin')
-                        ]
-                    ]);
+                    try{
+                        $client = new Client(config('app.cl_socket'),[
+                            'headers' => [
+                                'Origin' => config('services.socket.client_origin')
+                            ]
+                        ]);
 
-                    $message = json_encode([
-                        'topic' => 'ng_express',
-                        'type' => 'receive',
-                        'message' => $package->id,
-                    ]);
+                        $message = json_encode([
+                            'topic' => 'ng_express',
+                            'type' => 'receive',
+                            'message' => $package->id,
+                        ]);
 
-                    $client->send($message);
-                    $client->close();
+                        $client->send($message);
+                        $client->close();
+                    }catch(Exception $e){
+                        Log::error($e->getTraceAsString());
+                    }
                 }
             }
             $package->update($updateArr);
