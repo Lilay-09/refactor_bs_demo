@@ -87,7 +87,7 @@ class HomeController extends Controller
         ]);
         return ApiResponse::JsonResult(null,__('messages.canceled'));
     }
-    
+
     public function trackingActivitySummary(Request $req)
     {
         $user = UserService::getAuthUser('merchant');
@@ -128,6 +128,7 @@ class HomeController extends Controller
                     failed_datetime BETWEEN ? AND ?
                 ) THEN price ELSE 0 END) as total_cod
             ', [
+                $startDate, $endDate,       // at_warehouse
                 $startDate, $endDate,       // on_delivery
                 $startDate, $endDate,       // success
                 $startDate, $endDate,       // returned
