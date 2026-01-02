@@ -504,20 +504,24 @@ class GeneralSettingController extends Controller
                 $rct = $trxSImpl->driverScanReceive($user,$package->id);
                 if($rct->error) return $rct;
                 else{
-                    $client = new Client(config('app.cl_socket'),[
-                        'headers' => [
-                            'Origin' => config('services.socket.client_origin')
-                        ]
-                    ]);
+                    try{
+                        $client = new Client(config('app.cl_socket'),[
+                            'headers' => [
+                                'Origin' => config('services.socket.client_origin')
+                            ]
+                        ]);
 
-                    $message = json_encode([
-                        'topic' => 'ng_express',
-                        'type' => 'receive',
-                        'message' => $package->id,
-                    ]);
+                        $message = json_encode([
+                            'topic' => 'ng_express',
+                            'type' => 'receive',
+                            'message' => $package->id,
+                        ]);
 
-                    $client->send($message);
-                    $client->close();
+                        $client->send($message);
+                        $client->close();
+                    }catch(Exception $e){
+                        Log::error($e->getTraceAsString());
+                    }
                 }
             }
             $package->update($updateArr);
