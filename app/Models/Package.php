@@ -195,7 +195,7 @@ class Package extends Model
             return Helper::getImageUrl(
                 $image->file_name,
                 1,
-                ImageDirectory::RETURNED_IMAGE->value,
+                ImageDirectory::SUBMIT_PACKAGE->value,
                 Helper::dateYMD($image->created_at)
             );
         })->toArray();
