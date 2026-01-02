@@ -459,7 +459,7 @@ class GeneralSettingController extends Controller
                 $returnImg = $img->filename;
             }
         }
-
+        DB::beginTransaction();
         try{
             if($changeDriver){
                 if($user->id == $package->driver_id) return ApiResponse::Duplicated(__('messages.info',[
@@ -498,7 +498,7 @@ class GeneralSettingController extends Controller
                 $updateArr['tracking_notes'] = $package->tracking_notes."|[$user->id]Driver ($user->username) ask [$package->driver_id]Driver $driverName to change driver";
             }
             // if(empty($updateArr)) return ApiResponse::JsonResult(null,__('messages.updated'));
-            DB::beginTransaction();
+            
             if(!$isReturn){
                 $trxSImpl = new TransferServiceImpl();
                 $rct = $trxSImpl->driverScanReceive($user,$package->id);
