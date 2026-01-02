@@ -24,7 +24,7 @@ class TrackingReturnDTO extends BaseTrackingPackageDTO {
         ?string $taxi_fee,
         ?string $delivery_fee,
         ?string $other_fee,
-        public ?string $return_image = null,
+        public ?array $return_images = null,
         public array $driver_contacts = []
     ) {
         parent::__construct(
