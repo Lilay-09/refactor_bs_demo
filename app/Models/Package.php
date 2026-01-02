@@ -162,14 +162,31 @@ class Package extends Model
         );
     }
 
-    public function returnImages(){
-        return $this->hasMany(PackageAttachment::class,'package_id')->where('status','return')->orderBy('id','desc')->limit(2);
+    public function submittedImages(){
+        return $this->hasMany(PackageAttachment::class,'package_id');
     }
 
     public function getReturnImageUrlsAttribute(): array
     {
-        $images = $this->returnImages; // load relation
+        $images = $this->submittedImages; // load relation
 
+        if ($images->isEmpty()) {
+            return [];
+        }
+
+        return $images->map(function ($image) {
+            return Helper::getImageUrl(
+                $image->file_name,
+                1,
+                ImageDirectory::RETURNED_IMAGE->value,
+                Helper::dateYMD($image->created_at)
+            );
+        })->toArray();
+    }
+
+    public function getSubmittedImageUrlsAttribute(): array
+    {
+        $images = $this->submittedImages;
         if ($images->isEmpty()) {
             return [];
         }
