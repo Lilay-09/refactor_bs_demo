@@ -369,25 +369,29 @@ class HomeController extends Controller
         )->orderBy('id','desc');
 
         $callback = function ($q){
-            $fees = $q->payer == 'sender' ? Helper::currencyAmount($q->delivery_fee + $q->other_fee,'USD'):'$0';
+            $fees = ($q->payer == 'sender') ? ($q->delivery_fee + $q->other_fee) : 0;
+            $feesFmt = Helper::amountStdFmt($fees);
+            $driverCodUsd = $q->driver_cod_usd;
+            $driverCodKhr = $q->driver_cod_khr;
+            $codAmt = $this->merchantCod($driverCodUsd,$driverCodKhr,$fees);
             $driver_contacts = $q->driver?->userContacts?->toArray() ?? [];
             return new TrackingOnDeliveryPackageDTO(
                 package_id: $q->id,
                 code:$q->qr_code,
                 receiver_phone:$q->receiver_phone,
-                cod_usd: Helper::currencyAmount($q->price,'USD'),
+                cod_usd: Helper::currencyAmount($codAmt['cod_usd'],'USD'),
                 arrive_date: Helper::dateYMD($q->arrive_warehouse_datetime),
                 arrive_time: Helper::time($q->arrive_warehouse_datetime),
                 zone_name: $q->zone_name,
                 status_id: $q->status_id,
                 status_code: TrackingStatus::tryFrom($q->status_id)->label(),
-                cod_khr: Helper::currencyAmount($q->price_khr,'KHR'),
+                cod_khr: Helper::currencyAmount($codAmt['cod_khr'],'KHR'),
                 receiver_address: $q->receiver_address,
                 image: $q->image_url,
                 driver_name: $q->driver->username,
                 driver_phone: $q->driver->phone,
                 taxi_fee: ($q->taxi_fee > 0 && $q->payer == 'sender') ? Helper::currencyAmount($q->taxi_fee,'USD'):'$0',
-                fees: $fees,
+                fees: $feesFmt,
                 other_fee: $q->other_fee,
                 delivery_fee: $q->delivery_fee,
                 driver_contacts: $driver_contacts
@@ -418,9 +422,14 @@ class HomeController extends Controller
 
         $callback = function ($q):TrackingSuccessPackageDTO{
             $driver_contacts = $q->driver?->userContacts?->toArray() ?? [];
-            $fees = $q->payer == 'sender' ? Helper::currencyAmount($q->delivery_fee + $q->other_fee,'USD'):'$0';
+            // $fees = $q->payer == 'sender' ? Helper::currencyAmount($q->delivery_fee + $q->other_fee,'USD'):'$0';
             $receivedAmtUsd = Helper::currencyAmount(0,'USD');
             $receivedAmtKhr = Helper::currencyAmount(0,'KHR');
+            $fees = ($q->payer == 'sender') ? ($q->delivery_fee + $q->other_fee) : 0;
+            $feesFmt = Helper::amountStdFmt($fees);
+            $driverCodUsd = $q->driver_cod_usd;
+            $driverCodKhr = $q->driver_cod_khr;
+            $codAmt = $this->merchantCod($driverCodUsd,$driverCodKhr,$fees);
             $pmtStatus = 'pending';
             if($q->hasMerchantPayment()){
                 if($q->driver_cod_usd > 0 && $q->driver_cod_khr > 0){
@@ -438,13 +447,13 @@ class HomeController extends Controller
                 package_id: $q->id,
                 code:$q->qr_code,
                 receiver_phone: $q->receiver_phone,
-                cod_usd: Helper::currencyAmount($q->price,'USD'),
+                cod_usd: Helper::currencyAmount($codAmt['cod_usd'],'USD'),
                 arrive_date: Helper::dateYMD($q->arrive_warehouse_datetime),
                 arrive_time: Helper::time($q->arrive_warehouse_datetime),
                 zone_name: $q->zone_name,
                 status_id: $q->status_id,
                 status_code: TrackingStatus::tryFrom($q->status_id)->label(),
-                cod_khr: Helper::currencyAmount($q->price_khr,'KHR'),
+                cod_khr: Helper::currencyAmount($codAmt['cod_khr'],'KHR'),
                 receiver_address: $q->receiver_address,
                 image: $image,
                 remarks: $q->remarks,
@@ -458,7 +467,7 @@ class HomeController extends Controller
                 receiver_amt_usd: $receivedAmtUsd,
                 receiver_amt_khr: $receivedAmtKhr,
                 taxi_fee: ($q->taxi_fee > 0 && $q->payer == 'sender') ? Helper::currencyAmount($q->taxi_fee,'USD'):'$0',
-                fees: $fees,
+                fees: $feesFmt,
                 other_fee: $q->other_fee,
                 delivery_fee: $q->delivery_fee,
                 driver_contacts: $driver_contacts
@@ -486,18 +495,23 @@ class HomeController extends Controller
 
         $callback = function ($q):TrackingFailPackageDTO{
             $driver_contacts = $q->driver?->userContacts?->toArray() ?? [];
-            $fees = $q->payer == 'sender' ? Helper::currencyAmount($q->delivery_fee + $q->other_fee,'USD'):'$0';
+            // $fees = $q->payer == 'sender' ? Helper::currencyAmount($q->delivery_fee + $q->other_fee,'USD'):'$0';
+            $fees = ($q->payer == 'sender') ? ($q->delivery_fee + $q->other_fee) : 0;
+            $feesFmt = Helper::amountStdFmt($fees);
+            $driverCodUsd = $q->driver_cod_usd;
+            $driverCodKhr = $q->driver_cod_khr;
+            $codAmt = $this->merchantCod($driverCodUsd,$driverCodKhr,$fees);
             return new TrackingFailPackageDTO(
                 package_id: $q->id,
                 code:$q->qr_code,
                 receiver_phone: $q->receiver_phone,
-                cod_usd: Helper::currencyAmount($q->price,'USD'),
+                cod_usd: Helper::currencyAmount($codAmt['cod_usd'],'USD'),
                 arrive_date: Helper::dateYMD($q->arrive_warehouse_datetime),
                 arrive_time: Helper::time($q->arrive_warehouse_datetime),
                 zone_name: $q->zone_name,
                 status_id: $q->status_id,
                 status_code: TrackingStatus::tryFrom($q->status_id)->label(),
-                cod_khr: Helper::currencyAmount($q->price_khr,'KHR'),
+                cod_khr: Helper::currencyAmount($codAmt['cod_khr'],'KHR'),
                 receiver_address: $q->receiver_address,
                 image: $q->image_url,
                 driver_name: $q->driver->username,
@@ -505,7 +519,7 @@ class HomeController extends Controller
                 finished_date: Helper::dateDMY($q->failed_datetime),
                 finished_time: Helper::time($q->failed_datetime),
                 taxi_fee: ($q->taxi_fee > 0 && $q->payer == 'sender') ? Helper::currencyAmount($q->taxi_fee,'USD'):'$0',
-                fees: $fees,
+                fees: $feesFmt,
                 reason: $q->delivery_remarks,
                 remarks: $q->remarks,
                 other_fee: $q->other_fee,
@@ -620,6 +634,14 @@ class HomeController extends Controller
             return $promotion;
         };
         return ApiResponse::PaginationV1($promotions,$req,'',[],100,$callback);
+    }
+
+    private function merchantCod($driverCodUsd,$driverCodKHR,$fees){
+        Helper::deductAmountBase($driverCodUsd,$driverCodKHR,$fees);
+        return [
+            'cod_usd' => $driverCodUsd,
+            'cod_khr' => $driverCodKHR
+        ];
     }
 
     public function getOptionsZone(Request $req){
