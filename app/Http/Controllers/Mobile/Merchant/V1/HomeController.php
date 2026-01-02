@@ -315,7 +315,7 @@ class HomeController extends Controller
         ];
 
         $with['submittedImages'] = fn($q) => $q
-        ->orderBy('id','desc')
+        ->orderBy('updated_at','desc')
         ->limit(2);
 
         if (!empty($additionalWith)) {
