@@ -262,7 +262,7 @@ class GeneralSettingService
     }
 
     public static function optionsPriceList($user){
-        $pricelist = PriceListname::where('is_deleted',0)->selectRaw( 'id,id as price_list_name_id,name')->get();
+        $pricelist = PriceListname::where('is_deleted',0)->selectRaw( 'id,id as price_list_name_id,name,id as value,name as label')->get();
         //  PriceList::where('is_deleted', 0)
         //     ->selectRaw('price_list_name_id,delivery_type') // Select only price_list_name_id
         //     ->distinct() // Ensure distinct results

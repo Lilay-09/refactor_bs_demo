@@ -1643,10 +1643,15 @@ class ReportController extends Controller
         $endDate = $req->endDate ? Helper::dateDMY($req->endDate) : null;
         $totalMerchant = 0;
         $branchId = $req->branch_id;
+        $priceListId = $req->query('price_list_id');
         $warehouseId = $req->warehouse_id;
         $q = User::where('is_deleted',0)
         ->where('account_type','merchant')
-        ->with('bank_accounts:user_id,bank_name,bank_number,account_name')
+        ->with([
+            'bank_accounts:user_id,bank_name,bank_number,account_name',
+            'merchantPriceList',
+            'merchantPriceList.priceList.priceListName',
+        ])
         ->selectRaw('username,business_type,phone,created_at,address,code,lock,id');
         if($branchId){
             $q->where('branch_id',$branchId);
@@ -1654,10 +1659,20 @@ class ReportController extends Controller
         if($warehouseId){
             $q->where('warehouse_id',$warehouseId);
         }
+
+        if ($priceListId) {
+            $priceListCallback = function ($q) use ($priceListId) {
+                $q->whereHas('merchantPriceList', function($q2) use ($priceListId) {
+                    $q2->where('price_list_id', $priceListId);
+                });
+            };
+            $q->where($priceListCallback);
+        }
         $merchants = $q->get();
         foreach($merchants as $m){
             $m->registered_date = Helper::dateDMY($m->created_at);
             $m->status_code = $m->lock ? 'Inactive' : 'Active';
+            $m->merchantPriceList?->priceListName->name ?? null;
             foreach($m->bank_accounts as $b){
                 if($b->is_primary) {
                     $m->bank_account = GeneralSettingService::concatBankInfo($b->bank_name,$b->bank_number,$b->account_name);
@@ -1673,7 +1688,7 @@ class ReportController extends Controller
                 }
             }
             $totalMerchant +=1;
-            unset($m->created_at,$m->bank_accounts);
+            unset($m->created_at,$m->bank_accounts,$m->merchantPriceList);
         }
         $obj =(object)[
             'title' => 'Merchant List',
@@ -2545,7 +2560,8 @@ class ReportController extends Controller
         $obj = [
             'warehouses' => GeneralSettingService::optionsWarehouse($user),
             'statuses' => GeneralSettingService::optionsUserStatus(),
-            'branches' => GeneralSettingService::optionsBranch()
+            'branches' => GeneralSettingService::optionsBranch(),
+            'prict_lists' => GeneralSettingService::optionsPriceList($user)
         ];
         return ApiResponse::JsonResult($obj);
     }
