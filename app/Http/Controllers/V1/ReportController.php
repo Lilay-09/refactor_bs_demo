@@ -1672,7 +1672,7 @@ class ReportController extends Controller
         foreach($merchants as $m){
             $m->registered_date = Helper::dateDMY($m->created_at);
             $m->status_code = $m->lock ? 'Inactive' : 'Active';
-            $m->merchantPriceList?->priceListName->name ?? null;
+            $m->price_list_name = $m->merchantPriceList?->priceListName->name ?? null;
             foreach($m->bank_accounts as $b){
                 if($b->is_primary) {
                     $m->bank_account = GeneralSettingService::concatBankInfo($b->bank_name,$b->bank_number,$b->account_name);
@@ -2561,7 +2561,7 @@ class ReportController extends Controller
             'warehouses' => GeneralSettingService::optionsWarehouse($user),
             'statuses' => GeneralSettingService::optionsUserStatus(),
             'branches' => GeneralSettingService::optionsBranch(),
-            'prict_lists' => GeneralSettingService::optionsPriceList($user)
+            'price_lists' => GeneralSettingService::optionsPriceList($user)
         ];
         return ApiResponse::JsonResult($obj);
     }
