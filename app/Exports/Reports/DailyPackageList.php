@@ -44,7 +44,7 @@ class DailyPackageList implements FromQuery, WithMapping, WithHeadings, WithChun
             'K' => 20,   'L' => 70, // Arrived Date
             'M' => 35,   'N' => 20, // Merchant COD
             'O' => 20,   'P' => 20, 'Q' => 20, 'R' => 20, 'S' => 20,
-            'T' => 35,   'U' => 35
+            'T' => 35,   'U' => 35, 'V' => 35,   'W' => 35
         ];
 
         foreach ($columns as $col => $width) {
@@ -52,7 +52,7 @@ class DailyPackageList implements FromQuery, WithMapping, WithHeadings, WithChun
         }
 
         // Header styling (first row)
-        $sheet->getStyle('A1:U1')->applyFromArray([
+        $sheet->getStyle('A1:W1')->applyFromArray([
             'font' => [
                 'bold' => true,
                 'size' => 14, // increase font size
@@ -117,6 +117,6 @@ class DailyPackageList implements FromQuery, WithMapping, WithHeadings, WithChun
      */
     public function chunkSize(): int
     {
-        return 1000;
+        return 500;
     }
 }

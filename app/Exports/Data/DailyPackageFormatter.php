@@ -35,7 +35,7 @@ class DailyPackageFormatter
         };
 
         return [
-            'no' => $p->no,
+            'no' => 0,
             'barcode' => $p->qr_code ?? '',
             'branch' => $p->branchLocation?->name_en ?? '',
             'merchant_name' => $p->merchant?->username ?? '',

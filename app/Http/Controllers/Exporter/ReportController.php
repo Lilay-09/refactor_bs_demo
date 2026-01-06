@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers\Exporter;
 
+use ApiResponse;
+use App\Exceptions\BadRequestExcept;
 use App\Exports\Data\DailyPackageFormatter;
 use App\Exports\Data\DailyPackageQueryService;
 use App\Exports\Reports\DailyPackageList as ReportsDailyPackageList;
@@ -36,12 +38,14 @@ class ReportController extends Controller
             $response->headers->set('X-Custom-Header', 'value');
             return $response;
         } catch (Throwable $e) {
-            // Log full exception including stack trace
-            Log::error('Export Daily Packages failed: ' . $e->getMessage() . ' | ' . $e->getTraceAsString());
-            return response()->json([
-                'status' => false,
-                'message' => 'Failed to export daily packages. Check logs for details.'
-            ], 500);
+            if ($e instanceof BadRequestExcept) { // or your custom BadRequest class
+                return ApiResponse::Error($e->getMessage());
+            }
+
+            // For all other exceptions, log full stack trace
+            // Log::error('Export Daily Packages failed: ' . $e->getMessage() . ' | ' . $e->getTraceAsString());
+
+            return ApiResponse::Error("Failed to export daily packages. Check logs for details.");
         }
     }
 
