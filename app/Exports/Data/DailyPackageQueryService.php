@@ -1,12 +1,24 @@
 <?php
 
 namespace App\Exports\Data;
+
+use App\Exceptions\BadRequestExcept;
 use App\Models\Package;
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 
 class DailyPackageQueryService {
     public function getQuery(array $filters = []): Builder
     {
+        if (isset($filters['startDate']) && isset($filters['endDate'])) {
+            $startDate = Carbon::parse($filters['startDate'])->startOfDay(); // 00:00:00
+            $endDate = Carbon::parse($filters['endDate'])->endOfDay();       // 23:59:59
+
+            // Check if startDate is more than 2 months before endDate
+            if ($startDate->diffInMonths($endDate) > 2) {
+                throw new BadRequestExcept('Start date cannot be more than 2 months before the end date.');
+            }
+        }
         $q = Package::query()
             ->where('is_deleted', 0)
             ->where('outstanding', 0)
