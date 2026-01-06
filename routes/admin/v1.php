@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Exporter\ReportController as ExporterReportController;
 use App\Http\Controllers\V1\ActivityLogController;
 use App\Http\Controllers\V1\BannerController;
 use App\Http\Controllers\V1\BranchController;
@@ -690,6 +691,10 @@ Route::middleware(['jwt','localize','userAccess:admin','rateLimit'])->prefix('ad
     });
 
     Route::prefix('report')->group(function(){
+        Route::prefix('exports')->group(function(){
+            Route::get('daily-package-list',[ExporterReportController::class,'exportDailyPackages']);
+        });
+
         Route::get('/option/warehouse',[ReportController::class,'optionsWarehouse']);
         Route::prefix('company')->group(function(){
             Route::get('/pickup',[ReportController::class,'getPickupReport']);
