@@ -364,7 +364,7 @@ class HomeController extends Controller
         $select = [
             'id','arrive_warehouse_datetime','receiver_address','receiver_phone','price','price_khr',
             'status_id','qr_code','delivery_fee','other_fee','driver_id','zone_name','taxi_fee',
-            'payer'
+            'payer','remarks'
         ];
         $query = $this->getQueryPackages(
             userId: $user->id,
@@ -398,7 +398,7 @@ class HomeController extends Controller
                 driver_phone: $q->driver->phone,
                 taxi_fee: $q->taxi_fee,// ($q->taxi_fee > 0 && $q->payer == 'sender') ? Helper::currencyAmount($q->taxi_fee,'USD'):'$0',
                 fees: $feesFmt,
-                remarks: '',
+                remarks: $q->remarks,
                 other_fee: $q->other_fee,
                 delivery_fee: $q->delivery_fee,
                 driver_contacts: $driver_contacts
