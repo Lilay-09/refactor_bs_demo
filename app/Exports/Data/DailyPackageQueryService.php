@@ -128,9 +128,14 @@ class DailyPackageQueryService {
                 'packages.zone_name',
                 'packages.zone_code',
                 'packages.qr_code',
+                'packages.status_id',
 
                 'packages.receiver_phone',
                 'packages.receiver_address',
+                'packages.driver_cod_usd',
+                'packages.driver_cod_khr',
+                'packages.taxi_fee',
+                'packages.other_fee',
 
                 'packages.cod',
                 'packages.price',

@@ -46,17 +46,11 @@ class ExportDailyPackagesJob implements ShouldQueue
                 $this->exportId
             );
 
-            // Cache::store('redis')->put("export:progress:$this->exportId", 30);
-
             // Step 3: Generate Excel synchronously in memory
             $excelData = Excel::raw($export, \Maatwebsite\Excel\Excel::XLSX);
 
-            // Cache::store('redis')->put("export:progress:$this->exportId", 80);
-
             // Step 4: Write Excel to disk
             file_put_contents($fullPath, $excelData);
-
-            // Cache::store('redis')->put("export:progress:$this->exportId", 100);
             Cache::store('redis')->put("export:ready:$this->exportId", true);
 
         } catch (\Throwable $e) {
