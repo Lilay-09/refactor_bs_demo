@@ -136,6 +136,6 @@ class DailyPackageList implements FromQuery, WithMapping, WithHeadings, WithChun
      */
     public function chunkSize(): int
     {
-        return 700;
+        return 500;
     }
 }
