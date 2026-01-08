@@ -147,17 +147,47 @@ class ReportController extends Controller
     }
 
 
+    // public function downloadExport(Request $req)
+    // {
+    //     $exportId = $req->id;
+    //     $path = storage_path("app/exports/daily_packages_$exportId.xlsx");
+    //     if (!file_exists($path)) {
+    //         return ApiResponse::Error('File not ready');
+    //     }
+
+    //     return response()
+    //         ->download($path)
+    //         ->deleteFileAfterSend(true);
+    // }
     public function downloadExport(Request $req)
     {
         $exportId = $req->id;
         $path = storage_path("app/exports/daily_packages_$exportId.xlsx");
+
         if (!file_exists($path)) {
             return ApiResponse::Error('File not ready');
         }
 
-        return response()
-            ->download($path)
-            ->deleteFileAfterSend(true);
+        $fileSize = filesize($path);
+        $fileName = "daily_packages_$exportId.xlsx";
+
+        return response()->streamDownload(function() use ($path) {
+            $stream = fopen($path, 'rb');
+            while (!feof($stream)) {
+                echo fread($stream, 1024 * 1024); // 1MB per chunk
+                flush();
+            }
+            fclose($stream);
+
+            // Delete file after streaming
+            if (file_exists($path)) {
+                unlink($path);
+            }
+        }, $fileName, [
+            'Content-Length' => $fileSize,
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        ]);
     }
+
 
 }
