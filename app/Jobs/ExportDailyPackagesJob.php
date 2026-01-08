@@ -30,7 +30,7 @@ class ExportDailyPackagesJob implements ShouldQueue
     {
         try {
             // Step 1: Job started
-            Cache::store('redis')->put("export:progress:$this->exportId", 10);
+            // Cache::store('redis')->put("export:progress:$this->exportId", 10);
 
             $exportFolder = storage_path('app/exports');
             if (!is_dir($exportFolder)) mkdir($exportFolder, 0775, true);
