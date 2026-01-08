@@ -25,57 +25,14 @@ class ExportDailyPackagesJob implements ShouldQueue
         public int $userId
     ) {}
 
-    // public function handle()
-    // {
-    //     try {
-    //         // ini_set('memory_limit', '4096M');
-
-    //         // Step 1: Job started
-    //         Cache::store('redis')->put("export:progress:$this->exportId", 10);
-
-    //         // Step 2: Prepare export object
-    //         $export = new DailyPackageList(
-    //             new DailyPackageQueryService(),
-    //             new DailyPackageFormatter($this->lang),
-    //             $this->filters
-    //         );
-    //         Cache::store('redis')->put("export:progress:$this->exportId", 40);
-
-    //         // Step 3: Ensure folder exists
-    //         $exportFolder = storage_path('app/exports');
-    //         if (!is_dir($exportFolder)) mkdir($exportFolder, 0775, true);
-    //         Cache::store('redis')->put("export:progress:$this->exportId", 50);
-
-    //         // Step 4: Generate Excel in memory (this is the heavy step!)
-    //         $excelData = Excel::raw($export, \Maatwebsite\Excel\Excel::XLSX);
-    //         Cache::store('redis')->put("export:progress:$this->exportId", 80);
-
-    //         // Step 5: Save Excel to disk
-    //         $fileName = "daily_packages_{$this->exportId}.xlsx";
-    //         $fullPath = $exportFolder . '/' . $fileName;
-    //         file_put_contents($fullPath, $excelData);
-    //         Cache::store('redis')->put("export:progress:$this->exportId", 90);
-
-    //         // Step 6: Mark export as ready
-    //         Cache::store('redis')->put("export:progress:$this->exportId", 100);
-    //         Cache::store('redis')->put("export:ready:$this->exportId", true);
-
-    //         Log::info("Export completed: $fullPath");
-
-    //     } catch (\Throwable $e) {
-    //         // Mark as failed
-    //         Cache::store('redis')->put("export:progress:$this->exportId", -1);
-    //         Cache::store('redis')->put("export:error:$this->exportId", $e->getMessage());
-    //         Cache::store('redis')->put("export:ready:$this->exportId", false);
-
-    //         Log::error("Export job failed: " . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
-
-    //         $this->failed($e);
-    //     }
-    // }
-
     public function handle()
     {
+        try {
+            Cache::store('redis')->put('export-test', 'ok', 60);
+            Log::error('Redis test: ' . Cache::store('redis')->get('export-test'));
+        } catch (\Exception $e) {
+            Log::error('Redis failed: ' . $e->getMessage());
+        }
         try {
             // Step 1: Job started
             Cache::store('redis')->put("export:progress:$this->exportId", 10);
