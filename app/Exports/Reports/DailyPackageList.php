@@ -4,12 +4,13 @@ namespace App\Exports\Reports;
 use App\Exports\Data\DailyPackageFormatter;
 use App\Exports\Data\DailyPackageQueryService;
 use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Database\Query\Builder;
+use Illuminate\Support\Facades\Cache;
 use Maatwebsite\Excel\Concerns\FromQuery;
 use Maatwebsite\Excel\Concerns\WithMapping;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithChunkReading;
 use Maatwebsite\Excel\Concerns\WithStyles;
-use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
 class DailyPackageList implements FromQuery, WithMapping, WithHeadings, WithChunkReading, ShouldQueue,WithStyles
@@ -17,17 +18,26 @@ class DailyPackageList implements FromQuery, WithMapping, WithHeadings, WithChun
     protected DailyPackageQueryService $queryService;
     protected DailyPackageFormatter $formatter;
     protected array $filters;
-
+    public string $exportId;
     protected int $rowNumber = 0;
+    protected int $totalRows = 0;
 
     public function __construct(
         DailyPackageQueryService $queryService,
         DailyPackageFormatter $formatter,
-        array $filters = []
+        array $filters = [],
+        $exportId = ''
     ) {
         $this->queryService = $queryService;
         $this->formatter = $formatter;
         $this->filters = $filters;
+
+        $this->exportId = $exportId;
+        $this->totalRows = $this->queryService->getQuery($filters)->count();
+        // $query = $this->queryService->getQuery($filters);
+
+        // // Safe row count with DB::table() + joins
+        // $this->totalRows = $query->toBase()->getCountForPagination();
     }
 
     public function styles(Worksheet $sheet)
@@ -77,7 +87,7 @@ class DailyPackageList implements FromQuery, WithMapping, WithHeadings, WithChun
     /**
      * Get the query for the export
      */
-    public function query(): \Illuminate\Database\Eloquent\Builder
+    public function query(): Builder
     {
         return $this->queryService->getQuery($this->filters);
     }
@@ -88,7 +98,13 @@ class DailyPackageList implements FromQuery, WithMapping, WithHeadings, WithChun
     public function map($row): array
     {
         $this->rowNumber++; // Increment for each row
-        $data = $this->formatter->format($row);
+
+        if ($this->totalRows > 0 && $this->rowNumber % 50 === 0) {
+            $progress = min(90, intval(($this->rowNumber / $this->totalRows) * 90));
+            Cache::store('redis')->put("export:progress:{$this->exportId}", $progress);
+        }
+
+        $data = $this->formatter->rawFormat($row);
         $data['no'] = $this->rowNumber; // Override 'No' column with index + 1
         return $data;
     }
@@ -117,6 +133,6 @@ class DailyPackageList implements FromQuery, WithMapping, WithHeadings, WithChun
      */
     public function chunkSize(): int
     {
-        return 500;
+        return 700;
     }
 }
