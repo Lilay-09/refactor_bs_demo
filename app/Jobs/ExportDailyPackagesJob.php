@@ -29,7 +29,7 @@ class ExportDailyPackagesJob implements ShouldQueue
     {
         try {
             Cache::store('redis')->put('export-test', 'ok', 60);
-            Log::info('Redis test: ' . Cache::store('redis')->get('export-test'));
+            Log::error('Redis test: ' . Cache::store('redis')->get('export-test'));
         } catch (\Exception $e) {
             Log::error('Redis failed: ' . $e->getMessage());
         }
