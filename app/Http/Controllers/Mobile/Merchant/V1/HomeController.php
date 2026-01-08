@@ -619,6 +619,7 @@ class HomeController extends Controller
                 driver_name: $q->returnUser?->username,
                 driver_phone: $q->returnUser?->phone,
                 other_fee: $q->other_fee,
+                delivery_fee: $q->delivery_fee,
                 taxi_fee: $q->taxi_fee,//($q->taxi_fee > 0 && $q->payer == 'sender') ? Helper::currencyAmount($q->taxi_fee,'USD'):'$0',
                 fees: $fees,
                 remarks: $q->remarks
