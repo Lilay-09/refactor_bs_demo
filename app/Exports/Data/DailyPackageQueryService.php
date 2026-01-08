@@ -98,11 +98,11 @@ class DailyPackageQueryService {
             $startDate = Carbon::parse($filters['startDate'])->startOfDay();
             $endDate   = Carbon::parse($filters['endDate'])->endOfDay();
 
-            // if ($startDate->diffInMonths($endDate) > 2) {
-            //     throw new BadRequestExcept(
-            //         'Start date cannot be more than 2 months before the end date.'
-            //     );
-            // }
+            if ($startDate->diffInMonths($endDate) > 2) {
+                throw new BadRequestExcept(
+                    'Start date cannot be more than 2 months before the end date.'
+                );
+            }
         }
 
         // -------------------------------
