@@ -13,7 +13,7 @@ use Maatwebsite\Excel\Concerns\WithChunkReading;
 use Maatwebsite\Excel\Concerns\WithStyles;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
-class DailyPackageList implements FromQuery, WithMapping, WithHeadings, WithChunkReading, ShouldQueue,WithStyles
+class DailyPackageList implements FromQuery, WithMapping, WithHeadings, WithChunkReading,WithStyles
 {
     protected DailyPackageQueryService $queryService;
     protected DailyPackageFormatter $formatter;
@@ -33,7 +33,10 @@ class DailyPackageList implements FromQuery, WithMapping, WithHeadings, WithChun
         $this->filters = $filters;
 
         $this->exportId = $exportId;
-        $this->totalRows = $this->queryService->getQuery($filters)->count();
+        $countQuery = clone $this->queryService->getQuery($filters);
+        $this->totalRows = $countQuery->count();
+
+
         // $query = $this->queryService->getQuery($filters);
 
         // // Safe row count with DB::table() + joins
