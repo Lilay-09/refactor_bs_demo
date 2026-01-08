@@ -2,6 +2,7 @@
 
 namespace App\Jobs;
 
+use App\Exceptions\BadRequestExcept;
 use App\Exports\Data\DailyPackageFormatter;
 use App\Exports\Data\DailyPackageQueryService;
 use App\Exports\Reports\DailyPackageList;
@@ -27,12 +28,6 @@ class ExportDailyPackagesJob implements ShouldQueue
 
     public function handle()
     {
-        try {
-            Cache::store('redis')->put('export-test', 'ok', 60);
-            Log::error('Redis test: ' . Cache::store('redis')->get('export-test'));
-        } catch (\Exception $e) {
-            Log::error('Redis failed: ' . $e->getMessage());
-        }
         try {
             // Step 1: Job started
             Cache::store('redis')->put("export:progress:$this->exportId", 10);
@@ -64,15 +59,11 @@ class ExportDailyPackagesJob implements ShouldQueue
             // Cache::store('redis')->put("export:progress:$this->exportId", 100);
             Cache::store('redis')->put("export:ready:$this->exportId", true);
 
-            Log::info("Export completed: $fullPath");
-
         } catch (\Throwable $e) {
             Cache::store('redis')->put("export:progress:$this->exportId", -1);
             Cache::store('redis')->put("export:error:$this->exportId", $e->getMessage());
             Cache::store('redis')->put("export:ready:$this->exportId", false);
-
             Log::error("Export job failed: " . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
-
             $this->failed($e);
         }
     }
