@@ -4,6 +4,7 @@ namespace App\Exports\Data;
 use App\Models\Package;
 use App\Services\PackageTrailServiceImpl;
 use Helper;
+use Illuminate\Support\Facades\Log;
 
 class DailyPackageFormatter
 {

@@ -131,7 +131,6 @@ class ReportController extends Controller
             lang: $req->lang ?? 'en',
             userId: $req->user()->id
         )->onQueue($queueName);
-        Log::info("After Queue Start ID: $exportId");
         return ApiResponse::JsonResult([
             'export_id' => $exportId
         ]);

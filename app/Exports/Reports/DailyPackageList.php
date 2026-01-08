@@ -99,11 +99,14 @@ class DailyPackageList implements FromQuery, WithMapping, WithHeadings, WithChun
     {
         $this->rowNumber++; // Increment for each row
 
-        if ($this->totalRows > 0 && $this->rowNumber % 50 === 0) {
-            $progress = min(90, intval(($this->rowNumber / $this->totalRows) * 90));
+        $updateStep = max(1, intval($this->totalRows / 100));
+
+        if ($this->totalRows > 0 && ($this->rowNumber % $updateStep === 0 || $this->rowNumber === $this->totalRows)) {
+            // Calculate progress from 0 to 100% dynamically
+            $progress = ceil(($this->rowNumber / $this->totalRows) * 100);
+            $progress = min(99, $progress); // Safety cap
             Cache::store('redis')->put("export:progress:{$this->exportId}", $progress);
         }
-
         $data = $this->formatter->rawFormat($row);
         $data['no'] = $this->rowNumber; // Override 'No' column with index + 1
         return $data;
