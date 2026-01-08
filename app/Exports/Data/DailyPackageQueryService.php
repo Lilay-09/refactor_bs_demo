@@ -19,26 +19,26 @@ class DailyPackageQueryService {
     //             throw new BadRequestExcept('Start date cannot be more than 2 months before the end date.');
     //         }
     //     }
-    //     $q = Package::query()
-    //         ->where('is_deleted', 0)
-    //         ->where('outstanding', 0)
-    //         ->with([
-    //             'status',
-    //             'driver:id,code,username,phone',
-    //             'merchant:id,code,username,phone',
-    //             'returnUser:id,code,username,phone',
-    //             'pickupDriver:id,code,username,phone',
-    //             'merchant.merchantPriceList',
-    //             'merchant.merchantPriceList.priceList.priceListName',
-    //             'branchLocation:id,name_en'
-    //         ])
-    //         ->selectRaw('
-    //             zone_name,zone_code,qr_code,merchant_id,driver_id,returned_uid,payer,price_khr,
-    //             driver_cod_usd,driver_cod_khr,receiver_address,remarks,receiver_phone,cod,price,delivery_fee,
-    //             additional_fee,driver_total,merchant_total,status_id,remarks,arrive_warehouse_datetime,
-    //             assign_driver_datetime,updated_at,failed_datetime,returned_datetime,delivered_datetime,
-    //             other_fee,created_at,product_type,taxi_fee,pickup_uid,branch_id
-    //         ');
+        // $q = Package::query()
+        //     ->where('is_deleted', 0)
+        //     ->where('outstanding', 0)
+        //     ->with([
+        //         'status',
+        //         'driver:id,code,username,phone',
+        //         'merchant:id,code,username,phone',
+        //         'returnUser:id,code,username,phone',
+        //         'pickupDriver:id,code,username,phone',
+        //         'merchant.merchantPriceList',
+        //         'merchant.merchantPriceList.priceList.priceListName',
+        //         'branchLocation:id,name_en'
+        //     ])
+        //     ->selectRaw('
+        //         zone_name,zone_code,qr_code,merchant_id,driver_id,returned_uid,payer,price_khr,
+        //         driver_cod_usd,driver_cod_khr,receiver_address,remarks,receiver_phone,cod,price,delivery_fee,
+        //         additional_fee,driver_total,merchant_total,status_id,remarks,arrive_warehouse_datetime,
+        //         assign_driver_datetime,updated_at,failed_datetime,returned_datetime,delivered_datetime,
+        //         other_fee,created_at,product_type,taxi_fee,pickup_uid,branch_id
+        //     ');
 
     //     // Apply filters
     //     if (!empty($filters['search'])) {
@@ -121,6 +121,14 @@ class DailyPackageQueryService {
             // OTHERS
             ->leftJoin('branches', 'branches.id', '=', 'packages.branch_id')
             ->leftJoin('tracking_statuses', 'tracking_statuses.id', '=', 'packages.status_id')
+            ->leftJoin('merchant_price_list as mpl', function($join) {
+                $join->on('mpl.merchant_id', '=', 'packages.merchant_id');
+                    // ->where('mpl.is_deleted',false); // optional soft delete
+            })
+            
+            // Join price_list
+            ->leftJoin('price_list as pl', 'pl.id', '=', 'mpl.price_list_id')
+            ->leftJoin('price_list_names as pln', 'pln.id', '=', 'pl.price_list_name_id')
 
             ->select([
                 'packages.id',
@@ -136,7 +144,7 @@ class DailyPackageQueryService {
                 'packages.driver_cod_khr',
                 'packages.taxi_fee',
                 'packages.other_fee',
-
+                'pln.name as price_list_name',
                 'packages.cod',
                 'packages.price',
                 'packages.price_khr',
