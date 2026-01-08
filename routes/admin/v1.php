@@ -693,6 +693,9 @@ Route::middleware(['jwt','localize','userAccess:admin','rateLimit'])->prefix('ad
     Route::prefix('report')->group(function(){
         Route::prefix('exports')->group(function(){
             Route::get('daily-package-list',[ExporterReportController::class,'exportDailyPackages']);
+            Route::post('/daily-packages', [ExporterReportController::class, 'startDailyPackagesExport']);
+            Route::get('/daily-packages/progress/{id}', [ExporterReportController::class, 'exportProgress']);
+            Route::get('/daily-packages/download/{id}', [ExporterReportController::class, 'downloadExport']);
         });
 
         Route::get('/option/warehouse',[ReportController::class,'optionsWarehouse']);
