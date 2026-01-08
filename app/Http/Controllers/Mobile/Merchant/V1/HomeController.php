@@ -416,7 +416,7 @@ class HomeController extends Controller
         $user = UserService::getAuthUser();
         $select = [
             'id','arrive_warehouse_datetime','receiver_address','receiver_phone','price','price_khr',
-            'status_id','qr_code','delivery_fee','other_fee','driver_id','zone_name','method',
+            'status_id','qr_code','delivery_fee','other_fee','driver_id','zone_name','method','taxi_fee',
             'driver_cod_khr','driver_cod_usd','merchant_id','delivered_datetime','payer','remarks'
         ];
         $query = $this->getQueryPackages(
