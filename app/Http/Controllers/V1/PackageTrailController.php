@@ -826,7 +826,7 @@ class PackageTrailController extends Controller
             $img->receiver_phone = $img->package?->receiver_phone;
             $img->zone_name = $img->package?->zone_name;
             $img->package_id = $img->package ? $img->package_id : null;
-            $img->image_url = Helper::getImageUrl($img->photo_file_name,$user->company_id,'order_image',$imageAt);
+            $img->image_url = Helper::getImageUrl($img->photo_file_name,1,'order_image',$imageAt);
             $img->makeHidden(['package']);
         }
         return ApiResponse::JsonResult($orderImages);
