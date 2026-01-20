@@ -320,6 +320,7 @@ Route::middleware(['jwt','localize','userAccess:admin','rateLimit'])->prefix('ad
     });
 
     Route::prefix('package')->group(function(){
+        Route::get('linked/image/{code}',[PackageTrailController::class,'getLinkedImagesByCode']);
         Route::get('',[PackageTrailController::class,'getPackages']);
         Route::get('/{id}',[PackageTrailController::class,'getOnePackage']);
         Route::put('{id}',[PackageTrailController::class,'updatePackage']);

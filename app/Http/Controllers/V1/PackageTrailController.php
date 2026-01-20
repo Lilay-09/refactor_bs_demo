@@ -9,6 +9,7 @@ use App\Jobs\SendNotificationJob;
 use App\Models\Delivery;
 use App\Models\DeliveryPackage;
 use App\Models\Order;
+use App\Models\OrderImage;
 use App\Models\Package;
 use App\Models\PackageAttachment;
 use App\Models\User;
@@ -804,5 +805,30 @@ class PackageTrailController extends Controller
         if($req->key == config('services.package.info_key')){
             return ApiResponse::flex(PackageTrailServiceImpl::getPackageInformations($req->all()));
         }
+    }
+
+    public function getLinkedImagesByCode(Request $req){
+        $code = $req->code;
+        $orderImages = OrderImage::where('is_deleted',0)
+        ->with(['package' => function($q) use ($code) {
+            $q->where('is_deleted', 0)
+                ->where('qr_code',$code)
+                ->select('id','qr_code','receiver_phone','zone_name'); // select only needed
+            }
+        ])
+        ->selectRaw('photo_file_name,created_at,package_id,id')
+        ->orderByDesc('id')
+        ->get();
+        foreach($orderImages as $img){
+            $imageAt = Helper::dateYMD($img->created_at);
+            $img->is_link = ($img->package_id && $img->package) ? true : false;
+            $img->qr_code = $img->package?->qr_code;
+            $img->receiver_phone = $img->package?->receiver_phone;
+            $img->zone_name = $img->package?->zone_name;
+            $img->package_id = $img->package ? $img->package_id : null;
+            $img->image_url = Helper::getImageUrl($img->photo_file_name,$user->company_id,'order_image',$imageAt);
+            $img->makeHidden(['package']);
+        }
+        return ApiResponse::JsonResult($orderImages);
     }
 }
