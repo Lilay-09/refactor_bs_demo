@@ -810,10 +810,12 @@ class PackageTrailController extends Controller
     public function getLinkedImagesByCode(Request $req){
         $code = $req->code;
         $orderImages = OrderImage::where('is_deleted',0)
-        ->with(['package' => function($q) use ($code) {
-            $q->where('is_deleted', 0)
-                ->where('qr_code',$code)
-                ->select('id','qr_code','receiver_phone','zone_name'); // select only needed
+        ->whereHas('package', function($q) use ($code){
+            $q->where('is_deleted',0)
+            ->where('qr_code',$code);
+        })
+        ->with(['package' => function($q) {
+                $q->select('id','qr_code','receiver_phone','zone_name'); // select only needed
             }
         ])
         ->selectRaw('photo_file_name,created_at,package_id,id')
