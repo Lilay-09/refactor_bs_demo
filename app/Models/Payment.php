@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\TransactionType;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
@@ -80,6 +81,15 @@ class Payment extends Model
     }
     public function paymentDetails(){
         return $this->hasMany(PaymentDetail::class,'payment_id');
+    }
+
+
+    public function transactionDriver(){
+        return $this->hasOne(PaymentTransaction::class,'payment_id')->where('transaction_type',TransactionType::TRANSFER_IN->value)->where('target_user','driver');
+    }
+
+    public function transactionMerchant(){
+        return $this->hasOne(PaymentTransaction::class,'payment_id')->where('transaction_type',TransactionType::TRANSFER_IN->value)->where('target_user','merchant');
     }
 
 }

@@ -2,9 +2,10 @@
 
 namespace App\Services\Mobile;
 
+use App\DTO\Mobile\UserProfileDTO;
 use App\Models\User;
 use DataResponse;
-use DB;
+use Illuminate\Support\Facades\DB;
 use Helper;
 
 class AuthService
@@ -34,14 +35,21 @@ class AuthService
         ->where('account_type',$authUser->account_type)
         ->find($authUser->id);
         if(!$user) return DataResponse::NotFound('User not found');
-        $user->image_url = Helper::getImageUrl($user->photo_file_name,$authUser->company_id,'user_profile');
         if(!empty($phones)){
             foreach($phones as $idx=>$p){
                 $user->{'phone_'.($idx + 2)} = $p;
             }
         }
         unset($user->photo_file_name);
-        return DataResponse::JsonResult($user,__('messages.info',[
+        $data = $userClass == 'driver' ? new UserProfileDTO(
+            id: $user->id,
+            username: $user->username,
+            phone: $user->phone,
+            email: $user->email,
+            address: $user->address,
+            image_url: Helper::getImageUrl($user->photo_file_name,$authUser->company_id,'user_profile'),
+        ): $user;
+        return DataResponse::JsonResult($data,__('messages.info',[
             'info' => 'Get Profile'
         ]));
     }

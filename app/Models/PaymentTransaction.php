@@ -22,6 +22,7 @@ class PaymentTransaction extends Model
         'approved_uid',
         'payment_ref',
         'payment_id',
+        'target_user',
         'transaction_type',
         'currency',
         'amount',

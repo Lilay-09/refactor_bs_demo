@@ -330,14 +330,14 @@ class PackageTrailController extends Controller
         )) return ApiResponse::ValidateFail(__('messages.info',[
             'info' => 'Only failed package or at warehouse can be returned'
         ]));
-        $statusId = TrackingStatus::RETURNING->value;
+        $statusId = TrackingStatus::RETURNED->value;
         // if($package->status_id == TrackingStatus::FAILED_WITH_FEE->value){
         //     //** not change status but use returned_uid for tracking */
         //     $statusId = TrackingStatus::FAILED_WITH_FEE->value;
         // }
         $package->update([
             'returned_uid' => $driverId,
-            'status_id' => $statusId, // returning
+            'status_id' => $statusId, // returned
             'assigned_return_at' => now(),
             'prev_status_id' => $package->status_id,
             'update_uid' => $user->id,
@@ -369,6 +369,7 @@ class PackageTrailController extends Controller
         // }
         $package->update([
             'returned_uid' => $driverId,
+            'prev_status_id' => $package->status_id,
             'status_id' => TrackingStatus::RETURNED->value, // returned
             'returned_datetime' => now(),
             'update_uid' => $user->id,

@@ -26,37 +26,35 @@ use Illuminate\Http\Request;
 class TransactionController extends Controller
 {
     //
-    public function getTransactionSummary(Request $req)
-    {
+    public function getTransactionSummary(Request $req){
         $user = UserService::getAuthUser('driver');
         $count = 0;
         $total = 0;
         $paidTrx = [];
 
+        $lang = $req->lang;
         $startDate = $req->query('startDate');
         $endDate = $req->query('endDate');
-
-        $qPmt = Payment::where('payments.is_deleted', 0)
-            ->with(['driver:id,username'])
+        $qPmt = Payment::where('payments.is_deleted',0)
             ->where('payments.payer_id', $user->id)
             ->join('users as c', 'c.id', 'payments.receiver_uid')
+            ->with('transactionDriver:id,payment_id,details')
             ->selectRaw("
                 payments.remarks,payments.package_count,payments.id, payments.payable_amount,
+                payments.received_amount_usd,payments.received_amount_khr,
                 payments.breakdown_notes, c.username as cashier_name, payments.payment_datetime,
-                payments.received_amount_usd,payments.received_amount_khr,payments.payer_id,
                 payments.currency_code as currency,payments.trx_code as tran_id,payments.payment_ref
             ")
             ->orderByDesc('payment_datetime');
 
         $qDis = Disbursement::where('type', 'payment')
-            ->with(['driver:id,username'])
             ->where('disbursements.is_deleted', 0)
             ->where('disbursements.payee_id', $user->id)
             ->join('users as c', 'c.id', 'disbursements.receiptionist_uid')
             ->selectRaw("
                 disbursements.remarks,disbursements.package_count, disbursements.id, disbursements.payable_amount,
+                disbursements.received_amount_usd,disbursements.received_amount_khr,
                 disbursements.breakdown_notes, c.username as cashier_name, disbursements.payment_datetime,
-                disbursements.received_amount_usd,disbursements.received_amount_khr,disbursements.payee_id,
                 disbursements.currency_code as currency,disbursements.trx_code as tran_id,disbursements.payment_ref
             ")
             ->orderByDesc('payment_datetime');
@@ -108,6 +106,7 @@ class TransactionController extends Controller
         $totalDriverCodUSD = 0;
         $totalDriverCodKHR = 0;
         $totalFee = 0;
+        $type = $lang == 'km' ? 'បានទូរទាត់':'Paid';
         foreach ($packages as $p) {
             $price = $p->price;
             $taxiFee = $p->taxi_fee;
@@ -124,11 +123,11 @@ class TransactionController extends Controller
                     if (!isset($sameDisId[$disbursementId])) {
                         $dis = TransactionService::getTrxDetailsV1($disbursements, $disbursementId, $disbursementDetails);
                         if ($dis) {
-                            $dis->from = config('app.company_name');
-                            $dis->to = $dis->driver->username;
-                            $dis->type = 'Received';
-                            unset($dis->driver);
+                            $dis->from = 'Js Company';
+                            $dis->to = $user->username;
                             // $dis->remarks = 'Receive';
+                            $dis->type = 'Received';
+                            $dis->amount = $dis->paid_amount_usd;
                             $paidTrx[] = $dis;
                             $sameDisId[$disbursementId] = true;
                         }
@@ -142,12 +141,11 @@ class TransactionController extends Controller
                     if (!isset($samePmtId[$paymentId])) {
                         $pmt = TransactionService::getTrxDetailsV1($payments, $paymentId, $paymentDetails);
                         if ($pmt) {
-                            $pmt->from = $pmt->driver->username;
-                            $pmt->to = config('app.company_name');
-                            $pmt->type = 'Paid';
-                            // $pmt->payable_amount = $pmt->received_amount
                             // $pmt->remarks = 'Disbursement'; // This might be better named "Payment"
-                            unset($pmt->driver);
+                            // $pmt->from = $user->username;
+                            $pmt->from = $pmt?->transactionDriver?->details['data']['payer_account'] ?? $user->username;
+                            $pmt->to = 'Js Company';
+                            $pmt->type = 'Paid';
                             $paidTrx[] = $pmt;
                             $samePmtId[$paymentId] = true;
                         }
@@ -197,33 +195,6 @@ class TransactionController extends Controller
                     }
                 }
             }
-
-            // if (!$isPaid) {
-            //     // $unpPkgIds[] = $p->id;
-            //     if($p->driver_cod_usd > 0){
-            //         $unpUsdPkgIds[] = $p->id;
-            //     }
-            //     if($p->driver_cod_khr > 0){
-            //         $unpKhrPkgIds[] = $p->id;
-            //     }
-            //     if($p->driver_cod_usd > 0 && $p->driver_cod_khr > 0){
-            //         $totalDriverCodUSD += $p->driver_total;
-            //     }else{
-            //         $totalDriverCodUSD += $p->driver_cod_usd;
-            //         $totalDriverCodKHR += $p->driver_cod_khr;
-            //     }
-            //     $count += 1;
-            //     $total += Helper::getNumber(TransactionService::getPackageTotal(
-            //         'driver',
-            //         $p->cod,
-            //         $price,
-            //         $taxiFee,
-            //         $p->extra_charge,
-            //         $p->additional_fee,
-            //         $p->delivery_fee,
-            //         $p->payer
-            //     ));
-            // }
         }
         // Helper::deductAmountBase($totalDriverCodUSD,$totalDriverCodKHR,$totalFee);
 
@@ -232,7 +203,9 @@ class TransactionController extends Controller
         });
         $transactionsByDate = collect($paidTrx)
             ->groupBy(function ($trx) {
-                return Helper::formatCustomDateTime($trx->payment_date,'d M Y');
+                $trx->tran_id = $trx?->transactionDriver?->details['data']['transaction_id'] ?? $trx->tran_id;
+                unset($trx->transactionDriver);
+                return Carbon::parse($trx->payment_datetime)->format('d-m-Y');
             })
             ->sortKeysDesc()
             ->map(function ($items, $date) {
@@ -245,148 +218,18 @@ class TransactionController extends Controller
         return ApiResponse::JsonResult(DriverTransaction::fromModel([
             'settleAmountUsd' => [
                 'amount' => (string)$totalDriverCodUSD,
+                'fmt_amount' => Helper::getNumber($totalDriverCodUSD,2,true),
                 'currency' => Currency::USD->value,
                 'pkgIds' => $unpUsdPkgIds
             ],
             'settleAmountKhr' => [
                 'amount' => (string)$totalDriverCodKHR,
+                'fmt_amount' => Helper::getNumber($totalDriverCodKHR,0,true),
                 'currency' => Currency::KHR->value,
                 'pkgIds' => $unpKhrPkgIds
             ],
             'transactions' => $transactionsByDate,
         ]));
-        // $user = UserService::getAuthUser('driver');
-        // $count = 0;
-        // $total = 0;
-        // $paidTrx = [];
-
-        // $startDate = $req->query('startDate');
-        // $endDate = $req->query('endDate');
-
-        // $qPmt = Payment::where('payments.is_deleted', 0)
-        //     ->where('payments.payer_id', $user->id)
-        //     ->join('users as c', 'c.id', 'payments.receiver_uid')
-        //     ->selectRaw('payments.remarks,payments.package_count,payments.id, payments.payable_amount,payments.received_amount_khr as amount_khr,payments.received_amount_usd as amount_usd, payments.breakdown_notes, c.username as cashier_name, payments.payment_datetime')
-        //     ->orderByDesc('payment_datetime');
-
-        // $qDis = Disbursement::where('type', 'payment')
-        //     ->where('disbursements.is_deleted', 0)
-        //     ->where('disbursements.payee_id', $user->id)
-        //     ->join('users as c', 'c.id', 'disbursements.receiptionist_uid')
-        //     ->selectRaw('disbursements.remarks,disbursements.package_count,disbursements.received_amount_khr as amount_khr,disbursements.received_amount_usd as amount_usd,disbursements.id, disbursements.payable_amount, disbursements.breakdown_notes, c.username as cashier_name, disbursements.payment_datetime')
-        //     ->orderByDesc('payment_datetime');
-
-        // if ($startDate && $endDate) {
-        //     $startDateTime = Helper::dateYMD($startDate) . ' 00:00:00';
-        //     $endDateTime = Helper::dateYMD($endDate) . ' 23:59:59';
-        //     $qPmt->whereBetween('payment_datetime', [$startDateTime, $endDateTime]);
-        //     $qDis->whereBetween('payment_datetime', [$startDateTime, $endDateTime]);
-        // }
-
-        // $disbursements = $qDis->get()->keyBy('id');
-        // $payments = $qPmt->get()->keyBy('id');
-
-        // $packages = Package::where('is_deleted', 0)
-        //     ->where('created_at', '>=', Carbon::now()->subMonths(2))
-        //     ->whereIn('status_id', [9, 19])
-        //     ->where('driver_id', $user->id)
-        //     ->orderBy('id', 'desc')
-        //     ->get();
-
-        // $samePmtId = [];
-        // $sameDisId = [];
-
-        // // Map of package_id => payment_id
-        // $paymentPackages = DB::table('payment_packages')
-        //     ->where('payer_type', 'driver')
-        //     ->where('is_deleted', false)
-        //     ->whereIn('package_id', $packages->pluck('id'))
-        //     ->get()
-        //     ->groupBy('package_id');
-
-        // // Map of package_id => disbursement_id
-        // $disbursementPackages = DB::table('disbursement_packages')
-        //     ->where('payee_type', 'driver')
-        //     ->where('is_deleted', false)
-        //     ->whereIn('package_id', $packages->pluck('id'))
-        //     ->get()
-        //     ->groupBy('package_id');
-
-        // // $paymentDetails = PaymentDetail::whereIn('payment_id', $payments->keys())->get()->keyBy('payment_id');
-        // $paymentDetails = PaymentDetail::whereIn('payment_id', $payments->keys())->get()->groupBy('payment_id');
-        // // return $paymentDetails;
-        // $disbursementDetails = DisbursementDetails::whereIn('disbursement_id', $disbursements->keys())->get()->groupBy('disbursement_id');
-
-        // foreach ($packages as $p) {
-        //     $price = $p->price;
-        //     $taxiFee = $p->taxi_fee;
-
-        //     if ($p->status_id == 19) {
-        //         $price = 0;
-        //         $taxiFee = 0;
-        //     }
-
-        //     // Use disbursement_packages table instead of driver_disbursement_id
-        //     if (isset($disbursementPackages[$p->id])) {
-        //         foreach ($disbursementPackages[$p->id] as $dp) {
-        //             $disbursementId = $dp->disbursement_id;
-        //             if (!isset($sameDisId[$disbursementId])) {
-        //                 $dis = TransactionService::getTrxDetails($disbursements, $disbursementId, $disbursementDetails);
-        //                 if ($dis) {
-        //                     // $dis->remarks = 'Receive';
-        //                     $dis->amount_khr = "KHR|{$dis->amount_khr}";
-        //                     $dis->amount_usd = "USD|{$dis->amount_usd}";
-        //                     $paidTrx[] = $dis;
-        //                     $sameDisId[$disbursementId] = true;
-        //                 }
-        //             }
-        //         }
-        //     }
-
-        //     if (isset($paymentPackages[$p->id])) {
-        //         foreach ($paymentPackages[$p->id] as $pp) {
-        //             $paymentId = $pp->payment_id;
-        //             if (!isset($samePmtId[$paymentId])) {
-        //                 $pmt = TransactionService::getTrxDetails($payments, $paymentId, $paymentDetails);
-        //                 if ($pmt) {
-        //                     // $pmt->remarks = 'Disbursement'; // This might be better named "Payment"
-        //                     $pmt->amount_khr = "KHR|{$pmt->amount_khr}";
-        //                     $pmt->amount_usd = "USD|{$pmt->amount_usd}";
-        //                     $paidTrx[] = $pmt;
-        //                     $samePmtId[$paymentId] = true;
-        //                 }
-        //             }
-        //         }
-        //     }
-
-        //     // Check if package is unpaid
-        //     $isPaid = isset($paymentPackages[$p->id]) || isset($disbursementPackages[$p->id]);
-
-        //     if (!$isPaid) {
-        //         $count += 1;
-        //         $total += Helper::getNumber(TransactionService::getPackageTotal(
-        //             'driver',
-        //             $p->cod,
-        //             $price,
-        //             $taxiFee,
-        //             $p->extra_charge,
-        //             $p->additional_fee,
-        //             $p->delivery_fee,
-        //             $p->payer
-        //         ));
-        //     }
-        // }
-
-        // usort($paidTrx, function ($a, $b) {
-        //     return strtotime($b['payment_datetime']) <=> strtotime($a['payment_datetime']);
-        // });
-
-        // return ApiResponse::JsonResult([
-        //     'balance_due' => (float)Helper::getNumber($total, 2),
-        //     'count' => $count,
-        //     'total' => (float)Helper::getNumber($total, 2),
-        //     'payment_transaction' => $paidTrx,
-        // ]);
     }
 
 

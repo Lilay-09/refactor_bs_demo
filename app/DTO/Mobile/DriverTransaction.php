@@ -2,7 +2,6 @@
 
 namespace App\DTO\Mobile;
 
-// use PHPUnit\Runner\DeprecationCollector\Collector;
 class DriverTransaction{
     public function __construct(
         public readonly array $toBeSettleUsd,
