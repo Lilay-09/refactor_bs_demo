@@ -125,4 +125,38 @@ class PackageTrailServiceImpl
             transformCallback:$callback
         );
     }
+
+    public static function deductRowAmountBase($usd, $khr, float $amountUsd, float $exchangeRate = 4000): array {
+        if(!$exchangeRate){
+            $exchangeRate = GeneralSettingService::$feeXrate;
+        }
+        // Step 1: Deduct from USD first
+        if ($usd >= $amountUsd) {
+            $usd -= $amountUsd;
+            return [
+                'amount_usd' => $usd,
+                'amount_khr' => $khr
+            ];
+        }
+
+        // Step 2: Not enough USD, use all available USD
+        $remainingUsd = $amountUsd - $usd;
+        $usd = 0;
+
+        // Step 3: Try deduct from KHR equivalent
+        $deductKhr = $remainingUsd * $exchangeRate;
+
+        if ($khr >= $deductKhr) {
+            $khr -= $deductKhr;
+        } else {
+            // Not enough KHR, consume all KHR and push USD negative
+            $remainingKhr = $deductKhr - $khr;
+            $khr = 0;
+            $usd -= $remainingKhr / $exchangeRate; // USD goes negative
+        }
+        return [
+            'amount_usd' => $usd,
+            'amount_khr' => $khr
+        ];
+    }
 }

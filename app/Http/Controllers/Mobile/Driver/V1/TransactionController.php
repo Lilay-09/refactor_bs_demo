@@ -123,7 +123,7 @@ class TransactionController extends Controller
                     if (!isset($sameDisId[$disbursementId])) {
                         $dis = TransactionService::getTrxDetailsV1($disbursements, $disbursementId, $disbursementDetails);
                         if ($dis) {
-                            $dis->from = 'Js Company';
+                            $dis->from = config('app.code_prefix') . ' Company';
                             $dis->to = $user->username;
                             // $dis->remarks = 'Receive';
                             $dis->type = 'Received';
@@ -144,7 +144,7 @@ class TransactionController extends Controller
                             // $pmt->remarks = 'Disbursement'; // This might be better named "Payment"
                             // $pmt->from = $user->username;
                             $pmt->from = $pmt?->transactionDriver?->details['data']['payer_account'] ?? $user->username;
-                            $pmt->to = 'Js Company';
+                            $pmt->to = config('app.code_prefix') . ' Company';
                             $pmt->type = 'Paid';
                             $paidTrx[] = $pmt;
                             $samePmtId[$paymentId] = true;
