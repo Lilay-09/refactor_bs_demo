@@ -2,6 +2,7 @@
 
 namespace App\Enums;
 
+
 enum PaymentStatus:int
 {
     //
@@ -16,6 +17,7 @@ enum PaymentStatus:int
     case DECLINED = 9;
     case SETTLED_USD_REMAINING_KHR = 10;
     case SETTLED_KHR_REMAINING_USD = 11;
+    case UNPAID = 1000;
 
     public function label(){
         return match($this){
@@ -29,7 +31,8 @@ enum PaymentStatus:int
             self::DELETED => 'Deleted',
             self::APPROVE_AND_SETTLE => 'Approved And Settled',
             self::SETTLED_USD_REMAINING_KHR => 'Settled USD, Remaining KHR',
-            self::SETTLED_KHR_REMAINING_USD => 'Settled KHR, Remaining USD'
+            self::SETTLED_KHR_REMAINING_USD => 'Settled KHR, Remaining USD',
+            self::UNPAID => 'Unpaid'
 
         };
     }
@@ -52,4 +55,6 @@ enum PaymentStatus:int
     public static function optionsCurrency(){
         return Currency::options();
     }
+
+    
 }

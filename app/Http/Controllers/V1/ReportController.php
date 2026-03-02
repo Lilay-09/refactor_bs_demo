@@ -1012,8 +1012,7 @@ class ReportController extends Controller
         )
         ->sum(fn($p) => $p->delivery_fee + $p->other_fee + $p->taxi_fee);
 
-
-        $payback = $codTotal - $merchantOweFees;
+        $payback = ($codTotal - $merchantOweFees) > 0 ? $codTotal - $merchantOweFees : 0;
 
         // Final Object
         return (object)[

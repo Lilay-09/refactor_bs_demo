@@ -454,7 +454,7 @@ class TransactionService
             ->when($paymentType === TransactionType::TRANSFER_IN->value, fn($q) =>
                 $q->havingRaw("($amountUsdExpr) < 0 OR ($amountKhrExpr) < 0")
             )
-            ->when($paymentType === TransactionType::TRNASFER_OUT->value, fn($q) =>
+            ->when($paymentType === TransactionType::TRANSFER_OUT->value, fn($q) =>
                 $q->havingRaw("($amountUsdExpr) > 0 OR ($amountKhrExpr) > 0")
             )
             ->with(['merchant:id,username,code,phone', 'merchant.primaryBank'])
@@ -496,7 +496,7 @@ class TransactionService
             $q->merchant_phone = $q->merchant->phone;
             $q->finish_date = Helper::dateDMY($q->finish_date, 'd-m-Y');
 
-            $q->transaction_type = TransactionType::TRNASFER_OUT->value;
+            $q->transaction_type = TransactionType::TRANSFER_OUT->value;
             if ($q->amount_to_be_paid_khr < 0 || $q->amount_to_be_paid_usd < 0) {
                 $q->transaction_type = TransactionType::TRANSFER_IN->value;
             }
@@ -657,7 +657,7 @@ class TransactionService
     //         ->when($paymentType === TransactionType::TRANSFER_IN->value, fn($q) =>
     //             $q->havingRaw("($amountUsdExpr) < 0 OR ($amountKhrExpr) < 0")
     //         )
-    //         ->when($paymentType === TransactionType::TRNASFER_OUT->value, fn($q) =>
+    //         ->when($paymentType === TransactionType::TRANSFER_OUT->value, fn($q) =>
     //             $q->havingRaw("($amountUsdExpr) > 0 OR ($amountKhrExpr) > 0")
     //         )
     //         ->with(['merchant:id,username,code', 'merchant.primaryBank'])
@@ -700,7 +700,7 @@ class TransactionService
     //         $q->merchant_name = $q->merchant->username;
     //         $q->merchant_phone = $q->merchant->phone;
     //         $q->finish_date = Helper::dateDMY($q->finish_date,'d-m-Y');
-    //          $q->transaction_type = TransactionType::TRNASFER_OUT->value;
+    //          $q->transaction_type = TransactionType::TRANSFER_OUT->value;
     //         if ($q->amount_to_be_paid_khr < 0 || $q->amount_to_be_paid_usd < 0) {
     //             $q->transaction_type = TransactionType::TRANSFER_IN->value;
     //         }
@@ -1816,7 +1816,7 @@ class TransactionService
             $allUSDReceived = true;
             $allKHRReceived = true;
 
-            if($transactionType === TransactionType::TRNASFER_OUT->value){
+            if($transactionType === TransactionType::TRANSFER_OUT->value){
                 $res = $this->preparePayout($m['packages'], 'merchant', $payingCurrency, $validPkg, $mId, $payOutPackages);
                 $fullyPaidInfo        = array_merge($fullyPaidInfo, $res['fullyPaidInfo']);
                 $currencyConflictInfo = array_merge($currencyConflictInfo, $res['currencyConflictInfo']);
@@ -1842,7 +1842,7 @@ class TransactionService
             // return DataResponse::JsonResult($res);
 
             // foreach ($packages as $pkgId) {
-                // if($transactionType === TransactionType::TRNASFER_OUT->value){
+                // if($transactionType === TransactionType::TRANSFER_OUT->value){
                 //     $res = $this->preparePayout($pkgId, 'merchant', $payingCurrency, $validPkg, $mId, $payOutPackages);
                 //     $fullyPaidInfo        = array_merge($fullyPaidInfo, $res['fullyPaidInfo']);
                 //     $currencyConflictInfo = array_merge($currencyConflictInfo, $res['currencyConflictInfo']);
@@ -1906,7 +1906,7 @@ class TransactionService
                     }
                 }
 
-                if($transactionType === TransactionType::TRNASFER_OUT->value){
+                if($transactionType === TransactionType::TRANSFER_OUT->value){
                     $updatePmt['amount_due_khr']    = $validPkg->data['total_due_amount_khr'];
                     $updatePmt['amount_due_usd']    = $validPkg->data['total_due_amount_usd'];
                     $updatePmt['payee_id']          = $targetPmt->payee_id;
@@ -1961,7 +1961,7 @@ class TransactionService
                     'type'                   => 'payment',
                     'package_ids'            => json_encode($packages),
                 ];
-                if($transactionType === TransactionType::TRNASFER_OUT->value){
+                if($transactionType === TransactionType::TRANSFER_OUT->value){
                     $insertPayout[] = array_merge($baseData,[
                         'transaction_type'       => $m['transaction_type'],
                         'payee_id'               => $mId,
@@ -2111,7 +2111,7 @@ class TransactionService
     //         $allKHRReceived = true;
 
     //         foreach ($packages as $pkgId) {
-    //             if($transactionType === TransactionType::TRNASFER_OUT->value){
+    //             if($transactionType === TransactionType::TRANSFER_OUT->value){
     //                 $res = $this->preparePayout($pkgId, 'merchant', $payingCurrency, $validPkg, $mId, $payOutPackages);
     //                 $fullyPaidInfo        = array_merge($fullyPaidInfo, $res['fullyPaidInfo']);
     //                 $currencyConflictInfo = array_merge($currencyConflictInfo, $res['currencyConflictInfo']);
@@ -2175,7 +2175,7 @@ class TransactionService
     //                 }
     //             }
 
-    //             if($transactionType === TransactionType::TRNASFER_OUT->value){
+    //             if($transactionType === TransactionType::TRANSFER_OUT->value){
     //                 $updatePmt['payee_id']          = $targetPmt->payee_id;
     //                 $updatePmt['payee_type']        = $targetPmt->payee_type;
     //                 $updatePmt['receiptionist_uid']        = $targetPmt->receiptionist_uid;
@@ -2227,7 +2227,7 @@ class TransactionService
     //                 'type'                   => 'payment',
     //                 'package_ids'            => json_encode($paidPackageIds),
     //             ];
-    //             if($transactionType === TransactionType::TRNASFER_OUT->value){
+    //             if($transactionType === TransactionType::TRANSFER_OUT->value){
     //                 $insertPayout[] = array_merge($baseData,[
     //                     'transaction_type'       => $m['transaction_type'],
     //                     'payee_id'               => $mId,
@@ -2996,7 +2996,7 @@ class TransactionService
             'type','receiptionist_uid', 'failed_with_fee_count', 'trx_code', 'paid_amount', 'fast_delivery_rate',
             'payment_status_id','fast_pickup_rate','requested_date',
         ];
-        if($tranType === TransactionType::TRNASFER_OUT->value){
+        if($tranType === TransactionType::TRANSFER_OUT->value){
             $allowed[] = 'payee_id';
             $allowed[] = 'payee_type';
         }
@@ -3875,7 +3875,7 @@ class TransactionService
         }
 
         $payments = $qP->get();
-        $paymentDetails = PaymentDetail::get();
+        $paymentDetails = PaymentDetail::whereIn('payment_id',$payments->pluck('payment_id'))->get();
         foreach($payments as $pmt){
             $pmt_details = $this->preparePaymentPackageAmount($paymentDetails,$pmt->payment_id);
             $totalUSD = $pmt_details->total_usd;
@@ -3903,7 +3903,6 @@ class TransactionService
             $allPayments[] = $pmt;
         }
 
-        $disbursementDetails = DisbursementDetails::get();
         $qD = Disbursement::from('disbursements as dis')
         ->where('dis.is_deleted',0)
         ->where('dis.type','payment')
@@ -3924,6 +3923,7 @@ class TransactionService
             });
         }
         $disbursements = $qD->get();
+        $disbursementDetails = DisbursementDetails::whereIn('disbursement_id',$disbursements->pluck('payment_id'))->get();
         foreach($disbursements as $d){
             $pmt_details = $this->preparePaymentPackageAmount($disbursementDetails,$d->payment_id,'disbursement');
             $totalUSD = $pmt_details->total_usd;

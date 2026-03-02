@@ -9,12 +9,12 @@ class MerchantSettledTransactionDTO {
         public readonly string $payment_time,
         public readonly string $merchant_name,
         public readonly string $merchant_code,
-        public readonly string $to_account,
-        public readonly string $amount,
+         public readonly string $amount,
+        public readonly ?string $to_account,
         public readonly ?string $tran_via,
         public readonly ?string $payment_ref,
-        public readonly string $currency,
-        public readonly string $performed_by
+        public readonly ?string $currency,
+        public readonly ?string $performed_by
     ) {}
 
     public static function fromModel(PaymentTransaction $pmtTrx): self

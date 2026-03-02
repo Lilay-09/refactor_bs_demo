@@ -111,7 +111,6 @@ class ReportController extends Controller
     // }
 
 
-
     public function startDailyPackagesExport(Request $req)
     {
         $filters = $req->only([
