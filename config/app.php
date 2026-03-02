@@ -24,6 +24,10 @@ return [
     'chat_service_socket' => env('CHAT_SERVICE_SOCKET','ws://localhost:3000/_ws'),
     'use_redis' => env('USE_REDIS','false'),
     'fcm_topic_prefix' => env('TOPIC_PREFIX','ngexpress_loc'),
+
+    'company_name' => env('COMPANY_NAME','Gtech Demo'),
+    'code_prefix' => env('CODE_PREFIX','GTDMS'),
+    'default_password' => env('DEFAULT_PASSWORD','123456'),
     /*
     |--------------------------------------------------------------------------
     | Application Environment

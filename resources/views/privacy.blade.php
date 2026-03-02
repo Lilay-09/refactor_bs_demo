@@ -27,7 +27,7 @@
 <body class="c22 doc-content">
     <p class="c21"><span class="c12 c2">PRIVACY STATEMENT</span></p>
     <ol class="c10 lst-kix_jnoeb13yp9e9-0 start" start="1">
-        <li class="c5 li-bullet-0"><span class="c0">About This Privacy Statement and NG Express.</span></li>
+        <li class="c5 li-bullet-0"><span class="c0">About This Privacy Statement and {{ config('app.company_name') }}.</span></li>
     </ol>
     <ol class="c10 lst-kix_jnoeb13yp9e9-1 start" start="1">
         <li class="c20 li-bullet-0"><span class="c0">When Does This Privacy Statement Apply?</span></li>
@@ -36,13 +36,13 @@
         <li class="c5 li-bullet-0"><span class="c0">About Your Personal Information and Uses</span></li>
     </ol>
     <ol class="c10 lst-kix_jnoeb13yp9e9-1 start" start="1">
-        <li class="c25 li-bullet-0"><span class="c18">What Personal Information Does NG Express</span><span
+        <li class="c25 li-bullet-0"><span class="c18">What Personal Information Does {{ config('app.company_name') }}</span><span
                 class="c18"><a class="c13"
                     href="https://www.google.com/url?q=https://devapi.ngexpresscambodia.com/privacy&amp;sa=D&amp;source=editors&amp;ust=1734341000074100&amp;usg=AOvVaw0pofnokzZyL4nJDiPSQ4k2">&nbsp;</a></span><span
                 class="c16"><a class="c13" target="_blank"
                     href="https://devapi.ngexpresscambodia.com/privacy/personal/collect">&nbsp;Collect
                     on Me and Others?</a></span></li>
-        <li class="c25 li-bullet-0"><span class="c18">What Personal Information Does NG Express </span><span
+        <li class="c25 li-bullet-0"><span class="c18">What Personal Information Does {{ config('app.company_name') }} </span><span
                 class="c16"><a class="c13" target="_blank"
                     href="https://devapi.ngexpresscambodia.com/privacy/personal/purpose">&nbsp;Disclose
                     for a Business Purpose?</a></span></li>
@@ -50,40 +50,40 @@
     <ol class="c10 lst-kix_jnoeb13yp9e9-0" start="3">
         <li class="c1 li-bullet-0"><span class="c16"><a class="c13" target="_blank"
                     href="https://devapi.ngexpresscambodia.com/privacy/personal/collect">How
-                    Does &nbsp;</a></span><span class="c0">&nbsp;NG Express Collect My Personal Information?</span>
+                    Does &nbsp;</a></span><span class="c0">&nbsp;{{ config('app.company_name') }} Collect My Personal Information?</span>
         </li>
         <li class="c1 li-bullet-0"><span class="c16"><a class="c13" target="_blank"
                     href="https://devapi.ngexpresscambodia.com/privacy/personal/use">How
-                    Does &nbsp;</a></span><span class="c0">&nbsp;NG Express Use My Personal Information?</span></li>
+                    Does &nbsp;</a></span><span class="c0">&nbsp;{{ config('app.company_name') }} Use My Personal Information?</span></li>
         <li class="c1 li-bullet-0"><span class="c16"><a class="c13" target="_blank"
                     href="https://devapi.ngexpresscambodia.com/privacy/personal/share">How
-                    Does &nbsp;</a></span><span class="c0">&nbsp;NG Express Share My Information?</span></li>
+                    Does &nbsp;</a></span><span class="c0">&nbsp;{{ config('app.company_name') }} Share My Information?</span></li>
         <li class="c5 li-bullet-0"><span class="c0">What are My Rights?</span></li>
         <li class="c1 li-bullet-0"><span class="c0">Erasure, Access, and Others</span></li>
         <li class="c1 li-bullet-0"><span class="c0">How Can I Lodge a Complaint?</span></li>
         <li class="c1 li-bullet-0"><span class="c0">Information Security and Protection</span></li>
         <li class="c1 li-bullet-0"><span class="c0">Modification of Privacy Statement </span></li>
     </ol>
-    <p class="c6"><span class="c0">Welcome to NG Express! This Privacy Statement, we are going to operate and
+    <p class="c6"><span class="c0">Welcome to {{ config('app.company_name') }}! This Privacy Statement, we are going to operate and
             collect our customers information by using our delivery system.</span></p>
     <p class="c19"><span class="c0">We understand that providing information online involves a great deal of
             trust on your part. We take this trust very seriously and prioritize ensuring the security and
-            confidentiality of the personal information you provide us when you install our App (NG Express). Before
+            confidentiality of the personal information you provide us when you install our App ({{ config('app.company_name') }}). Before
             providing us with your personal information, please read this Privacy Statement carefully to learn about our
             privacy practices.</span></p>
-    <p class="c24"><span class="c2">About Our Privacy Statement and NG Express</span><span
+    <p class="c24"><span class="c2">About Our Privacy Statement and {{ config('app.company_name') }}</span><span
             class="c18">&nbsp;</span><span class="c12 c2">:</span></p>
     <p class="c4"><span class="c3 c2">When Does This Privacy Statement Apply?</span></p>
     <p class="c6"><span class="c0">This Privacy Statement applies when you as an identifiable person agree to
-            install our App ( NG Express ) or its mobile application. It does not apply to anonymous data that cannot
+            install our App ( {{ config('app.company_name') }} ) or its mobile application. It does not apply to anonymous data that cannot
             identify you in any way. </span></p>
-    <p class="c4"><span class="c2">NG Express</span><span class="c18">&nbsp;</span><span
+    <p class="c4"><span class="c2">{{ config('app.company_name') }}</span><span class="c18">&nbsp;</span><span
             class="c12 c2">&nbsp;</span></p>
-    <p class="c21"><span class="c18">NG Express</span><span class="c18">&nbsp;is registered under the laws of
+    <p class="c21"><span class="c18">{{ config('app.company_name') }}</span><span class="c18">&nbsp;is registered under the laws of
             the Kingdom of Cambodia, having head office at </span><span class="c17 c26">#11, Street 16, Borey New World
             (Chouk VA2), Sangkat Samraong Kraom, Khan Pou Senchey, and Phnom Penh, Cambodia.</span></p>
     <p class="c14"><span class="c3 c2">About Your Personal Information and Uses</span></p>
-    <p class="c21"><h4 class="c0">What Personal Information Does NG Express Collect on Me and Others?</h4>
+    <p class="c21"><h4 class="c0">What Personal Information Does {{ config('app.company_name') }} Collect on Me and Others?</h4>
     </p>
     <p class="c4"><span class="c0">We collect the following personal information on you and others:</span></p>
     <ul class="c10 lst-kix_wk6shghmqpvp-0 start">
@@ -101,8 +101,7 @@
                 location. You can turn off the location feature to prevent us from collecting your location
                 information.</span></li>
     </ul>
-    <h4 class="c14"><span class="c2 c11">What Personal Information Does </span><span class="c2">NG
-            Express</span><span class="c18">&nbsp;</span><span class="c3 c2">Disclose for a Business
+    <h4 class="c14"><span class="c2 c11">What Personal Information Does </span><span class="c2">{{ config('app.company_name') }}</span><span class="c18">&nbsp;</span><span class="c3 c2">Disclose for a Business
             Purpose?</span></h4>
     <p class="c6"><span class="c0">We disclose the following personal information for a business
             purpose:</span></p>
@@ -128,14 +127,14 @@
                 previous location. You can turn off the location feature to prevent us from collecting your location
                 information.</span></li>
     </ul>
-    <h4 class="c14"><span class="c2 c11">How Does NG Express</span><span class="c18">&nbsp;</span><span
+    <h4 class="c14"><span class="c2 c11">How Does </span><span class="c2">{{ config('app.company_name') }}</span><span class="c18">&nbsp;</span><span
             class="c3 c2">Collect My Personal Information?</span></h4>
     <p class="c14"><span class="c3 c2">We Collect Information Directly From You</span></p>
-    <p class="c4"><span class="c18">NG Express</span><span class="c0">&nbsp;collects and uses the
+    <p class="c4"><span class="c18">{{ config('app.company_name') }}</span><span class="c0">&nbsp;collects and uses the
             information you provide to us directly to provide you with the services you request. For example, when
             you:</span></p>
     <ul class="c10 lst-kix_nbty57z2kqn4-0 start">
-        <li class="c7 li-bullet-0"><span class="c0">Register a NG Express account</span></li>
+        <li class="c7 li-bullet-0"><span class="c0">Register a {{ config('app.company_name') }} account</span></li>
         <li class="c7 li-bullet-0"><span class="c0">Book for a delivery service</span></li>
         <li class="c7 li-bullet-0"><span class="c0">Get in touch with our customer services team, or reach out to
                 us through other means (such as through social media)</span></li>
@@ -143,9 +142,10 @@
                 with feedback on or ask for help with our services.</span></li>
     </ul>
     <p class="c4"><span class="c2 c3">We Collect Information Automatically</span></p>
-    <p class="c6"><span class="c18">NG Express</span><span class="c0">&nbsp;collects some information
+    <p class="c6"><span class="c18">{{ config('app.company_name') }}</span><span class="c0">&nbsp;collects some information
             about you automatically. Specifically, the geolocation data, personal information, and internet or other
-            similar network activity information set out in the section &ldquo;What Personal Information Does NG Express
+            similar network activity information set out in the section &ldquo;What Personal Information Does {{ config('app.company_name') }}
+
             Hold on Me and Others?&rdquo; above. We collect this information through cookies, a web beacon, or other
             channels when you use our services.</span></p>
     <p class="c6"><span class="c0">More information on how we use cookies can be found in our Cookie Statement
@@ -156,8 +156,8 @@
     <p class="c6"><span class="c0">We will obtain some information from affiliates and business partners. For
             example, when you make a booking delivery service with our mobile app of one of our affiliates or business
             partners.</span></p>
-    <h4 class="c4"><span class="c3 c2">How Does NG Express Use My Personal Information?</span></h4>
-    <p class="c6"><span class="c18">NG Express</span><span class="c0">&nbsp;will generally collect and use
+    <h4 class="c4"><span class="c3 c2">How Does {{ config('app.company_name') }} Use My Personal Information?</span></h4>
+    <p class="c6"><span class="c18">{{ config('app.company_name') }}</span><span class="c0">&nbsp;will generally collect and use
             your personal information for the following business and commercial purposes:</span></p>
     <ol class="c10 lst-kix_z0fyqd4n39uo-0 start" start="1">
         <li class="c1 li-bullet-0"><span class="c0">To fulfill a contract, or take steps linked to a contract: The
@@ -169,20 +169,20 @@
         <li class="c1 li-bullet-0"><span class="c0">Fulfilling obligations: Dealing with payments that occur under
                 relevant policies, processing commissions paid to partners, claiming for loss caused by service
                 partners, recovering payments made, etc.</span></li>
-        <li class="c1 li-bullet-0"><span class="c0">Account management: You can create a NG Express account and we
+        <li class="c1 li-bullet-0"><span class="c0">Account management: You can create a {{ config('app.company_name') }} account and we
                 will use the information you provide to manage your account and provide you with practical features. You
                 can use your account for various operations, such as managing bookings, adjusting personal settings,
                 adding packages to your booking, tracking your bookings, evaluating orders, and managing payments,
                 etc.</span></li>
         <li class="c1 li-bullet-0"><span class="c0">Responding to your inquiries and requests: We provide customer
                 service in multiple languages to offer help when you need it.</span></li>
-        <li class="c1 li-bullet-0"><span class="c0">Marketing activities: Where you have a NG Express account, we
+        <li class="c1 li-bullet-0"><span class="c0">Marketing activities: Where you have a {{ config('app.company_name') }} account, we
                 will also use your personal information for marketing purposes, such as sending you information and
                 promotional activities on services that may interest you. You may also receive electronic direct
                 marketing content with our products and services, or other products and services provided by our
                 affiliates and partners. &nbsp;You can opt out of receiving any non-essential emails, including
                 marketing emails, by: contacting us; clicking the link contained at the bottom of such emails; or, by
-                adjusting the notification settings in your account profile on the NG Express website or app. </span>
+                adjusting the notification settings in your account profile on the {{ config('app.company_name') }} website or app. </span>
         </li>
         <li class="c1 li-bullet-0"><span class="c0">Contacting you: Responding to and dealing with your questions
                 or requests, sending booking-related notifications (such as notification telling you of a successfully
@@ -211,10 +211,9 @@
         <li class="c1 li-bullet-0"><span class="c0">For purposes which are required by law:In certain cases, we
                 may need to use your information to handle and resolve legal disputes, regulatory investigations, and
                 compliance, respond to requests by government or law enforcement authorities conducting an
-                investigation, or enforce the Terms and Conditions in connection with any Services provided by NG
-                Express as reasonably expected.</span></li>
+                investigation, or enforce the Terms and Conditions in connection with any Services provided by {{ config('app.company_name') }} as reasonably expected.</span></li>
     </ol>
-    <h4 class="c4"><span class="c2 c11">How Does </span><span class="c2">NG Express</span><span
+    <h4 class="c4"><span class="c2 c11">How Does </span><span class="c2">{{ config('app.company_name') }}</span><span
             class="c18">&nbsp;</span><span class="c3 c2">Share My Information?</span></h4>
     <p class="c6"><span class="c0">We may share your booking information, account information, and location
             information with affiliate companies within our corporate family and third parties, such as the partners
@@ -235,9 +234,9 @@
             acquisition.</span></p>
     <p class="c4"><span class="c3 c2">What are My Rights?</span></p>
     <p class="c21"><span class="c0">Erasure, Access, and Others:</span></p>
-    <p class="c6"><span class="c18">If you wish to delete your NG Express account information, you may call our
+    <p class="c6"><span class="c18">If you wish to delete your {{ config('app.company_name') }} account information, you may call our
             customer support (Telegram: (</span><span class="c9">+855) 92 94 91 94</span><span class="c0">,
-            Facebook Page: NG Express) and follow the instructions to be put through to a customer service specialist
+            Facebook Page: {{ config('app.company_name') }}) and follow the instructions to be put through to a customer service specialist
             who will help you delete your account information after completing a verification process. After the
             deletion, we will no longer collect, use, or share any personal information related to this account.</span>
     </p>
@@ -266,17 +265,17 @@
     <p class="c6"><span class="c18">To address any privacy or security questions or concerns, or to make any of
             these requests, please contact us with details about your request at </span><span
             class="c8">ngexpress219@gmail.com</span><span class="c0">. </span></p>
-    <p class="c6"><span class="c0">We will respond to your above requests without undue delay. NG Express
+    <p class="c6"><span class="c0">We will respond to your above requests without undue delay. {{ config('app.company_name') }}
             shall take reasonable steps to verify customer identity before taking further action on your request:</span>
     </p>
-    <p class="c6"><span class="c0">Where you have a NG Express account, we will ask you to:</span></p>
+    <p class="c6"><span class="c0">Where you have a {{ config('app.company_name') }} account, we will ask you to:</span></p>
     <ol class="c10 lst-kix_x859yg70j6qj-0 start" start="1">
         <li class="c7 li-bullet-0"><span class="c0">Log out of your account and log in within 24 hours.</span>
         </li>
         <li class="c1 li-bullet-0"><span class="c0">Where you have placed an order, provide us with 2 pieces of
                 information about your recent order.</span></li>
     </ol>
-    <p class="c6"><span class="c0">Where you do not have a NG Express account, we will ask you to:</span></p>
+    <p class="c6"><span class="c0">Where you do not have a {{ config('app.company_name') }} account, we will ask you to:</span></p>
     <p class="c23"><span class="c0"></span></p>
     <p class="c6"><span class="c2 c12">How Can I Lodge a Complaint?</span></p>
     <p class="c6"><span class="c18">We are committed to investigating and resolving complaints about our
@@ -296,7 +295,7 @@
             but if this is not possible because a more detailed investigation is required, we will keep in regular
             contact with you to ensure that you are kept informed of the resolution of your matter.</span></p>
     <p class="c4"><span class="c3 c2">Information Security and Protection</span></p>
-    <p class="c6"><span class="c18">NG Express</span><span class="c0">&nbsp;attaches great importance to
+    <p class="c6"><span class="c18">{{ config('app.company_name') }}</span><span class="c0">&nbsp;attaches great importance to
             information security and has set up a dedicated team for this. We strive to protect your personal
             information and have taken appropriate managerial, technological, and physical security measures.</span></p>
     <p class="c6"><span class="c0">In terms of the data life cycle, we have established security measures for
@@ -314,11 +313,11 @@
     <p class="c6"><span class="c0">In the unlikely event of a data breach affecting your personal information,
             we will inform you following laws and regulations by email or other means.</span></p>
     <p class="c4"><span class="c3 c2">Modification of Privacy Statement</span></p>
-    <p class="c6"><span class="c18">NG Express</span><span class="c0">&nbsp;will modify this Privacy
+    <p class="c6"><span class="c18">{{ config('app.company_name') }}</span><span class="c0">&nbsp;will modify this Privacy
             Statement when necessary. Please understand that we may revise this Privacy Statement at times as we
             consider appropriate. We will note the date of the latest update of this Privacy Statement and the update
-            will take effect when it is published. NG Express will not reduce your rights under this Privacy
-            Statement.NG Express will prominently post major changes made (for example, for changes concerning certain
+            will take effect when it is published. {{ config('app.company_name') }} will not reduce your rights under this Privacy
+            Statement.{{ config('app.company_name') }} will prominently post major changes made (for example, for changes concerning certain
             services, we will inform you via email of the specific changes in the Privacy Statement). Therefore, you
             should review this Privacy Statement periodically to keep up with our most current policies.</span></p>
     <p class="c6"><span class="c12 c2">Cookie Statement</span></p>
@@ -329,7 +328,7 @@
             our website. To learn more about cookies, please go to </span><span class="c16"><a class="c13"
                 href="https://www.google.com/url?q=http://www.aboutcookies.org/&amp;sa=D&amp;source=editors&amp;ust=1734341000091954&amp;usg=AOvVaw3pguJ6DQjMKZ1Dq7S_CNT1">www.aboutcookies.org</a></span><span
             class="c0">.</span></p>
-    <p class="c6"><span class="c0">What cookies does NG Express use?</span></p>
+    <p class="c6"><span class="c0">What cookies does {{ config('app.company_name') }} use?</span></p>
     <p class="c6"><span class="c0">We use the following cookies:</span></p>
     <p class="c6"><span class="c3 c18 c28">Essential cookies</span></p>
     <ul class="c10 lst-kix_k16j2ey686k-0 start">

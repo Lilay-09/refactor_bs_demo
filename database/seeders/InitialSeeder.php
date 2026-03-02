@@ -2,9 +2,10 @@
 
 namespace Database\Seeders;
 
-use DB;
+use Illuminate\Support\Facades\DB;
 use Helper;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\Hash;
 
 class InitialSeeder extends Seeder
 {
@@ -74,7 +75,7 @@ class InitialSeeder extends Seeder
             'email' => 'admin@gmail.com',
             'account_type' => 'admin',
             'gender' => 'M',
-            'password' => \Hash::make('gt123456dms'),
+            'password' => Hash::make('gt123456dms'),
             'system_admin' => true,
             'create_uid' => 1, //* just default val
             'update_uid' => 1, //* just default val
@@ -84,16 +85,16 @@ class InitialSeeder extends Seeder
 
         DB::table('users')->insertGetId([
             // 'id' => 2,
-            'first_name' => 'NG',
+            'first_name' => config('app.code_prefix'),
             'last_name' => 'ADMIN',
             'has_account' => true,
-            'username' => 'ngadmin',
+            'username' => config('app.code_prefix').'admin',
             'phone' => '093691531',
-            'login_name' => 'ngadmin',
-            'email' => 'ngadmin@gmail.com',
+            'login_name' => config('app.code_prefix').'admin',
+            'email' => config('app.code_prefix').'admin@gmail.com',
             'account_type' => 'admin',
             'gender' => 'M',
-            'password' => \Hash::make('ngx@123456'),
+            'password' => Hash::make('@123456'),
             'system_admin' => true,
             'create_uid' => 1, //* just default val
             'update_uid' => 1, //* just default val
@@ -104,10 +105,10 @@ class InitialSeeder extends Seeder
 
 
         $comapanyId  = DB::table('companies')->insertGetId([
-            'name_en' => 'School Root',
+            'name_en' => config('app.company_name'),
             'name_km' => 'ក្រុមហ៊ុន',
             'address' => 'some where',
-            'email' => 'school@gmail.com',
+            'email' => config('app.code_prefix').'@gmail.com',
             'phone' => '092335554',
             'description' => 'This is Root, Root represent to all branches',
             'create_uid' => $userId,
@@ -151,7 +152,7 @@ class InitialSeeder extends Seeder
             'account_type' => 'driver',
             'gender' => 'M',
             'vehicle_type' => 'Motor',
-            'password' => \Hash::make('123456'),
+            'password' => Hash::make('123456'),
             'create_uid' => $userId,
             'update_uid' => $userId,
             'branch_id'=> $branchId,
@@ -176,7 +177,7 @@ class InitialSeeder extends Seeder
             'account_type' => 'merchant',
             'business_type' => 'Cosmetics',
             'gender' => 'F',
-            'password' => \Hash::make('123456'),
+            'password' => Hash::make('123456'),
             'create_uid' => $userId,
             'update_uid' => $userId,
             'branch_id'=> $branchId,

@@ -933,7 +933,7 @@ class TransactionService
                 'transaction_type' => TransactionType::TRANSFER_IN->value,
                 'from_account' => !empty($dueAccount) ? $dueAccount['account_number'] : '',
                 'payment_method' => $method,
-                'to_account' => 'NG Account',
+                'to_account' => config('app.code_prefix').' Account',
                 'approved_uid' => $user->id,
                 'create_uid' => $user->id,
                 'update_uid' => $user->id,

@@ -124,7 +124,7 @@ class TransactionController extends Controller
                     if (!isset($sameDisId[$disbursementId])) {
                         $dis = TransactionService::getTrxDetailsV1($disbursements, $disbursementId, $disbursementDetails);
                         if ($dis) {
-                            $dis->from = 'NG Express';
+                            $dis->from = config('app.company_name');
                             $dis->to = $dis->driver->username;
                             $dis->type = 'Received';
                             unset($dis->driver);
@@ -143,7 +143,7 @@ class TransactionController extends Controller
                         $pmt = TransactionService::getTrxDetailsV1($payments, $paymentId, $paymentDetails);
                         if ($pmt) {
                             $pmt->from = $pmt->driver->username;
-                            $pmt->to = 'NG Express';
+                            $pmt->to = config('app.company_name');
                             $pmt->type = 'Paid';
                             // $pmt->payable_amount = $pmt->received_amount
                             // $pmt->remarks = 'Disbursement'; // This might be better named "Payment"

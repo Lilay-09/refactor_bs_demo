@@ -7,8 +7,7 @@
     <title>Purpose</title>
 </head>
 <body>
-    <p class="c14"><span class="c2 c11">What Personal Information Does </span><span class="c2">NG
-            Express</span><span class="c18">&nbsp;</span><span class="c3 c2">Disclose for a Business
+    <p class="c14"><span class="c2 c11">What Personal Information Does </span><span class="c2">{{ config('app.company_name') }}</span><span class="c18">&nbsp;</span><span class="c3 c2">Disclose for a Business
             Purpose?</span></p>
     <p class="c6"><span class="c0">We disclose the following personal information for a business
             purpose:</span></p>

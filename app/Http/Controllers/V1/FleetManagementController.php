@@ -29,95 +29,6 @@ class FleetManagementController extends Controller
 
     }
 
-    // public function getTrips(Request $req){
-    //     $user = UserService::getAuthUser();
-    //     $search = $req->search ?? null;
-    //     $driverId = $req->driver_id;
-    //     $startDate = $req->startDate;
-    //     $lang = $req->lang;
-    //     $endDate = $req->endDate;
-    //     $statusId = $req->status_id;
-    //     // Step 2: Load package info only from latest delivery_packages
-    //     $packages = Package::from('packages as p')
-    //         ->join('delivery_packages as dp', 'p.id', '=', 'dp.package_id')
-    //         // ->whereIn('dp.id', $latestDeliveryPackages)
-    //         ->whereIn('dp.id', function ($q) {
-    //             $q->selectRaw('MAX(dp2.id)')
-    //             ->from('delivery_packages as dp2')
-    //             ->where('dp2.is_deleted', false)
-    //             ->groupBy('dp2.package_id');
-    //         })
-    //         ->where([
-    //             ['p.is_deleted', false],
-    //             ['dp.is_deleted', false],
-    //             ['dp.has_swap', 0],
-    //             ['dp.delay_count', 0],
-    //         ])
-    //         ->selectRaw('p.id as package_id, dp.delivery_id, dp.delay_count, dp.has_swap, p.status_id, p.driver_total')
-    //         ->get();
-    //     $query = Delivery::query()->with(['status','driver'])->where('is_deleted',0)->where('company_id',$user->company_id)
-    //     ->orderBy('status_id')
-    //     ->orderByDesc('id')
-    //     ->selectRaw('id,fleet_tracking_number,status_id,driver_id,depart_datetime,remarks,package_count,delivered_count,failed_count,warehouse_id,vehicle_type,driver_id,is_completed,finished');
-    //     if ($search) {
-    //         $query->where(function ($q) use ($search) {
-    //             if (str_starts_with($search, 'NG')) {
-    //                 $q->whereHas('packages.package', function ($sub) use ($search) {
-    //                     $sub->where('qr_code', $search);
-    //                 });
-    //             } elseif (str_starts_with($search, '0')) {
-    //                 // Phone search — use distinctPackages
-    //                 $q->whereHas('distinctPackages.package', function($q) use ($search) {
-    //                     $q->where('receiver_phone', $search)
-    //                     ->whereColumn('packages.driver_id', 'delivery_packages.driver_id');
-    //                 });
-    //             }else{
-    //                 $q->where('fleet_tracking_number',$search);
-    //             }
-    //         });
-    //     }else{
-    //         if($driverId){
-    //             $query->where('driver_id',$driverId);
-    //         }
-    //         if($statusId){
-    //             $query->where('status_id',$statusId);
-    //         }
-    //         if($startDate && $endDate){
-    //             $startDate = date('Y-m-d',strtotime($startDate));
-    //             $endDate = date('Y-m-d',strtotime($endDate));
-    //             $query->where(function ($q) use ($startDate, $endDate) {
-    //                 $q->whereBetween('depart_datetime', ["$startDate 00:00:00", "$endDate 23:59:59"]);
-    //             });
-
-    //         }else{
-    //             $query->whereDate('depart_datetime',now());
-    //         }
-    //     }
-
-        
-    //     // $deliveries = $query;
-    //     $callback = function($delivery) use($lang,$packages){
-    //         if($lang == 'km'){
-    //             $delivery->status_code = GeneralSettingService::$statusCodeTrans[$delivery->status_id] ?? '';
-    //         } else $delivery->status_code = $delivery->status->name;
-    //         $delivery->driver_name = $delivery->driver->username;
-    //         $delivery->driver_phone = $delivery->driver->phone;
-    //         $details = $this->getTripDetails($packages,$delivery->id);
-    //         $delivery->total = $details->total;
-    //         $delivery->total_delivered = Helper::getNumber($details->total_delivered + $details->total_failed_with_fee,2);//number_format($details->total_delivered + $details->total_failed_with_fee,2);
-    //         $delivery->failed_count = $details->failed_count;
-    //         $delivery->delivered_count = $details->delivered_count;
-    //         $delivery->delivery_count = $details->delivery_count;
-    //         $delivery->failed_with_fee_count = $details->failed_with_fee_count;
-    //         $delivery->package_count = $details->packages_count;
-    //         $delivery->depart_time = Helper::formatCustomDateTime($delivery->depart_datetime,'h:i:s A');
-    //         $delivery->depart_date = Helper::formatCustomDateTime($delivery->depart_datetime,'d-M-Y',false,$lang);
-    //         unset($delivery->status,$delivery->driver);
-    //         return $delivery;
-    //     };
-    //     return ApiResponse::PaginationV1($query,$req,'',[],1000,$callback);
-    // }
-
     public function getTrips(Request $req)
     {
         $user = UserService::getAuthUser();
@@ -213,7 +124,10 @@ class FleetManagementController extends Controller
         */
         if ($search) {
             $query->where(function ($q) use ($search) {
-                if (str_starts_with($search, 'NG')) {
+                if (str_starts_with($search, config('app.code_prefix'))) {
+                     $q->whereHas('packages.package', function ($sub) use ($search) {
+                        $sub->where('qr_code', $search);
+                    });
                     $q->whereHas('packages.package', function ($sub) use ($search) {
                         $sub->where('qr_code', $search);
                     });
@@ -406,7 +320,7 @@ class FleetManagementController extends Controller
             ')
             ->orderByRaw('(p.status_id = ?) DESC', [6]);
 
-        if ($search && str_starts_with($search, 'NG') || str_starts_with($search, '0')) {
+        if ($search && (str_starts_with($search, config('app.code_prefix')) || str_starts_with($search, '0'))) {
             $qP->where('p.qr_code', $search)
             ->orWhere('p.receiver_phone',$search);
         }
@@ -421,54 +335,6 @@ class FleetManagementController extends Controller
         };
         return ApiResponse::PaginationV1($qP, $req, null, [], 200, $clbMapper);
     }
-
-
-    // public function getTripPackages(Request $req){
-    //     $trip_id = $req->trip_id;
-    //     $isKm = $req->lang == 'km';
-    //     $search = $req->search;
-    //     $caseHistory = 'CASE
-    //         WHEN
-    //             p.status_id != dp.status_id
-    //             OR p.driver_id != dp.driver_id
-    //             OR dp.delay_count = TRUE
-    //             OR dp.has_swap = TRUE
-    //         THEN true
-    //         ELSE false
-    //     END AS is_history';
-
-
-    //     $qP = Package::query()->fromRaw('packages as p')->join('delivery_packages as dp','p.id','dp.package_id')
-    //     ->where('dp.is_deleted',0)
-    //     // ->where('dp.delay_count', 0)
-    //     // ->whereIn('dp.status_id',[6,9,10,19])
-    //     ->whereIn('p.status_id',[6,9,10,19])
-    //     // ->where(function ($q) {
-    //     //     $q->where('dp.status_id', '!=', 6) // Allow other statuses freely
-    //     //     ->orWhere('dp.has_swap', 0); // Only allow status_id = 6 if has_swap = 0
-    //     // })
-    //     // ->where('dp.delay_count',0)
-    //     ->where('dp.delivery_id',$trip_id)
-    //     ->join('users as m','m.id','p.merchant_id')
-    //     ->join('users as d','d.id','p.driver_id')
-    //     ->join('tracking_statuses as ts','ts.id','p.status_id')
-    //     ->selectRaw('p.assign_driver_datetime,dp.has_swap,p.qr_code,p.price,p.cod,p.receiver_name,p.receiver_phone,p.zone_code,p.zone_name,ts.name as status_code,d.username as driver_name,d.phone as driver_phone,m.username as merchant_name,m.phone as merchant_phone,p.id as package_id,dp.delivery_id,p.zone_code,p.zone_name,p.delivery_fee as base_fee,p.driver_total,p.taxi_fee,p.product_type,p.status_id,p.payer,'.$caseHistory)
-    //     // ->orderByRaw('(dp.status_id = ?) DESC', [6]);
-    //     ->orderByRaw('(p.status_id = ?) DESC', [6]);
-    //     if ($search && str_starts_with($search, 'NG')) {
-    //         $qP->where('p.qr_code',$search);
-    //     }
-    //     // $packages = $qP->get();
-    //     $clbMapper = function ($package) use($isKm){
-    //         $package->delivery_fee = $package->base_fee + $package->extra_charge;
-    //         if($isKm) $package->status_code = GeneralSettingService::$statusCodeTrans[$package->status_id] ?? '';
-    //         unset($package->status);
-    //         return $package;
-    //     };
-
-    //     return ApiResponse::PaginationV1($qP,$req,null,[],200,$clbMapper);
-    //     // return ApiResponse::Pagination($packages,$req,__('messages.get_list',['info' => 'Package']));
-    // }
 
     public function setPackageStatus(Request $req){
         $user = UserService::getAuthUser();

@@ -28,8 +28,8 @@ class PickupCenterServiceImpl implements PickupCenterService
     private string $packageCodePrefix;
 
     public function __construct(){
-        $this->orderCodePrefix = 'NGXO';
-        $this->packageCodePrefix = 'NGXP';
+        $this->orderCodePrefix = config('app.code_prefix').'XO';
+        $this->packageCodePrefix = config('app.code_prefix').'XP';
     }
 
     public function packageValidation(Request $req){

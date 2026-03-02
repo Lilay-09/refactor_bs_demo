@@ -1382,7 +1382,7 @@ class MerchantTransactionServiceImpl implements MerchantTransactionService
                 'payment_id' => $paymentId,
                 'tran_via' => TransactionType::ABA_PAYOUT->value,
                 'transaction_type' => TransactionType::TRANSFER_OUT->value,
-                'from_account' => 'Ng Company',
+                'from_account' => config('app.code_prefix').' Company',
                 'to_account' => $dueAccount['concat'],
                 'approved_uid' => $authUser->id,
                 'create_uid' => $authUser->id,

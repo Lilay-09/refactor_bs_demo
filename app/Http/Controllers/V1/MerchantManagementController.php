@@ -15,8 +15,6 @@ use App\Services\UserService;
 use Illuminate\Support\Facades\DB;
 use Helper;
 use Illuminate\Http\Request;
-use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\Log;
 
 class MerchantManagementController extends Controller
 {
