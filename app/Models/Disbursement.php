@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\TransactionType;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
@@ -85,8 +86,17 @@ class Disbursement extends Model
     public function disbursement(){
         return $this->belongsTo(Disbursement::class,'disbursement_id');
     }
+    
 
     public function disbursementDetails(){
         return $this->hasMany(DisbursementDetails::class,'disbursement_id');
+    }
+
+    public function transactionDriver(){
+        return $this->hasOne(PaymentTransaction::class,'payment_id')->where('transaction_type',TransactionType::TRANSFER_OUT->value)->where('target_user','driver');
+    }
+
+    public function transactionMerchant(){
+        return $this->hasOne(PaymentTransaction::class,'payment_id')->where('transaction_type',TransactionType::TRANSFER_OUT->value)->where('target_user','merchant');
     }
 }

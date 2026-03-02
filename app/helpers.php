@@ -324,6 +324,77 @@ class ApiResponse
         unset($object->data->status_code,$object->status_code);
         return response()->json($object,$status_code);
     }
+
+    static function PaginationV2(
+        $query,
+        Request $filter,
+        $message = null,
+        $additionalKey = [],
+        $limit = 1000,
+        callable $transformCallback = null,
+        array $select = ['*'],
+        bool $reverse = false,
+        $cache = null,
+        $defaultCacheKey = 'items_list_last_updated',
+        callable $groupCallback = null // <-- new
+    ) {
+        $perPage = max(1, min($filter->query('per_page', 10), $limit));
+        $currentPage = $filter->query('page_no', 1);
+
+        $lastUpdated = Cache::get($defaultCacheKey, now()->timestamp);
+
+        $filterParams = $filter->all();
+        $filterParams['per_page'] = $perPage;
+        $filterParams['page_no'] = $currentPage;
+
+        $queryHash = md5(json_encode($filterParams));
+        $cacheKey = "pagination_{$queryHash}_{$lastUpdated}";
+
+        if ($cache && $cache > 0) {
+            $cachedData = Cache::get($cacheKey);
+            if ($cachedData) {
+                return response()->json($cachedData, 200);
+            }
+        }
+
+        // Execute pagination
+        $data = $query->paginate($perPage, $select, 'page', $currentPage);
+
+        $items = collect($data->items());
+
+        // Apply transformation per item
+        if ($transformCallback) {
+            $items = $items->map($transformCallback);
+        }
+
+        // Apply grouping if provided
+        if ($groupCallback) {
+            $items = $groupCallback($items); // <-- just call it
+        }
+
+        $obj = [
+            'status' => "OK",
+            'error' => false,
+            'message' => $message,
+            'data' => $items,
+            'per_page' => (int) $data->perPage(),
+            'total' => (int) $data->total(),
+            'total_page' => (int) $data->lastPage(),
+            'page_no' => (int) $data->currentPage(),
+            'errors' => [],
+        ];
+
+        foreach ((array) $additionalKey as $key => $value) {
+            $obj[$key] = $value;
+        }
+
+        if ($cache !== null) {
+            $cacheTime = is_numeric($cache) ? $cache : 300;
+            Cache::put($cacheKey, $obj, $cacheTime);
+        }
+
+        return response()->json($obj, 200);
+    }
 }
 
 

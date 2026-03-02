@@ -54,7 +54,6 @@ class CompletedPackageController extends Controller
                 ELSE p.driver_id
             END"));
         })
-        ->join('tracking_statuses as ts','ts.id','p.status_id')
         ->join('orders as o','o.id','p.order_id')
         ->join('users as m','m.id','p.merchant_id')
         ->orderByRaw("
@@ -74,7 +73,7 @@ class CompletedPackageController extends Controller
         $select = [
             'p.driver_id','p.arrive_warehouse_datetime','p.returned_uid','p.receiver_address','p.delivered_datetime',
             'm.username as merchant_name','m.phone as merchant_phone','d.username as driver_name','p.status_id',
-            'p.returned_datetime','p.id as package_id','d.id as driver_id','p.qr_code','p.price','ts.name as status_code',
+            'p.returned_datetime','p.id as package_id','d.id as driver_id','p.qr_code','p.price',
             'p.product_type','p.delivered_datetime','p.failed_datetime','p.taxi_fee','p.payer','p.cod','p.zone_code',
             'p.zone_name','p.receiver_phone','p.delivery_type','p.delivery_fee','p.driver_total','p.merchant_total',
             'p.price_khr','p.driver_cod_usd','p.driver_cod_khr','p.other_fee'
@@ -161,6 +160,7 @@ class CompletedPackageController extends Controller
             $qP->driver_cod_usd = Helper::getNumber($driverCodUsd,2,true);
             $qP->driver_cod_khr = Helper::getNumber($driverCodKhr,2,true);
             // $qP->cod = $qP->cod ? "1":"0";
+            $qP->status_code = TrackingStatus::from($qP->status_id)->label();
             unset($qP->returnUser);
             return $qP;
         };

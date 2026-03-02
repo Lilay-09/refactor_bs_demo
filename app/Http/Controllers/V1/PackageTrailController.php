@@ -339,6 +339,7 @@ class PackageTrailController extends Controller
             'returned_uid' => $driverId,
             'status_id' => $statusId, // returned
             'assigned_return_at' => now(),
+            'returned_datetime' => now(),
             'prev_status_id' => $package->status_id,
             'update_uid' => $user->id,
         ]);
