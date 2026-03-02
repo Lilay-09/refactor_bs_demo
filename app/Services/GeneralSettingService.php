@@ -489,7 +489,6 @@ class GeneralSettingService
         if($warehouseId){
             $qD->where('warehouse_id',$warehouseId);
         }
-
         return $qD->find($id);
     }
     public static function getMerchantById($id,$select=['*']){

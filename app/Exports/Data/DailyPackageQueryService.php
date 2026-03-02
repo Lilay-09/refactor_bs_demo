@@ -89,96 +89,11 @@ class DailyPackageQueryService {
 
     //     return $q->orderByDesc('created_at');
     // }
-    public function getQuery(array $filters = []): Builder
-    {
-        // -------------------------------
-        // Date validation (KEEP THIS)
-        // -------------------------------
-        if (!empty($filters['startDate']) && !empty($filters['endDate'])) {
-            $startDate = Carbon::parse($filters['startDate'])->startOfDay();
-            $endDate   = Carbon::parse($filters['endDate'])->endOfDay();
 
-            if ($startDate->diffInMonths($endDate) > 2) {
-                throw new BadRequestExcept(
-                    'Start date cannot be more than 2 months before the end date.'
-                );
-            }
-        }
-
-        // -------------------------------
-        // BASE QUERY (FLAT, NO RELATIONS)
-        // -------------------------------
+    public function getBaseQuery(array $filters = []){
         $q = DB::table('packages')
             ->where('packages.is_deleted', 0)
-            ->where('packages.outstanding', 0)
-
-            // USERS
-            ->leftJoin('users as drivers', 'drivers.id', '=', 'packages.driver_id')
-            ->leftJoin('users as merchants', 'merchants.id', '=', 'packages.merchant_id')
-            ->leftJoin('users as return_users', 'return_users.id', '=', 'packages.returned_uid')
-            ->leftJoin('users as pickup_drivers', 'pickup_drivers.id', '=', 'packages.pickup_uid')
-
-            // OTHERS
-            ->leftJoin('branches', 'branches.id', '=', 'packages.branch_id')
-            ->leftJoin('tracking_statuses', 'tracking_statuses.id', '=', 'packages.status_id')
-            ->leftJoin('merchant_price_list as mpl', function($join) {
-                $join->on('mpl.merchant_id', '=', 'packages.merchant_id');
-                    // ->where('mpl.is_deleted',false); // optional soft delete
-            })
-            
-            // Join price_list
-            ->leftJoin('price_list as pl', 'pl.id', '=', 'mpl.price_list_id')
-            ->leftJoin('price_list_names as pln', 'pln.id', '=', 'pl.price_list_name_id')
-
-            ->select([
-                'packages.id',
-
-                'packages.zone_name',
-                'packages.zone_code',
-                'packages.qr_code',
-                'packages.status_id',
-
-                'packages.receiver_phone',
-                'packages.receiver_address',
-                'packages.driver_cod_usd',
-                'packages.driver_cod_khr',
-                'packages.taxi_fee',
-                'packages.other_fee',
-                'pln.name as price_list_name',
-                'packages.cod',
-                'packages.price',
-                'packages.price_khr',
-                'packages.delivery_fee',
-                'packages.additional_fee',
-                'packages.driver_total',
-                'packages.merchant_total',
-
-                'packages.failed_datetime',
-                'packages.delivered_datetime',
-                'packages.returned_datetime',
-                'packages.arrive_warehouse_datetime',
-
-                'drivers.code as driver_code',
-                'drivers.username as driver_name',
-                'drivers.phone as driver_phone',
-
-                'pickup_drivers.code as pickup_driver_code',
-                'pickup_drivers.username as pickup_driver_name',
-
-                'return_users.code as return_user_code',
-                'return_users.username as return_user_name',
-
-                'merchants.code as merchant_code',
-                'merchants.username as merchant_name',
-                'merchants.phone as merchant_phone',
-
-                'branches.name_en as branch_name',
-
-                'tracking_statuses.name as status_name',
-
-                'packages.created_at',
-                'packages.updated_at',
-            ]);
+            ->where('packages.outstanding', 0);
 
         // -------------------------------
         // FILTERS
@@ -255,6 +170,99 @@ class DailyPackageQueryService {
 
             $q->whereBetween('packages.arrive_warehouse_datetime', [$start, $end]);
         }
+
+        return $q;
+    }   
+
+    public function getQuery(array $filters = []): Builder
+    {
+        // -------------------------------
+        // Date validation (KEEP THIS)
+        // -------------------------------
+        if (!empty($filters['startDate']) && !empty($filters['endDate'])) {
+            $startDate = Carbon::parse($filters['startDate'])->startOfDay();
+            $endDate   = Carbon::parse($filters['endDate'])->endOfDay();
+
+            if ($startDate->diffInMonths($endDate) > 2) {
+                // throw new BadRequestExcept(
+                //     'Start date cannot be more than 2 months before the end date.'
+                // );
+            }
+        }
+
+        // -------------------------------
+        // BASE QUERY (FLAT, NO RELATIONS)
+        // -------------------------------
+        $baseQuery = $this->getBaseQuery($filters,true);
+        $q = $baseQuery
+
+            // USERS
+            ->leftJoin('users as drivers', 'drivers.id', '=', 'packages.driver_id')
+            ->leftJoin('users as merchants', 'merchants.id', '=', 'packages.merchant_id')
+            ->leftJoin('users as return_users', 'return_users.id', '=', 'packages.returned_uid')
+            ->leftJoin('users as pickup_drivers', 'pickup_drivers.id', '=', 'packages.pickup_uid')
+
+            // OTHERS
+            ->leftJoin('branches', 'branches.id', '=', 'packages.branch_id')
+            ->leftJoin('tracking_statuses', 'tracking_statuses.id', '=', 'packages.status_id')
+            ->leftJoin('merchant_price_list as mpl', function($join) {
+                $join->on('mpl.merchant_id', '=', 'packages.merchant_id');
+                    // ->where('mpl.is_deleted',false); // optional soft delete
+            })
+            
+            // Join price_list
+            ->leftJoin('price_list as pl', 'pl.id', '=', 'mpl.price_list_id')
+            ->leftJoin('price_list_names as pln', 'pln.id', '=', 'pl.price_list_name_id')
+
+            ->select([
+                'packages.id',
+
+                'packages.zone_name',
+                'packages.zone_code',
+                'packages.qr_code',
+                'packages.status_id',
+
+                'packages.receiver_phone',
+                'packages.receiver_address',
+                'packages.driver_cod_usd',
+                'packages.driver_cod_khr',
+                'packages.taxi_fee',
+                'packages.other_fee',
+                'pln.name as price_list_name',
+                'packages.cod',
+                'packages.price',
+                'packages.price_khr',
+                'packages.delivery_fee',
+                'packages.additional_fee',
+                'packages.driver_total',
+                'packages.merchant_total',
+
+                'packages.failed_datetime',
+                'packages.delivered_datetime',
+                'packages.returned_datetime',
+                'packages.arrive_warehouse_datetime',
+
+                'drivers.code as driver_code',
+                'drivers.username as driver_name',
+                'drivers.phone as driver_phone',
+
+                'pickup_drivers.code as pickup_driver_code',
+                'pickup_drivers.username as pickup_driver_name',
+
+                'return_users.code as return_user_code',
+                'return_users.username as return_user_name',
+
+                'merchants.code as merchant_code',
+                'merchants.username as merchant_name',
+                'merchants.phone as merchant_phone',
+
+                'branches.name_en as branch_name',
+
+                'tracking_statuses.name as status_name',
+
+                'packages.created_at',
+                'packages.updated_at',
+            ]);
 
         // -------------------------------
         // CRITICAL FOR CHUNKING

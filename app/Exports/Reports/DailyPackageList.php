@@ -10,10 +10,13 @@ use Maatwebsite\Excel\Concerns\FromQuery;
 use Maatwebsite\Excel\Concerns\WithMapping;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithChunkReading;
+use Maatwebsite\Excel\Concerns\WithEvents;
 use Maatwebsite\Excel\Concerns\WithStyles;
+use Maatwebsite\Excel\Events\AfterSheet;
+use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
-class DailyPackageList implements FromQuery, WithMapping, WithHeadings, WithChunkReading,WithStyles
+class DailyPackageList implements FromQuery, WithMapping, WithHeadings, WithChunkReading,WithEvents//WithStyles
 {
     protected DailyPackageQueryService $queryService;
     protected DailyPackageFormatter $formatter;
@@ -33,58 +36,76 @@ class DailyPackageList implements FromQuery, WithMapping, WithHeadings, WithChun
         $this->filters = $filters;
 
         $this->exportId = $exportId;
-        $countQuery = clone $this->queryService->getQuery($filters);
-        $this->totalRows = $countQuery->count();
-
-
+        $this->totalRows = $this->queryService->getBaseQuery($filters)->count();
         // $query = $this->queryService->getQuery($filters);
 
         // // Safe row count with DB::table() + joins
         // $this->totalRows = $query->toBase()->getCountForPagination();
     }
 
-    public function styles(Worksheet $sheet)
+    // public function styles(Worksheet $sheet)
+    // {
+    //     // Header row height
+    //     $sheet->getRowDimension(1)->setRowHeight(25); // make header taller
+    //     $sheet->getRowDimension(2)->setRowHeight(20);
+    //     $sheet->mergeCells('N1:O1'); // Merchant COD
+    //     $sheet->mergeCells('P1:Q1'); // Driver COD
+    //     // Column widths (adjust as needed)
+    //     $columns = [
+    //         'A' => 7,    'B' => 25, 'C' => 30, 'D' => 30, 'E' => 35,
+    //         'F' => 25,   'G' => 30, 'H' => 30, 'I' => 30, 'J' => 25,
+    //         'K' => 20,   'L' => 70, // Arrived Date
+    //         'M' => 35,   'N' => 20, // Merchant COD
+    //         'O' => 20,   'P' => 20, 'Q' => 20, 'R' => 20, 'S' => 20,
+    //         'T' => 35,   'U' => 35, 'V' => 35,   'W' => 35
+    //     ];
+
+    //     foreach ($columns as $col => $width) {
+    //         $sheet->getColumnDimension($col)->setWidth($width);
+    //     }
+
+    //     // Header styling (first row)
+    //     $sheet->getStyle('A1:W1')->applyFromArray([
+    //         'font' => [
+    //             'bold' => true,
+    //             'size' => 14, // increase font size
+    //             'name' => 'Arial', // optional, set font family
+    //         ],
+    //         'alignment' => [
+    //             'horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER,
+    //             'vertical' => \PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER,
+    //             'wrapText' => true, // allow text wrap
+    //         ],
+    //         'borders' => [
+    //             'bottom' => [
+    //                 // 'borderStyle' => \PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THICK,
+    //                 'color' => ['argb' => '000000'],
+    //             ],
+    //         ],
+    //     ]);
+
+    //     return [];
+    // }
+    public function registerEvents(): array
     {
-        // Header row height
-        $sheet->getRowDimension(1)->setRowHeight(25); // make header taller
-        $sheet->getRowDimension(2)->setRowHeight(20);
-        $sheet->mergeCells('N1:O1'); // Merchant COD
-        $sheet->mergeCells('P1:Q1'); // Driver COD
-        // Column widths (adjust as needed)
-        $columns = [
-            'A' => 7,    'B' => 25, 'C' => 30, 'D' => 30, 'E' => 35,
-            'F' => 25,   'G' => 30, 'H' => 30, 'I' => 30, 'J' => 25,
-            'K' => 20,   'L' => 70, // Arrived Date
-            'M' => 35,   'N' => 20, // Merchant COD
-            'O' => 20,   'P' => 20, 'Q' => 20, 'R' => 20, 'S' => 20,
-            'T' => 35,   'U' => 35, 'V' => 35,   'W' => 35
+        return [
+            AfterSheet::class => function (AfterSheet $event) {
+                $sheet = $event->sheet->getDelegate();
+
+                // ONLY style headers, NOT whole sheet
+                $sheet->getRowDimension(1)->setRowHeight(25);
+                $sheet->mergeCells('N1:O1');
+                $sheet->mergeCells('P1:Q1');
+
+                $sheet->getStyle('A1:W1')->applyFromArray([
+                    'font' => ['bold' => true],
+                    'alignment' => [
+                        'horizontal' => Alignment::HORIZONTAL_CENTER,
+                        'vertical' => Alignment::VERTICAL_CENTER,
+                    ],
+                ]);
+            },
         ];
-
-        foreach ($columns as $col => $width) {
-            $sheet->getColumnDimension($col)->setWidth($width);
-        }
-
-        // Header styling (first row)
-        $sheet->getStyle('A1:W1')->applyFromArray([
-            'font' => [
-                'bold' => true,
-                'size' => 14, // increase font size
-                'name' => 'Arial', // optional, set font family
-            ],
-            'alignment' => [
-                'horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER,
-                'vertical' => \PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER,
-                'wrapText' => true, // allow text wrap
-            ],
-            'borders' => [
-                'bottom' => [
-                    // 'borderStyle' => \PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THICK,
-                    'color' => ['argb' => '000000'],
-                ],
-            ],
-        ]);
-
-        return [];
     }
 
     /**
@@ -139,6 +160,6 @@ class DailyPackageList implements FromQuery, WithMapping, WithHeadings, WithChun
      */
     public function chunkSize(): int
     {
-        return 500;
+        return 700;
     }
 }

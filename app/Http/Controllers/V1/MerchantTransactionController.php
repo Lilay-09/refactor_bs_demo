@@ -41,7 +41,7 @@ class MerchantTransactionController extends Controller
     public function declineRequestedPayment(Request $req){
         $user = UserService::getAuthUser();
         // Log::info($req->all());
-        return ApiResponse::flex($this->merchantTransactionService->declineRequetedSettlement($req->paymentId,$req,$user));
+        return ApiResponse::flex($this->merchantTransactionService->declineRequetedSettlement($req->paymentId,$req->all(),$user));
     }
 
     public function receivePackagesPayment(Request $req){
@@ -60,7 +60,7 @@ class MerchantTransactionController extends Controller
 
     public function approveAdnSettleBulkRequestedSettlement(Request $req){
         $user = UserService::getAuthUser();
-        return ApiResponse::flex($this->merchantTransactionService->approveAndSettleBulkRequestedSettlement($req,$user));
+        return ApiResponse::flex($this->merchantTransactionService->approveAndSettleBulkRequestedSettlement($req->all(),$user));
     }
 
     public function approveAndSettleRequestedSettlement(Request $req){
@@ -71,12 +71,12 @@ class MerchantTransactionController extends Controller
 
     public function declinePayment(Request $req){
         $user = UserService::getAuthUser();
-        return ApiResponse::flex($this->merchantTransactionService->declineRequetedSettlement($req->paymentId,$req,$user));
+        return ApiResponse::flex($this->merchantTransactionService->declineRequetedSettlement($req->paymentId,$req->all(),$user));
     }
 
     public function getSettledPayments(Request $req){
         $user = UserService::getAuthUser();
-        return ApiResponse::flex($this->merchantTransactionService->getSettledPaymentTransactions($req,$user));
+        return ApiResponse::flex($this->merchantTransactionService->getSettledPaymentTransactions($req->all(),$user));
     }
 
     public function getSettledPaymentById(Request $req){
@@ -104,7 +104,7 @@ class MerchantTransactionController extends Controller
 
     public function getRequestedSettlement(Request $req){
         $user = UserService::getAuthUser();
-        return ApiResponse::flex($this->merchantTransactionService->getRequestedSettlement($req,$user));
+        return ApiResponse::flex($this->merchantTransactionService->getRequestedSettlement($req->all(),$user));
     }
 
     public function getMerchantBalances(Request $req){

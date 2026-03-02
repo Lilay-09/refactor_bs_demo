@@ -6,7 +6,7 @@ enum TransactionType: string
 {
     //
     case TRANSFER_IN = 'in';
-    case TRNASFER_OUT = 'out';
+    case TRANSFER_OUT = 'out';
 
     case ABA_PAYOUT = 'aba_payout';
     case INTERNAL = 'internal';
@@ -14,7 +14,7 @@ enum TransactionType: string
     public function label(): string{
         return match($this){
             self::TRANSFER_IN => 'in',
-            self::TRNASFER_OUT => 'out'
+            self::TRANSFER_OUT => 'out'
         };
     }
 
@@ -25,7 +25,7 @@ enum TransactionType: string
                 'label' => $case->label(),
                 'name' => $case->label(),
             ],
-            [self::TRANSFER_IN,self::TRNASFER_OUT]
+            [self::TRANSFER_IN,self::TRANSFER_OUT]
         );
     }
 }

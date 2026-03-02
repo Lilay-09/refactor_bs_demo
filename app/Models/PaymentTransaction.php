@@ -13,6 +13,7 @@ class PaymentTransaction extends Model
 
     protected $casts = [
         'amount' => 'decimal:2',
+        'details' => 'array',
     ];
     protected $fillable = [
         'id',
@@ -27,6 +28,8 @@ class PaymentTransaction extends Model
         'remarks',
         'from_account',
         'to_account',
+        'from_account_number',
+        'to_account_number',
         'is_deleted',
         'deleted_datetime',
         'deleted_uid',
@@ -42,6 +45,10 @@ class PaymentTransaction extends Model
     }
 
     public function performer(){
+        return $this->belongsTo(User::class,'approved_uid');
+    }
+
+    public function approver(){
         return $this->belongsTo(User::class,'approved_uid');
     }
 }

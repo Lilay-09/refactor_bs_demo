@@ -69,5 +69,8 @@ return [
         'in_transit' => 'In Transit',
         'returned' => 'Returned',
     ],
+
+    'seem_no_currency_to_settle' => 'It seems there is no :currency to settle. :info',
+    'please_check_and_ensure_all_payment_has_received_amount_in' => 'Please check and ensure all payment has received amount in :currency. There is no payment record for :username in :currency.',
 ];
 
