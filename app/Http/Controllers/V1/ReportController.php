@@ -1703,8 +1703,8 @@ class ReportController extends Controller
     public function getMerchantSummaryReport(Request $req){
         $user = UserService::getAuthUser();
         $isKm = $req->lang != 'en';
-        $startDate = $req->startDate ? Helper::dateDMY($req->startDate) : null;
-        $endDate = $req->endDate ? Helper::dateDMY($req->endDate) : null;
+        $startDate = $req->startDate ? Helper::dateYMD($req->startDate) : null;
+        $endDate = $req->endDate ? Helper::dateYMD($req->endDate) : null;
         $merchantId = $req->merchant_id;
         $branchId = $req->branch_id;
         $warehouseId = $req->warehouse_id;
