@@ -7,6 +7,7 @@ use App\Enums\PaymentMethod;
 use App\Enums\PaywayProvider;
 use App\Enums\PaywayStatus;
 use App\Enums\PaywayType;
+use App\Exceptions\ForbiddenExcept;
 use App\Jobs\VerifyBatchPaymentJob;
 use App\Jobs\VerifyPaymentJob;
 use App\Models\DeliveryPackage;
@@ -1344,7 +1345,11 @@ class PaywayServiceImpl implements PaywayService
      */
     private function getPayoutEndpoint(): string
     {
-        return config('services.aba.payoutURL');
+        $endpoint = config('services.aba.payoutURL');
+        if (!$endpoint) {
+            throw new ForbiddenExcept('Payway is not available. Please contact support.');
+        }
+        return $endpoint;
     }
 
     /**

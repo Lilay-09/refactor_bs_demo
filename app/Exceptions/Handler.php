@@ -46,6 +46,10 @@ class Handler extends ExceptionHandler
             return ApiResponse::error($exception->getMessage());
         }
 
+        if ($exception instanceof ForbiddenExcept) {
+            return ApiResponse::error($exception->getMessage());
+        }
+
         // If the request is for API, return a generic 500 response for other errors
         if ($exception instanceof HttpException && $exception->getStatusCode() === 405){
             return ApiResponse::JsonRaw([

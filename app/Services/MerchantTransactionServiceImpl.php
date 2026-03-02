@@ -13,6 +13,7 @@ use App\Enums\PaywayStatus;
 use App\Enums\PaywayType;
 use App\Enums\TrackingStatus;
 use App\Enums\TransactionType;
+use App\Exceptions\ForbiddenExcept;
 use App\Models\Disbursement;
 use App\Models\DisbursementDetails;
 use App\Models\DisbursementPackage;
@@ -1063,6 +1064,9 @@ class MerchantTransactionServiceImpl implements MerchantTransactionService
             DB::commit();
             return DataResponse::JsonResult(null,false,__('messages.saved'));
         }catch(Exception $e){
+            if($e instanceof ForbiddenExcept){
+                return DataResponse::Forbidden($e->getMessage());
+            }
             Log::error($e->getMessage());
             Log::error($e->getTraceAsString());
             DB::rollBack();
@@ -1218,7 +1222,6 @@ class MerchantTransactionServiceImpl implements MerchantTransactionService
             $q->verified_by = $q->disbursement?->requestedUser?->username ?? $q->payment?->requestedUser?->username ?? '';
             // $q->bank_accounts = $q->disbursement?->merchant?->bank_accounts ?? $q->payment?->merchant?->bank_accounts ?? [];
             $q->approved_by = $q->approver->username;
-            logger("Approved by: {$q->approved_by} Verified by: {$q->verified_by}");
             $details = $q->details;
             $beneficiaries = $details['beneficiaries'] ?? [];
             $beneficiary = null;
