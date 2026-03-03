@@ -486,6 +486,54 @@ class AppModuleSeeder extends Seeder
                 'company_id' => 1,
                 'branch_id' => 1,
             ],
+
+            [
+                'id' => 291,
+                'app_id' => $appId,
+                'name' => 'branch',
+                'native_name' => 'Branch',
+                'display_order' => 1,
+                'create_uid' => 1,
+                'update_uid' => 1,
+                'company_id' => 1,
+                'branch_id' => 1,
+            ],
+
+            [
+                'id' => 292,
+                'app_id' => $appId,
+                'name' => 'transfer',
+                'native_name' => 'Transfer',
+                'display_order' => 1,
+                'create_uid' => 1,
+                'update_uid' => 1,
+                'company_id' => 1,
+                'branch_id' => 1,
+            ],
+
+            [
+                'id' => 293,
+                'app_id' => $appId,
+                'name' => 'receive_transfer',
+                'native_name' => 'Receive Transfer',
+                'display_order' => 1,
+                'create_uid' => 1,
+                'update_uid' => 1,
+                'company_id' => 1,
+                'branch_id' => 1,
+            ],
+            [
+                'id' => 294,
+                'app_id' => $appId,
+                'name' => 'activity_logs',
+                'native_name' => 'Activity Logs',
+                'display_order' => 1,
+                'create_uid' => 1,
+                'update_uid' => 1,
+                'company_id' => 1,
+                'branch_id' => 1,
+            ],
+
         ]);
     }
     public function rollback()

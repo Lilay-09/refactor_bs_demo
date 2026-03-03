@@ -679,8 +679,8 @@ public function getMerchantListByDate(Request $req)
         $insertOrUpdate = [
             'price_list_id' => $priceListId, // price list name
             'update_uid' => $user->id,
-            'branch_id' => $user->id,
-            'company_id' => $user->id
+            'branch_id' => $user->branch_id,
+            'company_id' => $user->company_id
         ];
 
         if($zoneId) {

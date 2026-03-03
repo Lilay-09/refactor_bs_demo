@@ -268,7 +268,7 @@ class ZoneController extends Controller
         $setDriverSubZone = [];
         $branchId = $user->branch_id;
         $userId = $user->id;
-        $companyId = $user->id;
+        $companyId = $user->company_id;
         $extraFields = [
             'company_id' => $companyId,
             'branch_id' => $branchId,

@@ -351,7 +351,7 @@ class MerchantTransactionServiceImpl implements MerchantTransactionService
 
         $startDate = $data['startDate'] ?? null;
         $endDate = $data['endDate'] ?? null;
-        $paymentType = $data['payment_type'] ?? null;
+        $paymentType = $data['paymentType'] ?? null;
         $status = $data['status'] ?? null;
         $search = $data['search'] ?? null;
         $paymentMode = $data['payment_mode'] ?? null;

@@ -712,6 +712,18 @@ class HomeScreenController extends Controller
         $inputs['last_submit_uid'] = $user->id;
         $inputs['driver_cod_usd'] = $inputs['driver_cod_usd'] ?? 0;
         $inputs['driver_cod_khr'] = $inputs['driver_cod_khr'] ?? 0;
+        $amount = $inputs['amount'] ?? 0;
+        if($amount > 0){
+            if(!isset($inputs['currency'])) return ApiResponse::ValidateFail(__('messages.info',[
+                'info' => 'Please select currency if you want to change amount'
+            ]));
+            if($inputs['currency'] == 'USD'){
+                $inputs['driver_cod_usd'] = $amount;
+
+            }else {
+                $inputs['driver_cod_khr'] = $amount;
+            }
+        }
         $inputs['original_driver_cod_usd'] = $inputs['driver_cod_usd'];
         $inputs['original_driver_cod_khr'] = $inputs['driver_cod_khr'];
         // $amount = $inputs['amount'] ?? 0;

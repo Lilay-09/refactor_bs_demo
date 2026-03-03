@@ -207,7 +207,8 @@ class AppSetting
             ],
             'POST' => [
                 self::$baseUrl.'/order' => 200,
-                self::$baseUrl.'/order/{order_id}/package' => 206
+                self::$baseUrl.'/order/{order_id}/package' => 206,
+                self::$baseUrl.'/order/{order_id}/link/image' => 206
             ],
             'PUT' => [
                 '{order_id}/driver/{driver_id}' => 201,
@@ -217,7 +218,9 @@ class AppSetting
                 self::$baseUrl.'/order/{order_id}/package/{id}' => 207
             ],
             'DELETE' => [
-                self::$baseUrl.'/order/{order_id}/package/{id}' => 208
+                self::$baseUrl.'/order/{id}' => 205,
+                self::$baseUrl.'/order/{order_id}/package/{id}' => 208,
+                self::$baseUrl.'/order/{order_id}/image/{imageId}' => 208
             ]
         ];
     }
@@ -262,6 +265,9 @@ class AppSetting
             'PUT' => [
                 self::$baseUrl.'/finished/package/{id}' => 224,
             ],
+            'GET' => [
+                self::$baseUrl.'/finished/package/list/print' => 224,
+            ],
             // 'DELETE' => [
             //     self::$baseUrl.'/package/{id}' => 213
             // ]
@@ -284,12 +290,14 @@ class AppSetting
     }
 
     private static function zonePermissionCode(){
+        logger()->info("Test ".self::$baseUrl.'/zone/assign/driver');
         return [
             'POST' => [
                 self::$baseUrl.'/zone' => 299,
             ],
             'PUT' => [
                 self::$baseUrl.'/zone/{id}' => 300,
+                self::$baseUrl.'/zone/assign/driver' => 337,
             ],
             'DELETE' => [
                 self::$baseUrl.'/zone/{id}' => 301
@@ -315,7 +323,7 @@ class AppSetting
     private static function simplePermissionCode($prefix,$postCode=null,$putCode=null,$dCode=null){
         return [
             'POST' => [
-                self::$baseUrl."/$prefix" => $postCode,
+                self::$baseUrl."/driver/commission/disbursement" => $postCode,
             ],
             'PUT' => [
                 self::$baseUrl."/$prefix" => $putCode,
@@ -332,6 +340,8 @@ class AppSetting
             'POST' => [
                 self::$baseUrl."/driver/transaction/delivery/payment" => 228,
                 self::$baseUrl."/merchant/transaction/delivery/payment" => 237,
+                self::$baseUrl."/merchant/transaction/delivery/payment-bulk" => 228,
+                self::$baseUrl."/merchant/transaction/payment/approve-settle-batch" => 237,
             ],
             'PUT' => [
                 // self::$baseUrl."/driver/transaction/delivery/package/{id}" => 0,
@@ -342,6 +352,7 @@ class AppSetting
             ],
             'DELETE' => [
                 self::$baseUrl."/driver/transaction/payment/{id}" => 229,
+                self::$baseUrl."/driver/transaction/settle/payment/{id}" => 233,
                 self::$baseUrl."/merchant/transaction/settle/payment/{id}" => 231,
                 self::$baseUrl."/merchant/transaction/payment/{id}" => 238
             ]
@@ -352,9 +363,11 @@ class AppSetting
         return [
             'POST' => [
                 self::$baseUrl."/driver" => 239,
-                self::$baseUrl."/{id}/setLock" => 243,
-                self::$baseUrl."/{id}/setPassword" => 244,
-                self::$baseUrl."/{id}/account" => 242,
+                self::$baseUrl."/driver/{id}/setLock" => 243,
+                self::$baseUrl."/driver/{id}/setPassword" => 244,
+                self::$baseUrl."/driver/{id}/account" => 242,
+                self::$baseUrl."/driver/{id}/commission" => 241,
+                self::$baseUrl."/driver/{id}/setLock" => 234,
             ],
             'PUT' => [
                 self::$baseUrl."/driver/{id}" => 240,
@@ -365,13 +378,16 @@ class AppSetting
             ]
         ];
     }
+
+    
     private static function merchantPermissionCode(){
         return [
             'POST' => [
                 self::$baseUrl."/merchant" => 246,
-                self::$baseUrl."/{id}/setLock" => 249,
-                self::$baseUrl."/{id}/setPassword" => 250,
-                self::$baseUrl."/{id}/account" => 248,
+                self::$baseUrl."/merchant/{id}/setLock" => 249,
+                self::$baseUrl."/merchant/{id}/setPassword" => 250,
+                self::$baseUrl."/merchant/{id}/account" => 248,
+                self::$baseUrl."/merchant/{id}/priceList" => 303,
             ],
             'PUT' => [
                 self::$baseUrl."/merchant/{id}" => 247,
@@ -392,7 +408,7 @@ class AppSetting
             'delivery'         => 'trasactionPermissionCode',
             'payment'          => 'trasactionPermissionCode',
             'settle'           => 'trasactionPermissionCode',
-            'commission'       => ['driver/commission/disbursement', null, 234, 302],
+            'commission'       => ['driver/commission/disbursement', 234, 234, 302],
             'driver'           => 'driverPermissionCode',
             'merchant'         => 'merchantPermissionCode',
             'comany'           => ['company', null, 252],
@@ -403,12 +419,12 @@ class AppSetting
             'termCondition'    => ['termCondition', null, 264, null],
             'xrate'            => ['xrate', 265, 266, 267],
             'productType'      => ['productType', 268, 269, 270],
-            'remark'           => ['remark', 289, 290, 291],
+            'remark'           => ['remark', 271, 272, 273],
             'country'          => ['location/country', 274, 275, 276],
             'city'             => ['location/city', 278, 279, 280],
             'district'         => ['location/district', 282, 283, 284],
             'commune'          => ['location/commune', 286, 287, 288],
-            'zone'             => ['zone', 289, 290, 291],
+            'zone'             => 'zonePermissionCode',//['zone', 289, 290, 291],
             'name'             => ['priceList/name', 292, 293, 294],
             'priceList'        => 'priceListPermissionCode',
             'bank'             => ['bank', null, 300, 229],
@@ -422,6 +438,7 @@ class AppSetting
         $allowed = is_array($permissionMap[$prefix])
                     ? self::simplePermissionCode(...$permissionMap[$prefix])
                     : self::{$permissionMap[$prefix]}();
+        // logger()->info("Allowed permissions for prefix {$prefix}: " . json_encode($allowed));
 
         if (!isset($allowed[$method])) {
             return null;
@@ -459,12 +476,14 @@ class AppSetting
         return preg_match($pattern, $uri);
     }
 
-    public static function protectedRoutes(){
+    public static function protectedRoutes():array{
         return [
             self::$baseUrl.'/package/{id}/print',
             self::$baseUrl.'/package/list/print',
             self::$baseUrl.'/order/{order_id}/package/print',
         ];
     }
+
+
 
 }

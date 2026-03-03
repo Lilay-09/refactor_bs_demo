@@ -463,6 +463,17 @@ class PermissionSeeder extends Seeder
                 'branch_id' => 1,
             ],
             [
+                'id' => 336,
+                'module_id' => 258,
+                'name' => 'Approve Requested Payment',
+                'hidden' => 0,
+                'category' => 'create',
+                'create_uid' => 1,
+                'update_uid' => 1,
+                'company_id' => 1,
+                'branch_id' => 1,
+            ],
+            [
                 'id' => 238,
                 'module_id' => 258,
                 'name' => 'Delete Payment',
@@ -475,6 +486,17 @@ class PermissionSeeder extends Seeder
             ],
 
             //** Driver Management */
+            [
+                'id' => 337,
+                'module_id' => 150,
+                'name' => 'Set Zone',
+                'hidden' => 0,
+                'category' => 'create',
+                'create_uid' => 1,
+                'update_uid' => 1,
+                'company_id' => 1,
+                'branch_id' => 1,
+            ],
             [
                 'id' => 239,
                 'module_id' => 150,

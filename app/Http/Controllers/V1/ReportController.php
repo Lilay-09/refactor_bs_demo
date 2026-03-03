@@ -2671,7 +2671,8 @@ class ReportController extends Controller
         $obj = [
             'warehouses' => GeneralSettingService::optionsWarehouse($user),
             // 'merchants' => GeneralSettingService::optionsMerchant($user)
-            'branches' => GeneralSettingService::optionsBranch()
+            'branches' => GeneralSettingService::optionsBranch(),
+            'statuses' => GeneralSettingService::optionsTrackingStatus($user,[],[5,6,9,10,19,23])
         ];
         return ApiResponse::JsonResult($obj);
     }

@@ -5,12 +5,10 @@ namespace App\Http\Middleware;
 use ApiResponse;
 use App\Models\UserPermission;
 use App\Services\AppSetting;
-use Illuminate\Support\Facades\Auth;
 use Closure;
 use DataResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\Route;
 use Symfony\Component\HttpFoundation\Response;
 
 class UserAccess
@@ -46,6 +44,7 @@ class UserAccess
 
         $method = $req->method();
         $code = AppSetting::getCodeByURI($uri,$method,$lastPrefixSegment);
+        logger()->info("Prefix $lastPrefixSegment, URI: {$uri}, Method: {$method}, Code: {$code}");
         if($method =='GET' && in_array($uri,AppSetting::protectedRoutes())){
             if(!$this->checkPermissionCode($userId,$code)) return DataResponse::Forbidden();
         }

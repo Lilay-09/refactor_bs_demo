@@ -155,10 +155,10 @@ Route::middleware(['jwt','localize','userAccess:admin','rateLimit'])->prefix('ad
         Route::post('/{id}/setPassword',[DriverManagementController::class,'setPassword']);
 
         Route::post('batch-lock',[DriverManagementController::class,'setLockDrivers']);
-        Route::prefix('{id}/commission')->group(function(): void{
-            Route::get('',[DriverManagementController::class,'getDriverCommissions']);
-            Route::put('',[DriverManagementController::class,'saveDriverCommission']);
-        });
+        // Route::prefix('{id}/commission')->group(function(): void{
+            Route::get('{id}/commission',[DriverManagementController::class,'getDriverCommissions']);
+            Route::put('{id}/commission',[DriverManagementController::class,'saveDriverCommission']);
+        // });
 
         Route::post('/{id}/account',[DriverManagementController::class,'createDriverAccount']);
 
