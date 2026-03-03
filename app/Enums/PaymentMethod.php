@@ -11,6 +11,8 @@ enum PaymentMethod:string
     case COD = 'cod';
     case ABA_KHQR = 'aba_khqr';
     case ABA_APP = 'aba_app';
+    case ABAPAY_KHRQ = 'abapay_khqr';
+    case ABAPAY_KHQR_DEEPLINK = 'abapay_khqr_deeplink';
 
     public function label(){
         return match($this){
@@ -28,12 +30,21 @@ enum PaymentMethod:string
             fn($case) => [
                 'value' => $case->value,
                 'label' => $case->label(),
+                'description' => $case->description(),
             ],
             [
-                self::ABA_APP,
                 self::ABA_KHQR,
             ]
         );
+    }
+
+    public function description(): string
+    {
+        return match ($this) {
+            self::ABA_APP => 'Pay directly using the ABA mobile app.',
+            self::ABA_KHQR => 'Scan to pay with any banking app',
+            self::COD => 'Pay with cash upon delivery.',
+        };
     }
 
     public static function optionsMethod(): array{
@@ -41,25 +52,33 @@ enum PaymentMethod:string
             fn($case) => [
                 'value' => $case->value,
                 'label' => $case->label(),
+                'description' => $case->description(),
             ],
             [
                 self::COD,
-                self::ABA_KHQR
+                self::ABA_KHQR,
             ]
         );
     }
 
-    public static function optionsBank(): array{
+    public static function optionsBank(): array
+    {
+        $cases = [
+            self::ABA,
+            self::ACLEDA,
+            self::VATTANAC
+        ];
+
         return array_map(
-            fn($case) => [
+            fn($case, $index) => [
+                'id'    => $index + 1,
+                'name'  => $case->label(),
                 'value' => $case->value,
                 'label' => $case->label(),
             ],
-            [
-                self::ABA,
-                self::ACLEDA,
-                self::VATTANAC
-            ]
+            $cases,
+            array_keys($cases)
         );
     }
 }
+

@@ -44,7 +44,6 @@ class UserAccess
 
         $method = $req->method();
         $code = AppSetting::getCodeByURI($uri,$method,$lastPrefixSegment);
-        logger()->info("Prefix $lastPrefixSegment, URI: {$uri}, Method: {$method}, Code: {$code}");
         if($method =='GET' && in_array($uri,AppSetting::protectedRoutes())){
             if(!$this->checkPermissionCode($userId,$code)) return DataResponse::Forbidden();
         }
