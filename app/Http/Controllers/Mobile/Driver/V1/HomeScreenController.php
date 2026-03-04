@@ -74,7 +74,7 @@ class HomeScreenController extends Controller
         ->selectRaw('id,pickup_notes,loc_lat,loc_lng,order_datetime,merchant_id,warehouse_id,qty,code,pickup_address,pickup_address_google_map,vehicle_type,delivery_type');
         // ->get();
         $callback = function ($order): AvailableOrderDTO{
-            $order->merchant_name = $order->merchant->user_name;
+            $order->merchant_name = $order->merchant->username;
             $order->merchant_code = $order->merchant->code;
             $order->merchant_phone = $order->merchant->phone;
             $order->warehouse_address = $order->warehouse->address;
@@ -86,7 +86,7 @@ class HomeScreenController extends Controller
         };
 
         // foreach($orders as $order){
-        //     $order->merchant_name = $order->merchant->user_name;
+        //     $order->merchant_name = $order->merchant->username;
         //     $order->merchant_code = $order->merchant->code;
         //     $order->merchant_phone = $order->merchant->phone;
         //     $order->warehouse_address = $order->warehouse->address;

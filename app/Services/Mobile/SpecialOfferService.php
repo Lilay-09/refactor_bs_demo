@@ -3,9 +3,7 @@
 namespace App\Services\Mobile;
 
 use App\Models\ScoringReward;
-use App\Models\User;
 use App\Services\GeneralSettingService;
-use Auth;
 use DataResponse;
 use Helper;
 use Illuminate\Http\Request;
@@ -13,7 +11,7 @@ use Illuminate\Http\Request;
 class SpecialOfferService
 {
     // Your service methods go here
-    public function getSpecialOffers(Request $filter,User $user,string $channel='merchant'){
+    public function getSpecialOffers(Request $filter,$user,string $channel='merchant'){
         $select = ['id','image','claim_type_id','message','list'];
         $lang = $filter->lang;
         $qRw = ScoringReward::query()->where('id','>',1)

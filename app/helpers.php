@@ -459,6 +459,13 @@ class Helper{
             default => $symbol . $formatted,
         };
     }
+
+    static function currencyAmountLabel($amount, string $currency): string
+    {
+        return $currency.' '.$amount;
+    }
+
+
     protected static $khmerMonths = [
                 'Jan' => 'មករា',
                 'Feb' => 'កុម្ភៈ',
@@ -734,11 +741,24 @@ class Helper{
         return array_column($data,$key);
     }
 
-    static function amountStdFmt($amount,$currency='USD'){
+    static function amountStdFmt($amount,$currency='USD',?bool $useSym=false){
         if($currency == 'USD'){
-            return number_format($amount,2);
+            $amt = number_format($amount,2,'.',',');
+            return $useSym ? self::currencyAmount($amt,$currency,$useSym) : $amt;
         }else if($currency == 'KHR'){
-            return number_format($amount,0,'');
+            $amt = number_format($amount,0,'',',');
+            return $useSym ? self::currencyAmount($amt,$currency,$useSym) : $amt;
+        }
+    }
+
+
+    static function amountStdFmtLabel($amount,$currency='USD',?bool $useLabel=false){
+        if($currency == 'USD'){
+            $amt = number_format($amount,2,'.',',');
+            return $useLabel ? self::currencyAmountLabel($amt,$currency) : $amt;
+        }else if($currency == 'KHR'){
+            $amt = number_format($amount,0,'',',');
+            return $useLabel ? self::currencyAmountLabel($amt,$currency) : $amt;
         }
     }
 

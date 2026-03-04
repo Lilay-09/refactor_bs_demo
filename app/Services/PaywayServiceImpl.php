@@ -1026,7 +1026,7 @@ class PaywayServiceImpl implements PaywayService
         };
 
         $timestamp = Helper::getDateTime();
-        $note = "[{$user->id}]Driver ({$user->user_name}) submit {$statusText} ({$timestamp})[Remark: {$remarks}]";
+        $note = "[{$user->id}]Driver ({$user->username}) submit {$statusText} ({$timestamp})[Remark: {$remarks}]";
 
         return $package->tracking_notes . "|" . $note;
     }

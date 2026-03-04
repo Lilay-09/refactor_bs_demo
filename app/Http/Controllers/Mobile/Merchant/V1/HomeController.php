@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Mobile\Merchant\V1;
 
 use ApiResponse;
+use App\DTO\Mobile\BalanceDTO;
+use App\DTO\Mobile\MerchantBalanceDTO;
 use App\DTO\Mobile\V2\MerchantPickupDTO;
 use App\DTO\Mobile\V2\MerchantTrackingActivityDTO;
 use App\DTO\Mobile\V2\TrackingAtWarehouseDTO;
@@ -126,7 +128,14 @@ class HomeController extends Controller
                     returned_datetime BETWEEN ? AND ? OR
                     assign_driver_datetime BETWEEN ? AND ? OR
                     failed_datetime BETWEEN ? AND ?
-                ) THEN price ELSE 0 END) as total_cod
+                ) THEN price ELSE 0 END) as total_cod,
+                
+                SUM(CASE WHEN status_id != 23 AND (
+                    delivered_datetime BETWEEN ? AND ? OR
+                    returned_datetime BETWEEN ? AND ? OR
+                    assign_driver_datetime BETWEEN ? AND ? OR
+                    failed_datetime BETWEEN ? AND ?
+                ) THEN price_khr ELSE 0 END) as total_cod_khr
             ', [
                 $startDate, $endDate,       // at_warehouse
                 $startDate, $endDate,       // on_delivery
@@ -137,18 +146,22 @@ class HomeController extends Controller
                 $startDate, $endDate,       // total_cod delivered
                 $startDate, $endDate,       // total_cod returned
                 $startDate, $endDate,       // total_cod on_delivery
-                $startDate, $endDate        // total_cod failed
+                $startDate, $endDate,       // total_cod failed
+                
+                $startDate, $endDate,       // total_cod_khr delivered
+                $startDate, $endDate,       // total_cod_khr returned
+                $startDate, $endDate,       // total_cod_khr on_delivery
+                $startDate, $endDate        // total_cod_khr failed
             ])
             ->first();
 
 
-        $totalCount = $orderCounts->pending + $orderCounts->pick + $packageCounts->on_delivery +
-                    $packageCounts->success + $packageCounts->failed + 
-                    $packageCounts->returned + $packageCounts->failed_with_fee;
+        $totalCount = $packageCounts->success + $packageCounts->failed_with_fee;
 
         return ApiResponse::JsonResult(new MerchantTrackingActivityDTO(
             total_package: $totalCount,
             total_cod: Helper::currencyAmount($packageCounts->total_cod,'USD'),
+            total_cod_khr: Helper::currencyAmount($packageCounts->total_cod_khr,'KHR'),
             pending: $orderCounts->pending ?? 0,
             pickup: $orderCounts->pick ?? 0,
             at_warehouse: $packageCounts->at_warehouse,
@@ -709,6 +722,19 @@ class HomeController extends Controller
         ];
     }
 
+    public function getBalances(){
+        return ApiResponse::JsonResult(new MerchantBalanceDTO(
+            availableCOD: new BalanceDTO(
+                amount_usd: Helper::amountStdFmtLabel(0,'USD',true),
+                amount_khr: Helper::amountStdFmtLabel(0,'KHR',true)
+            ),
+            cashEarned: new BalanceDTO(
+                amount_usd: Helper::amountStdFmtLabel(0,'USD',true),
+                amount_khr: Helper::amountStdFmtLabel(0,'KHR',true)
+            )
+        ));
+    }
+
     public function getConnectWithUs(){
         $user = UserService::getAuthUser('merchant');
         if($user->error){
@@ -885,5 +911,39 @@ public function getNotifications(){
         $user = UserService::getAuthUser('merchant');
         $mr = GeneralSettingController::markReadNotification($req,$user);
         return ApiResponse::flex(null,$mr);
+    }
+
+    public function getBanners(){
+        $banners = Banner::where('is_deleted',false)
+        ->where('channel','merchant')
+        ->where('is_publish',true)
+        ->select('id','photo_file_name','title')
+        ->get()->each(function ($q){
+            $q->banner_image = Helper::getImageUrl($q->photo_file_name,1,'banner');
+        });
+        return ApiResponse::JsonResult($banners);
+    }
+
+    public function getBannerById(Request $req){
+        $id = $req->id;
+        $lang = $req->lang;
+        $banner = Banner::where('is_deleted',false)
+        ->where('channel','merchant')
+        ->select('id','cover_file_name','title','title_km','start_date','end_date','description','description_km','contact_link')
+        ->find($id);
+        if($banner){
+            if($lang != 'en'){
+                if(!empty($banner->title_km)){
+                    $banner->title = $banner->title_km;
+                }
+                if(!empty($banner->description_km)){
+                    $banner->description = $banner->description_km;
+                }
+            }
+            $banner->cover_image = Helper::getImageUrl($banner->cover_file_name,1,'banner');
+            $banner->start_date = Helper::dateYMD($banner->start_date,'d M, Y');
+            $banner->end_date = Helper::dateYMD($banner->end_date,'d M, Y');
+        }
+        return ApiResponse::JsonResult($banner);
     }
 }

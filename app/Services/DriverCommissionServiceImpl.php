@@ -21,7 +21,7 @@ class DriverCommissionServiceImpl implements DriverCommissionService
     // Your service methods go here
     public function getDriverCommissionPackage(array $data): mixed{
         $driverId = $data['driver_id'] ?? null;
-        $qD = User::query()->selectRaw('code,id,user_name as driver_name,phone as driver_phone')->where('account_type','driver');
+        $qD = User::query()->selectRaw('code,id,username as driver_name,phone as driver_phone')->where('account_type','driver');
         if($driverId) $qD->where('id',$driverId);
         $driverIds = $qD->pluck('id');
         $qP = Package::query()->from('packages as p')

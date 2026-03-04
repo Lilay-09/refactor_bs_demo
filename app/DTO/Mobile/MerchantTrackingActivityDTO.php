@@ -6,6 +6,7 @@ class MerchantTrackingActivityDTO
     public function __construct(
         public readonly string $total_package,
         public readonly string $total_cod,
+        public readonly string $total_cod_khr,
         public readonly ?int $pending = 0,
         public readonly ?int $pickup = 0,
         public readonly ?int $at_warehouse = 0,

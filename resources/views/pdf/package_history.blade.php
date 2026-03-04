@@ -14,7 +14,6 @@
         font-family: "khmeros";
     }
 
-
     /*
         h1, p, td {
             font-family: 'Noto Sans Khmer', sans-serif;

@@ -139,16 +139,27 @@ Route::middleware(['jwtMerchant','localize'])->prefix('merchant/v1/{lang}')->gro
     Route::post('feedback',[HomeController::class,'feedBack']);
     Route::get('bankAccount',[HomeController::class,'getBankAccount']);
     Route::post('bankAccount',[HomeController::class,'saveBankAccount']);
-    Route::get('transaction/unpaid/packages',[MerchantTransactionController::class,'getUnpaidPackages']);
+    // Route::get('transaction/unpaid/packages',[MerchantTransactionController::class,'getUnpaidPackages']);
     Route::delete('bankAccount/{id}',[HomeController::class,'deleteBankAccount']);
     Route::get('notification',[HomeController::class,'getNotifications']);
     Route::put('notification/read/{id?}',[HomeController::class,'readNotification']);
     Route::get('history/packages',[MerchantHistoryController::class,'getAllHistories']);
     Route::get('search/packages',[HomeController::class,'getSearchPackages']);
-    Route::get('transaction',[MerchantTransactionController::class,'getTransaction']);
+    // Route::get('transaction',[MerchantTransactionController::class,'getTransaction']);
     Route::get('specialOffer',[SpecialOfferController::class,'getSpecialOffers']);
     Route::get('package/{package_id}/images',[GeneralSettingController::class,'getPackageImages']);
+
+    Route::get('transaction',[TransactionController::class,'getTransactionSummary']);
+    Route::get('transaction/unpaid/packages',[TransactionController::class,'getUnpaidPackages']);
+    Route::get('transaction/paid/packages',[TransactionController::class,'getPaidPackages']);
+
     Route::prefix('home')->group(function(){
+
+        Route::prefix('report')->group(function(){
+            Route::get('dailyPackage',[ReportController::class,'merchantDailyPackages']);
+        });
+
+        Route::get('balance',[HomeController::class,'getBalances']);
         Route::get('',[HomeController::class,'getHomeScreen']);
         Route::post('booking',[HomeController::class,'createBooking']);
         Route::get('promotion',[HomeController::class,'getPromotions']);
@@ -170,6 +181,9 @@ Route::middleware(['jwtMerchant','localize'])->prefix('merchant/v1/{lang}')->gro
             Route::get('dailyPackage/export',[ReportController::class,'merchantDailyPackagesPreview']);
         });
     });
+
+    Route::get('banners',[HomeController::class,'getBanners']);
+    Route::get('banners/{id}',[HomeController::class,'getBannerById']);
 
     Route::prefix('dataInsight')->group(function(){
         Route::get('summary',[DataInsightController::class,'getDataInsight']);

@@ -482,8 +482,9 @@ Route::middleware(['jwt','localize','userAccess:admin','rateLimit'])->prefix('ad
         Route::post('',[BannerController::class,'createBanner']);
         Route::get('',[BannerController::class,'getBanners']);
         Route::get('/{id}',[BannerController::class,'getOneBanner']);
-        Route::put('/{id}',[BannerController::class,'updateBaanner']);
+        Route::put('/{id}',[BannerController::class,'updateBanner']);
         Route::delete('/{id}',[BannerController::class,'deleteBanner']);
+        Route::post('/{id}/togglePublish',[BannerController::class,'togglePublishBanner']);
     });
 
     Route::prefix('scoringReward')->group(function(): void{

@@ -1,9 +1,11 @@
 <?php
-namespace App\DTO\Mobile\V2;
+namespace App\DTO\Mobile;
+
+
 class MerchantPaidPackageDTO extends BaseTrackingPackageDTO {
     public function __construct(
         int $package_id,
-        string $code,
+        ?string $code,
         string $receiver_phone,
         string $cod_usd,
         string $arrive_date,
@@ -25,6 +27,7 @@ class MerchantPaidPackageDTO extends BaseTrackingPackageDTO {
         public readonly ?string $receiver_amt_usd = null,
         public readonly ?string $receiver_amt_khr = null,
         public readonly ?string $pmt_status,
+        public readonly ?array $submitted_image_urls = [],
     ) {
         parent::__construct(
             package_id:$package_id,

@@ -378,25 +378,6 @@ class Package extends Model
             ->exists();
     }
 
-    // public function scopeWithoutDriverPayment($query)
-    // {
-    //     return $query
-    //         ->whereNotExists(function ($q) {
-    //             $q->select(DB::raw(1))
-    //                 ->from('payment_packages')
-    //                 ->whereColumn('payment_packages.package_id', 'packages.id')
-    //                 ->where('payer_type', 'driver')
-    //                 ->where('is_deleted', false);
-    //         })
-    //         ->whereNotExists(function ($q) {
-    //             $q->select(DB::raw(1))
-    //                 ->from('disbursement_packages')
-    //                 ->whereColumn('disbursement_packages.package_id', 'packages.id')
-    //                 ->where('payee_type', 'driver')
-    //                 ->where('is_deleted', false);
-    //         });
-    // }
-
     public function scopeWithoutUserPayment($query, string $alias = 'packages',$userType='driver')
     {
         return $query
@@ -451,35 +432,6 @@ class Package extends Model
                     ->where('payee_type', 'driver')
                     ->where('is_deleted', false);
             });
-    }
-
-    public function scopeWithoutMerchantPayment($query)
-    {
-        
-        $from = $query->getQuery()->from; // e.g. "packages" or "packages as p"
-
-        // If aliased, take just the alias part
-        if (str_contains(strtolower($from), ' as ')) {
-            $parts = preg_split('/\s+as\s+/i', $from);
-            $table = $parts[1]; // alias (e.g. "p")
-        } else {
-            $table = $from; // default (e.g. "packages")
-        }
-        return $query
-        ->whereExists(function ($q) use ($table) {
-            $q->select(DB::raw(1))
-                ->from('payment_packages')
-                ->whereColumn('payment_packages.package_id', $table.'.id')
-                ->where('payer_type', 'merchant')
-                ->where('is_deleted', false);
-        })
-        ->orWhereExists(function ($q) use ($table) {
-            $q->select(DB::raw(1))
-                ->from('disbursement_packages')
-                ->whereColumn('disbursement_packages.package_id', $table.'.id')
-                ->where('payee_type', 'merchant')
-                ->where('is_deleted', false);
-        });
     }
 
 
@@ -545,4 +497,87 @@ class Package extends Model
         return $this->belongsTo(User::class,'create_uid','id');
     }   
 
+
+    public function scopeWithMerchantPayment($query)
+    {
+        $from = $query->getQuery()->from; // e.g. "packages" or "packages as p"
+
+        // If aliased, take just the alias part
+        if (str_contains(strtolower($from), ' as ')) {
+            $parts = preg_split('/\s+as\s+/i', $from);
+            $table = $parts[1]; // alias (e.g. "p")
+        } else {
+            $table = $from; // default (e.g. "packages")
+        }
+
+        return $query->where(function ($q) use ($table) {
+            $q->whereExists(function ($subQ) use ($table) {
+                $subQ->select(DB::raw(1))
+                    ->from('payment_packages')
+                    ->whereColumn('payment_packages.package_id', $table.'.id')
+                    ->where('payer_type', 'merchant')
+                    ->where('is_deleted', false)
+                    ->whereExists(function ($paymentQ) {
+                        $paymentQ->select(DB::raw(1))
+                            ->from('payments')
+                            ->whereColumn('payments.id', 'payment_packages.payment_id')
+                            ->where('status_id', '!=', 8);
+                    });
+            })
+            ->orWhereExists(function ($subQ) use ($table) {
+                $subQ->select(DB::raw(1))
+                    ->from('disbursement_packages')
+                    ->whereColumn('disbursement_packages.package_id', $table.'.id')
+                    ->where('payee_type', 'merchant')
+                    ->where('is_deleted', false)
+                    ->whereExists(function ($disbursementQ) {
+                        $disbursementQ->select(DB::raw(1))
+                            ->from('disbursements')
+                            ->whereColumn('disbursements.id', 'disbursement_packages.disbursement_id')
+                            ->where('status_id', '!=', 8);
+                    });
+            });
+        });
+    }
+
+    public function scopeWithoutMerchantPayment($query)
+    {
+        $from = $query->getQuery()->from; // e.g. "packages" or "packages as p"
+
+        // If aliased, take just the alias part
+        if (str_contains(strtolower($from), ' as ')) {
+            $parts = preg_split('/\s+as\s+/i', $from);
+            $table = $parts[1]; // alias (e.g. "p")
+        } else {
+            $table = $from; // default (e.g. "packages")
+        }
+
+        return $query
+            ->whereNotExists(function ($q) use ($table) {
+                $q->select(DB::raw(1))
+                    ->from('payment_packages')
+                    ->whereColumn('payment_packages.package_id', $table.'.id')
+                    ->where('payer_type', 'merchant')
+                    ->where('is_deleted', false)
+                    ->whereExists(function ($subQ) {
+                        $subQ->select(DB::raw(1))
+                            ->from('payments')
+                            ->whereColumn('payments.id', 'payment_packages.payment_id')
+                            ->where('status_id', '!=', 8);
+                    });
+            })
+            ->whereNotExists(function ($q) use ($table) {
+                $q->select(DB::raw(1))
+                    ->from('disbursement_packages')
+                    ->whereColumn('disbursement_packages.package_id', $table.'.id')
+                    ->where('payee_type', 'merchant')
+                    ->where('is_deleted', false)
+                    ->whereExists(function ($subQ) {
+                        $subQ->select(DB::raw(1))
+                            ->from('disbursements')
+                            ->whereColumn('disbursements.id', 'disbursement_packages.disbursement_id')
+                            ->where('status_id', '!=', 8);
+                    });
+            });
+    }
 }
