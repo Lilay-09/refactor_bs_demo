@@ -19,12 +19,91 @@ use Mpdf\Mpdf;
 class ReportController extends Controller
 {
     //
+    // public function merchantDailyPackages(Request $req){
+    //     $isKm = !($req->lang == 'en');
+    //     $user = UserService::getAuthUser();
+    //     // $statusId = $req->status_id;
+    //     $startDate = $req->startDate;
+    //     $endDate = $req->endDate;
+    //     $qP = Package::where('is_deleted', 0)
+    //         ->whereIn('status_id', [9, 10, 19, 11])
+    //         ->where('merchant_id', $user->id);
+
+    //     if ($startDate && $endDate) {
+    //         $startDate = Helper::dateYMD($startDate);
+    //         $endDate   = Helper::dateYMD($endDate);
+
+    //         $qP->where(function ($q) use ($startDate, $endDate) {
+    //             $q->where(function ($q) use ($startDate, $endDate) {
+    //                 $q->whereBetween('failed_datetime', ["$startDate 00:00:00", "$endDate 23:59:59"])
+    //                 ->whereIn('status_id', [10, 19]);
+    //             })
+    //             ->orWhere(function ($q) use ($startDate, $endDate) {
+    //                 $q->whereBetween('delivered_datetime', ["$startDate 00:00:00", "$endDate 23:59:59"])
+    //                 ->where('status_id', 9);
+    //             })
+    //             ->orWhere(function ($q) use ($startDate, $endDate) {
+    //                 $q->whereBetween('returned_datetime', ["$startDate 00:00:00", "$endDate 23:59:59"])
+    //                 ->where('status_id', 11);
+    //             });
+    //         });
+    //     }
+
+    //     // 👇 This gives you counts directly
+    //     $counts = $qP->selectRaw("
+    //         SUM(CASE WHEN status_id = 9 THEN 1 ELSE 0 END) as delivered_count,
+    //         SUM(CASE WHEN status_id = 10 THEN 1 ELSE 0 END) as failed_count,
+    //         SUM(CASE WHEN status_id = 19 THEN 1 ELSE 0 END) as failed_with_fee_count,
+    //         SUM(CASE WHEN status_id = 11 THEN 1 ELSE 0 END) as returned_count,
+    //         COUNT(*) as total_count,
+
+    //         -- total_usd: sum price if cod = true, minus fees if payer = sender
+    //         SUM(
+    //             CASE 
+    //                 WHEN cod = true 
+    //                 THEN price - 
+    //                     (CASE WHEN payer = 'sender' THEN (delivery_fee + extra_charge + taxi_fee) ELSE 0 END) 
+    //                 ELSE 0 
+    //             END
+    //         ) as total_usd,
+
+    //         -- total_khr: only delivered (status_id = 9), cod = true
+    //         SUM(
+    //             CASE 
+    //                 WHEN cod = true AND status_id = 9 
+    //                 THEN price_khr - 
+    //                     (CASE WHEN payer = 'sender' THEN (delivery_fee + extra_charge + taxi_fee) ELSE 0 END) 
+    //                 ELSE 0 
+    //             END
+    //         ) as total_khr
+    //     ")->first();
+
+
+    //     $packageInfo = [
+    //         'delivered_count'       => $counts->delivered_count ?? 0,
+    //         'failed_count'          => $counts->failed_count ?? 0,
+    //         'failed_with_fee_count' => $counts->failed_with_fee_count ?? 0,
+    //         'returned_count'        => $counts->returned_count ?? 0,
+    //     ];
+
+    //     $totalCount = $counts->total_count ?? 0;
+
+    //     $data = [
+    //         'total_usd'=> (string)Helper::getNumber($counts->total_usd ?? 0,2),
+    //         'total_khr'=> (string)Helper::getNumber($counts->total_khr ?? 0,2),
+    //         'total_count'=> (string) $totalCount,
+    //         'package_info' => $packageInfo
+    //     ];
+
+    //     return ApiResponse::JsonResult($data);
+    // }
     public function merchantDailyPackages(Request $req){
-        $isKm = !($req->lang == 'en');
+        // $isKm = !($req->lang == 'en');
         $user = UserService::getAuthUser();
-        // $statusId = $req->status_id;
         $startDate = $req->startDate;
         $endDate = $req->endDate;
+        $exchangeRate = 4000;
+        
         $qP = Package::where('is_deleted', 0)
             ->whereIn('status_id', [9, 10, 19, 11])
             ->where('merchant_id', $user->id);
@@ -49,7 +128,6 @@ class ReportController extends Controller
             });
         }
 
-        // 👇 This gives you counts directly
         $counts = $qP->selectRaw("
             SUM(CASE WHEN status_id = 9 THEN 1 ELSE 0 END) as delivered_count,
             SUM(CASE WHEN status_id = 10 THEN 1 ELSE 0 END) as failed_count,
@@ -57,27 +135,39 @@ class ReportController extends Controller
             SUM(CASE WHEN status_id = 11 THEN 1 ELSE 0 END) as returned_count,
             COUNT(*) as total_count,
 
-            -- total_usd: sum price if cod = true, minus fees if payer = sender
+            -- total_usd: same logic as total_driver_cod_usd
             SUM(
-                CASE 
-                    WHEN cod = true 
-                    THEN price - 
-                        (CASE WHEN payer = 'sender' THEN (delivery_fee + extra_charge + taxi_fee) ELSE 0 END) 
-                    ELSE 0 
+                CASE
+                    WHEN payer = 'receiver'
+                        AND status_id = 9
+                        AND (driver_cod_usd > price)
+                        THEN (driver_cod_usd - (delivery_fee + extra_charge))
+
+                    WHEN payer != 'receiver'
+                        OR status_id != 19
+                        THEN driver_cod_usd
+                    ELSE 0
                 END
             ) as total_usd,
 
-            -- total_khr: only delivered (status_id = 9), cod = true
+            -- total_khr: same logic as total_driver_cod_khr
             SUM(
-                CASE 
-                    WHEN cod = true AND status_id = 9 
-                    THEN price_khr - 
-                        (CASE WHEN payer = 'sender' THEN (delivery_fee + extra_charge + taxi_fee) ELSE 0 END) 
-                    ELSE 0 
+                CASE
+                    WHEN payer = 'receiver'
+                        AND status_id = 9
+                        AND driver_cod_khr > 0 
+                        THEN (
+                            driver_cod_khr
+                            - ((delivery_fee + extra_charge) * {$exchangeRate})
+                        )
+
+                    WHEN payer != 'receiver'
+                        OR status_id != 19
+                        THEN driver_cod_khr
+                    ELSE 0
                 END
             ) as total_khr
         ")->first();
-
 
         $packageInfo = [
             'delivered_count'       => $counts->delivered_count ?? 0,
@@ -89,8 +179,8 @@ class ReportController extends Controller
         $totalCount = $counts->total_count ?? 0;
 
         $data = [
-            'total_usd'=> (string)Helper::getNumber($counts->total_usd ?? 0,2),
-            'total_khr'=> (string)Helper::getNumber($counts->total_khr ?? 0,2),
+            'total_usd'=> (string)Helper::getNumber($counts->total_usd ?? 0, 2),
+            'total_khr'=> (string)Helper::getNumber($counts->total_khr ?? 0, 2),
             'total_count'=> (string) $totalCount,
             'package_info' => $packageInfo
         ];

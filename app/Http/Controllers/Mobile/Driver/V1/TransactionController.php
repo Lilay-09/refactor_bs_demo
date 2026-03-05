@@ -339,119 +339,6 @@ class TransactionController extends Controller
     //     return ApiResponse::JsonResult($obj);
     // }
 
-    public function getUnpaidPackages(Request $req){
-        $user = UserService::getAuthUser();
-        $select = [
-            'packages.id','arrive_warehouse_datetime','receiver_address','receiver_phone','price','price_khr',
-            'status_id','qr_code','delivery_fee','extra_charge','driver_id','zone_name','method',
-            'driver_cod_khr','driver_cod_usd','merchant_id','delivered_datetime','payer','remarks',
-            'failed_datetime'
-        ];
-        $query = $this->getQueryPackages(
-            userId: $user->id,
-            statusIds: [TrackingStatus::DELIVERED->value,TrackingStatus::FAILED_WITH_FEE->value],
-            startDate: $req->query('startDate'),
-            endDate: $req->query('endDate'),
-            select: $select
-        );
-
-        $callback = function ($q):MerchantUnpaidPackageDTO{
-            $fees = $q->payer == 'sender' ? ($q->delivery_fee + $q->extra_charge): 0;
-            // $q->withoutMerchantPayment();
-            $finishDate = $q->status_id == 19 ? $q->failed_datetime : $q->delivered_datetime;
-            $total = PackageTrailServiceImpl::deductRowAmountBase($q->driver_cod_usd,$q->driver_cod_khr,$fees);
-            return new MerchantUnpaidPackageDTO(
-                package_id: $q->id,
-                code:$q->qr_code,
-                receiver_phone: $q->receiver_phone,
-                cod_usd: Helper::currencyAmount($q->price,'USD'),
-                arrive_date: Helper::dateYMD($q->arrive_warehouse_datetime),
-                arrive_time: Helper::time($q->arrive_warehouse_datetime),
-                zone_name: $q->zone_name,
-                status_id: $q->status_id,
-                status_code: TrackingStatus::tryFrom($q->status_id)->label(),
-                cod_khr: Helper::currencyAmount($q->price_khr,'KHR'),
-                receiver_address: $q->receiver_address,
-                image: $q->image_url,
-                remarks: $q->remarks,
-                driver_name: $q->driver->username,
-                driver_phone: $q->driver->phone,
-                finished_date: Helper::dateDMY($finishDate,'d/m/Y'),
-                finished_time: Helper::time($finishDate),
-                receiver_amt_usd: Helper::currencyAmount($total['amount_usd'],'USD'),
-                receiver_amt_khr: Helper::currencyAmount($total['amount_khr'],'KHR'),
-                taxi_fee: ($q->taxi_fee > 0 && $q->payer == 'sender') ? Helper::currencyAmount($q->taxi_fee,'USD'):'$0',
-                fees: Helper::currencyAmount($fees,'USD'),
-                submitted_image_urls: $q->submitted_image_urls,
-            );
-        };
-        return ApiResponse::PaginationV1($query,$req,'',[],200,$callback,$select);
-    }
-
-    public function getPaidPackages(Request $req){
-        $user = UserService::getAuthUser();
-        $select = [
-            'id','arrive_warehouse_datetime','receiver_address','receiver_phone','price','price_khr',
-            'status_id','qr_code','delivery_fee','extra_charge','driver_id','zone_name','method',
-            'driver_cod_khr','driver_cod_usd','merchant_id','delivered_datetime','payer','remarks',
-            'failed_datetime'
-        ];
-        $query = $this->getQueryPackages(
-            userId: $user->id,
-            statusIds: [TrackingStatus::DELIVERED->value,TrackingStatus::FAILED_WITH_FEE->value],
-            startDate: $req->query('startDate',Carbon::now()->format('Y-m-d')),
-            endDate: $req->query('endDate',Carbon::now()->format('Y-m-d')),
-            select: $select,
-            isPaid: true,
-        );
-
-        $callback = function ($q):MerchantPaidPackageDTO{
-            $fees = $q->payer == 'sender' ? ($q->delivery_fee + $q->extra_charge + $q->taxi_fee): 0;
-            $receivedAmtUsd = 0;
-            $receivedAmtKhr = 0;
-            if($q->driver_cod_usd > 0 && $q->driver_cod_khr > 0){
-                $receivedAmtUsd = $q->driver_cod_usd;
-                $receivedAmtKhr = $q->driver_cod_khr;
-            }else if($q->driver_cod_usd > 0){
-                $receivedAmtUsd = $q->driver_cod_usd;
-            }else if($q->driver_cod_khr > 0){
-                $receivedAmtKhr = $q->driver_cod_khr;
-            }
-            $pmtStatus = __('general.received');
-            // }
-            $receivedAmt = PackageTrailServiceImpl::deductRowAmountBase($receivedAmtUsd,$receivedAmtKhr,$fees);
-            // $q->withoutMerchantPayment();
-            $finishDate = $q->status_id == 19 ? $q->failed_datetime : $q->delivered_datetime;
-            return new MerchantPaidPackageDTO(
-                package_id: $q->id,
-                code:$q->qr_code,
-                receiver_phone: $q->receiver_phone,
-                cod_usd: Helper::currencyAmount($q->price,'USD'),
-                arrive_date: Helper::dateYMD($q->arrive_warehouse_datetime,'d/m/Y'),
-                arrive_time: Helper::time($q->arrive_warehouse_datetime),
-                zone_name: $q->zone_name,
-                status_id: $q->status_id,
-                status_code: TrackingStatus::tryFrom($q->status_id)->label(),
-                cod_khr: Helper::currencyAmount($q->price_khr,'KHR'),
-                receiver_address: $q->receiver_address,
-                remarks: $q->remarks,
-                driver_name: $q->driver->username,
-                driver_phone: $q->driver->phone,
-                finished_date: Helper::dateDMY($finishDate,'d/m/Y'),
-                finished_time: Helper::time($finishDate),
-                taxi_fee: ($q->taxi_fee > 0 && $q->payer == 'sender') ? Helper::currencyAmount($q->taxi_fee,'USD'):'$0',
-                fees: Helper::currencyAmount($fees,'USD'),
-                method: $q->method != 'cod' ? 'Bank':'',
-                pmt_status: $pmtStatus,
-                receiver_amt_usd: Helper::currencyAmount($receivedAmt['amount_usd'],'USD'),
-                receiver_amt_khr: Helper::currencyAmount($receivedAmt['amount_khr'],'KHR'),
-                submitted_image_urls: $q->submitted_image_urls,
-                image: $q->image_url,
-            );
-        };
-        return ApiResponse::PaginationV1($query,$req,'',[],200,$callback,$select);
-    }
-
     // public function getPaymentMethods($details,$pmtId){
     //     $method = null;
     //     foreach ($details as $d) {
@@ -899,6 +786,13 @@ class TransactionController extends Controller
                     ? $query->withMerchantPayment() 
                     : $query->withoutMerchantPayment();
             });
+            $with = [
+                'image',
+                'orderImage',
+                'submittedImages' => fn($q) => $q->orderBy('updated_at', 'desc')->limit(2),
+            ];
+        
+        $qP->with($with);
 
         // $table = 'packages';
         // if($isPaid && $paidUserType == 'merchant'){
@@ -934,5 +828,118 @@ class TransactionController extends Controller
             });
         }
         return $qP;
+    }
+
+    public function getUnpaidPackages(Request $req){
+        $user = UserService::getAuthUser();
+        $select = [
+            'packages.id','arrive_warehouse_datetime','receiver_address','receiver_phone','price','price_khr',
+            'status_id','qr_code','delivery_fee','extra_charge','driver_id','zone_name','method',
+            'driver_cod_khr','driver_cod_usd','merchant_id','delivered_datetime','payer','remarks',
+            'failed_datetime'
+        ];
+        $query = $this->getQueryPackages(
+            userId: $user->id,
+            statusIds: [TrackingStatus::DELIVERED->value,TrackingStatus::FAILED_WITH_FEE->value],
+            startDate: $req->query('startDate'),
+            endDate: $req->query('endDate'),
+            select: $select
+        );
+
+        $callback = function ($q):MerchantUnpaidPackageDTO{
+            $fees = $q->payer == 'sender' ? ($q->delivery_fee + $q->extra_charge): 0;
+            // $q->withoutMerchantPayment();
+            $finishDate = $q->status_id == 19 ? $q->failed_datetime : $q->delivered_datetime;
+            $total = PackageTrailServiceImpl::deductRowAmountBase($q->driver_cod_usd,$q->driver_cod_khr,$fees);
+            return new MerchantUnpaidPackageDTO(
+                package_id: $q->id,
+                code:$q->qr_code,
+                receiver_phone: $q->receiver_phone,
+                cod_usd: Helper::currencyAmount($q->price,'USD'),
+                arrive_date: Helper::dateYMD($q->arrive_warehouse_datetime),
+                arrive_time: Helper::time($q->arrive_warehouse_datetime),
+                zone_name: $q->zone_name,
+                status_id: $q->status_id,
+                status_code: TrackingStatus::tryFrom($q->status_id)->label(),
+                cod_khr: Helper::currencyAmount($q->price_khr,'KHR'),
+                receiver_address: $q->receiver_address,
+                image: $q->image_url,
+                remarks: $q->remarks,
+                driver_name: $q->driver->username,
+                driver_phone: $q->driver->phone,
+                finished_date: Helper::dateDMY($finishDate,'d/m/Y'),
+                finished_time: Helper::time($finishDate),
+                receiver_amt_usd: Helper::currencyAmount($total['amount_usd'],'USD'),
+                receiver_amt_khr: Helper::currencyAmount($total['amount_khr'],'KHR'),
+                taxi_fee: ($q->taxi_fee > 0 && $q->payer == 'sender') ? Helper::currencyAmount($q->taxi_fee,'USD'):'$0',
+                fees: Helper::currencyAmount($fees,'USD'),
+                submitted_image_urls: $q->submitted_image_urls,
+            );
+        };
+        return ApiResponse::PaginationV1($query,$req,'',[],200,$callback,$select);
+    }
+
+    public function getPaidPackages(Request $req){
+        $user = UserService::getAuthUser();
+        $select = [
+            'id','arrive_warehouse_datetime','receiver_address','receiver_phone','price','price_khr',
+            'status_id','qr_code','delivery_fee','extra_charge','driver_id','zone_name','method',
+            'driver_cod_khr','driver_cod_usd','merchant_id','delivered_datetime','payer','remarks',
+            'failed_datetime'
+        ];
+        $query = $this->getQueryPackages(
+            userId: $user->id,
+            statusIds: [TrackingStatus::DELIVERED->value,TrackingStatus::FAILED_WITH_FEE->value],
+            startDate: $req->query('startDate',Carbon::now()->format('Y-m-d')),
+            endDate: $req->query('endDate',Carbon::now()->format('Y-m-d')),
+            select: $select,
+            isPaid: true,
+        );
+
+        $callback = function ($q):MerchantPaidPackageDTO{
+            $fees = $q->payer == 'sender' ? ($q->delivery_fee + $q->extra_charge + $q->taxi_fee): 0;
+            $receivedAmtUsd = 0;
+            $receivedAmtKhr = 0;
+            if($q->driver_cod_usd > 0 && $q->driver_cod_khr > 0){
+                $receivedAmtUsd = $q->driver_cod_usd;
+                $receivedAmtKhr = $q->driver_cod_khr;
+            }else if($q->driver_cod_usd > 0){
+                $receivedAmtUsd = $q->driver_cod_usd;
+            }else if($q->driver_cod_khr > 0){
+                $receivedAmtKhr = $q->driver_cod_khr;
+            }
+            $pmtStatus = __('general.received');
+            // }
+            $receivedAmt = PackageTrailServiceImpl::deductRowAmountBase($receivedAmtUsd,$receivedAmtKhr,$fees);
+            // $q->withoutMerchantPayment();
+            $finishDate = $q->status_id == 19 ? $q->failed_datetime : $q->delivered_datetime;
+            return new MerchantPaidPackageDTO(
+                package_id: $q->id,
+                code:$q->qr_code,
+                receiver_phone: $q->receiver_phone,
+                cod_usd: Helper::currencyAmount($q->price,'USD'),
+                arrive_date: Helper::dateYMD($q->arrive_warehouse_datetime,'d/m/Y'),
+                arrive_time: Helper::time($q->arrive_warehouse_datetime),
+                zone_name: $q->zone_name,
+                status_id: $q->status_id,
+                status_code: TrackingStatus::tryFrom($q->status_id)->label(),
+                cod_khr: Helper::currencyAmount($q->price_khr,'KHR'),
+                receiver_address: $q->receiver_address,
+                remarks: $q->remarks,
+                driver_name: $q->driver->username,
+                driver_phone: $q->driver->phone,
+                finished_date: Helper::dateDMY($finishDate,'d/m/Y'),
+                finished_time: Helper::time($finishDate),
+                taxi_fee: ($q->taxi_fee > 0 && $q->payer == 'sender') ? Helper::currencyAmount($q->taxi_fee,'USD'):'$0',
+                fees: Helper::currencyAmount($fees,'USD'),
+                method: $q->method != 'cod' ? 'Bank':'',
+                pmt_status: $pmtStatus,
+                receiver_amt_usd: Helper::currencyAmount($receivedAmt['amount_usd'],'USD'),
+                receiver_amt_khr: Helper::currencyAmount($receivedAmt['amount_khr'],'KHR'),
+                submitted_image_urls: $q->submitted_image_urls,
+                image: $q->image_url,
+            );
+        };
+        return ApiResponse::PaginationV1($query,$req,'',[],200,$callback,$select);
     }
 }

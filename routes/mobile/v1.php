@@ -129,6 +129,8 @@ Route::prefix('merchant/v1/{lang}')->middleware('localize')->group(function(){
 });
 
 Route::middleware(['jwtMerchant','localize'])->prefix('merchant/v1/{lang}')->group(function(){
+    Route::get('transaction/unpaid/packages',[TransactionController::class,'getUnpaidPackages']);
+    Route::get('transaction/paid/packages',[TransactionController::class,'getPaidPackages']);
     Route::prefix('comments')->group(function(){
         Route::post('packages',[CommentController::class,'addComment']);
         Route::get('packages/{packageId}',[CommentController::class,'getPackageCommentDetailsByPackageId']);
@@ -154,7 +156,6 @@ Route::middleware(['jwtMerchant','localize'])->prefix('merchant/v1/{lang}')->gro
     Route::get('transaction/paid/packages',[TransactionController::class,'getPaidPackages']);
 
     Route::prefix('home')->group(function(){
-
         Route::prefix('report')->group(function(){
             Route::get('dailyPackage',[ReportController::class,'merchantDailyPackages']);
         });
@@ -175,6 +176,7 @@ Route::middleware(['jwtMerchant','localize'])->prefix('merchant/v1/{lang}')->gro
             Route::get('activity',[HomeController::class,'trackingActivitySummary']);
             Route::post('order/{id}/cancel',[HomeController::class,'cancelOrder']);
         });
+
         Route::prefix('report')->group(function(){
             Route::get('dailyPackage',[ReportController::class,'merchantDailyPackages']);
             Route::get('dailyPackage/option',[ReportController::class,'merchantDailyPackagesOption']);

@@ -176,10 +176,10 @@
                                     <td class="text-left">{{ $item['receiver_address'] ?? '' }}</td>
                                     <td>{{ $item['receiver_phone'] ?? '' }}</td>
                                     <td class="text-right">${{ $item['cod_usd'] }}</td>
-                                    <td class="text-right">${{ $item['cod_khr'] }}</td>
+                                    <td class="text-right">{{ $item['cod_khr'] }}៛</td>
                                     <td class="text-right">${{ $item['fees'] }}</td>
                                     <td class="text-right">${{ $item['total_usd']}}</td>
-                                    <td class="text-right">{{ $item['total_khr'] }}</td>
+                                    <td class="text-right">{{ $item['total_khr'] }}៛</td>
                                     <td class="{{ $statusColors[$item['status_id']] ?? '' }}">{{ $item['status_code'] ?? '' }}</td>
                                     <td class="text-left">{{ $item['delivery_remarks'] ?? '' }}</td>
                                 </tr>
@@ -198,28 +198,28 @@
                         <td colspan="3" class="no-border"></td>
                         <td class="summary-label">សរុបសេវាជំពាក់:</td>
                         <td class="text-right summary-value-red">${{ $tracking['total']['owe_usd'] ?? 0 }}</td>
-                        <td class="text-right summary-value-blue">0</td>
+                        <td class="text-right summary-value-blue">{{ $tracking['total']['owe_khr'] ?? 0 }}៛</td>
                         <td colspan="2" class="no-border"></td>
                     </tr>
                     <tr class="summary-row">
                         <td colspan="3" class="no-border"></td>
                         <td class="summary-label">សរុបទឹកប្រាក់:</td>
                         <td class="text-right summary-value-blue">${{ $tracking['total']['cod_usd'] ?? 0 }}</td>
-                        <td class="text-right summary-value-blue">${{ $tracking['total']['cod_khr'] ?? 0 }}</td>
+                        <td class="text-right summary-value-blue">{{ $tracking['total']['cod_khr'] ?? 0 }}៛</td>
                         <td class="no-border"></td>
                     </tr>
                     <tr class="summary-row">
                         <td colspan="3" class="no-border"></td>
                         <td class="summary-label">សរុបសេវា:</td>
                         <td class="text-right summary-value-red">${{ number_format($tracking['total']['fees'] ?? 0, 2) }}</td>
-                        <td class="text-right summary-value-blue">0</td>
+                        <td class="text-right summary-value-blue">{{ $tracking['total']['fees_khr'] ?? 0 }}៛</td>
                         <td class="no-border"></td>
                     </tr>
                     <tr class="summary-row">
                         <td colspan="3" class="no-border"></td>
                         <td class="summary-label">សរុបទូទាត់:</td>
                         <td class="text-right summary-value-blue">${{ $tracking['total']['usd'] ?? 0 }}</td>
-                        <td class="text-right summary-value-blue">${{ $tracking['total']['khr'] ?? 0 }}</td>
+                        <td class="text-right summary-value-blue">{{ $tracking['total']['khr'] ?? 0 }}៛</td>
                         <td class="no-border"></td>
                     </tr>
                 </table>

@@ -127,19 +127,24 @@ class HomeController extends Controller
                 SUM(CASE WHEN status_id = 23 AND returned_datetime BETWEEN ? AND ? THEN 1 ELSE 0 END) as returned,
                 SUM(CASE WHEN status_id = 10 AND failed_datetime BETWEEN ? AND ? THEN 1 ELSE 0 END) as failed,
                 SUM(CASE WHEN status_id = 19 AND failed_datetime BETWEEN ? AND ? THEN 1 ELSE 0 END) as failed_with_fee,
-                SUM(CASE WHEN status_id != 23 AND (
-                    delivered_datetime BETWEEN ? AND ? OR
-                    returned_datetime BETWEEN ? AND ? OR
-                    assign_driver_datetime BETWEEN ? AND ? OR
-                    failed_datetime BETWEEN ? AND ?
-                ) THEN price ELSE 0 END) as total_cod,
-                
-                SUM(CASE WHEN status_id != 23 AND (
-                    delivered_datetime BETWEEN ? AND ? OR
-                    returned_datetime BETWEEN ? AND ? OR
-                    assign_driver_datetime BETWEEN ? AND ? OR
-                    failed_datetime BETWEEN ? AND ?
-                ) THEN price_khr ELSE 0 END) as total_cod_khr
+                SUM(
+                    CASE 
+                        WHEN status_id = 9 AND delivered_datetime BETWEEN ? AND ? 
+                            THEN (CASE WHEN driver_cod_usd > price THEN price ELSE driver_cod_usd END)
+                        WHEN status_id = 19 AND failed_datetime BETWEEN ? AND ? 
+                            THEN (CASE WHEN driver_cod_usd > price THEN price ELSE driver_cod_usd END)
+                        ELSE 0 
+                    END
+                ) as total_cod,
+                SUM(
+                    CASE 
+                        WHEN status_id = 9 AND delivered_datetime BETWEEN ? AND ? 
+                            THEN (CASE WHEN driver_cod_khr > price_khr THEN price_khr ELSE driver_cod_khr END)
+                        WHEN status_id = 19 AND failed_datetime BETWEEN ? AND ? 
+                            THEN (CASE WHEN driver_cod_khr > price_khr THEN price_khr ELSE driver_cod_khr END)
+                        ELSE 0 
+                    END
+                ) as total_cod_khr
             ', [
                 $startDate, $endDate,       // at_warehouse
                 $startDate, $endDate,       // on_delivery
@@ -147,20 +152,15 @@ class HomeController extends Controller
                 $startDate, $endDate,       // returned
                 $startDate, $endDate,       // failed
                 $startDate, $endDate,       // failed_with_fee
-                $startDate, $endDate,       // total_cod delivered
-                $startDate, $endDate,       // total_cod returned
-                $startDate, $endDate,       // total_cod on_delivery
-                $startDate, $endDate,       // total_cod failed
-                
-                $startDate, $endDate,       // total_cod_khr delivered
-                $startDate, $endDate,       // total_cod_khr returned
-                $startDate, $endDate,       // total_cod_khr on_delivery
-                $startDate, $endDate        // total_cod_khr failed
+                $startDate, $endDate,       // total_cod - status 9
+                $startDate, $endDate,       // total_cod - status 19
+                $startDate, $endDate,       // total_cod_khr - status 9
+                $startDate, $endDate,       // total_cod_khr - status 19
             ])
             ->first();
 
 
-        $totalCount = $packageCounts->success + $packageCounts->failed_with_fee;
+        $totalCount = $packageCounts->success + $packageCounts->failed_with_fee + $packageCounts->failed + $packageCounts->returned + $packageCounts->on_delivery + $packageCounts->at_warehouse;
 
         return ApiResponse::JsonResult(new MerchantTrackingActivityDTO(
             total_package: $totalCount,
