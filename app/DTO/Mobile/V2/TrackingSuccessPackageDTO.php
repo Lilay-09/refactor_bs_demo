@@ -1,5 +1,8 @@
 <?php
 namespace App\DTO\Mobile\V2;
+
+use App\DTO\Mobile\BaseTrackingPackageDTO;
+
 class TrackingSuccessPackageDTO extends BaseTrackingPackageDTO {
     public function __construct(
         int $package_id,

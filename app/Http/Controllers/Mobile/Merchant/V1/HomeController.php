@@ -39,6 +39,7 @@ use Illuminate\Support\Facades\Cache;
 use Helper;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Validator;
 
@@ -728,7 +729,7 @@ class HomeController extends Controller
 
     public function getHomeScreen(Request $req){
         $user = UserService::getAuthUser('merchant');
-        $bannerImages = BrandImage::where('is_deleted',0)
+        $bannerImages = BrandImage::where('is_deleted',false)
         ->where('channel','merchant')->pluck('photo_file_name')
         ->map(fn($img) => Helper::getImageUrl($img, $user->company_id, 'brand_image'))
         ->toArray();
@@ -742,13 +743,13 @@ class HomeController extends Controller
     private function daily_summaries(Request $req,$user){
         $today = now();
         $dateaAgo = Helper::getDateDaysAgo(0);
-        $successCount = Package::where('merchant_id',$user->id)->where('is_deleted',0)
+        $successCount = Package::where('merchant_id',$user->id)->where('is_deleted',false)
         ->where('status_id',9)
         ->whereBetween('delivered_datetime',[$dateaAgo,$today])->count();
         $failCount = Package::where('merchant_id',$user->id)
-        ->where('is_deleted',0)->whereIn('status_id',[10,19])
+        ->where('is_deleted',false)->whereIn('status_id',[10,19])
         ->whereBetween('failed_datetime',[$dateaAgo,$today])->count();
-        $returnCount = Package::where('merchant_id',$user->id)->where('is_deleted',0)
+        $returnCount = Package::where('merchant_id',$user->id)->where('is_deleted',false)
         ->whereIn('status_id',[11])
         ->where(function ($query) use ($dateaAgo, $today) {
         $query->where(function ($q) use ($dateaAgo, $today) {
@@ -770,15 +771,152 @@ class HomeController extends Controller
         ];
     }
 
-    public function getBalances(){
+    public function getBalances()
+    {
+        $user = UserService::getAuthUser('merchant');
+        $exchangeRate = 4000;
+        
+        $result = DB::selectOne("
+            WITH package_data AS (
+                SELECT 
+                    payer,
+                    status_id,
+                    driver_cod_usd,
+                    driver_cod_khr,
+                    price,
+                    price_khr,
+                    delivery_fee,
+                    extra_charge,
+                    EXISTS (
+                        SELECT 1 FROM payment_packages pp
+                        JOIN payments p ON p.id = pp.payment_id
+                        WHERE pp.package_id = packages.id 
+                            AND pp.payer_type = 'merchant' 
+                            AND pp.is_deleted = false
+                            AND p.payment_status_id = 8
+                    ) OR EXISTS (
+                        SELECT 1 FROM disbursement_packages dp
+                        JOIN disbursements d ON d.id = dp.disbursement_id
+                        WHERE dp.package_id = packages.id 
+                            AND dp.payee_type = 'merchant' 
+                            AND dp.is_deleted = false
+                            AND d.payment_status_id = 8
+                    ) as is_paid,
+                    EXISTS (
+                        SELECT 1 FROM payment_packages pp
+                        WHERE pp.package_id = packages.id 
+                            AND pp.payer_type = 'merchant' 
+                            AND pp.is_deleted = false
+                    ) OR EXISTS (
+                        SELECT 1 FROM disbursement_packages dp
+                        WHERE dp.package_id = packages.id 
+                            AND dp.payee_type = 'merchant' 
+                            AND dp.is_deleted = false
+                    ) as in_payment_table
+                FROM packages
+                WHERE merchant_id = ?
+                    AND is_deleted = false
+                    AND (
+                        (status_id = 9 AND DATE(delivered_datetime) = CURRENT_DATE)
+                        OR
+                        (status_id = 19 AND DATE(failed_datetime) = CURRENT_DATE)
+                    )
+            ),
+            available_packages AS (
+                SELECT
+                    SUM(
+                        CASE
+                            WHEN payer = 'receiver' AND status_id = 9 AND driver_cod_usd > price
+                                THEN driver_cod_usd - (delivery_fee + extra_charge)
+                            WHEN payer != 'receiver' OR status_id != 19
+                                THEN driver_cod_usd
+                            ELSE 0
+                        END
+                    ) as available_usd,
+                    
+                    SUM(
+                        CASE
+                            WHEN payer = 'receiver' AND status_id = 9 AND driver_cod_khr > 0
+                                THEN driver_cod_khr - ((delivery_fee + extra_charge) * ?)
+                            WHEN payer != 'receiver' OR status_id != 19
+                                THEN driver_cod_khr
+                            ELSE 0
+                        END
+                    ) as available_khr
+                FROM package_data
+                WHERE NOT in_payment_table OR (in_payment_table AND NOT is_paid)
+            ),
+            paid_packages AS (
+                SELECT
+                    -- Paid packages display sums
+                    SUM(
+                        CASE
+                            WHEN payer = 'receiver' AND status_id = 9 AND driver_cod_usd > price
+                                THEN driver_cod_usd - (delivery_fee + extra_charge)
+                            WHEN payer != 'receiver' OR status_id != 19
+                                THEN driver_cod_usd
+                            ELSE 0
+                        END
+                    ) as paid_display_usd,
+                    
+                    -- Fees for paid packages
+                    SUM(
+                        CASE WHEN payer = 'sender' 
+                            THEN delivery_fee + extra_charge 
+                            ELSE 0 
+                        END
+                    ) as paid_fees,
+                    
+                    -- COD totals for paid packages
+                    SUM(driver_cod_usd) as paid_cod_usd,
+                    SUM(driver_cod_khr) as paid_cod_khr,
+                    
+                    -- KHR for amount calculation
+                    SUM(
+                        CASE 
+                            WHEN payer = 'receiver' AND status_id = 19 THEN 0
+                            WHEN driver_cod_khr > price_khr 
+                                THEN driver_cod_khr - ((delivery_fee + extra_charge) * ?)
+                            ELSE driver_cod_khr
+                        END
+                    ) as paid_khr_calc
+                FROM package_data
+                WHERE is_paid
+            )
+            SELECT
+                COALESCE(a.available_usd, 0) as available_usd,
+                COALESCE(a.available_khr, 0) as available_khr,
+                ROUND(
+                    COALESCE(
+                        (p.paid_display_usd - p.paid_fees 
+                        + LEAST(p.paid_cod_khr / ?, GREATEST(p.paid_fees - p.paid_cod_usd, 0))),
+                        0
+                    )::numeric,
+                    2
+                ) as earned_usd,
+                GREATEST(
+                    COALESCE(
+                        CASE
+                            WHEN p.paid_display_usd >= p.paid_fees THEN p.paid_khr_calc
+                            WHEN p.paid_display_usd = 0 THEN GREATEST(p.paid_khr_calc - (p.paid_fees * ?), 0)
+                            ELSE p.paid_khr_calc - ((p.paid_fees - p.paid_display_usd) * ?)
+                        END,
+                        0
+                    ),
+                    0
+                ) as earned_khr
+            FROM available_packages a
+            CROSS JOIN paid_packages p
+        ", [$user->id, $exchangeRate, $exchangeRate, $exchangeRate, $exchangeRate, $exchangeRate]);
+        
         return ApiResponse::JsonResult(new MerchantBalanceDTO(
             availableCOD: new BalanceDTO(
-                amount_usd: Helper::amountStdFmtLabel(0,'USD',true),
-                amount_khr: Helper::amountStdFmtLabel(0,'KHR',true)
+                amount_usd: Helper::amountStdFmtLabel($result->available_usd ?? 0, 'USD', true),
+                amount_khr: Helper::amountStdFmtLabel($result->available_khr ?? 0, 'KHR', true)
             ),
             cashEarned: new BalanceDTO(
-                amount_usd: Helper::amountStdFmtLabel(0,'USD',true),
-                amount_khr: Helper::amountStdFmtLabel(0,'KHR',true)
+                amount_usd: Helper::amountStdFmtLabel($result->earned_usd ?? 0, 'USD', true),
+                amount_khr: Helper::amountStdFmtLabel($result->earned_khr ?? 0, 'KHR', true)
             )
         ));
     }

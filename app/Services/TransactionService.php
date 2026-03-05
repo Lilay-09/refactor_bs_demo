@@ -5374,16 +5374,16 @@ class TransactionService
     /**
      * @rule => if type = percentage sum base fee of pkg and * rate
      */
-    public static function calculateCommission($rate, $rateType, $number,$totalBaseFee=0)
+    public static function calculateCommission($rate, $rateType, $count,$totalBaseFee=0)
     {
-        if (!is_numeric($rate) || !is_numeric($number)) {
+        if (!is_numeric($rate) || !is_numeric($count)) {
             return 0;
         }
 
         if ($rateType === 'percentage') {
             return $rate * $totalBaseFee / 100;
         } else if ($rateType === 'amount') {
-            return $rate * $number;
+            return $rate * $count;
         }
 
         // Unknown rate type
