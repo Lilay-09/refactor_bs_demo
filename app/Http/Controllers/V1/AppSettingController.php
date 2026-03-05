@@ -15,13 +15,11 @@ class AppSettingController extends Controller
 
     public function savePrivacyStatement(Request $req){
         $user = UserService::getAuthUser();
-        if(!$user->system_admin) return ApiResponse::Forbidden();
         return ApiResponse::flex(AppSetting::savePrivacyTermCondition($req,'privacy_statement',$user));
     }
 
     public function saveTermCondition(Request $req){
         $user = UserService::getAuthUser();
-        if(!$user->system_admin) return ApiResponse::Forbidden();
         return ApiResponse::flex(AppSetting::savePrivacyTermCondition($req,'term_condition',$user));
     }
 

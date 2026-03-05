@@ -6,7 +6,8 @@ use ApiResponse;
 use App\DTO\Mobile\BalanceDTO;
 use App\DTO\Mobile\MerchantBalanceDTO;
 use App\DTO\Mobile\V2\MerchantPickupDTO;
-use App\DTO\Mobile\V2\MerchantTrackingActivityDTO;
+use App\DTO\Mobile\MerchantSearchDTO;
+use App\DTO\Mobile\MerchantTrackingActivityDTO;
 use App\DTO\Mobile\V2\TrackingAtWarehouseDTO;
 use App\DTO\Mobile\V2\TrackingFailPackageDTO;
 use App\DTO\Mobile\V2\TrackingOnDeliveryPackageDTO;
@@ -30,12 +31,14 @@ use App\Services\AppSetting;
 use App\Services\CompanyProfileService;
 use App\Services\GeneralSettingService;
 use App\Services\Mobile\ReusableService;
+use App\Services\PackageTrailServiceImpl;
 use App\Services\PickupCenterServiceImpl;
 use App\Services\TransactionService;
 use App\Services\UserService;
 use Illuminate\Support\Facades\Cache;
 use Helper;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Validator;
 
@@ -310,66 +313,111 @@ class HomeController extends Controller
         return ApiResponse::PaginationV1($orders,$req,'',[],200,$callback);
     }
 
-    private function getQueryPackages($userId, array $statusIds, $startDate, $endDate, $select = ['*'],$additionalWith=[])
+    private function getQueryPackages(
+        $userId, 
+        array $statusIds, 
+        string $startDate, 
+        string $endDate, 
+        array $select = ['*'], 
+        ?string $search = null,
+        array $searchKeys = [],
+    )
     {
         $qP = Package::query()
             ->where('is_deleted', false)
             ->where('merchant_id', $userId)
             ->select($select)
-            ->whereIn('status_id', $statusIds);
+            ->with('image');
+            
+        if (!empty($statusIds)) {
+            $qP->whereIn('status_id', $statusIds);
+        }
 
-        // Relationships based on status
-        // if (array_intersect($statusIds, [11, 19])) {
-        //     $qP->with(['returnUser:id,username as username,phone']);
-        // } else {
+        // Define common relationships
         $with = [
-            'driver:id,username,phone',
             'orderImage',
+            'submittedImages' => fn($q) => $q->orderBy('updated_at', 'desc')->limit(2),
         ];
 
-        $with['submittedImages'] = fn($q) => $q
-        ->orderBy('updated_at','desc')
-        ->limit(2);
-
+        // Add additional relationships dynamically if provided
         if (!empty($additionalWith)) {
             $with = array_merge($with, $additionalWith);
         }
 
-        $qP->with($with)
-        ->with([
-            'driver.userContacts' => fn ($q) => $q->select('user_id', 'phone'),
-        ]);
+        $qP->with($with);
 
-        // }
+        // Load specific relationships based on status
+        if (array_intersect($statusIds, [11, 19])) {
+            $qP->with(['returnUser:id,username,phone']);
+        } else {
+            $qP->with(['driver:id,username,phone']);
+        }
 
-        // Date filtering
-        if ($startDate && $endDate) {
-            $startDatetime = Helper::dateYMD($startDate) . ' 00:00:00';
-            $endDatetime   = Helper::dateYMD($endDate) . ' 23:59:59';
-
-            // Apply datetime conditions depending on which status is included
-            if (in_array(TrackingStatus::ON_DELIVERY->value, $statusIds)) {
-                $qP->whereBetween('assign_driver_datetime', [$startDatetime, $endDatetime]);
-            }
-
-            if (array_intersect($statusIds, [TrackingStatus::FAILED->value, TrackingStatus::FAILED_WITH_FEE->value])) {
-                $qP->whereBetween('failed_datetime', [$startDatetime, $endDatetime]);
-            }
-
-            if (in_array(TrackingStatus::DELIVERED->value, $statusIds)) {
-                $qP->whereBetween('delivered_datetime', [$startDatetime, $endDatetime]);
-            }
-
-            if (in_array(TrackingStatus::RETURNED->value, $statusIds)) {
-                $qP->whereBetween('returned_datetime', [$startDatetime, $endDatetime]);
-            }
-
-            if (in_array(TrackingStatus::AT_WAREHOUSE->value, $statusIds)) {
-                $qP->whereBetween('arrive_warehouse_datetime', [$startDatetime, $endDatetime]);
+        // Apply search conditions if `search` is provided
+        if (!empty($search) && !empty($searchKeys)) {
+            $this->applySearchConditions($qP, $search, $searchKeys);
+            // Apply additional 15-day date filtering with status-specific columns
+            $this->applyDynamicDateFilters(
+                $qP,
+                Carbon::now()->subDays(15)->startOfDay(),
+                Carbon::now()->endOfDay(),
+                $statusIds
+            );
+        } else {
+            // Apply regular date filtering based on $startDate and $endDate
+            if ($startDate && $endDate) {
+                $this->applyDynamicDateFilters(
+                    $qP,
+                    Carbon::parse(Helper::dateYMD($startDate))->startOfDay(),
+                    Carbon::parse(Helper::dateYMD($endDate))->endOfDay(),
+                    $statusIds
+                );
             }
         }
 
         return $qP;
+    }
+
+
+    private function applySearchConditions($query, string $search, array $searchKeys)
+    {
+        $query->where(function ($q) use ($search, $searchKeys) {
+            foreach ($searchKeys as $key) {
+                $q->orWhere($key, 'LIKE', "%{$search}%");
+            }
+        });
+    }
+
+    private function applyDynamicDateFilters($query, $startDatetime, $endDatetime, array $statusIds)
+    {
+        // Mapping of `status_id` to datetime columns
+        $statusToColumnMap = [
+            10 => 'failed_datetime',
+            19 => 'failed_datetime',
+            9  => 'delivered_datetime',
+            11 => 'returned_datetime',
+            6 => 'assign_driver_datetime',
+            5  => 'arrive_warehouse_datetime',
+        ];
+
+        $query->where(function ($q) use ($statusToColumnMap, $startDatetime, $endDatetime, $statusIds) {
+            $isFirstCondition = true;
+
+            foreach ($statusToColumnMap as $statusId => $column) {
+                if (in_array($statusId, $statusIds)) {
+                    if ($isFirstCondition) {
+                        $q->whereBetween($column, [$startDatetime, $endDatetime])
+                        ->where('status_id', $statusId);
+                        $isFirstCondition = false; // First condition added
+                    } else {
+                        $q->orWhere(function ($q) use ($column, $startDatetime, $endDatetime, $statusId) {
+                            $q->whereBetween($column, [$startDatetime, $endDatetime])
+                            ->where('status_id', $statusId);
+                        });
+                    }
+                }
+            }
+        });
     }
 
     public function getOnDeliveryPackages(Request $req){
@@ -850,10 +898,104 @@ class HomeController extends Controller
         return ApiResponse::PaginationV1($qP,$req,'get packages',[],500,$callbackMapper);
     }
 
-    public function getSearchPackages(Request $req){
-        $user = UserService::getAuthUser('merchant');
-        return ApiResponse::flex(ReusableService::getHistoryPackages($req,$user,true,'merchant'));
+    public function searchPackages(Request $req){
+        $user = UserService::getAuthUser();
+        $select = [
+            'id','arrive_warehouse_datetime','receiver_address','receiver_phone','price','price_khr',
+            'status_id','qr_code','delivery_fee','extra_charge','driver_id','zone_name','method',
+            'driver_cod_khr','driver_cod_usd','merchant_id','delivered_datetime','payer','remarks',
+            'failed_datetime','returned_datetime','taxi_fee','delivery_remarks'
+        ];
 
+        $search = $req->query('search');
+        $startDate = $req->query('startDate')
+            ? Carbon::parse($req->query('startDate'))->startOfDay()
+            : Carbon::now()->subDays(15)->startOfDay();
+
+        $endDate = $req->query('endDate')
+            ? Carbon::parse($req->query('endDate'))->endOfDay()
+            : Carbon::now()->endOfDay();
+
+        $query = $this->getQueryPackages(
+            userId: $user->id,
+            statusIds: [
+                TrackingStatus::DELIVERED->value,
+                TrackingStatus::RETURNED->value,
+                TrackingStatus::ON_DELIVERY->value,
+                TrackingStatus::FAILED->value,
+                TrackingStatus::FAILED_WITH_FEE->value,
+                TrackingStatus::AT_WAREHOUSE->value
+            ],
+            startDate: $startDate,
+            endDate: $endDate,
+            search: $search,
+            searchKeys: ['receiver_phone','qr_code'],
+            select: $select
+        );
+
+        if (empty($search)) {
+            // force no results
+            $query->whereRaw('1 = 0');
+        }
+
+        $callback = function ($q): MerchantSearchDTO{
+            $fees = $q->payer == 'sender' ? Helper::amountStdFmt($q->delivery_fee + $q->extra_charge,'USD',true):Helper::amountStdFmt(0,'USD',true);
+            $receivedAmtUsd = Helper::amountStdFmt(0,'USD',true);
+            $receivedAmtKhr = Helper::amountStdFmt(0,'KHR',true);
+            $pmtStatus = 'pending';
+            $receiverFees = $q->payer == 'receiver' ? ($q->delivery_fee + $q->extra_charge) : 0;
+            $totalCollected = PackageTrailServiceImpl::deductRowAmountBase($q->driver_cod_usd ?? 0, $q->driver_cod_khr ?? 0, $receiverFees);
+            $receivedAmtUsd = Helper::amountStdFmt($totalCollected['amount_usd'],'USD',true);
+            $receivedAmtKhr = Helper::amountStdFmt($totalCollected['amount_khr'],'KHR',true);
+            // if($q->hasMerchantPayment()){
+            //     if($q->driver_cod_usd > 0 && $q->driver_cod_khr > 0){
+            //         $receivedAmtUsd = Helper::amountStdFmt($q->driver_cod_usd,'USD',true);
+            //         $receivedAmtKhr = Helper::amountStdFmt($q->driver_cod_khr,'KHR',true);
+            //     }else if($q->driver_cod_usd > 0){
+            //         $receivedAmtUsd = Helper::amountStdFmt($q->driver_cod_usd,'USD',true);
+            //     }else if($q->driver_cod_khr > 0){
+            //         $receivedAmtKhr = Helper::amountStdFmt($q->driver_cod_khr,'KHR',true);
+            //     }
+            //     $pmtStatus = 'Received';
+            // }
+            $finishedDate = Helper::dateYMD($q->delivered_datetime,'d/m/Y');
+            $finishedTime = Helper::time($q->delivered_datetime);
+            if($q->status_id == TrackingStatus::FAILED->value || $q->status_id == TrackingStatus::FAILED_WITH_FEE->value){
+                $finishedDate = Helper::dateYMD($q->failed_datetime,'d/m/Y');
+                $finishedTime = Helper::time($q->failed_datetime);
+            }else if($q->status_id == TrackingStatus::RETURNED->value){
+                $finishedDate = Helper::dateYMD($q->returned_datetime,'d/m/Y');
+                $finishedTime = Helper::time($q->returned_datetime);
+            }
+            return new MerchantSearchDTO(
+                package_id: $q->id,
+                code:$q->qr_code,
+                receiver_phone: $q->receiver_phone,
+                cod_usd: Helper::amountStdFmt($q->price,'USD',true),
+                arrive_date: Helper::dateYMD($q->arrive_warehouse_datetime,'d/m/Y'),
+                arrive_time: Helper::time($q->arrive_warehouse_datetime),
+                zone_name: $q->zone_name,
+                status_id: $q->status_id,
+                status_code: TrackingStatus::tryFrom($q->status_id)->label(),
+                cod_khr: Helper::amountStdFmt($q->price_khr,'KHR',true),
+                receiver_address: $q->receiver_address,
+                image: $q->image_url,
+                remarks: $q->remarks,
+                reason: $q->delivery_remarks,
+                driver_name: $q->driver->username ?? '', 
+                driver_phone: $q->driver->phone ?? '',
+                finished_date: $finishedDate,
+                finished_time: $finishedTime,
+                method: $q->method != 'cod' ? 'Bank':'COD',
+                pmt_status: $pmtStatus,
+                receiver_amt_usd: $receivedAmtUsd,
+                receiver_amt_khr: $receivedAmtKhr,
+                taxi_fee: ($q->taxi_fee > 0 && $q->payer == 'sender') ? Helper::amountStdFmt($q->taxi_fee,'USD',true):Helper::amountStdFmt(0,'USD',true),
+                fees: $fees,
+                submitted_image_urls: $q->submitted_image_urls,
+            );
+        };
+        return ApiResponse::PaginationV1($query,$req,'',[],200,$callback,$select); 
     }
 
     public function feedBack(Request $req){

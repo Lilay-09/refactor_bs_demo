@@ -1,5 +1,5 @@
 <?php
-namespace App\DTO\Mobile\V2;
+namespace App\DTO\Mobile;
 
 class MerchantTrackingActivityDTO
 {

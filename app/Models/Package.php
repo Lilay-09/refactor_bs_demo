@@ -120,6 +120,20 @@ class Package extends Model
     ];
 
 
+    public function image()
+    {
+        return $this->hasOne(OrderImage::class, 'package_id')
+            ->orderByRaw("
+                CASE
+                    WHEN user_type = 'admin' THEN 1
+                    WHEN user_type = 'driver' THEN 2
+                    WHEN user_type = 'merchant' THEN 3
+                    ELSE 4
+                END
+            ")
+            ->latest('id');
+    }
+
     public function orderImage()
     {
         return $this->hasOne(OrderImage::class, 'package_id')

@@ -144,7 +144,7 @@ Route::middleware(['jwtMerchant','localize'])->prefix('merchant/v1/{lang}')->gro
     Route::get('notification',[HomeController::class,'getNotifications']);
     Route::put('notification/read/{id?}',[HomeController::class,'readNotification']);
     Route::get('history/packages',[MerchantHistoryController::class,'getAllHistories']);
-    Route::get('search/packages',[HomeController::class,'getSearchPackages']);
+    Route::get('search/packages',[HomeController::class,'searchPackages']);
     // Route::get('transaction',[MerchantTransactionController::class,'getTransaction']);
     Route::get('specialOffer',[SpecialOfferController::class,'getSpecialOffers']);
     Route::get('package/{package_id}/images',[GeneralSettingController::class,'getPackageImages']);

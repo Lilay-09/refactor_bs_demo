@@ -29,8 +29,8 @@ class SocialMediaController extends Controller
         $inputs = $validate->validated();
         $inputs['create_uid'] = $user->id;
         $inputs['update_uid'] = $user->id;
-        $inputs['branch_id'] = $user->id;
-        $inputs['company_id'] = $user->id;
+        $inputs['branch_id'] = $user->branch_id;
+        $inputs['company_id'] = $user->company_id;
         $photo = $inputs['photo'] ?? null;
         unset($inputs['photo']);
         $inputs['photo_file_name'] = Helper::base64ToImageFile($photo,$user->company_id,$this->imgDir)->filename;
@@ -74,8 +74,8 @@ class SocialMediaController extends Controller
         if($validate->fails()) return ApiResponse::ValidateFail($validate->errors()->first());
         $inputs = $validate->validated();
         $inputs['update_uid'] = $user->id;
-        $inputs['branch_id'] = $user->id;
-        $inputs['company_id'] = $user->id;
+        $inputs['branch_id'] = $user->branch_id;
+        $inputs['company_id'] = $user->company_id;
         $photo = $inputs['photo'] ?? null;
         if(Helper::isValidBase64Image($photo) || !$photo){
             $imgFile = Helper::base64ToImageFile($photo,$user->company_id,$this->imgDir)->filename;

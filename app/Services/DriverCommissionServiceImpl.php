@@ -151,10 +151,6 @@ class DriverCommissionServiceImpl implements DriverCommissionService
         }
         $packages = $qP->get();
         $orders = $qO->get();
-        // logger('Packages:');
-        // logger(json_encode($packages,JSON_PRETTY_PRINT));
-        // logger('Orders:');
-        // logger(json_encode($orders,JSON_PRETTY_PRINT));
         if(empty($driverCommissions)){
             $driverCommissions = $qDc->get();
         }
@@ -537,7 +533,6 @@ class DriverCommissionServiceImpl implements DriverCommissionService
         if($payeeId) {
             $qO->where('driver_id',$payeeId);
             $qP->where('p.driver_id',$payeeId);
-            logger("Filtering for driver_id: $payeeId");
         }
         // if($startDate && $endDate){
         //     $startDate = Helper::dateYMD($startDate);
@@ -649,8 +644,6 @@ class DriverCommissionServiceImpl implements DriverCommissionService
             ->where('is_deleted', 0);
         })
         ->get();
-        logger("Test Query Result:");
-        logger(json_encode($test,JSON_PRETTY_PRINT));
         $packages = $qP->get();
         $orders = $qO->withCount([
             'packages as qty' => fn($q) => $q
@@ -688,10 +681,6 @@ class DriverCommissionServiceImpl implements DriverCommissionService
         ], 'delivery_fee')
         ->having('qty', '>', 0)
         ->get();
-        // logger("packages:");
-        // logger(json_encode($packages,JSON_PRETTY_PRINT));
-        // logger("orders:");
-        // logger(json_encode($orders,JSON_PRETTY_PRINT));
         // $qDc = DriverCommission::where('driver_id',$payeeId)->where('is_deleted',0)->selectRaw('id,driver_id,delivery_type,pickup_commission,pickup_commission_type,delivery_commission_type,delivery_commission,pickup_commission_start_date,delivery_commission_start_date');
         // $driverCommissions = $qDc->get();
         // $dc = TransactionService::getDriverCommissionInfo($driverCommissions,$payeeId);
@@ -776,7 +765,6 @@ class DriverCommissionServiceImpl implements DriverCommissionService
         if(empty($obj->package_ids) && empty($obj->order_ids)){
             return DataResponse::NotFound('No package found');
         }
-        logger((array)$obj);
         return $obj;
     }
     private function validType($type){

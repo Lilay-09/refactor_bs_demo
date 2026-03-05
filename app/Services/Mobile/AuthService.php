@@ -40,7 +40,8 @@ class AuthService
                 $user->{'phone_'.($idx + 2)} = $p;
             }
         }
-        unset($user->photo_file_name);
+        
+        $user->image_url = Helper::getImageUrl($user->photo_file_name,$authUser->company_id,'user_profile');
         $data = $userClass == 'driver' ? new UserProfileDTO(
             id: $user->id,
             username: $user->username,
@@ -49,6 +50,7 @@ class AuthService
             address: $user->address,
             image_url: Helper::getImageUrl($user->photo_file_name,$authUser->company_id,'user_profile'),
         ): $user;
+        unset($user->photo_file_name);
         return DataResponse::JsonResult($data,__('messages.info',[
             'info' => 'Get Profile'
         ]));

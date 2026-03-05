@@ -111,10 +111,10 @@ class AppSetting
         // Check if the device is an iPhone or iPad
         if (strpos($userAgent, 'iPhone') !== false || strpos($userAgent, 'iPad') !== false) {
             // Redirect to the App Store (iOS)
-            return Redirect::to('https://apps.apple.com/kh/app/arrizon-driver/id6744563520');
+            return Redirect::to('https://www.gtechcambodia.com');
         } else {
             // Redirect to the Play Store (Android or other devices)
-            return Redirect::to('https://play.google.com/store/apps/details?id=com.gtech.arrizonedriver');
+            return Redirect::to('https://www.gtechcambodia.com');
         }
     }
 
@@ -290,7 +290,6 @@ class AppSetting
     }
 
     private static function zonePermissionCode(){
-        logger()->info("Test ".self::$baseUrl.'/zone/assign/driver');
         return [
             'POST' => [
                 self::$baseUrl.'/zone' => 299,
@@ -324,13 +323,16 @@ class AppSetting
         return [
             'POST' => [
                 self::$baseUrl."/driver/commission/disbursement" => $postCode,
+                self::$baseUrl."/socialMedia" => $postCode,
+                self::$baseUrl."/{$prefix}" => $postCode,
+                self::$baseUrl."/{$prefix}/{id}" => $postCode,
             ],
             'PUT' => [
-                self::$baseUrl."/$prefix" => $putCode,
-                self::$baseUrl."/$prefix/{id}" => $putCode,
+                self::$baseUrl."/{$prefix}" => $putCode,
+                self::$baseUrl."/{$prefix}/{id}" => $putCode,
             ],
             'DELETE' => [
-                self::$baseUrl."/$prefix/{id}" => $dCode
+                self::$baseUrl."/{$prefix}/{id}" => $dCode
             ]
         ];
     }
@@ -411,11 +413,11 @@ class AppSetting
             'commission'       => ['driver/commission/disbursement', 234, 234, 302],
             'driver'           => 'driverPermissionCode',
             'merchant'         => 'merchantPermissionCode',
-            'comany'           => ['company', null, 252],
+            'company'           => ['company', null, 252],
             'brandImage'       => ['brandImage', 256, null, 257],
             'promotion'        => ['promotion', 258, 259, 260],
-            'socialMedia'      => ['socialMedia', 261, null, 262],
-            'privacyStatement' => ['privacyStatement', null, 263, null],
+            'socialMedia'      => ['socialMedia', 261, 304, 262],
+            'privacyStatement' => ['privacyStatement', 263, 263, null],
             'termCondition'    => ['termCondition', null, 264, null],
             'xrate'            => ['xrate', 265, 266, 267],
             'productType'      => ['productType', 268, 269, 270],
@@ -427,7 +429,11 @@ class AppSetting
             'zone'             => 'zonePermissionCode',//['zone', 289, 290, 291],
             'name'             => ['priceList/name', 292, 293, 294],
             'priceList'        => 'priceListPermissionCode',
-            'bank'             => ['bank', null, 300, 229],
+            'bank'             => ['bank', 299, 300, 229],
+            'report'           => 'companyReportPermissionCode',
+            'exports'           => 'companyReportPermissionCode',
+            'user'             => 'userPermissionCode',
+
         ];
 
         if (!isset($permissionMap[$prefix])) {
@@ -438,7 +444,6 @@ class AppSetting
         $allowed = is_array($permissionMap[$prefix])
                     ? self::simplePermissionCode(...$permissionMap[$prefix])
                     : self::{$permissionMap[$prefix]}();
-        // logger()->info("Allowed permissions for prefix {$prefix}: " . json_encode($allowed));
 
         if (!isset($allowed[$method])) {
             return null;
@@ -481,9 +486,44 @@ class AppSetting
             self::$baseUrl.'/package/{id}/print',
             self::$baseUrl.'/package/list/print',
             self::$baseUrl.'/order/{order_id}/package/print',
+            self::$baseUrl.'/report/exports/daily-packages',
+            self::$baseUrl.'/management/user/{id}/permission',
+            self::$baseUrl.'/management/user/{id}/module',
+        ];
+    }
+
+    public static function companyReportPermissionCode(){
+        return [
+            'POST' => [
+                self::$baseUrl.'/report/exports/daily-packages' => 308,
+            ]
         ];
     }
 
 
+    public static function userPermissionCode(){
+        return [
+            'POST' => [
+                self::$baseUrl.'/management/user' => 100,
+                self::$baseUrl.'/management/user/{id}/setPassword' => 110,
+            ],
+            'PUT' => [
+                self::$baseUrl.'/management/user/{id}' => 111,
+                self::$baseUrl.'/management/user/{id}/setLoginName' => 109,
+                self::$baseUrl.'/management/user/{id}/setLock' => 101,
+                self::$baseUrl.'/management/user/{id}/permission/{permission_id}/assign' => 105,
+                self::$baseUrl.'/management/user/{id}/module/{module_id}/assign' => 107,
+            ],
+            'GET' => [
+                self::$baseUrl.'/management/user/{id}/permission' => 103,
+                self::$baseUrl.'/management/user/{id}/module' => 104,
+            ],
+            'DELETE' => [
+                self::$baseUrl.'/management/user/{id}' => 112,
+                self::$baseUrl.'/management/user/{id}/permission/{permission_id}/remove' => 106,
+                self::$baseUrl.'/management/user/{id}/module/{module_id}/remove' => 108,
+            ]
+        ];
+    }
 
 }

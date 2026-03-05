@@ -27,8 +27,8 @@ class DefaultRemarkController extends Controller
         $inputs = $validate->validated();
         $inputs['create_uid'] = $user->id;
         $inputs['update_uid'] = $user->id;
-        $inputs['branch_id'] = $user->id;
-        $inputs['company_id'] = $user->id;
+        $inputs['branch_id'] = $user->branch_id;
+        $inputs['company_id'] = $user->company_id;
         $inputs['channel'] = $inputs['channel'] ?? 'driver';
         $existsName = DefaultRemark::where('remarks', $inputs['remarks'])->where('channel',$inputs['channel'])->first();
         if($existsName) return ApiResponse::Duplicated(__('messages.info',[
