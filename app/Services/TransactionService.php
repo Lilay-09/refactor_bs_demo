@@ -319,7 +319,7 @@ class TransactionService
                     $package->total = $package->payer == 'sender' ? -self::getPackageTotal($type,$cod,0,0,$package->other_fee,$package->additional_fee,$package->delivery_fee,$package->payer):0;
                 }else $package->{$type.'_total'} = $package->payer == 'receiver' ? $package->delivery_fee + $package->other_fee : 0;
             }
-            if(empty($package->method) || $package->method == PaymentMethod::COD->value){
+            if(empty($package->method) || $package->method != PaymentMethod::ABA_KHQR->value){
                 $package->original_driver_cod_usd = 0;
                 $package->original_driver_cod_khr = 0;
             }
