@@ -10,11 +10,11 @@ use App\Models\PackageTransferDetail;
 use App\Models\PackageTransferReceive;
 use App\Models\PackageTransferReceiveItem;
 use DataResponse;
-use DB;
+use Illuminate\Support\Facades\DB;
 use Exception;
 use Helper;
 use Illuminate\Http\Request;
-use Log;
+use Illuminate\Support\Facades\Log;
 
 class TransferServiceImpl implements TransferService
 {

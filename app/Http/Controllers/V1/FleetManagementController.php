@@ -12,6 +12,7 @@ use App\Models\User;
 use App\Services\CompanyProfileService;
 use App\Services\GeneralSettingService;
 use App\Services\PickupCenterService;
+use App\Services\TripService;
 use App\Services\UserService;
 use Carbon\Carbon;
 use DataResponse;
@@ -25,197 +26,12 @@ class FleetManagementController extends Controller
 {
     //
 
-    public function __construct(private PickupCenterService $pickupCenterService){
+    public function __construct(
+        private PickupCenterService $pickupCenterService,
+        private readonly TripService $tripService
+    ){
 
     }
-
-    public function getTrips(Request $req)
-    {
-        $user = UserService::getAuthUser();
-        $search = $req->search ?? null;
-        $driverId = $req->driver_id;
-        $startDate = $req->startDate;
-        $lang = $req->lang;
-        $endDate = $req->endDate;
-        $statusId = $req->status_id;
-
-        /*
-        * Step 1: Load package info only from latest delivery_packages
-        * (UNCHANGED business logic)
-        */
-        $packages = Package::from('packages as p')
-            ->join('delivery_packages as dp', 'p.id', '=', 'dp.package_id')
-            ->whereIn('dp.id', function ($q) {
-                $q->selectRaw('MAX(dp2.id)')
-                ->from('delivery_packages as dp2')
-                ->where('dp2.is_deleted', false)
-                ->groupBy('dp2.package_id');
-            })
-            ->where([
-                ['p.is_deleted', false],
-                ['dp.is_deleted', false],
-                ['dp.has_swap', 0],
-                ['dp.delay_count', 0],
-            ])
-            ->selectRaw(
-                'p.id as package_id,
-                dp.delivery_id,
-                dp.delay_count,
-                dp.has_swap,
-                p.status_id,
-                p.driver_total'
-            )
-            ->where(function($q) use($startDate,$endDate){
-                $startDatetime = Helper::dateYMD($startDate) . " 00:00:00";
-                // Extend start date backward by 15 days
-                $extendedStartDatetime = Carbon::parse($startDatetime)->subDays(15)->format('Y-m-d H:i:s');
-                // End date stays the same
-                $endDatetime = Helper::dateYMD($endDate) . " 23:59:59";
-                $q->where(function ($q) use ($extendedStartDatetime, $endDatetime) {
-                    $q->where('p.status_id', 6)
-                    ->whereBetween('p.assign_driver_datetime', [$extendedStartDatetime, $endDatetime]);
-                })->orWhere(function ($q) use ($extendedStartDatetime, $endDatetime) {
-                    $q->whereIn('p.status_id', [10, 19])
-                    ->whereBetween('p.failed_datetime', [$extendedStartDatetime, $endDatetime]);
-                })->orWhere(function ($q) use ($extendedStartDatetime, $endDatetime) {
-                    $q->where('p.status_id', 9)
-                    ->whereBetween('p.delivered_datetime', [$extendedStartDatetime, $endDatetime]);
-                })
-                ->orWhere(function ($q) use ($extendedStartDatetime, $endDatetime) {
-                    $q->where('p.status_id', 11)
-                    ->whereBetween('p.returned_datetime', [$extendedStartDatetime, $endDatetime]);
-                });
-            })
-            ->get();
-
-        /*
-        * Step 2: Index packages by delivery_id (NO logic change)
-        */
-        $packagesByDelivery = $packages->groupBy('delivery_id');
-
-        /*
-        * Step 3: Delivery query (UNCHANGED logic)
-        */
-        $query = Delivery::query()
-            ->with(['status', 'driver'])
-            ->where('is_deleted', 0)
-            ->where('company_id', $user->company_id)
-            ->orderBy('status_id')
-            ->orderByDesc('id')
-            ->selectRaw(
-                'id,
-                fleet_tracking_number,
-                status_id,
-                driver_id,
-                depart_datetime,
-                remarks,
-                package_count,
-                delivered_count,
-                failed_count,
-                warehouse_id,
-                vehicle_type,
-                driver_id,
-                is_completed,
-                finished'
-            );
-
-        /*
-        * Step 4: Filters (UNCHANGED)
-        */
-        if ($search) {
-            $query->where(function ($q) use ($search) {
-                if (str_starts_with($search, config('app.code_prefix'))) {
-                     $q->whereHas('packages.package', function ($sub) use ($search) {
-                        $sub->where('qr_code', $search);
-                    });
-                    $q->whereHas('packages.package', function ($sub) use ($search) {
-                        $sub->where('qr_code', $search);
-                    });
-                } elseif (str_starts_with($search, '0')) {
-                    $q->whereHas('distinctPackages.package', function ($q) use ($search) {
-                        $q->where('receiver_phone', $search)
-                        ->whereColumn('packages.driver_id', 'delivery_packages.driver_id');
-                    });
-                } else {
-                    $q->where('fleet_tracking_number', $search);
-                }
-            });
-        } else {
-            if ($driverId) {
-                $query->where('driver_id', $driverId);
-            }
-
-            if ($statusId) {
-                $query->where('status_id', $statusId);
-            }
-
-            if ($startDate && $endDate) {
-                $startDate = date('Y-m-d', strtotime($startDate));
-                $endDate   = date('Y-m-d', strtotime($endDate));
-
-                $query->whereBetween(
-                    'depart_datetime',
-                    ["$startDate 00:00:00", "$endDate 23:59:59"]
-                );
-            } else {
-                $query->whereDate('depart_datetime', now());
-            }
-        }
-
-        /*
-        * Step 5: Callback (NO DB QUERY, SAME BUSINESS LOGIC)
-        */
-        $callback = function ($delivery) use ($lang, $packagesByDelivery) {
-
-            if ($lang == 'km') {
-                $delivery->status_code =
-                    GeneralSettingService::$statusCodeTrans[$delivery->status_id] ?? '';
-            } else {
-                $delivery->status_code = $delivery->status->name;
-            }
-
-            $delivery->driver_name  = $delivery->driver->username;
-            $delivery->driver_phone = $delivery->driver->phone;
-
-            // SAME logic, just fewer packages passed
-            $deliveryPackages = $packagesByDelivery[$delivery->id] ?? collect();
-            $details = $this->getTripDetails($deliveryPackages, $delivery->id);
-
-            $delivery->total = $details->total;
-            $delivery->total_delivered = Helper::getNumber(
-                $details->total_delivered + $details->total_failed_with_fee,
-                2
-            );
-
-            $delivery->failed_count = $details->failed_count;
-            $delivery->delivered_count = $details->delivered_count;
-            $delivery->delivery_count = $details->delivery_count;
-            $delivery->failed_with_fee_count = $details->failed_with_fee_count;
-            $delivery->package_count = $details->packages_count;
-
-            $delivery->depart_time = Helper::formatCustomDateTime(
-                $delivery->depart_datetime,
-                'h:i:s A'
-            );
-
-            $delivery->depart_date = Helper::formatCustomDateTime(
-                $delivery->depart_datetime,
-                'd-M-Y',
-                false,
-                $lang
-            );
-
-            unset($delivery->status, $delivery->driver);
-
-            return $delivery;
-        };
-
-        /*
-        * Step 6: Pagination (UNCHANGED)
-        */
-        return ApiResponse::PaginationV1($query, $req, '', [], 1000, $callback);
-    }
-
 
     public function updateTripCount(Request $req){
         $updateArr = [];
@@ -336,149 +152,149 @@ class FleetManagementController extends Controller
         return ApiResponse::PaginationV1($qP, $req, null, [], 200, $clbMapper);
     }
 
-    public function setPackageStatus(Request $req){
-        $user = UserService::getAuthUser();
-        $trip_id = $req->trip_id;
-        $package_id = $req->package_id;
-        $status_id = $req->status_id;
-        $failure_notes = $req->failure_notes ?? null;
-        $delivery = Delivery::where('is_deleted',0)->select('id','driver_id')->find($trip_id);
-        // $tripPackage = DeliveryPackage::where('package_id',$package_id)->where('delivery_id','>',$trip_id)->where('delay_count',0)->orderByDesc('id')->first();
-        // if(!$tripPackage) return ApiResponse::NotFound(__('messages.not_found',[
-        //     'info' => 'Package',
-        //     'khInfo' => 'កញ្ចប់'
-        // ]));
-        //** check if this package exists in latest trip */
-        $latestTripId = DeliveryPackage::where('is_deleted',0)->where('package_id',$package_id)->where('delay_count',0)->take(1)->orderByDesc('id')->value('delivery_id');
+    // public function setPackageStatus(Request $req){
+    //     $user = UserService::getAuthUser();
+    //     $trip_id = $req->trip_id;
+    //     $package_id = $req->package_id;
+    //     $status_id = $req->status_id;
+    //     $failure_notes = $req->failure_notes ?? null;
+    //     $delivery = Delivery::where('is_deleted',0)->select('id','driver_id')->find($trip_id);
+    //     // $tripPackage = DeliveryPackage::where('package_id',$package_id)->where('delivery_id','>',$trip_id)->where('delay_count',0)->orderByDesc('id')->first();
+    //     // if(!$tripPackage) return ApiResponse::NotFound(__('messages.not_found',[
+    //     //     'info' => 'Package',
+    //     //     'khInfo' => 'កញ្ចប់'
+    //     // ]));
+    //     //** check if this package exists in latest trip */
+    //     $latestTripId = DeliveryPackage::where('is_deleted',0)->where('package_id',$package_id)->where('delay_count',0)->take(1)->orderByDesc('id')->value('delivery_id');
 
-        $delayMsg = '.';
-        // if($tripPackage) $delayMsg = ', This package is delivered in trip number('.Delivery::where('id',$tripPackage->delivery_id)->value('fleet_tracking_number').')';
-        if(!$delivery) return ApiResponse::NotFound(__('messages.not_found',['info' => 'Trip']));
-        if(!$status_id || !in_array($status_id,[9,10,19])) return ApiResponse::ValidateFail(__('messages.not_found',['info' => 'Status']));
-        $package = Package::where('company_id',$user->company_id)->where('is_deleted',0)
-        ->selectRaw('tracking_notes,payer,id,status_id,driver_id,cod,delivery_fee,price,additional_fee,extra_charge,taxi_fee')
-        ->find($package_id);
-        if(!$package) return ApiResponse::NotFound(__('messages.not_found',['info' => 'Package','khInfo' => 'កញ្ចប់']));
-        if($package->driver_id != $delivery->driver_id){
-            if($latestTripId) {
-                $trackingNumber = Delivery::where('id',$latestTripId)->where('is_deleted',0)->take(1)->value('fleet_tracking_number');
-                if($trackingNumber) return ApiResponse::Duplicated(__('messages.info',[
-                    'info' => 'This package is not currently yours! someone has accepted for delivery ('.$trackingNumber.')',
-                    'khInfo' => 'កញ្ចប់នេះមានអ្នកផ្សេងទៀតបានទទួលដើម្បីដឹកជញ្ជូន នៅលេខដឹកជញ្ជូន('.$trackingNumber.')'
-                ]));
-            }
-        }
-        $hasPaymentLink = DB::table('payment_packages as pp')
-            ->where('pp.package_id', $package->id)
-            ->whereIn('pp.payer_type', ['driver', 'merchant'])
-            ->where('pp.is_deleted', false)
-            ->exists();
+    //     $delayMsg = '.';
+    //     // if($tripPackage) $delayMsg = ', This package is delivered in trip number('.Delivery::where('id',$tripPackage->delivery_id)->value('fleet_tracking_number').')';
+    //     if(!$delivery) return ApiResponse::NotFound(__('messages.not_found',['info' => 'Trip']));
+    //     if(!$status_id || !in_array($status_id,[9,10,19])) return ApiResponse::ValidateFail(__('messages.not_found',['info' => 'Status']));
+    //     $package = Package::where('company_id',$user->company_id)->where('is_deleted',0)
+    //     ->selectRaw('tracking_notes,payer,id,status_id,driver_id,cod,delivery_fee,price,additional_fee,extra_charge,taxi_fee')
+    //     ->find($package_id);
+    //     if(!$package) return ApiResponse::NotFound(__('messages.not_found',['info' => 'Package','khInfo' => 'កញ្ចប់']));
+    //     if($package->driver_id != $delivery->driver_id){
+    //         if($latestTripId) {
+    //             $trackingNumber = Delivery::where('id',$latestTripId)->where('is_deleted',0)->take(1)->value('fleet_tracking_number');
+    //             if($trackingNumber) return ApiResponse::Duplicated(__('messages.info',[
+    //                 'info' => 'This package is not currently yours! someone has accepted for delivery ('.$trackingNumber.')',
+    //                 'khInfo' => 'កញ្ចប់នេះមានអ្នកផ្សេងទៀតបានទទួលដើម្បីដឹកជញ្ជូន នៅលេខដឹកជញ្ជូន('.$trackingNumber.')'
+    //             ]));
+    //         }
+    //     }
+    //     $hasPaymentLink = DB::table('payment_packages as pp')
+    //         ->where('pp.package_id', $package->id)
+    //         ->whereIn('pp.payer_type', ['driver', 'merchant'])
+    //         ->where('pp.is_deleted', false)
+    //         ->exists();
 
-        $hasDisbursementLink = DB::table('disbursement_packages as dp')
-            ->where('dp.package_id', $package->id)
-            ->whereIn('dp.payee_type', ['driver', 'merchant'])
-            ->where('dp.is_deleted', false)
-            ->exists();
+    //     $hasDisbursementLink = DB::table('disbursement_packages as dp')
+    //         ->where('dp.package_id', $package->id)
+    //         ->whereIn('dp.payee_type', ['driver', 'merchant'])
+    //         ->where('dp.is_deleted', false)
+    //         ->exists();
 
-        if ($hasPaymentLink || $hasDisbursementLink) {
-            return ApiResponse::ValidateFail(__('messages.info', [
-                'info' => 'Package has link to payment you cannot make change!',
-                'khInfo' => 'កញ្ចប់មានការទូរទាត់ មិនអាចផ្លាស់ប្ដូរបានទេ!'
-            ]));
-        }
-        // if($package->driver_disbursement_id || $package->merchant_disbursement_id || $package->driver_payment_id || $package->merchant_payment_id)
-        //     return ApiResponse::ValidateFail(__('messages.info',[
-        //         'info' => 'Package has link to payment you cannot make change!',
-        //         'khInfo' => 'កញ្ចប់មានការទូរទាត់ មិនអាចផ្លាស់ប្ដូរបានទេ!'
-        //     ]));
-        //     ->whereNotExists(function ($sub) {
-        //         $sub->select(DB::raw(1))
-        //             ->from('payment_packages as pp')
-        //             ->whereColumn('pp.package_id', 'p.id')
-        //             ->where('pp.payer_type', 'driver')
-        //             ->where('pp.is_deleted', false);
-        //     })
-        //     ->whereNotExists(function ($sub) {
-        //         $sub->select(DB::raw(1))
-        //             ->from('disbursement_packages as dp')
-        //             ->whereColumn('dp.package_id', 'p.id')
-        //             ->where('dp.payee_type', 'driver')
-        //             ->where('dp.is_deleted', false);
-        //     })
+    //     if ($hasPaymentLink || $hasDisbursementLink) {
+    //         return ApiResponse::ValidateFail(__('messages.info', [
+    //             'info' => 'Package has link to payment you cannot make change!',
+    //             'khInfo' => 'កញ្ចប់មានការទូរទាត់ មិនអាចផ្លាស់ប្ដូរបានទេ!'
+    //         ]));
+    //     }
+    //     // if($package->driver_disbursement_id || $package->merchant_disbursement_id || $package->driver_payment_id || $package->merchant_payment_id)
+    //     //     return ApiResponse::ValidateFail(__('messages.info',[
+    //     //         'info' => 'Package has link to payment you cannot make change!',
+    //     //         'khInfo' => 'កញ្ចប់មានការទូរទាត់ មិនអាចផ្លាស់ប្ដូរបានទេ!'
+    //     //     ]));
+    //     //     ->whereNotExists(function ($sub) {
+    //     //         $sub->select(DB::raw(1))
+    //     //             ->from('payment_packages as pp')
+    //     //             ->whereColumn('pp.package_id', 'p.id')
+    //     //             ->where('pp.payer_type', 'driver')
+    //     //             ->where('pp.is_deleted', false);
+    //     //     })
+    //     //     ->whereNotExists(function ($sub) {
+    //     //         $sub->select(DB::raw(1))
+    //     //             ->from('disbursement_packages as dp')
+    //     //             ->whereColumn('dp.package_id', 'p.id')
+    //     //             ->where('dp.payee_type', 'driver')
+    //     //             ->where('dp.is_deleted', false);
+    //     //     })
 
 
-        if($package->status_id == $status_id) {
-            if($status_id == 9) return ApiResponse::Duplicated(__('messages.submitDuplicatedPackage',[
-                'info' => 'Delivered',
-                'khInfo' => 'ជោគជ័យ'
-            ]));
-            else if($status_id == 10) return ApiResponse::Duplicated(__('messages.submitDuplicatedPackage',[
-                'info' => 'Failed',
-                'khInfo' => 'បរាជ័យ'
-            ]));
-            else if($status_id == 19) return ApiResponse::Duplicated(__('messages.submitDuplicatedPackage',[
-                'info' => 'Failed with fee',
-                'khInfo' => 'បរាជ័យគិតសេវា'
-            ]));
-        }
+    //     if($package->status_id == $status_id) {
+    //         if($status_id == 9) return ApiResponse::Duplicated(__('messages.submitDuplicatedPackage',[
+    //             'info' => 'Delivered',
+    //             'khInfo' => 'ជោគជ័យ'
+    //         ]));
+    //         else if($status_id == 10) return ApiResponse::Duplicated(__('messages.submitDuplicatedPackage',[
+    //             'info' => 'Failed',
+    //             'khInfo' => 'បរាជ័យ'
+    //         ]));
+    //         else if($status_id == 19) return ApiResponse::Duplicated(__('messages.submitDuplicatedPackage',[
+    //             'info' => 'Failed with fee',
+    //             'khInfo' => 'បរាជ័យគិតសេវា'
+    //         ]));
+    //     }
 
-        // if($package->status_id == 9) return ApiResponse::Duplicated(__('messages.info',[
-        //     'info' => 'Package has already been delivered'
-        // ]));
-        // if($package->status_id == 19 && $status_id != 19) return ApiResponse::Duplicated(__('messages.info',[
-        //     'info' => 'Package has already been marked as failed with fee'.$delayMsg
-        // ]));
-        if(!in_array($package->status_id,[6,9,10,19])) return ApiResponse::ValidateFail(__('messages.error',['info' => 'Package must be on delivery before set to delivered,failed or failed with fee.']));
-        $failDatetime = ($status_id == 10 || $status_id == 19) ? now() : null;
-        $deliveredDatetime = $status_id == 9 ? now():null;
-        DB::beginTransaction();
-        try{
-            $payer = $req->payer ?? $package->payer;
-            $updateArr = [
-                'update_uid' => $user->id,
-                'failure_notes' => $status_id == 10 ? $failure_notes:null,
-                'last_submit_uid' => $status_id == 10 ? $user->id:null,
-                'last_remark_user' => $status_id == 10 ? 'admin':null,
-                'failed_datetime' => $failDatetime,
-                'driver_cod_usd' => ($status_id == 19 && $payer == 'receiver') ? ($package->other_fee + $package->delivery_fee) : 0,
-                'delivered_datetime' => $deliveredDatetime,
-                'status_id' => $status_id
-            ];
+    //     // if($package->status_id == 9) return ApiResponse::Duplicated(__('messages.info',[
+    //     //     'info' => 'Package has already been delivered'
+    //     // ]));
+    //     // if($package->status_id == 19 && $status_id != 19) return ApiResponse::Duplicated(__('messages.info',[
+    //     //     'info' => 'Package has already been marked as failed with fee'.$delayMsg
+    //     // ]));
+    //     if(!in_array($package->status_id,[6,9,10,19])) return ApiResponse::ValidateFail(__('messages.error',['info' => 'Package must be on delivery before set to delivered,failed or failed with fee.']));
+    //     $failDatetime = ($status_id == 10 || $status_id == 19) ? now() : null;
+    //     $deliveredDatetime = $status_id == 9 ? now():null;
+    //     DB::beginTransaction();
+    //     try{
+    //         $payer = $req->payer ?? $package->payer;
+    //         $updateArr = [
+    //             'update_uid' => $user->id,
+    //             'failure_notes' => $status_id == 10 ? $failure_notes:null,
+    //             'last_submit_uid' => $status_id == 10 ? $user->id:null,
+    //             'last_remark_user' => $status_id == 10 ? 'admin':null,
+    //             'failed_datetime' => $failDatetime,
+    //             'driver_cod_usd' => ($status_id == 19 && $payer == 'receiver') ? ($package->other_fee + $package->delivery_fee) : 0,
+    //             'delivered_datetime' => $deliveredDatetime,
+    //             'status_id' => $status_id
+    //         ];
             
 
-            if($status_id == 19) {
-                $driverTotal = $this->pickupCenterService::getDriverTotal($package->cod,$payer,0,$package->delivery_fee,$package->additional_fee,$package->extra_charge,0);
-                if($payer == 'receiver') {
-                    $updateArr['driver_total'] = $driverTotal;
-                    $updateArr['merchant_total'] = 0;
-                }
-                else {
-                    $updateArr['driver_total'] = 0;
-                    $updateArr['merchant_total'] = $this->pickupCenterService::getTotal('merchant',$package->cod,$payer,$package->price,$package->delivery_fee,$package->additional_fee,$package->extra_charge,$package->other_fee,$package->taxi_fee);
-                }
+    //         if($status_id == 19) {
+    //             $driverTotal = $this->pickupCenterService::getDriverTotal($package->cod,$payer,0,$package->delivery_fee,$package->additional_fee,$package->extra_charge,0);
+    //             if($payer == 'receiver') {
+    //                 $updateArr['driver_total'] = $driverTotal;
+    //                 $updateArr['merchant_total'] = 0;
+    //             }
+    //             else {
+    //                 $updateArr['driver_total'] = 0;
+    //                 $updateArr['merchant_total'] = $this->pickupCenterService::getTotal('merchant',$package->cod,$payer,$package->price,$package->delivery_fee,$package->additional_fee,$package->extra_charge,$package->other_fee,$package->taxi_fee);
+    //             }
 
-                $updateArr['payer'] = $payer;
-            }else{
-                $driverTotal = $this->pickupCenterService::getDriverTotal($package->cod,$payer,$package->price,$package->delivery_fee,$package->additional_fee,$package->extra_charge,$package->taxi_fee);
-                $updateArr['driver_total'] = $driverTotal;
-            }
-            $package->update($updateArr);
-            DeliveryPackage::where('package_id',$package_id)->where('delivery_id',$trip_id)->where(function($q){
-                $q->where('delay_count',0)->orWhere('is_deleted',0);
-            })->update([
-                'update_uid' => $user->id,
-                'failure_notes' => $failure_notes,
-                'failed_datetime' => $failDatetime,
-                'delivered_datetime' => $deliveredDatetime,
-                'status_id' => $status_id
-            ]);
-            GeneralSettingService::updateTripStatus($trip_id,$user);
-            DB::commit();
-        }catch(Exception $e){
-            DB::rollBack();
-        }
-        return ApiResponse::JsonResult(null,__('messages.updated'));
-    }
+    //             $updateArr['payer'] = $payer;
+    //         }else{
+    //             $driverTotal = $this->pickupCenterService::getDriverTotal($package->cod,$payer,$package->price,$package->delivery_fee,$package->additional_fee,$package->extra_charge,$package->taxi_fee);
+    //             $updateArr['driver_total'] = $driverTotal;
+    //         }
+    //         $package->update($updateArr);
+    //         DeliveryPackage::where('package_id',$package_id)->where('delivery_id',$trip_id)->where(function($q){
+    //             $q->where('delay_count',0)->orWhere('is_deleted',0);
+    //         })->update([
+    //             'update_uid' => $user->id,
+    //             'failure_notes' => $failure_notes,
+    //             'failed_datetime' => $failDatetime,
+    //             'delivered_datetime' => $deliveredDatetime,
+    //             'status_id' => $status_id
+    //         ]);
+    //         GeneralSettingService::updateTripStatus($trip_id,$user);
+    //         DB::commit();
+    //     }catch(Exception $e){
+    //         DB::rollBack();
+    //     }
+    //     return ApiResponse::JsonResult(null,__('messages.updated'));
+    // }
 
     public function getTripByDriver(Request $req){
         $driverId = $req->driver_id;
@@ -608,67 +424,67 @@ class FleetManagementController extends Controller
 
     }
 
-    public function finishTrip(Request $req){
-        $user = UserService::getAuthUser();
-        $tripId = $req->trip_id;
-        $reason = $req->reason;
-        if(!$reason) return ApiResponse::ValidateFail(__('messages.info',[
-            'info' => 'Enter your reason'
-        ]));
-        $trip = Delivery::where('is_deleted',0)->where('company_id',$user->company_id)
-        ->find($tripId);
-        if(!$trip) return ApiResponse::NotFound(__('messages.not_found',['info' => 'Trip']));
-        if(($trip->finished || $trip->is_completed) && $trip->status_id == 16) {
-            return ApiResponse::Duplicated(__('messages.info',[
-                'info' => 'This trip has already been finisded'
-            ]));
-        }
+    // public function finishTrip(Request $req){
+    //     $user = UserService::getAuthUser();
+    //     $tripId = $req->trip_id;
+    //     $reason = $req->reason;
+    //     if(!$reason) return ApiResponse::ValidateFail(__('messages.info',[
+    //         'info' => 'Enter your reason'
+    //     ]));
+    //     $trip = Delivery::where('is_deleted',0)->where('company_id',$user->company_id)
+    //     ->find($tripId);
+    //     if(!$trip) return ApiResponse::NotFound(__('messages.not_found',['info' => 'Trip']));
+    //     if(($trip->finished || $trip->is_completed) && $trip->status_id == 16) {
+    //         return ApiResponse::Duplicated(__('messages.info',[
+    //             'info' => 'This trip has already been finisded'
+    //         ]));
+    //     }
 
-        $qP = Package::fromRaw('packages as p')->join('delivery_packages as dp','p.id','dp.package_id')
-        ->where('dp.delay_count',0)
-        ->where('dp.delivery_id',$tripId)
-        ->join('users as m','m.id','p.merchant_id')
-        ->join('users as d','d.id','p.driver_id')
-        ->join('tracking_statuses as ts','ts.id','dp.status_id')
-        ->selectRaw('dp.id as dp_id,p.price,p.cod,p.receiver_name,p.receiver_phone,p.zone_code,p.zone_name,ts.name as status_code,d.username as driver_name,d.phone as driver_phone,m.username as merchant_name,m.phone as merchant_phone,p.id as package_id,dp.delivery_id,p.zone_code,p.zone_name,p.delivery_fee as base_fee,p.driver_total,p.driver_total as delivery_fee,p.taxi_fee,p.product_type,dp.status_id');
-        $packages = $qP->get();
-        $deliveredCount = 0;
-        foreach($packages as $pkg){
-            $updatable = DeliveryPackage::where('status_id',6)->where('delivery_id',$tripId)->where('has_swap',0)->find($pkg->dp_id); //** on delivery to package trail
-            if($updatable){
-                $deliveredCount +=1;
-                $updatable->update([
-                    'status_id' => 9,
-                    'delivered_datetime' => now(),
-                    'update_uid' => $user->id
-                ]);
-            }
-            $updatablePkg = Package::where('status_id',6)->find($pkg->package_id);
-            if($updatablePkg){
-                $updatablePkg->update([
-                    'status_id' => 9,
-                    'delivered_datetime' => now(),
-                    'update_uid' => $user->id
-                ]);
-            }
-        }
+    //     $qP = Package::fromRaw('packages as p')->join('delivery_packages as dp','p.id','dp.package_id')
+    //     ->where('dp.delay_count',0)
+    //     ->where('dp.delivery_id',$tripId)
+    //     ->join('users as m','m.id','p.merchant_id')
+    //     ->join('users as d','d.id','p.driver_id')
+    //     ->join('tracking_statuses as ts','ts.id','dp.status_id')
+    //     ->selectRaw('dp.id as dp_id,p.price,p.cod,p.receiver_name,p.receiver_phone,p.zone_code,p.zone_name,ts.name as status_code,d.username as driver_name,d.phone as driver_phone,m.username as merchant_name,m.phone as merchant_phone,p.id as package_id,dp.delivery_id,p.zone_code,p.zone_name,p.delivery_fee as base_fee,p.driver_total,p.driver_total as delivery_fee,p.taxi_fee,p.product_type,dp.status_id');
+    //     $packages = $qP->get();
+    //     $deliveredCount = 0;
+    //     foreach($packages as $pkg){
+    //         $updatable = DeliveryPackage::where('status_id',6)->where('delivery_id',$tripId)->where('has_swap',0)->find($pkg->dp_id); //** on delivery to package trail
+    //         if($updatable){
+    //             $deliveredCount +=1;
+    //             $updatable->update([
+    //                 'status_id' => 9,
+    //                 'delivered_datetime' => now(),
+    //                 'update_uid' => $user->id
+    //             ]);
+    //         }
+    //         $updatablePkg = Package::where('status_id',6)->find($pkg->package_id);
+    //         if($updatablePkg){
+    //             $updatablePkg->update([
+    //                 'status_id' => 9,
+    //                 'delivered_datetime' => now(),
+    //                 'update_uid' => $user->id
+    //             ]);
+    //         }
+    //     }
 
-        $trip->update([
-            'finished' => true,
-            'is_completed' => true,
-            'status_id' => TrackingStatus::DONE_TRIP->value,
-            'finished_uid' => $user->id,
-            'delivered_count' => $deliveredCount + $trip->delivered_count,
-            'package_count' => $deliveredCount + $trip->delivered_count + $trip->failed_count,
-            'finished_reason' => $reason,
-            'finished_datetime' => now()
-        ]);
+    //     $trip->update([
+    //         'finished' => true,
+    //         'is_completed' => true,
+    //         'status_id' => TrackingStatus::DONE_TRIP->value,
+    //         'finished_uid' => $user->id,
+    //         'delivered_count' => $deliveredCount + $trip->delivered_count,
+    //         'package_count' => $deliveredCount + $trip->delivered_count + $trip->failed_count,
+    //         'finished_reason' => $reason,
+    //         'finished_datetime' => now()
+    //     ]);
 
 
-        return ApiResponse::JsonResult(null,__('messages.info',[
-            'info' => 'Trip finished',
-        ]));
-    }
+    //     return ApiResponse::JsonResult(null,__('messages.info',[
+    //         'info' => 'Trip finished',
+    //     ]));
+    // }
 
     public function createOrUpdateTrip(Request $req){
         $user = UserService::getAuthUser();
@@ -975,4 +791,423 @@ class FleetManagementController extends Controller
         ];
         return ApiResponse::JsonResult($obj);
     }
+
+    public function getTrips(Request $req)
+    {
+        $user = UserService::getAuthUser();
+        $search = $req->search ?? null;
+        $driverId = $req->driver_id;
+        $startDate = $req->startDate;
+        $lang = $req->lang;
+        $endDate = $req->endDate;
+        $statusId = $req->status_id;
+    
+        /*
+        * STEP 1: Fetch packages ONLY for financial calculations
+        * We only need: delivery_id, status_id, driver_total
+        * All COUNTS come from deliveries table
+        */
+        $packages = Package::from('packages as p')
+            ->join('delivery_packages as dp', 'p.id', '=', 'dp.package_id')
+            ->whereIn('dp.id', function ($q) {
+                $q->selectRaw('MAX(dp2.id)')
+                    ->from('delivery_packages as dp2')
+                    ->where('dp2.is_deleted', false)
+                    ->groupBy('dp2.package_id');
+            })
+            ->where([
+                ['p.is_deleted', false],
+                ['dp.is_deleted', false],
+                ['dp.has_swap', 0],
+                ['dp.delay_count', 0],
+            ])
+            // ONLY 3 columns needed for financial calculations
+            ->selectRaw(
+                'dp.delivery_id,
+                p.status_id,
+                p.driver_total'
+            )
+            ->where(function($q) use($startDate, $endDate) {
+                $startDatetime = Helper::dateYMD($startDate) . " 00:00:00";
+                $extendedStartDatetime = Carbon::parse($startDatetime)->subDays(15)->format('Y-m-d H:i:s');
+                $endDatetime = Helper::dateYMD($endDate) . " 23:59:59";
+                
+                $q->where(function ($q) use ($extendedStartDatetime, $endDatetime) {
+                    $q->where('p.status_id', 6)
+                        ->whereBetween('p.assign_driver_datetime', [$extendedStartDatetime, $endDatetime]);
+                })->orWhere(function ($q) use ($extendedStartDatetime, $endDatetime) {
+                    $q->whereIn('p.status_id', [10, 19])
+                        ->whereBetween('p.failed_datetime', [$extendedStartDatetime, $endDatetime]);
+                })->orWhere(function ($q) use ($extendedStartDatetime, $endDatetime) {
+                    $q->where('p.status_id', 9)
+                        ->whereBetween('p.delivered_datetime', [$extendedStartDatetime, $endDatetime]);
+                })->orWhere(function ($q) use ($extendedStartDatetime, $endDatetime) {
+                    $q->where('p.status_id', 11)
+                        ->whereBetween('p.returned_datetime', [$extendedStartDatetime, $endDatetime]);
+                });
+            })
+            ->get();
+    
+        /*
+        * STEP 2: Pre-calculate ONLY financial totals (not counts!)
+        * All counts are in deliveries table already
+        */
+        $financialsByDelivery = $packages->groupBy('delivery_id')->map(function ($pkgs) {
+            return [
+                'total' => $pkgs->where('status_id', '!=', 11)->sum('driver_total'),
+                'total_delivered' => $pkgs->where('status_id', 9)->sum('driver_total'),
+                'total_failed_with_fee' => $pkgs->where('status_id', 19)->sum('driver_total'),
+            ];
+        });
+    
+        /*
+        * STEP 3: Delivery query
+        * Now includes failed_with_fee_count
+        */
+        $query = Delivery::query()
+            ->with(['status', 'driver'])
+            ->where('is_deleted', 0)
+            ->where('company_id', $user->company_id)
+            ->orderBy('status_id')
+            ->orderByDesc('id')
+            ->selectRaw(
+                'id,
+                fleet_tracking_number,
+                status_id,
+                driver_id,
+                depart_datetime,
+                remarks,
+                package_count,
+                delivered_count,
+                failed_count,
+                failed_with_fee_count,
+                warehouse_id,
+                vehicle_type,
+                is_completed,
+                finished'
+            );
+    
+        /*
+        * STEP 4: Filters
+        */
+        if ($search) {
+            $query->where(function ($q) use ($search) {
+                if (str_starts_with($search, config('app.code_prefix'))) {
+                    $q->whereHas('packages.package', function ($sub) use ($search) {
+                        $sub->where('qr_code', $search);
+                    });
+                } elseif (str_starts_with($search, '0')) {
+                    $q->whereHas('distinctPackages.package', function ($q) use ($search) {
+                        $q->where('receiver_phone', $search)
+                            ->whereColumn('packages.driver_id', 'delivery_packages.driver_id');
+                    });
+                } else {
+                    $q->where('fleet_tracking_number', $search);
+                }
+            });
+        } else {
+            if ($driverId) {
+                $query->where('driver_id', $driverId);
+            }
+    
+            if ($statusId) {
+                $query->where('status_id', $statusId);
+            }
+    
+            if ($startDate && $endDate) {
+                $startDate = date('Y-m-d', strtotime($startDate));
+                $endDate   = date('Y-m-d', strtotime($endDate));
+                $query->whereBetween('depart_datetime', ["$startDate 00:00:00", "$endDate 23:59:59"]);
+            } else {
+                $query->whereDate('depart_datetime', now());
+            }
+        }
+    
+        /*
+        * STEP 5: ULTRA-SIMPLE CALLBACK
+        * ALL counts from delivery table
+        * Only financials from pre-calculated data
+        */
+        $callback = function ($delivery) use ($lang, $financialsByDelivery) {
+            // Status code
+            $delivery->status_code = $lang == 'km' 
+                ? (GeneralSettingService::$statusCodeTrans[$delivery->status_id] ?? '')
+                : $delivery->status->name;
+    
+            // Driver info
+            $delivery->driver_name  = $delivery->driver->username;
+            $delivery->driver_phone = $delivery->driver->phone;
+    
+            // =====================================================
+            // FINANCIAL TOTALS (from pre-calculated packages)
+            // =====================================================
+            $financials = $financialsByDelivery[$delivery->id] ?? [
+                'total' => 0,
+                'total_delivered' => 0,
+                'total_failed_with_fee' => 0,
+            ];
+            
+            $delivery->total = Helper::getNumber($financials['total'], 2);
+            $delivery->total_delivered = Helper::getNumber(
+                $financials['total_delivered'] + $financials['total_failed_with_fee'],
+                2
+            );
+    
+            // =====================================================
+            // ALL COUNTS FROM DELIVERY TABLE (NO CALCULATION!)
+            // =====================================================
+            $delivery->package_count = $delivery->package_count;
+            $delivery->delivered_count = $delivery->delivered_count;
+            $delivery->failed_count = $delivery->failed_count;
+            $delivery->failed_with_fee_count = $delivery->failed_with_fee_count;
+            
+            // On delivery = total - delivered - failed - failed_with_fee
+            $delivery->delivery_count = max(0, 
+                $delivery->package_count - 
+                $delivery->delivered_count - 
+                $delivery->failed_count - 
+                $delivery->failed_with_fee_count
+            );
+    
+            // Format dates
+            $delivery->depart_time = Helper::formatCustomDateTime($delivery->depart_datetime, 'h:i:s A');
+            $delivery->depart_date = Helper::formatCustomDateTime($delivery->depart_datetime, 'd-M-Y', false, $lang);
+    
+            unset($delivery->status, $delivery->driver);
+            return $delivery;
+        };
+    
+        /*
+        * STEP 6: Pagination
+        */
+        return ApiResponse::PaginationV1($query, $req, '', [], 1000, $callback);
+    }
+
+
+    public function setPackageStatus(Request $req)
+    {
+        $user = UserService::getAuthUser();
+        $trip_id = $req->trip_id;
+        $package_id = $req->package_id;
+        $status_id = $req->status_id;
+        $failure_notes = $req->failure_notes ?? null;
+        
+        // Validate trip exists
+        $delivery = Delivery::where('is_deleted', 0)
+            ->select('id', 'driver_id')
+            ->find($trip_id);
+        
+        if (!$delivery) {
+            return ApiResponse::NotFound(__('messages.not_found', ['info' => 'Trip']));
+        }
+        
+        // Validate status
+        if (!$status_id || !in_array($status_id, [9, 10, 19])) {
+            return ApiResponse::ValidateFail(__('messages.not_found', ['info' => 'Status']));
+        }
+        
+        // Check if package exists in latest trip
+        $latestTripId = DeliveryPackage::where('is_deleted', 0)
+            ->where('package_id', $package_id)
+            ->where('delay_count', 0)
+            ->orderByDesc('id')
+            ->value('delivery_id');
+        
+        // Get package
+        $package = Package::where('company_id', $user->company_id)
+            ->where('is_deleted', 0)
+            ->selectRaw('tracking_notes,payer,id,status_id,driver_id,cod,delivery_fee,price,additional_fee,extra_charge,taxi_fee,other_fee')
+            ->find($package_id);
+        
+        if (!$package) {
+            return ApiResponse::NotFound(__('messages.not_found', [
+                'info' => 'Package',
+                'khInfo' => 'កញ្ចប់'
+            ]));
+        }
+        
+        // Check if package belongs to correct driver
+        if ($package->driver_id != $delivery->driver_id) {
+            if ($latestTripId) {
+                $trackingNumber = Delivery::where('id', $latestTripId)
+                    ->where('is_deleted', 0)
+                    ->value('fleet_tracking_number');
+                
+                if ($trackingNumber) {
+                    return ApiResponse::Duplicated(__('messages.info', [
+                        'info' => 'This package is not currently yours! someone has accepted for delivery (' . $trackingNumber . ')',
+                        'khInfo' => 'កញ្ចប់នេះមានអ្នកផ្សេងទៀតបានទទួលដើម្បីដឹកជញ្ជូន នៅលេខដឹកជញ្ជូន(' . $trackingNumber . ')'
+                    ]));
+                }
+            }
+        }
+        
+        // Check if package has payment links
+        $hasPaymentLink = DB::table('payment_packages as pp')
+            ->where('pp.package_id', $package->id)
+            ->whereIn('pp.payer_type', ['driver', 'merchant'])
+            ->where('pp.is_deleted', false)
+            ->exists();
+ 
+        $hasDisbursementLink = DB::table('disbursement_packages as dp')
+            ->where('dp.package_id', $package->id)
+            ->whereIn('dp.payee_type', ['driver', 'merchant'])
+            ->where('dp.is_deleted', false)
+            ->exists();
+ 
+        if ($hasPaymentLink || $hasDisbursementLink) {
+            return ApiResponse::ValidateFail(__('messages.info', [
+                'info' => 'Package has link to payment you cannot make change!',
+                'khInfo' => 'កញ្ចប់មានការទូរទាត់ មិនអាចផ្លាស់ប្ដូរបានទេ!'
+            ]));
+        }
+        
+        // Check for duplicate status
+        if ($package->status_id == $status_id) {
+            if ($status_id == 9) {
+                return ApiResponse::Duplicated(__('messages.submitDuplicatedPackage', [
+                    'info' => 'Delivered',
+                    'khInfo' => 'ជោគជ័យ'
+                ]));
+            } elseif ($status_id == 10) {
+                return ApiResponse::Duplicated(__('messages.submitDuplicatedPackage', [
+                    'info' => 'Failed',
+                    'khInfo' => 'បរាជ័យ'
+                ]));
+            } elseif ($status_id == 19) {
+                return ApiResponse::Duplicated(__('messages.submitDuplicatedPackage', [
+                    'info' => 'Failed with fee',
+                    'khInfo' => 'បរាជ័យគិតសេវា'
+                ]));
+            }
+        }
+        
+        // Validate package is in correct state
+        if (!in_array($package->status_id, [6, 9, 10, 19])) {
+            return ApiResponse::ValidateFail(__('messages.error', [
+                'info' => 'Package must be on delivery before set to delivered, failed or failed with fee.'
+            ]));
+        }
+        
+        DB::beginTransaction();
+        try {
+            $payer = $req->payer ?? $package->payer;
+            $failDatetime = ($status_id == 10 || $status_id == 19) ? now() : null;
+            $deliveredDatetime = $status_id == 9 ? now() : null;
+            
+            // Prepare package update
+            $updateArr = [
+                'update_uid' => $user->id,
+                'failure_notes' => $status_id == 10 ? $failure_notes : null,
+                'last_submit_uid' => $status_id == 10 ? $user->id : null,
+                'last_remark_user' => $status_id == 10 ? 'admin' : null,
+                'failed_datetime' => $failDatetime,
+                'delivered_datetime' => $deliveredDatetime,
+                'status_id' => $status_id
+            ];
+            
+            // Calculate totals based on status
+            if ($status_id == 19) {
+                $driverTotal = $this->pickupCenterService::getDriverTotal(
+                    $package->cod,
+                    $payer,
+                    0,
+                    $package->delivery_fee,
+                    $package->additional_fee,
+                    $package->extra_charge,
+                    0
+                );
+                
+                if ($payer == 'receiver') {
+                    $updateArr['driver_total'] = $driverTotal;
+                    $updateArr['driver_cod_usd'] = $package->other_fee + $package->delivery_fee;
+                    $updateArr['merchant_total'] = 0;
+                } else {
+                    $updateArr['driver_total'] = 0;
+                    $updateArr['driver_cod_usd'] = 0;
+                    $updateArr['merchant_total'] = $this->pickupCenterService::getTotal(
+                        'merchant',
+                        $package->cod,
+                        $payer,
+                        $package->price,
+                        $package->delivery_fee,
+                        $package->additional_fee,
+                        $package->extra_charge,
+                        $package->other_fee,
+                        $package->taxi_fee
+                    );
+                }
+                
+                $updateArr['payer'] = $payer;
+            } else {
+                $driverTotal = $this->pickupCenterService::getDriverTotal(
+                    $package->cod,
+                    $payer,
+                    $package->price,
+                    $package->delivery_fee,
+                    $package->additional_fee,
+                    $package->extra_charge,
+                    $package->taxi_fee
+                );
+                $updateArr['driver_total'] = $driverTotal;
+                $updateArr['driver_cod_usd'] = 0;
+            }
+            
+            // Update package
+            $package->update($updateArr);
+            
+            // Update delivery package
+            DeliveryPackage::where('package_id', $package_id)
+                ->where('delivery_id', $trip_id)
+                ->where(function($q) {
+                    $q->where('delay_count', 0)->orWhere('is_deleted', 0);
+                })
+                ->update([
+                    'update_uid' => $user->id,
+                    'failure_notes' => $failure_notes,
+                    'failed_datetime' => $failDatetime,
+                    'delivered_datetime' => $deliveredDatetime,
+                    'status_id' => $status_id
+                ]);
+            
+            // ============================================
+            // USE TRIPSERVICE TO UPDATE DELIVERY COUNTS
+            // ============================================
+            
+            // Get the old status to determine if we need to adjust counts
+            $oldStatus = $package->getOriginal('status_id');
+            
+            // If status changed from on_delivery (6) to completed status
+            if ($oldStatus == 6) {
+                // Increment the appropriate count
+                if ($status_id == 9) {
+                    $this->tripService->incrementTripCount($trip_id, 'delivered', 1);
+                } elseif ($status_id == 10) {
+                    $this->tripService->incrementTripCount($trip_id, 'failed', 1);
+                } elseif ($status_id == 19) {
+                    $this->tripService->incrementTripCount($trip_id, 'failed_with_fee', 1);
+                }
+                
+                // Check if trip should be completed
+                $this->tripService->completeTripIfNeeded($trip_id, $user);
+            } 
+            // If changing between completed statuses (9 <-> 10 <-> 19)
+            else if (in_array($oldStatus, [9, 10, 19]) && $oldStatus != $status_id) {
+                // Force full recalculation when changing between completed statuses
+                $this->tripService->updateTripStatus($trip_id, $user, true);
+            }
+            
+            DB::commit();
+            
+            return ApiResponse::JsonResult(null, __('messages.updated'));
+        } catch (Exception $e) {
+            DB::rollBack();
+            Log::error('Set package status error: ' . $e->getMessage());
+            Log::error($e->getTraceAsString());
+            
+            return ApiResponse::Error(__('messages.error', ['info' => 'Failed to update package status']));
+        }
+    }
+
+    
 }

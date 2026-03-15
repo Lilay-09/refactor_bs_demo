@@ -16,6 +16,7 @@ use App\Models\PackageAttachment;
 use App\Services\GeneralSettingService;
 use App\Services\PickupCenterServiceImpl;
 use App\Services\TransferServiceImpl;
+use App\Services\TripService;
 use App\Services\UserService;
 use App\Services\V1\FleetServiceImpl;
 use Illuminate\Support\Facades\Cache;
@@ -31,6 +32,11 @@ use WebSocket\Client;
 class GeneralSettingController extends Controller
 {
     //
+
+    public function __construct(
+        private readonly TripService $tripService
+    )
+    {}
     public function getOptionsDriverFailRemarks(Request $req){
         return ApiResponse::JsonResult(GeneralSettingService::optionsDriverRemarks('failure',$req->isFailWithFee));
     }
@@ -279,394 +285,128 @@ class GeneralSettingController extends Controller
         return DataResponse::JsonResult(null,$msg);
     }
 
-    public function scanPackageChooseAction(Request $req){
-        $user = UserService::getAuthUser('driver');
-        $item_ref = $req->item_ref;
-        $changeDriver = $req->change_driver;
-        $markContact = $req->mark_contact ?? 0;
-        $confirmDelivery = $req->confirm_delivery ?? 0;
-        $isReturn = $req->returned == 1 ? true : false;
-        $returnImg = $req->image ?? null;
-        // $cms = new CloudMessagingService();
-        $package = Package::where('is_deleted', false)
-        ->with('driver')
-        ->when(is_int($item_ref), function ($query) use ($item_ref) {
-            return $query->where('id', $item_ref);
-        }, function ($query) use ($item_ref) {
-            return $query->where('qr_code', $item_ref);
-        })
-        ->first();
-        // return ApiResponse::NotFound($package, __('messages.info', [
-        //     'info' => 'Package not found',
-        //     'khInfo' => 'រកមិនឃើញកញ្ចប់'
-        // ]));
+    // public function confirmOrCancelSwapPackage(Request $req){
+    //     $user = UserService::getAuthUser('driver');
+    //     $item_ref = $req->item_ref;
+    //     $confirm = $req->confirm;
+    //     $package = Package::where('qr_code',$item_ref)->where('is_deleted',0)->with('driver')->first();
+    //     if(!$package) $package = Package::where('is_deleted',0)->find($item_ref);
+    //     if(!$package) return ApiResponse::NotFound();
+    //     if($package->status_id == 9) return ApiResponse::Duplicated(__('messages.arrived',[
+    //         'info' => 'Package'
+    //     ]));
 
-        if(!$package) return ApiResponse::NotFound(__('messages.info',[
-            'info' => 'Package not found',
-            'khInfo' => 'រកមិនឃើញកញ្ចប់'
-        ]));
-        if($package->outstanding == 1) return ApiResponse::ValidateFail(__('messages.info',[
-            'info' => 'Please ensure that the package has marked as arrived before scan',
-            'khInfo' => 'កញ្ចប់ត្រូវតែបញ្ចាក់ថាមកដល់ឃ្លាំងមុនចេញដឹក'
-        ]));
-
-        if($package->status_id == TrackingStatus::DELIVERED->value) return ApiResponse::Duplicated(__('messages.info',[
-            'info' => 'Package is already delivered.',
-            'khInfo' => 'កញ្ចប់បានដឹករួចហើយ'
-        ]));
-
-        if($package->status_id == TrackingStatus::FAILED_WITH_FEE->value) return ApiResponse::Duplicated(__('messages.info',[
-            'info' => 'Package is already failed with fee.',
-            'khInfo' => 'កញ្ចប់ធ្លាប់បរាជ័យគិតសេវា'
-        ]));
-
-        if($package->status_id == TrackingStatus::RETURNED->value)  return ApiResponse::Duplicated(__('messages.info',[
-            'info' => 'Package has been returned.',
-            'khInfo' => 'កញ្ចប់បានយកត្រឡប់ទៅហាងរួចហើយ'
-        ]));
-        // $statusId = $package->status_id;
-        $driver = $package->driver;
-        $updateArr = [];
-        if($confirmDelivery){
-            if($package->status_id == TrackingStatus::RETURNED->value){
-                return ApiResponse::ValidateFail(__('messages.info',[
-                    'info' => 'Package is already returned',
-                    'khInfo' => 'កញ្ចប់បានយកត្រឡប់ទៅហាងរួចហើយ'
-                ]));
-            }
-
-            // if($package->status_id == TrackingStatus::ON_DELIVERY->value) return ApiResponse::Duplicated(__('messages.info',[
-            //     'info' => 'Package is already on delivery',
-            //     'khInfo' => 'កញ្ចប់បានដឹករួចហើយ'
-            // ]));
-            if($changeDriver) return ApiResponse::ValidateFail(__('messages.info',[
-                'info' => 'You cannot change the driver and confirm delivery the same time!',
-                'khInfo' => 'អ្នកមិនអាចផ្លាស់ប្តូរនៅពេលដែលអ្នកបញ្ជាក់ថាកញ្ចប់បានដឹកទេ!'
-            ]));
-            $updateArr['status_id'] = 6;
-            $updateArr['driver_id'] = $user->id;
-            $updateArr['assign_driver_datetime'] = now();
-            $notes = $package->tracking_notes."|[$user->id]Driver ($user->username) scan on delivery (".Helper::getDateTime().")";
-            // $notifRequpdateArr['tracking_notes'] = $notes;
-            $pckTl = new PickupCenterServiceImpl();
-            // DB::beginTransaction();
-            // try{
-                if($package->driver_id){
-                    $deliveryPackage = DeliveryPackage::where('package_id',$package->id)->where('is_deleted',0)->where('delay_count',0)->first();
-                    if($deliveryPackage){
-                        if(!in_array($package->status_id,[6,5,10,19]) ) return ApiResponse::Duplicated(__('messages.has already assigned',['info' => 'Package','khInfo' => 'កញ្ចប់']));
-                    }
-                    $selfTrip = Delivery::where('driver_id',$package->driver_id)->where('status_id',14)->where(function($query) {
-                        $query->where('finished',0)
-                        ->where('is_deleted', 0);
-                    })->orderByDesc('id')->first();
-                    //** remove self pacakge */
-                    if($selfTrip && $user->id != $package->driver_id){
-                        $toDelete = ($package->status_id == 6);
-                        $pkgCount = $selfTrip->package_count;
-                        $upArr = [];
-                        if($toDelete){
-                            $pkgCount -=1;
-                            $upArr = [
-                                'package_count' => $pkgCount
-                            ];
-                        }
-                        if($pkgCount == 0){
-                            $upArr['is_deleted'] = 1;
-                            $upArr['deleted_datetime'] = now();
-                            $upArr['deleted_uid'] = $user->id;
-                            $upArr['tracking_notes'] = $selfTrip->tracking_notes.'|All packages were removed so trip is deleted';
-                        }
-                        if($pkgCount == ($selfTrip->failed_count + $selfTrip->delivered_count)) {
-                            $upArr['finished'] = 1;
-                            $upArr['is_completed'] = 1;
-                            $upArr['status_id'] = 16;
-                        }
-                        $selfTrip->update($upArr);
-                        DeliveryPackage::where('delivery_id',$selfTrip->id)
-                        ->where('is_deleted',0)
-                        ->where('driver_id',$package->driver_id)
-                        ->where('package_id',$package->id)
-                        ->where('delay_count',0)
-                        ->update([
-                            'is_deleted' => ($package->status_id == 6),
-                            'deleted_uid' => ($package->status_id == 6) ? $user->id : null,
-                            'has_swap' => $user->id != $package->driver_id,
-                            'delay_count' => 1,
-                            'deleted_datetime' => ($package->status_id == 6) ? now():null,
-                            'notes' => DB::raw('notes || \'| admin change driver\'')
-                        ]);
-                    }else if($selfTrip && $user->id == $package->driver_id){
-                        $pkgCount = $selfTrip->package_count - 1;
-                        $upArr = [
-                            'package_count' => $pkgCount
-                        ];
-                        $selfTrip->update($upArr);
-                        $toDelete = ($package->status_id == 10);
-                        DeliveryPackage::where('delivery_id',$selfTrip->id)
-                        ->where('driver_id',$package->driver_id)
-                        ->where('is_deleted',false)
-                        ->where('package_id',$package->id)
-                        ->where('delay_count',0)
-                        ->update([
-                            // 'is_deleted' => $toDelete,
-                            // 'deleted_uid' => $toDelete ? $user->id : null,
-                            'delay_count' => 1,
-                            // 'deleted_datetime' => $toDelete ? now():null,
-                            'notes' => DB::raw('notes || \'| admin re-assign driver\'')
-                        ]);
-                    }
-                }
-                $trip = $pckTl->createOrUpdateTrip($user->id,$package->id,$package->drivervehicle_type,$user,$notes,6,'assign',$package);
-                if($trip->error) return ApiResponse::flex($trip);
-            //     DB::commit();
-            // }catch(Exception $e){
-            //     DB::rollBack();
-            //     // return ApiResponse::Error('Hello');
-            // }
-            Helper::clearCacheByTags([
-                'package_trail'
-            ]);
-        } else $confirmDelivery = ($package->status_id == 6);
-        if($markContact && !$confirmDelivery) return ApiResponse::ValidateFail(__('messages.info',[
-            'info' => 'You cannot mark contact on package which is not on delivery',
-            'khInfo' => 'អ្នកមិនអាចបញ្ជាក់ថាមានទំនាក់ទំនងនៅលើកញ្ចប់ដែលមិនបានដឹកទេ'
-        ])); else {
-            $updateArr['is_contact'] = $markContact;
-            // $topics = GeneralSettingService::getGeneralTopics($user->company_id,'merchant',$package->merchant_id);
-            // $notifReq = new Request([
-            //     'topic' => $topics->private,
-            //     'title' => 'Contact',
-            //     'body' => 'Driver has contacted your customer ('.$package->receiver_phone.')',
-            // ]);
-
-            // $cms->sendNotificationByTopic($notifReq,$user);
-        }
-        if($isReturn){
-            if($package->status_id !== TrackingStatus::RETURNING->value) {
-                return ApiResponse::ValidateFail(__('messages.info',[
-                    'info' => 'Package is not on returning status',
-                    'khInfo' => 'កញ្ចប់មិននៅលើស្ថានភាពត្រឡប់ទេ'
-                ]));
-            }
-            $updateArr['status_id'] = TrackingStatus::RETURNED->value;
-            $updateArr['returned_datetime'] = now();
-            $updateArr['tracking_notes'] = $package->tracking_notes."|[$user->id]Driver ($user->username) scan returning (".Helper::getDateTime().")";
-            if($returnImg){
-                $maxSize = Helper::validTotalImageSize([$returnImg]);
-                if($maxSize->error) return ApiResponse::ValidateFail($maxSize->message);
-                $img = Helper::saveImageFileOrBase64($returnImg,$user->company_id,ImageDirectory::RETURNED_IMAGE->value,date('Y-m-d'));
-                $returnImg = $img->filename;
-            }
-        }
-        DB::beginTransaction();
-        try{
-            if($changeDriver){
-                if($user->id == $package->driver_id) return ApiResponse::Duplicated(__('messages.info',[
-                    'info' => 'It seems like you tried to confirm delivery package again'
-                    // 'info' => 'This package is already marked as out for delivery. Please check the delivery status before proceeding.'
-                ]));
-                $requester = $user->info->phone."($user->username)";
-                $topics = GeneralSettingService::getGeneralTopics($user->company_id,'driver',$package->driver_id);
-                $ttl = 60;
-                Cache::put($topics->private, (object)[
-                    'requester' => $requester,
-                    'requester_id' => $user->id,
-                    'created_at' => now(), // actual creation time
-                ], $ttl);
-
-                // Log::info("Cache key: ".$topics->private);
-                $notifReq = new Request([
-                    'topic' => $topics->private,
-                    'title' => 'Change Driver',
-                    'body' => "$requester request change package ",
-                    'data' => [
-                        'action' => 'change-driver',
-                        'time_to_live' => now()->addSeconds(11),
-                        'requester' => $requester,
-                        'barcode' => $item_ref,
-                        "en_message" => "$requester request change package ",//$requester." request swap the package",
-                        "km_message" => $requester." ស្នើរសុំកញ្ចប់"
-                    ]
-                ]);
-                // Log::info($notifReq);
-                // var_dump($requester,$topics->private);
-                // $cms->sendNotificationByTopic($notifReq,$user);
-                $queueFCMName = config('queue_job_names.'.config('app.env').'.notification');
-                SendNotificationJob::dispatch($notifReq, $user)->onQueue($queueFCMName);
-                $driverName = $driver?->username;
-                $updateArr['tracking_notes'] = $package->tracking_notes."|[$user->id]Driver ($user->username) ask [$package->driver_id]Driver $driverName to change driver";
-            }
-            // if(empty($updateArr)) return ApiResponse::JsonResult(null,__('messages.updated'));
-            
-            if(!$isReturn){
-                $trxSImpl = new TransferServiceImpl();
-                $rct = $trxSImpl->driverScanReceive($user,$package->id);
-                if($rct->error) return $rct;
-                else{
-                    try{
-                        $client = new Client(config('app.cl_socket'),[
-                            'headers' => [
-                                'Origin' => config('services.socket.client_origin')
-                            ]
-                        ]);
-
-                        $message = json_encode([
-                            'topic' => 'ng_express',
-                            'type' => 'receive',
-                            'message' => $package->id,
-                        ]);
-
-                        $client->send($message);
-                        $client->close();
-                    }catch(Exception $e){
-                        Log::error('driver change package error stocket');
-                    }
-                }
-            }
-            $package->update($updateArr);
-            PackageAttachment::insert([
-                'package_id' => $package->id,
-                'file_dir' => $isReturn ? ImageDirectory::RETURNED_IMAGE->value:ImageDirectory::SUBMIT_PACKAGE->value,
-                'file_name' => $returnImg,
-                'status' => 'return',
-                'created_at' => now(),
-                'updated_at' => now()
-            ]);
-            DB::commit();
-            return ApiResponse::JsonResult(null,__('messages.updated'));
-        }catch(Exception $e){
-            DB::rollBack();
-            Log::error($e->getMessage());
-            Log::error($e->getTraceAsString());
-            Helper::deleteImageFile($returnImg,$user->company_id,ImageDirectory::ORDER_IMAGE->value,date('Y-m-d'));
-            return ApiResponse::Error(__('messages.error'));
-        }
-
-    }
-
-    public function confirmOrCancelSwapPackage(Request $req){
-        $user = UserService::getAuthUser('driver');
-        $item_ref = $req->item_ref;
-        $confirm = $req->confirm;
-        $package = Package::where('qr_code',$item_ref)->where('is_deleted',0)->with('driver')->first();
-        if(!$package) $package = Package::where('is_deleted',0)->find($item_ref);
-        if(!$package) return ApiResponse::NotFound();
-        if($package->status_id == 9) return ApiResponse::Duplicated(__('messages.arrived',[
-            'info' => 'Package'
-        ]));
-
-        $selfTopic = GeneralSettingService::getGeneralTopics($user->company_id,'driver',$user->id)->private;
-        // Log::info("Cache key: ".$selfTopic);
-        $cache = Cache::get($selfTopic);
-        // Log::info("Cache data: ".json_encode($cache));
-        if(!$cache) return ApiResponse::NotFound("Request not found or has expired");
-        $requester = $cache?->requester;
-        // return $cache;
-        $requester_id = $cache?->requester_id;
+    //     $selfTopic = GeneralSettingService::getGeneralTopics($user->company_id,'driver',$user->id)->private;
+    //     // Log::info("Cache key: ".$selfTopic);
+    //     $cache = Cache::get($selfTopic);
+    //     // Log::info("Cache data: ".json_encode($cache));
+    //     if(!$cache) return ApiResponse::NotFound("Request not found or has expired");
+    //     $requester = $cache?->requester;
+    //     // return $cache;
+    //     $requester_id = $cache?->requester_id;
 
 
-        Cache::forget($selfTopic);
+    //     Cache::forget($selfTopic);
 
-        if($requester_id == $package->driver_id) return ApiResponse::Duplicated(__('messages.info',[
-            'info' => 'It seems like you try to confirm self request'
-        ]));
-        $requesterTopic = GeneralSettingService::getGeneralTopics($user->company_id,'driver',$requester_id);
-        // $cms = new CloudMessagingService();
-        $notifTitle = 'Confirm';
-        $notifBody = $user->username.' has confirmed your request';
-        if(!$confirm){
-            $notifTitle = 'Cancelled';
-            $notifBody = 'Your request has been denied';
-        }else{
-            // $today = now();
-            // return $requester_id;
-            $fleet = new FleetServiceImpl();
-            $fleetArr = new Request([
-                'packages' => [
-                    [
-                        'package_id' => $package->id
-                    ]
-                ],
-                'depart_datetime' => now(),
-                'driver_id' => $requester_id
-            ]);
-            // return $requester_id;
-            // DB::beginTransaction();
-            // try{
-                $createOrUpdate = $fleet->createOrUpdateTripService($fleetArr,$user,[6]);
-                if($createOrUpdate->error) return ApiResponse::flex($createOrUpdate);
-            //     DB::commit();
-            // }catch(Exception $e){
-            //     DB::rollBack();
-            // }
-            $selfTrip = Delivery::where('driver_id',$package->driver_id)
-            ->where('is_deleted',0)->where('finished',0)
-            ->selectRaw('package_count,id')->orderByDesc('id')->first();
-            //** remove self pacakge */
-            $selfTrip->update([
-                'package_count' => $selfTrip->package_count - 1
-            ]);
-            $dP = DeliveryPackage::where('delivery_id',$selfTrip->id)
-            ->where('package_id',$package->id)
-            ->where('is_deleted',0)
-            ->where('delay_count',0)
-            ->where('has_swap',0)
-            ->orderByDesc('id')
-            ->first();
-            if($dP) {
-                $dP->update([
-                    'has_swap' => true,
-                    'delay_count' => 1,
-                    'notes' => DB::raw('notes || \'| confirm to change swap package\'')
-                ]);
-            }
-            $currTrip = Delivery::where('id',$selfTrip->id)->selectRaw('id,package_count,tracking_notes,delivered_count,failed_count,is_deleted,deleted_datetime,deleted_uid,finished,finished_datetime,status_id')->first();
-            if($currTrip->package_count == 0) {
-                $currTrip->update([
-                    'is_deleted' => 1,
-                    'deleted_datetime' => now(),
-                    'deleted_uid' => $user->id,
-                    'tracking_notes' => $currTrip->tracking_notes.'|Trip delete because driver has swapped package to '.$requester.'('.Helper::getDateTime().')'
-                ]);
-            }else if($currTrip->package_count == ($currTrip->delivered_count + $currTrip->failed_count)){
-                $currTrip->update([
-                    'finished' => 1,
-                    'status_id' => 16,
-                    'finished_datetime' => now(),
-                ]);
-            }
-            $onDeliveryCount = $currTrip->package_count - ($currTrip->delivered_count + $currTrip->failed_count);
-            if($onDeliveryCount == 0 && $currTrip->package_count > 0) {
-                $currTrip->update([
-                    'finished' => 1,
-                    'is_completed' => 1,
-                    'status_id' => 16
-                ]);
-                // Log::error(json_encode(Delivery::select('status_id','is_completed','finished')->find($trip_id)));
-            }
+    //     if($requester_id == $package->driver_id) return ApiResponse::Duplicated(__('messages.info',[
+    //         'info' => 'It seems like you try to confirm self request'
+    //     ]));
+    //     $requesterTopic = GeneralSettingService::getGeneralTopics($user->company_id,'driver',$requester_id);
+    //     // $cms = new CloudMessagingService();
+    //     $notifTitle = 'Confirm';
+    //     $notifBody = $user->username.' has confirmed your request';
+    //     if(!$confirm){
+    //         $notifTitle = 'Cancelled';
+    //         $notifBody = 'Your request has been denied';
+    //     }else{
+    //         // $today = now();
+    //         // return $requester_id;
+    //         $fleet = new FleetServiceImpl();
+    //         $fleetArr = new Request([
+    //             'packages' => [
+    //                 [
+    //                     'package_id' => $package->id
+    //                 ]
+    //             ],
+    //             'depart_datetime' => now(),
+    //             'driver_id' => $requester_id
+    //         ]);
+    //         // return $requester_id;
+    //         // DB::beginTransaction();
+    //         // try{
+    //             $createOrUpdate = $fleet->createOrUpdateTripService($fleetArr,$user,[6]);
+    //             if($createOrUpdate->error) return ApiResponse::flex($createOrUpdate);
+    //         //     DB::commit();
+    //         // }catch(Exception $e){
+    //         //     DB::rollBack();
+    //         // }
+    //         $selfTrip = Delivery::where('driver_id',$package->driver_id)
+    //         ->where('is_deleted',0)->where('finished',0)
+    //         ->selectRaw('package_count,id')->orderByDesc('id')->first();
+    //         //** remove self pacakge */
+    //         $selfTrip->update([
+    //             'package_count' => $selfTrip->package_count - 1
+    //         ]);
+    //         $dP = DeliveryPackage::where('delivery_id',$selfTrip->id)
+    //         ->where('package_id',$package->id)
+    //         ->where('is_deleted',0)
+    //         ->where('delay_count',0)
+    //         ->where('has_swap',0)
+    //         ->orderByDesc('id')
+    //         ->first();
+    //         if($dP) {
+    //             $dP->update([
+    //                 'has_swap' => true,
+    //                 'delay_count' => 1,
+    //                 'notes' => DB::raw('notes || \'| confirm to change swap package\'')
+    //             ]);
+    //         }
+    //         $currTrip = Delivery::where('id',$selfTrip->id)->selectRaw('id,package_count,tracking_notes,delivered_count,failed_count,is_deleted,deleted_datetime,deleted_uid,finished,finished_datetime,status_id')->first();
+    //         if($currTrip->package_count == 0) {
+    //             $currTrip->update([
+    //                 'is_deleted' => 1,
+    //                 'deleted_datetime' => now(),
+    //                 'deleted_uid' => $user->id,
+    //                 'tracking_notes' => $currTrip->tracking_notes.'|Trip delete because driver has swapped package to '.$requester.'('.Helper::getDateTime().')'
+    //             ]);
+    //         }else if($currTrip->package_count == ($currTrip->delivered_count + $currTrip->failed_count)){
+    //             $currTrip->update([
+    //                 'finished' => 1,
+    //                 'status_id' => 16,
+    //                 'finished_datetime' => now(),
+    //             ]);
+    //         }
+    //         $onDeliveryCount = $currTrip->package_count - ($currTrip->delivered_count + $currTrip->failed_count);
+    //         if($onDeliveryCount == 0 && $currTrip->package_count > 0) {
+    //             $currTrip->update([
+    //                 'finished' => 1,
+    //                 'is_completed' => 1,
+    //                 'status_id' => 16
+    //             ]);
+    //             // Log::error(json_encode(Delivery::select('status_id','is_completed','finished')->find($trip_id)));
+    //         }
 
-            $package->update([
-                'driver_id' => $requester_id,
-                'status_id' => 6,
-                'tracking_notes' => $package->tracking_notes.'|Package tranferred from ['.$package->driver_id.']'.$package->driver->username.' to ['.$requester_id.']'.$requester
-            ]);
-        }
-        // return DeliveryPackage::where('package_id',29)->where('is_deleted',0)->get();
-        $notifReq = new Request([
-            'topic' => $requesterTopic->private,
-            'title' => $notifTitle,
-            'body' => $notifBody,
-            'data' => [
-                'action' => 'change-driver',
-                'sender' => $user->username,
-            ]
-        ]);
+    //         $package->update([
+    //             'driver_id' => $requester_id,
+    //             'status_id' => 6,
+    //             'tracking_notes' => $package->tracking_notes.'|Package tranferred from ['.$package->driver_id.']'.$package->driver->username.' to ['.$requester_id.']'.$requester
+    //         ]);
+    //     }
+    //     // return DeliveryPackage::where('package_id',29)->where('is_deleted',0)->get();
+    //     $notifReq = new Request([
+    //         'topic' => $requesterTopic->private,
+    //         'title' => $notifTitle,
+    //         'body' => $notifBody,
+    //         'data' => [
+    //             'action' => 'change-driver',
+    //             'sender' => $user->username,
+    //         ]
+    //     ]);
 
-        SendNotificationJob::dispatch($notifReq, $user)->onQueue(config('queue_job_names.'.config('app.env').'.notification'));
-        // $cms->sendNotificationByTopic($notifReq,$user);
-        return ApiResponse::JsonResult(null,$confirm ? 'Success':'Declined change driver');
-    }
+    //     SendNotificationJob::dispatch($notifReq, $user)->onQueue(config('queue_job_names.'.config('app.env').'.notification'));
+    //     // $cms->sendNotificationByTopic($notifReq,$user);
+    //     return ApiResponse::JsonResult(null,$confirm ? 'Success':'Declined change driver');
+    // }
 
     public function getOptionsZone(Request $req){
         $user = UserService::getAuthUser('driver');
@@ -715,5 +455,527 @@ class GeneralSettingController extends Controller
             'methods' => PaymentMethod::optionsTransactionMethod(),
             'currencies' => GeneralSettingService::optionsCurrency()
         ]);
+    }
+
+    public function scanPackageChooseAction(Request $req)
+    {
+        $user = UserService::getAuthUser('driver');
+        $item_ref = $req->item_ref;
+        $changeDriver = $req->change_driver;
+        $markContact = $req->mark_contact ?? 0;
+        $confirmDelivery = $req->confirm_delivery ?? 0;
+        $isReturn = $req->returned == 1 ? true : false;
+        $returnImg = $req->image ?? null;
+        
+        // Find package by ID or QR code
+        $package = Package::where('is_deleted', false)
+            ->with('driver')
+            ->when(is_int($item_ref), function ($query) use ($item_ref) {
+                return $query->where('id', $item_ref);
+            }, function ($query) use ($item_ref) {
+                return $query->where('qr_code', $item_ref);
+            })
+            ->first();
+        
+        if (!$package) {
+            return ApiResponse::NotFound(__('messages.info', [
+                'info' => 'Package not found',
+                'khInfo' => 'រកមិនឃើញកញ្ចប់'
+            ]));
+        }
+        
+        // Validate package state
+        if ($package->outstanding == 1) {
+            return ApiResponse::ValidateFail(__('messages.info', [
+                'info' => 'Please ensure that the package has marked as arrived before scan',
+                'khInfo' => 'កញ្ចប់ត្រូវតែបញ្ចាក់ថាមកដល់ឃ្លាំងមុនចេញដឹក'
+            ]));
+        }
+        
+        if ($package->status_id == TrackingStatus::DELIVERED->value) {
+            return ApiResponse::Duplicated(__('messages.info', [
+                'info' => 'Package is already delivered.',
+                'khInfo' => 'កញ្ចប់បានដឹករួចហើយ'
+            ]));
+        }
+        
+        if ($package->status_id == TrackingStatus::FAILED_WITH_FEE->value) {
+            return ApiResponse::Duplicated(__('messages.info', [
+                'info' => 'Package is already failed with fee.',
+                'khInfo' => 'កញ្ចប់ធ្លាប់បរាជ័យគិតសេវា'
+            ]));
+        }
+        
+        if ($package->status_id == TrackingStatus::RETURNED->value) {
+            return ApiResponse::Duplicated(__('messages.info', [
+                'info' => 'Package has been returned.',
+                'khInfo' => 'កញ្ចប់បានយកត្រឡប់ទៅហាងរួចហើយ'
+            ]));
+        }
+        
+        $driver = $package->driver;
+        $updateArr = [];
+        
+        // ============================================
+        // ACTION 1: CONFIRM DELIVERY
+        // ============================================
+        if ($confirmDelivery) {
+            if ($package->status_id == TrackingStatus::RETURNED->value) {
+                return ApiResponse::ValidateFail(__('messages.info', [
+                    'info' => 'Package is already returned',
+                    'khInfo' => 'កញ្ចប់បានយកត្រឡប់ទៅហាងរួចហើយ'
+                ]));
+            }
+            
+            if ($changeDriver) {
+                return ApiResponse::ValidateFail(__('messages.info', [
+                    'info' => 'You cannot change the driver and confirm delivery the same time!',
+                    'khInfo' => 'អ្នកមិនអាចផ្លាស់ប្តូរនៅពេលដែលអ្នកបញ្ជាក់ថាកញ្ចប់បានដឹកទេ!'
+                ]));
+            }
+            
+            $updateArr['status_id'] = 6;
+            $updateArr['driver_id'] = $user->id;
+            $updateArr['assign_driver_datetime'] = now();
+            $notes = $package->tracking_notes . "|[$user->id]Driver ($user->username) scan on delivery (" . Helper::getDateTime() . ")";
+            
+            DB::beginTransaction();
+            try {
+                // ✅ CRITICAL: Check for retry scenario (failed package in same trip)
+                $activeTrip = $this->tripService->getActiveTrip($user->id, $user->company_id);
+                
+                if ($activeTrip) {
+                    $existingDeliveryPackage = DeliveryPackage::where('delivery_id', $activeTrip->id)
+                        ->where('package_id', $package->id)
+                        ->where('is_deleted', 0)
+                        ->where('delay_count', 0)
+                        ->first();
+                    
+                    if ($existingDeliveryPackage) {
+                        // ✅ RETRY SCENARIO: Package already in this trip
+                        // Just update status, don't increment package_count!
+                        $oldStatus = $existingDeliveryPackage->status_id;
+                        
+                        // Update package
+                        $package->update($updateArr);
+                        
+                        // Update delivery_package back to on_delivery
+                        $existingDeliveryPackage->update([
+                            'status_id' => 6,
+                            'update_uid' => $user->id,
+                            'notes' => $existingDeliveryPackage->notes . '|' . $notes
+                        ]);
+                        
+                        // ✅ Decrement old count (if was failed/failed_with_fee)
+                        if ($oldStatus == 10) {
+                            $this->tripService->incrementTripCount($activeTrip->id, 'failed', -1);
+                        } elseif ($oldStatus == 19) {
+                            $this->tripService->incrementTripCount($activeTrip->id, 'failed_with_fee', -1);
+                        }
+                        // Note: package_count stays the same!
+                        
+                        DB::commit();
+                        Helper::clearCacheByTags(['package_trail']);
+                        
+                        return ApiResponse::JsonResult(null, __('messages.info', [
+                            'info' => 'Package retry for delivery',
+                            'khInfo' => 'កញ្ចប់ត្រូវបានស្កេនម្តងទៀតសម្រាប់ដឹកជញ្ជូន'
+                        ]));
+                    }
+                }
+                
+                // ✅ NORMAL SCENARIO: New package or different trip
+                // Handle old trip (if package assigned to someone else)
+                if ($package->driver_id && $package->driver_id != $user->id) {
+                    $deliveryPackage = DeliveryPackage::where('package_id', $package->id)
+                        ->where('is_deleted', 0)
+                        ->where('delay_count', 0)
+                        ->first();
+                    
+                    if ($deliveryPackage) {
+                        if (!in_array($package->status_id, [6, 5, 10, 19])) {
+                            return ApiResponse::Duplicated(__('messages.has already assigned', [
+                                'info' => 'Package',
+                                'khInfo' => 'កញ្ចប់'
+                            ]));
+                        }
+                    }
+                    
+                    // Find old driver's active trip
+                    $oldTrip = Delivery::where('driver_id', $package->driver_id)
+                        ->where('status_id', 14)
+                        ->where('finished', 0)
+                        ->where('is_deleted', 0)
+                        ->orderByDesc('id')
+                        ->first();
+                    
+                    if ($oldTrip) {
+                        // Remove from old driver's trip
+                        $this->tripService->removePackageFromTrip(
+                            $oldTrip->id,
+                            $package->id,
+                            $user,
+                            true // markAsSwapped
+                        );
+                        
+                        // Check if old trip should be deleted
+                        $this->tripService->deleteTripIfEmpty(
+                            $oldTrip->id,
+                            $user,
+                            'Package removed - driver changed'
+                        );
+                    }
+                }
+                
+                // Create/get trip for current driver
+                $trip = $this->tripService->findOrCreateActiveTrip(
+                    $user->id,
+                    $user->company_id,
+                    $user->branch_id,
+                    $package->vehicle_type ?? 'motor',
+                    $user
+                );
+                
+                // Update package
+                $package->update($updateArr);
+                
+                // Add package to trip
+                $added = $this->tripService->addPackageToTrip(
+                    $trip->id,
+                    $package,
+                    $user,
+                    $notes,
+                    'assign'
+                );
+                
+                if (!$added) {
+                    throw new Exception('Failed to add package to trip');
+                }
+                
+                // Update trip status
+                $this->tripService->updateTripStatus($trip->id, $user);
+                
+                DB::commit();
+                Helper::clearCacheByTags(['package_trail']);
+            } catch (Exception $e) {
+                DB::rollBack();
+                Log::error('Confirm delivery error: ' . $e->getMessage());
+                Log::error($e->getTraceAsString());
+                return ApiResponse::Error(__('messages.error'));
+            }
+        } else {
+            $confirmDelivery = ($package->status_id == 6);
+        }
+        
+        // ============================================
+        // ACTION 2: MARK CONTACT
+        // ============================================
+        if ($markContact && !$confirmDelivery) {
+            return ApiResponse::ValidateFail(__('messages.info', [
+                'info' => 'You cannot mark contact on package which is not on delivery',
+                'khInfo' => 'អ្នកមិនអាចបញ្ជាក់ថាមានទំនាក់ទំនងនៅលើកញ្ចប់ដែលមិនបានដឹកទេ'
+            ]));
+        } else {
+            $updateArr['is_contact'] = $markContact;
+        }
+        
+        // ============================================
+        // ACTION 3: RETURN
+        // ============================================
+        if ($isReturn) {
+            if ($package->status_id !== TrackingStatus::RETURNING->value) {
+                return ApiResponse::ValidateFail(__('messages.info', [
+                    'info' => 'Package is not on returning status',
+                    'khInfo' => 'កញ្ចប់មិននៅលើស្ថានភាពត្រឡប់ទេ'
+                ]));
+            }
+            
+            $updateArr['status_id'] = TrackingStatus::RETURNED->value;
+            $updateArr['returned_datetime'] = now();
+            $updateArr['tracking_notes'] = $package->tracking_notes . "|[$user->id]Driver ($user->username) scan returning (" . Helper::getDateTime() . ")";
+            
+            if ($returnImg) {
+                $maxSize = Helper::validTotalImageSize([$returnImg]);
+                if ($maxSize->error) {
+                    return ApiResponse::ValidateFail($maxSize->message);
+                }
+                
+                $img = Helper::saveImageFileOrBase64(
+                    $returnImg,
+                    $user->company_id,
+                    ImageDirectory::RETURNED_IMAGE->value,
+                    date('Y-m-d')
+                );
+                $returnImg = $img->filename;
+            }
+        }
+        
+        DB::beginTransaction();
+        try {
+            // ============================================
+            // ACTION 4: CHANGE DRIVER
+            // ============================================
+            if ($changeDriver) {
+                if ($user->id == $package->driver_id) {
+                    return ApiResponse::Duplicated(__('messages.info', [
+                        'info' => 'It seems like you tried to confirm delivery package again'
+                    ]));
+                }
+                
+                $requester = $user->info->phone . "($user->username)";
+                $topics = GeneralSettingService::getGeneralTopics($user->company_id, 'driver', $package->driver_id);
+                $ttl = 60;
+                
+                Cache::put($topics->private, (object)[
+                    'requester' => $requester,
+                    'requester_id' => $user->id,
+                    'created_at' => now(),
+                ], $ttl);
+                
+                $notifReq = new Request([
+                    'topic' => $topics->private,
+                    'title' => 'Change Driver',
+                    'body' => "$requester request change package ",
+                    'data' => [
+                        'action' => 'change-driver',
+                        'time_to_live' => now()->addSeconds(11),
+                        'requester' => $requester,
+                        'barcode' => $item_ref,
+                        "en_message" => "$requester request change package ",
+                        "km_message" => $requester . " ស្នើរសុំកញ្ចប់"
+                    ]
+                ]);
+                
+                $queueFCMName = config('queue_job_names.' . config('app.env') . '.notification');
+                SendNotificationJob::dispatch($notifReq, $user)->onQueue($queueFCMName);
+                
+                $driverName = $driver?->username;
+                $updateArr['tracking_notes'] = $package->tracking_notes . "|[$user->id]Driver ($user->username) ask [$package->driver_id]Driver $driverName to change driver";
+            }
+            
+            // Handle transfer scan receive
+            if (!$isReturn) {
+                $trxSImpl = new TransferServiceImpl();
+                $rct = $trxSImpl->driverScanReceive($user, $package->id);
+                
+                if ($rct->error) {
+                    DB::rollBack();
+                    return $rct;
+                }
+                
+                // Socket notification
+                try {
+                    $client = new Client(config('app.cl_socket'), [
+                        'headers' => [
+                            'Origin' => config('services.socket.client_origin')
+                        ]
+                    ]);
+                    
+                    $message = json_encode([
+                        'topic' => 'ng_express',
+                        'type' => 'receive',
+                        'message' => $package->id,
+                    ]);
+                    
+                    $client->send($message);
+                    $client->close();
+                } catch (Exception $e) {
+                    Log::error('Driver change package socket error: ' . $e->getMessage());
+                }
+            }
+            
+            // Update package
+            if (!empty($updateArr)) {
+                $package->update($updateArr);
+            }
+            
+            // Save return image
+            if ($returnImg) {
+                PackageAttachment::insert([
+                    'package_id' => $package->id,
+                    'file_dir' => $isReturn ? ImageDirectory::RETURNED_IMAGE->value : ImageDirectory::SUBMIT_PACKAGE->value,
+                    'file_name' => $returnImg,
+                    'status' => 'return',
+                    'created_at' => now(),
+                    'updated_at' => now()
+                ]);
+            }
+            
+            DB::commit();
+            
+            return ApiResponse::JsonResult(null, __('messages.updated'));
+        } catch (Exception $e) {
+            DB::rollBack();
+            Log::error('Scan package choose action error: ' . $e->getMessage());
+            Log::error($e->getTraceAsString());
+            
+            if ($returnImg) {
+                Helper::deleteImageFile(
+                    $returnImg,
+                    $user->company_id,
+                    ImageDirectory::ORDER_IMAGE->value,
+                    date('Y-m-d')
+                );
+            }
+            
+            return ApiResponse::Error(__('messages.error'));
+        }
+    }
+
+    public function confirmOrCancelSwapPackage(Request $req)
+    {
+        $user = UserService::getAuthUser('driver');
+        $item_ref = $req->item_ref;
+        $confirm = $req->confirm;
+        
+        // Find package
+        $package = Package::where('qr_code', $item_ref)
+            ->where('is_deleted', 0)
+            ->with('driver')
+            ->first();
+        
+        if (!$package) {
+            $package = Package::where('is_deleted', 0)->find($item_ref);
+        }
+        
+        if (!$package) {
+            return ApiResponse::NotFound(__('messages.not_found', [
+                'info' => 'Package',
+                'khInfo' => 'កញ្ចប់'
+            ]));
+        }
+        
+        if ($package->status_id == 9) {
+            return ApiResponse::Duplicated(__('messages.arrived', [
+                'info' => 'Package'
+            ]));
+        }
+        
+        // Get swap request from cache
+        $selfTopic = GeneralSettingService::getGeneralTopics($user->company_id, 'driver', $user->id)->private;
+        $cache = Cache::get($selfTopic);
+        
+        if (!$cache) {
+            return ApiResponse::NotFound("Request not found or has expired");
+        }
+        
+        $requester = $cache?->requester;
+        $requester_id = $cache?->requester_id;
+        
+        // Clear cache
+        Cache::forget($selfTopic);
+        
+        // Validate not self-request
+        if ($requester_id == $package->driver_id) {
+            return ApiResponse::Duplicated(__('messages.info', [
+                'info' => 'It seems like you try to confirm self request'
+            ]));
+        }
+        
+        // Prepare notification
+        $requesterTopic = GeneralSettingService::getGeneralTopics($user->company_id, 'driver', $requester_id);
+        $notifTitle = 'Confirm';
+        $notifBody = $user->username . ' has confirmed your request';
+        
+        if (!$confirm) {
+            // Request cancelled - just notify
+            $notifTitle = 'Cancelled';
+            $notifBody = 'Your request has been denied';
+        } else {
+            // ============================================
+            // CONFIRM SWAP: Move package between drivers
+            // ============================================
+            
+            DB::beginTransaction();
+            try {
+                // ✅ Step 1: Remove package from current driver's trip (Driver B)
+                $currentDriverTrip = Delivery::where('driver_id', $package->driver_id)
+                    ->where('is_deleted', 0)
+                    ->where('finished', 0)
+                    ->orderByDesc('id')
+                    ->first();
+                
+                if ($currentDriverTrip) {
+                    // Use TripService to remove package
+                    $removed = $this->tripService->removePackageFromTrip(
+                        $currentDriverTrip->id,
+                        $package->id,
+                        $user,
+                        true // markAsSwapped = true
+                    );
+                    
+                    if (!$removed) {
+                        throw new Exception('Failed to remove package from current driver trip');
+                    }
+                    
+                    // ✅ Check if current driver's trip should be deleted (empty)
+                    $this->tripService->deleteTripIfEmpty(
+                        $currentDriverTrip->id,
+                        $user,
+                        "Package swapped to driver $requester"
+                    );
+                }
+                
+                // ✅ Step 2: Add package to requester's trip (Driver A)
+                $requesterTrip = $this->tripService->findOrCreateActiveTrip(
+                    $requester_id,
+                    $user->company_id,
+                    $user->branch_id,
+                    $package->vehicle_type ?? 'motor',
+                    $user
+                );
+                
+                // Update package driver
+                $package->update([
+                    'driver_id' => $requester_id,
+                    'status_id' => 6,
+                    'tracking_notes' => $package->tracking_notes . 
+                        "|Package transferred from [" . $package->driver_id . "]" . 
+                        $package->driver->username . " to [$requester_id]$requester"
+                ]);
+                
+                // Add package to requester's trip
+                $added = $this->tripService->addPackageToTrip(
+                    $requesterTrip->id,
+                    $package,
+                    $user,
+                    "Package swapped from {$package->driver->username}",
+                    'swap'
+                );
+                
+                if (!$added) {
+                    throw new Exception('Failed to add package to requester trip');
+                }
+                
+                // ✅ Update requester's trip status
+                $this->tripService->updateTripStatus($requesterTrip->id, $user);
+                
+                DB::commit();
+            } catch (Exception $e) {
+                DB::rollBack();
+                Log::error('Confirm swap package error: ' . $e->getMessage());
+                Log::error($e->getTraceAsString());
+                
+                return ApiResponse::Error(__('messages.error', [
+                    'info' => 'Failed to swap package: ' . $e->getMessage()
+                ]));
+            }
+        }
+        
+        // Send notification to requester
+        $notifReq = new Request([
+            'topic' => $requesterTopic->private,
+            'title' => $notifTitle,
+            'body' => $notifBody,
+            'data' => [
+                'action' => 'change-driver',
+                'sender' => $user->username,
+            ]
+        ]);
+        
+        $queueFCMName = config('queue_job_names.' . config('app.env') . '.notification');
+        SendNotificationJob::dispatch($notifReq, $user)->onQueue($queueFCMName);
+        
+        return ApiResponse::JsonResult(null, $confirm ? 'Success' : 'Declined change driver');
     }
 }

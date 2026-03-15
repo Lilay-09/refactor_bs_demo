@@ -1,9 +1,9 @@
-name: devapi.ngexpresscambodia.com
+name: demo-dmsapi.gtechcambodia.com
 
 on:
   push:
     branches:
-      - dev
+      - bs-demo-branches 
 
 jobs:
   build:
@@ -24,4 +24,4 @@ jobs:
           password: ${{ secrets.SERVER_PASS }}
           port: ${{ secrets.SERVER_PORT }}
           script: |
-            cd /var/www/devapi.ngexpresscambodia.com && bash update.sh
+            cd /var/www/demo-dmsapi.gtechcambodia.com && bash update.sh

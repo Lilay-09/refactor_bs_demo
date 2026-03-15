@@ -44,6 +44,7 @@ use App\Http\Controllers\V1\ScoringRewardController;
 use App\Http\Controllers\V1\SocialMediaController;
 use App\Http\Controllers\V1\TelegramBotController;
 use App\Http\Controllers\V1\TransferController;
+use App\Http\Controllers\V1\TripController;
 use App\Http\Controllers\V1\UserManagementController;
 use App\Http\Controllers\V1\UserNotificationController;
 use App\Http\Controllers\V1\VehicleTypeController;
@@ -345,6 +346,7 @@ Route::middleware(['jwt','localize','userAccess:admin','rateLimit'])->prefix('ad
         Route::post('{trip_id}/takeOut/{package_id}',[FleetManagementController::class,'takeOutPackage']);
         Route::get('{trip_id}/print/package',[FleetManagementController::class,'printTripPackages']);
         Route::put('special/{code}',[FleetManagementController::class,'updateTripCount']);
+        Route::post('{trip_id}/refresh',[TripController::class,'refreshTrip']);
     });
     //** End Fleet Management */
 
@@ -663,6 +665,7 @@ Route::middleware(['jwt','localize','userAccess:admin','rateLimit'])->prefix('ad
             Route::get('merchant/settled-transaction',[GeneralSettingController::class,'getMerchantPaymentTransactionFilter']);
         });
         Route::prefix('form')->group(function(){
+            Route::get('batch/assign/package',[GeneralSettingController::class,'getFormBatchAssignPackage']);
             Route::get('order/{orderId}/link/image',[GeneralSettingController::class,'getFormLinkImage']);
             Route::get('transfer',[GeneralSettingController::class,'getFormTransfer']);
             Route::get('transfer/receive',[GeneralSettingController::class,'getFormReceive']);
