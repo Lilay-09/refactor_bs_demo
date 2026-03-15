@@ -688,4 +688,13 @@ class GeneralSettingController extends Controller
     //     ];
     //     return ApiResponse::JsonResult($obj);
     // }
+
+    public function getFormBatchAssignPackage(){
+        $user = UserService::getAuthUser();
+        $options = [
+            'drivers' => $this->gs::optionsDriver($user),
+            'branches' => $this->gs::optionsBranch($user),
+        ];
+        return ApiResponse::JsonResult($options);
+    }
 }

@@ -68,7 +68,7 @@ class HomeController extends Controller
             ]));
             $req->merge(['details' => $details->result]);//$details->result;
         }
-        $create = $pck->createOrder($req,$user);
+        $create = $pck->createOrder($req->all(),$user);
         if($create->error) return ApiResponse::flex($create);
         return ApiResponse::JsonResult(null,__('messages.info',[
             'info' => 'Your order has been submitted',

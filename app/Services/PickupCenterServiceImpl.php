@@ -32,8 +32,8 @@ class PickupCenterServiceImpl implements PickupCenterService
         $this->packageCodePrefix = config('app.code_prefix').'XP';
     }
 
-    public function packageValidation(Request $req){
-        return validator($req->all(),[
+    public function packageValidation(array $data){
+        return validator($data,[
             'photo_id' => 'nullable|int',
             'package_name' => 'nullable|string|max:100',
             'merchant_id' => 'required',
@@ -72,9 +72,9 @@ class PickupCenterServiceImpl implements PickupCenterService
             'delivery_type' => 'required|in:fast,normal',
         ]);
     }
-    public function orderValidation(Request $req){
+    public function orderValidation(array $data){
         $vehicleTypes = implode(',',VehicleType::where('is_deleted',0)->pluck('name_en')->toArray());
-        return validator($req->all(),[
+        return validator($data,[
             'merchant_id' => 'required',
             'warehouse_id' => 'required|int|exists:warehouses,id',
             'product_type' => 'nullable|string|exists:product_types,name',
@@ -98,210 +98,6 @@ class PickupCenterServiceImpl implements PickupCenterService
             'qty.required' => 'Please enter number of package'
         ]);
     }
-
-    public function createOrder(Request $req,object $user): object{
-        $validate = $this->orderValidation($req);
-        $companyId = $user->company_id;
-        if($validate->fails()) return DataResponse::ValidateFail($validate->errors()->first(),$validate->errors());
-        $inputs = $validate->validated();
-        $merchantId = $inputs['merchant_id'];
-        $validMerchant = User::where('is_deleted',0)->where('delete_account',0)->where('account_type','merchant')
-        ->select(['id','username','phone'])
-        ->find($merchantId);
-        if(!$validMerchant) return DataResponse::ValidateFail('Invalid sender identity!');
-        $userType = $user->account_type;
-        $inputs['create_uid'] = $user->id;
-        $inputs['update_uid'] = $user->id;
-        // $inputs['branch_id'] = $user->branch_id;
-        $inputs['company_id'] = $user->company_id;
-        $inputs['booking_channel'] = $userType;
-        $details = $inputs['details'] ?? [];
-        $images = $inputs['images'] ?? [];
-        $inputs['original_qty'] = $inputs['qty'];
-        $inputs['order_datetime'] = now();
-        $productType = $inputs['product_type'] ?? null;
-        if($userType == 'driver') $inputs['driver_id'] = $user->id;
-        $driverId = $inputs['driver_id'] ?? null;
-        if($driverId == 0){
-            $driverId = null;
-            unset($inputs['driver_id']);
-        }
-        $statusId = 3; //** accepted for pick up*/
-        if(!$driverId) $statusId = 1; //** available for pick */
-        else{
-            $inputs['pickup_datetime'] = now();
-            $inputs['assign_uid'] = $user->id;
-            $validDriver = User::where('is_deleted',0)->where('delete_account',0)->where('account_type','driver')->find($driverId);
-            if(!$validDriver) return DataResponse::ValidateFail('Invalid driver identity!');
-            if($validDriver->lock) {
-                return DataResponse::ValidateFail(__('messages.info',[
-                    'info' => 'Driver is currently inactive',
-                    'khInfo' => 'អ្នកដឹកជញ្ជូនត្រូវបានឈប់ដំណើរការ'
-                ]));
-            }
-            // if($validDriver->vehicle_type != $inputs['vehicle_type']) return DataResponse::ValidateFail(__('messages.error',['info' => 'Driver vehicle type and chosen vehicle type is different!']));
-        }
-        $dateTime = Helper::getDateTime();
-        if($userType == 'driver') {
-            $inputs['tracking_notes'] = 'Driver create order ('.$dateTime.')';
-        }
-        else if($userType == 'merchant') {
-            $inputs['tracking_notes'] = 'Merchant create order ('.$dateTime.')';
-        }
-        else if($userType == 'admin') $inputs['tracking_notes'] = 'Admin create order ('.$dateTime.')';
-        $deleteImgs = [];
-        $pickupAddress = $inputs['pickup_address'] ?? null;
-        $pickup_address_google_map = $inputs['pickup_address_google_map'] ?? $inputs['pin_address'] ?? null;
-        if(Helper::isShortGoogleMapUrl($pickup_address_google_map)){
-            $geoRes = new GeoResolverService();
-            $xM = $geoRes->fromShortUrl($pickup_address_google_map);
-            $inputs['loc_lat'] = $xM['lat'] ?? 0;
-            $inputs['loc_lng'] = $xM['lng'] ?? 0;
-        }else{
-            $latLng = Helper::getLatLongFromGoogleMapsUrl($pickup_address_google_map);
-            $inputs['loc_lat'] = (float) ($inputs['loc_lat'] ?? $latLng->latitude);
-            $inputs['loc_lng'] = (float) ($inputs['loc_lng'] ?? $latLng->longitude);
-        }
-        // $lang = $req->lang;
-        $inputs['delivery_type'] = $inputs['delivery_type'] ?? 'normal';
-        if(!$pickupAddress) $inputs['pickup_address'] = $latLng->address;
-        try{
-            DB::beginTransaction();
-            $createOrder = Order::create($inputs);
-            // $createOrder->skipLog = true;
-            if(!$createOrder) return DataResponse::Error('Fail to create order!');
-            $orderId = $createOrder->id;
-            $code = Helper::generateCode($this->orderCodePrefix,$orderId,'',8);
-            // $statusId = $inputs['status_id'];
-            if(isset($details[0])){
-                if($userType == 'driver') $statusId = 4;
-                $isMobile = $userType !== 'admin';
-                // if($inputs['qty'] != count($details)) return DataResponse::ValidateFail('Your quantity is not matching the details');
-                foreach($details as $d){
-                    $d['merchant_id'] = $merchantId;
-                    $d['product_type'] = $productType;
-                    $price = $d['price'] ?? 0;
-                    $d['cod'] = 0;
-                    if($isMobile && $price > 0){
-                        $d['cod'] = 1;
-                    }
-                    $dReq = new Request($d);
-                    $savePkg = $this->createOrUpdatePackage($dReq,$user,null,$orderId);
-                    if($savePkg->error) return $savePkg;
-                }
-            }
-            $createOrder->update([
-                'code' => $code,
-                'status_id' => $statusId
-            ]);
-
-            // LogsActivity::logActivity([
-            //     'action'   => 'Order created with code and status updated',
-            //     'module'   => 'Order',
-            //     'ref_id'   => $createOrder->id,
-            //     'ref_code' => $code,
-            //     'after'    => [
-            //         'code' => $code,
-            //         'status_id' => $statusId
-            //     ]
-            // ]);
-            $saveOrderImages = [];
-            if(isset($images[0])){
-                foreach($images as $idx => $photo){
-                    $isValidUpload = Helper::isValidUploadImage($photo,0.8);
-                    if($isValidUpload->error) return DataResponse::ValidateFail($isValidUpload->message.', check your Image #'.($idx + 1));
-                    $img = Helper::saveImageFile($photo,$companyId,ImageDirectory::ORDER_IMAGE->value,date('Y-m-d'));
-                    //** if something went wrong so this will take action on catch block */
-                    $deleteImgs[] = $img->filename;
-                    $saveOrderImages[] = [
-                        'order_id' => $orderId,
-                        'photo_file_name' => $img->filename,
-                        'create_uid' => $user->id,
-                        'update_uid' => $user->id,
-                        'company_id' => $companyId,
-                        'branch_id' => $user->branch_id,
-                    ];
-                    // OrderImage::create();
-                }
-            }
-            if(!empty($saveOrderImages)){
-                OrderImage::insert($saveOrderImages);
-            }
-            $inputQty = $inputs['qty'];
-            $topics = GeneralSettingService::getGeneralTopics($user->company_id,'merchant',$merchantId);
-            $clmsgReq = new Request([
-                'topic' => $topics->private,
-                'title' => __('notification.create_order.title'),
-                'body' => __('notification.create_order.body',[
-                    'create_user' => $user->account_type,
-                    'count' => $inputQty
-                ]),//$lang == 'km' ? ucfirst($user->account_type).' បានបង្កើតការកម្មង់ឲ្យ​អ្នកចំនួន'.$inputQty.'កញ្ចប់' : ucfirst($user->account_type).' has created an order for you.',
-                'type' => 'private',
-                'target_uid' => $merchantId
-            ]);
-            // SendNotificationJob::dispatch($clmsgReq, $user);
-            $queueFCMName = config('queue_job_names.'.config('app.env').'.notification');
-            SendNotificationJob::dispatch($clmsgReq, $user)->onQueue($queueFCMName);
-            if($driverId){
-                $topics = GeneralSettingService::getGeneralTopics($user->company_id,'driver',$driverId);
-                $notifReq = new Request([
-                    'topic' => $topics->private,//$driverId ? $topics->private:$topics->public,
-                    'type' =>  'private',//$driverId ? 'private':'public',
-                    'target_uid' => $driverId,
-                    'title' => __('notification.assign_order.title'),//$notifTitle,
-                    'body' => __('notification.assign_order.body',[
-                        'merchant' => $validMerchant->username,
-                        'create_user' => $user->username,
-                        'count' => $inputQty
-                    ])
-                ]);
-                // $clmsg->sendNotificationByTopic($notifReq,$user);
-                // SendNotificationJob::dispatch($notifReq, $user);
-                SendNotificationJob::dispatch($notifReq, $user)->onQueue($queueFCMName);
-            }
-            DB::commit();
-            return DataResponse::JsonResult(null,false,__('messages.info',[
-                'info' => 'Order created ('.$code.')',
-                'khInfo' => 'បានបង្កើតការកម្មង់លេខ ('.$code.')'
-            ]));
-        }catch(Exception $e){
-            Log::error($e->getTraceAsString());
-            Log::error($e->getMessage());
-            foreach($deleteImgs as $img){
-                Helper::deleteImageFile($img,$companyId,'order_image');
-            }
-            DB::rollBack();
-            return DataResponse::Error('Failed to create a new order');
-        }
-    }
-
-    // public function calculatePackageFee($zone_code,$price,$billedKg,$actualKg,$payer){
-    //     $priceList = GeneralSettingService::getZonePriceByCode($zone_code);
-    //     if(!$priceList) return DataResponse::NotFound('Zone price not found');
-    //     $zPrice = $priceList->price > 0 ? $priceList->price : $priceList->base_fee;
-    //     $selectKg = $billedKg ?? $actualKg;
-    //     $additionalPrice = 0;
-    //     $merchant_total = $zPrice;
-    //     if($selectKg >= $priceList->above_kg){
-    //         $additionalPrice = $priceList->above_kg_price;
-    //     }else if($selectKg < $priceList->above_kg && $selectKg >= $priceList->below_kg){
-    //         $additionalPrice = $priceList->below_kg_price;
-    //     }
-
-    //     $driverTotal = $price;
-    //     $merchant_total += $additionalPrice;
-    //     $total = $price + $additionalPrice;
-    //     if($payer == 'receiver'){
-    //         $total += $zPrice;
-    //     }
-
-    //     return (object)[
-    //         'delivery_fee' => $zPrice,
-    //         'driver_total' => $driverTotal,
-    //         'merchant_total' => $merchant_total,
-    //         'total' => $total
-    //     ];
-    // }
 
     public function updateOrderQty($orderId,$count=null){
         $count = $count ? $count : Package::where('is_deleted',0)->where('order_id',$orderId)->count();
@@ -361,13 +157,13 @@ class PickupCenterServiceImpl implements PickupCenterService
      *
      *  => ------ for reusable on action update package --------
      */
-    public function createOrUpdatePackage(Request $req,$user,?int $packageId,?int $orderId,?array $statusIds=[1,7],?callable $whereClause=null): object{
+    public function createOrUpdatePackage(array $data,$user,?int $packageId,?int $orderId,?array $statusIds=[1,7],?callable $whereClause=null): object{
         if($orderId){
             $order = Order::where('is_deleted',0)->select(['merchant_id','delivery_type','warehouse_id','branch_id','driver_id'])->find($orderId);
-            $req->merge([
+            $data = array_merge($data, [
                 'merchant_id' => $order->merchant_id,
-                'delivery_type' => $req->delivery_type ?? $order->delivery_type,
-                'product_type' => $req->product_type ?? $order->product_type,
+                'delivery_type' => $data['delivery_type'] ?? $order->delivery_type,
+                'product_type' => $data['product_type'] ?? $order->product_type,
                 'warehouse_id' => $order->warehouse_id,
                 'branch_id' => $order->branch_id,
                 'pickup_uid' => $order->driver_id,
@@ -375,7 +171,7 @@ class PickupCenterServiceImpl implements PickupCenterService
             if(!$order) return DataResponse::NotFound('Order not found');
         }
         // Log::info('Package Request: '.json_encode($req->all()));
-        $validate = $this->packageValidation($req);
+        $validate = $this->packageValidation($data);
         if($validate->fails()) return DataResponse::ValidateFail($validate->errors()->first());
         $inputs = $validate->validated();
         $inputs['company_id'] = $user->company_id;
@@ -587,130 +383,130 @@ class PickupCenterServiceImpl implements PickupCenterService
     }
 
 
-    public function createOrUpdateTrip($driverId,$packageId,$vehicleType,$user,$notes,$statusId,$action=null,$package=null){
-        // $today = date('Y-m-d');
-        $isNewPkg = true;
-        $pendingTrip = Delivery::where(function($query) {
-            $query->where('finished', 0)
-            ->where('is_deleted', 0);
-        })->where('company_id', $user->company_id)
-        ->where('driver_id', $driverId)
-        ->first();
-        if(!$pendingTrip) {
-            $oneTrip = Delivery::orderByDesc('id')->where('driver_id',$driverId)->where('is_deleted',0)->first();
-            if($oneTrip){
-                $stillHasPackage = DeliveryPackage::where('delivery_id',$oneTrip->id)
-                ->where('delay_count',0)->where('has_swap',0)->where('is_deleted',0)
-                ->where('status_id',6)->first();
-                if($stillHasPackage) $pendingTrip = $oneTrip ?? null;
-            }
-        }
+    // public function createOrUpdateTrip($driverId,$packageId,$vehicleType,$user,$notes,$statusId,$action=null,$package=null){
+    //     // $today = date('Y-m-d');
+    //     $isNewPkg = true;
+    //     $pendingTrip = Delivery::where(function($query) {
+    //         $query->where('finished', 0)
+    //         ->where('is_deleted', 0);
+    //     })->where('company_id', $user->company_id)
+    //     ->where('driver_id', $driverId)
+    //     ->first();
+    //     if(!$pendingTrip) {
+    //         $oneTrip = Delivery::orderByDesc('id')->where('driver_id',$driverId)->where('is_deleted',0)->first();
+    //         if($oneTrip){
+    //             $stillHasPackage = DeliveryPackage::where('delivery_id',$oneTrip->id)
+    //             ->where('delay_count',0)->where('has_swap',0)->where('is_deleted',0)
+    //             ->where('status_id',6)->first();
+    //             if($stillHasPackage) $pendingTrip = $oneTrip ?? null;
+    //         }
+    //     }
 
-        if(!$pendingTrip){
-            $QuerylastPackage = DeliveryPackage::where('package_id',$packageId)->where(function ($q){
-                $q->where('delay_count',0)->where('is_deleted',0);
-            });
-            $hasFailPackage = $QuerylastPackage->orderByDesc('id')->get();
-            if(isset($hasFailPackage[0])) {
-                $isSwap = $hasFailPackage[0]->status_id == 6;
-                $upFailArr = $isSwap? ['has_swap' => 1] : ['delay_count' => 1];
+    //     if(!$pendingTrip){
+    //         $QuerylastPackage = DeliveryPackage::where('package_id',$packageId)->where(function ($q){
+    //             $q->where('delay_count',0)->where('is_deleted',0);
+    //         });
+    //         $hasFailPackage = $QuerylastPackage->orderByDesc('id')->get();
+    //         if(isset($hasFailPackage[0])) {
+    //             $isSwap = $hasFailPackage[0]->status_id == 6;
+    //             $upFailArr = $isSwap? ['has_swap' => 1] : ['delay_count' => 1];
 
-                $QuerylastPackage->update($upFailArr);
-            }
-            $create = Delivery::create([
-                'driver_id' => $driverId,
-                'depart_datetime' => now(),
-                'package_count' => 1,
-                'status_id' => 14, //** On Delivery */
-                'warehouse_id' => 1,
-                'vehicle_type' => $vehicleType,
-                'branch_id' => $user->branch_id,
-                'company_id' => $user->company_id,
-                'update_uid' => $user->id,
-                'create_uid' => $user->id,
-            ]);
-            if(!$create) return DataResponse::Error(__('messages.error',['info' => 'Fail to add fleet']));
-            $deliveryId = $create->id;
-            Helper::setFleetNumber($user->branch_id,'fleet_code_controls','deliveries',$deliveryId,'fleet_tracking_number');
-        }else{
-            $deliveryId = $pendingTrip->id;
-            $newPackageCount = $pendingTrip->package_count;
-            $delay = 1;
-            $existsPkg = DeliveryPackage::where('package_id',$packageId)->where('delivery_id',$deliveryId)
-            ->where('delay_count',0)->where('has_swap',0)
-            ->where('is_deleted',0)
-            ->first();
-            if($existsPkg) {
-                if($driverId == $existsPkg->driver_id){
-                    // $isNewPkg = true;
-                    // if($existsPkg->status_id == 11) $delay = 1;
-                    // if($statusId){
-                        $toDelete = ($existsPkg->status_id == 6);
-                        $existsPkg->update([
-                            'is_deleted' => $toDelete ? 1 : 0,
-                            'deleted_uid' => $toDelete ? $user->id:null,
-                            'deleted_datetime' => $toDelete ? now() : null,
-                            'delay_count' => $delay,
-                            // 'status_id' => $statusId,
-                            // 'assign_uid' => $action == 'assign' ? $user->id : null
-                        ]);
-                    // }
-                }else $newPackageCount +=1;
-            }else $newPackageCount +=1;
+    //             $QuerylastPackage->update($upFailArr);
+    //         }
+    //         $create = Delivery::create([
+    //             'driver_id' => $driverId,
+    //             'depart_datetime' => now(),
+    //             'package_count' => 1,
+    //             'status_id' => 14, //** On Delivery */
+    //             'warehouse_id' => 1,
+    //             'vehicle_type' => $vehicleType,
+    //             'branch_id' => $user->branch_id,
+    //             'company_id' => $user->company_id,
+    //             'update_uid' => $user->id,
+    //             'create_uid' => $user->id,
+    //         ]);
+    //         if(!$create) return DataResponse::Error(__('messages.error',['info' => 'Fail to add fleet']));
+    //         $deliveryId = $create->id;
+    //         Helper::setFleetNumber($user->branch_id,'fleet_code_controls','deliveries',$deliveryId,'fleet_tracking_number');
+    //     }else{
+    //         $deliveryId = $pendingTrip->id;
+    //         $newPackageCount = $pendingTrip->package_count;
+    //         $delay = 1;
+    //         $existsPkg = DeliveryPackage::where('package_id',$packageId)->where('delivery_id',$deliveryId)
+    //         ->where('delay_count',0)->where('has_swap',0)
+    //         ->where('is_deleted',0)
+    //         ->first();
+    //         if($existsPkg) {
+    //             if($driverId == $existsPkg->driver_id){
+    //                 // $isNewPkg = true;
+    //                 // if($existsPkg->status_id == 11) $delay = 1;
+    //                 // if($statusId){
+    //                     $toDelete = ($existsPkg->status_id == 6);
+    //                     $existsPkg->update([
+    //                         'is_deleted' => $toDelete ? 1 : 0,
+    //                         'deleted_uid' => $toDelete ? $user->id:null,
+    //                         'deleted_datetime' => $toDelete ? now() : null,
+    //                         'delay_count' => $delay,
+    //                         // 'status_id' => $statusId,
+    //                         // 'assign_uid' => $action == 'assign' ? $user->id : null
+    //                     ]);
+    //                 // }
+    //             }else $newPackageCount +=1;
+    //         }else $newPackageCount +=1;
 
-            $updateArr = [
-                'driver_id' => $driverId,
-                'delay_count' => $delay,
-                'status_id' => TrackingStatus::ON_DELIVERY_TRIP->value,
-                'is_completed' => false,
-                'finished' => false,
-                'package_count' => $newPackageCount,
-                'update_uid' => $user->id,
-                'branch_id' => $user->branch_id,
-                'company_id' => $user->company_id,
-            ];
-            $pendingTrip->update($updateArr);
-            // ->update([
-                // 'driver_id' => $driverId,
-                // 'delay_count' => $delay,
-                // 'status_id' => 14,
-                // 'package_count' => $newPackageCount,
-                // 'update_uid' => $user->id,
-                // 'branch_id' => $user->branch_id,
-                // 'company_id' => $user->company_id,
-            // ]);
+    //         $updateArr = [
+    //             'driver_id' => $driverId,
+    //             'delay_count' => $delay,
+    //             'status_id' => TrackingStatus::ON_DELIVERY_TRIP->value,
+    //             'is_completed' => false,
+    //             'finished' => false,
+    //             'package_count' => $newPackageCount,
+    //             'update_uid' => $user->id,
+    //             'branch_id' => $user->branch_id,
+    //             'company_id' => $user->company_id,
+    //         ];
+    //         $pendingTrip->update($updateArr);
+    //         // ->update([
+    //             // 'driver_id' => $driverId,
+    //             // 'delay_count' => $delay,
+    //             // 'status_id' => 14,
+    //             // 'package_count' => $newPackageCount,
+    //             // 'update_uid' => $user->id,
+    //             // 'branch_id' => $user->branch_id,
+    //             // 'company_id' => $user->company_id,
+    //         // ]);
 
-        }
+    //     }
 
-        //** add delivery tracking */
-        if($isNewPkg) {
-            $dPackage = DeliveryPackage::create([
-                'order_id' => $package->order_id,
-                'delivery_id' => $deliveryId,
-                'payer' => $package->payer,
-                'receiver_phone' => $package->receiver_phone,
-                'receiver_address' => $package->receiver_address,
-                'zone_code' => $package->zone_code,
-                'zone_name' => $package->zone_name,
-                'merchant_id' => $package->merchant_id,
-                'delivery_type' => $package->delivery_type,
-                'product_type' => $package->product_type,
-                'notes' => $notes,
-                'assign_uid' => $action == 'assign' ? $user->id : null,
-                'driver_id' => $driverId,
-                'package_id' => $packageId,
-                'status_id' => 6, // On Delivery
-                'update_uid' => $user->id,
-                'create_uid' => $user->id,
-                'branch_id' => $user->branch_id,
-                'company_id' => $user->company_id,
-            ]);
-            if(!$dPackage) return DataResponse::Error(__('messages.error',['info' => 'Fail to assign package']));
-        }
+    //     //** add delivery tracking */
+    //     if($isNewPkg) {
+    //         $dPackage = DeliveryPackage::create([
+    //             'order_id' => $package->order_id,
+    //             'delivery_id' => $deliveryId,
+    //             'payer' => $package->payer,
+    //             'receiver_phone' => $package->receiver_phone,
+    //             'receiver_address' => $package->receiver_address,
+    //             'zone_code' => $package->zone_code,
+    //             'zone_name' => $package->zone_name,
+    //             'merchant_id' => $package->merchant_id,
+    //             'delivery_type' => $package->delivery_type,
+    //             'product_type' => $package->product_type,
+    //             'notes' => $notes,
+    //             'assign_uid' => $action == 'assign' ? $user->id : null,
+    //             'driver_id' => $driverId,
+    //             'package_id' => $packageId,
+    //             'status_id' => 6, // On Delivery
+    //             'update_uid' => $user->id,
+    //             'create_uid' => $user->id,
+    //             'branch_id' => $user->branch_id,
+    //             'company_id' => $user->company_id,
+    //         ]);
+    //         if(!$dPackage) return DataResponse::Error(__('messages.error',['info' => 'Fail to assign package']));
+    //     }
 
-        GeneralSettingService::updateTripStatus($deliveryId,$user);
-        return DataResponse::JsonResult(null);
-    }
+    //     GeneralSettingService::updateTripStatus($deliveryId,$user);
+    //     return DataResponse::JsonResult(null);
+    // }
 
 
     public function deleteOrderImage(int $orderId,int $imageId):object{
@@ -726,9 +522,9 @@ class PickupCenterServiceImpl implements PickupCenterService
         return DataResponse::JsonResult(null,false);
     }
 
-    public function replaceOrderImage(object $user,Request $req): object{
-        $image = $req->image ?? null;
-        $packageId = $req->package_id ?? null;
+    public function replaceOrderImage(object $user,array $data): object{
+        $image = $data['image'] ?? null;
+        $packageId = $data['package_id'] ?? null;
         if(!$image) {
             return DataResponse::ValidateFail(__('messages.error',[
                 'info' => 'Please provide an image',
@@ -747,7 +543,7 @@ class PickupCenterServiceImpl implements PickupCenterService
                 'khInfo' => 'រក្សាទុករូបភាពមិនបាន'
             ]));
         }
-        $foundImage = OrderImage::find($req->image_id);
+        $foundImage = OrderImage::find($data['image_id']);
         if(!$foundImage) {
             return DataResponse::NotFound(__('messages.not_found',[
                 'info' => 'Image',
@@ -765,5 +561,354 @@ class PickupCenterServiceImpl implements PickupCenterService
             'info' => 'Image replaced successfully',
             'khInfo' => 'បានជំនួសរូបភាពដោយជោគជ័យ'
         ]));
+    }
+
+
+    public function createOrder(array $data, object $user): object
+    {
+        // Validate
+        $validate = $this->orderValidation($data);
+        if ($validate->fails()) {
+            return DataResponse::ValidateFail($validate->errors()->first(), $validate->errors());
+        }
+        
+        $inputs = $validate->validated();
+        $companyId = $user->company_id;
+        $merchantId = $inputs['merchant_id'];
+        $driverId = $inputs['driver_id'] ?? null;
+        
+        // Remove driver_id if 0
+        if ($driverId == 0) {
+            $driverId = null;
+            unset($inputs['driver_id']);
+        }
+        
+        // Validate merchant
+        $validMerchant = $this->validateMerchant($merchantId);
+        if (!$validMerchant) {
+            return DataResponse::ValidateFail('Invalid sender identity!');
+        }
+        
+        // Validate driver if assigned
+        $validDriver = null;
+        if ($driverId) {
+            $validDriver = $this->validateDriver($driverId);
+            if (!$validDriver) {
+                return DataResponse::ValidateFail('Invalid driver identity!');// Returns error response
+            }
+        }
+        
+        // Prepare inputs (extracted method)
+        $inputs = $this->prepareOrderInputs($inputs, $user, $driverId);
+        $inputs = $this->processLocation($inputs);
+        
+        $details = $inputs['details'] ?? [];
+        $images = $inputs['images'] ?? [];
+        $deleteImgs = [];
+        
+        DB::beginTransaction();
+        try {
+            // Create order
+            $order = Order::create($inputs);
+            if (!$order) {
+                throw new Exception('Failed to create order');
+            }
+            
+            $orderId = $order->id;
+            $code = Helper::generateCode($this->orderCodePrefix, $orderId, '', 8);
+            
+            // Determine status
+            $statusId = $this->determineOrderStatus($driverId, $user->account_type, $details);
+            
+            // Create packages (if details provided)
+            if (isset($details[0])) {
+                $packageResult = $this->createPackagesFromDetails(
+                    $details,
+                    $merchantId,
+                    $orderId,
+                    $user,
+                    $inputs['product_type'] ?? null
+                );
+                
+                if ($packageResult['error']) {
+                    throw new Exception($packageResult['message']);
+                }
+            }
+            
+            // Update order with code and status
+            $order->update(['code' => $code, 'status_id' => $statusId]);
+            
+            // Save order images
+            if (isset($images[0])) {
+                $imageResult = $this->saveOrderImages($images, $orderId, $user, $companyId);
+                if ($imageResult['error']) {
+                    throw new Exception($imageResult['message']);
+                }
+                $deleteImgs = $imageResult['filenames'];
+            }
+            
+            // Send notifications
+            $this->sendOrderNotifications($user, $merchantId, $driverId, $validMerchant, $inputs['qty'], $companyId);
+            
+            DB::commit();
+            
+            return DataResponse::JsonResult(null, false, __('messages.info', [
+                'info' => 'Order created (' . $code . ')',
+                'khInfo' => 'បានបង្កើតការកម្មង់លេខ (' . $code . ')'
+            ]));
+        } catch (Exception $e) {
+            DB::rollBack();
+            Log::error('Create order error: ' . $e->getMessage());
+            Log::error($e->getTraceAsString());
+            
+            // Cleanup uploaded images
+            foreach ($deleteImgs as $img) {
+                Helper::deleteImageFile($img, $companyId, ImageDirectory::ORDER_IMAGE->value);
+            }
+            
+            return DataResponse::Error('Failed to create a new order: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Validate merchant
+     */
+    private function validateMerchant(int $merchantId): ?object
+    {
+        return User::where('is_deleted', 0)
+            ->where('delete_account', 0)
+            ->where('account_type', 'merchant')
+            ->select(['id', 'username', 'phone'])
+            ->find($merchantId);
+    }
+
+    /**
+     * Validate driver
+     */
+    private function validateDriver(int $driverId): object|bool
+    {
+        $validDriver = User::where('is_deleted', 0)
+            ->where('delete_account', 0)
+            ->where('account_type', 'driver')
+            ->find($driverId);
+        
+        if (!$validDriver) {
+            return DataResponse::ValidateFail('Invalid driver identity!');
+        }
+        
+        if ($validDriver->lock) {
+            return DataResponse::ValidateFail(__('messages.info', [
+                'info' => 'Driver is currently inactive',
+                'khInfo' => 'អ្នកដឹកជញ្ជូនត្រូវបានឈប់ដំណើរការ'
+            ]));
+        }
+        
+        return $validDriver;
+    }
+
+    /**
+     * Prepare order inputs
+     */
+    private function prepareOrderInputs(array $inputs, object $user, ?int $driverId): array
+    {
+        $userType = $user->account_type;
+        $dateTime = Helper::getDateTime();
+        
+        $inputs['create_uid'] = $user->id;
+        $inputs['update_uid'] = $user->id;
+        $inputs['company_id'] = $user->company_id;
+        $inputs['booking_channel'] = $userType;
+        $inputs['original_qty'] = $inputs['qty'];
+        $inputs['order_datetime'] = now();
+        $inputs['delivery_type'] = $inputs['delivery_type'] ?? 'normal';
+        
+        // Set tracking notes
+        if ($userType == 'driver') {
+            $inputs['driver_id'] = $user->id;
+            $inputs['tracking_notes'] = "Driver create order ($dateTime)";
+        } elseif ($userType == 'merchant') {
+            $inputs['tracking_notes'] = "Merchant create order ($dateTime)";
+        } else {
+            $inputs['tracking_notes'] = "Admin create order ($dateTime)";
+        }
+        
+        // Set pickup datetime if driver assigned
+        if ($driverId) {
+            $inputs['pickup_datetime'] = now();
+            $inputs['assign_uid'] = $user->id;
+        }
+        
+        return $inputs;
+    }
+
+    /**
+     * Process location from Google Maps URL
+     */
+    private function processLocation(array $inputs): array
+    {
+        $pickupAddress = $inputs['pickup_address'] ?? null;
+        $pickupAddressGoogleMap = $inputs['pickup_address_google_map'] ?? $inputs['pin_address'] ?? null;
+        
+        if (Helper::isShortGoogleMapUrl($pickupAddressGoogleMap)) {
+            $geoRes = new GeoResolverService();
+            $xM = $geoRes->fromShortUrl($pickupAddressGoogleMap);
+            $inputs['loc_lat'] = $xM['lat'] ?? 0;
+            $inputs['loc_lng'] = $xM['lng'] ?? 0;
+        } else {
+            $latLng = Helper::getLatLongFromGoogleMapsUrl($pickupAddressGoogleMap);
+            $inputs['loc_lat'] = (float) ($inputs['loc_lat'] ?? $latLng->latitude);
+            $inputs['loc_lng'] = (float) ($inputs['loc_lng'] ?? $latLng->longitude);
+            
+            if (!$pickupAddress) {
+                $inputs['pickup_address'] = $latLng->address;
+            }
+        }
+        
+        return $inputs;
+    }
+
+    /**
+     * Determine order status
+     */
+    private function determineOrderStatus(?int $driverId, string $userType, array $details): int
+    {
+        // If driver and has details, status = 4
+        if ($driverId && isset($details[0])) {
+            return 4;
+        }
+        
+        // If driver but no details, status = 3
+        if ($driverId) {
+            return 3;
+        }
+        
+        // No driver, status = 1
+        return 1;
+    }
+
+    /**
+     * Create packages from details
+     */
+    private function createPackagesFromDetails(
+        array $details,
+        int $merchantId,
+        int $orderId,
+        object $user,
+        ?string $productType
+    ): array {
+        $userType = $user->account_type;
+        $isMobile = $userType !== 'admin';
+        
+        foreach ($details as $d) {
+            $d['merchant_id'] = $merchantId;
+            $d['product_type'] = $productType;
+            $price = $d['price'] ?? 0;
+            $d['cod'] = 0;
+            
+            if ($isMobile && $price > 0) {
+                $d['cod'] = 1;
+            }
+            
+            $dReq = new Request($d);
+            $savePkg = $this->createOrUpdatePackage($dReq->all(), $user, null, $orderId);
+            
+            if ($savePkg->error) {
+                return [
+                    'error' => true,
+                    'message' => $savePkg->message ?? 'Failed to create package'
+                ];
+            }
+        }
+        
+        return ['error' => false, 'message' => ''];
+    }
+
+    /**
+     * Save order images
+     */
+    private function saveOrderImages(array $images, int $orderId, object $user, int $companyId): array
+    {
+        $deleteImgs = [];
+        $saveOrderImages = [];
+        
+        foreach ($images as $idx => $photo) {
+            $isValidUpload = Helper::isValidUploadImage($photo, 0.8);
+            if ($isValidUpload->error) {
+                return [
+                    'error' => true,
+                    'message' => $isValidUpload->message . ', check your Image #' . ($idx + 1),
+                    'filenames' => $deleteImgs
+                ];
+            }
+            
+            $img = Helper::saveImageFile($photo, $companyId, ImageDirectory::ORDER_IMAGE->value, date('Y-m-d'));
+            $deleteImgs[] = $img->filename;
+            
+            $saveOrderImages[] = [
+                'order_id' => $orderId,
+                'photo_file_name' => $img->filename,
+                'create_uid' => $user->id,
+                'update_uid' => $user->id,
+                'company_id' => $companyId,
+                'branch_id' => $user->branch_id,
+            ];
+        }
+        
+        if (!empty($saveOrderImages)) {
+            OrderImage::insert($saveOrderImages);
+        }
+        
+        return [
+            'error' => false,
+            'message' => '',
+            'filenames' => $deleteImgs
+        ];
+    }
+
+    /**
+     * Send notifications
+     */
+    private function sendOrderNotifications(
+        object $user,
+        int $merchantId,
+        ?int $driverId,
+        object $validMerchant,
+        int $qty,
+        int $companyId
+    ): void {
+        $queueFCMName = config('queue_job_names.' . config('app.env') . '.notification');
+        
+        // Notify merchant
+        $topics = GeneralSettingService::getGeneralTopics($companyId, 'merchant', $merchantId);
+        $merchantNotif = new Request([
+            'topic' => $topics->private,
+            'title' => __('notification.create_order.title'),
+            'body' => __('notification.create_order.body', [
+                'create_user' => $user->account_type,
+                'count' => $qty
+            ]),
+            'type' => 'private',
+            'target_uid' => $merchantId
+        ]);
+        
+        SendNotificationJob::dispatch($merchantNotif, $user)->onQueue($queueFCMName);
+        
+        // Notify driver if assigned
+        if ($driverId) {
+            $topics = GeneralSettingService::getGeneralTopics($companyId, 'driver', $driverId);
+            $driverNotif = new Request([
+                'topic' => $topics->private,
+                'type' => 'private',
+                'target_uid' => $driverId,
+                'title' => __('notification.assign_order.title'),
+                'body' => __('notification.assign_order.body', [
+                    'merchant' => $validMerchant->username,
+                    'create_user' => $user->username,
+                    'count' => $qty
+                ])
+            ]);
+            
+            SendNotificationJob::dispatch($driverNotif, $user)->onQueue($queueFCMName);
+        }
     }
 }

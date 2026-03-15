@@ -17,7 +17,7 @@ interface TripService
      * @return Delivery|null
      */
     public function updateTripStatus(int $tripId, object $user, bool $forceRecalculate = false): ?Delivery;
- 
+
     /**
      * Find or create an active trip for a driver
      * 
@@ -35,7 +35,7 @@ interface TripService
         string $vehicleType, 
         object $user
     ): Delivery;
- 
+
     /**
      * Add package to trip (used by both admin assignment and driver actions)
      * 
@@ -53,7 +53,7 @@ interface TripService
         ?string $notes = null,
         ?string $action = null
     ): bool;
- 
+
     /**
      * Add multiple packages to trip in batch
      * 
@@ -71,7 +71,7 @@ interface TripService
         ?string $notes = null,
         ?string $action = null
     ): array;
- 
+
     /**
      * Remove package from trip
      * 
@@ -87,7 +87,7 @@ interface TripService
         object $user,
         bool $markAsSwapped = false
     ): bool;
- 
+
     /**
      * Increment trip counts (efficient for single package updates)
      * 
@@ -97,7 +97,7 @@ interface TripService
      * @return bool
      */
     public function incrementTripCount(int $tripId, string $countType, int $increment = 1): bool;
- 
+
     /**
      * Check if trip should be completed and update accordingly
      * 
@@ -106,7 +106,7 @@ interface TripService
      * @return bool Whether trip was completed
      */
     public function completeTripIfNeeded(int $tripId, object $user): bool;
- 
+
     /**
      * Recalculate trip counts from actual package states (for data corrections)
      * 
@@ -115,7 +115,7 @@ interface TripService
      * @return array ['delivered' => int, 'failed' => int, 'on_delivery' => int, 'total' => int]
      */
     public function recalculateTripCounts(int $tripId, object $user): array;
- 
+
     /**
      * Get active trip for driver
      * 
@@ -124,7 +124,7 @@ interface TripService
      * @return Delivery|null
      */
     public function getActiveTrip(int $driverId, int $companyId): ?Delivery;
- 
+
     /**
      * Mark trip as deleted when all packages removed
      * 
@@ -134,7 +134,7 @@ interface TripService
      * @return bool
      */
     public function deleteTripIfEmpty(int $tripId, object $user, string $reason = ''): bool;
- 
+
     /**
      * Batch update package statuses and recalculate trip
      * 
@@ -144,4 +144,13 @@ interface TripService
      * @return bool
      */
     public function batchUpdatePackageStatuses(int $tripId, array $packageUpdates, object $user): bool;
+
+
+    /**
+     * Refresh trip data by recalculating counts and updating status based on current package states
+     * @param int $tripId
+     * @param object $user
+     * @return Delivery|null
+     */
+    public function refreshTripData(int $tripId, object $user): ?Delivery;
 }

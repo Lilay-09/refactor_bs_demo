@@ -26,9 +26,7 @@ use App\Models\Package;
 use App\Models\PackageAttachment;
 use App\Models\ScoringReward;
 use App\Models\UserScoringReward;
-use App\Models\UserZone;
 use App\Services\AppSetting;
-use App\Services\CloudMessagingService;
 use App\Services\GeneralSettingService;
 use App\Services\GeoResolverService;
 use App\Services\PickupCenterService;
@@ -622,7 +620,7 @@ class HomeScreenController extends Controller
                     $d['cod'] = 1;
                 }
                 $rD = new Request($d);
-                $savePkg = $this->pickupCenterService->createOrUpdatePackage($rD,$user,null,$orderId);
+                $savePkg = $this->pickupCenterService->createOrUpdatePackage($rD->all(),$user,null,$orderId);
                 if($savePkg->error) return ApiResponse::flex($savePkg);
             }
         }
@@ -867,227 +865,6 @@ class HomeScreenController extends Controller
 
     // }
 
-    public function submitDeliveryPackage(Request $req)
-    {
-        $user = UserService::getAuthUser('driver');
-        $id = $req->package_id;
-        
-        $validate = validator($req->all(), [
-            'status_id' => 'required|in:9,10,19',
-            'delivery_remarks' => 'nullable|string',
-            'images' => 'nullable',
-            'driver_cod_usd' => 'nullable',
-            'driver_cod_khr' => 'nullable',
-            'amount' => 'nullable|numeric',
-            'currency' => 'nullable',
-            'payer' => 'nullable|in:sender,receiver'
-        ]);
-        
-        if ($validate->fails()) {
-            return ApiResponse::ValidateFail($validate->errors()->first());
-        }
-        
-        $inputs = $validate->validated();
-        $status_id = $inputs['status_id'];
-        $inputs['last_submit_uid'] = $user->id;
-        $inputs['driver_cod_usd'] = $inputs['driver_cod_usd'] ?? 0;
-        $inputs['driver_cod_khr'] = $inputs['driver_cod_khr'] ?? 0;
-        
-        $amount = $inputs['amount'] ?? 0;
-        if ($amount > 0) {
-            if (!isset($inputs['currency'])) {
-                return ApiResponse::ValidateFail(__('messages.info', [
-                    'info' => 'Please select currency if you want to change amount'
-                ]));
-            }
-            
-            if ($inputs['currency'] == 'USD') {
-                $inputs['driver_cod_usd'] = $amount;
-            } else {
-                $inputs['driver_cod_khr'] = $amount;
-            }
-        }
-        
-        $inputs['original_driver_cod_usd'] = $inputs['driver_cod_usd'];
-        $inputs['original_driver_cod_khr'] = $inputs['driver_cod_khr'];
-        
-        $photos = $inputs['images'] ?? null;
-        $deliveryRemarks = $inputs['delivery_remarks'] ?? null;
- 
-        // Validate package
-        $package = Package::where('is_deleted', 0)->find($id);
-        if (!$package) {
-            return ApiResponse::NotFound(__('messages.not_found', [
-                'info' => 'Package'
-            ]));
-        }
- 
-        $payer = $inputs['payer'] ?? $package->payer;
- 
-        // Validate package status
-        if ($package->status_id == 9) {
-            return ApiResponse::Duplicated(__('messages.info', [
-                'info' => 'This package has already been delivered!',
-                'khInfo' => 'កញ្ចប់​បានដឹករួចហើយ'
-            ]));
-        }
- 
-        if ($package->status_id == 10) {
-            return ApiResponse::Duplicated(__('messages.info', [
-                'info' => 'This package has summitted as failed, Only On Delivery can be summitted!',
-                'khInfo' => 'កញ្ចប់​បរាជ័យ, មានតែកញ្ចប់​ដែលកំពុងដឹកទើបប្រតិបត្តិបាន'
-            ]));
-        }
- 
-        if ($package->status_id == 11) {
-            return ApiResponse::Duplicated(__('messages.info', [
-                'info' => 'Package has already been returned.',
-                'khInfo' => 'កញ្ចប់បានយកត្រឡប់ទៅហាងរួចហើយ'
-            ]));
-        }
- 
-        if ($package->driver_id !== $user->id) {
-            return ApiResponse::Duplicated(__('messages.info', [
-                'info' => 'Please submit package that belongs to you',
-                'khInfo' => 'សូមបញ្ជូនកញ្ចប់ដែលជាកម្មសិទ្ធិរបស់អ្នក'
-            ]));
-        }
- 
-        if ($package->status_id == 19) {
-            return ApiResponse::Duplicated(__('messages.info', [
-                'info' => 'Package is already failed with fee.',
-                'khInfo' => 'កញ្ចប់ធ្លាប់បរាជ័យគិតសេវា'
-            ]));
-        }
- 
-        // Hide old attachments
-        PackageAttachment::where('package_id', $id)->update([
-            'hidden' => 1
-        ]);
- 
-        // Process new attachments
-        $attachmentImgs = [];
-        if (isset($photos[0])) {
-            foreach ($photos as $p) {
-                $dirName = ImageDirectory::SUBMIT_PACKAGE->value;
-                $today = date('Y-m-d');
-                $isValidUpload = Helper::isValidUploadImage($p, 3);
-                
-                if ($isValidUpload->error) {
-                    return ApiResponse::ValidateFail($isValidUpload->message);
-                }
-                
-                $fileName = Helper::saveImageFileOrBase64($p, $user->company_id, $dirName, $today)->filename;
-                if ($fileName) {
-                    $attachmentImgs[] = [
-                        'package_id' => $id,
-                        'file_dir' => $dirName,
-                        'submit_uid' => $user->id,
-                        'file_name' => $fileName,
-                        'created_at' => now(),
-                        'updated_at' => now()
-                    ];
-                }
-            }
-        }
- 
-        // Prepare tracking notes
-        $todayDt = Helper::getDateTime();
-        $driverName = $user->username;
-        $statusCode = $status_id == 9 ? 'Delivered' : ($status_id == 10 ? 'Failed' : ($status_id == 19 ? 'Failed with fee' : ''));
-        $inputs['tracking_notes'] = $package->tracking_notes . "|[$user->id]Driver ($driverName) submit $statusCode ($todayDt)[Remark: $deliveryRemarks]";
- 
-        // Status-specific updates
-        if ($status_id == 9) {
-            $inputs['delivered_datetime'] = now();
-            $inputs['delivery_remarks'] = $deliveryRemarks;
-        }
- 
-        if ($status_id == 10) {
-            if (!$deliveryRemarks) {
-                return ApiResponse::ValidateFail(__('messages.info', [
-                    'Please input remarks'
-                ]));
-            }
-            $inputs['failed_datetime'] = now();
-            $inputs['failure_notes'] = $deliveryRemarks;
-        }
- 
-        if ($status_id == 19) {
-            $inputs['failed_datetime'] = now();
-            $inputs['failure_notes'] = $deliveryRemarks;
-        }
- 
-        if ($payer && $status_id == 19) {
-            if ($payer == 'receiver') {
-                $inputs['driver_cod_usd'] = $package->delivery_fee + $package->other_fee;
-            }
-        }
- 
-        try {
-            DB::beginTransaction();
-            
-            // Update package
-            $package->update($inputs);
-            
-            // Update delivery package
-            $dp = DeliveryPackage::where('package_id', $id)
-                ->where('driver_id', $user->id)
-                ->where('is_deleted', 0)
-                ->where('has_swap', 0)
-                ->where('delay_count', 0)
-                ->orderByDesc('id')
-                ->first();
- 
-            if (!$dp) {
-                throw new Exception('Delivery package not found');
-            }
- 
-            $dp->update([
-                'notes' => $inputs['tracking_notes'],
-                'status_id' => $status_id
-            ]);
- 
-            // ============================================
-            // USE TRIPSERVICE TO UPDATE DELIVERY COUNTS
-            // ============================================
-            
-            // Increment the appropriate count in deliveries table
-            if ($status_id == 9) {
-                // Delivered
-                $this->tripService->incrementTripCount($dp->delivery_id, 'delivered', 1);
-            } elseif ($status_id == 10) {
-                // Failed (regular)
-                $this->tripService->incrementTripCount($dp->delivery_id, 'failed', 1);
-            } elseif ($status_id == 19) {
-                // Failed with fee
-                $this->tripService->incrementTripCount($dp->delivery_id, 'failed_with_fee', 1);
-            }
- 
-            // Check if trip should be completed
-            $this->tripService->completeTripIfNeeded($dp->delivery_id, $user);
- 
-            // Insert attachments
-            if (!empty($attachmentImgs)) {
-                PackageAttachment::insert($attachmentImgs);
-            }
-            
-            DB::commit();
-            
-            return ApiResponse::JsonResult(null, __('messages.submitted', [
-                'info' => 'Package has',
-                'khInfo' => 'បានបញ្ចូន'
-            ]));
-        } catch (Exception $e) {
-            DB::rollBack();
-            Log::error('Submit delivery package error: ' . $e->getMessage());
-            Log::error($e->getTraceAsString());
-            
-            return ApiResponse::Error('It will get back soon!');
-        }
-    }
-
-
     public function cancelOrder(Request $req){
         $user = UserService::getAuthUser('driver');
         $orderId = $req->order_id;
@@ -1235,7 +1012,7 @@ class HomeScreenController extends Controller
             'warehouse_id' => $user->info->warehouse_id,
             'branch_id' => $user->branch_id,
         ]);
-        $createOrder = $this->pickupCenterService->createOrder($req,$user);
+        $createOrder = $this->pickupCenterService->createOrder($req->all(),$user);
         return ApiResponse::flex($createOrder);
     }
 
@@ -1519,5 +1296,229 @@ class HomeScreenController extends Controller
             'delivered_pkg_count' => (string)$counts->delivered_normal_pkg,
             'accepted_order_count' => (string)$pickupCount,
         ]));
+    }
+
+
+    /**
+     * Driver submits package as delivered/failed/failed with fee
+     */
+    public function submitDeliveryPackage(Request $req)
+    {
+        $user = UserService::getAuthUser('driver');
+        $id = $req->package_id;
+        
+        $validate = validator($req->all(), [
+            'status_id' => 'required|in:9,10,19',
+            'delivery_remarks' => 'nullable|string',
+            'images' => 'nullable',
+            'driver_cod_usd' => 'nullable',
+            'driver_cod_khr' => 'nullable',
+            'amount' => 'nullable|numeric',
+            'currency' => 'nullable',
+            'payer' => 'nullable|in:sender,receiver'
+        ]);
+        
+        if ($validate->fails()) {
+            return ApiResponse::ValidateFail($validate->errors()->first());
+        }
+        
+        $inputs = $validate->validated();
+        $status_id = $inputs['status_id'];
+        $inputs['last_submit_uid'] = $user->id;
+        $inputs['driver_cod_usd'] = $inputs['driver_cod_usd'] ?? 0;
+        $inputs['driver_cod_khr'] = $inputs['driver_cod_khr'] ?? 0;
+        
+        $amount = $inputs['amount'] ?? 0;
+        if ($amount > 0) {
+            if (!isset($inputs['currency'])) {
+                return ApiResponse::ValidateFail(__('messages.info', [
+                    'info' => 'Please select currency if you want to change amount'
+                ]));
+            }
+            
+            if ($inputs['currency'] == 'USD') {
+                $inputs['driver_cod_usd'] = $amount;
+            } else {
+                $inputs['driver_cod_khr'] = $amount;
+            }
+        }
+        
+        $inputs['original_driver_cod_usd'] = $inputs['driver_cod_usd'];
+        $inputs['original_driver_cod_khr'] = $inputs['driver_cod_khr'];
+        
+        $photos = $inputs['images'] ?? null;
+        $deliveryRemarks = $inputs['delivery_remarks'] ?? null;
+ 
+        // Validate package
+        $package = Package::where('is_deleted', 0)->find($id);
+        if (!$package) {
+            return ApiResponse::NotFound(__('messages.not_found', [
+                'info' => 'Package'
+            ]));
+        }
+ 
+        $payer = $inputs['payer'] ?? $package->payer;
+ 
+        // Validate package status
+        if ($package->status_id == 9) {
+            return ApiResponse::Duplicated(__('messages.info', [
+                'info' => 'This package has already been delivered!',
+                'khInfo' => 'កញ្ចប់​បានដឹករួចហើយ'
+            ]));
+        }
+ 
+        if ($package->status_id == 10) {
+            return ApiResponse::Duplicated(__('messages.info', [
+                'info' => 'This package has summitted as failed, Only On Delivery can be summitted!',
+                'khInfo' => 'កញ្ចប់​បរាជ័យ, មានតែកញ្ចប់​ដែលកំពុងដឹកទើបប្រតិបត្តិបាន'
+            ]));
+        }
+ 
+        if ($package->status_id == 11) {
+            return ApiResponse::Duplicated(__('messages.info', [
+                'info' => 'Package has already been returned.',
+                'khInfo' => 'កញ្ចប់បានយកត្រឡប់ទៅហាងរួចហើយ'
+            ]));
+        }
+ 
+        if ($package->driver_id !== $user->id) {
+            return ApiResponse::Duplicated(__('messages.info', [
+                'info' => 'Please submit package that belongs to you',
+                'khInfo' => 'សូមបញ្ជូនកញ្ចប់ដែលជាកម្មសិទ្ធិរបស់អ្នក'
+            ]));
+        }
+ 
+        if ($package->status_id == 19) {
+            return ApiResponse::Duplicated(__('messages.info', [
+                'info' => 'Package is already failed with fee.',
+                'khInfo' => 'កញ្ចប់ធ្លាប់បរាជ័យគិតសេវា'
+            ]));
+        }
+ 
+        // Hide old attachments
+        PackageAttachment::where('package_id', $id)->update([
+            'hidden' => 1
+        ]);
+ 
+        // Process new attachments
+        $attachmentImgs = [];
+        if (isset($photos[0])) {
+            foreach ($photos as $p) {
+                $dirName = ImageDirectory::SUBMIT_PACKAGE->value;
+                $today = date('Y-m-d');
+                $isValidUpload = Helper::isValidUploadImage($p, 3);
+                
+                if ($isValidUpload->error) {
+                    return ApiResponse::ValidateFail($isValidUpload->message);
+                }
+                
+                $fileName = Helper::saveImageFileOrBase64($p, $user->company_id, $dirName, $today)->filename;
+                if ($fileName) {
+                    $attachmentImgs[] = [
+                        'package_id' => $id,
+                        'file_dir' => $dirName,
+                        'submit_uid' => $user->id,
+                        'file_name' => $fileName,
+                        'created_at' => now(),
+                        'updated_at' => now()
+                    ];
+                }
+            }
+        }
+ 
+        // Prepare tracking notes
+        $todayDt = Helper::getDateTime();
+        $driverName = $user->username;
+        $statusCode = $status_id == 9 ? 'Delivered' : ($status_id == 10 ? 'Failed' : ($status_id == 19 ? 'Failed with fee' : ''));
+        $inputs['tracking_notes'] = $package->tracking_notes . "|[$user->id]Driver ($driverName) submit $statusCode ($todayDt)[Remark: $deliveryRemarks]";
+ 
+        // Status-specific updates
+        if ($status_id == 9) {
+            $inputs['delivered_datetime'] = now();
+            $inputs['delivery_remarks'] = $deliveryRemarks;
+        }
+ 
+        if ($status_id == 10) {
+            if (!$deliveryRemarks) {
+                return ApiResponse::ValidateFail(__('messages.info', [
+                    'Please input remarks'
+                ]));
+            }
+            $inputs['failed_datetime'] = now();
+            $inputs['failure_notes'] = $deliveryRemarks;
+        }
+ 
+        if ($status_id == 19) {
+            $inputs['failed_datetime'] = now();
+            $inputs['failure_notes'] = $deliveryRemarks;
+        }
+ 
+        if ($payer && $status_id == 19) {
+            if ($payer == 'receiver') {
+                $inputs['driver_cod_usd'] = $package->delivery_fee + $package->other_fee;
+            }
+        }
+ 
+        try {
+            DB::beginTransaction();
+            
+            // Update package
+            $package->update($inputs);
+            
+            // Update delivery package
+            $dp = DeliveryPackage::where('package_id', $id)
+                ->where('driver_id', $user->id)
+                ->where('is_deleted', 0)
+                ->where('has_swap', 0)
+                ->where('delay_count', 0)
+                ->orderByDesc('id')
+                ->first();
+ 
+            if (!$dp) {
+                throw new Exception('Delivery package not found');
+            }
+ 
+            $dp->update([
+                'notes' => $inputs['tracking_notes'],
+                'status_id' => $status_id
+            ]);
+ 
+            // ============================================
+            // USE TRIPSERVICE TO UPDATE DELIVERY COUNTS
+            // ============================================
+            
+            // Increment the appropriate count in deliveries table
+            if ($status_id == 9) {
+                // Delivered
+                $this->tripService->incrementTripCount($dp->delivery_id, 'delivered', 1);
+            } elseif ($status_id == 10) {
+                // Failed (regular)
+                $this->tripService->incrementTripCount($dp->delivery_id, 'failed', 1);
+            } elseif ($status_id == 19) {
+                // Failed with fee
+                $this->tripService->incrementTripCount($dp->delivery_id, 'failed_with_fee', 1);
+            }
+ 
+            // Check if trip should be completed
+            $this->tripService->completeTripIfNeeded($dp->delivery_id, $user);
+ 
+            // Insert attachments
+            if (!empty($attachmentImgs)) {
+                PackageAttachment::insert($attachmentImgs);
+            }
+            
+            DB::commit();
+            
+            return ApiResponse::JsonResult(null, __('messages.submitted', [
+                'info' => 'Package has',
+                'khInfo' => 'បានបញ្ចូន'
+            ]));
+        } catch (Exception $e) {
+            DB::rollBack();
+            Log::error('Submit delivery package error: ' . $e->getMessage());
+            Log::error($e->getTraceAsString());
+            
+            return ApiResponse::Error('It will get back soon!');
+        }
     }
 }

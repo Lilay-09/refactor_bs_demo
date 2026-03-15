@@ -22,6 +22,7 @@ class User extends Authenticatable implements JWTSubject
     protected $table = 'users';
     protected $fillable = [
         'id',
+        'type_id',
         'app_id',
         'code',
         'first_name',
@@ -232,5 +233,4 @@ class User extends Authenticatable implements JWTSubject
     {
         return $this->hasMany(Package::class, 'driver_id');
     }
-
 }
