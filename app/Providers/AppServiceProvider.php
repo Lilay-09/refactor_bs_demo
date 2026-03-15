@@ -19,6 +19,8 @@ use App\Services\TelegramBotService;
 use App\Services\TelegramBotServiceImpl;
 use App\Services\TransferService;
 use App\Services\TransferServiceImpl;
+use App\Services\TripService;
+use App\Services\TripServiceImpl;
 use App\Services\UserNotificationService;
 use App\Services\UserNotificationServiceImpl;
 use App\Services\WarehouseService;
@@ -48,6 +50,7 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(PaywayService::class,PaywayServiceImpl::class);
         $this->app->bind(TelegramBotService::class,TelegramBotServiceImpl::class);
         $this->app->bind(ActivityLogService::class,ActivityLogServiceImpl::class);
+        $this->app->bind(TripService::class,TripServiceImpl::class);
     }
 
     /**

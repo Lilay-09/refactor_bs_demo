@@ -29,6 +29,193 @@ class FleetManagementController extends Controller
 
     }
 
+    // public function getTrips(Request $req)
+    // {
+    //     $user = UserService::getAuthUser();
+    //     $search = $req->search ?? null;
+    //     $driverId = $req->driver_id;
+    //     $startDate = $req->startDate;
+    //     $lang = $req->lang;
+    //     $endDate = $req->endDate;
+    //     $statusId = $req->status_id;
+
+    //     /*
+    //     * Step 1: Load package info only from latest delivery_packages
+    //     * (UNCHANGED business logic)
+    //     */
+    //     $packages = Package::from('packages as p')
+    //         ->join('delivery_packages as dp', 'p.id', '=', 'dp.package_id')
+    //         ->whereIn('dp.id', function ($q) {
+    //             $q->selectRaw('MAX(dp2.id)')
+    //             ->from('delivery_packages as dp2')
+    //             ->where('dp2.is_deleted', false)
+    //             ->groupBy('dp2.package_id');
+    //         })
+    //         ->where([
+    //             ['p.is_deleted', false],
+    //             ['dp.is_deleted', false],
+    //             ['dp.has_swap', 0],
+    //             ['dp.delay_count', 0],
+    //         ])
+    //         ->selectRaw(
+    //             'p.id as package_id,
+    //             dp.delivery_id,
+    //             dp.delay_count,
+    //             dp.has_swap,
+    //             p.status_id,
+    //             p.driver_total'
+    //         )
+    //         ->where(function($q) use($startDate,$endDate){
+    //             $startDatetime = Helper::dateYMD($startDate) . " 00:00:00";
+    //             // Extend start date backward by 15 days
+    //             $extendedStartDatetime = Carbon::parse($startDatetime)->subDays(15)->format('Y-m-d H:i:s');
+    //             // End date stays the same
+    //             $endDatetime = Helper::dateYMD($endDate) . " 23:59:59";
+    //             $q->where(function ($q) use ($extendedStartDatetime, $endDatetime) {
+    //                 $q->where('p.status_id', 6)
+    //                 ->whereBetween('p.assign_driver_datetime', [$extendedStartDatetime, $endDatetime]);
+    //             })->orWhere(function ($q) use ($extendedStartDatetime, $endDatetime) {
+    //                 $q->whereIn('p.status_id', [10, 19])
+    //                 ->whereBetween('p.failed_datetime', [$extendedStartDatetime, $endDatetime]);
+    //             })->orWhere(function ($q) use ($extendedStartDatetime, $endDatetime) {
+    //                 $q->where('p.status_id', 9)
+    //                 ->whereBetween('p.delivered_datetime', [$extendedStartDatetime, $endDatetime]);
+    //             })
+    //             ->orWhere(function ($q) use ($extendedStartDatetime, $endDatetime) {
+    //                 $q->where('p.status_id', 11)
+    //                 ->whereBetween('p.returned_datetime', [$extendedStartDatetime, $endDatetime]);
+    //             });
+    //         })
+    //         ->get();
+
+    //     /*
+    //     * Step 2: Index packages by delivery_id (NO logic change)
+    //     */
+    //     $packagesByDelivery = $packages->groupBy('delivery_id');
+
+    //     /*
+    //     * Step 3: Delivery query (UNCHANGED logic)
+    //     */
+    //     $query = Delivery::query()
+    //         ->with(['status', 'driver'])
+    //         ->where('is_deleted', 0)
+    //         ->where('company_id', $user->company_id)
+    //         ->orderBy('status_id')
+    //         ->orderByDesc('id')
+    //         ->selectRaw(
+    //             'id,
+    //             fleet_tracking_number,
+    //             status_id,
+    //             driver_id,
+    //             depart_datetime,
+    //             remarks,
+    //             package_count,
+    //             delivered_count,
+    //             failed_count,
+    //             warehouse_id,
+    //             vehicle_type,
+    //             driver_id,
+    //             is_completed,
+    //             finished'
+    //         );
+
+    //     /*
+    //     * Step 4: Filters (UNCHANGED)
+    //     */
+    //     if ($search) {
+    //         $query->where(function ($q) use ($search) {
+    //             if (str_starts_with($search, config('app.code_prefix'))) {
+    //                  $q->whereHas('packages.package', function ($sub) use ($search) {
+    //                     $sub->where('qr_code', $search);
+    //                 });
+    //                 $q->whereHas('packages.package', function ($sub) use ($search) {
+    //                     $sub->where('qr_code', $search);
+    //                 });
+    //             } elseif (str_starts_with($search, '0')) {
+    //                 $q->whereHas('distinctPackages.package', function ($q) use ($search) {
+    //                     $q->where('receiver_phone', $search)
+    //                     ->whereColumn('packages.driver_id', 'delivery_packages.driver_id');
+    //                 });
+    //             } else {
+    //                 $q->where('fleet_tracking_number', $search);
+    //             }
+    //         });
+    //     } else {
+    //         if ($driverId) {
+    //             $query->where('driver_id', $driverId);
+    //         }
+
+    //         if ($statusId) {
+    //             $query->where('status_id', $statusId);
+    //         }
+
+    //         if ($startDate && $endDate) {
+    //             $startDate = date('Y-m-d', strtotime($startDate));
+    //             $endDate   = date('Y-m-d', strtotime($endDate));
+
+    //             $query->whereBetween(
+    //                 'depart_datetime',
+    //                 ["$startDate 00:00:00", "$endDate 23:59:59"]
+    //             );
+    //         } else {
+    //             $query->whereDate('depart_datetime', now());
+    //         }
+    //     }
+
+    //     /*
+    //     * Step 5: Callback (NO DB QUERY, SAME BUSINESS LOGIC)
+    //     */
+    //     $callback = function ($delivery) use ($lang, $packagesByDelivery) {
+
+    //         if ($lang == 'km') {
+    //             $delivery->status_code =
+    //                 GeneralSettingService::$statusCodeTrans[$delivery->status_id] ?? '';
+    //         } else {
+    //             $delivery->status_code = $delivery->status->name;
+    //         }
+
+    //         $delivery->driver_name  = $delivery->driver->username;
+    //         $delivery->driver_phone = $delivery->driver->phone;
+
+    //         // SAME logic, just fewer packages passed
+    //         $deliveryPackages = $packagesByDelivery[$delivery->id] ?? collect();
+    //         $details = $this->getTripDetails($deliveryPackages, $delivery->id);
+
+    //         $delivery->total = $details->total;
+    //         $delivery->total_delivered = Helper::getNumber(
+    //             $details->total_delivered + $details->total_failed_with_fee,
+    //             2
+    //         );
+
+    //         $delivery->failed_count = $details->failed_count;
+    //         $delivery->delivered_count = $details->delivered_count;
+    //         $delivery->delivery_count = $details->delivery_count;
+    //         $delivery->failed_with_fee_count = $details->failed_with_fee_count;
+    //         $delivery->package_count = $details->packages_count;
+
+    //         $delivery->depart_time = Helper::formatCustomDateTime(
+    //             $delivery->depart_datetime,
+    //             'h:i:s A'
+    //         );
+
+    //         $delivery->depart_date = Helper::formatCustomDateTime(
+    //             $delivery->depart_datetime,
+    //             'd-M-Y',
+    //             false,
+    //             $lang
+    //         );
+
+    //         unset($delivery->status, $delivery->driver);
+
+    //         return $delivery;
+    //     };
+
+    //     /*
+    //     * Step 6: Pagination (UNCHANGED)
+    //     */
+    //     return ApiResponse::PaginationV1($query, $req, '', [], 1000, $callback);
+    // }
+
     public function getTrips(Request $req)
     {
         $user = UserService::getAuthUser();
@@ -38,18 +225,19 @@ class FleetManagementController extends Controller
         $lang = $req->lang;
         $endDate = $req->endDate;
         $statusId = $req->status_id;
-
+    
         /*
-        * Step 1: Load package info only from latest delivery_packages
-        * (UNCHANGED business logic)
+        * STEP 1: Fetch packages ONLY for financial calculations
+        * We only need: delivery_id, status_id, driver_total
+        * All COUNTS come from deliveries table
         */
         $packages = Package::from('packages as p')
             ->join('delivery_packages as dp', 'p.id', '=', 'dp.package_id')
             ->whereIn('dp.id', function ($q) {
                 $q->selectRaw('MAX(dp2.id)')
-                ->from('delivery_packages as dp2')
-                ->where('dp2.is_deleted', false)
-                ->groupBy('dp2.package_id');
+                    ->from('delivery_packages as dp2')
+                    ->where('dp2.is_deleted', false)
+                    ->groupBy('dp2.package_id');
             })
             ->where([
                 ['p.is_deleted', false],
@@ -57,44 +245,48 @@ class FleetManagementController extends Controller
                 ['dp.has_swap', 0],
                 ['dp.delay_count', 0],
             ])
+            // ONLY 3 columns needed for financial calculations
             ->selectRaw(
-                'p.id as package_id,
-                dp.delivery_id,
-                dp.delay_count,
-                dp.has_swap,
+                'dp.delivery_id,
                 p.status_id,
                 p.driver_total'
             )
-            ->where(function($q) use($startDate,$endDate){
+            ->where(function($q) use($startDate, $endDate) {
                 $startDatetime = Helper::dateYMD($startDate) . " 00:00:00";
-                // Extend start date backward by 15 days
                 $extendedStartDatetime = Carbon::parse($startDatetime)->subDays(15)->format('Y-m-d H:i:s');
-                // End date stays the same
                 $endDatetime = Helper::dateYMD($endDate) . " 23:59:59";
+                
                 $q->where(function ($q) use ($extendedStartDatetime, $endDatetime) {
                     $q->where('p.status_id', 6)
-                    ->whereBetween('p.assign_driver_datetime', [$extendedStartDatetime, $endDatetime]);
+                        ->whereBetween('p.assign_driver_datetime', [$extendedStartDatetime, $endDatetime]);
                 })->orWhere(function ($q) use ($extendedStartDatetime, $endDatetime) {
                     $q->whereIn('p.status_id', [10, 19])
-                    ->whereBetween('p.failed_datetime', [$extendedStartDatetime, $endDatetime]);
+                        ->whereBetween('p.failed_datetime', [$extendedStartDatetime, $endDatetime]);
                 })->orWhere(function ($q) use ($extendedStartDatetime, $endDatetime) {
                     $q->where('p.status_id', 9)
-                    ->whereBetween('p.delivered_datetime', [$extendedStartDatetime, $endDatetime]);
-                })
-                ->orWhere(function ($q) use ($extendedStartDatetime, $endDatetime) {
+                        ->whereBetween('p.delivered_datetime', [$extendedStartDatetime, $endDatetime]);
+                })->orWhere(function ($q) use ($extendedStartDatetime, $endDatetime) {
                     $q->where('p.status_id', 11)
-                    ->whereBetween('p.returned_datetime', [$extendedStartDatetime, $endDatetime]);
+                        ->whereBetween('p.returned_datetime', [$extendedStartDatetime, $endDatetime]);
                 });
             })
             ->get();
-
+    
         /*
-        * Step 2: Index packages by delivery_id (NO logic change)
+        * STEP 2: Pre-calculate ONLY financial totals (not counts!)
+        * All counts are in deliveries table already
         */
-        $packagesByDelivery = $packages->groupBy('delivery_id');
-
+        $financialsByDelivery = $packages->groupBy('delivery_id')->map(function ($pkgs) {
+            return [
+                'total' => $pkgs->where('status_id', '!=', 11)->sum('driver_total'),
+                'total_delivered' => $pkgs->where('status_id', 9)->sum('driver_total'),
+                'total_failed_with_fee' => $pkgs->where('status_id', 19)->sum('driver_total'),
+            ];
+        });
+    
         /*
-        * Step 3: Delivery query (UNCHANGED logic)
+        * STEP 3: Delivery query
+        * Now includes failed_with_fee_count
         */
         $query = Delivery::query()
             ->with(['status', 'driver'])
@@ -112,29 +304,26 @@ class FleetManagementController extends Controller
                 package_count,
                 delivered_count,
                 failed_count,
+                failed_with_fee_count,
                 warehouse_id,
                 vehicle_type,
-                driver_id,
                 is_completed,
                 finished'
             );
-
+    
         /*
-        * Step 4: Filters (UNCHANGED)
+        * STEP 4: Filters
         */
         if ($search) {
             $query->where(function ($q) use ($search) {
                 if (str_starts_with($search, config('app.code_prefix'))) {
-                     $q->whereHas('packages.package', function ($sub) use ($search) {
-                        $sub->where('qr_code', $search);
-                    });
                     $q->whereHas('packages.package', function ($sub) use ($search) {
                         $sub->where('qr_code', $search);
                     });
                 } elseif (str_starts_with($search, '0')) {
                     $q->whereHas('distinctPackages.package', function ($q) use ($search) {
                         $q->where('receiver_phone', $search)
-                        ->whereColumn('packages.driver_id', 'delivery_packages.driver_id');
+                            ->whereColumn('packages.driver_id', 'delivery_packages.driver_id');
                     });
                 } else {
                     $q->where('fleet_tracking_number', $search);
@@ -144,78 +333,79 @@ class FleetManagementController extends Controller
             if ($driverId) {
                 $query->where('driver_id', $driverId);
             }
-
+    
             if ($statusId) {
                 $query->where('status_id', $statusId);
             }
-
+    
             if ($startDate && $endDate) {
                 $startDate = date('Y-m-d', strtotime($startDate));
                 $endDate   = date('Y-m-d', strtotime($endDate));
-
-                $query->whereBetween(
-                    'depart_datetime',
-                    ["$startDate 00:00:00", "$endDate 23:59:59"]
-                );
+                $query->whereBetween('depart_datetime', ["$startDate 00:00:00", "$endDate 23:59:59"]);
             } else {
                 $query->whereDate('depart_datetime', now());
             }
         }
-
+    
         /*
-        * Step 5: Callback (NO DB QUERY, SAME BUSINESS LOGIC)
+        * STEP 5: ULTRA-SIMPLE CALLBACK
+        * ALL counts from delivery table
+        * Only financials from pre-calculated data
         */
-        $callback = function ($delivery) use ($lang, $packagesByDelivery) {
-
-            if ($lang == 'km') {
-                $delivery->status_code =
-                    GeneralSettingService::$statusCodeTrans[$delivery->status_id] ?? '';
-            } else {
-                $delivery->status_code = $delivery->status->name;
-            }
-
+        $callback = function ($delivery) use ($lang, $financialsByDelivery) {
+            // Status code
+            $delivery->status_code = $lang == 'km' 
+                ? (GeneralSettingService::$statusCodeTrans[$delivery->status_id] ?? '')
+                : $delivery->status->name;
+    
+            // Driver info
             $delivery->driver_name  = $delivery->driver->username;
             $delivery->driver_phone = $delivery->driver->phone;
-
-            // SAME logic, just fewer packages passed
-            $deliveryPackages = $packagesByDelivery[$delivery->id] ?? collect();
-            $details = $this->getTripDetails($deliveryPackages, $delivery->id);
-
-            $delivery->total = $details->total;
+    
+            // =====================================================
+            // FINANCIAL TOTALS (from pre-calculated packages)
+            // =====================================================
+            $financials = $financialsByDelivery[$delivery->id] ?? [
+                'total' => 0,
+                'total_delivered' => 0,
+                'total_failed_with_fee' => 0,
+            ];
+            
+            $delivery->total = Helper::getNumber($financials['total'], 2);
             $delivery->total_delivered = Helper::getNumber(
-                $details->total_delivered + $details->total_failed_with_fee,
+                $financials['total_delivered'] + $financials['total_failed_with_fee'],
                 2
             );
-
-            $delivery->failed_count = $details->failed_count;
-            $delivery->delivered_count = $details->delivered_count;
-            $delivery->delivery_count = $details->delivery_count;
-            $delivery->failed_with_fee_count = $details->failed_with_fee_count;
-            $delivery->package_count = $details->packages_count;
-
-            $delivery->depart_time = Helper::formatCustomDateTime(
-                $delivery->depart_datetime,
-                'h:i:s A'
+    
+            // =====================================================
+            // ALL COUNTS FROM DELIVERY TABLE (NO CALCULATION!)
+            // =====================================================
+            $delivery->package_count = $delivery->package_count;
+            $delivery->delivered_count = $delivery->delivered_count;
+            $delivery->failed_count = $delivery->failed_count;
+            $delivery->failed_with_fee_count = $delivery->failed_with_fee_count;
+            
+            // On delivery = total - delivered - failed - failed_with_fee
+            $delivery->delivery_count = max(0, 
+                $delivery->package_count - 
+                $delivery->delivered_count - 
+                $delivery->failed_count - 
+                $delivery->failed_with_fee_count
             );
-
-            $delivery->depart_date = Helper::formatCustomDateTime(
-                $delivery->depart_datetime,
-                'd-M-Y',
-                false,
-                $lang
-            );
-
+    
+            // Format dates
+            $delivery->depart_time = Helper::formatCustomDateTime($delivery->depart_datetime, 'h:i:s A');
+            $delivery->depart_date = Helper::formatCustomDateTime($delivery->depart_datetime, 'd-M-Y', false, $lang);
+    
             unset($delivery->status, $delivery->driver);
-
             return $delivery;
         };
-
+    
         /*
-        * Step 6: Pagination (UNCHANGED)
+        * STEP 6: Pagination
         */
         return ApiResponse::PaginationV1($query, $req, '', [], 1000, $callback);
     }
-
 
     public function updateTripCount(Request $req){
         $updateArr = [];

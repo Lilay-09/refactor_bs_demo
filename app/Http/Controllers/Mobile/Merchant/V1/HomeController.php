@@ -40,7 +40,6 @@ use Helper;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Validator;
 
 class HomeController extends Controller

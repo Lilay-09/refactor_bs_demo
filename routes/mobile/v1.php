@@ -5,7 +5,6 @@ use App\Http\Controllers\Mobile\Driver\V1\HistoryController;
 use App\Http\Controllers\Mobile\Driver\V1\SearchController;
 use App\Http\Controllers\Mobile\Driver\V1\TransactionController;
 use App\Http\Controllers\Mobile\Merchant\DataInsightController;
-use App\Http\Controllers\Mobile\Merchant\V1\TransactionController as MerchantTransactionController;
 use App\Http\Controllers\Mobile\Merchant\V1\AuthController as AuthMerchantController;
 use App\Http\Controllers\Mobile\Merchant\V1\HistoryController as MerchantHistoryController;
 use App\Http\Controllers\Mobile\Driver\V1\HomeScreenController;

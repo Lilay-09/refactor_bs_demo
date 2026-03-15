@@ -20,6 +20,7 @@ class Delivery extends Model
         'package_count',
         'delivered_count',
         'failed_count',
+        'failed_with_fee_count',
         'finished',
         'finised_uid',
         'finished_datetime',
