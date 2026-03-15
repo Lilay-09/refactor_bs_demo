@@ -30,7 +30,7 @@ class PickUpCenterController extends Controller
 
     public function createQuickOrder(Request $req){
         $user = UserService::getAuthUser();
-        $createOrder = $this->pickupCenterService->createOrder($req,$user);
+        $createOrder = $this->pickupCenterService->createOrder($req->all(),$user);
         return ApiResponse::flex($createOrder);
     }
 
@@ -63,7 +63,7 @@ class PickUpCenterController extends Controller
         $order = Order::where('is_deleted',0)->find($id);
         if(!$order) return ApiResponse::NotFound(__('messages.not_found',['info' => 'Order']));
         if($order->status_id == 5) return ApiResponse::Duplicated(__('messages.error',['info' => 'Order has already inputed details!']));
-        $validate = $this->pickupCenterService->orderValidation($req);
+        $validate = $this->pickupCenterService->orderValidation($req->all());
         if($validate->fails()) return ApiResponse::ValidateFail($validate->errors()->first());
         $inputs = $validate->validated();
         $merchantId = $inputs['merchant_id'];
@@ -339,7 +339,7 @@ class PickUpCenterController extends Controller
     public function addPackage(Request $req){
         $user = UserService::getAuthUser();
         $orderId = $req->order_id;
-        $create = $this->pickupCenterService->createOrUpdatePackage($req,$user,null,$orderId);
+        $create = $this->pickupCenterService->createOrUpdatePackage($req->all(),$user,null,$orderId);
         return ApiResponse::flex($create);
     }
 
@@ -471,7 +471,7 @@ class PickUpCenterController extends Controller
 
     public function replaceOrderImage(Request $req){
         $user = UserService::getAuthUser();
-        $updateImg = $this->pickupCenterService->replaceOrderImage($user,$req);
+        $updateImg = $this->pickupCenterService->replaceOrderImage($user,$req->all());
         if($updateImg->error) return ApiResponse::flex($updateImg);
         return ApiResponse::JsonResult(null,__('messages.updated',[
             'info' => 'Image has replaced',
@@ -612,7 +612,7 @@ class PickUpCenterController extends Controller
         $user = UserService::getAuthUser();
         $orderId = $req->order_id;
         $packageId = $req->id;
-        $update = $this->pickupCenterService->createOrUpdatePackage($req,$user,$packageId,$orderId);
+        $update = $this->pickupCenterService->createOrUpdatePackage($req->all(),$user,$packageId,$orderId);
         return ApiResponse::flex($update);
     }
 
